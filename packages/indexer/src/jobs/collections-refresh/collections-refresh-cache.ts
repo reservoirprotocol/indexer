@@ -8,8 +8,8 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as resyncAttributeCache from "@/jobs/update-attribute/resync-attribute-cache";
 import { Collections } from "@/models/collections";
+import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
 
 const QUEUE_NAME = "collections-refresh-cache";
 
@@ -48,7 +48,10 @@ if (config.doBackgroundWork) {
       if (result) {
         await Collections.recalculateContractFloorSell(fromBuffer(result[0].contract));
         for (const { contract, token_id } of result) {
-          await resyncAttributeCache.addToQueue(fromBuffer(contract), token_id, 0);
+          await resyncAttributeCacheJob.addToQueue(
+            { contract: fromBuffer(contract), tokenId: token_id },
+            0
+          );
         }
       }
     },

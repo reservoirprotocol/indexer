@@ -1,45 +1,36 @@
-import { Job, Queue, QueueScheduler, Worker } from "bullmq";
-
 import { idb } from "@/common/db";
-import { logger } from "@/common/logger";
-import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
-import { config } from "@/config/index";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { logger } from "@/common/logger";
+import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
 
-import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
-import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
-import { handleNewSellOrderJob } from "@/jobs/update-attribute/handle-new-sell-order-job";
+export type NormalizedFloorQueueJobPayload = {
+  kind: string;
+  tokenSetId: string;
+  txHash: string | null;
+  txTimestamp: number | null;
+};
 
-const QUEUE_NAME = "token-updates-floor-ask-queue";
+export class NormalizedFloorQueueJob extends AbstractRabbitMqJobHandler {
+  queueName = "token-updates-normalized-floor-ask-queue";
+  maxRetries = 10;
+  concurrency = 30;
+  backoff = {
+    type: "exponential",
+    delay: 20000,
+  } as BackoffStrategy;
 
-export const queue = new Queue(QUEUE_NAME, {
-  connection: redis.duplicate(),
-  defaultJobOptions: {
-    attempts: 10,
-    backoff: {
-      type: "exponential",
-      delay: 20000,
-    },
-    removeOnComplete: 500,
-    removeOnFail: 10000,
-    timeout: 60000,
-  },
-});
-export let worker: Worker | undefined;
+  protected async process(payload: NormalizedFloorQueueJobPayload) {
+    try {
+      // TODO: Right now we filter out Blur orders since those don't yet
+      // support royalty normalization. A better approach to handling it
+      // would be to set the normalized fields to `null` for every order
+      // which doesn't support royalty normalization and then filter out
+      // such `null` fields in various normalized events/caches.
 
-new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
-
-// BACKGROUND WORKER ONLY
-if (config.doBackgroundWork) {
-  worker = new Worker(
-    QUEUE_NAME,
-    async (job: Job) => {
-      const { kind, tokenSetId, txHash, txTimestamp } = job.data as FloorAskInfo;
-
-      try {
-        // Atomically update the cache and trigger an api event if needed
-        const sellOrderResult = await idb.oneOrNone(
-          `
+      // Atomically update the cache and trigger an api event if needed
+      const sellOrderResult = await idb.oneOrNone(
+        `
             WITH z AS (
               SELECT
                 x.contract,
@@ -62,9 +53,9 @@ if (config.doBackgroundWork) {
               ) x LEFT JOIN LATERAL (
                 SELECT
                   orders.id AS order_id,
-                  orders.value,
+                  COALESCE(orders.normalized_value, orders."value") AS value,
                   orders.currency,
-                  orders.currency_value,
+                  COALESCE(orders.currency_normalized_value, orders.currency_value) AS currency_value,
                   orders.maker,
                   orders.valid_between,
                   orders.source_id_int,
@@ -79,38 +70,39 @@ if (config.doBackgroundWork) {
                   AND orders.fillability_status = 'fillable'
                   AND orders.approval_status = 'approved'
                   AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-                ORDER BY orders.value, orders.fee_bps, orders.id
+                  AND orders.kind != 'blur'
+                ORDER BY COALESCE(orders.normalized_value, orders.value), orders.value, orders.fee_bps, orders.id
                 LIMIT 1
               ) y ON TRUE
             ),
             w AS (
               UPDATE tokens SET
-                floor_sell_id = z.order_id,
-                floor_sell_value = z.value,
-                floor_sell_currency = z.currency,
-                floor_sell_currency_value = z.currency_value,
-                floor_sell_maker = z.maker,
-                floor_sell_valid_from = least(
+                normalized_floor_sell_id = z.order_id,
+                normalized_floor_sell_value = z.value,
+                normalized_floor_sell_currency = z.currency,
+                normalized_floor_sell_currency_value = z.currency_value,
+                normalized_floor_sell_maker = z.maker,
+                normalized_floor_sell_valid_from = least(
                   2147483647::NUMERIC,
                   date_part('epoch', lower(z.valid_between))
                 )::INT,
-                floor_sell_valid_to = least(
+                normalized_floor_sell_valid_to = least(
                   2147483647::NUMERIC,
                   coalesce(
                     nullif(date_part('epoch', upper(z.valid_between)), 'Infinity'),
                     0
                   )
                 )::INT,
-                floor_sell_source_id_int = z.source_id_int,
-                floor_sell_is_reservoir = z.is_reservoir,
+                normalized_floor_sell_source_id_int = z.source_id_int,
+                normalized_floor_sell_is_reservoir = z.is_reservoir,
                 updated_at = now()
               FROM z
               WHERE tokens.contract = z.contract
                 AND tokens.token_id = z.token_id
                 AND (
-                  tokens.floor_sell_id IS DISTINCT FROM z.order_id
-                  OR tokens.floor_sell_maker IS DISTINCT FROM z.maker
-                  OR tokens.floor_sell_value IS DISTINCT FROM z.value
+                  tokens.normalized_floor_sell_id IS DISTINCT FROM z.order_id
+                  OR tokens.normalized_floor_sell_maker IS DISTINCT FROM z.maker
+                  OR tokens.normalized_floor_sell_value IS DISTINCT FROM z.value
                 )
               RETURNING
                 z.contract,
@@ -122,12 +114,12 @@ if (config.doBackgroundWork) {
                 z.nonce AS new_floor_sell_nonce,
                 z.source_id_int AS new_floor_sell_source_id_int,
                 (
-                  SELECT tokens.floor_sell_value FROM tokens
+                  SELECT tokens.normalized_floor_sell_value FROM tokens
                   WHERE tokens.contract = z.contract
                     AND tokens.token_id = z.token_id
                 ) AS old_floor_sell_value
             )
-            INSERT INTO token_floor_sell_events (
+            INSERT INTO token_normalized_floor_sell_events (
               kind,
               contract,
               token_id,
@@ -164,57 +156,37 @@ if (config.doBackgroundWork) {
               tx_hash AS "txHash",
               tx_timestamp AS "txTimestamp"
           `,
-          {
-            tokenSetId,
-            kind: kind,
-            txHash: txHash ? toBuffer(txHash) : null,
-            txTimestamp: txTimestamp || null,
-          }
-        );
-
-        if (sellOrderResult) {
-          // Update attributes floor
-          sellOrderResult.contract = fromBuffer(sellOrderResult.contract);
-          await handleNewSellOrderJob.addToQueue(sellOrderResult);
-
-          // Update collection floor
-          sellOrderResult.txHash = sellOrderResult.txHash
-            ? fromBuffer(sellOrderResult.txHash)
-            : null;
-          await collectionUpdatesFloorAsk.addToQueue([sellOrderResult]);
-          await collectionUpdatesNonFlaggedFloorAsk.addToQueue([sellOrderResult]);
-
-          if (kind === "revalidation") {
-            logger.error(QUEUE_NAME, `StaleCache: ${JSON.stringify(sellOrderResult)}`);
-          }
+        {
+          tokenSetId: payload.tokenSetId,
+          kind: payload.kind,
+          txHash: payload.txHash ? toBuffer(payload.txHash) : null,
+          txTimestamp: payload.txTimestamp || null,
         }
-      } catch (error) {
-        logger.error(
-          QUEUE_NAME,
-          `Failed to process token floor-ask info ${JSON.stringify(job.data)}: ${error}`
-        );
-        throw error;
+      );
+
+      if (sellOrderResult) {
+        sellOrderResult.contract = fromBuffer(sellOrderResult.contract);
+
+        // Update collection floor
+        sellOrderResult.txHash = sellOrderResult.txHash ? fromBuffer(sellOrderResult.txHash) : null;
+        await collectionUpdatesNormalizedFloorAsk.addToQueue([sellOrderResult]);
+
+        if (payload.kind === "revalidation") {
+          logger.error(this.queueName, `StaleCache: ${JSON.stringify(sellOrderResult)}`);
+        }
       }
-    },
-    { connection: redis.duplicate(), concurrency: 30 }
-  );
-  worker.on("error", (error) => {
-    logger.error(QUEUE_NAME, `Worker errored: ${error}`);
-  });
+    } catch (error) {
+      logger.error(
+        this.queueName,
+        `Failed to process token normalized floor-ask info ${JSON.stringify(payload)}: ${error}`
+      );
+      throw error;
+    }
+  }
+
+  public async addToQueue(floorAskInfos: NormalizedFloorQueueJobPayload[]) {
+    await this.sendBatch(floorAskInfos.map((info) => ({ payload: info })));
+  }
 }
 
-export type FloorAskInfo = {
-  kind: string;
-  tokenSetId: string;
-  txHash: string | null;
-  txTimestamp: number | null;
-};
-
-export const addToQueue = async (floorAskInfos: FloorAskInfo[]) => {
-  await queue.addBulk(
-    floorAskInfos.map((floorAskInfo) => ({
-      name: `${floorAskInfo.tokenSetId}`,
-      data: floorAskInfo,
-    }))
-  );
-};
+export const normalizedFloorQueueJob = new NormalizedFloorQueueJob();

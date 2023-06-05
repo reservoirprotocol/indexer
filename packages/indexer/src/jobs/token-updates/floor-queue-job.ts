@@ -1,45 +1,32 @@
-import { Job, Queue, QueueScheduler, Worker } from "bullmq";
-
 import { idb } from "@/common/db";
-import { logger } from "@/common/logger";
-import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
-import { config } from "@/config/index";
-
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { logger } from "@/common/logger";
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import { handleNewSellOrderJob } from "@/jobs/update-attribute/handle-new-sell-order-job";
 
-const QUEUE_NAME = "token-updates-floor-ask-queue";
+export type FloorQueueJobPayload = {
+  kind: string;
+  tokenSetId: string;
+  txHash: string | null;
+  txTimestamp: number | null;
+};
 
-export const queue = new Queue(QUEUE_NAME, {
-  connection: redis.duplicate(),
-  defaultJobOptions: {
-    attempts: 10,
-    backoff: {
-      type: "exponential",
-      delay: 20000,
-    },
-    removeOnComplete: 500,
-    removeOnFail: 10000,
-    timeout: 60000,
-  },
-});
-export let worker: Worker | undefined;
+export class FloorQueueJob extends AbstractRabbitMqJobHandler {
+  queueName = "token-updates-floor-ask-queue";
+  maxRetries = 10;
+  concurrency = 30;
+  backoff = {
+    type: "exponential",
+    delay: 20000,
+  } as BackoffStrategy;
 
-new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
-
-// BACKGROUND WORKER ONLY
-if (config.doBackgroundWork) {
-  worker = new Worker(
-    QUEUE_NAME,
-    async (job: Job) => {
-      const { kind, tokenSetId, txHash, txTimestamp } = job.data as FloorAskInfo;
-
-      try {
-        // Atomically update the cache and trigger an api event if needed
-        const sellOrderResult = await idb.oneOrNone(
-          `
+  protected async process(payload: FloorQueueJobPayload) {
+    try {
+      // Atomically update the cache and trigger an api event if needed
+      const sellOrderResult = await idb.oneOrNone(
+        `
             WITH z AS (
               SELECT
                 x.contract,
@@ -164,57 +151,40 @@ if (config.doBackgroundWork) {
               tx_hash AS "txHash",
               tx_timestamp AS "txTimestamp"
           `,
-          {
-            tokenSetId,
-            kind: kind,
-            txHash: txHash ? toBuffer(txHash) : null,
-            txTimestamp: txTimestamp || null,
-          }
-        );
-
-        if (sellOrderResult) {
-          // Update attributes floor
-          sellOrderResult.contract = fromBuffer(sellOrderResult.contract);
-          await handleNewSellOrderJob.addToQueue(sellOrderResult);
-
-          // Update collection floor
-          sellOrderResult.txHash = sellOrderResult.txHash
-            ? fromBuffer(sellOrderResult.txHash)
-            : null;
-          await collectionUpdatesFloorAsk.addToQueue([sellOrderResult]);
-          await collectionUpdatesNonFlaggedFloorAsk.addToQueue([sellOrderResult]);
-
-          if (kind === "revalidation") {
-            logger.error(QUEUE_NAME, `StaleCache: ${JSON.stringify(sellOrderResult)}`);
-          }
+        {
+          tokenSetId: payload.tokenSetId,
+          kind: payload.kind,
+          txHash: payload.txHash ? toBuffer(payload.txHash) : null,
+          txTimestamp: payload.txTimestamp || null,
         }
-      } catch (error) {
-        logger.error(
-          QUEUE_NAME,
-          `Failed to process token floor-ask info ${JSON.stringify(job.data)}: ${error}`
-        );
-        throw error;
+      );
+
+      if (sellOrderResult) {
+        // Update attributes floor
+        sellOrderResult.contract = fromBuffer(sellOrderResult.contract);
+        await handleNewSellOrderJob.addToQueue(sellOrderResult);
+
+        // Update collection floor
+        sellOrderResult.txHash = sellOrderResult.txHash ? fromBuffer(sellOrderResult.txHash) : null;
+        await collectionUpdatesFloorAsk.addToQueue([sellOrderResult]);
+        await collectionUpdatesNonFlaggedFloorAsk.addToQueue([sellOrderResult]);
+
+        if (payload.kind === "revalidation") {
+          logger.error(this.queueName, `StaleCache: ${JSON.stringify(sellOrderResult)}`);
+        }
       }
-    },
-    { connection: redis.duplicate(), concurrency: 30 }
-  );
-  worker.on("error", (error) => {
-    logger.error(QUEUE_NAME, `Worker errored: ${error}`);
-  });
+    } catch (error) {
+      logger.error(
+        this.queueName,
+        `Failed to process token floor-ask info ${JSON.stringify(payload)}: ${error}`
+      );
+      throw error;
+    }
+  }
+
+  public async addToQueue(floorAskInfos: FloorQueueJobPayload[]) {
+    await this.sendBatch(floorAskInfos.map((info) => ({ payload: info })));
+  }
 }
 
-export type FloorAskInfo = {
-  kind: string;
-  tokenSetId: string;
-  txHash: string | null;
-  txTimestamp: number | null;
-};
-
-export const addToQueue = async (floorAskInfos: FloorAskInfo[]) => {
-  await queue.addBulk(
-    floorAskInfos.map((floorAskInfo) => ({
-      name: `${floorAskInfo.tokenSetId}`,
-      data: floorAskInfo,
-    }))
-  );
-};
+export const floorQueueJob = new FloorQueueJob();

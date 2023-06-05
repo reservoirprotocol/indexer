@@ -7,6 +7,6 @@ export class ApiKeyUpdatedAllChainsEvent {
     const parsedMessage = JSON.parse(message);
     await ApiKeyManager.update(parsedMessage.key, parsedMessage.fields);
 
-    logger.info(AllChainsChannel.ApiKeyCreated, `Reloaded key=${parsedMessage.key}`);
+    logger.info(AllChainsChannel.ApiKeyUpdated, `Reloaded key=${parsedMessage.key}`);
   }
 }

@@ -4,13 +4,15 @@ import { logger } from "@/common/logger";
 import { redisSubscriber, allChainsSyncRedisSubscriber, acquireLock } from "@/common/redis";
 import { config } from "@/config/index";
 import { AllChainsChannel, Channel } from "@/pubsub/channels";
+import { ApiKeyUpdatedEvent } from "@/pubsub/events/api-key-updated-event";
+import { RateLimitUpdatedEvent } from "@/pubsub/events/rate-limit-updated-event";
+import { RoutersUpdatedEvent } from "@/pubsub/events/routers-updated-event";
+import { SourcesUpdatedEvent } from "@/pubsub/events/sources-updated-event";
+import { ApiKeyCreatedAllChainsEvent } from "@/pubsub/all-chains-events/api-key-created-all-chains-event";
+import { ApiKeyUpdatedAllChainsEvent } from "@/pubsub/all-chains-events/api-key-updated-all-chains-event";
+import { PauseRabbitConsumerQueueEvent } from "@/pubsub/events/pause-rabbit-consumer-queue-event";
+import { ResumeRabbitConsumerQueueEvent } from "@/pubsub/events/resume-rabbit-consumer-queue-event";
 
-import { ApiKeyUpdatedEvent } from "@/pubsub/api-key-updated-event";
-import { RateLimitUpdatedEvent } from "@/pubsub/rate-limit-updated-event";
-import { RoutersUpdatedEvent } from "@/pubsub/routers-updated-event";
-import { SourcesUpdatedEvent } from "@/pubsub/sources-updated-event";
-import { ApiKeyCreatedAllChainsEvent } from "@/pubsub/api-key-created-all-chains-event";
-import { ApiKeyUpdatedAllChainsEvent } from "@/pubsub/api-key-updated-all-chains-event";
 import getUuidByString from "uuid-by-string";
 
 // Subscribe to all channels defined in the `Channel` enum
@@ -18,7 +20,7 @@ redisSubscriber.subscribe(_.values(Channel), (error, count) => {
   if (error) {
     logger.error("pubsub", `Failed to subscribe ${error.message}`);
   }
-  logger.info("pubsub", `${config.railwayStaticUrl} subscribed to ${count} channels`);
+  logger.info("pubsub", `subscribed to ${count} channels`);
 });
 
 redisSubscriber.on("message", async (channel, message) => {
@@ -43,6 +45,14 @@ redisSubscriber.on("message", async (channel, message) => {
 
     case Channel.SourcesUpdated:
       await SourcesUpdatedEvent.handleEvent(message);
+      break;
+
+    case Channel.PauseRabbitConsumerQueue:
+      await PauseRabbitConsumerQueueEvent.handleEvent(message);
+      break;
+
+    case Channel.ResumeRabbitConsumerQueue:
+      await ResumeRabbitConsumerQueueEvent.handleEvent(message);
       break;
   }
 });
