@@ -21,6 +21,8 @@ export type FetchCollectionMetadataJobPayload = {
   mintedTimestamp?: number;
   newCollection?: boolean;
   oldCollectionId?: string;
+  allowFallbackCollectionMetadata?: boolean;
+  context?: string;
 };
 
 export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
@@ -199,6 +201,8 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
             ? `${info.contract}-${info.tokenId}`
             : info.contract;
         }
+
+        info.allowFallbackCollectionMetadata = info.allowFallbackCollectionMetadata ?? true;
 
         return {
           payload: info,

@@ -4,6 +4,7 @@ import { io } from "socket.io-client";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import * as blurBidsBuffer from "@/jobs/order-updates/misc/blur-bids-buffer";
+import * as blurListingsRefresh from "@/jobs/order-updates/misc/blur-listings-refresh";
 import * as orderbook from "@/jobs/orderbook/orders-queue";
 
 const COMPONENT = "blur-websocket";
@@ -75,6 +76,8 @@ if (config.doWebsocketWork && config.blurWsUrl && config.blurWsApiKey) {
             ingestMethod: "websocket",
           }))
         );
+
+        await blurListingsRefresh.addToQueue(collection);
       }
     } catch (error) {
       logger.error(COMPONENT, `Error handling listing: ${error} (message = ${message})`);

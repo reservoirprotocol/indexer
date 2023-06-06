@@ -45,6 +45,17 @@ if (config.doBackgroundWork) {
       const { contract, tokenId, mintedTimestamp, newCollection, oldCollectionId } =
         job.data as FetchCollectionMetadataInfo;
 
+      if (contract === "0x82c7a8f707110f5fbb16184a5933e9f78a34c6ab") {
+        logger.info(
+          QUEUE_NAME,
+          JSON.stringify({
+            topic: "debug-emblem-vault",
+            message: "Start",
+            jobData: job.data,
+          })
+        );
+      }
+
       try {
         // Fetch collection metadata
         const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, "", {
@@ -121,6 +132,20 @@ if (config.doBackgroundWork) {
             collection: collection.id,
           },
         });
+
+        if (contract === "0x82c7a8f707110f5fbb16184a5933e9f78a34c6ab") {
+          logger.info(
+            QUEUE_NAME,
+            JSON.stringify({
+              topic: "debug-emblem-vault",
+              message: "After update tokens",
+              jobData: job.data,
+              collection,
+              tokenIdRange,
+              tokenFilter,
+            })
+          );
+        }
 
         // Write the collection to the database
         await idb.none(pgp.helpers.concat(queries));
@@ -206,6 +231,8 @@ export type FetchCollectionMetadataInfo = {
   mintedTimestamp?: number;
   newCollection?: boolean;
   oldCollectionId?: string;
+  allowFallbackCollectionMetadata?: boolean;
+  context?: string;
 };
 
 export const addToQueue = async (infos: FetchCollectionMetadataInfo[], jobId = "") => {
@@ -217,6 +244,8 @@ export const addToQueue = async (infos: FetchCollectionMetadataInfo[], jobId = "
           ? `${info.contract}-${info.tokenId}`
           : info.contract;
       }
+
+      info.allowFallbackCollectionMetadata = info.allowFallbackCollectionMetadata ?? true;
 
       return {
         name: jobId,

@@ -114,6 +114,7 @@ export class Collections {
         {
           contract,
           tokenId,
+          context: "updateCollectionCache",
         },
       ]);
       return;

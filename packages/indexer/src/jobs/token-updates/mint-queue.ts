@@ -173,6 +173,7 @@ if (config.doBackgroundWork) {
               contract,
               tokenId,
               mintedTimestamp,
+              context: "mint-queue",
             },
           ]);
         }

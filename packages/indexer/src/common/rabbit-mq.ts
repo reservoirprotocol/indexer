@@ -32,6 +32,7 @@ export type CreatePolicyPayload = {
     "max-length-bytes"?: number;
     expires?: number;
     "message-ttl"?: number;
+    "alternate-exchange"?: string;
   };
 };
 
@@ -112,7 +113,7 @@ export class RabbitMq {
     } catch (error) {
       logger.warn(
         `rabbitmq-publish-${queueName}`,
-        `failed to publish ${error} content=${JSON.stringify(content)} to ${queueName}`
+        `failed to publish ${error} content=${JSON.stringify(content)}`
       );
     }
   }

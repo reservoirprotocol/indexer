@@ -761,14 +761,17 @@ export const getExecuteSellV7Options: RouteOptions = {
               availableQuantity -= quantityFilled[result.id];
             }
 
-            // Account for the already filled maker's balance
             const maker = fromBuffer(result.maker);
             const currency = fromBuffer(result.currency);
-            const key = getMakerBalancesKey(maker, currency);
-            if (makerBalances[key]) {
-              const makerAvailableQuantity = makerBalances[key].div(result.price).toNumber();
-              if (makerAvailableQuantity < availableQuantity) {
-                availableQuantity = makerAvailableQuantity;
+
+            // Account for the already filled maker's balance (not needed for Blur orders)
+            if (result.kind !== "blur") {
+              const key = getMakerBalancesKey(maker, currency);
+              if (makerBalances[key]) {
+                const makerAvailableQuantity = makerBalances[key].div(result.price).toNumber();
+                if (makerAvailableQuantity < availableQuantity) {
+                  availableQuantity = makerAvailableQuantity;
+                }
               }
             }
 
