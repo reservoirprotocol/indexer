@@ -11,8 +11,7 @@ import { SortResults } from "@elastic/elasticsearch/lib/api/typesWithBodyKey";
 import { logger } from "@/common/logger";
 import { CollectionsEntity } from "@/models/collections/collections-entity";
 import { ActivityDocument, ActivityType } from "@/elasticsearch/indexes/activities/base";
-import { getNetworkName } from "@/config/network";
-import { config } from "@/config/index";
+import { getNetworkName, getNetworkSettings } from "@/config/network";
 import _ from "lodash";
 import { buildContinuation, splitContinuation } from "@/common/utils";
 import { addToQueue as backfillActivitiesAddToQueue } from "@/jobs/elasticsearch/backfill-activities-elasticsearch";
@@ -392,7 +391,10 @@ export const initIndex = async (): Promise<void> => {
         index: `${INDEX_NAME}-${Date.now()}`,
         mappings: MAPPINGS,
         settings: {
-          number_of_shards: config.chainId === 5 ? 4 : 40,
+          number_of_shards:
+            getNetworkSettings().elasticsearch?.indexes?.activities?.numberOfShards ||
+            getNetworkSettings().elasticsearch?.numberOfShards ||
+            1,
           sort: {
             field: ["timestamp", "createdAt"],
             order: ["desc", "desc"],
