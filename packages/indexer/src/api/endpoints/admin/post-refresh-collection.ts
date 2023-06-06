@@ -7,13 +7,13 @@ import _ from "lodash";
 
 import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { fromBuffer } from "@/common/utils";
+// import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections-refresh-cache";
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
-import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
+// import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
 import * as orderFixes from "@/jobs/order-fixes/fixes";
 import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
@@ -51,29 +51,31 @@ export const postRefreshCollectionOptions: RouteOptions = {
     try {
       const collection = await Collections.getById(payload.collection);
 
-      if (_.isNull(collection)) {
-        const tokenResult = await edb.oneOrNone(
-          `
-            SELECT
-              tokens.contract,
-              tokens.token_id
-            FROM tokens
-            WHERE tokens.collection_id = $/collection/
-            LIMIT 1
-          `,
-          { collection: payload.collection }
-        );
-        if (tokenResult) {
-          await fetchCollectionMetadata.addToQueue([
-            {
-              contract: fromBuffer(tokenResult.contract),
-              tokenId: tokenResult.token_id,
-            },
-          ]);
-
-          return { message: "Request accepted" };
-        }
-      }
+      // if (_.isNull(collection)) {
+      //   const tokenResult = await edb.oneOrNone(
+      //     `
+      //       SELECT
+      //         tokens.contract,
+      //         tokens.token_id
+      //       FROM tokens
+      //       WHERE tokens.collection_id = $/collection/
+      //       LIMIT 1
+      //     `,
+      //     { collection: payload.collection }
+      //   );
+      //   if (tokenResult) {
+      //     await fetchCollectionMetadata.addToQueue([
+      //       {
+      //         contract: fromBuffer(tokenResult.contract),
+      //         tokenId: tokenResult.token_id,
+      //         allowFallbackCollectionMetadata: false,
+      //         context: "post-refresh-collection",
+      //       },
+      //     ]);
+      //
+      //     return { message: "Request accepted" };
+      //   }
+      // }
 
       // If no collection found
       if (_.isNull(collection)) {

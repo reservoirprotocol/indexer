@@ -90,20 +90,6 @@ if (config.doBackgroundWork) {
           return;
         }
 
-        if (
-          result.collection_id === "0x82c7a8f707110f5fbb16184a5933e9f78a34c6ab" &&
-          contract === "0x82c7a8f707110f5fbb16184a5933e9f78a34c6ab"
-        ) {
-          logger.error(
-            QUEUE_NAME,
-            JSON.stringify({
-              topic: "Invalid metadata",
-              jobData: job.data,
-              result,
-            })
-          );
-        }
-
         // If the new collection ID is different from the collection ID currently stored
         if (
           result.collection_id !=
@@ -153,6 +139,7 @@ if (config.doBackgroundWork) {
                 mintedTimestamp: getUnixTime(new Date(result.created_at)),
                 newCollection: true,
                 oldCollectionId: result.collection_id,
+                context: "write-queue",
               },
             ],
             `${contract}:${tokenId}`

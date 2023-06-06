@@ -198,14 +198,17 @@ export const getCollectionActivityV6Options: RouteOptions = {
           }));
         }
 
-        const { activities, continuation } = await ActivitiesIndex.search({
-          types: query.types,
-          tokens,
-          collections: query.collection,
-          sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
-          limit: query.limit,
-          continuation: query.continuation,
-        });
+        const { activities, continuation } = await ActivitiesIndex.search(
+          {
+            types: query.types,
+            tokens,
+            collections: query.collection,
+            sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
+            limit: query.limit,
+            continuation: query.continuation,
+          },
+          true
+        );
 
         const result = _.map(activities, async (activity) => {
           const currency = activity.pricing?.currency
