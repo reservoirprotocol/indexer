@@ -95,7 +95,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
             id: lastResult.order_id,
           };
         } else {
-          logger.debug(
+          logger.info(
             QUEUE_NAME,
             `No results. cursor=${JSON.stringify(
               cursor
