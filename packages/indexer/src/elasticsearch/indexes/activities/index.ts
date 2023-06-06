@@ -145,6 +145,7 @@ export const search = async (params: {
   tokens?: { contract: string; tokenId: string }[];
   contracts?: string[];
   collections?: string[];
+  sources?: number[];
   users?: string[];
   sortBy?: "timestamp" | "createdAt";
   limit?: number;
@@ -172,6 +173,12 @@ export const search = async (params: {
 
     (esQuery as any).bool.filter.push({
       terms: { contract: contracts },
+    });
+  }
+
+  if (params.sources?.length) {
+    (esQuery as any).bool.filter.push({
+      terms: { "order.sourceId": params.sources },
     });
   }
 

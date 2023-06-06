@@ -4,6 +4,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
+import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as orderbook from "@/jobs/orderbook/orders-queue";
 import { updateBlurRoyalties } from "@/utils/blur";
@@ -82,7 +83,10 @@ if (config.doBackgroundWork) {
               AND orders.fillability_status = 'fillable'
               AND orders.approval_status = 'approved'
               AND orders.raw_data->>'createdAt' IS NOT NULL
-          `
+          `,
+          {
+            contract: toBuffer(collection),
+          }
         );
         // And make sure to remove any listings that were not retireved via the previous call
         for (const l of ownListings) {
