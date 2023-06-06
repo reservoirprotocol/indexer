@@ -2,9 +2,11 @@ import { redb } from "@/common/db";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { acquireLock, releaseLock } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
-import { CollectionMetadataInfo } from "@/jobs/collection-updates/metadata-queue";
 import { Tokens } from "@/models/tokens";
-import { metadataQueueJob } from "@/jobs/collection-updates/metadata-queue-job";
+import {
+  metadataQueueJob,
+  CollectionMetadataInfo,
+} from "@/jobs/collection-updates/metadata-queue-job";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import { config } from "@/config/index";
 
