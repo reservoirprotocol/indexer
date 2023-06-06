@@ -3,6 +3,7 @@ import { HashZero } from "@ethersproject/constants";
 import { searchForCall } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
 
+import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
@@ -94,6 +95,11 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           taker = (await utils.fetchTransaction(baseEventParams.txHash)).from.toLowerCase();
         }
 
+        logger.info(
+          "blur-sales-debug",
+          JSON.stringify({ txHash: baseEventParams.txHash, taker, after: false })
+        );
+
         // Handle: attribution
         const orderKind = "blur";
         const orderId = orderSide === "sell" ? sellHash : buyHash;
@@ -105,6 +111,11 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         if (attributionData.taker) {
           taker = attributionData.taker;
         }
+
+        logger.info(
+          "blur-sales-debug",
+          JSON.stringify({ txHash: baseEventParams.txHash, taker, after: true })
+        );
 
         // Handle: prices
         const currency =
@@ -152,6 +163,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           fillSourceId: attributionData.fillSource?.id,
           baseEventParams,
         });
+
+        logger.info("blur-sales-debug", JSON.stringify({ fillEvents: onChainData.fillEvents }));
 
         onChainData.fillInfos.push({
           context: `${orderId}-${baseEventParams.txHash}`,
