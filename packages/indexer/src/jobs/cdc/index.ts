@@ -14,6 +14,7 @@ const kafka = new Kafka({
 export const producer = kafka.producer();
 export const consumer = kafka.consumer({
   groupId: config.kafkaConsumerGroupId,
+  maxBytesPerPartition: config.kafkaMaxBytesPerPartition || 1048576, // (default is 1MB)
 });
 
 export async function startKafkaProducer(): Promise<void> {
