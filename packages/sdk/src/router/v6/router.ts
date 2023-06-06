@@ -55,6 +55,7 @@ import SwapModuleAbi from "./abis/SwapModule.json";
 import X2Y2ModuleAbi from "./abis/X2Y2Module.json";
 import ZeroExV4ModuleAbi from "./abis/ZeroExV4Module.json";
 import ZoraModuleAbi from "./abis/ZoraModule.json";
+import SudoswapV2ModuleAbi from "./abis/SudoswapV2Module.json";
 
 type SetupOptions = {
   x2y2ApiKey?: string;
@@ -124,6 +125,11 @@ export class Router {
       sudoswapModule: new Contract(
         Addresses.SudoswapModule[chainId] ?? AddressZero,
         SudoswapModuleAbi,
+        provider
+      ),
+      sudoswapV2Module: new Contract(
+        Addresses.SudoswapV2Module[chainId] ?? AddressZero,
+        SudoswapV2ModuleAbi,
         provider
       ),
       superRareModule: new Contract(
@@ -804,6 +810,7 @@ export class Router {
     const seaportV15Details: PerCurrencyListingDetails = {};
     const alienswapDetails: PerCurrencyListingDetails = {};
     const sudoswapDetails: ListingDetails[] = [];
+    const sudoswapV2Details: ListingDetails[] = [];
     const collectionXyzDetails: ListingDetails[] = [];
     const x2y2Details: ListingDetails[] = [];
     const zeroexV4Erc721Details: ListingDetails[] = [];
@@ -875,6 +882,10 @@ export class Router {
 
         case "sudoswap":
           detailsRef = sudoswapDetails;
+          break;
+
+        case "sudoswap-v2":
+          detailsRef = sudoswapV2Details;
           break;
 
         case "x2y2":
@@ -1780,6 +1791,61 @@ export class Router {
           sudoswapDetails.map((d) => (d.order as Sdk.Sudoswap.Order).params.pair),
           sudoswapDetails.map((d) => d.tokenId),
           Math.floor(Date.now() / 1000) + 10 * 60,
+          {
+            fillTo: taker,
+            refundTo: relayer,
+            revertIfIncomplete: Boolean(!options?.partial),
+            amount: price,
+          },
+          fees,
+        ]),
+        value: totalPrice,
+      });
+
+      // Track any possibly required swap
+      swapDetails.push({
+        tokenIn: buyInCurrency,
+        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOutAmount: totalPrice,
+        recipient: module.address,
+        refundTo: relayer,
+        details: sudoswapDetails,
+        executionIndex: executions.length - 1,
+      });
+
+      // Mark the listings as successfully handled
+      for (const { orderId } of sudoswapDetails) {
+        success[orderId] = true;
+        orderIds.push(orderId);
+      }
+    }
+
+    // Handle Sudoswap V2 listings
+    if (sudoswapV2Details.length) {
+      const orders = sudoswapV2Details.map((d) => d.order as Sdk.SudoswapV2.Order);
+      const module = this.contracts.sudoswapV2Module;
+
+      const fees = getFees(sudoswapV2Details);
+      const price = orders
+        .map((order) =>
+          bn(
+            order.params.extra.prices[
+              // Handle multiple listings from the same pool
+              orders
+                .filter((o) => o.params.pair === order.params.pair)
+                .findIndex((o) => o.params.tokenId === order.params.tokenId)
+            ]
+          )
+        )
+        .reduce((a, b) => a.add(b), bn(0));
+      const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+      const totalPrice = price.add(feeAmount);
+
+      executions.push({
+        module: module.address,
+        data: module.interface.encodeFunctionData("buyWithETH", [
+          sudoswapV2Details.map((d) => (d.order as Sdk.SudoswapV2.Order).params.pair),
+          sudoswapV2Details.map((d) => (d.amount ? d.amount : d.tokenId)),
           {
             fillTo: taker,
             refundTo: relayer,
@@ -2919,6 +2985,11 @@ export class Router {
           break;
         }
 
+        case "sudoswap-v2": {
+          module = this.contracts.sudoswapV2Module;
+          break;
+        }
+
         case "collectionxyz": {
           module = this.contracts.collectionXyzModule;
           break;
@@ -3444,6 +3515,37 @@ export class Router {
                   bn(order.params.extra.prices[0]).mul(50).div(10000)
                 ),
                 Math.floor(Date.now() / 1000) + 10 * 60,
+                {
+                  fillTo: taker,
+                  refundTo: taker,
+                  revertIfIncomplete: Boolean(!options?.partial),
+                },
+                fees,
+              ]),
+              value: 0,
+            },
+          });
+
+          success[detail.orderId] = true;
+
+          break;
+        }
+
+        case "sudoswap-v2": {
+          const order = detail.order as Sdk.SudoswapV2.Order;
+          const module = this.contracts.sudoswapV2Module;
+
+          executionsWithDetails.push({
+            detail,
+            execution: {
+              module: module.address,
+              data: module.interface.encodeFunctionData("sell", [
+                order.params.pair,
+                order.params.tokenId ? order.params.amount : detail.tokenId,
+                bn(order.params.extra.prices[0]).sub(
+                  // Take into account the protocol fee of 0.5%
+                  bn(order.params.extra.prices[0]).mul(50).div(10000)
+                ),
                 {
                   fillTo: taker,
                   refundTo: taker,

@@ -222,6 +222,13 @@ export type GenericOrderInfo =
       relayToArweave?: boolean;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+    }
+  | {
+      kind: "sudoswap-v2";
+      info: orders.sudoswapV2.OrderInfo;
+      relayToArweave?: boolean;
+      validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
     };
 
 export const jobProcessor = async (job: Job) => {

@@ -22,6 +22,7 @@ export * as manifold from "@/orderbook/orders/manifold";
 export * as superrare from "@/orderbook/orders/superrare";
 export * as looksRareV2 from "@/orderbook/orders/looks-rare-v2";
 export * as collectionxyz from "@/orderbook/orders/collectionxyz";
+export * as sudoswapV2 from "@/orderbook/orders/sudoswap-v2";
 
 // Imports
 
@@ -75,7 +76,8 @@ export type OrderKind =
   | "treasure"
   | "looks-rare-v2"
   | "blend"
-  | "collectionxyz";
+  | "collectionxyz"
+  | "sudoswap-v2";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
@@ -180,6 +182,9 @@ export const getOrderSourceByOrderKind = async (
         return sources.getOrInsert("alienswap.xyz");
       case "collectionxyz":
         return sources.getOrInsert("collection.xyz");
+
+      case "sudoswap-v2":
+        return sources.getOrInsert("sudoswap.xyz");
 
       case "mint": {
         if (address && mintsSources.has(address)) {
@@ -421,6 +426,14 @@ export const generateListingDetailsV6 = (
         kind: "collectionxyz",
         ...common,
         order: new Sdk.CollectionXyz.Order(config.chainId, order.rawData),
+      };
+    }
+
+    case "sudoswap-v2": {
+      return {
+        kind: "sudoswap-v2",
+        ...common,
+        order: new Sdk.SudoswapV2.Order(config.chainId, order.rawData),
       };
     }
 
@@ -750,6 +763,15 @@ export const generateBidDetailsV6 = async (
         kind: "collectionxyz",
         ...common,
         extraArgs,
+        order: sdkOrder,
+      };
+    }
+
+    case "sudoswap-v2": {
+      const sdkOrder = new Sdk.SudoswapV2.Order(config.chainId, order.rawData);
+      return {
+        kind: "sudoswap-v2",
+        ...common,
         order: sdkOrder,
       };
     }
