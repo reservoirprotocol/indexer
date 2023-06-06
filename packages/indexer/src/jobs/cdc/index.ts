@@ -29,8 +29,6 @@ export async function startKafkaConsumer(): Promise<void> {
     return topicHandler.getTopics();
   }).flat();
 
-  // Do this one at a time, as sometimes the consumer will re-create a topic that already exists if we use the method to subscribe to all topics at once and
-  // one of the topics do not exist.
   await Promise.all(
     topicsToSubscribe.map(async (topic) => {
       await consumer.subscribe({ topic });
@@ -40,53 +38,58 @@ export async function startKafkaConsumer(): Promise<void> {
   await consumer.run({
     partitionsConsumedConcurrently: config.kafkaPartitionsConsumedConcurrently,
 
-    eachMessage: async ({ message, topic }) => {
-      try {
-        const event = JSON.parse(message.value!.toString());
+    eachBatchAutoResolve: true,
 
-        // Find the corresponding topic handler and call the handle method on it, if the topic is not a dead letter topic
-        if (topic.endsWith("-dead-letter")) {
-          // if topic is dead letter, no need to process it
-          logger.info(
-            `${getServiceName()}-kafka-consumer`,
-            `Dead letter topic=${topic}, message=${JSON.stringify(event)}`
-          );
-          return;
-        }
-
-        for (const handler of TopicHandlers) {
-          if (handler.getTopics().includes(topic)) {
-            // If the event has not been retried before, set the retryCount to 0
-            if (!event.payload.retryCount) {
-              event.payload.retryCount = 0;
-            }
-
-            await handler.handle(event.payload);
-            break;
-          }
-        }
-      } catch (error) {
+    eachBatch: async ({ batch, resolveOffset, heartbeat }) => {
+      for (const message of batch.messages) {
         try {
-          logger.error(
-            `${getServiceName()}-kafka-consumer`,
-            `Error handling topic=${topic}, error=${error}, payload=${JSON.stringify(message)}`
-          );
+          const event = JSON.parse(message.value!.toString());
 
-          const newMessage = {
-            error: JSON.stringify(error),
-            value: message.value,
-          };
+          if (batch.topic.endsWith("-dead-letter")) {
+            logger.info(
+              `${getServiceName()}-kafka-consumer`,
+              `Dead letter topic=${batch.topic}, message=${JSON.stringify(event)}`
+            );
+            continue;
+          }
 
-          // If the event has an issue with finding its corresponding topic handler, send it to the dead letter queue
-          await producer.send({
-            topic: `${topic}-dead-letter`,
-            messages: [newMessage],
-          });
+          for (const handler of TopicHandlers) {
+            if (handler.getTopics().includes(batch.topic)) {
+              if (!event.payload.retryCount) {
+                event.payload.retryCount = 0;
+              }
+
+              await handler.handle(event.payload);
+              break;
+            }
+          }
+
+          await resolveOffset(message.offset);
+          await heartbeat();
         } catch (error) {
-          logger.error(
-            `${getServiceName()}-kafka-consumer`,
-            `Error sending to dead letter topic=${topic}, error=${error}}`
-          );
+          try {
+            logger.error(
+              `${getServiceName()}-kafka-consumer`,
+              `Error handling topic=${batch.topic}, error=${error}, payload=${JSON.stringify(
+                message
+              )}`
+            );
+
+            const newMessage = {
+              error: JSON.stringify(error),
+              value: message.value,
+            };
+
+            await producer.send({
+              topic: `${batch.topic}-dead-letter`,
+              messages: [newMessage],
+            });
+          } catch (error) {
+            logger.error(
+              `${getServiceName()}-kafka-consumer`,
+              `Error sending to dead letter topic=${batch.topic}, error=${error}}`
+            );
+          }
         }
       }
     },
