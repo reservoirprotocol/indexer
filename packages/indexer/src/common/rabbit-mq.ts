@@ -112,7 +112,7 @@ export class RabbitMq {
     } catch (error) {
       logger.warn(
         `rabbitmq-publish-${queueName}`,
-        `failed to publish ${error} content=${JSON.stringify(content)} to ${queueName}`
+        `failed to publish ${error} content=${JSON.stringify(content)}`
       );
     }
   }
@@ -125,7 +125,7 @@ export class RabbitMq {
       priority?: number;
     }[]
   ) {
-    const limit = pLimit(20);
+    const limit = pLimit(50);
     await Promise.all(
       messages.map((message) =>
         limit(() => {
