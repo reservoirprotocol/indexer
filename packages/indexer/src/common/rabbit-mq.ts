@@ -32,6 +32,7 @@ export type CreatePolicyPayload = {
     "max-length-bytes"?: number;
     expires?: number;
     "message-ttl"?: number;
+    "alternate-exchange"?: string;
   };
 };
 
@@ -42,6 +43,8 @@ export type DeletePolicyPayload = {
 
 export class RabbitMq {
   public static delayedExchangeName = `${getNetworkName()}.delayed`;
+  public static delayedAlternateExchangeName = `${RabbitMq.delayedExchangeName}-alternate`;
+  public static delayedAlternateExchangeQueueName = `${RabbitMq.delayedAlternateExchangeName}-queue`;
 
   private static rabbitMqPublisherConnection: Connection;
 
@@ -165,6 +168,29 @@ export class RabbitMq {
   }
 
   public static async assertQueuesAndExchanges() {
+    // Assert alternate exchange for the delayed exchange
+    await this.rabbitMqPublisherChannels[0].assertExchange(
+      RabbitMq.delayedAlternateExchangeName,
+      "fanout",
+      {
+        durable: true,
+        autoDelete: false,
+      }
+    );
+
+    // Assert alternate queue for the alternate exchange
+    await this.rabbitMqPublisherChannels[0].assertQueue(
+      RabbitMq.delayedAlternateExchangeQueueName,
+      { durable: true }
+    );
+
+    // Bind alternate queue for the alternate exchange
+    await this.rabbitMqPublisherChannels[0].bindQueue(
+      RabbitMq.delayedAlternateExchangeQueueName,
+      RabbitMq.delayedAlternateExchangeName,
+      ""
+    );
+
     // Assert the exchange for delayed messages
     await this.rabbitMqPublisherChannels[0].assertExchange(
       RabbitMq.delayedExchangeName,
@@ -232,6 +258,18 @@ export class RabbitMq {
       applyTo: "queues",
       definition: {
         "max-length": AbstractRabbitMqJobHandler.defaultMaxDeadLetterQueue,
+      },
+    });
+
+    // Create policy for alternate queues
+    await this.createOrUpdatePolicy({
+      name: `${getNetworkName()}.${RabbitMq.delayedAlternateExchangeName}-policy`,
+      vhost: "/",
+      priority: 1,
+      pattern: `^${RabbitMq.delayedExchangeName}$`,
+      applyTo: "exchanges",
+      definition: {
+        "alternate-exchange": RabbitMq.delayedAlternateExchangeName,
       },
     });
   }
