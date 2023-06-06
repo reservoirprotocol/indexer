@@ -382,16 +382,22 @@ export const initIndex = async (): Promise<void> => {
 
       const indexName = Object.keys(response)[0];
 
-      logger.info("elasticsearch-activities", "Index exists! Updating Mappings.");
-
       await elasticsearch.indices.putMapping({
         index: indexName,
         properties: MAPPINGS.properties,
       });
-    } else {
-      logger.info("elasticsearch-activities", "Creating index!");
 
-      await elasticsearch.indices.create({
+      logger.info(
+        "elasticsearch-activities",
+        JSON.stringify({
+          message: "Index already exists. Updating mapping.",
+          indexName,
+          mappings: MAPPINGS.properties,
+          response,
+        })
+      );
+    } else {
+      const params = {
         aliases: {
           [INDEX_NAME]: {},
         },
@@ -407,7 +413,17 @@ export const initIndex = async (): Promise<void> => {
             order: ["desc", "desc"],
           },
         },
-      });
+      };
+
+      await elasticsearch.indices.create(params);
+
+      logger.info(
+        "elasticsearch-activities",
+        JSON.stringify({
+          message: "Index created.",
+          params,
+        })
+      );
 
       await backfillActivitiesAddToQueue();
     }
