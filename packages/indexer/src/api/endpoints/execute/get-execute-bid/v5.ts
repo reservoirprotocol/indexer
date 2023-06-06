@@ -473,7 +473,10 @@ export const getExecuteBidV5Options: RouteOptions = {
               return errors.push({ message: "Unsupported currency", orderIndex: i });
             }
 
-            const totalPrice = bn(params.weiPrice).mul(params.quantity ?? 1);
+            // TODO: Always require the unit price
+            const totalPrice = params.orderKind.startsWith("seaport")
+              ? bn(params.weiPrice)
+              : bn(params.weiPrice).mul(params.quantity ?? 1);
 
             // Check the maker's balance
 

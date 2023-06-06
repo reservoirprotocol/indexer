@@ -62,6 +62,7 @@ export const config = {
   kafkaConsumerGroupId: String(process.env.KAFKA_CONSUMER_GROUP_ID),
   kafkaBrokers: String(process.env.KAFKA_BROKERS).split(","),
   kafkaClientId: String(process.env.KAFKA_CLIENT_ID),
+  kafkaMaxBytesPerPartition: Number(process.env.KAFKA_MAX_BYTES_PER_PARTITION),
 
   // for testing order websocket triggers
   doOldOrderWebsocketWork: Boolean(Number(process.env.DO_OLD_ORDER_WEBSOCKET_WORK)),
