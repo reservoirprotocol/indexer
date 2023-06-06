@@ -68,6 +68,8 @@ export const postRefreshCollectionOptions: RouteOptions = {
             {
               contract: fromBuffer(tokenResult.contract),
               tokenId: tokenResult.token_id,
+              allowFallbackCollectionMetadata: false,
+              context: "post-refresh-collection",
             },
           ]);
 
