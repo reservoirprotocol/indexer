@@ -101,120 +101,140 @@ export type GenericOrderInfo =
       info: orders.zeroExV4.OrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     }
   | {
       kind: "foundation";
       info: orders.foundation.OrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     }
   | {
       kind: "x2y2";
       info: orders.x2y2.OrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     }
   | {
       kind: "seaport";
       info: orders.seaport.OrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     }
   | {
       kind: "seaport-v1.4";
       info: orders.seaportV14.OrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     }
   | {
       kind: "seaport-v1.5";
       info: orders.seaportV15.OrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     }
   | {
       kind: "cryptopunks";
       info: orders.cryptopunks.OrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     }
   | {
       kind: "zora-v3";
       info: orders.zora.OrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     }
   | {
       kind: "sudoswap";
       info: orders.sudoswap.OrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     }
   | {
       kind: "universe";
       info: orders.universe.OrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     }
   | {
       kind: "rarible";
       info: orders.rarible.OrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     }
   | {
       kind: "flow";
       info: orders.flow.OrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     }
   | {
       kind: "blur";
       info: orders.blur.FullListingOrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     }
   | {
       kind: "blur-listing";
       info: orders.blur.PartialListingOrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     }
   | {
       kind: "blur-bid";
       info: orders.blur.PartialBidOrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     }
   | {
       kind: "manifold";
       info: orders.manifold.OrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     }
   | {
       kind: "element";
       info: orders.element.OrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     }
   | {
       kind: "nftx";
       info: orders.nftx.OrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     }
   | {
       kind: "superrare";
       info: orders.superrare.OrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     }
   | {
       kind: "looks-rare-v2";
       info: orders.looksRareV2.OrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     }
   | {
       kind: "collectionxyz";
@@ -222,10 +242,11 @@ export type GenericOrderInfo =
       relayToArweave?: boolean;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     };
 
 export const jobProcessor = async (job: Job) => {
-  const { kind, info, validateBidValue, ingestMethod } = job.data as GenericOrderInfo;
+  const { kind, info, validateBidValue, ingestMethod, ingestDelay } = job.data as GenericOrderInfo;
 
   let result: { status: string; delay?: number }[] = [];
   try {
@@ -261,12 +282,12 @@ export const jobProcessor = async (job: Job) => {
       }
 
       case "seaport-v1.4": {
-        result = await orders.seaportV14.save([info], validateBidValue, ingestMethod);
+        result = await orders.seaportV14.save([info], validateBidValue, ingestMethod, ingestDelay);
         break;
       }
 
       case "seaport-v1.5": {
-        result = await orders.seaportV15.save([info], validateBidValue, ingestMethod);
+        result = await orders.seaportV15.save([info], validateBidValue, ingestMethod, ingestDelay);
         break;
       }
 
