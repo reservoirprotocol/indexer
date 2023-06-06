@@ -15,6 +15,7 @@ import * as backfillAsks from "@/jobs/elasticsearch/backfill-ask-activities-elas
 import * as backfillAskCancels from "@/jobs/elasticsearch/backfill-ask-cancel-activities-elasticsearch";
 import * as backfillBids from "@/jobs/elasticsearch/backfill-bid-activities-elasticsearch";
 import * as backfillBidCancels from "@/jobs/elasticsearch/backfill-bid-cancel-activities-elasticsearch";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
 const QUEUE_NAME = "backfill-activities-elasticsearch";
 
@@ -42,6 +43,10 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           jobData: job.data,
         })
       );
+
+      if (job.data.initIndex) {
+        await ActivitiesIndex.initIndex();
+      }
 
       const promises = [];
 
@@ -278,6 +283,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
 }
 
 export const addToQueue = async (
+  initIndex = false,
   backfillTransferActivities = true,
   backfillSaleActivities = true,
   backfillAskActivities = true,
@@ -286,6 +292,7 @@ export const addToQueue = async (
   backfillBidCancelActivities = true
 ) => {
   await queue.add(randomUUID(), {
+    initIndex,
     backfillTransferActivities,
     backfillSaleActivities,
     backfillAskActivities,

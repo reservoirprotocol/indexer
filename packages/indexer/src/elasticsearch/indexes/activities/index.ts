@@ -451,7 +451,7 @@ export const initIndex = async (): Promise<void> => {
         })
       );
 
-      await backfillActivitiesAddToQueue();
+      await backfillActivitiesAddToQueue(false);
     }
   } catch (error) {
     logger.error(
