@@ -41,7 +41,7 @@ export async function startKafkaConsumer(): Promise<void> {
     eachBatchAutoResolve: true,
 
     eachBatch: async ({ batch, resolveOffset, heartbeat }) => {
-      for (const message of batch.messages) {
+      const messagePromises = batch.messages.map(async (message) => {
         try {
           const event = JSON.parse(message.value!.toString());
 
@@ -50,7 +50,7 @@ export async function startKafkaConsumer(): Promise<void> {
               `${getServiceName()}-kafka-consumer`,
               `Dead letter topic=${batch.topic}, message=${JSON.stringify(event)}`
             );
-            continue;
+            return;
           }
 
           for (const handler of TopicHandlers) {
@@ -65,7 +65,6 @@ export async function startKafkaConsumer(): Promise<void> {
           }
 
           await resolveOffset(message.offset);
-          await heartbeat();
         } catch (error) {
           try {
             logger.error(
@@ -91,7 +90,10 @@ export async function startKafkaConsumer(): Promise<void> {
             );
           }
         }
-      }
+      });
+
+      await Promise.all(messagePromises);
+      await heartbeat();
     },
   });
 
