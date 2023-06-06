@@ -85,14 +85,13 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           orderSide = isSellOrder ? "sell" : "buy";
           maker = isSellOrder ? traderOfSell : traderOfBuy;
           taker = isSellOrder ? traderOfBuy : traderOfSell;
-
-          if (taker === Sdk.Blend.Addresses.Blend[config.chainId]) {
-            taker = (await utils.fetchTransaction(baseEventParams.txHash)).from.toLowerCase();
-          }
         }
 
         if (routers.get(maker)) {
           maker = sell.trader.toLowerCase();
+        }
+        if (taker === Sdk.Blend.Addresses.Blend[config.chainId]) {
+          taker = (await utils.fetchTransaction(baseEventParams.txHash)).from.toLowerCase();
         }
 
         // Handle: attribution
@@ -103,7 +102,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           orderKind,
           { orderId }
         );
-
         if (attributionData.taker) {
           taker = attributionData.taker;
         }
