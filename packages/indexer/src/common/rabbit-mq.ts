@@ -32,6 +32,7 @@ export type CreatePolicyPayload = {
     "max-length-bytes"?: number;
     expires?: number;
     "message-ttl"?: number;
+    "alternate-exchange"?: string;
   };
 };
 

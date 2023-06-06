@@ -33,6 +33,8 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
   [...txHashToEvents.entries()].forEach(([txHash, events]) => {
     const kindToEvents = new Map<EventKind, EnhancedEvent[]>();
     let blockHash = "";
+    let logIndex = null;
+    let batchIndex = null;
 
     for (const event of events) {
       if (!kindToEvents.has(event.kind)) {
@@ -41,6 +43,8 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
 
       if (!blockHash) {
         blockHash = event.baseEventParams.blockHash;
+        logIndex = event.baseEventParams.logIndex;
+        batchIndex = event.baseEventParams.batchIndex;
       }
 
       kindToEvents.get(event.kind)!.push(event);
@@ -225,7 +229,7 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
     ];
 
     txHashToEventsBatch.set(txHash, {
-      id: getUuidByString(`${txHash}:${blockHash}`),
+      id: getUuidByString(`${txHash}:${logIndex}:${batchIndex}:${blockHash}`),
       events: eventsByKind,
     });
   });
