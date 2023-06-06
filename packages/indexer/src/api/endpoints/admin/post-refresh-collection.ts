@@ -10,11 +10,11 @@ import { logger } from "@/common/logger";
 // import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
-// import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
 import * as orderFixes from "@/jobs/order-fixes/fixes";
 import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
+// import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
 import { metadataQueueJob } from "@/jobs/collection-updates/metadata-queue-job";
 import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
 import {
@@ -67,7 +67,7 @@ export const postRefreshCollectionOptions: RouteOptions = {
       //     { collection: payload.collection }
       //   );
       //   if (tokenResult) {
-      //     await fetchCollectionMetadata.addToQueue([
+      //     await fetchCollectionMetadataJob.addToQueue([
       //       {
       //         contract: fromBuffer(tokenResult.contract),
       //         tokenId: tokenResult.token_id,
