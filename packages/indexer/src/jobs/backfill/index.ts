@@ -1,6 +1,8 @@
 import "@/jobs/backfill/backfill-block-timestamps";
 import "@/jobs/backfill/backfill-expired-orders";
 import "@/jobs/backfill/backfill-foundation-sales";
+import "@/jobs/backfill/backfill-foundation-orders";
+import "@/jobs/backfill/backfill-blur-sales";
 import "@/jobs/backfill/backfill-mints";
 import "@/jobs/backfill/backfill-sale-royalties";
 import "@/jobs/backfill/backfill-update-missing-metadata";

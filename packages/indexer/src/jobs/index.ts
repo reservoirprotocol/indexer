@@ -41,6 +41,7 @@ import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders"
 import * as backfillExpiredOrders2 from "@/jobs/backfill/backfill-expired-orders-2";
 import * as backfillFoundationSales from "@/jobs/backfill/backfill-foundation-sales";
 import * as backfillMints from "@/jobs/backfill/backfill-mints";
+import * as backfillBlurSales from "@/jobs/backfill/backfill-blur-sales";
 import * as backfillSaleRoyalties from "@/jobs/backfill/backfill-sale-royalties";
 import * as backfillUpdateMissingMetadata from "@/jobs/backfill/backfill-update-missing-metadata";
 import * as backfillInvalidateSeaportV14Orders from "@/jobs/backfill/backfill-cancel-seaport-v11-orders";
@@ -49,6 +50,7 @@ import * as backfillCancelEventsCreatedAt from "@/jobs/backfill/backfill-cancel-
 import * as backfillNftTransferEventsCreatedAt from "@/jobs/backfill/backfill-nft-transfer-events-created-at";
 import * as backfillCollectionsRoyalties from "@/jobs/backfill/backfill-collections-royalties";
 import * as backfillWrongNftBalances from "@/jobs/backfill/backfill-wrong-nft-balances";
+import * as backfillFoundationOrders from "@/jobs/backfill/backfill-foundation-orders";
 
 import * as topBidUpdate from "@/jobs/bid-updates/top-bid-update-queue";
 
@@ -123,6 +125,7 @@ import * as expiredOrdersCron from "@/jobs/order-updates/cron/expired-orders-que
 import * as oracleOrdersCron from "@/jobs/order-updates/cron/oracle-orders-queue";
 import * as blurBidsBufferMisc from "@/jobs/order-updates/misc/blur-bids-buffer";
 import * as blurBidsRefreshMisc from "@/jobs/order-updates/misc/blur-bids-refresh";
+import * as blurListingsRefreshMisc from "@/jobs/order-updates/misc/blur-listings-refresh";
 import * as saveBidEvents from "@/jobs/order-updates/save-bid-events";
 
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
@@ -170,6 +173,7 @@ import * as backfillBidActivitiesElasticsearch from "@/jobs/elasticsearch/backfi
 import * as backfillAskCancelActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-ask-cancel-activities-elasticsearch";
 import * as backfillBidCancelActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-bid-cancel-activities-elasticsearch";
 import * as updateActivitiesCollectionJob from "@/jobs/elasticsearch/update-activities-collection";
+import * as backfillActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-activities-elasticsearch";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -196,6 +200,7 @@ export const allJobQueues = [
   backfillExpiredOrders.queue,
   backfillExpiredOrders2.queue,
   backfillFoundationSales.queue,
+  backfillFoundationOrders.queue,
   backfillMints.queue,
   backfillSaleRoyalties.queue,
   backfillUpdateMissingMetadata.queue,
@@ -205,6 +210,7 @@ export const allJobQueues = [
   backfillCollectionsRoyalties.queue,
   backfillWrongNftBalances.queue,
   backfillInvalidateSeaportV14Orders.queue,
+  backfillBlurSales.queue,
 
   currencies.queue,
 
@@ -281,6 +287,7 @@ export const allJobQueues = [
   oracleOrdersCron.queue,
   blurBidsBufferMisc.queue,
   blurBidsRefreshMisc.queue,
+  blurListingsRefreshMisc.queue,
   saveBidEvents.queue,
 
   orderbookOrders.queue,
@@ -329,4 +336,5 @@ export const allJobQueues = [
   backfillAskCancelActivitiesElasticsearch.queue,
   backfillBidCancelActivitiesElasticsearch.queue,
   updateActivitiesCollectionJob.queue,
+  backfillActivitiesElasticsearch.queue,
 ];
