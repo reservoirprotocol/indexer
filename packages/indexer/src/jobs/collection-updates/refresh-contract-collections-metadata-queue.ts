@@ -7,8 +7,10 @@ import { config } from "@/config/index";
 import { redb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { Tokens } from "@/models/tokens";
-import { CollectionMetadataInfo } from "@/jobs/collection-updates/metadata-queue";
-import { metadataQueueJob } from "@/jobs/collection-updates/metadata-queue-job";
+import {
+  metadataQueueJob,
+  CollectionMetadataInfo,
+} from "@/jobs/collection-updates/metadata-queue-job";
 import { metadataFetchQueueJob } from "@/jobs/metadata-index/fetch-queue-job";
 
 const QUEUE_NAME = "refresh-contract-collections-metadata-queue";
