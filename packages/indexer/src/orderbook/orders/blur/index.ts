@@ -43,6 +43,17 @@ export const saveFullListings = async (
       const order = new Sdk.Blur.Order(config.chainId, orderParams);
       const id = order.hash();
 
+      // For testing, these will be handled by the partial order logic
+      if (
+        order.params.collection === "0xe6d48bf4ee912235398b96e16db6f310c21e82cb" ||
+        order.params.collection === "0x19b86299c21505cdf59ce63740b240a9c822b5e4"
+      ) {
+        return results.push({
+          id,
+          status: "collection-disabled",
+        });
+      }
+
       // Check: order doesn't already exist
       const orderExists = await idb.oneOrNone(`SELECT 1 FROM orders WHERE orders.id = $/id/`, {
         id,
@@ -357,7 +368,7 @@ export const savePartialListings = async (
       const source = await sources.getOrInsert("blur.io");
 
       // Invalidate any old orders
-      const anyActiveOrders = orderParams.price && orderParams.createdAt;
+      const anyActiveOrders = orderParams.price;
       const invalidatedOrderIds = await idb.manyOrNone(
         `
           UPDATE orders SET
@@ -369,12 +380,18 @@ export const savePartialListings = async (
             AND orders.fillability_status = 'fillable'
             AND orders.raw_data->>'createdAt' IS NOT NULL
             AND orders.id != $/excludeOrderId/
+            ${
+              orderParams.createdAt
+                ? ` AND (orders.raw_data->>'createdAt')::TIMESTAMPTZ <= $/createdAt/`
+                : ""
+            }
           RETURNING orders.id
         `,
         {
           tokenSetId: `token:${orderParams.collection}:${orderParams.tokenId}`,
           sourceId: source.id,
           excludeOrderId: anyActiveOrders ? getBlurListingId(orderParams, owner) : HashZero,
+          createdAt: orderParams.createdAt,
         }
       );
       for (const { id } of invalidatedOrderIds) {

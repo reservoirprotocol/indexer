@@ -38,7 +38,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
       const fromTimestamp = job.data.fromTimestamp || 0;
       const toTimestamp = job.data.toTimestamp || 9999999999;
 
-      const limit = Number((await redis.get(`${QUEUE_NAME}-limit`)) || 1);
+      const limit = Number((await redis.get(`${QUEUE_NAME}-limit`)) || 500);
 
       try {
         let continuationFilter = "";
@@ -100,6 +100,13 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
             logIndex: lastResult.event_log_index,
             batchIndex: lastResult.event_batch_index,
           };
+        } else {
+          logger.info(
+            QUEUE_NAME,
+            `No results. cursor=${JSON.stringify(
+              cursor
+            )}, fromTimestamp=${fromTimestamp}, toTimestamp=${toTimestamp}`
+          );
         }
       } catch (error) {
         logger.error(

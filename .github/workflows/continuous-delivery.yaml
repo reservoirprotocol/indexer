@@ -241,3 +241,7 @@ jobs:
             ./prod/platform/indexer-kafka-worker.yaml \
             ${{ github.sha }} \
             indexer-kafka-worker
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-polygon-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-polygon-master

@@ -37,7 +37,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
       const timestampFilterField = job.data.timestampFilterField;
       const orderId = job.data.orderId;
 
-      const limit = Number((await redis.get(`${QUEUE_NAME}-limit`)) || 1);
+      const limit = Number((await redis.get(`${QUEUE_NAME}-limit`)) || 500);
 
       try {
         let continuationFilter = "";
@@ -94,6 +94,13 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
             updatedAt: lastResult.updated_ts,
             id: lastResult.order_id,
           };
+        } else {
+          logger.debug(
+            QUEUE_NAME,
+            `No results. cursor=${JSON.stringify(
+              cursor
+            )}, fromTimestamp=${fromTimestamp}, toTimestamp=${toTimestamp}`
+          );
         }
       } catch (error) {
         logger.error(

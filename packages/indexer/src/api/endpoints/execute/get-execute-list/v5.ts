@@ -676,7 +676,7 @@ export const getExecuteListV5Options: RouteOptions = {
                 let approvalTx: TxData | undefined;
 
                 // Check the order's fillability
-                const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
+                const exchange = new Sdk.SeaportV15.Exchange(config.chainId);
                 try {
                   await seaportBaseCheck.offChainCheck(order, "seaport-v1.5", exchange, {
                     onChainApprovalRecheck: true,

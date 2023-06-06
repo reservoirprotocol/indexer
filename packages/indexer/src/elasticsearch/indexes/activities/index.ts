@@ -15,6 +15,7 @@ import { getNetworkName } from "@/config/network";
 import { config } from "@/config/index";
 import _ from "lodash";
 import { buildContinuation, splitContinuation } from "@/common/utils";
+import { addToQueue as backfillActivitiesAddToQueue } from "@/jobs/elasticsearch/backfill-activities-elasticsearch";
 
 const INDEX_NAME = `${getNetworkName()}.activities`;
 
@@ -330,7 +331,7 @@ const _search = async (
     );
 
     if ((error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception") {
-      logger.error(
+      logger.warn(
         "elasticsearch-activities",
         JSON.stringify({
           topic: "_search",
@@ -398,6 +399,8 @@ export const initIndex = async (): Promise<void> => {
           },
         },
       });
+
+      await backfillActivitiesAddToQueue();
     }
   } catch (error) {
     logger.error(
