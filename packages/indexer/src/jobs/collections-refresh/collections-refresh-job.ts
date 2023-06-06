@@ -3,7 +3,12 @@ import { CollectionsEntity } from "@/models/collections/collections-entity";
 import { add, getUnixTime, set, sub } from "date-fns";
 import { Collections } from "@/models/collections";
 import _ from "lodash";
-import { metadataQueueJob } from "@/jobs/collection-updates/metadata-queue-job";
+import {
+  CollectionMetadataInfo,
+  metadataQueueJob,
+} from "@/jobs/collection-updates/metadata-queue-job";
+import { redb } from "@/common/db";
+import { logger } from "@/common/logger";
 
 export class CollectionRefreshJob extends AbstractRabbitMqJobHandler {
   queueName = "collections-refresh-queue";
@@ -41,12 +46,46 @@ export class CollectionRefreshJob extends AbstractRabbitMqJobHandler {
     // Get top collections by volume
     collections = collections.concat(await Collections.getTopCollectionsByVolume());
 
-    const contracts = _.map(collections, (collection) => ({
-      contract: collection.contract,
-      community: collection.community,
-    }));
+    const collectionIds = _.map(collections, (collection) => collection.id);
 
-    await metadataQueueJob.addToQueue({ contract: contracts });
+    const results = await redb.manyOrNone(
+      `
+                SELECT
+                  collections.contract,
+                  collections.community,
+                  t.token_id
+                FROM collections
+                JOIN LATERAL (
+                    SELECT t.token_id
+                    FROM tokens t
+                    WHERE t.collection_id = collections.id
+                    LIMIT 1
+                ) t ON TRUE
+                WHERE collections.id IN ($/collectionIds:list/)
+              `,
+      { collectionIds }
+    );
+
+    const infos = _.map(
+      results,
+      (result) =>
+        ({
+          contract: result.contract,
+          community: result.community,
+          tokenId: result,
+        } as CollectionMetadataInfo)
+    );
+
+    logger.info(
+      this.queueName,
+      JSON.stringify({
+        topic: "debug",
+        collectionsCount: collections.length,
+        resultsCount: results.length,
+      })
+    );
+
+    await metadataQueueJob.addToQueueBulk(infos);
   }
 
   public async addToQueue() {
