@@ -125,7 +125,7 @@ export class RabbitMq {
       priority?: number;
     }[]
   ) {
-    const limit = pLimit(20);
+    const limit = pLimit(50);
     await Promise.all(
       messages.map((message) =>
         limit(() => {
