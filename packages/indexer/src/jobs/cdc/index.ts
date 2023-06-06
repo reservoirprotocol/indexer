@@ -5,6 +5,13 @@ import { TopicHandlers } from "@/jobs/cdc/topics";
 import { logger } from "@/common/logger";
 import { getServiceName } from "@/config/network";
 
+const topicHandlerMap = new Map();
+TopicHandlers.forEach((handler) => {
+  handler.getTopics().forEach((topic) => {
+    topicHandlerMap.set(topic, handler);
+  });
+});
+
 const kafka = new Kafka({
   clientId: config.kafkaClientId,
   brokers: config.kafkaBrokers,
@@ -54,18 +61,22 @@ export async function startKafkaConsumer(): Promise<void> {
             return;
           }
 
-          for (const handler of TopicHandlers) {
-            if (handler.getTopics().includes(batch.topic)) {
-              if (!event.payload.retryCount) {
-                event.payload.retryCount = 0;
-              }
-
-              await handler.handle(event.payload);
-              break;
-            }
+          const handler = topicHandlerMap.get(batch.topic);
+          if (!handler) {
+            logger.error(
+              `${getServiceName()}-kafka-consumer`,
+              `No handler found for topic=${batch.topic}`
+            );
+            return;
           }
 
-          await resolveOffset(message.offset);
+          if (!event.payload.retryCount) {
+            event.payload.retryCount = 0;
+          }
+
+          await handler.handle(event.payload);
+
+          resolveOffset(message.offset);
         } catch (error) {
           try {
             logger.error(
