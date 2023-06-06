@@ -139,18 +139,21 @@ export const save = async (activities: ActivityDocument[]): Promise<void> => {
   }
 };
 
-export const search = async (params: {
-  types?: ActivityType;
-  tokens?: { contract: string; tokenId: string }[];
-  contracts?: string[];
-  collections?: string[];
-  sources?: number[];
-  users?: string[];
-  sortBy?: "timestamp" | "createdAt";
-  limit?: number;
-  continuation?: string;
-  continuationAsInt?: boolean;
-}): Promise<{ activities: ActivityDocument[]; continuation: string | null }> => {
+export const search = async (
+  params: {
+    types?: ActivityType;
+    tokens?: { contract: string; tokenId: string }[];
+    contracts?: string[];
+    collections?: string[];
+    sources?: number[];
+    users?: string[];
+    sortBy?: "timestamp" | "createdAt";
+    limit?: number;
+    continuation?: string;
+    continuationAsInt?: boolean;
+  },
+  debug = false
+): Promise<{ activities: ActivityDocument[]; continuation: string | null }> => {
   const esQuery = {};
 
   (esQuery as any).bool = { filter: [] };
@@ -240,12 +243,16 @@ export const search = async (params: {
   }
 
   try {
-    const activities = await _search({
-      query: esQuery,
-      sort: esSort as Sort,
-      size: params.limit,
-      search_after: searchAfter,
-    });
+    const activities = await _search(
+      {
+        query: esQuery,
+        sort: esSort as Sort,
+        size: params.limit,
+        search_after: searchAfter,
+      },
+      0,
+      debug
+    );
 
     let continuation = null;
 
@@ -290,7 +297,8 @@ const _search = async (
     search_after?: SortResults | undefined;
     track_total_hits?: boolean;
   },
-  retries = 0
+  retries = 0,
+  debug = false
 ): Promise<ActivityDocument[]> => {
   try {
     const esResult = await elasticsearch.search<ActivityDocument>({
@@ -300,18 +308,8 @@ const _search = async (
 
     const results = esResult.hits.hits.map((hit) => hit._source!);
 
-    if (retries > 0) {
+    if (retries > 0 || debug) {
       logger.info(
-        "elasticsearch-activities",
-        JSON.stringify({
-          topic: "_search",
-          latency: esResult.took,
-          params: JSON.stringify(params),
-          retries,
-        })
-      );
-    } else {
-      logger.debug(
         "elasticsearch-activities",
         JSON.stringify({
           topic: "_search",
@@ -352,7 +350,7 @@ const _search = async (
 
       if (retries <= 3) {
         retries += 1;
-        return _search(params, retries);
+        return _search(params, retries, debug);
       }
 
       logger.error(
