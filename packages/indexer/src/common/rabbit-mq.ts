@@ -111,7 +111,7 @@ export class RabbitMq {
         }
       });
     } catch (error) {
-      logger.warn(
+      logger.debug(
         `rabbitmq-publish-${queueName}`,
         `failed to publish ${error} content=${JSON.stringify(content)}`
       );
