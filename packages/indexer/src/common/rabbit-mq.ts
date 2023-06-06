@@ -43,12 +43,18 @@ export class RabbitMq {
   public static delayedExchangeName = `${getNetworkName()}.delayed`;
 
   private static rabbitMqPublisherConnection: Connection;
-  private static rabbitMqPublisherChannel: ConfirmChannel;
+
+  private static maxPublisherChannelsCount = 10;
+  private static rabbitMqPublisherChannels: ConfirmChannel[] = [];
 
   public static async connect() {
     RabbitMq.rabbitMqPublisherConnection = await amqplib.connect(config.rabbitMqUrl);
-    RabbitMq.rabbitMqPublisherChannel =
-      await this.rabbitMqPublisherConnection.createConfirmChannel();
+
+    for (let i = 0; i < RabbitMq.maxPublisherChannelsCount; ++i) {
+      RabbitMq.rabbitMqPublisherChannels.push(
+        await this.rabbitMqPublisherConnection.createConfirmChannel()
+      );
+    }
   }
 
   public static async send(queueName: string, content: RabbitMQMessage, delay = 0, priority = 0) {
@@ -60,12 +66,14 @@ export class RabbitMq {
         return;
       }
 
+      const channelIndex = _.random(0, RabbitMq.maxPublisherChannelsCount - 1);
+
       await new Promise<void>((resolve, reject) => {
         if (delay) {
           content.delay = delay;
 
           // If delay given publish to the delayed exchange
-          RabbitMq.rabbitMqPublisherChannel.publish(
+          RabbitMq.rabbitMqPublisherChannels[channelIndex].publish(
             RabbitMq.delayedExchangeName,
             queueName,
             Buffer.from(JSON.stringify(content)),
@@ -86,7 +94,7 @@ export class RabbitMq {
           );
         } else {
           // If no delay send directly to queue to save any unnecessary routing
-          RabbitMq.rabbitMqPublisherChannel.sendToQueue(
+          RabbitMq.rabbitMqPublisherChannels[channelIndex].sendToQueue(
             queueName,
             Buffer.from(JSON.stringify(content)),
             { priority, headers: { "x-deduplication-header": content.jobId } },
@@ -154,7 +162,7 @@ export class RabbitMq {
 
   public static async assertQueuesAndExchanges() {
     // Assert the exchange for delayed messages
-    await this.rabbitMqPublisherChannel.assertExchange(
+    await this.rabbitMqPublisherChannels[0].assertExchange(
       RabbitMq.delayedExchangeName,
       "x-delayed-message",
       {
@@ -173,26 +181,26 @@ export class RabbitMq {
       };
 
       // Create working queue
-      await this.rabbitMqPublisherChannel.assertQueue(queue.getQueue(), options);
+      await this.rabbitMqPublisherChannels[0].assertQueue(queue.getQueue(), options);
 
       // Create retry queue
-      await this.rabbitMqPublisherChannel.assertQueue(queue.getRetryQueue(), options);
+      await this.rabbitMqPublisherChannels[0].assertQueue(queue.getRetryQueue(), options);
 
       // Bind queues to the delayed exchange
-      await this.rabbitMqPublisherChannel.bindQueue(
+      await this.rabbitMqPublisherChannels[0].bindQueue(
         queue.getQueue(),
         RabbitMq.delayedExchangeName,
         queue.getQueue()
       );
 
-      await this.rabbitMqPublisherChannel.bindQueue(
+      await this.rabbitMqPublisherChannels[0].bindQueue(
         queue.getRetryQueue(),
         RabbitMq.delayedExchangeName,
         queue.getRetryQueue()
       );
 
       // Create dead letter queue for all jobs the failed more than the max retries
-      await this.rabbitMqPublisherChannel.assertQueue(queue.getDeadLetterQueue(), {
+      await this.rabbitMqPublisherChannels[0].assertQueue(queue.getDeadLetterQueue(), {
         arguments: { "x-message-deduplication": true },
       });
 
