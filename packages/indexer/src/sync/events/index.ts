@@ -15,11 +15,11 @@ import * as syncEventsUtils from "@/events-sync/utils";
 import * as blocksModel from "@/models/blocks";
 import getUuidByString from "uuid-by-string";
 
+import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
+import * as blockCheck from "@/jobs/events-sync/block-check-queue";
+import * as eventsSyncBackfillProcess from "@/jobs/events-sync/process/backfill";
+import * as eventsSyncRealtimeProcess from "@/jobs/events-sync/process/realtime";
 import { BlocksToCheck } from "@/jobs/events-sync/block-check-queue";
-import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
-import { blockCheckQueueJob } from "@/jobs/events-sync/block-check-queue-job";
-import { backfillJob } from "@/jobs/events-sync/process/backfill-job";
-import { realtimeJob } from "@/jobs/events-sync/process/realtime-job";
 
 export const extractEventsBatches = async (
   enhancedEvents: EnhancedEvent[],
@@ -133,10 +133,6 @@ export const extractEventsBatches = async (
           {
             kind: "sudoswap",
             data: kindToEvents.get("sudoswap") ?? [],
-          },
-          {
-            kind: "sudoswap-v2",
-            data: kindToEvents.get("sudoswap-v2") ?? [],
           },
           {
             kind: "wyvern",
@@ -265,7 +261,7 @@ export const syncEvents = async (
   options?: {
     // When backfilling, certain processes will be disabled
     backfill?: boolean;
-    syncDetails?:
+    syncDetails:
       | {
           method: "events";
           events: string[];
@@ -293,7 +289,6 @@ export const syncEvents = async (
   // too inefficient to do it and in this case we just proceed (and let any further
   // processes fetch those blocks as needed / if needed).
   const startTimeFetchingBlocks = now();
-  let blocksToFetchPromises: Promise<blocksModel.Block>[] = [];
   if (!backfill && toBlock - fromBlock + 1 <= 32) {
     const existingBlocks = await idb.manyOrNone(
       `
@@ -312,7 +307,10 @@ export const syncEvents = async (
       );
     }
 
-    blocksToFetchPromises = blocksToFetch.map((block) => syncEventsUtils.fetchBlock(block, true));
+    const limit = pLimit(32);
+    await Promise.all(
+      blocksToFetch.map((block) => limit(() => syncEventsUtils.fetchBlock(block, true)))
+    );
   }
   const endTimeFetchingBlocks = now();
 
@@ -345,19 +343,15 @@ export const syncEvents = async (
     };
   }
 
+  const enhancedEvents: EnhancedEvent[] = [];
   const startTimeFetchingLogs = now();
+  await baseProvider.getLogs(eventFilter).then(async (logs) => {
+    const endTimeFetchingLogs = now();
+    const startTimeProcessingEvents = now();
+    const availableEventData = getEventData();
 
-  const [logs] = await Promise.all([baseProvider.getLogs(eventFilter), ...blocksToFetchPromises]);
-
-  const endTimeFetchingLogs = now();
-  const startTimeProcessingEvents = now();
-  const availableEventData = getEventData();
-
-  await Promise.all(
-    logs.map(async (log) => {
+    for (const log of logs) {
       try {
-        const enhancedEvents: EnhancedEvent[] = [];
-
         const baseEventParams = await parseEvent(log, blocksCache);
 
         // Cache the block data
@@ -396,89 +390,90 @@ export const syncEvents = async (
             log,
           });
         }
-        // Process the retrieved events asynchronously
-        const eventsBatches = await extractEventsBatches(enhancedEvents, backfill);
-
-        const startTimeAddToProcessQueue = now();
-        if (backfill) {
-          await backfillJob.addToQueue(eventsBatches);
-        } else {
-          await realtimeJob.addToQueue(eventsBatches, true);
-        }
-        const endTimeAddToProcessQueue = now();
-
-        // Make sure to recheck the ingested blocks with a delay in order to undo any reorgs
-        const ns = getNetworkSettings();
-        if (!backfill && ns.enableReorgCheck) {
-          for (const blockData of blocksSet.values()) {
-            const block = Number(blockData.split("-")[0]);
-            const blockHash = blockData.split("-")[1];
-
-            // Act right away if the current block is a duplicate
-            if ((await blocksModel.getBlocks(block)).length > 1) {
-              await blockCheckQueueJob.addToQueue({ block, blockHash, delay: 10 });
-              await blockCheckQueueJob.addToQueue({ block, blockHash, delay: 30 });
-            }
-          }
-
-          const blocksToCheck: BlocksToCheck[] = [];
-          let blockNumbersArray = _.range(fromBlock, toBlock + 1);
-
-          // Put all fetched blocks on a delayed queue
-          [...blocksSet.values()].map(async (blockData) => {
-            const block = Number(blockData.split("-")[0]);
-            const blockHash = blockData.split("-")[1];
-            blockNumbersArray = _.difference(blockNumbersArray, [block]);
-
-            ns.reorgCheckFrequency.map((frequency) =>
-              blocksToCheck.push({
-                block,
-                blockHash,
-                delay: frequency * 60,
-              })
-            );
-          });
-
-          // Log blocks for which no logs were fetched from the RPC provider
-          if (!_.isEmpty(blockNumbersArray)) {
-            logger.debug(
-              "sync-events",
-              `[${fromBlock}, ${toBlock}] No logs fetched for ${JSON.stringify(blockNumbersArray)}`
-            );
-          }
-
-          await blockCheckQueueJob.addBulk(blocksToCheck);
-        }
-
-        const endTimeProcessingEvents = now();
-
-        logger.info(
-          "sync-events-timing-2",
-          JSON.stringify({
-            message: `Events realtime syncing block range [${fromBlock}, ${toBlock}]`,
-            blocks: {
-              count: blocksSet.size,
-              time: endTimeFetchingBlocks - startTimeFetchingBlocks,
-            },
-            logs: {
-              count: logs.length,
-              time: endTimeFetchingLogs - startTimeFetchingLogs,
-            },
-            events: {
-              count: enhancedEvents.length,
-              time: endTimeProcessingEvents - startTimeProcessingEvents,
-            },
-            queue: {
-              time: endTimeAddToProcessQueue - startTimeAddToProcessQueue,
-            },
-          })
-        );
       } catch (error) {
         logger.info("sync-events", `Failed to handle events: ${error}`);
         throw error;
       }
-    })
-  );
+    }
+
+    // Process the retrieved events asynchronously
+    const eventsBatches = await extractEventsBatches(enhancedEvents, backfill);
+
+    const startTimeAddToProcessQueue = now();
+    if (backfill) {
+      await eventsSyncBackfillProcess.addToQueue(eventsBatches);
+    } else {
+      await eventsSyncRealtimeProcess.addToQueue(eventsBatches, true);
+    }
+    const endTimeAddToProcessQueue = now();
+
+    // Make sure to recheck the ingested blocks with a delay in order to undo any reorgs
+    const ns = getNetworkSettings();
+    if (!backfill && ns.enableReorgCheck) {
+      for (const blockData of blocksSet.values()) {
+        const block = Number(blockData.split("-")[0]);
+        const blockHash = blockData.split("-")[1];
+
+        // Act right away if the current block is a duplicate
+        if ((await blocksModel.getBlocks(block)).length > 1) {
+          await blockCheck.addToQueue(block, blockHash, 10);
+          await blockCheck.addToQueue(block, blockHash, 30);
+        }
+      }
+
+      const blocksToCheck: BlocksToCheck[] = [];
+      let blockNumbersArray = _.range(fromBlock, toBlock + 1);
+
+      // Put all fetched blocks on a delayed queue
+      [...blocksSet.values()].map(async (blockData) => {
+        const block = Number(blockData.split("-")[0]);
+        const blockHash = blockData.split("-")[1];
+        blockNumbersArray = _.difference(blockNumbersArray, [block]);
+
+        ns.reorgCheckFrequency.map((frequency) =>
+          blocksToCheck.push({
+            block,
+            blockHash,
+            delay: frequency * 60,
+          })
+        );
+      });
+
+      // Log blocks for which no logs were fetched from the RPC provider
+      if (!_.isEmpty(blockNumbersArray)) {
+        logger.warn(
+          "sync-events",
+          `[${fromBlock}, ${toBlock}] No logs fetched for ${JSON.stringify(blockNumbersArray)}`
+        );
+      }
+
+      await blockCheck.addBulk(blocksToCheck);
+    }
+
+    const endTimeProcessingEvents = now();
+
+    logger.info(
+      "sync-events-timing-2",
+      JSON.stringify({
+        message: `Events realtime syncing block range [${fromBlock}, ${toBlock}]`,
+        blocks: {
+          count: blocksSet.size,
+          time: endTimeFetchingBlocks - startTimeFetchingBlocks,
+        },
+        logs: {
+          count: logs.length,
+          time: endTimeFetchingLogs - startTimeFetchingLogs,
+        },
+        events: {
+          count: enhancedEvents.length,
+          time: endTimeProcessingEvents - startTimeProcessingEvents,
+        },
+        queue: {
+          time: endTimeAddToProcessQueue - startTimeAddToProcessQueue,
+        },
+      })
+    );
+  });
 };
 
 export const unsyncEvents = async (block: number, blockHash: string) => {
@@ -490,6 +485,6 @@ export const unsyncEvents = async (block: number, blockHash: string) => {
     es.ftTransfers.removeEvents(block, blockHash),
     es.nftApprovals.removeEvents(block, blockHash),
     es.nftTransfers.removeEvents(block, blockHash),
-    removeUnsyncedEventsActivitiesJob.addToQueue({ blockHash }),
+    removeUnsyncedEventsActivities.addToQueue(blockHash),
   ]);
 };
