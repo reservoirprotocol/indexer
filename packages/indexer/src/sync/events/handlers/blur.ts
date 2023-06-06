@@ -164,6 +164,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           baseEventParams,
         });
 
+        logger.info("blur-sales-debug", JSON.stringify({ fillEvents: onChainData.fillEvents }));
+
         onChainData.fillInfos.push({
           context: `${orderId}-${baseEventParams.txHash}`,
           orderId: orderId,
