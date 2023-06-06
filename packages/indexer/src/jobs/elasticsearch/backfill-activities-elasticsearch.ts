@@ -69,7 +69,6 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           const newDate = loop.setDate(loop.getDate() + 1);
           const toTimestamp = Math.floor(newDate / 1000);
 
-          await backfillTransfers.queue.drain();
           await backfillTransfers.addToQueue(undefined, fromTimestamp, toTimestamp);
 
           loop = new Date(newDate);
@@ -101,7 +100,6 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           const newDate = loop.setDate(loop.getDate() + 1);
           const toTimestamp = Math.floor(newDate / 1000);
 
-          await backfillSales.queue.drain();
           await backfillSales.addToQueue(undefined, fromTimestamp, toTimestamp);
 
           loop = new Date(newDate);
@@ -133,7 +131,6 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           const newDate = loop.setDate(loop.getDate() + 1);
           const toTimestamp = Math.floor(newDate / 1000);
 
-          await backfillAsks.queue.drain();
           await backfillAsks.addToQueue(undefined, fromTimestamp, toTimestamp);
 
           loop = new Date(newDate);
@@ -165,7 +162,6 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           const newDate = loop.setDate(loop.getDate() + 1);
           const toTimestamp = Math.floor(newDate / 1000);
 
-          await backfillAskCancels.queue.drain();
           await backfillAskCancels.addToQueue(undefined, fromTimestamp, toTimestamp);
 
           loop = new Date(newDate);
@@ -197,7 +193,6 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           const newDate = loop.setDate(loop.getDate() + 1);
           const toTimestamp = Math.floor(newDate / 1000);
 
-          await backfillBids.queue.drain();
           await backfillBids.addToQueue(undefined, fromTimestamp, toTimestamp);
 
           loop = new Date(newDate);
@@ -229,7 +224,6 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           const newDate = loop.setDate(loop.getDate() + 1);
           const toTimestamp = Math.floor(newDate / 1000);
 
-          await backfillBidCancels.queue.drain();
           await backfillBidCancels.addToQueue(undefined, fromTimestamp, toTimestamp);
 
           loop = new Date(newDate);
