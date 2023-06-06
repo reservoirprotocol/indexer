@@ -12,7 +12,7 @@ export type BackfillJobPayload = {
 export class RealtimeJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-process-realtime";
   maxRetries = 10;
-  concurrency = 10;
+  concurrency = 20;
   backoff = {
     type: "exponential",
     delay: 10000,
