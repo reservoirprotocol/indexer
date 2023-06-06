@@ -363,12 +363,16 @@ export const getNetworkSettings = (): NetworkSettings => {
           "0xda62f67be7194775a75be91cbf9feedcc5776d4b",
           // Sound.xyz Contracts
           "0xbe8f3dfce2fcbb6dd08a7e8109958355785c968b",
+          // ArtBlocks Engine Contracts
+          "0xe480a895de49b49e37a8f0a8bd7e07fc9844cdb9",
         ],
         multiCollectionContracts: [
           // ArtBlocks Contracts
           "0xda62f67be7194775a75be91cbf9feedcc5776d4b",
           // Sound.xyz Contracts
           "0xbe8f3dfce2fcbb6dd08a7e8109958355785c968b",
+          // ArtBlocks Engine Contracts
+          "0xe480a895de49b49e37a8f0a8bd7e07fc9844cdb9",
         ],
         supportedBidCurrencies: {
           ...defaultNetworkSettings.supportedBidCurrencies,
