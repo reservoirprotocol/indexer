@@ -185,27 +185,33 @@ export const search = async (
   }
 
   if (params.tokens?.length) {
-    const tokensFilter = { bool: { should: [] } };
-
-    for (const token of params.tokens) {
-      const contract = token.contract.toLowerCase();
-      const tokenId = token.tokenId;
-
-      (tokensFilter as any).bool.should.push({
-        bool: {
-          must: [
-            {
-              term: { contract },
-            },
-            {
-              term: { ["token.id"]: tokenId },
-            },
-          ],
-        },
+    if (params.contracts?.length === 1) {
+      (esQuery as any).bool.filter.push({
+        terms: { "token.id": params.tokens.map((token) => token.tokenId) },
       });
-    }
+    } else {
+      const tokensFilter = { bool: { should: [] } };
 
-    (esQuery as any).bool.filter.push(tokensFilter);
+      for (const token of params.tokens) {
+        const contract = token.contract.toLowerCase();
+        const tokenId = token.tokenId;
+
+        (tokensFilter as any).bool.should.push({
+          bool: {
+            must: [
+              {
+                term: { contract },
+              },
+              {
+                term: { ["token.id"]: tokenId },
+              },
+            ],
+          },
+        });
+      }
+
+      (esQuery as any).bool.filter.push(tokensFilter);
+    }
   }
 
   if (params.users?.length) {
