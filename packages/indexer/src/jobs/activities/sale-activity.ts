@@ -10,6 +10,7 @@ import { config } from "@/config/index";
 
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { FillEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/fill-event-created";
+import { logger } from "@/common/logger";
 
 export class SaleActivity {
   public static async handleEvent(data: FillEventData) {
@@ -133,6 +134,8 @@ export class SaleActivity {
     ]);
 
     if (esActivities.length) {
+      logger.info("debug-sale-activity-es", `esActivities=${JSON.stringify(esActivities)}`);
+
       await ActivitiesIndex.save(esActivities);
     }
   }
