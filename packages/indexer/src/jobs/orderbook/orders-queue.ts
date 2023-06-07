@@ -316,11 +316,6 @@ export const jobProcessor = async (job: Job) => {
         break;
       }
 
-      case "blur": {
-        result = await orders.blur.saveFullListings([info], ingestMethod);
-        break;
-      }
-
       case "blur-listing": {
         result = await orders.blur.savePartialListings([info], ingestMethod);
         break;
