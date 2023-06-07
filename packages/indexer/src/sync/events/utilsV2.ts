@@ -39,3 +39,16 @@ export const saveBlockTransactions = async (block: BlockWithTransactions) => {
   // Save all transactions within the block
   await saveTransactionsV2(transactions);
 };
+
+export const getTracesFromBlock = async (blockNumber: number) => {
+  const traces = await baseProvider.send("debug_traceBlockByNumber", [
+    blockNumber,
+    { tracer: "callTracer" },
+  ]);
+  return traces;
+};
+
+export const getReceiptsFromBlock = async (blockNumber: number) => {
+  const receipts = await baseProvider.send("eth_getBlockReceipts", [blockNumber]);
+  return receipts;
+};

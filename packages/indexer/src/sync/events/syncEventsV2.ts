@@ -1,7 +1,8 @@
+/* eslint-disable  @typescript-eslint/no-explicit-any */
+
 import { Filter } from "@ethersproject/abstract-provider";
 
 import { logger } from "@/common/logger";
-import { baseProvider } from "@/common/provider";
 import { EventKind, getEventData } from "@/events-sync/data";
 import { EventsBatch, EventsByKind, processEventsBatchV2 } from "@/events-sync/handlers";
 import { EnhancedEvent } from "@/events-sync/handlers/utils";
@@ -16,6 +17,10 @@ import { BlockWithTransactions } from "@ethersproject/abstract-provider";
 
 import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
 import { Block } from "@/models/blocks";
+import { saveTransactionLogs } from "@/models/transaction-logs";
+import { fetchTransactionTrace } from "@/events-sync/utils";
+import { TransactionTrace, saveTransactionTraces } from "@/models/transaction-traces";
+import { TransactionReceipt } from "@ethersproject/providers";
 
 export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBatch[] => {
   const txHashToEvents = new Map<string, EnhancedEvent[]>();
@@ -237,13 +242,41 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
   return [...txHashToEventsBatch.values()];
 };
 
-const _getLogs = async (eventFilter: Filter) => {
+// const _getLogs = async (eventFilter: Filter) => {
+//   const timerStart = Date.now();
+//   const logs = await baseProvider.getLogs(eventFilter);
+//   const timerEnd = Date.now();
+//   return {
+//     logs,
+//     getLogsTime: timerEnd - timerStart,
+//   };
+// };
+
+const _getTransactionTraces = async (Txs: { hash: string }[]) => {
   const timerStart = Date.now();
-  const logs = await baseProvider.getLogs(eventFilter);
+  let traces = (await Promise.all(
+    Txs.map((tx) => fetchTransactionTrace(tx.hash))
+  )) as TransactionTrace[];
+  const timerEnd = Date.now();
+
+  // remove undefined
+  traces = traces.filter((trace) => trace) as TransactionTrace[];
+
+  return {
+    traces,
+    getTransactionTracesTime: timerEnd - timerStart,
+  };
+};
+
+const _getTransactionReceiptsFromBlock = async (block: number) => {
+  const timerStart = Date.now();
+  const transactionReceipts = (await syncEventsUtils.getReceiptsFromBlock(
+    block
+  )) as TransactionReceipt[];
   const timerEnd = Date.now();
   return {
-    logs,
-    getLogsTime: timerEnd - timerStart,
+    transactionReceipts,
+    getTransactionReceiptsTime: timerEnd - timerStart,
   };
 };
 
@@ -278,7 +311,7 @@ export const syncEvents = async (block: number) => {
     const endGetBlockTime = Date.now();
 
     const eventFilter: Filter = {
-      topics: [[...new Set(getEventData().map(({ topic }) => topic))]],
+      // topics: [[...new Set(getEventData().map(({ topic }) => topic))]],
       fromBlock: block,
       toBlock: block,
     };
@@ -293,17 +326,42 @@ export const syncEvents = async (block: number) => {
     const availableEventData = getEventData();
 
     const [
-      { logs, getLogsTime },
+      { traces, getTransactionTracesTime },
+      { transactionReceipts, getTransactionReceiptsTime },
       { saveBlocksTime, endSaveBlocksTime },
       saveBlockTransactionsTime,
     ] = await Promise.all([
-      _getLogs(eventFilter),
+      _getTransactionTraces(blockData.transactions),
+      _getTransactionReceiptsFromBlock(block),
       _saveBlock({
         number: block,
         hash: blockData.hash,
         timestamp: blockData.timestamp,
       }),
       _saveBlockTransactions(blockData),
+    ]);
+
+    const transactionLogs: {
+      hash: string;
+      logs: any[];
+    }[] = [];
+
+    const logs = transactionReceipts.map((tx) => tx.logs).flat();
+
+    transactionReceipts.forEach((tx) => {
+      const logs = tx.logs.map((log) => ({
+        ...log,
+        address: log.address.toLowerCase(),
+      }));
+      transactionLogs.push({
+        hash: tx.transactionHash,
+        logs,
+      });
+    });
+
+    await Promise.all([
+      ...transactionLogs.map((txLogs) => saveTransactionLogs(txLogs)),
+      saveTransactionTraces(traces),
     ]);
 
     let enhancedEvents = logs
@@ -363,9 +421,20 @@ export const syncEvents = async (block: number) => {
         logs: {
           count: logs.length,
           eventCount: enhancedEvents.length,
-          getLogsTime,
+          getTransactionReceiptsTime,
           processLogs: endProcessLogs - startProcessLogs,
         },
+
+        receipts: {
+          count: transactionReceipts.length,
+          getTransactionReceiptsTime,
+        },
+
+        traces: {
+          count: traces.length,
+          getTransactionTracesTime,
+        },
+
         blocks: {
           count: 1,
           getBlockTime: endGetBlockTime - startGetBlockTime,
