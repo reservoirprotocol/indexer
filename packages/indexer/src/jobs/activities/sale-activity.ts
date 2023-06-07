@@ -136,7 +136,7 @@ export class SaleActivity {
     if (esActivities.length) {
       logger.info("debug-sale-activity-es", `esActivities=${JSON.stringify(esActivities)}`);
 
-      await ActivitiesIndex.save(esActivities);
+      await ActivitiesIndex.save(esActivities, false);
     }
   }
 }
