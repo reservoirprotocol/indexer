@@ -112,17 +112,31 @@ export const save = async (activities: ActivityDocument[], upsert = true): Promi
     });
 
     if (response.errors) {
-      logger.error(
-        "elasticsearch-activities",
-        JSON.stringify({
-          topic: "save-errors",
-          upsert,
-          data: {
-            activities: JSON.stringify(activities),
-          },
-          response,
-        })
-      );
+      if (upsert) {
+        logger.error(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "save-errors",
+            upsert,
+            data: {
+              activities: JSON.stringify(activities),
+            },
+            response,
+          })
+        );
+      } else {
+        logger.info(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "save-conflicts",
+            upsert,
+            data: {
+              activities: JSON.stringify(activities),
+            },
+            response,
+          })
+        );
+      }
     }
   } catch (error) {
     logger.error(
