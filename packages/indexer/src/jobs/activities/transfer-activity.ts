@@ -8,10 +8,10 @@ import { UserActivities } from "@/models/user-activities";
 import { config } from "@/config/index";
 
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
-import * as fixActivitiesMissingCollection from "@/jobs/activities/fix-activities-missing-collection";
 import { NftTransferEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/nft-transfer-event-created";
 import { getNetworkSettings } from "@/config/network";
 import { logger } from "@/common/logger";
+import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
 
 export class TransferActivity {
   public static async handleEvent(data: NftTransferEventData) {
@@ -76,7 +76,10 @@ export class TransferActivity {
 
     // If collection information is not available yet when a mint event
     if (!collectionId && activity.type === ActivityType.mint) {
-      await fixActivitiesMissingCollection.addToQueue(data.contract, data.tokenId);
+      await fixActivitiesMissingCollectionJob.addToQueue({
+        contract: data.contract,
+        tokenId: data.tokenId,
+      });
     }
   }
 
@@ -153,7 +156,10 @@ export class TransferActivity {
 
       // If collection information is not available yet when a mint event
       if (!collectionId && activity.type === ActivityType.mint) {
-        await fixActivitiesMissingCollection.addToQueue(data.contract, data.tokenId);
+        await fixActivitiesMissingCollectionJob.addToQueue({
+          contract: data.contract,
+          tokenId: data.tokenId,
+        });
       }
     }
 

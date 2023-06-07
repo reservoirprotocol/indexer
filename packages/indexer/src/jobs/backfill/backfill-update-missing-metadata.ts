@@ -10,12 +10,12 @@ import { config } from "@/config/index";
 import { PendingRefreshTokens, RefreshTokens } from "@/models/pending-refresh-tokens";
 import { ridb } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
-import * as metadataIndexProcessBySlug from "@/jobs/metadata-index/process-queue-by-slug";
-import * as metadataIndexProcess from "@/jobs/metadata-index/process-queue";
-import { getIndexingMethod } from "@/jobs/metadata-index/fetch-queue";
 import { PendingRefreshTokensBySlug } from "@/models/pending-refresh-tokens-by-slug";
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import { Tokens } from "@/models/tokens";
+import { metadataQueueJob } from "@/jobs/collection-updates/metadata-queue-job";
+import { metadataProcessQueueJob } from "@/jobs/metadata-index/process-queue-job";
+import { metadataFetchQueueJob } from "@/jobs/metadata-index/fetch-queue-job";
+import { metadataProcessQueueBySlugJob } from "@/jobs/metadata-index/process-queue-by-slug-job";
 
 const QUEUE_NAME = "backfill-update-missing-metadata-queue";
 
@@ -71,13 +71,13 @@ if (config.doBackgroundWork) {
       );
 
       // push queue messages
-      if (await acquireLock(metadataIndexProcessBySlug.getLockName("opensea"), 60 * 5)) {
-        await metadataIndexProcessBySlug.addToQueue();
-        await releaseLock(metadataIndexProcessBySlug.getLockName("opensea"));
+      if (await acquireLock(metadataProcessQueueBySlugJob.getLockName("opensea"), 60 * 5)) {
+        await metadataProcessQueueBySlugJob.addToQueue();
+        await releaseLock(metadataProcessQueueBySlugJob.getLockName("opensea"));
       }
-      if (await acquireLock(metadataIndexProcess.getLockName("opensea"), 60 * 5)) {
-        await metadataIndexProcess.addToQueue("opensea");
-        await releaseLock(metadataIndexProcess.getLockName("opensea"));
+      if (await acquireLock(metadataProcessQueueJob.getLockName("opensea"), 60 * 5)) {
+        await metadataProcessQueueJob.addToQueue({ method: "opensea" });
+        await releaseLock(metadataProcessQueueJob.getLockName("opensea"));
       }
 
       if (_.size(collections) === limit) {
@@ -170,11 +170,11 @@ async function processCollection(collection: {
     );
     return;
   }
-  const indexingMethod = getIndexingMethod(collection.community);
+  const indexingMethod = metadataFetchQueueJob.getIndexingMethod(collection.community);
   const limit = Number(await redis.get(`${QUEUE_NAME}-tokens-limit`)) || 1000;
   if (!collection.slug) {
     const tokenId = await Tokens.getSingleToken(collection.id);
-    await collectionUpdatesMetadata.addToQueue(collection.contract, tokenId, "opensea", 0);
+    await metadataQueueJob.addToQueue({ contract: collection.contract, tokenId }, 0);
     await processCollectionTokens(collection, limit, indexingMethod);
     return;
   }

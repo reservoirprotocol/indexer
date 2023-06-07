@@ -8,7 +8,6 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { regex } from "@/common/utils";
 import { config } from "@/config/index";
-import * as fetchSourceInfo from "@/jobs/sources/fetch-source-info";
 import {
   SourcesEntity,
   SourcesEntityParams,
@@ -17,6 +16,7 @@ import {
 import { Channel } from "@/pubsub/channels";
 
 import { default as sourcesFromJson } from "./sources.json";
+import { fetchSourceInfoJob } from "@/jobs/sources/fetch-source-info-job";
 
 export class Sources {
   private static instance: Sources;
@@ -190,7 +190,7 @@ export class Sources {
     // Reload the cache
     await Sources.instance.loadData(true);
     // Fetch domain info
-    await fetchSourceInfo.addToQueue(domain);
+    await fetchSourceInfoJob.addToQueue({ sourceDomain: domain });
 
     await redis.publish(Channel.SourcesUpdated, `New source ${domain}`);
     logger.info("sources", `New source '${domain}' was added`);

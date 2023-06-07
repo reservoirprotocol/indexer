@@ -7,14 +7,15 @@ import * as Sdk from "@reservoir0x/sdk";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
 import { FillListingsResult, ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
 import axios from "axios";
+import _ from "lodash";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { JoiExecuteFee } from "@/common/joi";
+import { JoiExecuteFee, JoiOrderDepth } from "@/common/joi";
 import { baseProvider } from "@/common/provider";
-import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/utils";
+import { bn, formatEth, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { Sources } from "@/models/sources";
@@ -81,6 +82,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 .required(),
               data: Joi.object().required(),
             }).description("Optional raw order to fill."),
+            fillType: Joi.string()
+              .valid("trade", "mint")
+              .description(
+                "Optionally specify a particular fill method (by default both trades and mints will be included). Only relevant when filling via `collection`."
+              ),
             preferredOrderSource: Joi.string()
               .lowercase()
               .pattern(regex.domain)
@@ -113,6 +119,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
       onlyPath: Joi.boolean()
         .default(false)
         .description("If true, only the path will be returned."),
+      preview: Joi.string()
+        .valid("depth")
+        .description("When set, returns a preview of the fill (without actually filling)."),
       forceRouter: Joi.boolean().description(
         "If true, all fills will be executed through the router (where possible)"
       ),
@@ -212,6 +221,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
           feesOnTop: Joi.array().items(JoiExecuteFee).description("Can be referral fees."),
         })
       ),
+      preview: Joi.array().items(
+        Joi.object({
+          itemIndex: Joi.number().required(),
+          depth: JoiOrderDepth,
+        })
+      ),
     }).label(`getExecuteBuy${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
       logger.error(`get-execute-buy-${version}-handler`, `Wrong response schema: ${error}`);
@@ -255,6 +270,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
         builtInFees: ExecuteFee[];
         feesOnTop: ExecuteFee[];
       }[] = [];
+      const depthPreview: {
+        [itemIndex: number]: {
+          price: number;
+          quantity: number;
+        }[];
+      } = {};
 
       // Keep track of dynamically-priced orders (eg. from pools like Sudoswap and NFTX)
       const poolPrices: { [pool: string]: string[] } = {};
@@ -278,6 +299,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           id: string;
           kind: OrderKind;
           maker: string;
+          nativePrice: string;
           price: string;
           sourceId: number | null;
           currency: string;
@@ -290,7 +312,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
           contract: string;
           tokenId: string;
           quantity?: number;
-        }
+        },
+        itemIndex: number
       ) => {
         // Handle dynamically-priced orders
         if (["sudoswap", "nftx"].includes(order.kind)) {
@@ -382,6 +405,17 @@ export const getExecuteBuyV7Options: RouteOptions = {
           ],
         });
 
+        const precisionDecimals = 4;
+        const scale = (value: number) => Number(value.toFixed(precisionDecimals));
+
+        if (!depthPreview[itemIndex]) {
+          depthPreview[itemIndex] = [];
+        }
+        depthPreview[itemIndex].push({
+          price: scale(formatEth(order.nativePrice)),
+          quantity,
+        });
+
         if (order.kind !== "mint") {
           const flaggedResult = await idb.oneOrNone(
             `
@@ -433,6 +467,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
         quantity: number;
         preferredOrderSource?: string;
         exactOrderSource?: string;
+        fillType?: "trade" | "mint";
+        originalItemIndex?: number;
       }[] = payload.items;
 
       // Keep track of any mint transactions that need to be aggregated
@@ -443,6 +479,15 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
+        const itemIndex =
+          items[i].originalItemIndex !== undefined ? items[i].originalItemIndex! : i;
+
+        // When requesting the preview, force partial filling and a high enough
+        // quantity for each token in order to cover most practical use-cases
+        if (payload.preview === "depth") {
+          payload.partial = true;
+          item.quantity = 50;
+        }
 
         // Scenario 1: fill via `rawOrder`
         if (item.rawOrder) {
@@ -466,6 +511,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 ),
                 kind: "blur",
                 maker: AddressZero,
+                nativePrice: order.data.price,
                 price: order.data.price,
                 sourceId: sources.getByDomain("blur.io")?.id ?? null,
                 currency: Sdk.Common.Addresses.Eth[config.chainId],
@@ -476,7 +522,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 kind: "erc721",
                 contract: order.data.contract,
                 tokenId: order.data.tokenId,
-              }
+              },
+              itemIndex
             );
           } else {
             const response = await inject({
@@ -508,6 +555,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 orders.id,
                 orders.kind,
                 contracts.kind AS token_kind,
+                orders.price AS native_price,
                 coalesce(orders.currency_price, orders.price) AS price,
                 orders.raw_data,
                 orders.source_id_int,
@@ -597,6 +645,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               id: result.id,
               kind: result.kind,
               maker: fromBuffer(result.maker),
+              nativePrice: result.native_price,
               price: result.price,
               sourceId: result.source_id_int,
               currency: fromBuffer(result.currency),
@@ -609,81 +658,85 @@ export const getExecuteBuyV7Options: RouteOptions = {
               contract: fromBuffer(result.contract),
               tokenId: result.token_id,
               quantity: item.quantity,
-            }
+            },
+            itemIndex
           );
         }
 
         // Scenario 3: fill via `collection`
         if (item.collection) {
-          // Fetch any open mints on the collection which the taker is elligible for
-          // const openMints = await mints.getOpenCollectionMints(item.collection);
-          const openMints: mints.CollectionMint[] = [];
-          for (const mint of openMints) {
-            if (!payload.currency || mint.currency === payload.currency) {
-              const collectionData = await idb.one(
-                `
-                  SELECT
-                    collections.contract,
-                    contracts.kind AS token_kind,
-                    (
-                      SELECT
-                        MAX(tokens.token_id) + 1
-                      FROM tokens
-                      WHERE tokens.contract = collections.contract
-                        AND tokens.collection_id = collections.id
-                    ) AS next_token_id
-                  FROM collections
-                  JOIN contracts
-                    ON collections.contract = contracts.address
-                  WHERE collections.id = $/id/
-                `,
-                {
-                  id: item.collection,
-                }
-              );
-              if (collectionData) {
-                const quantityToMint = mint.maxMintsPerWallet
-                  ? Math.min(item.quantity, mint.maxMintsPerWallet)
-                  : item.quantity;
-
-                const orderId = `mint:${item.collection}`;
-                mintTxs.push({
-                  orderId,
-                  txData: generateMintTxData(
-                    mint.details,
-                    payload.taker,
-                    fromBuffer(collectionData.contract),
-                    quantityToMint,
-                    mint.price
-                  ),
-                });
-
-                await addToPath(
+          if (!item.fillType || item.fillType === "mint") {
+            // Fetch any open mints on the collection which the taker is elligible for
+            const openMints = await mints.getOpenCollectionMints(item.collection);
+            for (const mint of openMints) {
+              if (!payload.currency || mint.currency === payload.currency) {
+                const collectionData = await idb.one(
+                  `
+                    SELECT
+                      collections.contract,
+                      contracts.kind AS token_kind,
+                      (
+                        SELECT
+                          MAX(tokens.token_id) + 1
+                        FROM tokens
+                        WHERE tokens.contract = collections.contract
+                          AND tokens.collection_id = collections.id
+                      ) AS next_token_id
+                    FROM collections
+                    JOIN contracts
+                      ON collections.contract = contracts.address
+                    WHERE collections.id = $/id/
+                  `,
                   {
-                    id: orderId,
-                    kind: "mint",
-                    maker: fromBuffer(collectionData.contract),
-                    price: mint.price,
-                    sourceId: null,
-                    currency: mint.currency,
-                    rawData: {},
-                    builtInFees: [],
-                    additionalFees: [],
-                  },
-                  {
-                    kind: collectionData.token_kind,
-                    contract: fromBuffer(collectionData.contract),
-                    tokenId: collectionData.next_token_id,
-                    quantity: quantityToMint,
+                    id: item.collection,
                   }
                 );
+                if (collectionData) {
+                  const quantityToMint = mint.maxMintsPerWallet
+                    ? Math.min(item.quantity, mint.maxMintsPerWallet)
+                    : item.quantity;
 
-                item.quantity -= quantityToMint;
+                  const orderId = `mint:${item.collection}`;
+                  mintTxs.push({
+                    orderId,
+                    txData: generateMintTxData(
+                      mint.details,
+                      payload.taker,
+                      fromBuffer(collectionData.contract),
+                      quantityToMint,
+                      mint.price
+                    ),
+                  });
+
+                  await addToPath(
+                    {
+                      id: orderId,
+                      kind: "mint",
+                      maker: fromBuffer(collectionData.contract),
+                      nativePrice: mint.price,
+                      price: mint.price,
+                      sourceId: null,
+                      currency: mint.currency,
+                      rawData: {},
+                      builtInFees: [],
+                      additionalFees: [],
+                    },
+                    {
+                      kind: collectionData.token_kind,
+                      contract: fromBuffer(collectionData.contract),
+                      tokenId: collectionData.next_token_id,
+                      quantity: quantityToMint,
+                    },
+                    itemIndex
+                  );
+
+                  item.quantity -= quantityToMint;
+                }
               }
             }
           }
 
-          if (item.quantity > 0) {
+          if (item.quantity > 0 && (!item.fillType || item.fillType === "trade")) {
             // Filtering by collection on the `orders` table is inefficient, so what we
             // do here is select the cheapest tokens from the `tokens` table and filter
             // out the ones that aren't fillable. For this to work we fetch more tokens
@@ -735,6 +788,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               items.push({
                 token: `${fromBuffer(t.contract)}:${t.token_id}`,
                 quantity: 1,
+                originalItemIndex: itemIndex,
               });
             }
           }
@@ -760,6 +814,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 orders.id,
                 orders.kind,
                 contracts.kind AS token_kind,
+                orders.price AS native_price,
                 coalesce(orders.currency_price, orders.price) AS price,
                 orders.quantity_remaining,
                 orders.source_id_int,
@@ -849,6 +904,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 id: result.id,
                 kind: result.kind,
                 maker,
+                nativePrice: result.native_price,
                 price: result.price,
                 sourceId: result.source_id_int,
                 currency: fromBuffer(result.currency),
@@ -861,7 +917,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 contract,
                 tokenId,
                 quantity: Math.min(quantityToFill, availableQuantity),
-              }
+              },
+              itemIndex
             );
 
             // Update the quantity to fill with the current order's available quantity
@@ -880,6 +937,33 @@ export const getExecuteBuyV7Options: RouteOptions = {
             }
           }
         }
+      }
+
+      if (payload.preview === "depth") {
+        return {
+          preview: Object.entries(depthPreview).map(([itemIndex, depth]) => ({
+            itemIndex: Number(itemIndex),
+            depth: _.orderBy(
+              [
+                ..._.reduce(
+                  depth,
+                  (aggregate, value) => {
+                    const currentQuantity = aggregate.get(value.price);
+                    if (currentQuantity) {
+                      aggregate.set(value.price, currentQuantity + value.quantity);
+                    } else {
+                      aggregate.set(value.price, value.quantity);
+                    }
+                    return aggregate;
+                  },
+                  new Map<number, number>()
+                ).entries(),
+              ].map(([price, quantity]) => ({ price, quantity })),
+              ["price"],
+              ["asc"]
+            ),
+          })),
+        };
       }
 
       if (!path.length) {

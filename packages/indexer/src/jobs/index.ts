@@ -172,8 +172,76 @@ import * as backfillAskActivitiesElasticsearch from "@/jobs/elasticsearch/backfi
 import * as backfillBidActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-bid-activities-elasticsearch";
 import * as backfillAskCancelActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-ask-cancel-activities-elasticsearch";
 import * as backfillBidCancelActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-bid-cancel-activities-elasticsearch";
-import * as updateActivitiesCollectionJob from "@/jobs/elasticsearch/update-activities-collection";
 import * as backfillActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-activities-elasticsearch";
+import * as updateActivitiesCollection from "@/jobs/elasticsearch/update-activities-collection";
+import * as refreshActivitiesTokenMetadata from "@/jobs/elasticsearch/refresh-activities-token-metadata";
+import * as refreshActivitiesCollectionMetadata from "@/jobs/elasticsearch/refresh-activities-collection-metadata";
+
+import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
+import amqplib, { Channel, Connection } from "amqplib";
+import { config } from "@/config/index";
+import _ from "lodash";
+import getUuidByString from "uuid-by-string";
+import { getMachineId } from "@/common/machine-id";
+import { PausedRabbitMqQueues } from "@/models/paused-rabbit-mq-queues";
+import { logger } from "@/common/logger";
+import { RabbitMQMessage } from "@/common/rabbit-mq";
+import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
+import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
+import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
+import { normalizedFloorQueueJob } from "@/jobs/token-updates/normalized-floor-queue-job";
+import { mintQueueJob } from "@/jobs/token-updates/mint-queue-job";
+import { floorQueueJob } from "@/jobs/token-updates/floor-queue-job";
+import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
+import { handleNewBuyOrderJob } from "@/jobs/update-attribute/handle-new-buy-order-job";
+import { handleNewSellOrderJob } from "@/jobs/update-attribute/handle-new-sell-order-job";
+import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
+import { resyncAttributeCollectionJob } from "@/jobs/update-attribute/resync-attribute-collection-job";
+import { resyncAttributeFloorSellJob } from "@/jobs/update-attribute/resync-attribute-floor-sell-job";
+import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attribute-key-counts-job";
+import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-attribute-value-counts-job";
+import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
+import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";
+import { topBidSingleTokenQueueJob } from "@/jobs/token-set-updates/top-bid-single-token-queue-job";
+import { fetchSourceInfoJob } from "@/jobs/sources/fetch-source-info-job";
+import { processActivityEventJob } from "@/jobs/activities/process-activity-event-job";
+import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
+import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
+import { topBidUpdateQueueJob } from "@/jobs/bid-updates/top-bid-update-queue-job";
+import { metadataQueueJob } from "@/jobs/collection-updates/metadata-queue-job";
+import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
+import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
+import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
+import { setCommunityQueueJob } from "@/jobs/collection-updates/set-community-queue-job";
+import { topBidCollectionQueueJob } from "@/jobs/collection-updates/top-bid-collection-queue-job";
+import { updateCollectionActivityJob } from "@/jobs/collection-updates/update-collection-activity-job";
+import { updateCollectionDailyVolumeJob } from "@/jobs/collection-updates/update-collection-daily-volume-job";
+import { updateCollectionUserActivityJob } from "@/jobs/collection-updates/update-collection-user-activity-job";
+import { collectionRefreshJob } from "@/jobs/collections-refresh/collections-refresh-job";
+import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
+import { currenciesFetchJob } from "@/jobs/currencies/currencies-fetch-job";
+import { oneDayVolumeJob } from "@/jobs/daily-volumes/1day-volumes-job";
+import { dailyVolumeJob } from "@/jobs/daily-volumes/daily-volumes-job";
+import { processArchiveDataJob } from "@/jobs/data-archive/process-archive-data-job";
+import { exportDataJob } from "@/jobs/data-export/export-data-job";
+import { fillPostProcessJob } from "@/jobs/fill-updates/fill-post-process-job";
+import { fillUpdatesJob } from "@/jobs/fill-updates/fill-updates-job";
+import { backfillQueueJob } from "@/jobs/events-sync/backfill-queue-job";
+import { blockCheckQueueJob } from "@/jobs/events-sync/block-check-queue-job";
+import { processResyncRequestQueueJob } from "@/jobs/events-sync/process-resync-request-queue-job";
+import { realtimeQueueJob } from "@/jobs/events-sync/realtime-queue-job";
+import { realtimeQueueV2Job } from "@/jobs/events-sync/realtime-queue-v2-job";
+import { ftTransfersJob } from "@/jobs/events-sync/write-buffers/ft-transfers-job";
+import { nftTransfersJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
+import { backfillJob } from "@/jobs/events-sync/process/backfill-job";
+import { realtimeJob } from "@/jobs/events-sync/process/realtime-job";
+import { metadataFetchQueueJob } from "@/jobs/metadata-index/fetch-queue-job";
+import { metadataProcessQueueJob } from "@/jobs/metadata-index/process-queue-job";
+import { metadataProcessQueueBySlugJob } from "@/jobs/metadata-index/process-queue-by-slug-job";
+import { metadataWriteQueueJob } from "@/jobs/metadata-index/write-queue-job";
+import { countApiUsageJob } from "@/jobs/metrics/count-api-usage-job";
+import { mintProcessJob } from "@/jobs/mints/mint-process-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -335,6 +403,173 @@ export const allJobQueues = [
   backfillBidActivitiesElasticsearch.queue,
   backfillAskCancelActivitiesElasticsearch.queue,
   backfillBidCancelActivitiesElasticsearch.queue,
-  updateActivitiesCollectionJob.queue,
   backfillActivitiesElasticsearch.queue,
+  updateActivitiesCollection.queue,
+  refreshActivitiesTokenMetadata.queue,
+  refreshActivitiesCollectionMetadata.queue,
 ];
+
+export class RabbitMqJobsConsumer {
+  private static rabbitMqConsumerConnection: Connection;
+  private static queueToChannel: Map<string, Channel> = new Map();
+
+  /**
+   * Return array of all jobs classes, any new job MUST be added here
+   */
+  public static getQueues(): AbstractRabbitMqJobHandler[] {
+    return [
+      tokenReclacSupplyJob,
+      tokenRefreshCacheJob,
+      recalcOwnerCountQueueJob,
+      recalcTokenCountQueueJob,
+      normalizedFloorQueueJob,
+      mintQueueJob,
+      floorQueueJob,
+      fetchCollectionMetadataJob,
+      handleNewBuyOrderJob,
+      handleNewSellOrderJob,
+      resyncAttributeCacheJob,
+      resyncAttributeCollectionJob,
+      resyncAttributeFloorSellJob,
+      resyncAttributeKeyCountsJob,
+      resyncAttributeValueCountsJob,
+      resyncAttributeCountsJob,
+      topBidQueueJob,
+      topBidSingleTokenQueueJob,
+      fetchSourceInfoJob,
+      processActivityEventJob,
+      removeUnsyncedEventsActivitiesJob,
+      fixActivitiesMissingCollectionJob,
+      topBidUpdateQueueJob,
+      floorQueueJob,
+      metadataQueueJob,
+      nonFlaggedFloorQueueJob,
+      normalizedFloorQueueJob,
+      rarityQueueJob,
+      refreshContractCollectionsMetadataQueueJob,
+      setCommunityQueueJob,
+      topBidCollectionQueueJob,
+      updateCollectionActivityJob,
+      updateCollectionDailyVolumeJob,
+      updateCollectionUserActivityJob,
+      collectionRefreshJob,
+      collectionRefreshCacheJob,
+      currenciesFetchJob,
+      oneDayVolumeJob,
+      dailyVolumeJob,
+      processArchiveDataJob,
+      exportDataJob,
+      fillPostProcessJob,
+      fillUpdatesJob,
+      backfillQueueJob,
+      blockCheckQueueJob,
+      processResyncRequestQueueJob,
+      realtimeQueueJob,
+      realtimeQueueV2Job,
+      ftTransfersJob,
+      nftTransfersJob,
+      backfillJob,
+      realtimeJob,
+      metadataFetchQueueJob,
+      metadataProcessQueueJob,
+      metadataProcessQueueBySlugJob,
+      metadataWriteQueueJob,
+      countApiUsageJob,
+      mintProcessJob,
+    ];
+  }
+
+  public static async connect() {
+    this.rabbitMqConsumerConnection = await amqplib.connect(config.rabbitMqUrl);
+  }
+
+  /**
+   * Return unique consumer tag used to identify a specific consumer on each queue
+   * @param queueName
+   */
+  public static getConsumerTag(queueName: string) {
+    return getUuidByString(`${getMachineId()}${queueName}`);
+  }
+
+  /**
+   * Subscribing to a given job
+   * @param job
+   */
+  public static async subscribe(job: AbstractRabbitMqJobHandler) {
+    // Check if the queue is paused
+    const pausedQueues = await PausedRabbitMqQueues.getPausedQueues();
+    if (_.indexOf(pausedQueues, job.getQueue()) !== -1) {
+      logger.warn("rabbit-subscribe", `${job.getQueue()} is paused`);
+      return;
+    }
+
+    const channel = await this.rabbitMqConsumerConnection.createChannel();
+    RabbitMqJobsConsumer.queueToChannel.set(job.getQueue(), channel);
+
+    await channel.prefetch(job.getConcurrency()); // Set the number of messages to consume simultaneously
+
+    // Subscribe to the queue
+    await channel.consume(
+      job.getQueue(),
+      async (msg) => {
+        if (!_.isNull(msg)) {
+          const rabbitMQMessage = JSON.parse(msg.content.toString()) as RabbitMQMessage;
+
+          await job.consume(rabbitMQMessage);
+          await channel.ack(msg);
+
+          if (rabbitMQMessage.completeTime) {
+            job.emit("onCompleted", rabbitMQMessage);
+          }
+        }
+      },
+      {
+        consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getQueue()),
+      }
+    );
+
+    // Subscribe to the retry queue
+    await channel.consume(
+      job.getRetryQueue(),
+      async (msg) => {
+        if (!_.isNull(msg)) {
+          const rabbitMQMessage = JSON.parse(msg.content.toString()) as RabbitMQMessage;
+
+          await job.consume(rabbitMQMessage);
+          await channel.ack(msg);
+
+          if (rabbitMQMessage.completeTime) {
+            job.emit("onCompleted", rabbitMQMessage);
+          }
+        }
+      },
+      {
+        consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getRetryQueue()),
+      }
+    );
+  }
+
+  /**
+   * Unsubscribing from the given job
+   * @param job
+   */
+  static async unsubscribe(job: AbstractRabbitMqJobHandler) {
+    const channel = RabbitMqJobsConsumer.queueToChannel.get(job.getQueue());
+
+    if (channel) {
+      await channel.cancel(RabbitMqJobsConsumer.getConsumerTag(job.getQueue()));
+      await channel.cancel(RabbitMqJobsConsumer.getConsumerTag(job.getRetryQueue()));
+    }
+  }
+
+  /**
+   * Going over all the jobs and calling the subscribe function for each queue
+   */
+  static async startRabbitJobsConsumer(): Promise<void> {
+    await RabbitMqJobsConsumer.connect(); // Create a connection for the consumer
+
+    for (const queue of RabbitMqJobsConsumer.getQueues()) {
+      await RabbitMqJobsConsumer.subscribe(queue);
+    }
+  }
+}

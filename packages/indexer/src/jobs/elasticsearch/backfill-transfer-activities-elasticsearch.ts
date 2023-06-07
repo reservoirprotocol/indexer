@@ -108,11 +108,9 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
         } else {
           logger.info(
             QUEUE_NAME,
-            `Finished timespan. cursor=${JSON.stringify(
+            `No results. cursor=${JSON.stringify(
               cursor
-            )}, fromTimestamp=${fromTimestamp}, toTimestamp=${toTimestamp}, fromTimestamp=${new Date(
-              fromTimestamp * 1000
-            ).toISOString()}, toTimestamp=${new Date(toTimestamp * 1000).toISOString()}`
+            )}, fromTimestamp=${fromTimestamp}, toTimestamp=${toTimestamp}`
           );
         }
       } catch (error) {

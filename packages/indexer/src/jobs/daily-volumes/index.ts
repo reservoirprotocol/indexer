@@ -3,8 +3,8 @@ import cron from "node-cron";
 import { logger } from "@/common/logger";
 import { redlock } from "@/common/redis";
 import { config } from "@/config/index";
-import * as dailyVolumes from "@/jobs/daily-volumes/daily-volumes";
-import * as oneDayVolumes from "@/jobs/daily-volumes/1day-volumes";
+import { oneDayVolumeJob } from "@/jobs/daily-volumes/1day-volumes-job";
+import { dailyVolumeJob } from "@/jobs/daily-volumes/daily-volumes-job";
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
@@ -18,7 +18,7 @@ if (config.doBackgroundWork) {
           logger.info("daily-volumes", "Calculating daily volumes");
 
           try {
-            await dailyVolumes.addToQueue();
+            await dailyVolumeJob.addToQueue();
           } catch (error) {
             logger.error("daily-volumes", `Failed to calculate daily volumes: ${error}`);
           }
@@ -43,7 +43,7 @@ if (config.doBackgroundWork) {
           logger.info("1day-volumes", "Calculating 1day volumes");
 
           try {
-            await oneDayVolumes.addToQueue();
+            await oneDayVolumeJob.addToQueue();
           } catch (error) {
             logger.error("daily-volumes", `Failed to calculate 1day volumes: ${error}`);
           }
