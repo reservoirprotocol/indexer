@@ -330,7 +330,7 @@ export const savePartialListings = async (
   const orderValues: DbOrder[] = [];
 
   const handleOrder = async ({ orderParams }: PartialListingOrderInfo) => {
-    logger.info("blur-debug", JSON.stringify(orderInfos));
+    // logger.info("blur-debug", JSON.stringify(orderInfos));
 
     try {
       // Fetch current owner
@@ -539,7 +539,7 @@ export const savePartialListings = async (
   const limit = pLimit(20);
   await Promise.all(orderInfos.map((orderInfo) => limit(() => handleOrder(orderInfo))));
 
-  logger.info("blur-debug", JSON.stringify(results));
+  // logger.info("blur-debug", JSON.stringify(results));
 
   if (orderValues.length) {
     const columns = new pgp.helpers.ColumnSet(
