@@ -5,8 +5,8 @@ import {
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
 
-export class IndexerFillEventsHandler extends KafkaEventHandler {
-  topicName = "indexer.public.fill_events_2";
+export class IndexerTokensHandler extends KafkaEventHandler {
+  topicName = "indexer.public.tokens";
 
   protected async handleInsert(payload: any): Promise<void> {
     if (!payload.after) {
@@ -15,12 +15,11 @@ export class IndexerFillEventsHandler extends KafkaEventHandler {
 
     await WebsocketEventRouter({
       eventInfo: {
-        tx_hash: payload.after.tx_hash,
-        log_index: payload.after.log_index,
-        batch_index: payload.after.batch_index,
+        before: payload.before,
+        after: payload.after,
         trigger: "insert",
       },
-      eventKind: WebsocketEventKind.SaleEvent,
+      eventKind: WebsocketEventKind.TokenEvent,
     });
   }
 
@@ -31,12 +30,11 @@ export class IndexerFillEventsHandler extends KafkaEventHandler {
 
     await WebsocketEventRouter({
       eventInfo: {
-        tx_hash: payload.after.tx_hash,
-        log_index: payload.after.log_index,
-        batch_index: payload.after.batch_index,
+        before: payload.before,
+        after: payload.after,
         trigger: "update",
       },
-      eventKind: WebsocketEventKind.SaleEvent,
+      eventKind: WebsocketEventKind.TokenEvent,
     });
   }
 

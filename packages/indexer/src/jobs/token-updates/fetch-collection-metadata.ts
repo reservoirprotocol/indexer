@@ -56,6 +56,16 @@ if (config.doBackgroundWork) {
         );
       }
 
+      if (isNaN(Number(tokenId))) {
+        logger.error(
+          QUEUE_NAME,
+          JSON.stringify({
+            message: "Invalid tokenId",
+            jobData: job.data,
+          })
+        );
+      }
+
       try {
         // Fetch collection metadata
         const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, "", {

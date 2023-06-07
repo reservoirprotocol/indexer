@@ -5,6 +5,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 
 const QUEUE_NAME = "collection-updates-floor-ask-queue";

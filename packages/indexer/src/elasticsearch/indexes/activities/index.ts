@@ -102,11 +102,11 @@ const MAPPINGS: MappingTypeMapping = {
   },
 };
 
-export const save = async (activities: ActivityDocument[]): Promise<void> => {
+export const save = async (activities: ActivityDocument[], upsert = true): Promise<void> => {
   try {
     const response = await elasticsearch.bulk({
       body: activities.flatMap((activity) => [
-        { index: { _index: INDEX_NAME, _id: activity.id } },
+        { [upsert ? "index" : "create"]: { _index: INDEX_NAME, _id: activity.id } },
         activity,
       ]),
     });
@@ -116,6 +116,7 @@ export const save = async (activities: ActivityDocument[]): Promise<void> => {
         "elasticsearch-activities",
         JSON.stringify({
           topic: "save-errors",
+          upsert,
           data: {
             activities: JSON.stringify(activities),
           },
@@ -128,6 +129,7 @@ export const save = async (activities: ActivityDocument[]): Promise<void> => {
       "elasticsearch-activities",
       JSON.stringify({
         topic: "save",
+        upsert,
         data: {
           activities: JSON.stringify(activities),
         },

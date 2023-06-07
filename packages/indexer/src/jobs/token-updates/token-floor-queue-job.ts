@@ -12,7 +12,7 @@ export type FloorQueueJobPayload = {
   txTimestamp: number | null;
 };
 
-export class FloorQueueJob extends AbstractRabbitMqJobHandler {
+export class TokenFloorQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "token-updates-floor-ask-queue";
   maxRetries = 10;
   concurrency = 30;
@@ -188,4 +188,4 @@ export class FloorQueueJob extends AbstractRabbitMqJobHandler {
   }
 }
 
-export const floorQueueJob = new FloorQueueJob();
+export const tokenFloorQueueJob = new TokenFloorQueueJob();

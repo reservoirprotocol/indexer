@@ -18,7 +18,7 @@ import {
   normalizedFloorQueueJob,
   NormalizedFloorQueueJobPayload,
 } from "@/jobs/token-updates/normalized-floor-queue-job";
-import { floorQueueJob } from "@/jobs/token-updates/floor-queue-job";
+import { tokenFloorQueueJob } from "@/jobs/token-updates/token-floor-queue-job";
 import {
   processActivityEventJob,
   ActivityEventKind,
@@ -62,7 +62,7 @@ if (config.doBackgroundWork) {
           };
 
           await Promise.all([
-            floorQueueJob.addToQueue([floorAskInfo]),
+            tokenFloorQueueJob.addToQueue([floorAskInfo]),
             normalizedFloorQueueJob.addToQueue([floorAskInfo]),
           ]);
         }

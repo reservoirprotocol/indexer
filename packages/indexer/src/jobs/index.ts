@@ -160,6 +160,8 @@ import * as bidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/bid-web
 import * as approvalWebsocketEventsTriggerQueue from "@/jobs/websocket-events/approval-websocket-events-trigger-queue";
 import * as transferWebsocketEventsTriggerQueue from "@/jobs/websocket-events/transfer-websocket-events-trigger-queue";
 import * as saleWebsocketEventsTriggerQueue from "@/jobs/websocket-events/sale-websocket-events-trigger-queue";
+import * as tokenWebsocketEventsTriggerQueue from "@/jobs/websocket-events/token-websocket-events-trigger-queue";
+
 import * as newTopBidTriggerQueue from "@/jobs/websocket-events/new-top-bid-trigger-queue";
 import * as countApiUsage from "@/jobs/metrics/count-api-usage";
 
@@ -175,7 +177,6 @@ import * as backfillBidCancelActivitiesElasticsearch from "@/jobs/elasticsearch/
 import * as updateActivitiesCollectionJob from "@/jobs/elasticsearch/update-activities-collection";
 import * as backfillActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-activities-elasticsearch";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
 import amqplib, { Channel, Connection } from "amqplib";
 import { config } from "@/config/index";
 import _ from "lodash";
@@ -184,12 +185,13 @@ import { getMachineId } from "@/common/machine-id";
 import { PausedRabbitMqQueues } from "@/models/paused-rabbit-mq-queues";
 import { logger } from "@/common/logger";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
+import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
 import { normalizedFloorQueueJob } from "@/jobs/token-updates/normalized-floor-queue-job";
 import { mintQueueJob } from "@/jobs/token-updates/mint-queue-job";
-import { floorQueueJob } from "@/jobs/token-updates/floor-queue-job";
+import { tokenFloorQueueJob } from "@/jobs/token-updates/token-floor-queue-job";
 import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
 import { handleNewBuyOrderJob } from "@/jobs/update-attribute/handle-new-buy-order-job";
 import { handleNewSellOrderJob } from "@/jobs/update-attribute/handle-new-sell-order-job";
@@ -379,6 +381,7 @@ export const allJobQueues = [
   approvalWebsocketEventsTriggerQueue.queue,
   transferWebsocketEventsTriggerQueue.queue,
   saleWebsocketEventsTriggerQueue.queue,
+  tokenWebsocketEventsTriggerQueue.queue,
   newTopBidTriggerQueue.queue,
 
   countApiUsage.queue,
@@ -411,7 +414,7 @@ export class RabbitMqJobsConsumer {
       recalcTokenCountQueueJob,
       normalizedFloorQueueJob,
       mintQueueJob,
-      floorQueueJob,
+      tokenFloorQueueJob,
       fetchCollectionMetadataJob,
       handleNewBuyOrderJob,
       handleNewSellOrderJob,

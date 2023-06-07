@@ -7,7 +7,6 @@ import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
 import { fromBuffer, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-
 import { mintQueueJob } from "@/jobs/token-updates/mint-queue-job";
 
 const QUEUE_NAME = "backfill-tokens-with-missing-collection";
