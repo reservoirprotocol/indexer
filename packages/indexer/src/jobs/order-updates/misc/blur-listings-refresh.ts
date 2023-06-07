@@ -138,7 +138,7 @@ export const addToQueue = async (collection: string, force = false) => {
   if (force) {
     await queue.add(collection, { collection });
   } else {
-    const delayInSeconds = 30 * 60;
+    const delayInSeconds = 10 * 60;
     const halfDelayInSeconds = delayInSeconds / 2;
 
     // At most one job per collection per `delayInSeconds` seconds

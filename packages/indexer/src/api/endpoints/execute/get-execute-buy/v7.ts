@@ -65,7 +65,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 .lowercase()
                 .valid(
                   "opensea",
-                  "blur",
                   "blur-partial",
                   "looks-rare",
                   "zeroex-v4",

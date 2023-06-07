@@ -23,6 +23,7 @@ import {
   metadataFetchQueueJob,
   MetadataFetchQueueJobPayload,
 } from "@/jobs/metadata-index/fetch-queue-job";
+import * as blurListingsRefresh from "@/jobs/order-updates/misc/blur-listings-refresh";
 
 const version = "v1";
 
@@ -128,6 +129,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
 
         // Refresh Blur bids
         await blurBidsRefresh.addToQueue(collection.id, true);
+        await blurListingsRefresh.addToQueue(collection.id, true);
 
         // Refresh listings
         await OpenseaIndexerApi.fastContractSync(collection.contract);
