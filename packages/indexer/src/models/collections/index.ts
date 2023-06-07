@@ -22,8 +22,8 @@ import {
 } from "@/utils/mints/collection-mints";
 
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
-import * as collectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
+import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -110,7 +110,7 @@ export class Collections {
     );
     if (!collectionExists) {
       // If the collection doesn't exist, push a job to retrieve it
-      await collectionMetadata.addToQueue([
+      await fetchCollectionMetadataJob.addToQueue([
         {
           contract,
           tokenId,

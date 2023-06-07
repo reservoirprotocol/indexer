@@ -499,7 +499,7 @@ export const savePartialListings = async (
       } else {
         // Order already exists
 
-        await idb.none(
+        const wasUpdated = await idb.oneOrNone(
           `
             UPDATE orders SET
               fillability_status = 'fillable',
@@ -513,6 +513,8 @@ export const savePartialListings = async (
               updated_at = now(),
               raw_data = $/rawData:json/
             WHERE orders.id = $/id/
+              AND orders.fillability_status != 'fillable'
+            RETURNING orders.id
           `,
           {
             id,
@@ -521,11 +523,13 @@ export const savePartialListings = async (
           }
         );
 
-        results.push({
-          id,
-          status: "success",
-          triggerKind: "reprice",
-        });
+        if (wasUpdated) {
+          results.push({
+            id,
+            status: "success",
+            triggerKind: "reprice",
+          });
+        }
       }
     } catch (error) {
       logger.error(
@@ -538,8 +542,6 @@ export const savePartialListings = async (
   // Process all orders concurrently
   const limit = pLimit(20);
   await Promise.all(orderInfos.map((orderInfo) => limit(() => handleOrder(orderInfo))));
-
-  // logger.info("blur-debug", JSON.stringify(results));
 
   if (orderValues.length) {
     const columns = new pgp.helpers.ColumnSet(

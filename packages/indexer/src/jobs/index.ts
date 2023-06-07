@@ -160,6 +160,8 @@ import * as bidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/bid-web
 import * as approvalWebsocketEventsTriggerQueue from "@/jobs/websocket-events/approval-websocket-events-trigger-queue";
 import * as transferWebsocketEventsTriggerQueue from "@/jobs/websocket-events/transfer-websocket-events-trigger-queue";
 import * as saleWebsocketEventsTriggerQueue from "@/jobs/websocket-events/sale-websocket-events-trigger-queue";
+import * as tokenWebsocketEventsTriggerQueue from "@/jobs/websocket-events/token-websocket-events-trigger-queue";
+
 import * as newTopBidTriggerQueue from "@/jobs/websocket-events/new-top-bid-trigger-queue";
 import * as countApiUsage from "@/jobs/metrics/count-api-usage";
 
@@ -187,20 +189,20 @@ import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-j
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
-// import { normalizedFloorQueueJob } from "@/jobs/token-updates/normalized-floor-queue-job";
-// import { mintQueueJob } from "@/jobs/token-updates/mint-queue-job";
-// import { floorQueueJob } from "@/jobs/token-updates/floor-queue-job";
-// import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
-// import { handleNewBuyOrderJob } from "@/jobs/update-attribute/handle-new-buy-order-job";
-// import { handleNewSellOrderJob } from "@/jobs/update-attribute/handle-new-sell-order-job";
-// import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
-// import { resyncAttributeCollectionJob } from "@/jobs/update-attribute/resync-attribute-collection-job";
-// import { resyncAttributeFloorSellJob } from "@/jobs/update-attribute/resync-attribute-floor-sell-job";
-// import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attribute-key-counts-job";
-// import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-attribute-value-counts-job";
-// import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
-// import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";
-// import { topBidSingleTokenQueueJob } from "@/jobs/token-set-updates/top-bid-single-token-queue-job";
+import { normalizedFloorQueueJob } from "@/jobs/token-updates/normalized-floor-queue-job";
+import { mintQueueJob } from "@/jobs/token-updates/mint-queue-job";
+import { tokenFloorQueueJob } from "@/jobs/token-updates/token-floor-queue-job";
+import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
+import { handleNewBuyOrderJob } from "@/jobs/update-attribute/handle-new-buy-order-job";
+import { handleNewSellOrderJob } from "@/jobs/update-attribute/handle-new-sell-order-job";
+import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
+import { resyncAttributeCollectionJob } from "@/jobs/update-attribute/resync-attribute-collection-job";
+import { resyncAttributeFloorSellJob } from "@/jobs/update-attribute/resync-attribute-floor-sell-job";
+import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attribute-key-counts-job";
+import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-attribute-value-counts-job";
+import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
+import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";
+import { topBidSingleTokenQueueJob } from "@/jobs/token-set-updates/top-bid-single-token-queue-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -349,6 +351,7 @@ export const allJobQueues = [
   approvalWebsocketEventsTriggerQueue.queue,
   transferWebsocketEventsTriggerQueue.queue,
   saleWebsocketEventsTriggerQueue.queue,
+  tokenWebsocketEventsTriggerQueue.queue,
   newTopBidTriggerQueue.queue,
 
   countApiUsage.queue,
@@ -379,20 +382,20 @@ export class RabbitMqJobsConsumer {
       tokenRefreshCacheJob,
       recalcOwnerCountQueueJob,
       recalcTokenCountQueueJob,
-      // normalizedFloorQueueJob,
-      // mintQueueJob,
-      // floorQueueJob,
-      // fetchCollectionMetadataJob,
-      // handleNewBuyOrderJob,
-      // handleNewSellOrderJob,
-      // resyncAttributeCacheJob,
-      // resyncAttributeCollectionJob,
-      // resyncAttributeFloorSellJob,
-      // resyncAttributeKeyCountsJob,
-      // resyncAttributeValueCountsJob,
-      // resyncAttributeCountsJob,
-      // topBidQueueJob,
-      // topBidSingleTokenQueueJob,
+      normalizedFloorQueueJob,
+      mintQueueJob,
+      tokenFloorQueueJob,
+      fetchCollectionMetadataJob,
+      handleNewBuyOrderJob,
+      handleNewSellOrderJob,
+      resyncAttributeCacheJob,
+      resyncAttributeCollectionJob,
+      resyncAttributeFloorSellJob,
+      resyncAttributeKeyCountsJob,
+      resyncAttributeValueCountsJob,
+      resyncAttributeCountsJob,
+      topBidQueueJob,
+      topBidSingleTokenQueueJob,
     ];
   }
 

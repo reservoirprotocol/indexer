@@ -6,8 +6,7 @@ import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
-import * as handleNewBuyOrder from "@/jobs/update-attribute/handle-new-buy-order";
-// import { handleNewBuyOrderJob } from "@/jobs/update-attribute/handle-new-buy-order-job";
+import { handleNewBuyOrderJob } from "@/jobs/update-attribute/handle-new-buy-order-job";
 import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
 import { logger } from "@/common/logger";
 
@@ -109,7 +108,7 @@ export async function processTopBid(payload: topBidPayload, queueName: string) {
 
       for (const result of tokenSetTopBid) {
         if (!_.isNull(result.attributeId)) {
-          await handleNewBuyOrder.addToQueue(result);
+          await handleNewBuyOrderJob.addToQueue(result);
         }
 
         if (!_.isNull(result.collectionId)) {
