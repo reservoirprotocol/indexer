@@ -102,20 +102,6 @@ if (config.doBackgroundWork) {
         }
 
         if (
-          result.collection_id === "0x82c7a8f707110f5fbb16184a5933e9f78a34c6ab" &&
-          contract === "0x82c7a8f707110f5fbb16184a5933e9f78a34c6ab"
-        ) {
-          logger.error(
-            QUEUE_NAME,
-            JSON.stringify({
-              topic: "Invalid metadata",
-              jobData: job.data,
-              result,
-            })
-          );
-        }
-
-        if (
           result.old_metadata.name != name ||
           result.old_metadata.image != imageUrl ||
           result.old_metadata.image != mediaUrl
