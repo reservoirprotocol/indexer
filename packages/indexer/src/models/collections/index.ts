@@ -25,6 +25,7 @@ import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-ow
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as collectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
 import * as refreshActivitiesCollectionMetadata from "@/jobs/elasticsearch/refresh-activities-collection-metadata";
+import { config } from "@/config/index";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -178,8 +179,9 @@ export class Collections {
     const result = await idb.oneOrNone(query, values);
 
     if (
-      result?.old_metadata.name != collection.name ||
-      result?.old_metadata.metadata != collection.metadata
+      config.doElasticsearchWork &&
+      (result?.old_metadata.name != collection.name ||
+        result?.old_metadata.metadata != collection.metadata)
     ) {
       logger.info(
         "updateCollectionCache",

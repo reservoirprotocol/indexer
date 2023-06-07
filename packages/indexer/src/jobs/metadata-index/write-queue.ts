@@ -102,9 +102,10 @@ if (config.doBackgroundWork) {
         }
 
         if (
-          result.old_metadata.name != name ||
-          result.old_metadata.image != imageUrl ||
-          result.old_metadata.media != mediaUrl
+          config.doElasticsearchWork &&
+          (result.old_metadata.name != name ||
+            result.old_metadata.image != imageUrl ||
+            result.old_metadata.media != mediaUrl)
         ) {
           logger.info(
             QUEUE_NAME,
