@@ -1,5 +1,4 @@
 import { logger } from "@/common/logger";
-import { config } from "@/config/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { Channel } from "@/pubsub/channels";
 
@@ -8,9 +7,6 @@ export class ApiKeyUpdatedEvent {
     const parsedMessage = JSON.parse(message);
     await ApiKeyManager.deleteCachedApiKey(parsedMessage.key);
 
-    logger.info(
-      Channel.ApiKeyUpdated,
-      `Reloaded key=${parsedMessage.key} on ${config.railwayStaticUrl}`
-    );
+    logger.info(Channel.ApiKeyUpdated, `Reloaded key=${parsedMessage.key}`);
   }
 }

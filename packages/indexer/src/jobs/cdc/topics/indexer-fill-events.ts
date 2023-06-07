@@ -5,18 +5,12 @@ import {
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
 
-import { logger } from "@/common/logger";
-
 export class IndexerFillEventsHandler extends KafkaEventHandler {
   topicName = "indexer.public.fill_events_2";
 
   protected async handleInsert(payload: any): Promise<void> {
     if (!payload.after) {
       return;
-    }
-
-    if (payload.after.order_kind === "0x6e5bab" || payload.after.order_kind === "blur") {
-      logger.info("blur-sales-debug", JSON.stringify({ txHash: payload.after.tx_hash, payload }));
     }
 
     await WebsocketEventRouter({
@@ -33,10 +27,6 @@ export class IndexerFillEventsHandler extends KafkaEventHandler {
   protected async handleUpdate(payload: any): Promise<void> {
     if (!payload.after) {
       return;
-    }
-
-    if (payload.after.order_kind === "0x6e5bab" || payload.after.order_kind === "blur") {
-      logger.info("blur-sales-debug", JSON.stringify({ txHash: payload.after.tx_hash, payload }));
     }
 
     await WebsocketEventRouter({

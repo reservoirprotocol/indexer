@@ -9,6 +9,7 @@ import { fromBuffer, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
 import * as mintQueue from "@/jobs/token-updates/mint-queue";
+// import { mintQueueJob } from "@/jobs/token-updates/mint-queue-job";
 
 const QUEUE_NAME = "backfill-tokens-with-missing-collection";
 

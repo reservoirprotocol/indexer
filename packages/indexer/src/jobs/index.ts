@@ -174,6 +174,33 @@ import * as backfillAskCancelActivitiesElasticsearch from "@/jobs/elasticsearch/
 import * as backfillBidCancelActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-bid-cancel-activities-elasticsearch";
 import * as updateActivitiesCollectionJob from "@/jobs/elasticsearch/update-activities-collection";
 import * as backfillActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-activities-elasticsearch";
+import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
+import amqplib, { Channel, Connection } from "amqplib";
+import { config } from "@/config/index";
+import _ from "lodash";
+import getUuidByString from "uuid-by-string";
+import { getMachineId } from "@/common/machine-id";
+import { PausedRabbitMqQueues } from "@/models/paused-rabbit-mq-queues";
+import { logger } from "@/common/logger";
+import { RabbitMQMessage } from "@/common/rabbit-mq";
+import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
+// import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
+// import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
+// import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
+// import { normalizedFloorQueueJob } from "@/jobs/token-updates/normalized-floor-queue-job";
+// import { mintQueueJob } from "@/jobs/token-updates/mint-queue-job";
+// import { floorQueueJob } from "@/jobs/token-updates/floor-queue-job";
+// import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
+// import { handleNewBuyOrderJob } from "@/jobs/update-attribute/handle-new-buy-order-job";
+// import { handleNewSellOrderJob } from "@/jobs/update-attribute/handle-new-sell-order-job";
+// import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
+// import { resyncAttributeCollectionJob } from "@/jobs/update-attribute/resync-attribute-collection-job";
+// import { resyncAttributeFloorSellJob } from "@/jobs/update-attribute/resync-attribute-floor-sell-job";
+// import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attribute-key-counts-job";
+// import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-attribute-value-counts-job";
+// import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
+// import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";
+// import { topBidSingleTokenQueueJob } from "@/jobs/token-set-updates/top-bid-single-token-queue-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -338,3 +365,128 @@ export const allJobQueues = [
   updateActivitiesCollectionJob.queue,
   backfillActivitiesElasticsearch.queue,
 ];
+
+export class RabbitMqJobsConsumer {
+  private static rabbitMqConsumerConnection: Connection;
+  private static queueToChannel: Map<string, Channel> = new Map();
+
+  /**
+   * Return array of all jobs classes, any new job MUST be added here
+   */
+  public static getQueues(): AbstractRabbitMqJobHandler[] {
+    return [
+      tokenReclacSupplyJob,
+      // tokenRefreshCacheJob,
+      // recalcOwnerCountQueueJob,
+      // recalcTokenCountQueueJob,
+      // normalizedFloorQueueJob,
+      // mintQueueJob,
+      // floorQueueJob,
+      // fetchCollectionMetadataJob,
+      // handleNewBuyOrderJob,
+      // handleNewSellOrderJob,
+      // resyncAttributeCacheJob,
+      // resyncAttributeCollectionJob,
+      // resyncAttributeFloorSellJob,
+      // resyncAttributeKeyCountsJob,
+      // resyncAttributeValueCountsJob,
+      // resyncAttributeCountsJob,
+      // topBidQueueJob,
+      // topBidSingleTokenQueueJob,
+    ];
+  }
+
+  public static async connect() {
+    this.rabbitMqConsumerConnection = await amqplib.connect(config.rabbitMqUrl);
+  }
+
+  /**
+   * Return unique consumer tag used to identify a specific consumer on each queue
+   * @param queueName
+   */
+  public static getConsumerTag(queueName: string) {
+    return getUuidByString(`${getMachineId()}${queueName}`);
+  }
+
+  /**
+   * Subscribing to a given job
+   * @param job
+   */
+  public static async subscribe(job: AbstractRabbitMqJobHandler) {
+    // Check if the queue is paused
+    const pausedQueues = await PausedRabbitMqQueues.getPausedQueues();
+    if (_.indexOf(pausedQueues, job.getQueue()) !== -1) {
+      logger.warn("rabbit-subscribe", `${job.getQueue()} is paused`);
+      return;
+    }
+
+    const channel = await this.rabbitMqConsumerConnection.createChannel();
+    RabbitMqJobsConsumer.queueToChannel.set(job.getQueue(), channel);
+
+    await channel.prefetch(job.getConcurrency()); // Set the number of messages to consume simultaneously
+
+    // Subscribe to the queue
+    await channel.consume(
+      job.getQueue(),
+      async (msg) => {
+        if (!_.isNull(msg)) {
+          const rabbitMQMessage = JSON.parse(msg.content.toString()) as RabbitMQMessage;
+
+          await job.consume(rabbitMQMessage);
+          await channel.ack(msg);
+
+          if (rabbitMQMessage.completeTime) {
+            job.emit("onCompleted", rabbitMQMessage);
+          }
+        }
+      },
+      {
+        consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getQueue()),
+      }
+    );
+
+    // Subscribe to the retry queue
+    await channel.consume(
+      job.getRetryQueue(),
+      async (msg) => {
+        if (!_.isNull(msg)) {
+          const rabbitMQMessage = JSON.parse(msg.content.toString()) as RabbitMQMessage;
+
+          await job.consume(rabbitMQMessage);
+          await channel.ack(msg);
+
+          if (rabbitMQMessage.completeTime) {
+            job.emit("onCompleted", rabbitMQMessage);
+          }
+        }
+      },
+      {
+        consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getRetryQueue()),
+      }
+    );
+  }
+
+  /**
+   * Unsubscribing from the given job
+   * @param job
+   */
+  static async unsubscribe(job: AbstractRabbitMqJobHandler) {
+    const channel = RabbitMqJobsConsumer.queueToChannel.get(job.getQueue());
+
+    if (channel) {
+      await channel.cancel(RabbitMqJobsConsumer.getConsumerTag(job.getQueue()));
+      await channel.cancel(RabbitMqJobsConsumer.getConsumerTag(job.getRetryQueue()));
+    }
+  }
+
+  /**
+   * Going over all the jobs and calling the subscribe function for each queue
+   */
+  static async startRabbitJobsConsumer(): Promise<void> {
+    await RabbitMqJobsConsumer.connect(); // Create a connection for the consumer
+
+    for (const queue of RabbitMqJobsConsumer.getQueues()) {
+      await RabbitMqJobsConsumer.subscribe(queue);
+    }
+  }
+}

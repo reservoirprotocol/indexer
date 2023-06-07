@@ -8,7 +8,7 @@ import { config } from "@/config/index";
 import {
   WebsocketEventKind,
   WebsocketEventRouter,
-} from "../websocket-events/websocket-event-router";
+} from "@/jobs/websocket-events/websocket-event-router";
 import { topBidsCache } from "@/models/top-bids-caching";
 
 const QUEUE_NAME = "collection-updates-top-bid-queue";

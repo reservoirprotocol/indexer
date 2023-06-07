@@ -17,6 +17,8 @@ import { ApiKeyManager } from "@/models/api-keys";
 import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
+// import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
+// import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
 
 const version = "v1";
 
@@ -149,7 +151,7 @@ export const postTokensRefreshV1Options: RouteOptions = {
 
       return { message: "Request accepted" };
     } catch (error) {
-      logger.error(`post-tokens-refresh-${version}-handler`, `Handler failure: ${error}`);
+      logger.warn(`post-tokens-refresh-${version}-handler`, `Handler failure: ${error}`);
       throw error;
     }
   },

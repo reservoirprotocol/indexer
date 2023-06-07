@@ -9,6 +9,7 @@ import { config } from "@/config/index";
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import * as handleNewSellOrder from "@/jobs/update-attribute/handle-new-sell-order";
+// import { handleNewSellOrderJob } from "@/jobs/update-attribute/handle-new-sell-order-job";
 
 const QUEUE_NAME = "token-updates-floor-ask-queue";
 

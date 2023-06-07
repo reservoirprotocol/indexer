@@ -23,6 +23,10 @@ import * as updateActivitiesCollection from "@/jobs/elasticsearch/update-activit
 
 import PgPromise from "pg-promise";
 import { updateActivities } from "@/jobs/activities/utils";
+// import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
+// import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attribute-key-counts-job";
+// import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-attribute-value-counts-job";
+// import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
 
 const QUEUE_NAME = "metadata-index-write-queue";
 

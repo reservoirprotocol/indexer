@@ -10,6 +10,7 @@ import { config } from "@/config/index";
 import _ from "lodash";
 import { RecalcCollectionOwnerCountInfo } from "@/jobs/collection-updates/recalc-owner-count-queue";
 import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
+// import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 
 const QUEUE_NAME = "backfill-collections-owner-count";
 

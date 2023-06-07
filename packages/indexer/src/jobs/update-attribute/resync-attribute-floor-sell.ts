@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import _ from "lodash";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
@@ -11,6 +9,7 @@ import { config } from "@/config/index";
 import { redb } from "@/common/db";
 import * as resyncAttributeCache from "@/jobs/update-attribute/resync-attribute-cache";
 import { fromBuffer } from "@/common/utils";
+// import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
 
 const QUEUE_NAME = "resync-attribute-floor-value-queue";
 

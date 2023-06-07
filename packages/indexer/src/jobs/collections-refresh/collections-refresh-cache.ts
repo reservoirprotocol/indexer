@@ -10,6 +10,7 @@ import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as resyncAttributeCache from "@/jobs/update-attribute/resync-attribute-cache";
 import { Collections } from "@/models/collections";
+// import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
 
 const QUEUE_NAME = "collections-refresh-cache";
 

@@ -8,6 +8,7 @@ import { logger } from "@/common/logger";
 import { now, regex } from "@/common/utils";
 import { config } from "@/config/index";
 import * as mintQueue from "@/jobs/token-updates/mint-queue";
+// import { mintQueueJob } from "@/jobs/token-updates/mint-queue-job";
 
 export const postMetadataIndexOptions: RouteOptions = {
   description: "Trigger metadata indexing for a token's collection",

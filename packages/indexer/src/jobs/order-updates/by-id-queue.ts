@@ -23,6 +23,9 @@ import {
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
 import { BidEventsList } from "@/models/bid-events-list";
+// import { normalizedFloorQueueJob } from "@/jobs/token-updates/normalized-floor-queue-job";
+// import { floorQueueJob } from "@/jobs/token-updates/floor-queue-job";
+// import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";
 
 const QUEUE_NAME = "order-updates-by-id";
 

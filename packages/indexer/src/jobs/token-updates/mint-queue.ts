@@ -13,6 +13,9 @@ import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-to
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
 import * as tokenRefreshCache from "@/jobs/token-updates/token-refresh-cache";
+// import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
+// import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
+// import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
 
 const QUEUE_NAME = "token-updates-mint-queue";
 

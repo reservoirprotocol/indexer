@@ -14,6 +14,8 @@ import * as tokenRefreshCacheQueue from "@/jobs/token-updates/token-refresh-cach
 import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
+// import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
+// import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
 
 export const postRefreshTokenOptions: RouteOptions = {
   description: "Refresh a token's orders and metadata",

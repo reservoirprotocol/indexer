@@ -18,6 +18,7 @@ import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "../websocket-events/websocket-event-router";
+// import { handleNewBuyOrderJob } from "@/jobs/update-attribute/handle-new-buy-order-job";
 
 const QUEUE_NAME = "order-updates-buy-order";
 
