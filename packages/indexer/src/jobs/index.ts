@@ -41,6 +41,7 @@ import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders"
 import * as backfillExpiredOrders2 from "@/jobs/backfill/backfill-expired-orders-2";
 import * as backfillFoundationSales from "@/jobs/backfill/backfill-foundation-sales";
 import * as backfillMints from "@/jobs/backfill/backfill-mints";
+import * as backfillBlurSales from "@/jobs/backfill/backfill-blur-sales";
 import * as backfillSaleRoyalties from "@/jobs/backfill/backfill-sale-royalties";
 import * as backfillUpdateMissingMetadata from "@/jobs/backfill/backfill-update-missing-metadata";
 import * as backfillInvalidateSeaportV14Orders from "@/jobs/backfill/backfill-cancel-seaport-v11-orders";
@@ -124,6 +125,7 @@ import * as expiredOrdersCron from "@/jobs/order-updates/cron/expired-orders-que
 import * as oracleOrdersCron from "@/jobs/order-updates/cron/oracle-orders-queue";
 import * as blurBidsBufferMisc from "@/jobs/order-updates/misc/blur-bids-buffer";
 import * as blurBidsRefreshMisc from "@/jobs/order-updates/misc/blur-bids-refresh";
+import * as blurListingsRefreshMisc from "@/jobs/order-updates/misc/blur-listings-refresh";
 import * as saveBidEvents from "@/jobs/order-updates/save-bid-events";
 
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
@@ -208,6 +210,7 @@ export const allJobQueues = [
   backfillCollectionsRoyalties.queue,
   backfillWrongNftBalances.queue,
   backfillInvalidateSeaportV14Orders.queue,
+  backfillBlurSales.queue,
 
   currencies.queue,
 
@@ -284,6 +287,7 @@ export const allJobQueues = [
   oracleOrdersCron.queue,
   blurBidsBufferMisc.queue,
   blurBidsRefreshMisc.queue,
+  blurListingsRefreshMisc.queue,
   saveBidEvents.queue,
 
   orderbookOrders.queue,

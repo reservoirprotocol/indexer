@@ -357,7 +357,7 @@ export const savePartialListings = async (
       const source = await sources.getOrInsert("blur.io");
 
       // Invalidate any old orders
-      const anyActiveOrders = orderParams.price && orderParams.createdAt;
+      const anyActiveOrders = orderParams.price;
       const invalidatedOrderIds = await idb.manyOrNone(
         `
           UPDATE orders SET
@@ -369,12 +369,18 @@ export const savePartialListings = async (
             AND orders.fillability_status = 'fillable'
             AND orders.raw_data->>'createdAt' IS NOT NULL
             AND orders.id != $/excludeOrderId/
+            ${
+              orderParams.createdAt
+                ? ` AND (orders.raw_data->>'createdAt')::TIMESTAMPTZ <= $/createdAt/`
+                : ""
+            }
           RETURNING orders.id
         `,
         {
           tokenSetId: `token:${orderParams.collection}:${orderParams.tokenId}`,
           sourceId: source.id,
           excludeOrderId: anyActiveOrders ? getBlurListingId(orderParams, owner) : HashZero,
+          createdAt: orderParams.createdAt,
         }
       );
       for (const { id } of invalidatedOrderIds) {

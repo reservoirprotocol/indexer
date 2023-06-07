@@ -79,6 +79,22 @@ export const getSearchActivitiesV1Options: RouteOptions = {
         .description(
           "Filter to a particular attribute. Note: Our docs do not support this parameter correctly. To test, you can use the following URL in your browser. Example: `https://api.reservoir.tools/collections/activity/v6?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attribute[Type]=Original` or `https://api.reservoir.tools/collections/activity/v6?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attribute[Type]=Original&attribute[Type]=Sibling`"
         ),
+
+      sources: Joi.alternatives().try(
+        Joi.array()
+          .max(50)
+          .items(Joi.string().pattern(regex.domain).lowercase())
+          .description(
+            "Array of source domains. Max limit is 50. Example: `sources[0]: opensea.io`"
+          ),
+        Joi.string()
+          .pattern(regex.domain)
+          .lowercase()
+          .description(
+            "Array of source domains. Max limit is 50. Example: `sources[0]: opensea.io`"
+          )
+      ),
+
       users: Joi.alternatives().try(
         Joi.array()
           .items(Joi.string().lowercase().pattern(regex.address))
@@ -247,6 +263,18 @@ export const getSearchActivitiesV1Options: RouteOptions = {
       }));
     }
 
+    if (query.sources) {
+      const sourceDomains = _.flatten([query.sources]);
+
+      const sourcesResult = await redb.manyOrNone(`
+            SELECT id 
+            FROM sources_v2 
+            WHERE domain IN ('${sourceDomains.join("','")}') 
+          `);
+
+      query.sources = _.map(sourcesResult, (source) => source.id);
+    }
+
     if (query.users) {
       if (!_.isArray(query.users)) {
         query.users = [query.users];
@@ -259,6 +287,7 @@ export const getSearchActivitiesV1Options: RouteOptions = {
         collections,
         contracts,
         tokens,
+        sources: query.sources,
         users: query.users,
         sortBy: query.sortBy,
         limit: query.limit,

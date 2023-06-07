@@ -67,7 +67,8 @@ type SaveResult = {
 export const save = async (
   orderInfos: OrderInfo[],
   validateBidValue?: boolean,
-  ingestMethod?: "websocket" | "rest"
+  ingestMethod?: "websocket" | "rest",
+  ingestDelay?: number
 ): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
@@ -161,6 +162,8 @@ export const save = async (
               kind: "seaport-v1.5",
               info: { orderParams, metadata, isReservoir, isOpenSea, openSeaOrderParams },
               validateBidValue,
+              ingestMethod,
+              ingestDelay: startTime - currentTime + 5,
             },
           ],
           false,
@@ -872,6 +875,7 @@ export const save = async (
                 kind: "new-order",
               },
               ingestMethod,
+              ingestDelay,
             } as ordersUpdateById.OrderInfo)
         )
     );

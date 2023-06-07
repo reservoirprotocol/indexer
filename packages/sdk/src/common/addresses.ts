@@ -40,7 +40,7 @@ export const Weth: ChainIdToAddress = {
   [Network.MantleTestnet]: "0xbaafec4b6ef4f5e0bafa850cbc48364b953efcf9",
   [Network.LineaTestnet]: "0x2c1b868d6596a18e32e61b901e4060c872647b6c",
   [Network.ZoraTestnet]: "0x4200000000000000000000000000000000000006",
-  [Network.BaseGoerli]: "0x497c4c4041613bd4642760f3e4428abc88b3a565",
+  [Network.BaseGoerli]: "0x4200000000000000000000000000000000000006",
 };
 
 // TODO: Include addresses across all supported chains

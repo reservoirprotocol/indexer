@@ -48,7 +48,7 @@ if (config.doBackgroundWork) {
   worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { id, trigger, ingestMethod } = job.data as OrderInfo;
+      const { id, trigger, ingestMethod, ingestDelay } = job.data as OrderInfo;
       let { side, tokenSetId } = job.data as OrderInfo;
 
       try {
@@ -336,7 +336,7 @@ if (config.doBackgroundWork) {
               logger.info(
                 "order-latency",
                 JSON.stringify({
-                  latency: orderCreated - orderStart,
+                  latency: orderCreated - orderStart - Number(ingestDelay ?? 0),
                   source: source?.getTitle(),
                   orderId: order.id,
                   orderKind: order.kind,
@@ -347,6 +347,7 @@ if (config.doBackgroundWork) {
                     ? new Date(order.originatedAt).toISOString()
                     : null,
                   ingestMethod: ingestMethod ?? "rest",
+                  ingestDelay,
                 })
               );
             }
@@ -399,6 +400,7 @@ export type OrderInfo = {
   tokenSetId?: string;
   side?: "sell" | "buy";
   ingestMethod?: "websocket" | "rest";
+  ingestDelay?: number;
 };
 
 export const addToQueue = async (orderInfos: OrderInfo[]) => {
