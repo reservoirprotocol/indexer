@@ -338,7 +338,7 @@ if (config.doBackgroundWork) {
               logger.info(
                 "order-latency",
                 JSON.stringify({
-                  latency: orderCreated - orderStart - Number(ingestDelay),
+                  latency: orderCreated - orderStart - Number(ingestDelay ?? 0),
                   source: source?.getTitle(),
                   orderId: order.id,
                   orderKind: order.kind,
@@ -349,7 +349,7 @@ if (config.doBackgroundWork) {
                     ? new Date(order.originatedAt).toISOString()
                     : null,
                   ingestMethod: ingestMethod ?? "rest",
-                  ingestDelay: Number(ingestDelay),
+                  ingestDelay,
                 })
               );
             }

@@ -49,7 +49,7 @@ if (config.doBackgroundWork) {
       } else if (retry < MAX_RETRIES) {
         job.data.addToQueue = true;
       } else {
-        logger.warn(QUEUE_NAME, `Max retries reached for ${JSON.stringify(job.data)}`);
+        logger.debug(QUEUE_NAME, `Max retries reached for ${JSON.stringify(job.data)}`);
       }
     },
     { connection: redis.duplicate(), concurrency: 15 }
