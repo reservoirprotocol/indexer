@@ -13,11 +13,11 @@ import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
-import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
 import * as orderFixes from "@/jobs/order-fixes/fixes";
 import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
+import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
 
 export const postRefreshCollectionOptions: RouteOptions = {
   description: "Refresh a collection's orders and metadata",
@@ -28,7 +28,6 @@ export const postRefreshCollectionOptions: RouteOptions = {
     }).options({ allowUnknown: true }),
     payload: Joi.object({
       collection: Joi.string()
-        .lowercase()
         .description(
           "Refresh the given collection. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         )
@@ -64,10 +63,12 @@ export const postRefreshCollectionOptions: RouteOptions = {
           { collection: payload.collection }
         );
         if (tokenResult) {
-          await fetchCollectionMetadata.addToQueue([
+          await fetchCollectionMetadataJob.addToQueue([
             {
               contract: fromBuffer(tokenResult.contract),
               tokenId: tokenResult.token_id,
+              allowFallbackCollectionMetadata: false,
+              context: "post-refresh-collection",
             },
           ]);
 

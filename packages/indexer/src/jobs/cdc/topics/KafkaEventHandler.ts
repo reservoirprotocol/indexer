@@ -4,6 +4,7 @@ import { logger } from "@/common/logger";
 import { producer } from "..";
 import { base64ToHex, isBase64 } from "@/common/utils";
 import { getNetworkName } from "@/config/network";
+import { BigNumber } from "ethers";
 
 export abstract class KafkaEventHandler {
   abstract topicName: string;
@@ -79,7 +80,7 @@ export abstract class KafkaEventHandler {
         payload.after[key] = base64ToHex(payload.after[key]);
         // if the key is a numeric key, convert the value to a number (hex -> number -> string)
         if (numericKeys.includes(key) && typeof payload.after[key] === "string") {
-          payload.after[key] = Number(payload.after[key]).toString();
+          payload.after[key] = BigNumber.from(payload.after[key]).toString();
         }
       }
     }
@@ -89,7 +90,7 @@ export abstract class KafkaEventHandler {
         payload.before[key] = base64ToHex(payload.before[key]);
         // if the key is a numeric key, convert the value to a number (hex -> number -> string)
         if (numericKeys.includes(key) && typeof payload.before[key] === "string") {
-          payload.before[key] = Number(payload.before[key]).toString();
+          payload.before[key] = BigNumber.from(payload.before[key]).toString();
         }
       }
     }

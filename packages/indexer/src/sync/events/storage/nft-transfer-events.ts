@@ -6,7 +6,7 @@ import { config } from "@/config/index";
 import { BaseEventParams } from "@/events-sync/parser";
 import * as nftTransfersWriteBuffer from "@/jobs/events-sync/write-buffers/nft-transfers";
 import { AddressZero } from "@ethersproject/constants";
-import * as tokenRecalcSupply from "@/jobs/token-updates/token-reclac-supply";
+import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
 
 export type Event = {
   kind: ContractKind;
@@ -228,7 +228,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
       await insertQueries([query], backfill);
 
       // Recalc supply
-      await tokenRecalcSupply.addToQueue(
+      await tokenReclacSupplyJob.addToQueue(
         tokenValuesChunk.map((t) => ({ contract: fromBuffer(t.contract), tokenId: t.token_id }))
       );
     }

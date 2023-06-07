@@ -12,6 +12,8 @@ import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-q
 import { sub, set, getUnixTime, add } from "date-fns";
 import { Collections } from "@/models/collections";
 import { CollectionsEntity } from "@/models/collections/collections-entity";
+import { CollectionMetadataInfo } from "@/jobs/collection-updates/metadata-queue";
+import { redb } from "@/common/db";
 
 const QUEUE_NAME = "collections-refresh-queue";
 
@@ -61,11 +63,46 @@ if (config.doBackgroundWork) {
       // Get top collections by volume
       collections = collections.concat(await Collections.getTopCollectionsByVolume());
 
-      const contracts = _.map(collections, (collection) => ({
-        contract: collection.contract,
-        community: collection.community,
-      }));
-      await collectionUpdatesMetadata.addToQueue(contracts);
+      const collectionIds = _.map(collections, (collection) => collection.id);
+
+      const results = await redb.manyOrNone(
+        `
+                SELECT
+                  collections.contract,
+                  collections.community,
+                  t.token_id
+                FROM collections
+                JOIN LATERAL (
+                    SELECT t.token_id
+                    FROM tokens t
+                    WHERE t.collection_id = collections.id
+                    LIMIT 1
+                ) t ON TRUE
+                WHERE collections.id IN ($/collectionIds:list/)
+              `,
+        { collectionIds }
+      );
+
+      const infos = _.map(
+        results,
+        (result) =>
+          ({
+            contract: result.contract,
+            community: result.community,
+            tokenId: result,
+          } as CollectionMetadataInfo)
+      );
+
+      logger.info(
+        QUEUE_NAME,
+        JSON.stringify({
+          topic: "debug",
+          collectionsCount: collections.length,
+          resultsCount: results.length,
+        })
+      );
+
+      await collectionUpdatesMetadata.addToQueueBulk(infos);
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );

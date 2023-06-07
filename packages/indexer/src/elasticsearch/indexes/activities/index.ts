@@ -11,8 +11,7 @@ import { SortResults } from "@elastic/elasticsearch/lib/api/typesWithBodyKey";
 import { logger } from "@/common/logger";
 import { CollectionsEntity } from "@/models/collections/collections-entity";
 import { ActivityDocument, ActivityType } from "@/elasticsearch/indexes/activities/base";
-import { getNetworkName } from "@/config/network";
-import { config } from "@/config/index";
+import { getNetworkName, getNetworkSettings } from "@/config/network";
 import _ from "lodash";
 import { buildContinuation, splitContinuation } from "@/common/utils";
 import { addToQueue as backfillActivitiesAddToQueue } from "@/jobs/elasticsearch/backfill-activities-elasticsearch";
@@ -104,32 +103,48 @@ const MAPPINGS: MappingTypeMapping = {
   },
 };
 
-export const save = async (activities: ActivityDocument[]): Promise<void> => {
+export const save = async (activities: ActivityDocument[], upsert = true): Promise<void> => {
   try {
     const response = await elasticsearch.bulk({
       body: activities.flatMap((activity) => [
-        { index: { _index: INDEX_NAME, _id: activity.id } },
+        { [upsert ? "index" : "create"]: { _index: INDEX_NAME, _id: activity.id } },
         activity,
       ]),
     });
 
     if (response.errors) {
-      logger.error(
-        "elasticsearch-activities",
-        JSON.stringify({
-          topic: "save-errors",
-          data: {
-            activities: JSON.stringify(activities),
-          },
-          response,
-        })
-      );
+      if (upsert) {
+        logger.error(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "save-errors",
+            upsert,
+            data: {
+              activities: JSON.stringify(activities),
+            },
+            response,
+          })
+        );
+      } else {
+        logger.info(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "save-conflicts",
+            upsert,
+            data: {
+              activities: JSON.stringify(activities),
+            },
+            response,
+          })
+        );
+      }
     }
   } catch (error) {
     logger.error(
       "elasticsearch-activities",
       JSON.stringify({
         topic: "save",
+        upsert,
         data: {
           activities: JSON.stringify(activities),
         },
@@ -141,17 +156,21 @@ export const save = async (activities: ActivityDocument[]): Promise<void> => {
   }
 };
 
-export const search = async (params: {
-  types?: ActivityType;
-  tokens?: { contract: string; tokenId: string }[];
-  contracts?: string[];
-  collections?: string[];
-  users?: string[];
-  sortBy?: "timestamp" | "createdAt";
-  limit?: number;
-  continuation?: string;
-  continuationAsInt?: boolean;
-}): Promise<{ activities: ActivityDocument[]; continuation: string | null }> => {
+export const search = async (
+  params: {
+    types?: ActivityType;
+    tokens?: { contract: string; tokenId: string }[];
+    contracts?: string[];
+    collections?: string[];
+    sources?: number[];
+    users?: string[];
+    sortBy?: "timestamp" | "createdAt";
+    limit?: number;
+    continuation?: string;
+    continuationAsInt?: boolean;
+  },
+  debug = false
+): Promise<{ activities: ActivityDocument[]; continuation: string | null }> => {
   const esQuery = {};
 
   (esQuery as any).bool = { filter: [] };
@@ -176,28 +195,40 @@ export const search = async (params: {
     });
   }
 
+  if (params.sources?.length) {
+    (esQuery as any).bool.filter.push({
+      terms: { "order.sourceId": params.sources },
+    });
+  }
+
   if (params.tokens?.length) {
-    const tokensFilter = { bool: { should: [] } };
-
-    for (const token of params.tokens) {
-      const contract = token.contract.toLowerCase();
-      const tokenId = token.tokenId;
-
-      (tokensFilter as any).bool.should.push({
-        bool: {
-          must: [
-            {
-              term: { contract },
-            },
-            {
-              term: { ["token.id"]: tokenId },
-            },
-          ],
-        },
+    if (params.contracts?.length === 1) {
+      (esQuery as any).bool.filter.push({
+        terms: { "token.id": params.tokens.map((token) => token.tokenId) },
       });
-    }
+    } else {
+      const tokensFilter = { bool: { should: [] } };
 
-    (esQuery as any).bool.filter.push(tokensFilter);
+      for (const token of params.tokens) {
+        const contract = token.contract.toLowerCase();
+        const tokenId = token.tokenId;
+
+        (tokensFilter as any).bool.should.push({
+          bool: {
+            must: [
+              {
+                term: { contract },
+              },
+              {
+                term: { ["token.id"]: tokenId },
+              },
+            ],
+          },
+        });
+      }
+
+      (esQuery as any).bool.filter.push(tokensFilter);
+    }
   }
 
   if (params.users?.length) {
@@ -235,12 +266,16 @@ export const search = async (params: {
   }
 
   try {
-    const activities = await _search({
-      query: esQuery,
-      sort: esSort as Sort,
-      size: params.limit,
-      search_after: searchAfter,
-    });
+    const activities = await _search(
+      {
+        query: esQuery,
+        sort: esSort as Sort,
+        size: params.limit,
+        search_after: searchAfter,
+      },
+      0,
+      debug
+    );
 
     let continuation = null;
 
@@ -285,7 +320,8 @@ const _search = async (
     search_after?: SortResults | undefined;
     track_total_hits?: boolean;
   },
-  retries = 0
+  retries = 0,
+  debug = false
 ): Promise<ActivityDocument[]> => {
   try {
     const esResult = await elasticsearch.search<ActivityDocument>({
@@ -295,18 +331,8 @@ const _search = async (
 
     const results = esResult.hits.hits.map((hit) => hit._source!);
 
-    if (retries > 0) {
+    if (retries > 0 || debug) {
       logger.info(
-        "elasticsearch-activities",
-        JSON.stringify({
-          topic: "_search",
-          latency: esResult.took,
-          params: JSON.stringify(params),
-          retries,
-        })
-      );
-    } else {
-      logger.debug(
         "elasticsearch-activities",
         JSON.stringify({
           topic: "_search",
@@ -347,7 +373,7 @@ const _search = async (
 
       if (retries <= 3) {
         retries += 1;
-        return _search(params, retries);
+        return _search(params, retries, debug);
       }
 
       logger.error(
@@ -373,41 +399,84 @@ const _search = async (
 export const initIndex = async (): Promise<void> => {
   try {
     if (await elasticsearch.indices.exists({ index: INDEX_NAME })) {
-      const response = await elasticsearch.indices.get({ index: INDEX_NAME });
+      logger.info(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "initIndex",
+          message: "Index already exists.",
+          indexName: INDEX_NAME,
+        })
+      );
 
-      const indexName = Object.keys(response)[0];
+      const getIndexResponse = await elasticsearch.indices.get({ index: INDEX_NAME });
 
-      logger.info("elasticsearch-activities", "Index exists! Updating Mappings.");
+      const indexName = Object.keys(getIndexResponse)[0];
 
-      await elasticsearch.indices.putMapping({
+      const putMappingResponse = await elasticsearch.indices.putMapping({
         index: indexName,
         properties: MAPPINGS.properties,
       });
-    } else {
-      logger.info("elasticsearch-activities", "Creating index!");
 
-      await elasticsearch.indices.create({
+      logger.info(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "initIndex",
+          message: "Updated mappings.",
+          indexName: INDEX_NAME,
+          mappings: MAPPINGS.properties,
+          putMappingResponse,
+        })
+      );
+    } else {
+      logger.info(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "initIndex",
+          message: "Creating Index.",
+          indexName: INDEX_NAME,
+        })
+      );
+
+      const params = {
         aliases: {
           [INDEX_NAME]: {},
         },
         index: `${INDEX_NAME}-${Date.now()}`,
         mappings: MAPPINGS,
         settings: {
-          number_of_shards: config.chainId === 5 ? 4 : 40,
+          number_of_shards:
+            getNetworkSettings().elasticsearch?.indexes?.activities?.numberOfShards ||
+            getNetworkSettings().elasticsearch?.numberOfShards ||
+            1,
           sort: {
             field: ["timestamp", "createdAt"],
             order: ["desc", "desc"],
           },
         },
-      });
+      };
 
-      await backfillActivitiesAddToQueue();
+      const createIndexResponse = await elasticsearch.indices.create(params);
+
+      logger.info(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "initIndex",
+          message: "Index Created!",
+          indexName: INDEX_NAME,
+          params,
+          createIndexResponse,
+        })
+      );
+
+      await backfillActivitiesAddToQueue(false);
     }
   } catch (error) {
     logger.error(
       "elasticsearch-activities",
       JSON.stringify({
-        topic: "createIndex",
+        topic: "initIndex",
+        message: "Error.",
+        indexName: INDEX_NAME,
         error,
       })
     );

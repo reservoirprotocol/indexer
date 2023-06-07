@@ -62,6 +62,7 @@ export const config = {
   kafkaConsumerGroupId: String(process.env.KAFKA_CONSUMER_GROUP_ID),
   kafkaBrokers: String(process.env.KAFKA_BROKERS).split(","),
   kafkaClientId: String(process.env.KAFKA_CLIENT_ID),
+  kafkaMaxBytesPerPartition: Number(process.env.KAFKA_MAX_BYTES_PER_PARTITION),
 
   // for testing order websocket triggers
   doOldOrderWebsocketWork: Boolean(Number(process.env.DO_OLD_ORDER_WEBSOCKET_WORK)),
@@ -111,7 +112,6 @@ export const config = {
   blurWsUrl: process.env.BLUR_WS_URL,
 
   orderFetcherBaseUrl: String(process.env.ORDER_FETCHER_BASE_URL),
-  railwayStaticUrl: String(process.env.RAILWAY_STATIC_URL || ""),
 
   cipherSecret: String(process.env.CIPHER_SECRET),
 
@@ -140,4 +140,8 @@ export const config = {
   // realtime v2
   enableRealtimeProcessing: Boolean(process.env.ENABLE_REALTIME_PROCESSING),
   enableRealtimeV2BlockQueue: Boolean(process.env.ENABLE_REALTIME_V2_BLOCK_QUEUE),
+
+  // RabbitMq
+  rabbitMqUrl: `amqp://${String(process.env.RABBIT_URL)}:5672`,
+  rabbitHttpUrl: `http://${String(process.env.RABBIT_URL)}:15672`,
 };

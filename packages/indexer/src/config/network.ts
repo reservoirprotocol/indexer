@@ -130,6 +130,15 @@ type NetworkSettings = {
   };
   onStartup?: () => Promise<void>;
   subDomain: string;
+
+  elasticsearch?: {
+    numberOfShards?: number;
+    indexes?: { [index: string]: ElasticsearchIndexSettings };
+  };
+};
+
+type ElasticsearchIndexSettings = {
+  numberOfShards?: number;
 };
 
 export const getNetworkSettings = (): NetworkSettings => {
@@ -155,6 +164,9 @@ export const getNetworkSettings = (): NetworkSettings => {
     whitelistedCurrencies: new Map<string, Currency>(),
     supportedBidCurrencies: { [Sdk.Common.Addresses.Weth[config.chainId]?.toLowerCase()]: true },
     subDomain: "api",
+    elasticsearch: {
+      numberOfShards: 2,
+    },
   };
 
   switch (config.chainId) {
@@ -305,6 +317,13 @@ export const getNetworkSettings = (): NetworkSettings => {
         coingecko: {
           networkId: "ethereum",
         },
+        elasticsearch: {
+          indexes: {
+            activities: {
+              numberOfShards: 40,
+            },
+          },
+        },
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
@@ -357,6 +376,13 @@ export const getNetworkSettings = (): NetworkSettings => {
           // OpenSea USDC
           "0x2f3a40a3db8a7e3d09b0adfefbce4f6f81927557": true,
         },
+        elasticsearch: {
+          indexes: {
+            activities: {
+              numberOfShards: 10,
+            },
+          },
+        },
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
@@ -396,6 +422,13 @@ export const getNetworkSettings = (): NetworkSettings => {
         coingecko: {
           networkId: "optimistic-ethereum",
         },
+        elasticsearch: {
+          indexes: {
+            activities: {
+              numberOfShards: 10,
+            },
+          },
+        },
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
@@ -432,6 +465,13 @@ export const getNetworkSettings = (): NetworkSettings => {
         subDomain: "api-bsc",
         coingecko: {
           networkId: "binance-smart-chain",
+        },
+        elasticsearch: {
+          indexes: {
+            activities: {
+              numberOfShards: 10,
+            },
+          },
         },
         onStartup: async () => {
           // Insert the native currency
@@ -493,6 +533,13 @@ export const getNetworkSettings = (): NetworkSettings => {
         coingecko: {
           networkId: "polygon-pos",
         },
+        elasticsearch: {
+          indexes: {
+            activities: {
+              numberOfShards: 40,
+            },
+          },
+        },
         supportedBidCurrencies: {
           ...defaultNetworkSettings.supportedBidCurrencies,
           [Sdk.Common.Addresses.Usdc[config.chainId]]: true,
@@ -537,6 +584,13 @@ export const getNetworkSettings = (): NetworkSettings => {
         subDomain: "api-arbitrum",
         coingecko: {
           networkId: "arbitrum-one",
+        },
+        elasticsearch: {
+          indexes: {
+            activities: {
+              numberOfShards: 10,
+            },
+          },
         },
         onStartup: async () => {
           // Insert the native currency
@@ -669,7 +723,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
-        headBlockDelay: 10,
         subDomain: "api-sepolia",
         onStartup: async () => {
           // Insert the native currency
@@ -703,8 +756,14 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
-        headBlockDelay: 10,
         subDomain: "api-mumbai",
+        elasticsearch: {
+          indexes: {
+            activities: {
+              numberOfShards: 10,
+            },
+          },
+        },
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
@@ -737,8 +796,14 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
-        headBlockDelay: 10,
         subDomain: "api-base-goerli",
+        elasticsearch: {
+          indexes: {
+            activities: {
+              numberOfShards: 5,
+            },
+          },
+        },
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
@@ -771,8 +836,14 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
-        headBlockDelay: 10,
         subDomain: "api-arbitrum-nova",
+        elasticsearch: {
+          indexes: {
+            activities: {
+              numberOfShards: 10,
+            },
+          },
+        },
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
@@ -805,7 +876,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
-        headBlockDelay: 10,
         subDomain: "api-zora-testnet",
         onStartup: async () => {
           // Insert the native currency

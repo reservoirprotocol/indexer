@@ -9,14 +9,17 @@ import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { TriggerKind } from "@/jobs/order-updates/types";
-import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
-import * as tokenUpdatesNormalizedFloorAsk from "@/jobs/token-updates/normalized-floor-queue";
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
 import * as updateNftBalanceFloorAskPriceQueue from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
 import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "../websocket-events/websocket-event-router";
+import {
+  normalizedFloorQueueJob,
+  NormalizedFloorQueueJobPayload,
+} from "@/jobs/token-updates/normalized-floor-queue-job";
+import { tokenFloorQueueJob } from "@/jobs/token-updates/token-floor-queue-job";
 
 const QUEUE_NAME = "order-updates-sell-order";
 
@@ -47,7 +50,7 @@ if (config.doBackgroundWork) {
       try {
         if (tokenSetId) {
           // Update token floor
-          const floorAskInfo: tokenUpdatesNormalizedFloorAsk.FloorAskInfo = {
+          const floorAskInfo: NormalizedFloorQueueJobPayload = {
             kind: trigger.kind,
             tokenSetId,
             txHash: trigger.txHash || null,
@@ -55,8 +58,8 @@ if (config.doBackgroundWork) {
           };
 
           await Promise.all([
-            tokenUpdatesFloorAsk.addToQueue([floorAskInfo]),
-            tokenUpdatesNormalizedFloorAsk.addToQueue([floorAskInfo]),
+            tokenFloorQueueJob.addToQueue([floorAskInfo]),
+            normalizedFloorQueueJob.addToQueue([floorAskInfo]),
           ]);
         }
 

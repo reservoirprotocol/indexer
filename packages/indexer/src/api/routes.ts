@@ -166,6 +166,18 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/pause-rabbit-queue",
+    options: adminEndpoints.postPauseRabbitQueueOptions,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/admin/resume-rabbit-queue",
+    options: adminEndpoints.postResumeRabbitQueueOptions,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/api-keys/metrics",
     options: adminEndpoints.postApiKeyMetrics,
   });
