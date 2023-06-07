@@ -372,8 +372,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
           query.tokenSetId ||
           query.community ||
           query.collectionsSetId ||
-          query.native ||
-          query.source)
+          query.native)
       ) {
         throw Boom.badRequest(
           `Cannot filter with additional query params when sortBy = updatedAt and status != 'active.`
