@@ -18,6 +18,7 @@ import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
 import * as orderFixes from "@/jobs/order-fixes/fixes";
 import * as blurBidsRefresh from "@/jobs/order-updates/misc/blur-bids-refresh";
+import * as blurListingsRefresh from "@/jobs/order-updates/misc/blur-listings-refresh";
 import { metadataQueueJob } from "@/jobs/collection-updates/metadata-queue-job";
 import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
 
@@ -125,8 +126,9 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
           ]);
         }
 
-        // Refresh Blur bids
+        // Refresh Blur bids and listings
         await blurBidsRefresh.addToQueue(collection.id, true);
+        await blurListingsRefresh.addToQueue(collection.id, true);
 
         // Refresh listings
         await OpenseaIndexerApi.fastContractSync(collection.contract);

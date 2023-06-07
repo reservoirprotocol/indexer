@@ -15,11 +15,12 @@ export class ResyncAttributeFloorSellJob extends AbstractRabbitMqJobHandler {
   concurrency = 4;
 
   protected async process(payload: ResyncAttributeFloorSellJobPayload) {
+    const { continuation } = payload;
     const limit = 500;
     let continuationFilter = "";
 
-    if (payload.continuation != "") {
-      continuationFilter = `WHERE id > '${payload.continuation}'`;
+    if (continuation != "") {
+      continuationFilter = `WHERE id > '${continuation}'`;
     }
 
     const query = `

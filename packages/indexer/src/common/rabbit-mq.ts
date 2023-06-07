@@ -111,7 +111,7 @@ export class RabbitMq {
         }
       });
     } catch (error) {
-      logger.warn(
+      logger.debug(
         `rabbitmq-publish-${queueName}`,
         `failed to publish ${error} content=${JSON.stringify(content)}`
       );
@@ -182,7 +182,10 @@ export class RabbitMq {
     for (const queue of consumerQueues) {
       const options = {
         maxPriority: 1,
-        arguments: { "x-message-deduplication": true },
+        arguments: {
+          "x-message-deduplication": true,
+          "x-single-active-consumer": queue.getSingleActiveConsumer(),
+        },
       };
 
       // Create working queue
@@ -215,7 +218,7 @@ export class RabbitMq {
           name: `${queue.getDeadLetterQueue()}-policy`,
           vhost: "/",
           priority: 10,
-          pattern: queue.getDeadLetterQueue(),
+          pattern: `^${queue.getDeadLetterQueue()}$`,
           applyTo: "queues",
           definition: {
             "max-length": queue.getMaxDeadLetterQueue(),

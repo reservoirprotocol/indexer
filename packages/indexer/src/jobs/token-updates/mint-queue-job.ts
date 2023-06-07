@@ -28,6 +28,8 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
   } as BackoffStrategy;
 
   protected async process(payload: MintQueueJobPayload) {
+    const { contract, tokenId, mintedTimestamp } = payload;
+
     try {
       // First, check the database for any matching collection
       const collection: {
@@ -47,8 +49,8 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
             LIMIT 1
           `,
         {
-          contract: toBuffer(payload.contract),
-          tokenId: payload.tokenId,
+          contract: toBuffer(contract),
+          tokenId,
         }
       );
 
@@ -67,8 +69,8 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
                 AND tokens.collection_id IS NULL
             `,
           values: {
-            contract: toBuffer(payload.contract),
-            tokenId: payload.tokenId,
+            contract: toBuffer(contract),
+            tokenId,
             collection: collection.id,
           },
         });
@@ -96,8 +98,8 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
                 ) ON CONFLICT DO NOTHING
               `,
             values: {
-              contract: toBuffer(payload.contract),
-              tokenId: payload.tokenId,
+              contract: toBuffer(contract),
+              tokenId,
               tokenSetId: collection.token_set_id,
             },
           });
@@ -146,8 +148,8 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
                 kind: "single-token",
                 data: {
                   method,
-                  contract: payload.contract,
-                  tokenId: payload.tokenId,
+                  contract,
+                  tokenId,
                   collection: collection.id,
                 },
               },
@@ -160,17 +162,17 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
         // We fetch the collection metadata from upstream
         await fetchCollectionMetadataJob.addToQueue([
           {
-            contract: payload.contract,
-            tokenId: payload.tokenId,
-            mintedTimestamp: payload.mintedTimestamp,
+            contract,
+            tokenId,
+            mintedTimestamp,
           },
         ]);
       }
 
       // Set any cached information (eg. floor sell)
       await tokenRefreshCacheJob.addToQueue({
-        contract: payload.contract,
-        tokenId: payload.tokenId,
+        contract,
+        tokenId,
       });
     } catch (error) {
       logger.error(

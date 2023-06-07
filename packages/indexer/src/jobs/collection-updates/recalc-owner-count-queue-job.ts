@@ -32,14 +32,15 @@ export class RecalcOwnerCountQueueJob extends AbstractRabbitMqJobHandler {
   } as BackoffStrategy;
 
   protected async process(payload: RecalcOwnerCountQueueJobPayload) {
+    const { kind, data } = payload;
     let collection;
 
-    if (payload.kind === "contactAndTokenId") {
-      const { contract, tokenId } = payload.data;
+    if (kind === "contactAndTokenId") {
+      const { contract, tokenId } = data;
 
       collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
     } else {
-      collection = await Collections.getById(payload.data.collectionId);
+      collection = await Collections.getById(data.collectionId);
     }
 
     if (collection) {
@@ -103,7 +104,7 @@ export class RecalcOwnerCountQueueJob extends AbstractRabbitMqJobHandler {
           this.queueName,
           JSON.stringify({
             topic: "Update owner count",
-            jobData: payload.data,
+            jobData: data,
             collection: collection.id,
             collectionOwnerCount: collection.ownerCount,
             ownerCount,

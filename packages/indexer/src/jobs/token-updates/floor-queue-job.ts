@@ -22,6 +22,8 @@ export class FloorQueueJob extends AbstractRabbitMqJobHandler {
   } as BackoffStrategy;
 
   protected async process(payload: FloorQueueJobPayload) {
+    const { kind, tokenSetId, txHash, txTimestamp } = payload;
+
     try {
       // Atomically update the cache and trigger an api event if needed
       const sellOrderResult = await idb.oneOrNone(
@@ -151,10 +153,10 @@ export class FloorQueueJob extends AbstractRabbitMqJobHandler {
               tx_timestamp AS "txTimestamp"
           `,
         {
-          tokenSetId: payload.tokenSetId,
-          kind: payload.kind,
-          txHash: payload.txHash ? toBuffer(payload.txHash) : null,
-          txTimestamp: payload.txTimestamp || null,
+          tokenSetId,
+          kind,
+          txHash: txHash ? toBuffer(txHash) : null,
+          txTimestamp: txTimestamp || null,
         }
       );
 
@@ -168,7 +170,7 @@ export class FloorQueueJob extends AbstractRabbitMqJobHandler {
         await floorQueueJob.addToQueue([sellOrderResult]);
         await nonFlaggedFloorQueueJob.addToQueue([sellOrderResult]);
 
-        if (payload.kind === "revalidation") {
+        if (kind === "revalidation") {
           logger.error(this.queueName, `StaleCache: ${JSON.stringify(sellOrderResult)}`);
         }
       }

@@ -17,6 +17,8 @@ export class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler {
   } as BackoffStrategy;
 
   protected async process(payload: RecalcTokenCountQueueJobPayload) {
+    const { collection } = payload;
+
     const query = `
           UPDATE "collections"
           SET "token_count" = (SELECT COUNT(*) FROM "tokens" WHERE "collection_id" = $/collection/),
@@ -25,10 +27,10 @@ export class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler {
       `;
 
     await idb.none(query, {
-      collection: payload.collection,
+      collection,
     });
 
-    logger.info(this.queueName, `Updated token count for collection ${payload.collection}`);
+    logger.info(this.queueName, `Updated token count for collection ${collection}`);
   }
 
   public async addToQueue(collection: RecalcTokenCountQueueJobPayload) {

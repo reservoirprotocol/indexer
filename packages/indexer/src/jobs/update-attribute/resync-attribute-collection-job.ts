@@ -16,13 +16,15 @@ export class ResyncAttributeCollectionJob extends AbstractRabbitMqJobHandler {
   concurrency = 4;
 
   protected async process(payload: ResyncAttributeCollectionJobPayload) {
+    const { continuation } = payload;
+
     const limit = 200;
     const updateValues = {};
     const replacementParams = {};
     let continuationFilter = "";
 
-    if (payload.continuation != "") {
-      continuationFilter = `WHERE id > ${Number(payload.continuation)}`;
+    if (continuation != "") {
+      continuationFilter = `WHERE id > ${Number(continuation)}`;
     }
 
     const query = `SELECT id, key

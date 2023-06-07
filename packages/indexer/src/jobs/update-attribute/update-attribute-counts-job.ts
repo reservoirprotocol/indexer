@@ -14,11 +14,13 @@ export class ResyncAttributeCountsJob extends AbstractRabbitMqJobHandler {
   concurrency = 3;
 
   protected async process(payload: ResyncAttributeCountsJobPayload) {
+    const { tokenAttributeCounter } = payload;
+
     // Update the attributes token count
     const replacementParams: { [key: string]: number } = {};
     let updateCountsString = "";
 
-    _.forEach(payload.tokenAttributeCounter, (count, attributeId) => {
+    _.forEach(tokenAttributeCounter, (count, attributeId) => {
       replacementParams[`${attributeId}`] = count;
       updateCountsString += `(${attributeId}, $/${attributeId}/),`;
     });

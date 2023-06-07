@@ -35,21 +35,18 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
   } as BackoffStrategy;
 
   protected async process(payload: FetchCollectionMetadataJobPayload) {
+    const { contract, tokenId, mintedTimestamp, newCollection, oldCollectionId } = payload;
+
     try {
       // Fetch collection metadata
-      const collection = await MetadataApi.getCollectionMetadata(
-        payload.contract,
-        payload.tokenId,
-        "",
-        {
-          allowFallback: !payload.newCollection,
-        }
-      );
+      const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, "", {
+        allowFallback: !newCollection,
+      });
 
       let tokenIdRange: string | null = null;
       if (collection.tokenIdRange) {
         tokenIdRange = `numrange(${collection.tokenIdRange[0]}, ${collection.tokenIdRange[1]}, '[]')`;
-      } else if (collection.id === payload.contract) {
+      } else if (collection.id === contract) {
         tokenIdRange = `'(,)'::numrange`;
       }
 
@@ -90,12 +87,12 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
           contract: toBuffer(collection.contract),
           tokenIdRange,
           tokenSetId: collection.tokenSetId,
-          mintedTimestamp: payload.mintedTimestamp ?? null,
+          mintedTimestamp: mintedTimestamp ?? null,
         },
       });
 
       let tokenFilter = `AND "token_id" <@ ${tokenIdRangeParam}`;
-      if (payload.newCollection || _.isNull(tokenIdRange)) {
+      if (newCollection || _.isNull(tokenIdRange)) {
         tokenFilter = `AND "token_id" = $/tokenId/`;
       }
 
@@ -112,7 +109,7 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
         values: {
           contract: toBuffer(collection.contract),
           tokenIdRange,
-          tokenId: payload.tokenId,
+          tokenId,
           collection: collection.id,
         },
       });
@@ -127,19 +124,19 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
       ]);
 
       // If token has moved collections, update the old collection's token count
-      if (payload.oldCollectionId) {
+      if (oldCollectionId) {
         await recalcTokenCountQueueJob.addToQueue({
-          collection: payload.oldCollectionId,
+          collection: oldCollectionId,
           force: true,
         });
       }
 
       // If this is a new collection, recalculate floor price
-      if (collection?.id && payload.newCollection) {
+      if (collection?.id && newCollection) {
         const floorAskInfo = {
           kind: "revalidation",
-          contract: payload.contract,
-          tokenId: payload.tokenId,
+          contract,
+          tokenId,
           txHash: null,
           txTimestamp: null,
         };
@@ -158,8 +155,8 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
               kind: "single-token",
               data: {
                 method: metadataIndexFetch.getIndexingMethod(collection.community),
-                contract: payload.contract,
-                tokenId: payload.tokenId,
+                contract,
+                tokenId,
                 collection: collection.id,
               },
             },

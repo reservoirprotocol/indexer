@@ -13,11 +13,9 @@ export class ResyncAttributeCacheJob extends AbstractRabbitMqJobHandler {
   concurrency = 3;
 
   protected async process(payload: ResyncAttributeCacheJobPayload) {
-    const tokenAttributes = await Tokens.getTokenAttributes(
-      payload.contract,
-      payload.tokenId,
-      10000
-    );
+    const { contract, tokenId } = payload;
+
+    const tokenAttributes = await Tokens.getTokenAttributes(contract, tokenId, 10000);
 
     // Recalculate the number of tokens on sale for each attribute
     for (const tokenAttribute of tokenAttributes) {

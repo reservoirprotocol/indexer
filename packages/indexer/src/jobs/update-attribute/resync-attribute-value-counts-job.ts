@@ -14,18 +14,12 @@ export class ResyncAttributeValueCountsJob extends AbstractRabbitMqJobHandler {
   concurrency = 3;
 
   protected async process(payload: ResyncAttributeValueCountsJobPayload) {
-    const attributeValueCount = await Tokens.getTokenAttributesValueCount(
-      payload.collection,
-      payload.key,
-      payload.value
-    );
+    const { collection, key, value } = payload;
+
+    const attributeValueCount = await Tokens.getTokenAttributesValueCount(collection, key, value);
 
     if (!attributeValueCount) {
-      const attribute = await Attributes.getAttributeByCollectionKeyValue(
-        payload.collection,
-        payload.key,
-        payload.value
-      );
+      const attribute = await Attributes.getAttributeByCollectionKeyValue(collection, key, value);
       if (attribute) {
         await Attributes.delete(attribute.id);
       }

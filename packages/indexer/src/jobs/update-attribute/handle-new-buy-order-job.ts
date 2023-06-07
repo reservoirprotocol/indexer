@@ -12,8 +12,10 @@ export class HandleNewBuyOrderJob extends AbstractRabbitMqJobHandler {
   concurrency = 3;
 
   protected async process(payload: HandleNewBuyOrderJobPayload) {
-    await Attributes.update(payload.attributeId, {
-      topBuyValue: payload.topBuyValue,
+    const { attributeId, topBuyValue } = payload;
+
+    await Attributes.update(attributeId, {
+      topBuyValue,
       buyUpdatedAt: new Date().toISOString(),
     });
   }

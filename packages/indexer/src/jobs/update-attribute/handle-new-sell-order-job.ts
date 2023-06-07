@@ -17,7 +17,9 @@ export class HandleNewSellOrderJob extends AbstractRabbitMqJobHandler {
   concurrency = 6;
 
   protected async process(payload: HandleNewSellOrderJobPayload) {
-    const tokenAttributes = await Tokens.getTokenAttributes(payload.contract, payload.tokenId);
+    const { contract, tokenId, price, previousPrice } = payload;
+
+    const tokenAttributes = await Tokens.getTokenAttributes(contract, tokenId);
     if (_.isEmpty(tokenAttributes)) {
       return;
     }
@@ -28,33 +30,33 @@ export class HandleNewSellOrderJob extends AbstractRabbitMqJobHandler {
     );
 
     // If this is a new sale
-    if (_.isNull(payload.previousPrice) && !_.isNull(payload.price)) {
+    if (_.isNull(previousPrice) && !_.isNull(price)) {
       await Attributes.incrementOnSaleCount(tokenAttributesIds, 1);
       await resyncAttributeCacheJob.addToQueue({
-        contract: payload.contract,
-        tokenId: payload.tokenId,
+        contract,
+        tokenId,
       });
     }
 
     // The sale ended
-    if (!_.isNull(payload.previousPrice) && _.isNull(payload.price)) {
+    if (!_.isNull(previousPrice) && _.isNull(price)) {
       await Attributes.incrementOnSaleCount(tokenAttributesIds, -1);
       await resyncAttributeCacheJob.addToQueue({
-        contract: payload.contract,
-        tokenId: payload.tokenId,
+        contract,
+        tokenId,
       });
     }
 
     // Check for new sell floor price
-    if (!_.isNull(payload.price)) {
+    if (!_.isNull(price)) {
       // Check for new sell floor price
       for (const tokenAttribute of tokenAttributes) {
         if (
           _.isNull(tokenAttribute.floorSellValue) ||
-          Number(payload.price) < Number(tokenAttribute.floorSellValue)
+          Number(price) < Number(tokenAttribute.floorSellValue)
         ) {
           await Attributes.update(tokenAttribute.attributeId, {
-            floorSellValue: payload.price,
+            floorSellValue: price,
             sellUpdatedAt: new Date().toISOString(),
           });
         }

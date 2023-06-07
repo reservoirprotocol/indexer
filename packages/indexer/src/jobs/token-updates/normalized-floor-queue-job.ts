@@ -20,6 +20,8 @@ export class NormalizedFloorQueueJob extends AbstractRabbitMqJobHandler {
   } as BackoffStrategy;
 
   protected async process(payload: NormalizedFloorQueueJobPayload) {
+    const { kind, tokenSetId, txHash, txTimestamp } = payload;
+
     try {
       // TODO: Right now we filter out Blur orders since those don't yet
       // support royalty normalization. A better approach to handling it
@@ -156,10 +158,10 @@ export class NormalizedFloorQueueJob extends AbstractRabbitMqJobHandler {
               tx_timestamp AS "txTimestamp"
           `,
         {
-          tokenSetId: payload.tokenSetId,
-          kind: payload.kind,
-          txHash: payload.txHash ? toBuffer(payload.txHash) : null,
-          txTimestamp: payload.txTimestamp || null,
+          tokenSetId,
+          kind,
+          txHash: txHash ? toBuffer(txHash) : null,
+          txTimestamp: txTimestamp || null,
         }
       );
 
@@ -170,7 +172,7 @@ export class NormalizedFloorQueueJob extends AbstractRabbitMqJobHandler {
         sellOrderResult.txHash = sellOrderResult.txHash ? fromBuffer(sellOrderResult.txHash) : null;
         await normalizedFloorQueueJob.addToQueue([sellOrderResult]);
 
-        if (payload.kind === "revalidation") {
+        if (kind === "revalidation") {
           logger.error(this.queueName, `StaleCache: ${JSON.stringify(sellOrderResult)}`);
         }
       }
