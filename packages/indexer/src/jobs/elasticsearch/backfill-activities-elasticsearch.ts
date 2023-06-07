@@ -15,6 +15,7 @@ import * as backfillAsks from "@/jobs/elasticsearch/backfill-ask-activities-elas
 import * as backfillAskCancels from "@/jobs/elasticsearch/backfill-ask-cancel-activities-elasticsearch";
 import * as backfillBids from "@/jobs/elasticsearch/backfill-bid-activities-elasticsearch";
 import * as backfillBidCancels from "@/jobs/elasticsearch/backfill-bid-cancel-activities-elasticsearch";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
 const QUEUE_NAME = "backfill-activities-elasticsearch";
 
@@ -43,6 +44,10 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
         })
       );
 
+      if (job.data.initIndex) {
+        await ActivitiesIndex.initIndex();
+      }
+
       const promises = [];
 
       const backfillTransferActivities = async () => {
@@ -69,7 +74,6 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           const newDate = loop.setDate(loop.getDate() + 1);
           const toTimestamp = Math.floor(newDate / 1000);
 
-          await backfillTransfers.queue.drain();
           await backfillTransfers.addToQueue(undefined, fromTimestamp, toTimestamp);
 
           loop = new Date(newDate);
@@ -101,7 +105,6 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           const newDate = loop.setDate(loop.getDate() + 1);
           const toTimestamp = Math.floor(newDate / 1000);
 
-          await backfillSales.queue.drain();
           await backfillSales.addToQueue(undefined, fromTimestamp, toTimestamp);
 
           loop = new Date(newDate);
@@ -133,7 +136,6 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           const newDate = loop.setDate(loop.getDate() + 1);
           const toTimestamp = Math.floor(newDate / 1000);
 
-          await backfillAsks.queue.drain();
           await backfillAsks.addToQueue(undefined, fromTimestamp, toTimestamp);
 
           loop = new Date(newDate);
@@ -165,7 +167,6 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           const newDate = loop.setDate(loop.getDate() + 1);
           const toTimestamp = Math.floor(newDate / 1000);
 
-          await backfillAskCancels.queue.drain();
           await backfillAskCancels.addToQueue(undefined, fromTimestamp, toTimestamp);
 
           loop = new Date(newDate);
@@ -197,7 +198,6 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           const newDate = loop.setDate(loop.getDate() + 1);
           const toTimestamp = Math.floor(newDate / 1000);
 
-          await backfillBids.queue.drain();
           await backfillBids.addToQueue(undefined, fromTimestamp, toTimestamp);
 
           loop = new Date(newDate);
@@ -229,7 +229,6 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           const newDate = loop.setDate(loop.getDate() + 1);
           const toTimestamp = Math.floor(newDate / 1000);
 
-          await backfillBidCancels.queue.drain();
           await backfillBidCancels.addToQueue(undefined, fromTimestamp, toTimestamp);
 
           loop = new Date(newDate);
@@ -284,6 +283,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
 }
 
 export const addToQueue = async (
+  initIndex = false,
   backfillTransferActivities = true,
   backfillSaleActivities = true,
   backfillAskActivities = true,
@@ -292,6 +292,7 @@ export const addToQueue = async (
   backfillBidCancelActivities = true
 ) => {
   await queue.add(randomUUID(), {
+    initIndex,
     backfillTransferActivities,
     backfillSaleActivities,
     backfillAskActivities,

@@ -31,6 +31,10 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
+      // Temporarily disable goerli prod
+      if (config.chainId === 5 && config.environment === "prod") {
+        return;
+      }
       const { contract, tokenId, retry } = job.data;
       const collection = await Collections.getByContractAndTokenId(contract, tokenId);
 
@@ -49,7 +53,7 @@ if (config.doBackgroundWork) {
       } else if (retry < MAX_RETRIES) {
         job.data.addToQueue = true;
       } else {
-        logger.warn(QUEUE_NAME, `Max retries reached for ${JSON.stringify(job.data)}`);
+        logger.debug(QUEUE_NAME, `Max retries reached for ${JSON.stringify(job.data)}`);
       }
     },
     { connection: redis.duplicate(), concurrency: 15 }

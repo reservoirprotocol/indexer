@@ -174,6 +174,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
           }
         }
 
+        const contracts: string[] = [];
         let tokens: { contract: string; tokenId: string }[] = [];
 
         if (query.attributes) {
@@ -192,23 +193,27 @@ export const getCollectionActivityV6Options: RouteOptions = {
             AND (key, value) IN (${attributes.join(",")});
           `);
 
+          if (tokensResult.length === 0) {
+            throw Boom.badRequest(`No tokens for attributes ${query.attributes}`);
+          }
+
           tokens = _.map(tokensResult, (token) => ({
             contract: fromBuffer(token.contract),
             tokenId: token.token_id,
           }));
+
+          contracts.push(fromBuffer(tokensResult[0].contract));
         }
 
-        const { activities, continuation } = await ActivitiesIndex.search(
-          {
-            types: query.types,
-            tokens,
-            collections: query.collection,
-            sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
-            limit: query.limit,
-            continuation: query.continuation,
-          },
-          true
-        );
+        const { activities, continuation } = await ActivitiesIndex.search({
+          types: query.types,
+          contracts,
+          tokens,
+          collections: query.collection,
+          sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
+          limit: query.limit,
+          continuation: query.continuation,
+        });
 
         const result = _.map(activities, async (activity) => {
           const currency = activity.pricing?.currency
