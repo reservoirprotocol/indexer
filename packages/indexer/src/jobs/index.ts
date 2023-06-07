@@ -233,6 +233,7 @@ import { realtimeQueueJob } from "@/jobs/events-sync/realtime-queue-job";
 import { realtimeQueueV2Job } from "@/jobs/events-sync/realtime-queue-v2-job";
 import { ftTransfersJob } from "@/jobs/events-sync/write-buffers/ft-transfers-job";
 import { nftTransfersJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
+import { collectionFloorQueueJob } from "@/jobs/collection-updates/collection-floor-queue-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -431,7 +432,7 @@ export class RabbitMqJobsConsumer {
       removeUnsyncedEventsActivitiesJob,
       fixActivitiesMissingCollectionJob,
       topBidUpdateQueueJob,
-      floorQueueJob,
+      collectionFloorQueueJob,
       metadataQueueJob,
       nonFlaggedFloorQueueJob,
       normalizedFloorQueueJob,

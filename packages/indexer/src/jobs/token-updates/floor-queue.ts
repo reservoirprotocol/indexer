@@ -7,7 +7,7 @@ import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
 import { handleNewSellOrderJob } from "@/jobs/update-attribute/handle-new-sell-order-job";
-import { floorQueueJob } from "@/jobs/collection-updates/floor-queue-job";
+import { collectionFloorQueueJob } from "@/jobs/collection-updates/collection-floor-queue-job";
 import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
 
 const QUEUE_NAME = "token-updates-floor-ask-queue";
@@ -181,7 +181,7 @@ if (config.doBackgroundWork) {
           sellOrderResult.txHash = sellOrderResult.txHash
             ? fromBuffer(sellOrderResult.txHash)
             : null;
-          await floorQueueJob.addToQueue([sellOrderResult]);
+          await collectionFloorQueueJob.addToQueue([sellOrderResult]);
           await nonFlaggedFloorQueueJob.addToQueue([sellOrderResult]);
 
           if (kind === "revalidation") {

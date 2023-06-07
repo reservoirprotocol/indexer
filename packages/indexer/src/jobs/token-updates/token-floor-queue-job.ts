@@ -4,6 +4,7 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 import { logger } from "@/common/logger";
 import { handleNewSellOrderJob } from "@/jobs/update-attribute/handle-new-sell-order-job";
 import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
+import { collectionFloorQueueJob } from "@/jobs/collection-updates/collection-floor-queue-job";
 
 export type FloorQueueJobPayload = {
   kind: string;
@@ -167,7 +168,7 @@ export class TokenFloorQueueJob extends AbstractRabbitMqJobHandler {
 
         // Update collection floor
         sellOrderResult.txHash = sellOrderResult.txHash ? fromBuffer(sellOrderResult.txHash) : null;
-        await floorQueueJob.addToQueue([sellOrderResult]);
+        await collectionFloorQueueJob.addToQueue([sellOrderResult]);
         await nonFlaggedFloorQueueJob.addToQueue([sellOrderResult]);
 
         if (kind === "revalidation") {
