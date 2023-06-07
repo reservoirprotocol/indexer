@@ -9,8 +9,7 @@ import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import _ from "lodash";
 import { RecalcCollectionOwnerCountInfo } from "@/jobs/collection-updates/recalc-owner-count-queue";
-import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
-// import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
+import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 
 const QUEUE_NAME = "backfill-collections-owner-count";
 
@@ -69,7 +68,7 @@ if (config.doBackgroundWork) {
           })
         );
 
-        await collectionRecalcOwnerCount.addToQueue(recalcCollectionOwnerCountInfo);
+        await recalcOwnerCountQueueJob.addToQueue(recalcCollectionOwnerCountInfo);
 
         if (results.length == limit) {
           const lastResult = _.last(results);

@@ -21,10 +21,9 @@ import {
   simulateAndUpdateCollectionMint,
 } from "@/utils/mints/collection-mints";
 
-import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as collectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
-// import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
+import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -152,7 +151,7 @@ export class Collections {
 
     const tokenCount = await Tokens.countTokensInCollection(collection.id);
 
-    await collectionRecalcOwnerCount.addToQueue([
+    await recalcOwnerCountQueueJob.addToQueue([
       {
         context: "updateCollectionCache",
         kind: "collectionId",

@@ -232,7 +232,7 @@ export class RabbitMq {
       name: `${getNetworkName()}.dead-letter-queues-policy`,
       vhost: "/",
       priority: 1,
-      pattern: ".+-dead-letter$",
+      pattern: `^${getNetworkName()}.+-dead-letter$`,
       applyTo: "queues",
       definition: {
         "max-length": AbstractRabbitMqJobHandler.defaultMaxDeadLetterQueue,
