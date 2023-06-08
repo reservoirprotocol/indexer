@@ -14,8 +14,10 @@ export class CollectionRefreshCacheJob extends AbstractRabbitMqJobHandler {
   concurrency = 10;
 
   protected async process(payload: CollectionRefreshCacheJobPayload) {
+    const { collection } = payload;
+
     // Refresh the contract floor sell and top bid
-    await Collections.revalidateCollectionTopBuy(payload.collection);
+    await Collections.revalidateCollectionTopBuy(collection);
 
     const result = await redb.manyOrNone(
       `
@@ -27,7 +29,7 @@ export class CollectionRefreshCacheJob extends AbstractRabbitMqJobHandler {
             AND tokens.floor_sell_id IS NOT NULL
           LIMIT 10000
         `,
-      { collection: payload.collection }
+      { collection }
     );
     if (result) {
       await Collections.recalculateContractFloorSell(fromBuffer(result[0].contract));

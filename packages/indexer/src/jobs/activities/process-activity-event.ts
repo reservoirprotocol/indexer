@@ -5,7 +5,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { SaleActivity, FillEventData } from "@/jobs/activities/sale-activity";
 import { TransferActivity, NftTransferEventData } from "@/jobs/activities/transfer-activity";
@@ -20,7 +20,6 @@ import {
   SellOrderCancelledEventData,
 } from "@/jobs/activities/ask-cancel-activity";
 import { ActivitiesList } from "@/models/activities/activities-list";
-import cron from "node-cron";
 
 const QUEUE_NAME = "process-activity-event-queue";
 
@@ -233,15 +232,15 @@ export const addToQueue = async () => {
   await queue.add(randomUUID(), {});
 };
 
-if (config.doBackgroundWork) {
-  cron.schedule(
-    "*/5 * * * * *",
-    async () =>
-      await redlock
-        .acquire(["save-activities"], (5 - 1) * 1000)
-        .then(async () => addToQueue())
-        .catch(() => {
-          // Skip on any errors
-        })
-  );
-}
+// if (config.doBackgroundWork) {
+//   cron.schedule(
+//     "*/5 * * * * *",
+//     async () =>
+//       await redlock
+//         .acquire(["save-activities"], (5 - 1) * 1000)
+//         .then(async () => addToQueue())
+//         .catch(() => {
+//           // Skip on any errors
+//         })
+//   );
+// }

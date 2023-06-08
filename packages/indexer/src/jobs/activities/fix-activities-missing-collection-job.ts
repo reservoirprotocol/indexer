@@ -19,32 +19,33 @@ export class FixActivitiesMissingCollectionJob extends AbstractRabbitMqJobHandle
   concurrency = 15;
 
   protected async process(payload: FixActivitiesMissingCollectionJobPayload) {
-    const maxRetries = 5;
-    const collection = await Collections.getByContractAndTokenId(
-      payload.contract,
-      Number(payload.tokenId)
-    );
+    // Temporarily disable goerli prod
+    if (config.chainId === 5 && config.environment === "prod") {
+      return;
+    }
+    const { contract, tokenId, retry } = payload;
+    const collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
 
     payload.addToQueue = false;
 
     if (collection) {
       // Update the collection id of any missing activities
       await Promise.all([
-        Activities.updateMissingCollectionId(payload.contract, payload.tokenId, collection.id),
-        UserActivities.updateMissingCollectionId(payload.contract, payload.tokenId, collection.id),
+        Activities.updateMissingCollectionId(contract, tokenId, collection.id),
+        UserActivities.updateMissingCollectionId(contract, tokenId, collection.id),
       ]);
 
       if (config.doElasticsearchWork) {
         await ActivitiesIndex.updateActivitiesMissingCollection(
-          payload.contract,
-          Number(payload.tokenId),
+          contract,
+          Number(tokenId),
           collection
         );
       }
-    } else if (Number(payload.retry) < maxRetries) {
+    } else if (Number(retry) < this.maxRetries) {
       payload.addToQueue = true;
     } else {
-      logger.warn(this.queueName, `Max retries reached for ${JSON.stringify(payload)}`);
+      logger.debug(this.queueName, `Max retries reached for ${JSON.stringify(payload)}`);
     }
   }
 

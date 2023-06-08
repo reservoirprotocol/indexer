@@ -25,17 +25,19 @@ export class MetadataQueueJob extends AbstractRabbitMqJobHandler {
   concurrency = 20;
 
   protected async process(payload: MetadataQueueJobPayload) {
-    if (
-      payload.forceRefresh ||
-      (await acquireLock(`${this.queueName}:${payload.contract}`, 5 * 60))
-    ) {
+    const { contract, tokenId, community, forceRefresh } = payload;
+
+    if (forceRefresh || (await acquireLock(`${this.queueName}:${contract}`, 5 * 60))) {
       if (await acquireLock(this.queueName, 1)) {
         try {
-          await Collections.updateCollectionCache(
-            payload.contract,
-            payload.tokenId,
-            payload.community
-          );
+          if (isNaN(Number(tokenId))) {
+            logger.error(
+              this.queueName,
+              `Invalid tokenId. contract=${contract}, tokenId=${tokenId}, community=${community}`
+            );
+          }
+
+          await Collections.updateCollectionCache(contract, tokenId, community);
         } catch (error) {
           logger.error(
             this.queueName,
@@ -49,8 +51,8 @@ export class MetadataQueueJob extends AbstractRabbitMqJobHandler {
       } else {
         payload.addToQueue = true;
 
-        if (!payload.forceRefresh) {
-          await releaseLock(`${this.queueName}:${payload.contract}`);
+        if (!forceRefresh) {
+          await releaseLock(`${this.queueName}:${contract}`);
         }
       }
     }
