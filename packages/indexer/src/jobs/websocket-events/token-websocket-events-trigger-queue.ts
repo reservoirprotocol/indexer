@@ -121,6 +121,15 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
         });
 
         const r = rawResult[0];
+        if (!r) {
+          logger.error(
+            QUEUE_NAME,
+            `Error processing websocket event. data=${JSON.stringify(data)}, error=${JSON.stringify(
+              "Token not found"
+            )}`
+          );
+          return;
+        }
 
         const contract = fromBuffer(r.contract);
         const tokenId = r.token_id;
