@@ -14,6 +14,7 @@ export const queue = new Queue(QUEUE_NAME, {
     attempts: 10,
     removeOnComplete: 1000,
     removeOnFail: 1000,
+    timeout: 120000,
     backoff: {
       type: "fixed",
       delay: 5000,
