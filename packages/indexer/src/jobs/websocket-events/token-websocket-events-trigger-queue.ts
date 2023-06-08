@@ -24,7 +24,7 @@ export const queue = new Queue(QUEUE_NAME, {
     attempts: 5,
     backoff: {
       type: "exponential",
-      delay: 1000,
+      delay: 2500,
     },
     removeOnComplete: 1000,
     removeOnFail: 1000,
