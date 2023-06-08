@@ -37,7 +37,7 @@ if (config.doBackgroundWork) {
         await ActivitiesIndex.updateActivitiesCollectionMetadata(collectionId, collectionData);
       }
     },
-    { connection: redis.duplicate(), concurrency: 15 }
+    { connection: redis.duplicate(), concurrency: 1 }
   );
 
   worker.on("error", (error) => {

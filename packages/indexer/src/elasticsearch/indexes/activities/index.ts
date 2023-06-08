@@ -126,7 +126,7 @@ export const save = async (activities: ActivityDocument[], upsert = true): Promi
           })
         );
       } else {
-        logger.info(
+        logger.debug(
           "elasticsearch-activities",
           JSON.stringify({
             topic: "save-conflicts",
