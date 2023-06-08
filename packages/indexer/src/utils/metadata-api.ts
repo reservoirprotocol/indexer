@@ -110,9 +110,15 @@ export class MetadataApi {
 
     method = method === "" ? config.metadataIndexingMethod : method;
 
+    let networkName = getNetworkName();
+
+    if (networkName === "prod-goerli") {
+      networkName = "goerli";
+    }
+
     const url = `${
       config.metadataApiBaseUrl
-    }/v4/${getNetworkName()}/metadata/token?method=${method}&${queryParams.toString()}`;
+    }/v4/${networkName}/metadata/token?method=${method}&${queryParams.toString()}`;
 
     const { data } = await axios.get(url);
 
