@@ -1,5 +1,4 @@
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { syncEvents } from "@/events-sync/index";
 import { backfillQueueJob } from "@/jobs/events-sync/backfill-queue-job";
 import { EventSubKind } from "@/events-sync/data";
 
@@ -31,15 +30,11 @@ export class ProcessResyncRequestQueueJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: ProcessResyncRequestQueueJobPayload) {
     const { fromBlock, toBlock, backfill, syncDetails, blocksPerBatch } = payload;
 
-    if (Number(toBlock) - Number(fromBlock) <= 16) {
-      await syncEvents(fromBlock, toBlock, { backfill, syncDetails });
-    } else {
-      await backfillQueueJob.addToQueue(fromBlock, toBlock, {
-        backfill,
-        syncDetails,
-        blocksPerBatch,
-      });
-    }
+    await backfillQueueJob.addToQueue(fromBlock, toBlock, {
+      backfill,
+      syncDetails,
+      blocksPerBatch,
+    });
   }
 
   public async addToQueue(
