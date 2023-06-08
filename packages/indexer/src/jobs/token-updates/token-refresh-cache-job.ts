@@ -2,7 +2,7 @@
 
 import { Tokens } from "@/models/tokens";
 import { idb } from "@/common/db";
-import { now, toBuffer } from "@/common/utils";
+import { toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import * as orderFixes from "@/jobs/order-fixes/fixes";
 import { inject } from "@/api/index";
@@ -42,7 +42,7 @@ export class TokenRefreshCacheJob extends AbstractRabbitMqJobHandler {
         `,
       {
         contract: toBuffer(contract),
-        tokenId: tokenId,
+        tokenId,
       }
     );
     if (floorAsk) {
@@ -89,7 +89,7 @@ export class TokenRefreshCacheJob extends AbstractRabbitMqJobHandler {
           `,
         {
           contract: toBuffer(contract),
-          tokenId: tokenId,
+          tokenId,
         }
       );
       if (topBid) {
@@ -114,7 +114,13 @@ export class TokenRefreshCacheJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue(payload: TokenRefreshCacheJobPayload) {
-    await this.send({ payload: payload, jobId: `${payload.contract}:${payload.tokenId}:${now()}` });
+    await this.send(
+      {
+        payload: payload,
+        jobId: `${payload.contract}:${payload.tokenId}`,
+      },
+      10 * 1000
+    );
   }
 }
 

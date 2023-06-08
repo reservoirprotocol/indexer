@@ -145,7 +145,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           await Promise.all(
             _.range(0, POOL_ORDERS_MAX_PRICE_POINTS_COUNT).map(async (index) => {
               try {
-                const result = await poolContract.getSellNFTQuote(0, index + 1);
+                const result = await poolContract.getSellNFTQuote(pool.tokenId ?? 0, index + 1);
                 if (result.error === 0 && result.outputAmount.lte(tokenBalance)) {
                   tmpPriceList[index] = result.outputAmount;
                 }
@@ -392,7 +392,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           await Promise.all(
             _.range(0, POOL_ORDERS_MAX_PRICE_POINTS_COUNT).map(async (index) => {
               try {
-                const result = await poolContract.getBuyNFTQuote(0, index + 1);
+                const result = await poolContract.getBuyNFTQuote(pool.tokenId ?? 0, index + 1);
                 if (result.error === 0) {
                   tmpPriceList[index] = result.inputAmount;
                 }
