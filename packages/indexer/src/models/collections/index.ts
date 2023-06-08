@@ -97,6 +97,13 @@ export class Collections {
   }
 
   public static async updateCollectionCache(contract: string, tokenId: string, community = "") {
+    if (isNaN(Number(tokenId))) {
+      logger.error(
+        "updateCollectionCache",
+        `Invalid tokenId. contract=${contract}, tokenId=${tokenId}, community=${community}`
+      );
+    }
+
     const collectionExists = await idb.oneOrNone(
       `
         SELECT
@@ -122,13 +129,6 @@ export class Collections {
         },
       ]);
       return;
-    }
-
-    if (isNaN(Number(tokenId))) {
-      logger.error(
-        "updateCollectionCache",
-        `Invalid tokenId. contract=${contract}, tokenId=${tokenId}, community=${community}`
-      );
     }
 
     const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, community);
