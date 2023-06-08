@@ -6,3 +6,5 @@ import "@/jobs/elasticsearch/backfill-ask-cancel-activities-elasticsearch";
 import "@/jobs/elasticsearch/backfill-bid-cancel-activities-elasticsearch";
 import "@/jobs/elasticsearch/update-activities-collection";
 import "@/jobs/elasticsearch/backfill-activities-elasticsearch";
+import "@/jobs/elasticsearch/refresh-activities-token-metadata";
+import "@/jobs/elasticsearch/refresh-activities-collection-metadata";

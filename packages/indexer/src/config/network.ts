@@ -756,7 +756,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
-        headBlockDelay: 10,
         subDomain: "api-mumbai",
         elasticsearch: {
           indexes: {
@@ -797,7 +796,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
-        headBlockDelay: 10,
         subDomain: "api-base-goerli",
         elasticsearch: {
           indexes: {
@@ -838,7 +836,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
-        headBlockDelay: 10,
         subDomain: "api-arbitrum-nova",
         elasticsearch: {
           indexes: {
@@ -879,7 +876,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
-        headBlockDelay: 10,
         subDomain: "api-zora-testnet",
         onStartup: async () => {
           // Insert the native currency

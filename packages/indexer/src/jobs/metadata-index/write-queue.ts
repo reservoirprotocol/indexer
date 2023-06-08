@@ -16,6 +16,7 @@ import * as updateCollectionActivity from "@/jobs/collection-updates/update-coll
 import * as updateCollectionUserActivity from "@/jobs/collection-updates/update-collection-user-activity";
 import * as updateCollectionDailyVolume from "@/jobs/collection-updates/update-collection-daily-volume";
 import * as updateActivitiesCollection from "@/jobs/elasticsearch/update-activities-collection";
+import * as refreshActivitiesTokenMetadata from "@/jobs/elasticsearch/refresh-activities-token-metadata";
 
 import PgPromise from "pg-promise";
 import { updateActivities } from "@/jobs/activities/utils";
@@ -73,7 +74,17 @@ if (config.doBackgroundWork) {
               created_at = created_at
             WHERE tokens.contract = $/contract/
             AND tokens.token_id = $/tokenId/
-            RETURNING collection_id, created_at
+            RETURNING collection_id, created_at, (
+                  SELECT
+                  json_build_object(
+                    'name', tokens.name,
+                    'image', tokens.image,
+                    'media', tokens.media
+                  )
+                  FROM tokens
+                  WHERE tokens.contract = $/contract/
+                  AND tokens.token_id = $/tokenId/
+                ) AS old_metadata
           `,
           {
             contract: toBuffer(contract),
@@ -88,6 +99,24 @@ if (config.doBackgroundWork) {
         // Skip if there is no associated entry in the `tokens` table
         if (!result) {
           return;
+        }
+
+        if (
+          config.doElasticsearchWork &&
+          (result.old_metadata.name != name ||
+            result.old_metadata.image != imageUrl ||
+            result.old_metadata.media != mediaUrl)
+        ) {
+          logger.info(
+            QUEUE_NAME,
+            JSON.stringify({
+              message: `Metadata changed. New collection=${collection}, contract=${contract}, tokenId=${tokenId}`,
+              jobData: job.data,
+              result,
+            })
+          );
+
+          await refreshActivitiesTokenMetadata.addToQueue(contract, tokenId);
         }
 
         // If the new collection ID is different from the collection ID currently stored
