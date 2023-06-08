@@ -54,7 +54,12 @@ if (config.doBackgroundWork) {
         tokenId,
         name,
         description,
+        originalMetadata,
         imageUrl,
+        imageOriginalUrl,
+        imageProperties,
+        animationOriginalUrl,
+        metadataOriginalUrl,
         mediaUrl,
         flagged,
         attributes,
@@ -68,6 +73,7 @@ if (config.doBackgroundWork) {
               name = $/name/,
               description = $/description/,
               image = $/image/,
+              metadata = $/metadata:json/,
               media = $/media/,
               updated_at = now(),
               collection_id = collection_id,
@@ -92,6 +98,14 @@ if (config.doBackgroundWork) {
             name: name || null,
             description: description || null,
             image: imageUrl || null,
+            metadata:
+              {
+                original_metadata: originalMetadata || null,
+                image_original_url: imageOriginalUrl || null,
+                image_properties: imageProperties || null,
+                animation_original_url: animationOriginalUrl || null,
+                metadata_original_url: metadataOriginalUrl || null,
+              } || {},
             media: mediaUrl || null,
           }
         );
@@ -101,22 +115,23 @@ if (config.doBackgroundWork) {
           return;
         }
 
-        if (
-          config.doElasticsearchWork &&
-          (result.old_metadata.name != name ||
-            result.old_metadata.image != imageUrl ||
-            result.old_metadata.media != mediaUrl)
-        ) {
-          // logger.info(
-          //   QUEUE_NAME,
-          //   JSON.stringify({
-          //     message: `Metadata changed. collection=${collection}, contract=${contract}, tokenId=${tokenId}`,
-          //     jobData: job.data,
-          //     result,
-          //   })
-          // );
-          // await refreshActivitiesTokenMetadata.addToQueue(contract, tokenId);
-        }
+        // if (
+        //   config.doElasticsearchWork &&
+        //   (result.old_metadata.name != name ||
+        //     result.old_metadata.image != imageUrl ||
+        //     result.old_metadata.media != mediaUrl)
+        // ) {
+        //   logger.info(
+        //     QUEUE_NAME,
+        //     JSON.stringify({
+        //       message: `Metadata changed. collection=${collection}, contract=${contract}, tokenId=${tokenId}`,
+        //       jobData: job.data,
+        //       result,
+        //     })
+        //   );
+        //
+        //   await refreshActivitiesTokenMetadata.addToQueue(contract, tokenId);
+        // }
 
         // If the new collection ID is different from the collection ID currently stored
         if (
@@ -491,7 +506,17 @@ export type TokenMetadataInfo = {
   tokenId: string;
   name?: string;
   description?: string;
+  originalMetadata?: JSON;
   imageUrl?: string;
+  imageOriginalUrl?: string;
+  imageProperties?: {
+    width?: number;
+    height?: number;
+    size?: number;
+    mime_type?: string;
+  };
+  animationOriginalUrl?: string;
+  metadataOriginalUrl?: string;
   mediaUrl?: string;
   flagged?: boolean;
   attributes: {
