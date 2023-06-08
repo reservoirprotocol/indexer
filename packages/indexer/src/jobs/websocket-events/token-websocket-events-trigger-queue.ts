@@ -58,7 +58,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
     QUEUE_NAME,
     async (job: Job) => {
       const { data } = job.data as EventInfo;
-
+      let r;
       try {
         const selectFloorData = `
         t.floor_sell_id,
@@ -120,16 +120,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           tokenId: data.after.token_id,
         });
 
-        const r = rawResult[0];
-        if (!r) {
-          logger.error(
-            QUEUE_NAME,
-            `Error processing websocket event. data=${JSON.stringify(data)}, error=${JSON.stringify(
-              "Token not found"
-            )}`
-          );
-          return;
-        }
+        r = rawResult[0];
 
         const contract = fromBuffer(r.contract);
         const tokenId = r.token_id;
@@ -269,7 +260,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           QUEUE_NAME,
           `Error processing websocket event. data=${JSON.stringify(data)}, error=${JSON.stringify(
             error
-          )}`
+          )}, queryResult=${JSON.stringify(r)}`
         );
         throw error;
       }
