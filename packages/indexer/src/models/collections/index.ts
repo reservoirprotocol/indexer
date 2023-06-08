@@ -127,12 +127,7 @@ export class Collections {
     if (isNaN(Number(tokenId))) {
       logger.error(
         "updateCollectionCache",
-        JSON.stringify({
-          message: "Invalid tokenId",
-          contract,
-          tokenId,
-          community,
-        })
+        `Invalid tokenId. contract=${contract}, tokenId=${tokenId}, community=${community}`
       );
     }
 

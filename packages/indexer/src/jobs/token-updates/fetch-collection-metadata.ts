@@ -47,11 +47,8 @@ if (config.doBackgroundWork) {
 
       if (isNaN(Number(tokenId))) {
         logger.error(
-          QUEUE_NAME,
-          JSON.stringify({
-            message: "Invalid tokenId",
-            jobData: job.data,
-          })
+          "updateCollectionCache",
+          `Invalid tokenId. jobData=${JSON.stringify(job.data)}`
         );
       }
 
