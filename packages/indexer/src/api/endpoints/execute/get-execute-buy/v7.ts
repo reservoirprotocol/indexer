@@ -316,7 +316,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         itemIndex: number
       ) => {
         // Handle dynamically-priced orders
-        if (["sudoswap", "nftx"].includes(order.kind)) {
+        if (["sudoswap", "sudoswap-v2", "collectionxyz", "nftx"].includes(order.kind)) {
           let poolId: string;
           let priceList: string[];
 

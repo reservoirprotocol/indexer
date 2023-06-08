@@ -243,6 +243,14 @@ export type GenericOrderInfo =
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
       ingestDelay?: number;
+    }
+  | {
+      kind: "sudoswap-v2";
+      info: orders.sudoswapV2.OrderInfo;
+      relayToArweave?: boolean;
+      validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
     };
 
 export const jobProcessor = async (job: Job) => {
@@ -293,6 +301,11 @@ export const jobProcessor = async (job: Job) => {
 
       case "sudoswap": {
         result = await orders.sudoswap.save([info]);
+        break;
+      }
+
+      case "sudoswap-v2": {
+        result = await orders.sudoswapV2.save([info]);
         break;
       }
 

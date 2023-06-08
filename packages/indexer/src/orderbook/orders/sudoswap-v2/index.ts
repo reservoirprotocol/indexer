@@ -14,7 +14,7 @@ import { bn, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Sources } from "@/models/sources";
-import { SudoswapPoolKind } from "@/models/sudoswap-pools";
+import { SudoswapV2PoolKind } from "@/models/sudoswap-v2-pools";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import {
   POOL_ORDERS_MAX_PRICE_POINTS_COUNT,
@@ -24,7 +24,7 @@ import {
 } from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
 import * as royalties from "@/utils/royalties";
-import * as sudoswap from "@/utils/sudoswap";
+import * as sudoswapV2 from "@/utils/sudoswap-v2";
 
 export type OrderInfo = {
   orderParams: {
@@ -51,9 +51,9 @@ type SaveResult = {
 export const getOrderId = (pool: string, side: "sell" | "buy", tokenId?: string) =>
   side === "buy"
     ? // Buy orders have a single order id per pool
-      keccak256(["string", "address", "string"], ["sudoswap", pool, side])
+      keccak256(["string", "address", "string"], ["sudoswap-v2", pool, side])
     : // Sell orders have multiple order ids per pool (one for each potential token id)
-      keccak256(["string", "address", "string", "uint256"], ["sudoswap", pool, side, tokenId]);
+      keccak256(["string", "address", "string", "uint256"], ["sudoswap-v2", pool, side, tokenId]);
 
 export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
@@ -61,7 +61,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
   const handleOrder = async ({ orderParams }: OrderInfo) => {
     try {
-      const pool = await sudoswap.getPoolDetails(orderParams.pool);
+      const pool = await sudoswapV2.getPoolDetails(orderParams.pool);
       if (!pool) {
         throw new Error("Could not fetch pool details");
       }
@@ -79,21 +79,30 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         pool.address,
         new Interface([
           `
-            function getSellNFTQuote(uint256 numNFTs) view returns (
+            function calculateRoyaltiesView(uint256 assetId, uint256 saleAmount) view returns (
+              address[] memory royaltyRecipients,
+              uint256[] memory royaltyAmounts,
+              uint256 royaltyTotal
+            )
+          `,
+          `
+            function getSellNFTQuote(uint256 assetId, uint256 numNFTs) view returns (
               uint8 error,
               uint256 newSpotPrice,
               uint256 newDelta,
               uint256 outputAmount,
-              uint256 protocolFee
+              uint256 protocolFee,
+              uint256 royaltyAmount
             )
           `,
           `
-            function getBuyNFTQuote(uint256 numNFTs) view returns (
+            function getBuyNFTQuote(uint256 assetId, uint256 numNFTs) view returns (
               uint8 error,
               uint256 newSpotPrice,
               uint256 newDelta,
               uint256 inputAmount,
-              uint256 protocolFee
+              uint256 protocolFee,
+              uint256 royaltyAmount
             )
           `,
         ]),
@@ -109,14 +118,24 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       }[] = [
         {
           kind: "marketplace",
-          recipient: "0x4e2f98c96e2d595a83afa35888c4af58ac343e44",
+          recipient: "0x6853f8865ba8e9fbd9c8cce3155ce5023fb7eeb0",
           bps: 50,
         },
       ];
 
+      const isERC1155 = pool.pairKind > 1;
+
       // Handle buy orders
       try {
-        if ([SudoswapPoolKind.TOKEN, SudoswapPoolKind.TRADE].includes(pool.poolKind)) {
+        if ([SudoswapV2PoolKind.TOKEN, SudoswapV2PoolKind.TRADE].includes(pool.poolKind)) {
+          if (isERC1155) {
+            throw new Error("ERC1155 buy orders are not yet supported");
+          }
+
+          if (pool.propertyChecker !== AddressZero) {
+            throw new Error("Property checked pools are not yet supported on the buy-side");
+          }
+
           const tokenBalance = await baseProvider.getBalance(pool.address);
 
           let tmpPriceList: (BigNumber | undefined)[] = Array.from(
@@ -126,7 +145,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           await Promise.all(
             _.range(0, POOL_ORDERS_MAX_PRICE_POINTS_COUNT).map(async (index) => {
               try {
-                const result = await poolContract.getSellNFTQuote(index + 1);
+                const result = await poolContract.getSellNFTQuote(0, index + 1);
                 if (result.error === 0 && result.outputAmount.lte(tokenBalance)) {
                   tmpPriceList[index] = result.outputAmount;
                 }
@@ -197,8 +216,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             const normalizedValue = bn(value).sub(missingRoyaltyAmount);
 
             // Handle: core sdk order
-            const sdkOrder: Sdk.Sudoswap.Order = new Sdk.Sudoswap.Order(config.chainId, {
+            const sdkOrder: Sdk.SudoswapV2.Order = new Sdk.SudoswapV2.Order(config.chainId, {
               pair: orderParams.pool,
+              amount: isERC1155 ? "1" : undefined,
               extra: {
                 prices: prices.map(String),
               },
@@ -231,6 +251,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   contract: pool.nft,
                 },
               ]);
+
               if (!tokenSetId) {
                 throw new Error("No token set available");
               }
@@ -243,7 +264,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               const validTo = `'Infinity'`;
               orderValues.push({
                 id,
-                kind: "sudoswap",
+                kind: "sudoswap-v2",
                 side: "buy",
                 fillability_status: "fillable",
                 approval_status: "approved",
@@ -257,7 +278,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 currency_price: price,
                 currency_value: value,
                 needs_conversion: null,
-                quantity_remaining: (prices.length - 1).toString(),
+                quantity_remaining: prices.length.toString(),
                 valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
                 nonce: null,
                 source_id_int: source?.id,
@@ -356,14 +377,14 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         }
       } catch (error) {
         logger.error(
-          "orders-sudoswap-save",
+          "orders-sudoswap-v2-save",
           `Failed to handle buy order with params ${JSON.stringify(orderParams)}: ${error}`
         );
       }
 
       // Handle sell orders
       try {
-        if ([SudoswapPoolKind.NFT, SudoswapPoolKind.TRADE].includes(pool.poolKind)) {
+        if ([SudoswapV2PoolKind.TOKEN, SudoswapV2PoolKind.TRADE].includes(pool.poolKind)) {
           let tmpPriceList: (BigNumber | undefined)[] = Array.from(
             { length: POOL_ORDERS_MAX_PRICE_POINTS_COUNT },
             () => undefined
@@ -371,7 +392,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           await Promise.all(
             _.range(0, POOL_ORDERS_MAX_PRICE_POINTS_COUNT).map(async (index) => {
               try {
-                const result = await poolContract.getBuyNFTQuote(index + 1);
+                const result = await poolContract.getBuyNFTQuote(0, index + 1);
                 if (result.error === 0) {
                   tmpPriceList[index] = result.inputAmount;
                 }
@@ -403,15 +424,17 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           const value = prices[0].toString();
 
           // Fetch all token ids owned by the pool
-          const poolOwnedTokenIds = await commonHelpers
-            .getNfts(pool.nft, pool.address)
-            .then((nfts) => nfts.map((nft) => nft.tokenId));
+          const poolOwnedTokenIds = await commonHelpers.getNfts(pool.nft, pool.address);
 
           const limit = pLimit(50);
           await Promise.all(
-            poolOwnedTokenIds.map((tokenId) =>
+            poolOwnedTokenIds.map(({ tokenId, amount }) =>
               limit(async () => {
                 try {
+                  if (isERC1155 && tokenId !== pool.tokenId) {
+                    return;
+                  }
+
                   const id = getOrderId(orderParams.pool, "sell", tokenId);
 
                   // Handle: royalties on top
@@ -452,8 +475,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   const normalizedValue = bn(value).add(missingRoyaltyAmount);
 
                   // Handle: core sdk order
-                  const sdkOrder: Sdk.Sudoswap.Order = new Sdk.Sudoswap.Order(config.chainId, {
+                  const sdkOrder: Sdk.SudoswapV2.Order = new Sdk.SudoswapV2.Order(config.chainId, {
                     pair: orderParams.pool,
+                    amount: isERC1155 ? amount : undefined,
                     tokenId,
                     extra: {
                       prices: prices.map(String),
@@ -490,7 +514,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     const validTo = `'Infinity'`;
                     orderValues.push({
                       id,
-                      kind: "sudoswap",
+                      kind: "sudoswap-v2",
                       side: "sell",
                       fillability_status: "fillable",
                       approval_status: "approved",
@@ -504,7 +528,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                       currency_price: price,
                       currency_value: value,
                       needs_conversion: null,
-                      quantity_remaining: "1",
+                      quantity_remaining: isERC1155 ? amount : "1",
                       valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
                       nonce: null,
                       source_id_int: source?.id,
@@ -540,7 +564,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                           currency_price = $/price/,
                           value = $/value/,
                           currency_value = $/value/,
-                          quantity_remaining = 1,
+                          quantity_remaining = $/amount/,
                           valid_between = tstzrange(date_trunc('seconds', to_timestamp(${orderParams.txTimestamp})), 'Infinity', '[]'),
                           expiration = 'Infinity',
                           updated_at = now(),
@@ -559,6 +583,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                         id,
                         price,
                         value,
+                        amount: isERC1155 ? amount : "1",
                         rawData: sdkOrder.params,
                         missingRoyalties: missingRoyalties,
                         normalizedValue: normalizedValue.toString(),
@@ -587,13 +612,13 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         }
       } catch (error) {
         logger.error(
-          "orders-sudoswap-save",
+          "orders-sudoswap-v2-save",
           `Failed to handle sell order with params ${JSON.stringify(orderParams)}: ${error}`
         );
       }
     } catch (error) {
       logger.error(
-        "orders-sudoswap-save",
+        "orders-sudoswap-v2-save",
         `Failed to handle order with params ${JSON.stringify(orderParams)}: ${error}`
       );
     }
@@ -602,6 +627,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
   // Process all orders concurrently
   const limit = pLimit(20);
   await Promise.all(orderInfos.map((orderInfo) => limit(() => handleOrder(orderInfo))));
+
+  logger.info("sudoswap-v2-debug", JSON.stringify(results));
 
   if (orderValues.length) {
     const columns = new pgp.helpers.ColumnSet(
