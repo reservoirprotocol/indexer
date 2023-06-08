@@ -5,7 +5,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { SaleActivity, FillEventData } from "@/jobs/activities/sale-activity";
 import { TransferActivity, NftTransferEventData } from "@/jobs/activities/transfer-activity";
@@ -20,7 +20,6 @@ import {
   SellOrderCancelledEventData,
 } from "@/jobs/activities/ask-cancel-activity";
 import { ActivitiesList } from "@/models/activities/activities-list";
-import cron from "node-cron";
 
 const QUEUE_NAME = "process-activity-event-queue";
 
@@ -88,43 +87,43 @@ if (config.doBackgroundWork) {
         };
 
         // Aggregate activities by kind
-        for (const activity of activitiesToProcess) {
-          switch (activity.kind) {
-            case EventKind.fillEvent:
-              aggregatedActivities[EventKind.fillEvent].push(activity.data as FillEventData);
-              break;
-
-            case EventKind.nftTransferEvent:
-              aggregatedActivities[EventKind.nftTransferEvent].push(
-                activity.data as NftTransferEventData
-              );
-              break;
-
-            case EventKind.newSellOrder:
-              aggregatedActivities[EventKind.newSellOrder].push(
-                activity.data as NewSellOrderEventData
-              );
-              break;
-
-            case EventKind.newBuyOrder:
-              aggregatedActivities[EventKind.newBuyOrder].push(
-                activity.data as NewBuyOrderEventData
-              );
-              break;
-
-            case EventKind.buyOrderCancelled:
-              aggregatedActivities[EventKind.buyOrderCancelled].push(
-                activity.data as BuyOrderCancelledEventData
-              );
-              break;
-
-            case EventKind.sellOrderCancelled:
-              aggregatedActivities[EventKind.sellOrderCancelled].push(
-                activity.data as SellOrderCancelledEventData
-              );
-              break;
-          }
-        }
+        // for (const activity of activitiesToProcess) {
+        //   switch (activity.kind) {
+        //     case EventKind.fillEvent:
+        //       aggregatedActivities[EventKind.fillEvent].push(activity.data as FillEventData);
+        //       break;
+        //
+        //     case EventKind.nftTransferEvent:
+        //       aggregatedActivities[EventKind.nftTransferEvent].push(
+        //         activity.data as NftTransferEventData
+        //       );
+        //       break;
+        //
+        //     case EventKind.newSellOrder:
+        //       aggregatedActivities[EventKind.newSellOrder].push(
+        //         activity.data as NewSellOrderEventData
+        //       );
+        //       break;
+        //
+        //     case EventKind.newBuyOrder:
+        //       aggregatedActivities[EventKind.newBuyOrder].push(
+        //         activity.data as NewBuyOrderEventData
+        //       );
+        //       break;
+        //
+        //     case EventKind.buyOrderCancelled:
+        //       aggregatedActivities[EventKind.buyOrderCancelled].push(
+        //         activity.data as BuyOrderCancelledEventData
+        //       );
+        //       break;
+        //
+        //     case EventKind.sellOrderCancelled:
+        //       aggregatedActivities[EventKind.sellOrderCancelled].push(
+        //         activity.data as SellOrderCancelledEventData
+        //       );
+        //       break;
+        //   }
+        // }
 
         for (const [kind, activities] of Object.entries(aggregatedActivities)) {
           if (!_.isEmpty(activities)) {
@@ -224,24 +223,24 @@ export type EventInfo =
       context?: string;
     };
 
-export const addActivitiesToList = async (events: EventInfo[]) => {
-  const activitiesList = new ActivitiesList();
-  await activitiesList.add(events);
-};
+// export const addActivitiesToList = async (events: EventInfo[]) => {
+//   const activitiesList = new ActivitiesList();
+//   await activitiesList.add(events);
+// };
 
 export const addToQueue = async () => {
   await queue.add(randomUUID(), {});
 };
 
-if (config.doBackgroundWork) {
-  cron.schedule(
-    "*/5 * * * * *",
-    async () =>
-      await redlock
-        .acquire(["save-activities"], (5 - 1) * 1000)
-        .then(async () => addToQueue())
-        .catch(() => {
-          // Skip on any errors
-        })
-  );
-}
+// if (config.doBackgroundWork) {
+//   cron.schedule(
+//     "*/5 * * * * *",
+//     async () =>
+//       await redlock
+//         .acquire(["save-activities"], (5 - 1) * 1000)
+//         .then(async () => addToQueue())
+//         .catch(() => {
+//           // Skip on any errors
+//         })
+//   );
+// }
