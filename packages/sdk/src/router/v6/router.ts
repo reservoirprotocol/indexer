@@ -418,6 +418,12 @@ export class Router {
               );
               if (listing) {
                 await options.onError("order-fetcher-blur-listings", new Error(reason), {
+                  isUnrecoverable:
+                    listing.kind === "blur" &&
+                    reason === "ListingNotFound" &&
+                    listing.tokenId === tokenId
+                      ? true
+                      : false,
                   orderId: listing.orderId,
                   additionalInfo: { detail: listing, taker },
                 });

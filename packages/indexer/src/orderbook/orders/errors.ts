@@ -72,7 +72,6 @@ const prettifyError = (msg: string): PrettyErrorDetails => {
       };
 
     case matches("request was throttled"):
-    case matches("could not fetch calldata for all blur listings"):
       return {
         message: "Unable to fetch the order due to rate limiting. Please try again soon.",
         status: StatusCode.FAILED_DEPENDENCY,
@@ -82,11 +81,13 @@ const prettifyError = (msg: string): PrettyErrorDetails => {
     case matches("requested order is inactive and can only be seen by the order creator"):
     case matches("the order_hash you provided does not exist"):
     case matches("cannot read properties of undefined (reading 'node')"):
+    case matches("listingnotfound"):
       return {
         message: "The order is not available anymore",
         status: StatusCode.GONE,
       };
 
+    case matches("could not fetch calldata for all blur listings"):
     case matches("error when generating fulfillment data"):
     case matches("you are not eligible to fulfill this order"):
     case matches("cannot be fulfilled for identifier"):

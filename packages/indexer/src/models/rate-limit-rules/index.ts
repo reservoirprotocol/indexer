@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import _ from "lodash";
 
-import { rateLimitRedis, redis } from "@/common/redis";
+import { allChainsSyncRedis, rateLimitRedis, redis } from "@/common/redis";
 import { idb, redb } from "@/common/db";
 import {
   RateLimitRuleEntity,
@@ -10,7 +10,7 @@ import {
   RateLimitRulePayload,
   RateLimitRuleUpdateParams,
 } from "@/models/rate-limit-rules/rate-limit-rule-entity";
-import { Channel } from "@/pubsub/channels";
+import { AllChainsChannel, Channel } from "@/pubsub/channels";
 import { logger } from "@/common/logger";
 import { ApiKeyManager } from "@/models/api-keys";
 import { RateLimiterRedis } from "rate-limiter-flexible";
@@ -116,10 +116,15 @@ export class RateLimitRules {
     method: string,
     tier: number | null,
     options: RateLimitRuleOptions,
-    payload: RateLimitRulePayload[]
+    payload: RateLimitRulePayload[],
+    correlationId = ""
   ) {
-    const query = `INSERT INTO rate_limit_rules (route, api_key, method, tier, options, payload)
-                   VALUES ($/route/, $/apiKey/, $/method/, $/tier/, $/options:json/, $/payload:json/)
+    const query = `INSERT INTO rate_limit_rules (route, api_key, method, tier, options, payload${
+      correlationId ? ", correlation_id" : ""
+    })
+                   VALUES ($/route/, $/apiKey/, $/method/, $/tier/, $/options:json/, $/payload:json/${
+                     correlationId ? ", $/correlationId/" : ""
+                   })
                    RETURNING *`;
 
     const values = {
@@ -129,6 +134,7 @@ export class RateLimitRules {
       tier,
       options,
       payload,
+      correlationId,
     };
 
     const rateLimitRule = await idb.oneOrNone(query, values);
@@ -140,12 +146,30 @@ export class RateLimitRules {
       `New rate limit rule ${JSON.stringify(rateLimitRuleEntity)}`
     );
 
+    // Sync to other chains only if created on mainnet
+    if (config.chainId === 1) {
+      await allChainsSyncRedis.publish(
+        AllChainsChannel.RateLimitRuleCreated,
+        JSON.stringify({ rule: rateLimitRuleEntity })
+      );
+    }
+
     logger.info(
       "rate-limit-rules",
       `New rate limit rule ${JSON.stringify(rateLimitRuleEntity)} was created`
     );
 
     return rateLimitRuleEntity;
+  }
+
+  public static async updateByCorrelationId(
+    correlationId: string,
+    fields: RateLimitRuleUpdateParams
+  ) {
+    const rateLimitRuleEntity = await RateLimitRules.getRuleByCorrelationId(correlationId);
+    if (rateLimitRuleEntity) {
+      await RateLimitRules.update(rateLimitRuleEntity.id, fields);
+    }
   }
 
   public static async update(id: number, fields: RateLimitRuleUpdateParams) {
@@ -186,19 +210,77 @@ export class RateLimitRules {
 
     await idb.none(query, replacementValues);
     await redis.publish(Channel.RateLimitRuleUpdated, `Updated rule id ${id}`);
+
+    // Sync to other chains only if updated on mainnet
+    if (config.chainId === 1) {
+      const rateLimitRuleEntity = await RateLimitRules.getRuleById(id);
+
+      await allChainsSyncRedis.publish(
+        AllChainsChannel.RateLimitRuleUpdated,
+        JSON.stringify({ rule: rateLimitRuleEntity })
+      );
+    }
+  }
+
+  public static async getRuleById(id: number) {
+    const ruleQuery = `
+          SELECT *
+          FROM rate_limit_rules
+          WHERE id = $/id/
+        `;
+
+    const rateLimitRule = await idb.oneOrNone(ruleQuery, { id });
+
+    if (rateLimitRule) {
+      return new RateLimitRuleEntity(rateLimitRule);
+    }
+
+    return null;
+  }
+
+  public static async getRuleByCorrelationId(correlationId: string) {
+    const ruleQuery = `
+          SELECT *
+          FROM rate_limit_rules
+          WHERE correlation_id = $/correlationId/
+        `;
+
+    const rateLimitRule = await idb.oneOrNone(ruleQuery, { correlationId });
+
+    if (rateLimitRule) {
+      return new RateLimitRuleEntity(rateLimitRule);
+    }
+
+    return null;
+  }
+
+  public static async deleteByCorrelationId(correlationId: string) {
+    const rateLimitRuleEntity = await RateLimitRules.getRuleByCorrelationId(correlationId);
+    if (rateLimitRuleEntity) {
+      await RateLimitRules.delete(rateLimitRuleEntity.id);
+    }
   }
 
   public static async delete(id: number) {
     const query = `DELETE FROM rate_limit_rules
-                   WHERE id = $/id/`;
+                   WHERE id = $/id/
+                   RETURNING correlation_id`;
 
     const values = {
       id,
     };
 
-    await idb.none(query, values);
+    const deletedRule = await idb.oneOrNone(query, values);
     await RateLimitRules.forceDataReload(); // reload the cache
     await redis.publish(Channel.RateLimitRuleUpdated, `Deleted rule id ${id}`);
+
+    // Sync to other chains only if deleted on mainnet
+    if (config.chainId === 1) {
+      await allChainsSyncRedis.publish(
+        AllChainsChannel.RateLimitRuleUpdated,
+        JSON.stringify({ correlationId: deletedRule.correlation_id })
+      );
+    }
   }
 
   public static async getApiKeyRateLimits(key: string) {

@@ -434,8 +434,6 @@ export const savePartialListings = async (
         { id }
       );
       if (!orderResult) {
-        // Order does not exist
-
         // Check and save: associated token set
         const schemaHash = generateSchemaHash();
         const [{ id: tokenSetId }] = await tokenSet.singleToken.save([
@@ -496,38 +494,6 @@ export const savePartialListings = async (
           status: "success",
           triggerKind: "new-order",
         });
-      } else {
-        // Order already exists
-        // const wasUpdated = await idb.oneOrNone(
-        //   `
-        //     UPDATE orders SET
-        //       fillability_status = 'fillable',
-        //       price = $/price/,
-        //       currency_price = $/price/,
-        //       value = $/price/,
-        //       currency_value = $/price/,
-        //       quantity_remaining = 1,
-        //       valid_between = tstzrange('${orderParams.createdAt}', 'Infinity', '[]'),
-        //       expiration = 'Infinity',
-        //       updated_at = now(),
-        //       raw_data = $/rawData:json/
-        //     WHERE orders.id = $/id/
-        //       AND orders.fillability_status != 'fillable'
-        //     RETURNING orders.id
-        //   `,
-        //   {
-        //     id,
-        //     price,
-        //     rawData: orderParams,
-        //   }
-        // );
-        // if (wasUpdated) {
-        //   results.push({
-        //     id,
-        //     status: "success",
-        //     triggerKind: "reprice",
-        //   });
-        // }
       }
     } catch (error) {
       logger.error(
