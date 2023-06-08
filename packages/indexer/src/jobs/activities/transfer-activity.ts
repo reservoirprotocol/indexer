@@ -170,7 +170,7 @@ export class TransferActivity {
     ]);
 
     if (esActivities.length) {
-      await ActivitiesIndex.save(esActivities);
+      await ActivitiesIndex.save(esActivities, false);
     }
   }
 }

@@ -1,6 +1,5 @@
 import { idb } from "@/common/db";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { logger } from "@/common/logger";
 
 export type RecalcTokenCountQueueJobPayload = {
   collection: string;
@@ -29,8 +28,6 @@ export class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler {
     await idb.none(query, {
       collection,
     });
-
-    logger.info(this.queueName, `Updated token count for collection ${collection}`);
   }
 
   public async addToQueue(collection: RecalcTokenCountQueueJobPayload) {

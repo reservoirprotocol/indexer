@@ -434,8 +434,6 @@ export const savePartialListings = async (
         { id }
       );
       if (!orderResult) {
-        // Order does not exist
-
         // Check and save: associated token set
         const schemaHash = generateSchemaHash();
         const [{ id: tokenSetId }] = await tokenSet.singleToken.save([
@@ -498,7 +496,6 @@ export const savePartialListings = async (
         });
       } else {
         // Order already exists
-
         const wasUpdated = await idb.oneOrNone(
           `
             UPDATE orders SET
@@ -522,7 +519,6 @@ export const savePartialListings = async (
             rawData: orderParams,
           }
         );
-
         if (wasUpdated) {
           results.push({
             id,

@@ -165,15 +165,13 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
             contract,
             tokenId,
             mintedTimestamp,
+            context: "mint-queue",
           },
         ]);
       }
 
       // Set any cached information (eg. floor sell)
-      await tokenRefreshCacheJob.addToQueue({
-        contract,
-        tokenId,
-      });
+      await tokenRefreshCacheJob.addToQueue({ contract, tokenId });
     } catch (error) {
       logger.error(
         this.queueName,

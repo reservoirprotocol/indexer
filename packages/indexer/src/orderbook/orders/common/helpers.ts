@@ -60,11 +60,15 @@ export const getNftBalance = async (
   return bn(balanceResult ? balanceResult.amount : 0);
 };
 
-export const getNfts = async (contract: string, owner: string): Promise<string[]> => {
+export const getNfts = async (
+  contract: string,
+  owner: string
+): Promise<{ tokenId: string; amount: string }[]> => {
   const nftsResult = await idb.manyOrNone(
     `
       SELECT
-        nft_balances.token_id
+        nft_balances.token_id,
+        nft_balances.amount
       FROM nft_balances
       WHERE nft_balances.contract = $/contract/
         AND nft_balances.owner = $/owner/
@@ -76,7 +80,10 @@ export const getNfts = async (contract: string, owner: string): Promise<string[]
     }
   );
 
-  return nftsResult.map(({ token_id }: { token_id: string }) => token_id);
+  return nftsResult.map(({ token_id, amount }: { token_id: string; amount: string }) => ({
+    tokenId: token_id,
+    amount,
+  }));
 };
 
 export const getNftApproval = async (

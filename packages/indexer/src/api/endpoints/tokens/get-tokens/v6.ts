@@ -1007,7 +1007,9 @@ export const getTokensV6Options: RouteOptions = {
                   },
                 },
               };
-            } else if (["sudoswap", "nftx", "collectionxyz"].includes(r.floor_sell_order_kind)) {
+            } else if (
+              ["sudoswap", "sudoswap-v2", "nftx", "collectionxyz"].includes(r.floor_sell_order_kind)
+            ) {
               // Pool orders
               dynamicPricing = {
                 kind: "pool",

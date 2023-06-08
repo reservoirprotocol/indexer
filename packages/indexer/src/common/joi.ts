@@ -332,7 +332,7 @@ export const getJoiDynamicPricingObject = async (
         .reduce((a, b) => a.add(b), bn(0))
     : bn(0);
 
-  if (dynamic && (kind === "seaport" || kind === "seaport-v1.4")) {
+  if (dynamic && (kind === "seaport" || kind === "seaport-v1.4" || kind === "seaport-v1.5")) {
     const order = new Sdk.SeaportV14.Order(
       config.chainId,
       raw_data as Sdk.SeaportBase.Types.OrderComponents
@@ -370,7 +370,7 @@ export const getJoiDynamicPricingObject = async (
         },
       },
     };
-  } else if (kind === "sudoswap") {
+  } else if (kind === "sudoswap" || kind === "sudoswap-v2") {
     // Pool orders
     return {
       kind: "pool",
@@ -452,7 +452,8 @@ export const getJoiOrderDepthObject = async (
   const scale = (value: number) => Number(value.toFixed(precisionDecimals));
 
   switch (kind) {
-    case "sudoswap": {
+    case "sudoswap":
+    case "sudoswap-v2": {
       const order = rawData as Sdk.Sudoswap.OrderParams;
       return Promise.all(
         order.extra.prices.map(async (price) => ({
