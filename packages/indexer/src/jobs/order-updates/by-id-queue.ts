@@ -12,17 +12,17 @@ import { TriggerKind } from "@/jobs/order-updates/types";
 import { Sources } from "@/models/sources";
 
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
-import * as tokenSetUpdatesTopBid from "@/jobs/token-set-updates/top-bid-queue";
 // import * as tokenSetUpdatesTopBidSingleToken from "@/jobs/token-set-updates/top-bid-single-token-queue";
 
 import * as updateNftBalanceFloorAskPriceQueue from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
-import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
-import * as tokenUpdatesNormalizedFloorAsk from "@/jobs/token-updates/normalized-floor-queue";
 import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
 import { BidEventsList } from "@/models/bid-events-list";
+import { normalizedFloorQueueJob } from "@/jobs/token-updates/normalized-floor-queue-job";
+import { tokenFloorQueueJob } from "@/jobs/token-updates/token-floor-queue-job";
+import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";
 
 const QUEUE_NAME = "order-updates-by-id";
 
@@ -106,7 +106,7 @@ if (config.doBackgroundWork) {
             if (tokenSetId.startsWith("token")) {
               // await tokenSetUpdatesTopBidSingleToken.addToQueue([topBidInfo]);
             } else {
-              await tokenSetUpdatesTopBid.addToQueue([topBidInfo]);
+              await topBidQueueJob.addToQueue([topBidInfo]);
             }
           }
 
@@ -120,8 +120,8 @@ if (config.doBackgroundWork) {
             };
 
             await Promise.all([
-              tokenUpdatesFloorAsk.addToQueue([floorAskInfo]),
-              tokenUpdatesNormalizedFloorAsk.addToQueue([floorAskInfo]),
+              tokenFloorQueueJob.addToQueue([floorAskInfo]),
+              normalizedFloorQueueJob.addToQueue([floorAskInfo]),
             ]);
           }
 

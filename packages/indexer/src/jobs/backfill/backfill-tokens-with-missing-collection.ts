@@ -7,8 +7,7 @@ import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
 import { fromBuffer, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-
-import * as mintQueue from "@/jobs/token-updates/mint-queue";
+import { mintQueueJob } from "@/jobs/token-updates/mint-queue-job";
 
 const QUEUE_NAME = "backfill-tokens-with-missing-collection";
 
@@ -51,7 +50,7 @@ if (config.doBackgroundWork) {
       );
 
       const currentTime = now();
-      await mintQueue.addToQueue(
+      await mintQueueJob.addToQueue(
         results.map((r) => ({
           contract: fromBuffer(r.contract),
           tokenId: r.token_id,

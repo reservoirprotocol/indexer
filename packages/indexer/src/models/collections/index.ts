@@ -15,16 +15,18 @@ import { updateBlurRoyalties } from "@/utils/blur";
 import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import MetadataApi from "@/utils/metadata-api";
+import * as royalties from "@/utils/royalties";
 import {
   getOpenCollectionMints,
   simulateAndUpdateCollectionMint,
 } from "@/utils/mints/collection-mints";
-import * as royalties from "@/utils/royalties";
 
-import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
-import * as collectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
 import * as refreshActivitiesCollectionMetadata from "@/jobs/elasticsearch/refresh-activities-collection-metadata";
+
+import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
+import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
+
 import { config } from "@/config/index";
 
 export class Collections {
@@ -112,7 +114,7 @@ export class Collections {
     );
     if (!collectionExists) {
       // If the collection doesn't exist, push a job to retrieve it
-      await collectionMetadata.addToQueue([
+      await fetchCollectionMetadataJob.addToQueue([
         {
           contract,
           tokenId,
@@ -153,7 +155,7 @@ export class Collections {
 
     const tokenCount = await Tokens.countTokensInCollection(collection.id);
 
-    await collectionRecalcOwnerCount.addToQueue([
+    await recalcOwnerCountQueueJob.addToQueue([
       {
         context: "updateCollectionCache",
         kind: "collectionId",

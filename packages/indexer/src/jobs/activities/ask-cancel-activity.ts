@@ -141,7 +141,7 @@ export class AskCancelActivity {
     ]);
 
     if (esActivities.length) {
-      await ActivitiesIndex.save(esActivities);
+      await ActivitiesIndex.save(esActivities, false);
     }
   }
 }
