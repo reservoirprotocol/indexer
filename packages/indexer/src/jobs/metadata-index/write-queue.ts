@@ -24,7 +24,6 @@ import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collectio
 import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attribute-key-counts-job";
 import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-attribute-value-counts-job";
 import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
-import pgPromise from "pg-promise";
 
 const QUEUE_NAME = "metadata-index-write-queue";
 
@@ -61,32 +60,18 @@ if (config.doBackgroundWork) {
         attributes,
       } = job.data as TokenMetadataInfo;
 
-      let formattedValues;
-
       try {
-        formattedValues = pgPromise.as.format(
-          `name = $/name/,
+        // Update the token's metadata
+        const result = await idb.oneOrNone(
+          `
+            UPDATE tokens SET
+              name = $/name/,
               description = $/description/,
               image = $/image/,
               media = $/media/,
               updated_at = now(),
               collection_id = collection_id,
-              created_at = created_at`,
-          {
-            contract: toBuffer(contract),
-            tokenId,
-            name: name || null,
-            description: description || null,
-            image: imageUrl || null,
-            media: mediaUrl || null,
-          }
-        );
-
-        // Update the token's metadata
-        const result = await idb.oneOrNone(
-          `
-            UPDATE tokens SET
-              ${formattedValues}
+              created_at = created_at
             WHERE tokens.contract = $/contract/
             AND tokens.token_id = $/tokenId/
             RETURNING collection_id, created_at, (
@@ -104,6 +89,10 @@ if (config.doBackgroundWork) {
           {
             contract: toBuffer(contract),
             tokenId,
+            name: name || null,
+            description: description || null,
+            image: imageUrl || null,
+            media: mediaUrl || null,
           }
         );
 
@@ -481,9 +470,7 @@ if (config.doBackgroundWork) {
       } catch (error) {
         logger.error(
           QUEUE_NAME,
-          `Failed to process token metadata info ${JSON.stringify(
-            job.data
-          )}: ${error}, ${formattedValues}`
+          `Failed to process token metadata info ${JSON.stringify(job.data)}: ${error}`
         );
         throw error;
       }
