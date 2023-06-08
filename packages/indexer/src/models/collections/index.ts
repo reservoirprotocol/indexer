@@ -190,7 +190,7 @@ export class Collections {
     if (
       config.doElasticsearchWork &&
       (result?.old_metadata.name != collection.name ||
-        result?.old_metadata.metadata != collection.metadata)
+        result?.old_metadata.metadata.imageUrl != (collection.metadata as any)?.imageUrl)
     ) {
       logger.info(
         "updateCollectionCache",
