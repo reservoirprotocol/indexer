@@ -61,8 +61,10 @@ if (config.doBackgroundWork) {
         attributes,
       } = job.data as TokenMetadataInfo;
 
+      let formattedValues;
+
       try {
-        const formattedValues = pgPromise.as.format(
+        formattedValues = pgPromise.as.format(
           `name = $/name/,
               description = $/description/,
               image = $/image/,
@@ -98,7 +100,11 @@ if (config.doBackgroundWork) {
                   WHERE tokens.contract = $/contract/
                   AND tokens.token_id = $/tokenId/
                 ) AS old_metadata
-          `
+          `,
+          {
+            contract: toBuffer(contract),
+            tokenId,
+          }
         );
 
         // Skip if there is no associated entry in the `tokens` table
@@ -475,7 +481,9 @@ if (config.doBackgroundWork) {
       } catch (error) {
         logger.error(
           QUEUE_NAME,
-          `Failed to process token metadata info ${JSON.stringify(job.data)}: ${error}`
+          `Failed to process token metadata info ${JSON.stringify(
+            job.data
+          )}: ${error}, ${formattedValues}`
         );
         throw error;
       }
