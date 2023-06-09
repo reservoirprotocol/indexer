@@ -99,7 +99,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           c.slug,
           (c.metadata ->> 'imageUrl')::TEXT AS collection_image
         FROM tokens t
-        JOIN collections c ON t.collection_id = c.id
+        LEFT JOIN collections c ON t.collection_id = c.id
         JOIN contracts con ON t.contract = con.address
       `;
 

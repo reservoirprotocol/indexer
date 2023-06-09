@@ -1,8 +1,10 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
+import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 
 const QUEUE_NAME = "opensea-off-chain-cancellations";
 
@@ -27,6 +29,41 @@ if (config.doBackgroundWork) {
     QUEUE_NAME,
     async (job: Job) => {
       const { orderId } = job.data as { orderId: string };
+
+      logger.info(QUEUE_NAME, JSON.stringify({ orderId }));
+
+      try {
+        const result = await idb.oneOrNone(
+          `
+            UPDATE orders SET
+              fillability_status = 'cancelled',
+              updated_at = now()
+            WHERE orders.id = $/id/
+              AND orders.fillability_status = 'fillable'
+              AND orders.approval_status = 'approved'
+            RETURNING orders.id
+          `,
+          { id: orderId }
+        );
+
+        if (result) {
+          await orderUpdatesById.addToQueue([
+            {
+              context: `cancel-${orderId}`,
+              id: orderId,
+              trigger: {
+                kind: "cancel",
+              },
+            } as orderUpdatesById.OrderInfo,
+          ]);
+        }
+      } catch (error) {
+        logger.error(
+          QUEUE_NAME,
+          `Failed to handle OpenSea order invalidation info ${JSON.stringify(job.data)}: ${error}`
+        );
+        throw error;
+      }
 
       logger.info(QUEUE_NAME, JSON.stringify({ orderId }));
     },
