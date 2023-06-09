@@ -15,7 +15,7 @@ import {
   RefreshTokenBySlug,
 } from "@/models/pending-refresh-tokens-by-slug";
 import { Tokens } from "@/models/tokens";
-import { metadataQueueJob } from "@/jobs/collection-updates/metadata-queue-job";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 
 const QUEUE_NAME = "metadata-index-process-queue-by-slug";
 
@@ -57,7 +57,7 @@ async function addToTokenRefreshQueueAndUpdateCollectionMetadata(
       ],
       true
     ),
-    metadataQueueJob.addToQueue({ contract: refreshTokenBySlug.contract, tokenId }, 0),
+    collectionMetadataQueueJob.addToQueue({ contract: refreshTokenBySlug.contract, tokenId }, 0),
   ]);
 }
 

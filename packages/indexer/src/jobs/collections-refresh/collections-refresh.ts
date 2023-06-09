@@ -14,8 +14,8 @@ import { CollectionsEntity } from "@/models/collections/collections-entity";
 import { redb } from "@/common/db";
 import {
   CollectionMetadataInfo,
-  metadataQueueJob,
-} from "@/jobs/collection-updates/metadata-queue-job";
+  collectionMetadataQueueJob,
+} from "@/jobs/collection-updates/collection-metadata-queue-job";
 
 const QUEUE_NAME = "collections-refresh-queue";
 
@@ -104,7 +104,7 @@ if (config.doBackgroundWork) {
         })
       );
 
-      await metadataQueueJob.addToQueueBulk(infos);
+      await collectionMetadataQueueJob.addToQueueBulk(infos);
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );

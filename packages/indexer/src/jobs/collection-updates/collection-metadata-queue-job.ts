@@ -19,7 +19,7 @@ export type MetadataQueueJobPayload = {
   addToQueue?: boolean;
 };
 
-export class MetadataQueueJob extends AbstractRabbitMqJobHandler {
+export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "collections-metadata-queue";
   maxRetries = 10;
   concurrency = 20;
@@ -103,10 +103,10 @@ export class MetadataQueueJob extends AbstractRabbitMqJobHandler {
   }
 }
 
-export const metadataQueueJob = new MetadataQueueJob();
+export const collectionMetadataQueueJob = new CollectionMetadataQueueJob();
 
-metadataQueueJob.on("onCompleted", async (message) => {
+collectionMetadataQueueJob.on("onCompleted", async (message) => {
   if (message.payload.addToQueue) {
-    await metadataQueueJob.addToQueue(message.payload, 1000);
+    await collectionMetadataQueueJob.addToQueue(message.payload, 1000);
   }
 });

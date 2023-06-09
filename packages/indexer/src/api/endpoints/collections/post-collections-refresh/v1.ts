@@ -19,7 +19,7 @@ import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue"
 import * as orderFixes from "@/jobs/order-fixes/fixes";
 import * as blurBidsRefresh from "@/jobs/order-updates/misc/blur-bids-refresh";
 import * as blurListingsRefresh from "@/jobs/order-updates/misc/blur-listings-refresh";
-import { metadataQueueJob } from "@/jobs/collection-updates/metadata-queue-job";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
 
 const version = "v1";
@@ -100,7 +100,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await metadataQueueJob.addToQueue(
+        await collectionMetadataQueueJob.addToQueue(
           {
             contract: collection.contract,
             tokenId,
@@ -176,7 +176,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await metadataQueueJob.addToQueue(
+        await collectionMetadataQueueJob.addToQueue(
           {
             contract: collection.contract,
             tokenId,
