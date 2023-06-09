@@ -5,6 +5,7 @@ import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { Tokens } from "@/models/tokens";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { randomUUID } from "crypto";
 
 const QUEUE_NAME = "refresh-activities-token-metadata-queue";
 
@@ -31,10 +32,37 @@ if (config.doBackgroundWork) {
 
       const { contract, tokenId } = job.data;
 
-      const tokenData = await Tokens.getByContractAndTokenId(contract, tokenId);
+      let tokenUpdateData = job.data.tokenUpdateData;
 
-      if (tokenData) {
-        await ActivitiesIndex.updateActivitiesTokenMetadata(contract, tokenId, tokenData);
+      if (!tokenUpdateData) {
+        const tokenData = await Tokens.getByContractAndTokenId(contract, tokenId);
+
+        if (tokenData) {
+          tokenUpdateData = {
+            name: tokenData.name,
+            image: tokenData.image,
+            media: tokenData.media,
+          };
+        }
+      }
+
+      if (tokenUpdateData) {
+        const keepGoing = await ActivitiesIndex.updateActivitiesTokenMetadata(
+          contract,
+          tokenId,
+          tokenUpdateData
+        );
+
+        if (keepGoing) {
+          logger.info(
+            QUEUE_NAME,
+            `KeepGoing. jobData=${JSON.stringify(job.data)}, tokenUpdateData=${JSON.stringify(
+              tokenUpdateData
+            )}`
+          );
+
+          await addToQueue(contract, tokenId, tokenUpdateData);
+        }
       }
     },
     { connection: redis.duplicate(), concurrency: 1 }
@@ -45,10 +73,10 @@ if (config.doBackgroundWork) {
   });
 }
 
-export const addToQueue = async (contract: string, tokenId: string) => {
-  await queue.add(
-    `${contract}:${tokenId}`,
-    { contract, tokenId },
-    { jobId: `${contract}:${tokenId}` }
-  );
+export const addToQueue = async (
+  contract: string,
+  tokenId: string,
+  tokenUpdateData?: { name: string | null; image?: string | null; media?: string | null }
+) => {
+  await queue.add(randomUUID(), { contract, tokenId, tokenUpdateData });
 };

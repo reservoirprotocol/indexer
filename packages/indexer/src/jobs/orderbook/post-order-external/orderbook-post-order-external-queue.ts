@@ -26,7 +26,7 @@ import * as crossPostingOrdersModel from "@/models/cross-posting-orders";
 import { CrossPostingOrderStatus } from "@/models/cross-posting-orders";
 import { TSTAttribute, TSTCollection, TSTCollectionNonFlagged } from "@/orderbook/token-sets/utils";
 import { fromBuffer, toBuffer, now } from "@/common/utils";
-import { metadataQueueJob } from "@/jobs/collection-updates/metadata-queue-job";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 
 import { addToQueue as addToQueueOpensea } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-queue";
 
@@ -251,11 +251,15 @@ export const jobProcessor = async (job: Job) => {
               )}, rawResult=${JSON.stringify(rawResult)}, retry: ${retry}`
             );
 
-            await metadataQueueJob.addToQueue({
-              contract: fromBuffer(rawResult.contract),
-              tokenId: rawResult.token_id,
-              community: rawResult.community,
-            });
+            await collectionMetadataQueueJob.addToQueue(
+              {
+                contract: fromBuffer(rawResult.contract),
+                tokenId: rawResult.token_id,
+                community: rawResult.community,
+              },
+              0,
+              job.queueName
+            );
           }
         }
       } else if (retry < MAX_RETRIES) {

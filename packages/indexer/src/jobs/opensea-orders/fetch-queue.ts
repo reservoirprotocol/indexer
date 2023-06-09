@@ -15,7 +15,7 @@ import { parseProtocolData } from "@/websockets/opensea";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import { Tokens } from "@/models/tokens";
 import { Collections } from "@/models/collections";
-import { metadataQueueJob } from "@/jobs/collection-updates/metadata-queue-job";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 
 const QUEUE_NAME = "opensea-orders-fetch-queue";
 
@@ -98,11 +98,15 @@ if (config.doBackgroundWork) {
                 refreshOpenseaCollectionOffersCollections[0].collection
               );
 
-              await metadataQueueJob.addToQueue({
-                contract: collectionResult!.contract,
-                tokenId,
-                community: collectionResult!.community,
-              });
+              await collectionMetadataQueueJob.addToQueue(
+                {
+                  contract: collectionResult!.contract,
+                  tokenId,
+                  community: collectionResult!.community,
+                },
+                0,
+                QUEUE_NAME
+              );
             } catch {
               // Skip on any errors
             }

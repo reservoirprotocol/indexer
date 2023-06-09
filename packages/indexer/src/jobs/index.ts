@@ -211,7 +211,7 @@ import { processActivityEventJob } from "@/jobs/activities/process-activity-even
 import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
 import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
 import { topBidUpdateQueueJob } from "@/jobs/bid-updates/top-bid-update-queue-job";
-import { metadataQueueJob } from "@/jobs/collection-updates/metadata-queue-job";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
 import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
 import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
@@ -438,7 +438,7 @@ export class RabbitMqJobsConsumer {
       fixActivitiesMissingCollectionJob,
       topBidUpdateQueueJob,
       collectionFloorQueueJob,
-      metadataQueueJob,
+      collectionMetadataQueueJob,
       nonFlaggedFloorQueueJob,
       normalizedFloorQueueJob,
       rarityQueueJob,

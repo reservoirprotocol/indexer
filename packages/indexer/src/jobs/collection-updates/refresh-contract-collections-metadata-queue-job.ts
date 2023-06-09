@@ -4,9 +4,9 @@ import { acquireLock, releaseLock } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { Tokens } from "@/models/tokens";
 import {
-  metadataQueueJob,
+  collectionMetadataQueueJob,
   CollectionMetadataInfo,
-} from "@/jobs/collection-updates/metadata-queue-job";
+} from "@/jobs/collection-updates/collection-metadata-queue-job";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import { config } from "@/config/index";
 
@@ -48,7 +48,7 @@ export class RefreshContractCollectionsMetadataQueueJob extends AbstractRabbitMq
           });
         }
 
-        await metadataQueueJob.addToQueueBulk(infos);
+        await collectionMetadataQueueJob.addToQueueBulk(infos, 0, this.queueName);
       } else {
         const contractToken = await redb.oneOrNone(
           `

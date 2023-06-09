@@ -16,7 +16,7 @@ import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
-import { metadataQueueJob } from "@/jobs/collection-updates/metadata-queue-job";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
 
 export const postRefreshCollectionOptions: RouteOptions = {
@@ -113,11 +113,15 @@ export const postRefreshCollectionOptions: RouteOptions = {
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await metadataQueueJob.addToQueue({
-          contract: collection.contract,
-          tokenId,
-          community: collection.community,
-        });
+        await collectionMetadataQueueJob.addToQueue(
+          {
+            contract: collection.contract,
+            tokenId,
+            community: collection.community,
+          },
+          0,
+          "post-refresh-collection-admin"
+        );
 
         if (collection.slug) {
           // Refresh opensea collection offers

@@ -12,7 +12,7 @@ import { config } from "@/config/index";
 
 import * as flagStatusUpdate from "@/jobs/flag-status/update";
 import * as updateActivitiesCollection from "@/jobs/elasticsearch/update-activities-collection";
-// import * as refreshActivitiesTokenMetadata from "@/jobs/elasticsearch/refresh-activities-token-metadata";
+import * as refreshActivitiesTokenMetadata from "@/jobs/elasticsearch/refresh-activities-token-metadata";
 
 import PgPromise from "pg-promise";
 import { updateActivities } from "@/jobs/activities/utils";
@@ -115,23 +115,23 @@ if (config.doBackgroundWork) {
           return;
         }
 
-        // if (
-        //   config.doElasticsearchWork &&
-        //   (result.old_metadata.name != name ||
-        //     result.old_metadata.image != imageUrl ||
-        //     result.old_metadata.media != mediaUrl)
-        // ) {
-        //   logger.info(
-        //     QUEUE_NAME,
-        //     JSON.stringify({
-        //       message: `Metadata changed. collection=${collection}, contract=${contract}, tokenId=${tokenId}`,
-        //       jobData: job.data,
-        //       result,
-        //     })
-        //   );
-        //
-        //   await refreshActivitiesTokenMetadata.addToQueue(contract, tokenId);
-        // }
+        if (
+          config.doElasticsearchWork &&
+          (result.old_metadata.name != name ||
+            result.old_metadata.image != imageUrl ||
+            result.old_metadata.media != mediaUrl)
+        ) {
+          logger.info(
+            QUEUE_NAME,
+            JSON.stringify({
+              message: `Metadata changed. collection=${collection}, contract=${contract}, tokenId=${tokenId}`,
+              jobData: job.data,
+              result,
+            })
+          );
+
+          await refreshActivitiesTokenMetadata.addToQueue(contract, tokenId);
+        }
 
         // If the new collection ID is different from the collection ID currently stored
         if (

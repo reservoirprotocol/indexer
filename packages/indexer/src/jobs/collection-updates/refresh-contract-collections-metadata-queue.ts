@@ -9,9 +9,9 @@ import { toBuffer } from "@/common/utils";
 import { Tokens } from "@/models/tokens";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import {
-  metadataQueueJob,
+  collectionMetadataQueueJob,
   CollectionMetadataInfo,
-} from "@/jobs/collection-updates/metadata-queue-job";
+} from "@/jobs/collection-updates/collection-metadata-queue-job";
 
 const QUEUE_NAME = "refresh-contract-collections-metadata-queue";
 
@@ -60,7 +60,7 @@ if (config.doBackgroundWork) {
             });
           }
 
-          await metadataQueueJob.addToQueueBulk(infos);
+          await collectionMetadataQueueJob.addToQueueBulk(infos, 0, QUEUE_NAME);
         } else {
           const contractToken = await redb.oneOrNone(
             `

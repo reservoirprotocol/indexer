@@ -5,8 +5,8 @@ import { Collections } from "@/models/collections";
 import _ from "lodash";
 import {
   CollectionMetadataInfo,
-  metadataQueueJob,
-} from "@/jobs/collection-updates/metadata-queue-job";
+  collectionMetadataQueueJob,
+} from "@/jobs/collection-updates/collection-metadata-queue-job";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 
@@ -85,7 +85,7 @@ export class CollectionRefreshJob extends AbstractRabbitMqJobHandler {
       })
     );
 
-    await metadataQueueJob.addToQueueBulk(infos);
+    await collectionMetadataQueueJob.addToQueueBulk(infos);
   }
 
   public async addToQueue() {
