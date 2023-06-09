@@ -493,8 +493,22 @@ export class RabbitMqJobsConsumer {
       return;
     }
 
-    const channel = await this.rabbitMqConsumerConnection.createChannel();
-    RabbitMqJobsConsumer.queueToChannel.set(job.getQueue(), channel);
+    let channel: Channel;
+
+    // Some queues can use a shared channel as they are less important with low traffic
+    if (job.getUseSharedChannel()) {
+      const sharedChannel = RabbitMqJobsConsumer.queueToChannel.get("shared-channel");
+
+      if (sharedChannel) {
+        channel = sharedChannel;
+      } else {
+        channel = await this.rabbitMqConsumerConnection.createChannel();
+        RabbitMqJobsConsumer.queueToChannel.set("shared-channel", channel);
+      }
+    } else {
+      channel = await this.rabbitMqConsumerConnection.createChannel();
+      RabbitMqJobsConsumer.queueToChannel.set(job.getQueue(), channel);
+    }
 
     await channel.prefetch(job.getConcurrency()); // Set the number of messages to consume simultaneously
 

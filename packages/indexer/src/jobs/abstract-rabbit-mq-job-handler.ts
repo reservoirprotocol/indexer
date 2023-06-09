@@ -37,6 +37,7 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
   protected backoff: BackoffStrategy = null;
   protected singleActiveConsumer: boolean | undefined;
   protected persistent = true;
+  protected useSharedChannel = false;
 
   public async consume(message: RabbitMQMessage): Promise<void> {
     message.consumedTime = message.consumedTime ?? _.now();
@@ -109,6 +110,10 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
 
   public getMaxDeadLetterQueue(): number {
     return this.maxDeadLetterQueue;
+  }
+
+  public getUseSharedChannel(): boolean {
+    return this.useSharedChannel;
   }
 
   public getSingleActiveConsumer(): boolean | undefined {

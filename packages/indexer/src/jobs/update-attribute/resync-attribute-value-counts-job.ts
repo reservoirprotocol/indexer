@@ -12,6 +12,7 @@ export class ResyncAttributeValueCountsJob extends AbstractRabbitMqJobHandler {
   queueName = "resync-attribute-value-counts-queue";
   maxRetries = 10;
   concurrency = 3;
+  useSharedChannel = true;
 
   protected async process(payload: ResyncAttributeValueCountsJobPayload) {
     const { collection, key, value } = payload;
