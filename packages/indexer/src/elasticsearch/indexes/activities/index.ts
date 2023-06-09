@@ -718,17 +718,19 @@ export const updateActivitiesTokenMetadata = async (
                 ],
               },
             },
-            {
-              bool: {
-                must_not: [
-                  {
-                    term: {
-                      "token.media": tokenData.media,
-                    },
+            tokenData.media
+              ? {
+                  bool: {
+                    must_not: [
+                      {
+                        term: {
+                          "token.media": tokenData.media,
+                        },
+                      },
+                    ],
                   },
-                ],
-              },
-            },
+                }
+              : undefined,
           ],
         },
       },
