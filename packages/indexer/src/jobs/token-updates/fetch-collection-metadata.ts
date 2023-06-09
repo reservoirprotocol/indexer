@@ -14,11 +14,11 @@ import MetadataApi from "@/utils/metadata-api";
 import * as royalties from "@/utils/royalties";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 
-import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
-import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
-import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
-import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
+import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
+import { collectionFloorQueueJob } from "@/jobs/collection-updates/collection-floor-queue-job";
+import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
+import { normalizedFloorQueueJob } from "@/jobs/collection-updates/normalized-floor-queue-job";
 
 const QUEUE_NAME = "token-updates-fetch-collection-metadata-queue";
 
@@ -154,9 +154,9 @@ if (config.doBackgroundWork) {
           };
 
           await Promise.all([
-            collectionUpdatesFloorAsk.addToQueue([floorAskInfo]),
-            collectionUpdatesNonFlaggedFloorAsk.addToQueue([floorAskInfo]),
-            collectionUpdatesNormalizedFloorAsk.addToQueue([floorAskInfo]),
+            collectionFloorQueueJob.addToQueue([floorAskInfo]),
+            nonFlaggedFloorQueueJob.addToQueue([floorAskInfo]),
+            normalizedFloorQueueJob.addToQueue([floorAskInfo]),
           ]);
         }
 

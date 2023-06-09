@@ -1253,6 +1253,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
           }
         }
 
+        // Cannot skip balance checking when filling Blur orders
+        if (payload.skipBalanceCheck && path.some((p) => p.source === "blur.io")) {
+          payload.skipBalanceCheck = false;
+        }
+
         // Check that the transaction sender has enough funds to fill all requested tokens
         const txSender = payload.relayer ?? payload.taker;
         if (buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId]) {

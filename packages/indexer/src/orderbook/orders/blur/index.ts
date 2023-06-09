@@ -778,27 +778,41 @@ export const savePartialBids = async (
         currentBid.pricePoints = currentBid.pricePoints.filter((pp) => pp.executableSize > 0);
 
         if (!currentBid.pricePoints.length) {
+          // Force empty price points
+          currentBid.pricePoints = [];
+
           await idb.none(
             `
               UPDATE orders SET
                 fillability_status = 'no-balance',
+                raw_data = $/rawData/,
                 expiration = now(),
                 updated_at = now()
               WHERE orders.id = $/id/
             `,
-            { id }
+            {
+              id,
+              rawData: currentBid,
+            }
           );
         } else if (isFiltered) {
           if (orderResult.fillability_status === "fillable") {
+            // Force empty price points
+            currentBid.pricePoints = [];
+
             await idb.none(
               `
                 UPDATE orders SET
                   fillability_status = 'no-balance',
+                  raw_data = $/rawData/,
                   expiration = now(),
                   updated_at = now()
                 WHERE orders.id = $/id/
               `,
-              { id }
+              {
+                id,
+                rawData: currentBid,
+              }
             );
           } else {
             return results.push({

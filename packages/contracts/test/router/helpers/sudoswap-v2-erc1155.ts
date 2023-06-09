@@ -15,6 +15,8 @@ export type SudoswapListing = {
   nft: {
     contract: Contract;
     id: number;
+    // A single quantity if missing
+    amount?: number;
   };
   price: BigNumberish;
   // Whether the order is to be cancelled
@@ -34,7 +36,7 @@ export const setupSudoswapListings = async (listings: SudoswapListing[]) => {
     const { seller, nft, price, isCancelled } = listing;
 
     // Approve the factory contract
-    await nft.contract.connect(seller).mint(nft.id);
+    await nft.contract.connect(seller).mintMany(nft.id, nft.amount ?? 1);
     await nft.contract
       .connect(seller)
       .setApprovalForAll(Sdk.SudoswapV2.Addresses.PairFactory[chainId], true);
@@ -49,7 +51,7 @@ export const setupSudoswapListings = async (listings: SudoswapListing[]) => {
       0,
       price,
       nft.id,
-      isCancelled ? 0 : 1
+      isCancelled ? 0 : nft.amount ?? 1
     );
 
     // Actually deploy the pair
@@ -62,12 +64,12 @@ export const setupSudoswapListings = async (listings: SudoswapListing[]) => {
       0,
       price,
       nft.id,
-      isCancelled ? 0 : 1
+      isCancelled ? 0 : nft.amount ?? 1
     );
 
     listing.order = new Sdk.SudoswapV2.Order(chainId, {
       pair,
-      amount: "1",
+      amount: String(nft.amount ?? 1),
       extra: {
         prices: [price.toString()],
       },
@@ -82,6 +84,8 @@ export type SudoswapOffer = {
   nft: {
     contract: Contract;
     id: number;
+    // A single quantity if missing
+    amount?: number;
   };
   price: BigNumberish;
   // Whether the order is to be cancelled
@@ -111,7 +115,7 @@ export const setupSudoswapOffers = async (offers: SudoswapOffer[]) => {
       price,
       nft.id,
       0,
-      { value: isCancelled ? bn(0) : price }
+      { value: isCancelled ? bn(0) : bn(price).mul(nft.amount ?? 1) }
     );
 
     // Actually deploy the pair
@@ -125,12 +129,12 @@ export const setupSudoswapOffers = async (offers: SudoswapOffer[]) => {
       price,
       nft.id,
       0,
-      { value: isCancelled ? bn(0) : price }
+      { value: isCancelled ? bn(0) : bn(price).mul(nft.amount ?? 1) }
     );
 
     offer.order = new Sdk.SudoswapV2.Order(chainId, {
       pair,
-      amount: "1",
+      amount: String(nft.amount ?? 1),
       extra: {
         prices: [price.toString()],
       },

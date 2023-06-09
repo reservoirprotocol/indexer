@@ -95,6 +95,7 @@ describe("[ReservoirV6_0_1] SudoswapV2 ERC1155 offers", () => {
         nft: {
           contract: erc1155,
           id: getRandomInteger(1, 10000),
+          amount: getRandomInteger(1, 2),
         },
         price: parseEther(getRandomFloat(0.2, 2).toFixed(6)),
         isCancelled: partial && getRandomBoolean(),
@@ -109,10 +110,16 @@ describe("[ReservoirV6_0_1] SudoswapV2 ERC1155 offers", () => {
 
     // Send the NFTs to the module (in real-world this will be done atomically)
     for (const offer of offers) {
-      await offer.nft.contract.connect(carol).mint(offer.nft.id);
+      await offer.nft.contract.connect(carol).mintMany(offer.nft.id, offer.nft.amount ?? 1);
       await offer.nft.contract
         .connect(carol)
-        .safeTransferFrom(carol.address, sudoswapV2Module.address, offer.nft.id, 1, "0x");
+        .safeTransferFrom(
+          carol.address,
+          sudoswapV2Module.address,
+          offer.nft.id,
+          offer.nft.amount ?? 1,
+          "0x"
+        );
     }
 
     // Prepare executions
@@ -123,8 +130,15 @@ describe("[ReservoirV6_0_1] SudoswapV2 ERC1155 offers", () => {
         module: sudoswapV2Module.address,
         data: sudoswapV2Module.interface.encodeFunctionData("sell", [
           offer.order!.params.pair,
-          offer.order?.params.amount ? offer.order?.params.amount : offer.order?.params.tokenId,
-          bn(offer.price).sub(bn(offer.price).mul(50).div(10000)),
+          offer.order?.params.amount,
+          bn(offer.price)
+            .mul(offer.nft.amount ?? 1)
+            .sub(
+              bn(offer.price)
+                .mul(offer.nft.amount ?? 1)
+                .mul(50)
+                .div(10000)
+            ),
           {
             fillTo: carol.address,
             refundTo: carol.address,
@@ -181,9 +195,13 @@ describe("[ReservoirV6_0_1] SudoswapV2 ERC1155 offers", () => {
           offer.isCancelled
             ? bn(0)
             : bn(offer.price)
+                .mul(offer.nft.amount ?? 1)
                 .sub(
                   // Take into consideration the protocol fee
-                  bn(offer.price).mul(50).div(10000)
+                  bn(offer.price)
+                    .mul(offer.nft.amount ?? 1)
+                    .mul(50)
+                    .div(10000)
                 )
                 .sub(fees[i].reduce((a, b) => bn(a).add(b), bn(0)))
         )
@@ -204,10 +222,10 @@ describe("[ReservoirV6_0_1] SudoswapV2 ERC1155 offers", () => {
     for (const { buyer, nft, isCancelled } of offers) {
       if (!isCancelled) {
         const balance = await nft.contract.balanceOf(buyer.address, nft.id);
-        expect(balance.toString()).to.eq("1");
+        expect(balance.toString()).to.eq(String(nft.amount ?? 1));
       } else {
         const balance = await nft.contract.balanceOf(carol.address, nft.id);
-        expect(balance.toString()).to.eq("0");
+        expect(balance.toString()).to.eq(String(nft.amount ?? 1));
       }
     }
 

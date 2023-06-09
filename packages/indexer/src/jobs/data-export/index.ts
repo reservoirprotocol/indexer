@@ -1,11 +1,10 @@
 import { config } from "@/config/index";
 import { redb } from "@/common/db";
 
-import * as exportData from "@/jobs/data-export/export-data";
-
 import "@/jobs/data-export/export-data";
 import cron from "node-cron";
 import { redlock } from "@/common/redis";
+import { exportDataJob } from "@/jobs/data-export/export-data-job";
 
 const getTasks = async () => {
   return await redb.manyOrNone(`SELECT id FROM data_export_tasks WHERE is_active = TRUE`);
@@ -22,7 +21,7 @@ if (config.doBackgroundWork) {
           getTasks()
             .then(async (tasks) => {
               for (const task of tasks) {
-                await exportData.addToQueue(task.id);
+                await exportDataJob.addToQueue({ taskId: task.id });
               }
             })
             .catch(() => {

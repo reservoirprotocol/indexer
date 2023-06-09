@@ -96,6 +96,7 @@ describe("[ReservoirV6_0_1] SudoswapV2 ERC1155 listings", () => {
         nft: {
           contract: erc1155,
           id: getRandomInteger(1, 10000),
+          amount: getRandomInteger(1, 2),
         },
         price: parseEther(getRandomFloat(0.0001, 2).toFixed(6)),
         isCancelled: partial && getRandomBoolean(),
@@ -111,9 +112,11 @@ describe("[ReservoirV6_0_1] SudoswapV2 ERC1155 listings", () => {
 
     const totalPrice = bn(
       listings
-        .map(({ price }) =>
+        .map(({ price, nft }) =>
           // The protocol fee should be paid on top of the price
-          bn(price).add(bn(price).mul(50).div(10000))
+          bn(price)
+            .mul(nft.amount ?? 1)
+            .add(bn(price).mul(50).div(10000))
         )
         .reduce((a, b) => bn(a).add(b), bn(0))
     );
@@ -179,7 +182,7 @@ describe("[ReservoirV6_0_1] SudoswapV2 ERC1155 listings", () => {
     expect(ethBalancesAfter.alice.sub(ethBalancesBefore.alice)).to.eq(
       listings
         .filter(({ seller, isCancelled }) => !isCancelled && seller.address === alice.address)
-        .map(({ price }) => price)
+        .map(({ price, nft }) => bn(price).mul(nft.amount ?? 1))
         .reduce((a, b) => bn(a).add(b), bn(0))
     );
 
@@ -187,7 +190,7 @@ describe("[ReservoirV6_0_1] SudoswapV2 ERC1155 listings", () => {
     expect(ethBalancesAfter.bob.sub(ethBalancesBefore.bob)).to.eq(
       listings
         .filter(({ seller, isCancelled }) => !isCancelled && seller.address === bob.address)
-        .map(({ price }) => price)
+        .map(({ price, nft }) => bn(price).mul(nft.amount ?? 1))
         .reduce((a, b) => bn(a).add(b), bn(0))
     );
 
@@ -198,7 +201,16 @@ describe("[ReservoirV6_0_1] SudoswapV2 ERC1155 listings", () => {
       // amount that was actually paid (eg. prices of filled orders)
       const actualPaid = listings
         .filter(({ isCancelled }) => !isCancelled)
-        .map(({ price }) => bn(price).add(bn(price).mul(50).div(10000)))
+        .map(({ price, nft }) =>
+          bn(price)
+            .mul(nft.amount ?? 1)
+            .add(
+              bn(price)
+                .mul(nft.amount ?? 1)
+                .mul(50)
+                .div(10000)
+            )
+        )
         .reduce((a, b) => bn(a).add(b), bn(0));
       expect(ethBalancesAfter.emilio.sub(ethBalancesBefore.emilio)).to.eq(
         listings
@@ -212,10 +224,10 @@ describe("[ReservoirV6_0_1] SudoswapV2 ERC1155 listings", () => {
       const nft = listings[i].nft;
       if (!listings[i].isCancelled) {
         const balance = await nft.contract.balanceOf(carol.address, nft.id);
-        expect(balance.toString()).to.eq("1");
+        expect(balance.toString()).to.eq(String(listings[i].nft.amount ?? 1));
       } else {
         const balance = await nft.contract.balanceOf(listings[i].seller.address, nft.id);
-        expect(balance.toString()).to.eq("1");
+        expect(balance.toString()).to.eq(String(listings[i].nft.amount ?? 1));
       }
     }
 

@@ -1828,19 +1828,30 @@ export class Router {
 
     // Handle Sudoswap V2 listings
     if (sudoswapV2Details.length) {
-      const orders = sudoswapV2Details.map((d) => d.order as Sdk.SudoswapV2.Order);
+      const orders = sudoswapV2Details.map((d) => ({
+        order: d.order as Sdk.SudoswapV2.Order,
+        amount: d.amount,
+        contractKind: d.contractKind,
+      }));
       const module = this.contracts.sudoswapV2Module;
 
       const fees = getFees(sudoswapV2Details);
       const price = orders
-        .map((order) =>
+        .map(({ order, amount, contractKind }) =>
           bn(
-            order.params.extra.prices[
-              // Handle multiple listings from the same pool
-              orders
-                .filter((o) => o.params.pair === order.params.pair)
-                .findIndex((o) => o.params.tokenId === order.params.tokenId)
-            ]
+            // Handle multiple listings from the same pool
+            contractKind === "erc721"
+              ? // For ERC721, each order from the same pool gets a different price
+                order.params.extra.prices[
+                  orders
+                    .map(({ order }) => order)
+                    .filter((o) => o.params.pair === order.params.pair)
+                    .findIndex((o) => o.params.tokenId === order.params.tokenId)
+                ]
+              : // For ERC1155, each amount from the same pool gets a different price
+                order.params.extra.prices
+                  .slice(0, Number(amount ?? 1))
+                  .reduce((a, b) => a.add(b), bn(0))
           )
         )
         .reduce((a, b) => a.add(b), bn(0));
@@ -2873,7 +2884,7 @@ export class Router {
               if (detail) {
                 await options.onError("order-fetcher-blur-offers", new Error(reason), {
                   orderId: detail.orderId,
-                  additionalInfo: { detail, taker },
+                  additionalInfo: { detail, taker, contract },
                 });
               }
             }

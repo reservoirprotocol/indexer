@@ -39,7 +39,7 @@ if (config.doBackgroundWork) {
 
       // If the collection is too big
       if (collection.tokenCount > 30000) {
-        logger.error(
+        logger.warn(
           QUEUE_NAME,
           `Collection ${collectionId} has too many tokens (${collection.tokenCount})`
         );
@@ -48,7 +48,7 @@ if (config.doBackgroundWork) {
 
       const keysCount = await AttributeKeys.getKeysCount(collectionId);
       if (keysCount > 100) {
-        logger.error(QUEUE_NAME, `Collection ${collectionId} has too many keys (${keysCount})`);
+        logger.warn(QUEUE_NAME, `Collection ${collectionId} has too many keys (${keysCount})`);
         return;
       }
 

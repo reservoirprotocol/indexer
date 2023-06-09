@@ -22,6 +22,7 @@ contract SudoswapV2Module is BaseExchangeModule {
 
   function buyWithETH(
     ISudoswapPairV2[] calldata pairs,
+    // Token ids for ERC721 pairs, amounts for ERC1155 pairs
     uint256[] calldata nftIds,
     ETHListingParams calldata params,
     Fee[] calldata fees
@@ -36,13 +37,22 @@ contract SudoswapV2Module is BaseExchangeModule {
 
     uint256 pairsLength = pairs.length;
     for (uint256 i; i < pairsLength; ) {
+      ISudoswapPairV2 pair = pairs[i];
+      ISudoswapPairV2.PairVariant variant = pair.pairVariant();
+
+      bool isERC1155 = isERC1155Pair(variant);
+
       // Fetch the current price
-      (, , , uint256 price, , ) = pairs[i].getBuyNFTQuote(nftIds[i], 1);
+      (, , , uint256 price, , ) = pair.getBuyNFTQuote(
+        isERC1155 ? pair.nftId() : nftIds[i],
+        isERC1155 ? nftIds[i] : 1
+      );
+
       tokenIds[0] = nftIds[i];
 
       // Execute fill
       try
-        pairs[i].swapTokenForSpecificNFTs{value: price}(
+        pair.swapTokenForSpecificNFTs{value: price}(
           tokenIds,
           price,
           params.fillTo,
@@ -65,6 +75,7 @@ contract SudoswapV2Module is BaseExchangeModule {
 
   function buyWithERC20(
     ISudoswapPairV2[] calldata pairs,
+    // Token ids for ERC721 pairs, amounts for ERC1155 pairs
     uint256[] calldata nftIds,
     ERC20ListingParams calldata params,
     Fee[] calldata fees
@@ -79,16 +90,25 @@ contract SudoswapV2Module is BaseExchangeModule {
 
     uint256 pairsLength = pairs.length;
     for (uint256 i; i < pairsLength; ) {
+      ISudoswapPairV2 pair = pairs[i];
+      ISudoswapPairV2.PairVariant variant = pair.pairVariant();
+
+      bool isERC1155 = isERC1155Pair(variant);
+
       // Fetch the current price
-      (, , , uint256 price, , ) = pairs[i].getBuyNFTQuote(nftIds[i], 1);
+      (, , , uint256 price, , ) = pair.getBuyNFTQuote(
+        isERC1155 ? pair.nftId() : nftIds[i],
+        isERC1155 ? nftIds[i] : 1
+      );
+
       tokenIds[0] = nftIds[i];
 
       // Approve the pair if needed
-      _approveERC20IfNeeded(params.token, address(pairs[i]), params.amount);
+      _approveERC20IfNeeded(params.token, address(pair), params.amount);
 
       // Execute fill
       try
-        pairs[i].swapTokenForSpecificNFTs(tokenIds, price, params.fillTo, false, address(0))
+        pair.swapTokenForSpecificNFTs(tokenIds, price, params.fillTo, false, address(0))
       {} catch {
         if (params.revertIfIncomplete) {
           revert UnsuccessfulFill();
@@ -105,14 +125,17 @@ contract SudoswapV2Module is BaseExchangeModule {
 
   function sell(
     ISudoswapPairV2 pair,
+    // Token id for ERC721 pairs, amount for ERC1155 pairs
     uint256 nftId,
     uint256 minOutput,
     OfferParams calldata params,
     Fee[] calldata fees
   ) external nonReentrant {
     ISudoswapPairV2.PairVariant variant = pair.pairVariant();
+
     bool isETH = isETHPair(variant);
     address nft = pair.nft();
+
     IERC20 token = isETH ? IERC20(address(0)) : pair.token();
 
     // Approve the pair if needed
@@ -151,7 +174,7 @@ contract SudoswapV2Module is BaseExchangeModule {
     if (!isERC1155Pair(variant)) {
       _sendAllERC721(params.refundTo, IERC721(nft), nftId);
     } else {
-      _sendAllERC1155(params.refundTo, IERC1155(nft), nftId);
+      _sendAllERC1155(params.refundTo, IERC1155(nft), pair.nftId());
     }
   }
 
