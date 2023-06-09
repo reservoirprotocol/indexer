@@ -7,7 +7,7 @@ import {
   OpenSeaStreamClient,
   TraitOfferEventPayload,
 } from "@opensea/stream-js";
-import { ItemListedEventPayload, OrderValidationEventPayload } from "@opensea/stream-js/dist/types";
+import { ItemCancelledEventPayload, ItemListedEventPayload } from "@opensea/stream-js/dist/types";
 import * as Sdk from "@reservoir0x/sdk";
 import { WebSocket } from "ws";
 import { logger } from "@/common/logger";
@@ -22,7 +22,7 @@ import * as orderbookOpenseaListings from "@/jobs/orderbook/opensea-listings-que
 import { handleEvent as handleItemListedEvent } from "@/websockets/opensea/handlers/item_listed";
 import { handleEvent as handleItemReceivedBidEvent } from "@/websockets/opensea/handlers/item_received_bid";
 import { handleEvent as handleCollectionOfferEvent } from "@/websockets/opensea/handlers/collection_offer";
-import { handleEvent as handleOrderInvalidate } from "@/websockets/opensea/handlers/order_invalidate";
+import { handleEvent as handleItemCancelled } from "@/websockets/opensea/handlers/item_cancelled";
 import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handlers/trait_offer";
 import MetadataApi from "@/utils/metadata-api";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
@@ -54,7 +54,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       EventType.ITEM_RECEIVED_BID,
       EventType.COLLECTION_OFFER,
       EventType.TRAIT_OFFER,
-      EventType.ORDER_INVALIDATE,
+      EventType.ITEM_CANCELLED,
     ],
     async (event) => {
       try {
@@ -195,8 +195,8 @@ export const handleEvent = async (
       return handleCollectionOfferEvent(payload as CollectionOfferEventPayload);
     case EventType.TRAIT_OFFER:
       return handleTraitOfferEvent(payload as TraitOfferEventPayload);
-    case EventType.ORDER_INVALIDATE:
-      return await handleOrderInvalidate(payload as OrderValidationEventPayload);
+    case EventType.ITEM_CANCELLED:
+      return await handleItemCancelled(payload as ItemCancelledEventPayload);
     default:
       return null;
   }

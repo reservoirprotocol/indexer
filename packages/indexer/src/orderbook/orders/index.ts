@@ -305,6 +305,9 @@ export const generateListingDetailsV6 = (
 
     case "seaport-v1.5": {
       if (order.rawData && !order.rawData.partial) {
+        // Make sure on-chain orders have a "defined" signature
+        order.rawData.signature = order.rawData.signature ?? "0x";
+
         return {
           kind: "seaport-v1.5",
           ...common,
@@ -532,6 +535,10 @@ export const generateBidDetailsV6 = async (
         const extraArgs: any = {};
 
         const sdkOrder = new Sdk.SeaportV15.Order(config.chainId, order.rawData);
+
+        // Make sure on-chain orders have a "defined" signature
+        sdkOrder.params.signature = sdkOrder.params.signature ?? "0x";
+
         if (sdkOrder.params.kind?.includes("token-list")) {
           // When filling a "token-list" order, we also need to pass in the
           // full list of tokens the order was made on (in order to be able

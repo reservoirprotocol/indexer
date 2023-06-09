@@ -1,10 +1,10 @@
-import { OrderValidationEventPayload } from "@opensea/stream-js/dist/types";
+import { ItemCancelledEventPayload } from "@opensea/stream-js/dist/types";
 
 import * as openseaOffChainCancellations from "@/jobs/order-updates/misc/opensea-off-chain-cancellations";
 import { getSupportedChainName } from "@/websockets/opensea/utils";
 
-export const handleEvent = async (payload: OrderValidationEventPayload) => {
-  if (getSupportedChainName() != payload.chain.name) {
+export const handleEvent = async (payload: ItemCancelledEventPayload) => {
+  if (getSupportedChainName() != payload.item.chain.name) {
     return null;
   }
 
