@@ -2884,7 +2884,7 @@ export class Router {
               if (detail) {
                 await options.onError("order-fetcher-blur-offers", new Error(reason), {
                   orderId: detail.orderId,
-                  additionalInfo: { detail, taker },
+                  additionalInfo: { detail, taker, contract },
                 });
               }
             }
