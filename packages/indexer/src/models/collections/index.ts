@@ -192,15 +192,6 @@ export class Collections {
       (result?.old_metadata.name != collection.name ||
         result?.old_metadata.metadata.imageUrl != (collection.metadata as any)?.imageUrl)
     ) {
-      logger.info(
-        "updateCollectionCache",
-        JSON.stringify({
-          message: `Metadata changed.`,
-          collection,
-          result,
-        })
-      );
-
       await refreshActivitiesCollectionMetadata.addToQueue(collection.id);
     }
 

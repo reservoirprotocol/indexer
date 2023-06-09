@@ -102,7 +102,7 @@ if (config.doBackgroundWork) {
         })
       );
 
-      await collectionUpdatesMetadata.addToQueueBulk(infos);
+      await collectionUpdatesMetadata.addToQueueBulk(infos, 0, QUEUE_NAME);
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );

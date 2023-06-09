@@ -116,7 +116,10 @@ export const postRefreshCollectionOptions: RouteOptions = {
         await collectionUpdatesMetadata.addToQueue(
           collection.contract,
           tokenId,
-          collection.community
+          collection.community,
+          0,
+          false,
+          "post-refresh-collection-admin"
         );
 
         if (collection.slug) {

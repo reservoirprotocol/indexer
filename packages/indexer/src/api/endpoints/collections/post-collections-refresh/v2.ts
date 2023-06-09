@@ -107,7 +107,8 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
           tokenId,
           collection.community,
           0,
-          true
+          true,
+          "post-refresh-collection-v2"
         );
 
         if (collection.slug) {
@@ -181,7 +182,8 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
           tokenId,
           collection.community,
           0,
-          payload.overrideCoolDown
+          payload.overrideCoolDown,
+          "post-refresh-collection-v2"
         );
 
         if (collection.slug) {

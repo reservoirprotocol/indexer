@@ -16,7 +16,7 @@ import * as updateCollectionActivity from "@/jobs/collection-updates/update-coll
 import * as updateCollectionUserActivity from "@/jobs/collection-updates/update-collection-user-activity";
 import * as updateCollectionDailyVolume from "@/jobs/collection-updates/update-collection-daily-volume";
 import * as updateActivitiesCollection from "@/jobs/elasticsearch/update-activities-collection";
-// import * as refreshActivitiesTokenMetadata from "@/jobs/elasticsearch/refresh-activities-token-metadata";
+import * as refreshActivitiesTokenMetadata from "@/jobs/elasticsearch/refresh-activities-token-metadata";
 
 import PgPromise from "pg-promise";
 import { updateActivities } from "@/jobs/activities/utils";
@@ -121,15 +121,7 @@ if (config.doBackgroundWork) {
             result.old_metadata.image != imageUrl ||
             result.old_metadata.media != mediaUrl)
         ) {
-          // logger.info(
-          //   QUEUE_NAME,
-          //   JSON.stringify({
-          //     message: `Metadata changed. collection=${collection}, contract=${contract}, tokenId=${tokenId}`,
-          //     jobData: job.data,
-          //     result,
-          //   })
-          // );
-          // await refreshActivitiesTokenMetadata.addToQueue(contract, tokenId);
+          await refreshActivitiesTokenMetadata.addToQueue(contract, tokenId);
         }
 
         // If the new collection ID is different from the collection ID currently stored
