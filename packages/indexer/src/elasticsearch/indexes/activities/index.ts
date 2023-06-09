@@ -778,15 +778,27 @@ export const updateActivitiesCollectionMetadata = async (
           },
         },
       ],
-      must_not: [
+      should: [
         {
-          term: {
-            "collection.name": collectionData.name,
+          bool: {
+            must_not: [
+              {
+                term: {
+                  "collection.name": collectionData.name,
+                },
+              },
+            ],
           },
         },
         {
-          term: {
-            "collection.image": collectionData.image,
+          bool: {
+            must_not: [
+              {
+                term: {
+                  "collection.image": collectionData.image,
+                },
+              },
+            ],
           },
         },
       ],
