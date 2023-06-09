@@ -679,6 +679,48 @@ export const updateActivitiesTokenMetadata = async (
 ): Promise<boolean> => {
   let keepGoing = false;
 
+  const should: any[] = [
+    {
+      bool: {
+        must_not: [
+          {
+            term: {
+              "token.name": tokenData.name,
+            },
+          },
+        ],
+      },
+    },
+  ];
+
+  if (tokenData.image) {
+    should.push({
+      bool: {
+        must_not: [
+          {
+            term: {
+              "token.image": tokenData.image,
+            },
+          },
+        ],
+      },
+    });
+  }
+
+  if (tokenData.media) {
+    should.push({
+      bool: {
+        must_not: [
+          {
+            term: {
+              "token.media": tokenData.media,
+            },
+          },
+        ],
+      },
+    });
+  }
+
   const query = {
     bool: {
       must: [
@@ -695,43 +737,7 @@ export const updateActivitiesTokenMetadata = async (
       ],
       filter: {
         bool: {
-          should: [
-            {
-              bool: {
-                must_not: [
-                  {
-                    term: {
-                      "token.name": tokenData.name,
-                    },
-                  },
-                ],
-              },
-            },
-            {
-              bool: {
-                must_not: [
-                  {
-                    term: {
-                      "token.image": tokenData.image,
-                    },
-                  },
-                ],
-              },
-            },
-            tokenData.media
-              ? {
-                  bool: {
-                    must_not: [
-                      {
-                        term: {
-                          "token.media": tokenData.media,
-                        },
-                      },
-                    ],
-                  },
-                }
-              : undefined,
-          ],
+          should,
         },
       },
     },
@@ -816,6 +822,34 @@ export const updateActivitiesCollectionMetadata = async (
 ): Promise<boolean> => {
   let keepGoing = false;
 
+  const should: any[] = [
+    {
+      bool: {
+        must_not: [
+          {
+            term: {
+              "collection.name": collectionData.name,
+            },
+          },
+        ],
+      },
+    },
+  ];
+
+  if (collectionData.image) {
+    should.push({
+      bool: {
+        must_not: [
+          {
+            term: {
+              "collection.image": collectionData.image,
+            },
+          },
+        ],
+      },
+    });
+  }
+
   const query = {
     bool: {
       must: [
@@ -827,30 +861,7 @@ export const updateActivitiesCollectionMetadata = async (
       ],
       filter: {
         bool: {
-          should: [
-            {
-              bool: {
-                must_not: [
-                  {
-                    term: {
-                      "collection.name": collectionData.name,
-                    },
-                  },
-                ],
-              },
-            },
-            {
-              bool: {
-                must_not: [
-                  {
-                    term: {
-                      "collection.image": collectionData.image,
-                    },
-                  },
-                ],
-              },
-            },
-          ],
+          should,
         },
       },
     },
