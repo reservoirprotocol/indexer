@@ -30,12 +30,36 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       logger.info(QUEUE_NAME, `Worker started. jobData=${JSON.stringify(job.data)}`);
 
-      const { collectionId } = job.data;
+      const collectionId = job.data.collectionId;
+      let collectionUpdateData = job.data.collectionData;
 
-      const collectionData = await Collections.getById(collectionId);
+      if (!collectionUpdateData) {
+        const collectionData = await Collections.getById(collectionId);
 
-      if (collectionData) {
-        await ActivitiesIndex.updateActivitiesCollectionMetadata(collectionId, collectionData);
+        if (collectionData) {
+          collectionUpdateData = {
+            name: collectionData.name,
+            image: collectionData.metadata.imageUrl,
+          };
+        }
+      }
+
+      if (collectionUpdateData) {
+        const keepGoing = await ActivitiesIndex.updateActivitiesCollectionMetadata(
+          collectionId,
+          collectionUpdateData
+        );
+
+        if (keepGoing) {
+          logger.info(
+            QUEUE_NAME,
+            `KeepGoing. jobData=${JSON.stringify(job.data)}, collectionUpdateData=${JSON.stringify(
+              collectionUpdateData
+            )}`
+          );
+
+          await addToQueue(collectionId, collectionUpdateData);
+        }
       }
     },
     { connection: redis.duplicate(), concurrency: 1 }
@@ -46,6 +70,13 @@ if (config.doBackgroundWork) {
   });
 }
 
-export const addToQueue = async (collectionId: string) => {
-  await queue.add(`${collectionId}`, { collectionId }, { jobId: `${collectionId}` });
+export const addToQueue = async (
+  collectionId: string,
+  collectionUpdateData?: { name: string; image: string }
+) => {
+  await queue.add(
+    `${collectionId}`,
+    { collectionId, collectionUpdateData },
+    { jobId: `${collectionId}` }
+  );
 };
