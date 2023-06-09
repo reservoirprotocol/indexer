@@ -153,7 +153,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
             maxBps: royalties.map((r) => r.bps).reduce((a, b) => a + b, 0),
           },
           orderbook: "reservoir",
-          orderKind: "seaport-v1.4",
+          orderKind: "seaport-v1.5",
           listingEnabled: true,
           customFeesSupported: true,
           supportedBidCurrencies: Object.keys(ns.supportedBidCurrencies),
@@ -193,7 +193,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
               }
             : undefined,
           orderbook: "opensea",
-          orderKind: "seaport-v1.4",
+          orderKind: "seaport-v1.5",
           listingEnabled: false,
           customFeesSupported: false,
           minimumBidExpiry: 15 * 60,
