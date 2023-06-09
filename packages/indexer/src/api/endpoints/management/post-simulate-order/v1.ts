@@ -112,22 +112,24 @@ export const postSimulateOrderV1Options: RouteOptions = {
         throw Boom.badRequest("Could not find order");
       }
       if (orderResult.side === "sell" && orderResult.kind === "blur") {
+        const blurPrice = await axios
+          .get(
+            `${config.orderFetcherBaseUrl}/api/blur-token?collection=${
+              orderResult.token_set_id.split(":")[1]
+            }&tokenId=${orderResult.token_set_id.split(":")[2]}`
+          )
+          .then((response) =>
+            response.data.blurPrice
+              ? parseEther(response.data.blurPrice).toString()
+              : response.data.blurPrice
+          );
         logger.info(
           "debug-blur-simulation",
           JSON.stringify({
             tokenSetId: orderResult.token_set_id,
             price: orderResult.price,
-            blurPrice: await axios
-              .get(
-                `${config.orderFetcherBaseUrl}/api/blur-token?collection=${
-                  orderResult.token_set_id.split(":")[1]
-                }&tokenId=${orderResult.token_set_id.split(":")[2]}`
-              )
-              .then((response) =>
-                response.data.blurPrice
-                  ? parseEther(response.data.blurPrice)
-                  : response.data.blurPrice
-              ),
+            blurPrice,
+            isDifferent: orderResult.price !== blurPrice,
           })
         );
       }
