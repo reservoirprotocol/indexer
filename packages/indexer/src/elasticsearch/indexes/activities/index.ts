@@ -778,7 +778,9 @@ export const updateActivitiesTokenMetadata = async (
         })
       );
     } else {
-      keepGoing = Boolean((response?.version_conflicts ?? 0) > 0 || (response?.updated ?? 0) > 0);
+      keepGoing = Boolean(
+        (response?.version_conflicts ?? 0) > 0 || (response?.updated ?? 0) === 1000
+      );
 
       logger.info(
         "elasticsearch-activities",
@@ -900,7 +902,9 @@ export const updateActivitiesCollectionMetadata = async (
         })
       );
     } else {
-      keepGoing = Boolean((response?.version_conflicts ?? 0) > 0 || (response?.updated ?? 0) > 0);
+      keepGoing = Boolean(
+        (response?.version_conflicts ?? 0) > 0 || (response?.updated ?? 0) === 1000
+      );
 
       logger.info(
         "elasticsearch-activities",
