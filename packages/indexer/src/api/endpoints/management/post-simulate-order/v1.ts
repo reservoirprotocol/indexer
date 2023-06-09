@@ -1,9 +1,7 @@
-import { parseEther } from "@ethersproject/units";
 import { CallTrace } from "@georgeroman/evm-tx-simulator/dist/types";
 import Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
-import axios from "axios";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
@@ -97,7 +95,6 @@ export const postSimulateOrderV1Options: RouteOptions = {
           SELECT
             orders.kind,
             orders.side,
-            orders.price,
             orders.currency,
             orders.contract,
             orders.token_set_id,
@@ -112,25 +109,9 @@ export const postSimulateOrderV1Options: RouteOptions = {
         throw Boom.badRequest("Could not find order");
       }
       if (orderResult.side === "sell" && orderResult.kind === "blur") {
-        const blurPrice = await axios
-          .get(
-            `${config.orderFetcherBaseUrl}/api/blur-token?collection=${
-              orderResult.token_set_id.split(":")[1]
-            }&tokenId=${orderResult.token_set_id.split(":")[2]}`
-          )
-          .then((response) =>
-            response.data.blurPrice
-              ? parseEther(response.data.blurPrice).toString()
-              : response.data.blurPrice
-          );
         logger.info(
           "debug-blur-simulation",
-          JSON.stringify({
-            tokenSetId: orderResult.token_set_id,
-            price: orderResult.price,
-            blurPrice,
-            isDifferent: orderResult.price !== blurPrice,
-          })
+          JSON.stringify({ tokenSetId: orderResult.token_set_id })
         );
       }
       if (["blur", "nftx", "sudoswap", "sudoswap-v2", "universe"].includes(orderResult.kind)) {

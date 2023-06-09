@@ -621,7 +621,9 @@ export const savePartialBids = async (
     }
 
     const id = getBlurBidId(orderParams.collection);
-    const isFiltered = await checkMarketplaceIsFiltered(orderParams.collection, "blur");
+    const isFiltered = await checkMarketplaceIsFiltered(orderParams.collection, [
+      Sdk.Blur.Addresses.ExecutionDelegate[config.chainId],
+    ]);
 
     try {
       const royalties = await getBlurRoyalties(orderParams.collection);

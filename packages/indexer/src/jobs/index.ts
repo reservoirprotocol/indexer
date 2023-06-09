@@ -557,7 +557,14 @@ export class RabbitMqJobsConsumer {
     await RabbitMqJobsConsumer.connect(); // Create a connection for the consumer
 
     for (const queue of RabbitMqJobsConsumer.getQueues()) {
-      await RabbitMqJobsConsumer.subscribe(queue);
+      try {
+        await RabbitMqJobsConsumer.subscribe(queue);
+      } catch (error) {
+        logger.error(
+          "rabbit-subscribe",
+          `failed to subscribe to ${queue.queueName} error ${error}`
+        );
+      }
     }
   }
 }
