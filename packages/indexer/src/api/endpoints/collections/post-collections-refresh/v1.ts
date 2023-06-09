@@ -107,7 +107,8 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
             community: collection.community,
             forceRefresh: true,
           },
-          0
+          0,
+          "post-collections-refresh-v1"
         );
 
         if (collection.slug) {
@@ -183,7 +184,8 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
             community: collection.community,
             forceRefresh: payload.overrideCoolDown,
           },
-          0
+          0,
+          "post-collections-refresh-v1"
         );
 
         if (collection.slug) {

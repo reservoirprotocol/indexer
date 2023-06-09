@@ -113,11 +113,15 @@ export const postRefreshCollectionOptions: RouteOptions = {
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionMetadataQueueJob.addToQueue({
-          contract: collection.contract,
-          tokenId,
-          community: collection.community,
-        });
+        await collectionMetadataQueueJob.addToQueue(
+          {
+            contract: collection.contract,
+            tokenId,
+            community: collection.community,
+          },
+          0,
+          "post-refresh-collection-admin"
+        );
 
         if (collection.slug) {
           // Refresh opensea collection offers

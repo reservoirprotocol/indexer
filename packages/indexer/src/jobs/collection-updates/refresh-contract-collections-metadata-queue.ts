@@ -60,7 +60,7 @@ if (config.doBackgroundWork) {
             });
           }
 
-          await collectionMetadataQueueJob.addToQueueBulk(infos);
+          await collectionMetadataQueueJob.addToQueueBulk(infos, 0, QUEUE_NAME);
         } else {
           const contractToken = await redb.oneOrNone(
             `

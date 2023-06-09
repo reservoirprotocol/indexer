@@ -62,7 +62,7 @@ if (config.doBackgroundWork) {
   worker.on("completed", async (job: Job) => {
     if (job.data.addToQueue) {
       const { contract, tokenId, community } = job.data;
-      await addToQueue(contract, tokenId, community, 1000);
+      await addToQueue(contract, tokenId, community, 1000, false, QUEUE_NAME);
     }
   });
 
@@ -80,14 +80,19 @@ export type CollectionMetadataInfo = {
 
 export const addToQueueBulk = async (
   collectionMetadataInfos: CollectionMetadataInfo[],
-  delay = 0
+  delay = 0,
+  context?: string
 ) => {
-  logger.debug(
-    QUEUE_NAME,
-    `debugaAdToQueueBulk. collectionMetadataInfos=${JSON.stringify(
-      collectionMetadataInfos
-    )}, callStack=${new Error().stack}`
-  );
+  collectionMetadataInfos.forEach((collectionMetadataInfo) => {
+    if (isNaN(Number(collectionMetadataInfo.tokenId)) || collectionMetadataInfo.tokenId == null) {
+      logger.error(
+        QUEUE_NAME,
+        `Invalid tokenId. collectionMetadataInfo=${JSON.stringify(
+          collectionMetadataInfo
+        )}, context=${context}`
+      );
+    }
+  });
 
   await queue.addBulk(
     collectionMetadataInfos.map((collectionMetadataInfo) => ({
@@ -103,14 +108,15 @@ export const addToQueue = async (
   tokenId = "1",
   community = "",
   delay = 0,
-  forceRefresh = false
+  forceRefresh = false,
+  context?: string
 ) => {
-  logger.debug(
-    QUEUE_NAME,
-    `debugAddToQueue. contract=${JSON.stringify(
-      contract
-    )}, tokenId=${tokenId}, community=${community}, callStack=${new Error().stack}`
-  );
+  if (isNaN(Number(tokenId)) || tokenId == null) {
+    logger.error(
+      QUEUE_NAME,
+      `Invalid tokenId. contract=${contract}, tokenId=${tokenId}, community=${community}, context=${context}`
+    );
+  }
 
   if (_.isArray(contract)) {
     await queue.addBulk(

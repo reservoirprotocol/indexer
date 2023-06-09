@@ -98,11 +98,15 @@ if (config.doBackgroundWork) {
                 refreshOpenseaCollectionOffersCollections[0].collection
               );
 
-              await collectionMetadataQueueJob.addToQueue({
-                contract: collectionResult!.contract,
-                tokenId,
-                community: collectionResult!.community,
-              });
+              await collectionMetadataQueueJob.addToQueue(
+                {
+                  contract: collectionResult!.contract,
+                  tokenId,
+                  community: collectionResult!.community,
+                },
+                0,
+                QUEUE_NAME
+              );
             } catch {
               // Skip on any errors
             }

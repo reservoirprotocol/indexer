@@ -251,11 +251,15 @@ export const jobProcessor = async (job: Job) => {
               )}, rawResult=${JSON.stringify(rawResult)}, retry: ${retry}`
             );
 
-            await collectionMetadataQueueJob.addToQueue({
-              contract: fromBuffer(rawResult.contract),
-              tokenId: rawResult.token_id,
-              community: rawResult.community,
-            });
+            await collectionMetadataQueueJob.addToQueue(
+              {
+                contract: fromBuffer(rawResult.contract),
+                tokenId: rawResult.token_id,
+                community: rawResult.community,
+              },
+              0,
+              job.queueName
+            );
           }
         }
       } else if (retry < MAX_RETRIES) {

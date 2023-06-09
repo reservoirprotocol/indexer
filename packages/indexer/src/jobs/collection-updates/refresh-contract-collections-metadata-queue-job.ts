@@ -48,7 +48,7 @@ export class RefreshContractCollectionsMetadataQueueJob extends AbstractRabbitMq
           });
         }
 
-        await collectionMetadataQueueJob.addToQueueBulk(infos);
+        await collectionMetadataQueueJob.addToQueueBulk(infos, 0, this.queueName);
       } else {
         const contractToken = await redb.oneOrNone(
           `

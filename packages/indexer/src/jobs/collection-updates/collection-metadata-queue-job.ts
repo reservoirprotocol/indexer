@@ -30,7 +30,7 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
     if (forceRefresh || (await acquireLock(`${this.queueName}:${contract}`, 5 * 60))) {
       if (await acquireLock(this.queueName, 1)) {
         try {
-          if (isNaN(Number(tokenId))) {
+          if (isNaN(Number(tokenId)) || tokenId == null) {
             logger.error(
               this.queueName,
               `Invalid tokenId. contract=${contract}, tokenId=${tokenId}, community=${community}`
@@ -58,7 +58,22 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
     }
   }
 
-  public async addToQueueBulk(collectionMetadataInfos: CollectionMetadataInfo[], delay = 0) {
+  public async addToQueueBulk(
+    collectionMetadataInfos: CollectionMetadataInfo[],
+    delay = 0,
+    context?: string
+  ) {
+    collectionMetadataInfos.forEach((collectionMetadataInfo) => {
+      if (isNaN(Number(collectionMetadataInfo.tokenId)) || collectionMetadataInfo.tokenId == null) {
+        logger.error(
+          this.queueName,
+          `Invalid tokenId. collectionMetadataInfo=${JSON.stringify(
+            collectionMetadataInfo
+          )}, context=${context}`
+        );
+      }
+    });
+
     await this.sendBatch(collectionMetadataInfos.map((params) => ({ payload: params, delay })));
   }
 
@@ -69,8 +84,16 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
       community?: string;
       forceRefresh?: boolean;
     },
-    delay = 0
+    delay = 0,
+    context?: string
   ) {
+    if (isNaN(Number(params.tokenId)) || params.tokenId == null) {
+      logger.error(
+        this.queueName,
+        `Invalid tokenId. contract=${params.contract}, tokenId=${params.tokenId}, community=${params.community}, context=${context}`
+      );
+    }
+
     params.tokenId = params.tokenId ?? "1";
     params.community = params.community ?? "";
     params.forceRefresh = params.forceRefresh ?? false;
@@ -107,6 +130,10 @@ export const collectionMetadataQueueJob = new CollectionMetadataQueueJob();
 
 collectionMetadataQueueJob.on("onCompleted", async (message) => {
   if (message.payload.addToQueue) {
-    await collectionMetadataQueueJob.addToQueue(message.payload, 1000);
+    await collectionMetadataQueueJob.addToQueue(
+      message.payload,
+      1000,
+      collectionMetadataQueueJob.queueName
+    );
   }
 });

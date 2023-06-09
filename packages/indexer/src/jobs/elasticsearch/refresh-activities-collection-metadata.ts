@@ -73,7 +73,7 @@ if (config.doBackgroundWork) {
 
 export const addToQueue = async (
   collectionId: string,
-  collectionUpdateData?: { name: string; image: string }
+  collectionUpdateData?: { name: string | null; image?: string | null }
 ) => {
   await queue.add(randomUUID(), { collectionId, collectionUpdateData });
 };

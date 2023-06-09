@@ -15,7 +15,6 @@ import { getNetworkName, getNetworkSettings } from "@/config/network";
 import _ from "lodash";
 import { buildContinuation, splitContinuation } from "@/common/utils";
 import { addToQueue as backfillActivitiesAddToQueue } from "@/jobs/elasticsearch/backfill-activities-elasticsearch";
-import { TokensEntity } from "@/models/tokens/tokens-entity";
 
 const INDEX_NAME = `${getNetworkName()}.activities`;
 
@@ -676,8 +675,10 @@ export const updateActivitiesCollection = async (
 export const updateActivitiesTokenMetadata = async (
   contract: string,
   tokenId: string,
-  tokenData: TokensEntity
-): Promise<void> => {
+  tokenData: { name: string | null; image?: string | null; media?: string | null }
+): Promise<boolean> => {
+  let keepGoing = false;
+
   const query = {
     bool: {
       must: [
@@ -692,6 +693,45 @@ export const updateActivitiesTokenMetadata = async (
           },
         },
       ],
+      filter: {
+        bool: {
+          should: [
+            {
+              bool: {
+                must_not: [
+                  {
+                    term: {
+                      "token.name": tokenData.name,
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              bool: {
+                must_not: [
+                  {
+                    term: {
+                      "token.image": tokenData.image,
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              bool: {
+                must_not: [
+                  {
+                    term: {
+                      "token.media": tokenData.media,
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
     },
   };
 
@@ -699,7 +739,7 @@ export const updateActivitiesTokenMetadata = async (
     const response = await elasticsearch.updateByQuery({
       index: INDEX_NAME,
       conflicts: "proceed",
-      slices: "auto",
+      max_docs: 1000,
       // This is needed due to issue with elasticsearch DSL.
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
@@ -730,6 +770,8 @@ export const updateActivitiesTokenMetadata = async (
         })
       );
     } else {
+      keepGoing = Boolean((response?.version_conflicts ?? 0) > 0 || (response?.updated ?? 0) > 0);
+
       logger.info(
         "elasticsearch-activities",
         JSON.stringify({
@@ -741,6 +783,7 @@ export const updateActivitiesTokenMetadata = async (
           },
           query: JSON.stringify(query),
           response,
+          keepGoing,
         })
       );
     }
@@ -761,11 +804,13 @@ export const updateActivitiesTokenMetadata = async (
 
     throw error;
   }
+
+  return keepGoing;
 };
 
 export const updateActivitiesCollectionMetadata = async (
   collectionId: string,
-  collectionData: { name: string; image: string }
+  collectionData: { name: string | null; image?: string | null }
 ): Promise<boolean> => {
   let keepGoing = false;
 
