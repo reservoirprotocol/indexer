@@ -5,6 +5,7 @@ import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { Collections } from "@/models/collections";
+import { randomUUID } from "crypto";
 
 const QUEUE_NAME = "refresh-activities-collection-metadata-queue";
 
@@ -39,7 +40,7 @@ if (config.doBackgroundWork) {
         if (collectionData) {
           collectionUpdateData = {
             name: collectionData.name,
-            image: collectionData.metadata.imageUrl,
+            image: collectionData.metadata?.imageUrl,
           };
         }
       }
@@ -74,9 +75,5 @@ export const addToQueue = async (
   collectionId: string,
   collectionUpdateData?: { name: string; image: string }
 ) => {
-  await queue.add(
-    `${collectionId}`,
-    { collectionId, collectionUpdateData },
-    { jobId: `${collectionId}` }
-  );
+  await queue.add(randomUUID(), { collectionId, collectionUpdateData });
 };
