@@ -497,13 +497,13 @@ export class RabbitMqJobsConsumer {
 
     // Some queues can use a shared channel as they are less important with low traffic
     if (job.getUseSharedChannel()) {
-      const sharedChannel = RabbitMqJobsConsumer.queueToChannel.get("shared-channel");
+      const sharedChannel = RabbitMqJobsConsumer.queueToChannel.get(job.getSharedChannelName());
 
       if (sharedChannel) {
         channel = sharedChannel;
       } else {
         channel = await this.rabbitMqConsumerConnection.createChannel();
-        RabbitMqJobsConsumer.queueToChannel.set("shared-channel", channel);
+        RabbitMqJobsConsumer.queueToChannel.set(job.getSharedChannelName(), channel);
       }
     } else {
       channel = await this.rabbitMqConsumerConnection.createChannel();
@@ -558,7 +558,8 @@ export class RabbitMqJobsConsumer {
    * @param job
    */
   static async unsubscribe(job: AbstractRabbitMqJobHandler) {
-    const channel = RabbitMqJobsConsumer.queueToChannel.get(job.getQueue());
+    const channelName = job.getUseSharedChannel() ? job.getSharedChannelName() : job.getQueue();
+    const channel = RabbitMqJobsConsumer.queueToChannel.get(channelName);
 
     if (channel) {
       await channel.cancel(RabbitMqJobsConsumer.getConsumerTag(job.getQueue()));

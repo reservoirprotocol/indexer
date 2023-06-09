@@ -39,6 +39,8 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
   protected persistent = true;
   protected useSharedChannel = false;
 
+  private sharedChannelName = "shared-channel";
+
   public async consume(message: RabbitMQMessage): Promise<void> {
     message.consumedTime = message.consumedTime ?? _.now();
     message.retryCount = message.retryCount ?? 0;
@@ -110,6 +112,10 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
 
   public getMaxDeadLetterQueue(): number {
     return this.maxDeadLetterQueue;
+  }
+
+  public getSharedChannelName(): string {
+    return this.sharedChannelName;
   }
 
   public getUseSharedChannel(): boolean {
