@@ -36,6 +36,7 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
   protected maxDeadLetterQueue = 5000;
   protected backoff: BackoffStrategy = null;
   protected singleActiveConsumer: boolean | undefined;
+  protected persistent = true;
 
   public async consume(message: RabbitMQMessage): Promise<void> {
     message.consumedTime = message.consumedTime ?? _.now();
@@ -133,7 +134,7 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
     await RabbitMq.sendBatch(
       this.getQueue(),
       job.map((j) => ({
-        content: { payload: j.payload, jobId: j.jobId },
+        content: { payload: j.payload, jobId: j.jobId, persistent: this.persistent },
         delay: j.delay,
         priority: j.priority,
       }))

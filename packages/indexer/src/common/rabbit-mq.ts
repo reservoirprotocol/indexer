@@ -19,6 +19,7 @@ export type RabbitMQMessage = {
   consumedTime?: number;
   completeTime?: number;
   retryCount?: number;
+  persistent?: boolean;
 };
 
 export type CreatePolicyPayload = {
@@ -81,6 +82,7 @@ export class RabbitMq {
             Buffer.from(JSON.stringify(content)),
             {
               priority,
+              persistent: content.persistent,
               headers: {
                 "x-delay": delay,
                 "x-deduplication-header": content.jobId,
@@ -99,7 +101,11 @@ export class RabbitMq {
           RabbitMq.rabbitMqPublisherChannels[channelIndex].sendToQueue(
             queueName,
             Buffer.from(JSON.stringify(content)),
-            { priority, headers: { "x-deduplication-header": content.jobId } },
+            {
+              priority,
+              headers: { "x-deduplication-header": content.jobId },
+              persistent: content.persistent,
+            },
             (error) => {
               if (!_.isNull(error)) {
                 reject(error);

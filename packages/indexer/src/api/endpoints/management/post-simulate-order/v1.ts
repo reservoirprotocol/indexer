@@ -108,6 +108,12 @@ export const postSimulateOrderV1Options: RouteOptions = {
       if (!orderResult?.side || !orderResult?.contract) {
         throw Boom.badRequest("Could not find order");
       }
+      if (orderResult.side === "sell" && orderResult.kind === "blur") {
+        logger.info(
+          "debug-blur-simulation",
+          JSON.stringify({ tokenSetId: orderResult.token_set_id })
+        );
+      }
       if (["blur", "nftx", "sudoswap", "sudoswap-v2", "universe"].includes(orderResult.kind)) {
         return { message: "Order not simulatable" };
       }
