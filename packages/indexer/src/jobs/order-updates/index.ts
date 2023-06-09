@@ -29,3 +29,4 @@ import "@/jobs/order-updates/cron/oracle-orders-queue";
 import "@/jobs/order-updates/misc/blur-bids-buffer";
 import "@/jobs/order-updates/misc/blur-bids-refresh";
 import "@/jobs/order-updates/misc/blur-listings-refresh";
+import "@/jobs/order-updates/misc/opensea-off-chain-cancellations";

@@ -7,7 +7,7 @@ import {
   OpenSeaStreamClient,
   TraitOfferEventPayload,
 } from "@opensea/stream-js";
-import { ItemListedEventPayload, ItemMetadataUpdatePayload } from "@opensea/stream-js/dist/types";
+import { ItemListedEventPayload, OrderValidationEventPayload } from "@opensea/stream-js/dist/types";
 import * as Sdk from "@reservoir0x/sdk";
 import { WebSocket } from "ws";
 import { logger } from "@/common/logger";
@@ -22,6 +22,7 @@ import * as orderbookOpenseaListings from "@/jobs/orderbook/opensea-listings-que
 import { handleEvent as handleItemListedEvent } from "@/websockets/opensea/handlers/item_listed";
 import { handleEvent as handleItemReceivedBidEvent } from "@/websockets/opensea/handlers/item_received_bid";
 import { handleEvent as handleCollectionOfferEvent } from "@/websockets/opensea/handlers/collection_offer";
+import { handleEvent as handleOrderInvalidate } from "@/websockets/opensea/handlers/order_invalidate";
 import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handlers/trait_offer";
 import MetadataApi from "@/utils/metadata-api";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
@@ -53,6 +54,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       EventType.ITEM_RECEIVED_BID,
       EventType.COLLECTION_OFFER,
       EventType.TRAIT_OFFER,
+      EventType.ORDER_INVALIDATE,
     ],
     async (event) => {
       try {
@@ -68,7 +70,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
         // await saveEvent(event);
 
         const eventType = event.event_type as EventType;
-        const openSeaOrderParams = handleEvent(eventType, event.payload);
+        const openSeaOrderParams = await handleEvent(eventType, event.payload);
 
         if (openSeaOrderParams) {
           const protocolData = parseProtocolData(event.payload);
@@ -131,11 +133,10 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
         },
         token_id: tokenId,
         name: event.payload.item.metadata.name ?? undefined,
-        description:
-          (event.payload.item.metadata as ItemMetadataUpdatePayload).description ?? undefined,
+        description: event.payload.item.metadata.description ?? undefined,
         image_url: event.payload.item.metadata.image_url ?? undefined,
         animation_url: event.payload.item.metadata.animation_url ?? undefined,
-        traits: (event.payload.item.metadata as ItemMetadataUpdatePayload).traits,
+        traits: event.payload.item.metadata.traits,
       };
 
       const parsedMetadata = await MetadataApi.parseTokenMetadata(metadata, "opensea");
@@ -180,11 +181,11 @@ export const isDuplicateEvent = async (event: BaseStreamMessage<unknown>): Promi
   return setResult === null;
 };
 
-export const handleEvent = (
+export const handleEvent = async (
   type: EventType,
   payload: unknown
   // `PartialOrderComponents` has the same types for both `seaport` and `seaport-v1.4`
-): OpenseaOrderParams | null => {
+): Promise<OpenseaOrderParams | null> => {
   switch (type) {
     case EventType.ITEM_LISTED:
       return handleItemListedEvent(payload as ItemListedEventPayload);
@@ -194,6 +195,8 @@ export const handleEvent = (
       return handleCollectionOfferEvent(payload as CollectionOfferEventPayload);
     case EventType.TRAIT_OFFER:
       return handleTraitOfferEvent(payload as TraitOfferEventPayload);
+    case EventType.ORDER_INVALIDATE:
+      return await handleOrderInvalidate(payload as OrderValidationEventPayload);
     default:
       return null;
   }

@@ -126,6 +126,7 @@ import * as oracleOrdersCron from "@/jobs/order-updates/cron/oracle-orders-queue
 import * as blurBidsBufferMisc from "@/jobs/order-updates/misc/blur-bids-buffer";
 import * as blurBidsRefreshMisc from "@/jobs/order-updates/misc/blur-bids-refresh";
 import * as blurListingsRefreshMisc from "@/jobs/order-updates/misc/blur-listings-refresh";
+import * as openSeaOffChainCancellations from "@/jobs/order-updates/misc/opensea-off-chain-cancellations";
 import * as saveBidEvents from "@/jobs/order-updates/save-bid-events";
 
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
@@ -351,6 +352,7 @@ export const allJobQueues = [
   blurBidsBufferMisc.queue,
   blurBidsRefreshMisc.queue,
   blurListingsRefreshMisc.queue,
+  openSeaOffChainCancellations.queue,
   saveBidEvents.queue,
 
   orderbookOrders.queue,

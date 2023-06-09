@@ -149,7 +149,7 @@ export class MetadataApi {
       animation_url?: string;
       traits: Array<{
         trait_type: string;
-        value: string | number;
+        value: string | number | null;
       }>;
     },
     method = ""
