@@ -16,7 +16,6 @@ import { BlockWithTransactions } from "@ethersproject/abstract-provider";
 import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
 import { Block } from "@/models/blocks";
 import { saveTransactionLogs } from "@/models/transaction-logs";
-import { fetchTransactionTrace } from "@/events-sync/utils";
 import { TransactionTrace, saveTransactionTraces } from "@/models/transaction-traces";
 import { TransactionReceipt } from "@ethersproject/providers";
 
@@ -250,15 +249,18 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
 //   };
 // };
 
-const _getTransactionTraces = async (Txs: { hash: string }[]) => {
+const _getTransactionTraces = async (Txs: { hash: string }[], block: number) => {
   const timerStart = Date.now();
-  let traces = (await Promise.all(
-    Txs.map((tx) => fetchTransactionTrace(tx.hash))
-  )) as TransactionTrace[];
+  let traces = (await syncEventsUtils.getTracesFromBlock(block)) as TransactionTrace[];
   const timerEnd = Date.now();
 
-  // remove undefined
-  traces = traces.filter((trace) => trace) as TransactionTrace[];
+  // traces don't have the transaction hash, so we need to add it by using the txs array we are passing in by using the index of the trace
+  traces = traces.map((trace, index) => {
+    return {
+      ...trace,
+      transactionHash: Txs[index].hash,
+    };
+  });
 
   return {
     traces,
@@ -302,7 +304,7 @@ const getBlockSyncData = async (blockData: BlockWithTransactions) => {
     { saveBlocksTime, endSaveBlocksTime },
     saveBlockTransactionsTime,
   ] = await Promise.all([
-    _getTransactionTraces(blockData.transactions),
+    _getTransactionTraces(blockData.transactions, blockData.number),
     _getTransactionReceiptsFromBlock(blockData.number),
     _saveBlock({
       number: blockData.number,
