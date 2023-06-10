@@ -3,7 +3,8 @@ import { bn } from "@/common/utils";
 
 import { baseProvider } from "@/common/provider";
 
-import { saveTransactionsV2 } from "@/models/transactions";
+import { saveTransactionsV3 } from "@/models/transactions";
+import { TransactionReceipt } from "@ethersproject/providers";
 
 import { BlockWithTransactions } from "@ethersproject/abstract-provider";
 
@@ -12,14 +13,22 @@ export const fetchBlock = async (blockNumber: number) => {
   return block;
 };
 
-export const saveBlockTransactions = async (block: BlockWithTransactions) => {
+export const saveBlockTransactions = async (
+  blockData: BlockWithTransactions,
+  transactionReceipts: TransactionReceipt[]
+) => {
   // Create transactions array to store
-  const transactions = block.transactions.map((tx) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rawTx = tx.raw as any;
+  const transactions = transactionReceipts.map((txReceipt) => {
+    const tx = blockData.transactions.find((t) => t.hash === txReceipt.transactionHash);
+    if (!tx)
+      throw new Error(
+        `Could not find transaction ${txReceipt.transactionHash} in block ${blockData.number}`
+      );
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const txRaw = tx.raw as any;
     const gasPrice = tx.gasPrice?.toString();
-    const gasUsed = rawTx?.gas ? bn(rawTx.gas).toString() : undefined;
+    const gasUsed = txRaw?.gas ? bn(txRaw.gas).toString() : undefined;
     const gasFee = gasPrice && gasUsed ? bn(gasPrice).mul(gasUsed).toString() : undefined;
 
     return {
@@ -28,16 +37,21 @@ export const saveBlockTransactions = async (block: BlockWithTransactions) => {
       to: (tx.to || AddressZero).toLowerCase(),
       value: tx.value.toString(),
       data: tx.data.toLowerCase(),
-      blockNumber: block.number,
-      blockTimestamp: block.timestamp,
+      blockNumber: blockData.number,
+      blockTimestamp: blockData.timestamp,
       gasPrice,
       gasUsed,
       gasFee,
+      cumulativeGasUsed: txReceipt.cumulativeGasUsed.toString(),
+      contractAddress: txReceipt.contractAddress?.toLowerCase(),
+      logsBloom: txReceipt.logsBloom,
+      status: txReceipt.status,
+      transactionIndex: txReceipt.transactionIndex,
     };
   });
 
   // Save all transactions within the block
-  await saveTransactionsV2(transactions);
+  await saveTransactionsV3(transactions);
 };
 
 export const getTracesFromBlock = async (blockNumber: number) => {

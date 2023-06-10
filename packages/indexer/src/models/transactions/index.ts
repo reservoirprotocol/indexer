@@ -13,6 +13,11 @@ export type Transaction = {
   gasPrice?: string;
   gasUsed?: string;
   gasFee?: string;
+  cumulativeGasUsed?: string;
+  contractAddress?: string;
+  logsBloom?: string;
+  status?: number;
+  transactionIndex?: number;
 };
 
 /**
@@ -179,6 +184,82 @@ export const saveTransactionsV2 = async (transactions: Transaction[]) => {
           gas_price,
           gas_used,
           gas_fee
+        ) VALUES ${pgp.helpers.values(chunk, columns)}
+        ON CONFLICT DO NOTHING
+      `
+      )
+    )
+  );
+};
+
+export const saveTransactionsV3 = async (transactions: Transaction[]) => {
+  const CHUNK_SIZE = 10;
+
+  if (_.isEmpty(transactions)) {
+    return;
+  }
+
+  const columns = new pgp.helpers.ColumnSet(
+    [
+      "hash",
+      "from",
+      "to",
+      "value",
+      "data",
+      "block_number",
+      "block_timestamp",
+      "gas_price",
+      "gas_used",
+      "gas_fee",
+      "cumulative_gas_used",
+      "contract_address",
+      "logs_bloom",
+      "status",
+      "transaction_index",
+    ],
+    { table: "transactions" }
+  );
+
+  const transactionsValues = _.map(transactions, (transaction) => ({
+    hash: toBuffer(transaction.hash),
+    from: toBuffer(transaction.from),
+    to: toBuffer(transaction.to),
+    value: transaction.value,
+    data: toBuffer(transaction.data),
+    block_number: transaction.blockNumber,
+    block_timestamp: transaction.blockTimestamp,
+    gas_price: transaction.gasPrice,
+    gas_used: transaction.gasUsed,
+    gas_fee: transaction.gasFee,
+    cumulative_gas_used: transaction.cumulativeGasUsed,
+    contract_address: transaction?.contractAddress ? toBuffer(transaction.contractAddress) : null,
+    logs_bloom: transaction?.logsBloom ? toBuffer(transaction.logsBloom) : null,
+    status: transaction.status,
+    transaction_index: transaction.transactionIndex,
+  }));
+
+  const chunks = _.chunk(transactionsValues, CHUNK_SIZE);
+
+  await Promise.all(
+    chunks.map((chunk) =>
+      idb.none(
+        `
+        INSERT INTO transactions (
+          hash,
+          "from",
+          "to",
+          value,
+          data,
+          block_number,
+          block_timestamp,
+          gas_price,
+          gas_used,
+          gas_fee,
+          cumulative_gas_used,
+          contract_address,
+          logs_bloom,
+          status,
+          transaction_index
         ) VALUES ${pgp.helpers.values(chunk, columns)}
         ON CONFLICT DO NOTHING
       `

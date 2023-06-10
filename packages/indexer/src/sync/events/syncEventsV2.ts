@@ -290,7 +290,7 @@ const _saveBlock = async (blockData: Block) => {
   };
 };
 
-const _saveBlockTransactions = async (blockData: BlockWithTransactions) => {
+const _saveTransactions = async (blockData: BlockWithTransactions) => {
   const timerStart = Date.now();
   await syncEventsUtils.saveBlockTransactions(blockData);
   const timerEnd = Date.now();
@@ -302,7 +302,6 @@ const getBlockSyncData = async (blockData: BlockWithTransactions) => {
     { traces, getTransactionTracesTime },
     { transactionReceipts, getTransactionReceiptsTime },
     { saveBlocksTime, endSaveBlocksTime },
-    saveBlockTransactionsTime,
   ] = await Promise.all([
     _getTransactionTraces(blockData.transactions, blockData.number),
     _getTransactionReceiptsFromBlock(blockData.number),
@@ -311,7 +310,6 @@ const getBlockSyncData = async (blockData: BlockWithTransactions) => {
       hash: blockData.hash,
       timestamp: blockData.timestamp,
     }),
-    _saveBlockTransactions(blockData),
   ]);
 
   return {
@@ -321,11 +319,10 @@ const getBlockSyncData = async (blockData: BlockWithTransactions) => {
     getTransactionTracesTime,
     saveBlocksTime,
     endSaveBlocksTime,
-    saveBlockTransactionsTime,
   };
 };
 
-const saveLogsAndTraces = async (
+const saveLogsAndTracesAndTransactions = async (
   transactionReceipts: TransactionReceipt[],
   traces: TransactionTrace[]
 ) => {
@@ -351,6 +348,7 @@ const saveLogsAndTraces = async (
   await Promise.all([
     ...transactionLogs.map((txLogs) => saveTransactionLogs(txLogs)),
     saveTransactionTraces(traces),
+    _saveTransactions(transactionReceipts),
   ]);
 
   const endTime = Date.now();
@@ -420,10 +418,12 @@ export const syncEvents = async (block: number) => {
       getTransactionTracesTime,
       saveBlocksTime,
       endSaveBlocksTime,
-      saveBlockTransactionsTime,
     } = await getBlockSyncData(blockData);
 
-    const { saveLogsAndTracesTime, logs } = await saveLogsAndTraces(transactionReceipts, traces);
+    const { saveLogsAndTracesAndTransactionsTime, logs } = await saveLogsAndTracesAndTransactions(
+      transactionReceipts,
+      traces
+    );
     const { processEventsLatencies, processLogsTime } = await processEvents(logs, blockData);
 
     const endSyncTime = Date.now();
@@ -431,13 +431,13 @@ export const syncEvents = async (block: number) => {
     const timings = {
       transactions: {
         count: blockData.transactions.length,
-        saveBlockTransactionsTime,
+        saveLogsAndTracesAndTransactionsTime,
       },
       blocks: {
         count: 1,
         getBlockTime: endGetBlockTime - startSyncTime,
         saveBlocksTime,
-        saveBlockTransactionsTime,
+        saveLogsAndTracesAndTransactionsTime,
         blockMinedTimestamp: blockData.timestamp,
         startJobTimestamp: startSyncTime,
         getBlockTimestamp: endGetBlockTime,
@@ -449,13 +449,13 @@ export const syncEvents = async (block: number) => {
       traces: {
         count: traces.length,
         getTransactionTracesTime,
-        saveLogsAndTracesTime,
+        saveLogsAndTracesAndTransactionsTime,
       },
       logs: {
         count: logs.length,
         getTransactionReceiptsTime,
         processLogsTime,
-        saveLogsAndTracesTime,
+        saveLogsAndTracesAndTransactionsTime,
       },
       processEventsLatencies: processEventsLatencies,
       totalSyncTime: endSyncTime - startSyncTime,
