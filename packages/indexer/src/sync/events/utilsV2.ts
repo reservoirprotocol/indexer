@@ -48,7 +48,7 @@ export const getTracesFromBlock = async (blockNumber: number) => {
   return traces;
 };
 
-export const getReceiptsFromBlock = async (blockNumber: number) => {
+export const getTransactionReceiptsFromBlock = async (blockNumber: number) => {
   const receipts = await baseProvider.send("eth_getBlockReceipts", [blockNumber]);
   return receipts;
 };
