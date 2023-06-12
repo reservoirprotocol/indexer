@@ -6,6 +6,7 @@ import { config } from "@/config/index";
 import { Tokens } from "@/models/tokens";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { randomUUID } from "crypto";
+import _ from "lodash";
 
 const QUEUE_NAME = "refresh-activities-token-metadata-queue";
 
@@ -32,21 +33,12 @@ if (config.doBackgroundWork) {
 
       const { contract, tokenId } = job.data;
 
-      let tokenUpdateData = job.data.tokenUpdateData;
+      let tokenUpdateData =
+        job.data.tokenUpdateData ?? (await Tokens.getByContractAndTokenId(contract, tokenId));
 
-      if (!tokenUpdateData) {
-        const tokenData = await Tokens.getByContractAndTokenId(contract, tokenId);
+      tokenUpdateData = _.pickBy(tokenUpdateData, (value) => value !== null);
 
-        if (tokenData) {
-          tokenUpdateData = {
-            name: tokenData.name,
-            image: tokenData.image,
-            media: tokenData.media,
-          };
-        }
-      }
-
-      if (tokenUpdateData) {
+      if (!_.isEmpty(tokenUpdateData)) {
         const keepGoing = await ActivitiesIndex.updateActivitiesTokenMetadata(
           contract,
           tokenId,
@@ -63,6 +55,13 @@ if (config.doBackgroundWork) {
 
           await addToQueue(contract, tokenId, tokenUpdateData);
         }
+      } else {
+        logger.info(
+          QUEUE_NAME,
+          `Worker Skipped. jobData=${JSON.stringify(job.data)}, tokenUpdateData=${JSON.stringify(
+            tokenUpdateData
+          )}`
+        );
       }
     },
     { connection: redis.duplicate(), concurrency: 1 }

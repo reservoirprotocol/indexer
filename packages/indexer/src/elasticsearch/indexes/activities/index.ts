@@ -675,12 +675,16 @@ export const updateActivitiesCollection = async (
 export const updateActivitiesTokenMetadata = async (
   contract: string,
   tokenId: string,
-  tokenData: { name: string | null; image?: string | null; media?: string | null }
+  tokenData: { name?: string; image?: string; media?: string }
 ): Promise<boolean> => {
   let keepGoing = false;
 
-  const should: any[] = [
-    {
+  tokenData = _.pickBy(tokenData, (value) => value !== null);
+
+  const should: any[] = [];
+
+  if (tokenData.name) {
+    should.push({
       bool: {
         must_not: [
           {
@@ -690,8 +694,8 @@ export const updateActivitiesTokenMetadata = async (
           },
         ],
       },
-    },
-  ];
+    });
+  }
 
   if (tokenData.image) {
     should.push({
