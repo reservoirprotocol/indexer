@@ -80,7 +80,7 @@ export class MetadataApi {
       const indexingMethod = MetadataApi.getCollectionIndexingMethod(community);
 
       const url = `${
-        config.metadataApiBaseUrlAlt
+        config.metadataApiBaseUrl
       }/v4/${getNetworkName()}/metadata/collection?method=${indexingMethod}&token=${contract}:${tokenId}`;
 
       const { data } = await axios.get(url);

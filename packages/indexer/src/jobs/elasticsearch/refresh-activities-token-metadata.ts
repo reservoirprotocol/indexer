@@ -29,8 +29,6 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      logger.info(QUEUE_NAME, `Worker started. jobData=${JSON.stringify(job.data)}`);
-
       const { contract, tokenId } = job.data;
 
       let tokenUpdateData =
@@ -46,13 +44,6 @@ if (config.doBackgroundWork) {
         );
 
         if (keepGoing) {
-          logger.info(
-            QUEUE_NAME,
-            `KeepGoing. jobData=${JSON.stringify(job.data)}, tokenUpdateData=${JSON.stringify(
-              tokenUpdateData
-            )}`
-          );
-
           await addToQueue(contract, tokenId, tokenUpdateData);
         }
       } else {

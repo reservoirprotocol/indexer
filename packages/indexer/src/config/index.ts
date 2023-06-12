@@ -29,9 +29,6 @@ export const config = {
       "opensea"
   ),
   metadataApiBaseUrl: String(process.env.METADATA_API_BASE_URL),
-  metadataApiBaseUrlAlt: String(
-    process.env.METADATA_API_BASE_URL_ALT || process.env.METADATA_API_BASE_URL
-  ),
 
   disableRealtimeMetadataRefresh: Boolean(Number(process.env.DISABLE_REALTIME_METADATA_REFRESH)),
 
@@ -81,13 +78,6 @@ export const config = {
   dataExportS3ArchiveBucketName: process.env.DATA_EXPORT_S3_ARCHIVE_BUCKET_NAME
     ? String(process.env.DATA_EXPORT_S3_ARCHIVE_BUCKET_NAME)
     : undefined,
-
-  openseaWebsocketEventsAwsFirehoseDeliveryStreamName: String(
-    process.env.OPENSEA_WEBSOCKET_EVENTS_AWS_FIREHOSE_DELIVERY_STREAM_NAME
-  ),
-  openseaWebsocketEventsAwsFirehoseDeliveryStreamRegion: String(
-    process.env.OPENSEA_WEBSOCKET_EVENTS_AWS_FIREHOSE_DELIVERY_STREAM_REGION
-  ),
 
   // For forwarding orders to OpenSea
   forwardOpenseaApiKey: String(process.env.FORWARD_OPENSEA_API_KEY),
