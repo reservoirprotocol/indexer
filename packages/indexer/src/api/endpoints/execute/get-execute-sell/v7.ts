@@ -437,7 +437,7 @@ export const getExecuteSellV7Options: RouteOptions = {
           if (payload.partial) {
             continue;
           } else {
-            throw Boom.badData("Unknown token");
+            throw getExecuteError("Unknown token");
           }
         }
 
@@ -488,7 +488,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               if (payload.partial) {
                 continue;
               } else {
-                throw Boom.badData("Raw order failed to get processed");
+                throw getExecuteError("Raw order failed to get processed");
               }
             }
           }
@@ -586,7 +586,7 @@ export const getExecuteSellV7Options: RouteOptions = {
             if (payload.partial) {
               continue;
             } else {
-              throw Boom.badData(error);
+              throw getExecuteError(error);
             }
           }
 
@@ -631,7 +631,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               if (payload.partial) {
                 continue;
               } else {
-                throw Boom.badData(`Token ${item.token} is flagged`);
+                throw getExecuteError("Token is flagged");
               }
             }
           }
@@ -820,9 +820,9 @@ export const getExecuteSellV7Options: RouteOptions = {
               continue;
             } else {
               if (makerEqualsTakerQuantity >= quantityToFill) {
-                throw Boom.badData("No fillable orders (taker cannot fill own orders)");
+                throw getExecuteError("No fillable orders (taker cannot fill own orders)");
               } else {
-                throw Boom.badData("Unable to fill requested quantity");
+                throw getExecuteError("Unable to fill requested quantity");
               }
             }
           }
@@ -830,7 +830,7 @@ export const getExecuteSellV7Options: RouteOptions = {
       }
 
       if (!path.length) {
-        throw Boom.badRequest("No fillable orders");
+        throw getExecuteError("No fillable orders");
       }
 
       // Include the global fees in the path
@@ -1070,7 +1070,7 @@ export const getExecuteSellV7Options: RouteOptions = {
           }
         );
         if (!takerIsOwner) {
-          throw Boom.badRequest("Taker is not the owner of the token to sell");
+          throw getExecuteError("Taker is not the owner of the token to sell");
         }
       }
 
@@ -1117,7 +1117,7 @@ export const getExecuteSellV7Options: RouteOptions = {
       path = path.filter((p) => success[p.orderId]);
 
       if (!path.length) {
-        throw Boom.badRequest("No fillable orders");
+        throw getExecuteError("No fillable orders");
       }
 
       const approvals = txs.map(({ approvals }) => approvals).flat();
