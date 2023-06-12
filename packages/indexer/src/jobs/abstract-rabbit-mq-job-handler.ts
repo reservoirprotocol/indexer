@@ -19,6 +19,8 @@ export type BackoffStrategy =
     }
   | null;
 
+export type QueueType = "classic" | "quorum";
+
 export type AbstractRabbitMqJobHandlerEvents = {
   onCompleted: (message: RabbitMQMessage) => void;
   onError: (message: RabbitMQMessage, error: any) => void;
@@ -37,6 +39,11 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
   protected backoff: BackoffStrategy = null;
   protected singleActiveConsumer: boolean | undefined;
   protected persistent = true;
+  protected useSharedChannel = false;
+  protected lazyMode = false;
+  protected queueType: QueueType = "classic";
+
+  private sharedChannelName = "shared-channel";
 
   public async consume(message: RabbitMQMessage): Promise<void> {
     message.consumedTime = message.consumedTime ?? _.now();
@@ -53,8 +60,18 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
       // Set the backoff strategy delay
       let delay = this.getBackoffDelay(message);
 
+      // Retry enforce duplications
+      if (message.jobId) {
+        message.jobId = `${message.jobId}.retry-${message.retryCount}`;
+      }
+
       // If the event has already been retried maxRetries times, send it to the dead letter queue
       if (message.retryCount > this.maxRetries) {
+        // String the retry from the job id when sending to the dead letter
+        if (message.jobId) {
+          message.jobId = _.replace(message.jobId, /\.retry-\d+/, "");
+        }
+
         queueName = this.getDeadLetterQueue();
         delay = 0;
       }
@@ -111,12 +128,28 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
     return this.maxDeadLetterQueue;
   }
 
+  public getSharedChannelName(): string {
+    return this.sharedChannelName;
+  }
+
+  public getUseSharedChannel(): boolean {
+    return this.useSharedChannel;
+  }
+
+  public isLazyMode(): boolean {
+    return this.lazyMode;
+  }
+
   public getSingleActiveConsumer(): boolean | undefined {
     return this.singleActiveConsumer ? this.singleActiveConsumer : undefined;
   }
 
   public getBackoff(): BackoffStrategy {
     return this.backoff;
+  }
+
+  public getQueueType(): string {
+    return this.queueType;
   }
 
   public async send(job: { payload?: any; jobId?: string } = {}, delay = 0, priority = 0) {
