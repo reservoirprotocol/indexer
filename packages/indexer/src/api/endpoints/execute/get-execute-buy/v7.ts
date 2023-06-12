@@ -541,7 +541,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               if (payload.partial) {
                 continue;
               } else {
-                throw Boom.badData("Raw order failed to get processed");
+                throw getExecuteError("Raw order failed to get processed");
               }
             }
           }
@@ -636,7 +636,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
             if (payload.partial) {
               continue;
             } else {
-              throw Boom.badData(error);
+              throw getExecuteError(error);
             }
           }
 
@@ -930,9 +930,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
               continue;
             } else {
               if (makerEqualsTakerQuantity >= quantityToFill) {
-                throw Boom.badData("No fillable orders (taker cannot fill own orders)");
+                throw getExecuteError("No fillable orders (taker cannot fill own orders)");
               } else {
-                throw Boom.badData("Unable to fill requested quantity");
+                throw getExecuteError("Unable to fill requested quantity");
               }
             }
           }
@@ -967,7 +967,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       }
 
       if (!path.length) {
-        throw Boom.badRequest("No fillable orders");
+        throw getExecuteError("No fillable orders");
       }
 
       let buyInCurrency = payload.currency;
@@ -1222,7 +1222,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       path = path.filter((p) => success[p.orderId]);
 
       if (!path.length) {
-        throw Boom.badRequest("No fillable orders");
+        throw getExecuteError("No fillable orders");
       }
 
       // Custom gas settings
@@ -1266,7 +1266,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
           const balance = await baseProvider.getBalance(txSender);
           if (!payload.skipBalanceCheck && bn(balance).lt(totalBuyInCurrencyPrice)) {
-            throw Boom.badData("Balance too low to proceed with transaction");
+            throw getExecuteError("Balance too low to proceed with transaction");
           }
         } else {
           // Get the price in the buy-in currency via the approval amounts
@@ -1277,7 +1277,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           const erc20 = new Sdk.Common.Helpers.Erc20(baseProvider, buyInCurrency);
           const balance = await erc20.getBalance(txSender);
           if (!payload.skipBalanceCheck && bn(balance).lt(totalBuyInCurrencyPrice)) {
-            throw Boom.badData("Balance too low to proceed with transaction");
+            throw getExecuteError("Balance too low to proceed with transaction");
           }
         }
 

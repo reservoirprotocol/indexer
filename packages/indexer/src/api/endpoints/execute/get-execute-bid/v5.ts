@@ -14,6 +14,7 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, now, regex } from "@/common/utils";
 import { config } from "@/config/index";
+import { getExecuteError } from "@/orderbook/orders/errors";
 import * as b from "@/utils/auth/blur";
 import { ExecutionsBuffer } from "@/utils/executions";
 
@@ -625,7 +626,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                   params.royaltyBps !== undefined &&
                   Number(params.royaltyBps) < 50
                 ) {
-                  throw Boom.badRequest(
+                  throw getExecuteError(
                     "Royalties should be at least 0.5% when posting to OpenSea"
                   );
                 }
@@ -1453,7 +1454,7 @@ export const getExecuteBidV5Options: RouteOptions = {
       }
 
       if (!steps[3].items.length) {
-        const error = Boom.badRequest("No bids can be created");
+        const error = getExecuteError("No orders can be created");
         error.output.payload.errors = errors;
         throw error;
       }

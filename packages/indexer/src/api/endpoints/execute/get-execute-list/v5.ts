@@ -13,6 +13,7 @@ import { baseProvider } from "@/common/provider";
 import { now, regex } from "@/common/utils";
 import { config } from "@/config/index";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
+import { getExecuteError } from "@/orderbook/orders/errors";
 import * as b from "@/utils/auth/blur";
 import { ExecutionsBuffer } from "@/utils/executions";
 
@@ -648,7 +649,7 @@ export const getExecuteListV5Options: RouteOptions = {
                   params.royaltyBps !== undefined &&
                   Number(params.royaltyBps) < 50
                 ) {
-                  throw Boom.badRequest(
+                  throw getExecuteError(
                     "Royalties should be at least 0.5% when posting to OpenSea"
                   );
                 }
@@ -1204,7 +1205,7 @@ export const getExecuteListV5Options: RouteOptions = {
       }
 
       if (!steps[2].items.length) {
-        const error = Boom.badRequest("No tokens can be listed");
+        const error = getExecuteError("No orders can be created");
         error.output.payload.errors = errors;
         throw error;
       }
