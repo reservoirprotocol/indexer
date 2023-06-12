@@ -53,7 +53,7 @@ if (config.doBackgroundWork) {
         if (contractCollections.length) {
           const infos: CollectionMetadataInfo[] = contractCollections.map((contractCollection) => ({
             contract,
-            tokenId: contractCollection.tokenId,
+            tokenId: contractCollection.token_id,
             community: contractCollection.community,
           }));
 
