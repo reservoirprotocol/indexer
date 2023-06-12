@@ -90,6 +90,10 @@ jobs:
             ${{ github.sha }} \
             indexer-goerli
           ./utils/version_update.sh \
+            ./dev/platform/indexer-goerli-worker.yaml \
+            ${{ github.sha }} \
+            indexer-goerli-worker
+          ./utils/version_update.sh \
             ./dev/platform/indexer-websocket-goerli.yaml \
             ${{ github.sha }} \
             indexer-websocket-goerli
