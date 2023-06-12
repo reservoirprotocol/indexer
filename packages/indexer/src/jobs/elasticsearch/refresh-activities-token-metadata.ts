@@ -30,21 +30,23 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { contract, tokenId } = job.data;
+      const { contract, tokenId, collectionId } = job.data;
 
       let collectionDay30Rank;
 
-      const collectionDay30RankCache = await redis.get(`collection-day-30-rank:${contract}`);
+      if (collectionId) {
+        const collectionDay30RankCache = await redis.get(`collection-day-30-rank:${collectionId}`);
 
-      if (collectionDay30RankCache != null) {
-        collectionDay30Rank = Number(collectionDay30RankCache);
+        if (collectionDay30RankCache != null) {
+          collectionDay30Rank = Number(collectionDay30RankCache);
 
-        logger.info(
-          QUEUE_NAME,
-          `From cache. jobData=${JSON.stringify(
-            job.data
-          )}, collectionDay30RankCache=${collectionDay30RankCache}, collectionDay30Rank=${collectionDay30Rank}`
-        );
+          logger.info(
+            QUEUE_NAME,
+            `From cache. jobData=${JSON.stringify(
+              job.data
+            )}, collectionDay30RankCache=${collectionDay30RankCache}, collectionDay30Rank=${collectionDay30Rank}`
+          );
+        }
       }
 
       if (!collectionDay30Rank) {
@@ -53,14 +55,17 @@ if (config.doBackgroundWork) {
         if (collection) {
           collectionDay30Rank = collection.day30Rank;
 
-          await redis.set(`collection-day-30-rank:${contract}`, collectionDay30Rank, "EX", 3600);
+          await redis.set(
+            `collection-day-30-rank:${collection.id}`,
+            collectionDay30Rank,
+            "EX",
+            3600
+          );
         }
 
         logger.info(
           QUEUE_NAME,
-          `From db. jobData=${JSON.stringify(
-            job.data
-          )}, collectionDay30RankCache=${collectionDay30RankCache}, collectionDay30Rank=${collectionDay30Rank}`
+          `From db. jobData=${JSON.stringify(job.data)}, collectionDay30Rank=${collectionDay30Rank}`
         );
       }
 
@@ -78,7 +83,7 @@ if (config.doBackgroundWork) {
           );
 
           if (keepGoing) {
-            await addToQueue(contract, tokenId, tokenUpdateData);
+            await addToQueue(contract, tokenId, collectionId, tokenUpdateData);
           }
         } else {
           logger.info(
@@ -93,7 +98,7 @@ if (config.doBackgroundWork) {
           QUEUE_NAME,
           `Worker Skipped - Collection rank. jobData=${JSON.stringify(
             job.data
-          )}, collectionDay30RankCache=${collectionDay30RankCache}, collectionDay30Rank=${collectionDay30Rank}`
+          )}, collectionDay30Rank=${collectionDay30Rank}`
         );
       }
     },
@@ -108,7 +113,8 @@ if (config.doBackgroundWork) {
 export const addToQueue = async (
   contract: string,
   tokenId: string,
+  collectionId: string,
   tokenUpdateData?: { name?: string | null; image?: string | null; media?: string | null }
 ) => {
-  await queue.add(randomUUID(), { contract, tokenId, tokenUpdateData });
+  await queue.add(randomUUID(), { contract, tokenId, collectionId, tokenUpdateData });
 };

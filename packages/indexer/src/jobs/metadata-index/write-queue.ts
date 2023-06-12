@@ -121,7 +121,7 @@ if (config.doBackgroundWork) {
             result.old_metadata.image != imageUrl ||
             result.old_metadata.media != mediaUrl)
         ) {
-          await refreshActivitiesTokenMetadata.addToQueue(contract, tokenId, {
+          await refreshActivitiesTokenMetadata.addToQueue(contract, tokenId, collection, {
             name,
             image: imageUrl,
             media: mediaUrl,
