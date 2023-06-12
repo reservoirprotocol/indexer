@@ -34,10 +34,12 @@ if (config.doBackgroundWork) {
 
       let collectionDay30Rank;
 
-      const collectionDay30RankCache = await redis.get(`collection-day-30-rank:${collectionId}`);
+      if (collectionId) {
+        const collectionDay30RankCache = await redis.get(`collection-day-30-rank:${collectionId}`);
 
-      if (collectionDay30RankCache != null) {
-        collectionDay30Rank = Number(collectionDay30RankCache);
+        if (collectionDay30RankCache != null) {
+          collectionDay30Rank = Number(collectionDay30RankCache);
+        }
       }
 
       if (!collectionDay30Rank) {
