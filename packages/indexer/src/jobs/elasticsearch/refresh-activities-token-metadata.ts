@@ -34,19 +34,10 @@ if (config.doBackgroundWork) {
 
       let collectionDay30Rank;
 
-      if (collectionId) {
-        const collectionDay30RankCache = await redis.get(`collection-day-30-rank:${collectionId}`);
+      const collectionDay30RankCache = await redis.get(`collection-day-30-rank:${collectionId}`);
 
-        if (collectionDay30RankCache != null) {
-          collectionDay30Rank = Number(collectionDay30RankCache);
-
-          logger.info(
-            QUEUE_NAME,
-            `From cache. jobData=${JSON.stringify(
-              job.data
-            )}, collectionDay30RankCache=${collectionDay30RankCache}, collectionDay30Rank=${collectionDay30Rank}`
-          );
-        }
+      if (collectionDay30RankCache != null) {
+        collectionDay30Rank = Number(collectionDay30RankCache);
       }
 
       if (!collectionDay30Rank) {
@@ -62,11 +53,6 @@ if (config.doBackgroundWork) {
             3600
           );
         }
-
-        logger.info(
-          QUEUE_NAME,
-          `From db. jobData=${JSON.stringify(job.data)}, collectionDay30Rank=${collectionDay30Rank}`
-        );
       }
 
       if (collectionDay30Rank && collectionDay30Rank <= 1000) {
@@ -85,21 +71,7 @@ if (config.doBackgroundWork) {
           if (keepGoing) {
             await addToQueue(contract, tokenId, collectionId, tokenUpdateData);
           }
-        } else {
-          logger.info(
-            QUEUE_NAME,
-            `Worker Skipped - null values. jobData=${JSON.stringify(
-              job.data
-            )}, tokenUpdateData=${JSON.stringify(tokenUpdateData)}`
-          );
         }
-      } else {
-        logger.info(
-          QUEUE_NAME,
-          `Worker Skipped - Collection rank. jobData=${JSON.stringify(
-            job.data
-          )}, collectionDay30Rank=${collectionDay30Rank}`
-        );
       }
     },
     { connection: redis.duplicate(), concurrency: 1 }
