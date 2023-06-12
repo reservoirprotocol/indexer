@@ -15,7 +15,7 @@ import { getNetworkSettings } from "@/config/network";
 import { initIndexes } from "@/elasticsearch/indexes";
 import { startKafkaConsumer, startKafkaProducer } from "@/jobs/cdc/index";
 import { RabbitMq } from "@/common/rabbit-mq";
-// import { RabbitMqJobsConsumer } from "@/jobs/index";
+import { RabbitMqJobsConsumer } from "@/jobs/index";
 import { Sources } from "@/models/sources";
 
 process.on("unhandledRejection", (error) => {
@@ -35,7 +35,7 @@ const setup = async () => {
 
   if (config.doBackgroundWork) {
     await Sources.syncSources();
-    // await RabbitMqJobsConsumer.startRabbitJobsConsumer();
+    await RabbitMqJobsConsumer.startRabbitJobsConsumer();
 
     const networkSettings = getNetworkSettings();
     if (networkSettings.onStartup) {
