@@ -87,6 +87,14 @@ export const getExecuteSellV7Options: RouteOptions = {
               .when("orderId", { is: Joi.exist(), then: Joi.forbidden(), otherwise: Joi.allow() })
               .when("rawOrder", { is: Joi.exist(), then: Joi.forbidden(), otherwise: Joi.allow() })
               .description("Only consider orders from this source."),
+            exclusions: Joi.array()
+              .items(
+                Joi.object({
+                  orderId: Joi.string().required(),
+                  price: Joi.string().pattern(regex.number),
+                })
+              )
+              .description("Items to exclude"),
           }).oxor("orderId", "rawOrder")
         )
         .min(1)
@@ -275,7 +283,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
       ) => {
         // Handle dynamically-priced orders
-        if (["blur", "sudoswap", "nftx"].includes(order.kind)) {
+        if (["blur", "sudoswap", "sudoswap-v2", "collectionxyz", "nftx"].includes(order.kind)) {
           // TODO: Handle the case when the next best-priced order in the database
           // has a better price than the current dynamically-priced order (because
           // of a quantity > 1 being filled on this current order).
@@ -413,6 +421,9 @@ export const getExecuteSellV7Options: RouteOptions = {
           data: any;
         };
         exactOrderSource?: string;
+        exclusions?: {
+          orderId: string;
+        }[];
       }[] = payload.items;
 
       const tokenToSuspicious = await tryGetTokensSuspiciousStatus(items.map((i) => i.token));
@@ -528,12 +539,14 @@ export const getExecuteSellV7Options: RouteOptions = {
                   OR orders.taker = '\\x0000000000000000000000000000000000000000'
                   OR orders.taker = $/taker/
                 )
+                ${item.exclusions?.length ? " AND orders.id NOT IN ($/excludedOrderIds:list/)" : ""}
             `,
             {
               id: item.orderId,
               contract: toBuffer(contract),
               tokenId,
               taker: toBuffer(payload.taker),
+              excludedOrderIds: item.exclusions?.map((e) => e.orderId) ?? [],
             }
           );
 
@@ -692,6 +705,7 @@ export const getExecuteSellV7Options: RouteOptions = {
                 ${payload.normalizeRoyalties ? " AND orders.normalized_value IS NOT NULL" : ""}
                 ${payload.excludeEOA ? " AND orders.kind != 'blur'" : ""}
                 ${item.exactOrderSource ? " AND orders.source_id_int = $/sourceId/" : ""}
+                ${item.exclusions?.length ? " AND orders.id NOT IN ($/excludedOrderIds:list/)" : ""}
               ORDER BY ${
                 payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"
               } DESC
@@ -705,6 +719,7 @@ export const getExecuteSellV7Options: RouteOptions = {
                 ? sources.getByDomain(item.exactOrderSource)?.id ?? -1
                 : undefined,
               taker: toBuffer(payload.taker),
+              excludedOrderIds: item.exclusions?.map((e) => e.orderId) ?? [],
             }
           );
 

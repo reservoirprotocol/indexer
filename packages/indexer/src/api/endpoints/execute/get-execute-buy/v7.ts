@@ -99,6 +99,14 @@ export const getExecuteBuyV7Options: RouteOptions = {
               .pattern(regex.domain)
               .when("token", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() })
               .description("Only consider orders from this source."),
+            exclusions: Joi.array()
+              .items(
+                Joi.object({
+                  orderId: Joi.string().required(),
+                  price: Joi.string().pattern(regex.number),
+                })
+              )
+              .description("Items to exclude"),
           })
             .oxor("token", "collection", "orderId", "rawOrder")
             .or("token", "collection", "orderId", "rawOrder")
@@ -467,6 +475,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
         quantity: number;
         preferredOrderSource?: string;
         exactOrderSource?: string;
+        exclusions?: {
+          orderId: string;
+        }[];
         fillType?: "trade" | "mint";
         originalItemIndex?: number;
       }[] = payload.items;
@@ -580,10 +591,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   OR orders.taker = '\\x0000000000000000000000000000000000000000'
                   OR orders.taker = $/taker/
                 )
+                ${item.exclusions?.length ? " AND orders.id NOT IN ($/excludedOrderIds:list/)" : ""}
             `,
             {
               taker: toBuffer(payload.taker),
               id: item.orderId,
+              excludedOrderIds: item.exclusions?.map((e) => e.orderId) ?? [],
             }
           );
 
@@ -843,6 +856,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                     : ""
                 }
                 ${item.exactOrderSource ? " AND orders.source_id_int = $/sourceId/" : ""}
+                ${item.exclusions?.length ? " AND orders.id NOT IN ($/excludedOrderIds:list/)" : ""}
               ORDER BY
                 ${payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"},
                 ${
@@ -862,6 +876,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               quantity: item.quantity,
               sourceId: sourceDomain ? sources.getByDomain(sourceDomain)?.id ?? -1 : undefined,
               taker: toBuffer(payload.taker),
+              excludedOrderIds: item.exclusions?.map((e) => e.orderId) ?? [],
             }
           );
 
