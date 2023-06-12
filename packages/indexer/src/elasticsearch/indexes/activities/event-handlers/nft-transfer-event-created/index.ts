@@ -7,6 +7,7 @@ import { ActivityDocument, ActivityType } from "@/elasticsearch/indexes/activiti
 import { getActivityHash } from "@/elasticsearch/indexes/activities/utils";
 import { BaseActivityEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/base";
 import { getNetworkSettings } from "@/config/network";
+import { logger } from "@/common/logger";
 
 export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandler {
   public txHash: string;
@@ -21,7 +22,7 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
     this.batchIndex = batchIndex;
   }
 
-  async generateActivity(): Promise<ActivityDocument> {
+  async generateActivity(): Promise<ActivityDocument | null> {
     const data = await redb.oneOrNone(
       `
                 ${NftTransferEventCreatedEventHandler.buildBaseQuery()}
@@ -36,6 +37,15 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
         batchIndex: this.batchIndex.toString(),
       }
     );
+
+    if (!data) {
+      logger.warn(
+        "NftTransferEventCreatedEventHandler",
+        `failed to generate elastic activity activity. txHash=${this.txHash}, logIndex=${this.logIndex}, logIndex=${this.logIndex}`
+      );
+
+      return null;
+    }
 
     return this.buildDocument(data);
   }

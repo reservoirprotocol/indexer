@@ -71,7 +71,9 @@ export class TransferActivity {
       );
       const esActivity = await eventHandler.generateActivity();
 
-      await ActivitiesIndex.save([esActivity]);
+      if (esActivity) {
+        await ActivitiesIndex.save([esActivity]);
+      }
     }
 
     // If collection information is not available yet when a mint event
@@ -138,9 +140,13 @@ export class TransferActivity {
           data.logIndex,
           data.batchIndex
         );
+
         try {
           const esActivity = await eventHandler.generateActivity();
-          esActivities.push(esActivity);
+
+          if (esActivity) {
+            esActivities.push(esActivity);
+          }
         } catch (error) {
           logger.error(
             "generate-elastic-activity",
