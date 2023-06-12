@@ -675,55 +675,9 @@ export const updateActivitiesCollection = async (
 export const updateActivitiesTokenMetadata = async (
   contract: string,
   tokenId: string,
-  tokenData: { name?: string; image?: string; media?: string }
+  tokenData: { name: string | null; image?: string | null; media?: string | null }
 ): Promise<boolean> => {
   let keepGoing = false;
-
-  tokenData = _.pickBy(tokenData, (value) => value !== null);
-
-  const should: any[] = [];
-
-  if (tokenData.name) {
-    should.push({
-      bool: {
-        must_not: [
-          {
-            term: {
-              "token.name": tokenData.name,
-            },
-          },
-        ],
-      },
-    });
-  }
-
-  if (tokenData.image) {
-    should.push({
-      bool: {
-        must_not: [
-          {
-            term: {
-              "token.image": tokenData.image,
-            },
-          },
-        ],
-      },
-    });
-  }
-
-  if (tokenData.media) {
-    should.push({
-      bool: {
-        must_not: [
-          {
-            term: {
-              "token.media": tokenData.media,
-            },
-          },
-        ],
-      },
-    });
-  }
 
   const query = {
     bool: {
@@ -741,7 +695,41 @@ export const updateActivitiesTokenMetadata = async (
       ],
       filter: {
         bool: {
-          should,
+          should: [
+            {
+              bool: {
+                must_not: [
+                  {
+                    term: {
+                      "token.name": tokenData.name,
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              bool: {
+                must_not: [
+                  {
+                    term: {
+                      "token.image": tokenData.image,
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              bool: {
+                must_not: [
+                  {
+                    term: {
+                      "token.media": tokenData.media,
+                    },
+                  },
+                ],
+              },
+            },
+          ],
         },
       },
     },
@@ -782,9 +770,7 @@ export const updateActivitiesTokenMetadata = async (
         })
       );
     } else {
-      keepGoing = Boolean(
-        (response?.version_conflicts ?? 0) > 0 || (response?.updated ?? 0) === 1000
-      );
+      keepGoing = Boolean((response?.version_conflicts ?? 0) > 0 || (response?.updated ?? 0) > 0);
 
       logger.info(
         "elasticsearch-activities",
@@ -828,34 +814,6 @@ export const updateActivitiesCollectionMetadata = async (
 ): Promise<boolean> => {
   let keepGoing = false;
 
-  const should: any[] = [
-    {
-      bool: {
-        must_not: [
-          {
-            term: {
-              "collection.name": collectionData.name,
-            },
-          },
-        ],
-      },
-    },
-  ];
-
-  if (collectionData.image) {
-    should.push({
-      bool: {
-        must_not: [
-          {
-            term: {
-              "collection.image": collectionData.image,
-            },
-          },
-        ],
-      },
-    });
-  }
-
   const query = {
     bool: {
       must: [
@@ -867,7 +825,30 @@ export const updateActivitiesCollectionMetadata = async (
       ],
       filter: {
         bool: {
-          should,
+          should: [
+            {
+              bool: {
+                must_not: [
+                  {
+                    term: {
+                      "collection.name": collectionData.name,
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              bool: {
+                must_not: [
+                  {
+                    term: {
+                      "collection.image": collectionData.image,
+                    },
+                  },
+                ],
+              },
+            },
+          ],
         },
       },
     },
@@ -906,9 +887,7 @@ export const updateActivitiesCollectionMetadata = async (
         })
       );
     } else {
-      keepGoing = Boolean(
-        (response?.version_conflicts ?? 0) > 0 || (response?.updated ?? 0) === 1000
-      );
+      keepGoing = Boolean((response?.version_conflicts ?? 0) > 0 || (response?.updated ?? 0) > 0);
 
       logger.info(
         "elasticsearch-activities",

@@ -7,8 +7,10 @@ import { config } from "@/config/index";
 import { redb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
-import { CollectionMetadataInfo } from "@/jobs/collection-updates/metadata-queue";
+import {
+  collectionMetadataQueueJob,
+  CollectionMetadataInfo,
+} from "@/jobs/collection-updates/collection-metadata-queue-job";
 
 const QUEUE_NAME = "refresh-contract-collections-metadata-queue";
 
@@ -57,7 +59,7 @@ if (config.doBackgroundWork) {
             community: contractCollection.community,
           }));
 
-          await collectionUpdatesMetadata.addToQueueBulk(infos, 0, QUEUE_NAME);
+          await collectionMetadataQueueJob.addToQueueBulk(infos, 0, QUEUE_NAME);
         } else {
           const contractToken = await redb.oneOrNone(
             `

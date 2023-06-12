@@ -10,11 +10,7 @@ import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
-import * as rarityQueue from "@/jobs/collection-updates/rarity-queue";
 import * as flagStatusUpdate from "@/jobs/flag-status/update";
-import * as updateCollectionActivity from "@/jobs/collection-updates/update-collection-activity";
-import * as updateCollectionUserActivity from "@/jobs/collection-updates/update-collection-user-activity";
-import * as updateCollectionDailyVolume from "@/jobs/collection-updates/update-collection-daily-volume";
 import * as updateActivitiesCollection from "@/jobs/elasticsearch/update-activities-collection";
 import * as refreshActivitiesTokenMetadata from "@/jobs/elasticsearch/refresh-activities-token-metadata";
 
@@ -24,6 +20,10 @@ import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collectio
 import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attribute-key-counts-job";
 import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-attribute-value-counts-job";
 import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
+import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
+import { updateCollectionActivityJob } from "@/jobs/collection-updates/update-collection-activity-job";
+import { updateCollectionDailyVolumeJob } from "@/jobs/collection-updates/update-collection-daily-volume-job";
+import { updateCollectionUserActivityJob } from "@/jobs/collection-updates/update-collection-user-activity-job";
 
 const QUEUE_NAME = "metadata-index-write-queue";
 
@@ -121,6 +121,15 @@ if (config.doBackgroundWork) {
             result.old_metadata.image != imageUrl ||
             result.old_metadata.media != mediaUrl)
         ) {
+          logger.info(
+            QUEUE_NAME,
+            JSON.stringify({
+              message: `Metadata changed. collection=${collection}, contract=${contract}, tokenId=${tokenId}`,
+              jobData: job.data,
+              result,
+            })
+          );
+
           await refreshActivitiesTokenMetadata.addToQueue(contract, tokenId);
         }
 
@@ -137,22 +146,25 @@ if (config.doBackgroundWork) {
 
           if (updateActivities(contract)) {
             // Update the activities to the new collection
-            await updateCollectionActivity.addToQueue(
-              collection,
-              result.collection_id,
+            await updateCollectionActivityJob.addToQueue({
+              newCollectionId: collection,
+              oldCollectionId: result.collection_id,
               contract,
-              tokenId
-            );
+              tokenId,
+            });
 
-            await updateCollectionUserActivity.addToQueue(
-              collection,
-              result.collection_id,
+            await updateCollectionUserActivityJob.addToQueue({
+              newCollectionId: collection,
+              oldCollectionId: result.collection_id,
               contract,
-              tokenId
-            );
+              tokenId,
+            });
 
             // Trigger a delayed job to recalc the daily volumes
-            await updateCollectionDailyVolume.addToQueue(collection, contract);
+            await updateCollectionDailyVolumeJob.addToQueue({
+              newCollectionId: collection,
+              contract,
+            });
 
             if (config.doElasticsearchWork) {
               await updateActivitiesCollection.addToQueue(
@@ -453,7 +465,7 @@ if (config.doBackgroundWork) {
 
         // If any attributes changed
         if (!_.isEmpty(attributesToRefresh)) {
-          await rarityQueue.addToQueue(collection); // Recalculate the collection rarity
+          await rarityQueueJob.addToQueue({ collectionId: collection }); // Recalculate the collection rarity
         }
 
         if (!_.isEmpty(tokenAttributeCounter)) {

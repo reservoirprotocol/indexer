@@ -24,7 +24,7 @@ export const queue = new Queue(QUEUE_NAME, {
     attempts: 5,
     backoff: {
       type: "exponential",
-      delay: 1000,
+      delay: 2500,
     },
     removeOnComplete: 1000,
     removeOnFail: 1000,
@@ -33,24 +33,24 @@ export const queue = new Queue(QUEUE_NAME, {
 });
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
-// const changedMapping = {
-//   name: "name",
-//   description: "description",
-//   image: "image",
-//   media: "media",
-//   collection_id: "collection.id",
-//   floor_sell_id: "market.floorAsk.id",
-//   floor_sell_value: "market.floorAsk.price.gross.amount",
-//   rarity_score: "token.rarity",
-//   rarity_rank: "token.rarityRank",
-//   is_flagged: "token.isFlagged",
-//   last_flag_update: "token.lastFlagUpdate",
-//   last_flag_change: "token.lastFlagChange",
-//   normalized_floor_sell_id: "market.floorAskNormalized.id",
-//   normalized_floor_sell_value: "market.floorAskNormalized.price.gross.amount",
-//   supply: "token.supply",
-//   remaining_supply: "token.remainingSupply",
-// };
+const changedMapping = {
+  name: "name",
+  description: "description",
+  image: "image",
+  media: "media",
+  collection_id: "collection.id",
+  floor_sell_id: "market.floorAsk.id",
+  floor_sell_value: "market.floorAsk.price.gross.amount",
+  rarity_score: "token.rarity",
+  rarity_rank: "token.rarityRank",
+  is_flagged: "token.isFlagged",
+  last_flag_update: "token.lastFlagUpdate",
+  last_flag_change: "token.lastFlagChange",
+  normalized_floor_sell_id: "market.floorAskNormalized.id",
+  normalized_floor_sell_value: "market.floorAskNormalized.price.gross.amount",
+  supply: "token.supply",
+  remaining_supply: "token.remainingSupply",
+};
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork && config.doWebsocketServerWork) {
@@ -58,7 +58,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
     QUEUE_NAME,
     async (job: Job) => {
       const { data } = job.data as EventInfo;
-
+      let r;
       try {
         const selectFloorData = `
         t.floor_sell_id,
@@ -120,7 +120,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           tokenId: data.after.token_id,
         });
 
-        const r = rawResult[0];
+        r = rawResult[0];
 
         const contract = fromBuffer(r.contract);
         const tokenId = r.token_id;
@@ -228,23 +228,23 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
         };
 
         let eventType = "";
-        // const changed = [];
+        const changed = [];
         if (data.trigger === "insert") eventType = "token.created";
         else if (data.trigger === "update") {
           eventType = "token.updated";
-          // if (data.before) {
-          //   for (const key in changedMapping) {
-          //     // eslint-disable-next-line
-          //     // @ts-ignore
-          //     if (data.before[key] && data.after[key] && data.before[key] !== data.after[key]) {
-          //       changed.push(key);
-          //     }
-          //   }
-          // }
+          if (data.before) {
+            for (const key in changedMapping) {
+              // eslint-disable-next-line
+              // @ts-ignore
+              if (data.before[key] && data.after[key] && data.before[key] !== data.after[key]) {
+                changed.push(key);
+              }
+            }
+          }
 
-          // if (!changed.length) {
-          //   return;
-          // }
+          if (!changed.length) {
+            return;
+          }
         }
 
         await publishWebsocketEvent({
@@ -252,7 +252,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           tags: {
             contract: contract,
           },
-          // changed: [],
+          changed,
           data: result,
         });
       } catch (error) {
@@ -260,7 +260,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           QUEUE_NAME,
           `Error processing websocket event. data=${JSON.stringify(data)}, error=${JSON.stringify(
             error
-          )}`
+          )}, queryResult=${JSON.stringify(r)}`
         );
         throw error;
       }

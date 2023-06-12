@@ -207,6 +207,37 @@ import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-at
 import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
 import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";
 import { topBidSingleTokenQueueJob } from "@/jobs/token-set-updates/top-bid-single-token-queue-job";
+import { fetchSourceInfoJob } from "@/jobs/sources/fetch-source-info-job";
+import { processActivityEventJob } from "@/jobs/activities/process-activity-event-job";
+import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
+import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
+import { topBidUpdateQueueJob } from "@/jobs/bid-updates/top-bid-update-queue-job";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
+import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
+import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
+import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
+import { setCommunityQueueJob } from "@/jobs/collection-updates/set-community-queue-job";
+import { topBidCollectionQueueJob } from "@/jobs/collection-updates/top-bid-collection-queue-job";
+import { updateCollectionActivityJob } from "@/jobs/collection-updates/update-collection-activity-job";
+import { updateCollectionDailyVolumeJob } from "@/jobs/collection-updates/update-collection-daily-volume-job";
+import { updateCollectionUserActivityJob } from "@/jobs/collection-updates/update-collection-user-activity-job";
+import { collectionRefreshJob } from "@/jobs/collections-refresh/collections-refresh-job";
+import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
+import { currenciesFetchJob } from "@/jobs/currencies/currencies-fetch-job";
+import { oneDayVolumeJob } from "@/jobs/daily-volumes/1day-volumes-job";
+import { dailyVolumeJob } from "@/jobs/daily-volumes/daily-volumes-job";
+import { processArchiveDataJob } from "@/jobs/data-archive/process-archive-data-job";
+import { exportDataJob } from "@/jobs/data-export/export-data-job";
+import { fillPostProcessJob } from "@/jobs/fill-updates/fill-post-process-job";
+import { fillUpdatesJob } from "@/jobs/fill-updates/fill-updates-job";
+import { backfillQueueJob } from "@/jobs/events-sync/backfill-queue-job";
+import { blockCheckQueueJob } from "@/jobs/events-sync/block-check-queue-job";
+import { processResyncRequestQueueJob } from "@/jobs/events-sync/process-resync-request-queue-job";
+import { realtimeQueueJob } from "@/jobs/events-sync/realtime-queue-job";
+import { realtimeQueueV2Job } from "@/jobs/events-sync/realtime-queue-v2-job";
+import { ftTransfersJob } from "@/jobs/events-sync/write-buffers/ft-transfers-job";
+import { nftTransfersJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
+import { collectionFloorQueueJob } from "@/jobs/collection-updates/collection-floor-queue-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -403,6 +434,38 @@ export class RabbitMqJobsConsumer {
       resyncAttributeCountsJob,
       topBidQueueJob,
       topBidSingleTokenQueueJob,
+      fetchSourceInfoJob,
+      processActivityEventJob,
+      removeUnsyncedEventsActivitiesJob,
+      fixActivitiesMissingCollectionJob,
+      topBidUpdateQueueJob,
+      collectionFloorQueueJob,
+      collectionMetadataQueueJob,
+      nonFlaggedFloorQueueJob,
+      normalizedFloorQueueJob,
+      rarityQueueJob,
+      refreshContractCollectionsMetadataQueueJob,
+      setCommunityQueueJob,
+      topBidCollectionQueueJob,
+      updateCollectionActivityJob,
+      updateCollectionDailyVolumeJob,
+      updateCollectionUserActivityJob,
+      collectionRefreshJob,
+      collectionRefreshCacheJob,
+      currenciesFetchJob,
+      oneDayVolumeJob,
+      dailyVolumeJob,
+      processArchiveDataJob,
+      exportDataJob,
+      fillPostProcessJob,
+      fillUpdatesJob,
+      backfillQueueJob,
+      blockCheckQueueJob,
+      processResyncRequestQueueJob,
+      realtimeQueueJob,
+      realtimeQueueV2Job,
+      ftTransfersJob,
+      nftTransfersJob,
     ];
   }
 
@@ -430,8 +493,22 @@ export class RabbitMqJobsConsumer {
       return;
     }
 
-    const channel = await this.rabbitMqConsumerConnection.createChannel();
-    RabbitMqJobsConsumer.queueToChannel.set(job.getQueue(), channel);
+    let channel: Channel;
+
+    // Some queues can use a shared channel as they are less important with low traffic
+    if (job.getUseSharedChannel()) {
+      const sharedChannel = RabbitMqJobsConsumer.queueToChannel.get(job.getSharedChannelName());
+
+      if (sharedChannel) {
+        channel = sharedChannel;
+      } else {
+        channel = await this.rabbitMqConsumerConnection.createChannel();
+        RabbitMqJobsConsumer.queueToChannel.set(job.getSharedChannelName(), channel);
+      }
+    } else {
+      channel = await this.rabbitMqConsumerConnection.createChannel();
+      RabbitMqJobsConsumer.queueToChannel.set(job.getQueue(), channel);
+    }
 
     await channel.prefetch(job.getConcurrency()); // Set the number of messages to consume simultaneously
 
@@ -481,7 +558,8 @@ export class RabbitMqJobsConsumer {
    * @param job
    */
   static async unsubscribe(job: AbstractRabbitMqJobHandler) {
-    const channel = RabbitMqJobsConsumer.queueToChannel.get(job.getQueue());
+    const channelName = job.getUseSharedChannel() ? job.getSharedChannelName() : job.getQueue();
+    const channel = RabbitMqJobsConsumer.queueToChannel.get(channelName);
 
     if (channel) {
       await channel.cancel(RabbitMqJobsConsumer.getConsumerTag(job.getQueue()));
