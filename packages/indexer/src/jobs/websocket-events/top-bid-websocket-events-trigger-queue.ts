@@ -12,7 +12,7 @@ import { Orders } from "@/utils/orders";
 import { Sources } from "@/models/sources";
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
 
-const QUEUE_NAME = "new-top-bid-trigger-queue";
+const QUEUE_NAME = "top-bid-websocket-events-trigger-queue";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
@@ -231,10 +231,10 @@ const getOwners = async (tokenSetId: string): Promise<string[]> => {
 };
 
 export type EventInfo = {
-  data: NewTopBidWebsocketEventInfo;
+  data: TopBidWebsocketEventInfo;
 };
 
-export type NewTopBidWebsocketEventInfo = {
+export type TopBidWebsocketEventInfo = {
   orderId: string;
 };
 
