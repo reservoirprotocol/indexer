@@ -42,13 +42,13 @@ export const checkMarketplaceIsFiltered = async (
 };
 
 export const isBlockedByCustomRegistry = async (contract: string, operators: string[]) => {
-  const cacheKey = `marketplace-blacklist-custom-registry:${contract}`;
+  const cacheKey = `marketplace-blacklist-custom-registry:${contract}:${JSON.stringify(operators)}`;
   const cache = await redis.get(cacheKey);
   if (!cache) {
-    await redis.set(cacheKey, "locked", "EX", 24 * 3600);
-
     const iface = new Interface(["function registry() external view returns (address)"]);
     const nft = new Contract(contract, iface, baseProvider);
+
+    let result = false;
     try {
       const registry = new Contract(
         await nft.registry(),
@@ -58,13 +58,16 @@ export const isBlockedByCustomRegistry = async (contract: string, operators: str
         baseProvider
       );
       const allowed = await Promise.all(operators.map((c) => registry.isAllowedOperator(c)));
-      return allowed.some((c) => c === false);
+      result = allowed.some((c) => c === false);
     } catch {
-      return false;
+      // Skip errors
     }
+
+    await redis.set(cacheKey, result ? "1" : "0", "EX", 24 * 3600);
+    return result;
   }
 
-  return false;
+  return Boolean(Number(cache));
 };
 
 export const getMarketplaceBlacklist = async (contract: string): Promise<string[]> => {

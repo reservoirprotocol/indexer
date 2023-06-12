@@ -456,27 +456,29 @@ export const syncEvents = async (
 
     const endTimeProcessingEvents = now();
 
-    logger.info(
-      "sync-events-timing-2",
-      JSON.stringify({
-        message: `Events realtime syncing block range [${fromBlock}, ${toBlock}]`,
-        blocks: {
-          count: blocksSet.size,
-          time: endTimeFetchingBlocks - startTimeFetchingBlocks,
-        },
-        logs: {
-          count: logs.length,
-          time: endTimeFetchingLogs - startTimeFetchingLogs,
-        },
-        events: {
-          count: enhancedEvents.length,
-          time: endTimeProcessingEvents - startTimeProcessingEvents,
-        },
-        queue: {
-          time: endTimeAddToProcessQueue - startTimeAddToProcessQueue,
-        },
-      })
-    );
+    if (!backfill) {
+      logger.info(
+        "sync-events-timing-2",
+        JSON.stringify({
+          message: `Events realtime syncing block range [${fromBlock}, ${toBlock}]`,
+          blocks: {
+            count: blocksSet.size,
+            time: endTimeFetchingBlocks - startTimeFetchingBlocks,
+          },
+          logs: {
+            count: logs.length,
+            time: endTimeFetchingLogs - startTimeFetchingLogs,
+          },
+          events: {
+            count: enhancedEvents.length,
+            time: endTimeProcessingEvents - startTimeProcessingEvents,
+          },
+          queue: {
+            time: endTimeAddToProcessQueue - startTimeAddToProcessQueue,
+          },
+        })
+      );
+    }
   });
 };
 
