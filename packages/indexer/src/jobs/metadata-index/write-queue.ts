@@ -121,7 +121,11 @@ if (config.doBackgroundWork) {
             result.old_metadata.image != imageUrl ||
             result.old_metadata.media != mediaUrl)
         ) {
-          await refreshActivitiesTokenMetadata.addToQueue(contract, tokenId);
+          await refreshActivitiesTokenMetadata.addToQueue(contract, tokenId, {
+            name,
+            image: imageUrl,
+            media: mediaUrl,
+          });
         }
 
         // If the new collection ID is different from the collection ID currently stored

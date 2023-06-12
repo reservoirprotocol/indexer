@@ -167,6 +167,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           amount: amount.toString(),
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         break;

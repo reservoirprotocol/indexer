@@ -66,7 +66,7 @@ if (config.doBackgroundWork) {
 export const addToQueue = async (
   contract: string,
   tokenId: string,
-  tokenUpdateData?: { name: string | null; image?: string | null; media?: string | null }
+  tokenUpdateData?: { name?: string | null; image?: string | null; media?: string | null }
 ) => {
   await queue.add(randomUUID(), { contract, tokenId, tokenUpdateData });
 };

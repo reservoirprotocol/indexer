@@ -127,8 +127,9 @@ export class Sources {
     address: string,
     metadata: object
   ) {
-    await idb.none(
-      `
+    try {
+      await idb.none(
+        `
         INSERT INTO sources_v2(
           id,
           domain,
@@ -148,15 +149,18 @@ export class Sources {
           metadata = $/metadata:json/,
           domain = $/domain/
       `,
-      {
-        id,
-        domain,
-        domainHash,
-        name,
-        address,
-        metadata,
-      }
-    );
+        {
+          id,
+          domain,
+          domainHash,
+          name,
+          address,
+          metadata,
+        }
+      );
+    } catch (error) {
+      // Ignore errors when loading from JSON
+    }
   }
 
   public async create(domain: string, address: string, metadata: object = {}) {
