@@ -404,3 +404,29 @@ export const unsyncEvents = async (block: number, blockHash: string) => {
     removeUnsyncedEventsActivities.addToQueue(blockHash),
   ]);
 };
+
+export const checkForOrphanedBlock = async (block: number) => {
+  // Check if block number / hash does not match up (orphaned block)
+  const upstreamBlockHash = (await baseProvider.getBlock(block)).hash.toLowerCase();
+  const blockInDB = await blocksModel.getBlocks(block);
+
+  if (!blockInDB.length) {
+    return;
+  }
+
+  if (blockInDB[0].hash !== upstreamBlockHash) {
+    logger.info(
+      "events-sync-catchup",
+      `Detected orphaned block ${block} with hash ${blockInDB[0].hash} (upstream hash ${upstreamBlockHash})`
+    );
+
+    // delete the orphaned block data
+    await unsyncEvents(block, blockInDB[0].hash);
+
+    // TODO: add block hash to transactions table and delete transactions associated to the orphaned block
+    // await deleteBlockTransactions(block);
+
+    // delete the block data
+    await blocksModel.deleteBlock(block, blockInDB[0].hash);
+  }
+};
