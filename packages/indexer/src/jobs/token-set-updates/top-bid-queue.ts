@@ -61,6 +61,10 @@ export const addToQueue = async (topBidInfos: TopBidInfo[]) => {
 export const jobProcessor = async (job: Job) => {
   const { kind, tokenSetId, txHash, txTimestamp } = job.data as TopBidInfo;
 
+  if (job.queueName === "token-set-updates-top-bid-single-token-queue") {
+    return;
+  }
+
   try {
     let tokenSetTopBid = await idb.manyOrNone(
       `
@@ -168,7 +172,7 @@ export const jobProcessor = async (job: Job) => {
     }
   } catch (error) {
     logger.error(
-      QUEUE_NAME,
+      job.queueName,
       `Failed to process token set top-bid info ${JSON.stringify(job.data)}: ${error}`
     );
     throw error;
