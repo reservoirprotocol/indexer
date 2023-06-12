@@ -44,8 +44,8 @@ const setup = async () => {
   }
 
   if (config.doKafkaWork) {
-    startKafkaConsumer();
-    startKafkaProducer();
+    await startKafkaConsumer();
+    await startKafkaProducer();
   }
 
   await Sources.getInstance();
