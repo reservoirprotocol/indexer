@@ -2,6 +2,7 @@
 
 // Initialize all background job queues and crons
 
+import "@/jobs/arweave-relay";
 import "@/jobs/backfill";
 import "@/jobs/bid-updates";
 import "@/jobs/cache-check";
