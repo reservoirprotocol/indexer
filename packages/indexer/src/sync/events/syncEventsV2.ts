@@ -12,8 +12,6 @@ import * as blocksModel from "@/models/blocks";
 import getUuidByString from "uuid-by-string";
 import { BlockWithTransactions } from "@ethersproject/abstract-provider";
 
-// import * as realtimeEventsSyncV2 from "@/jobs/events-sync/realtime-queue-v2";
-
 import { Block } from "@/models/blocks";
 import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
 
@@ -271,6 +269,7 @@ const _saveBlockTransactions = async (blockData: BlockWithTransactions) => {
 export const syncEvents = async (block: number) => {
   try {
     logger.info("sync-events-v2", `Events realtime syncing block ${block}`);
+
     const startSyncTime = Date.now();
 
     const startGetBlockTime = Date.now();
