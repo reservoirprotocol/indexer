@@ -2,7 +2,7 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 import { processTopBid, topBidPayload } from "@/jobs/token-set-updates/utils";
 
 export class TopBidQueueJob extends AbstractRabbitMqJobHandler {
-  queueName = "token-set-updates-top-bid-single-token-queue";
+  queueName = "token-set-updates-top-bid-queue";
   maxRetries = 10;
   concurrency = 20;
   backoff = {
