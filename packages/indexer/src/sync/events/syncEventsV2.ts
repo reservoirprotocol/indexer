@@ -14,8 +14,8 @@ import { BlockWithTransactions } from "@ethersproject/abstract-provider";
 
 // import * as realtimeEventsSyncV2 from "@/jobs/events-sync/realtime-queue-v2";
 
-import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
 import { Block } from "@/models/blocks";
+import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
 
 export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBatch[] => {
   const txHashToEvents = new Map<string, EnhancedEvent[]>();
@@ -118,6 +118,10 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
       {
         kind: "sudoswap",
         data: kindToEvents.get("sudoswap") ?? [],
+      },
+      {
+        kind: "sudoswap-v2",
+        data: kindToEvents.get("sudoswap-v2") ?? [],
       },
       {
         kind: "wyvern",
@@ -397,6 +401,32 @@ export const unsyncEvents = async (block: number, blockHash: string) => {
     es.ftTransfers.removeEvents(block, blockHash),
     es.nftApprovals.removeEvents(block, blockHash),
     es.nftTransfers.removeEvents(block, blockHash),
-    removeUnsyncedEventsActivities.addToQueue(blockHash),
+    removeUnsyncedEventsActivitiesJob.addToQueue({ blockHash }),
   ]);
+};
+
+export const checkForOrphanedBlock = async (block: number) => {
+  // Check if block number / hash does not match up (orphaned block)
+  const upstreamBlockHash = (await baseProvider.getBlock(block)).hash.toLowerCase();
+  const blockInDB = await blocksModel.getBlocks(block);
+
+  if (!blockInDB.length) {
+    return;
+  }
+
+  if (blockInDB[0].hash !== upstreamBlockHash) {
+    logger.info(
+      "events-sync-catchup",
+      `Detected orphaned block ${block} with hash ${blockInDB[0].hash} (upstream hash ${upstreamBlockHash})`
+    );
+
+    // delete the orphaned block data
+    await unsyncEvents(block, blockInDB[0].hash);
+
+    // TODO: add block hash to transactions table and delete transactions associated to the orphaned block
+    // await deleteBlockTransactions(block);
+
+    // delete the block data
+    await blocksModel.deleteBlock(block, blockInDB[0].hash);
+  }
 };

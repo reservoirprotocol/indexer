@@ -166,7 +166,29 @@ export async function saveContract(address: string, kind: string) {
       )}
       ON CONFLICT DO NOTHING
     `,
+    `
+    INSERT INTO "collections" (
+      "id",
+      "token_count",
+      "slug",
+      "name",
+      "contract"
+    ) VALUES ${pgp.helpers.values(
+      {
+        id: address,
+        token_count: 10000,
+        slug: address,
+        name: "Mock Name",
+        contract: address,
+      },
+      new pgp.helpers.ColumnSet(["id", "token_count", "slug", "name", "contract"], {
+        table: "collections",
+      })
+    )}
+    ON CONFLICT DO NOTHING
+    `,
   ];
+
   await idb.none(pgp.helpers.concat(queries));
 }
 
@@ -180,17 +202,20 @@ export const orderSavingOptions: RouteOptions = {
   },
   validate: {
     payload: Joi.object({
-      contract: Joi.string(),
-      kind: Joi.string(),
-      currency: Joi.string().default(null),
-      makers: Joi.array().items(Joi.string()).default([]),
-      nfts: Joi.array().items(
-        Joi.object({
-          collection: Joi.string(),
-          tokenId: Joi.string(),
-          owner: Joi.string(),
-        })
-      ),
+      contract: Joi.string().optional(),
+      kind: Joi.string().optional(),
+      currency: Joi.string().default(null).optional(),
+      makers: Joi.array().items(Joi.string()).default([]).optional(),
+      nfts: Joi.array()
+        .items(
+          Joi.object({
+            collection: Joi.string(),
+            tokenId: Joi.string(),
+            owner: Joi.string(),
+          })
+        )
+        .default([])
+        .optional(),
       orders: Joi.array().items(
         Joi.object({
           kind: Joi.string(),
@@ -223,7 +248,9 @@ export const orderSavingOptions: RouteOptions = {
     }
 
     // Store contract
-    await saveContract(payload.contract, payload.kind);
+    if (payload.contract) {
+      await saveContract(payload.contract, payload.kind);
+    }
 
     // Save order
     for (const { kind, data, originatedAt } of orders) {

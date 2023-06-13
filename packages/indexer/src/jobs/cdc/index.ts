@@ -30,6 +30,13 @@ export async function startKafkaConsumer(): Promise<void> {
     return topicHandler.getTopics();
   }).flat();
 
+  logger.info(
+    `${getServiceName()}-kafka`,
+    `Subscribing to topics=${JSON.stringify(topicsToSubscribe)}`
+  );
+
+  // Do this one at a time, as sometimes the consumer will re-create a topic that already exists if we use the method to subscribe to all topics at once and
+  // one of the topics do not exist.
   await Promise.all(
     topicsToSubscribe.map(async (topic) => {
       await consumer.subscribe({ topic });

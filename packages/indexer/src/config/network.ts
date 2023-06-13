@@ -363,12 +363,16 @@ export const getNetworkSettings = (): NetworkSettings => {
           "0xda62f67be7194775a75be91cbf9feedcc5776d4b",
           // Sound.xyz Contracts
           "0xbe8f3dfce2fcbb6dd08a7e8109958355785c968b",
+          // ArtBlocks Engine Contracts
+          "0xe480a895de49b49e37a8f0a8bd7e07fc9844cdb9",
         ],
         multiCollectionContracts: [
           // ArtBlocks Contracts
           "0xda62f67be7194775a75be91cbf9feedcc5776d4b",
           // Sound.xyz Contracts
           "0xbe8f3dfce2fcbb6dd08a7e8109958355785c968b",
+          // ArtBlocks Engine Contracts
+          "0xe480a895de49b49e37a8f0a8bd7e07fc9844cdb9",
         ],
         supportedBidCurrencies: {
           ...defaultNetworkSettings.supportedBidCurrencies,
@@ -723,7 +727,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
-        headBlockDelay: 10,
         subDomain: "api-sepolia",
         onStartup: async () => {
           // Insert the native currency
@@ -757,7 +760,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
-        headBlockDelay: 10,
         subDomain: "api-mumbai",
         elasticsearch: {
           indexes: {
@@ -798,7 +800,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
-        headBlockDelay: 10,
         subDomain: "api-base-goerli",
         elasticsearch: {
           indexes: {
@@ -839,7 +840,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
-        headBlockDelay: 10,
         subDomain: "api-arbitrum-nova",
         elasticsearch: {
           indexes: {
@@ -880,7 +880,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
-        headBlockDelay: 10,
         subDomain: "api-zora-testnet",
         onStartup: async () => {
           // Insert the native currency

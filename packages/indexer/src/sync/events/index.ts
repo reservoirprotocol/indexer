@@ -15,11 +15,11 @@ import * as syncEventsUtils from "@/events-sync/utils";
 import * as blocksModel from "@/models/blocks";
 import getUuidByString from "uuid-by-string";
 
-import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
 import * as blockCheck from "@/jobs/events-sync/block-check-queue";
 import * as eventsSyncBackfillProcess from "@/jobs/events-sync/process/backfill";
 import * as eventsSyncRealtimeProcess from "@/jobs/events-sync/process/realtime";
 import { BlocksToCheck } from "@/jobs/events-sync/block-check-queue";
+import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
 
 export const extractEventsBatches = async (
   enhancedEvents: EnhancedEvent[],
@@ -133,6 +133,10 @@ export const extractEventsBatches = async (
           {
             kind: "sudoswap",
             data: kindToEvents.get("sudoswap") ?? [],
+          },
+          {
+            kind: "sudoswap-v2",
+            data: kindToEvents.get("sudoswap-v2") ?? [],
           },
           {
             kind: "wyvern",
@@ -441,7 +445,7 @@ export const syncEvents = async (
 
       // Log blocks for which no logs were fetched from the RPC provider
       if (!_.isEmpty(blockNumbersArray)) {
-        logger.warn(
+        logger.debug(
           "sync-events",
           `[${fromBlock}, ${toBlock}] No logs fetched for ${JSON.stringify(blockNumbersArray)}`
         );
@@ -452,27 +456,29 @@ export const syncEvents = async (
 
     const endTimeProcessingEvents = now();
 
-    logger.info(
-      "sync-events-timing-2",
-      JSON.stringify({
-        message: `Events realtime syncing block range [${fromBlock}, ${toBlock}]`,
-        blocks: {
-          count: blocksSet.size,
-          time: endTimeFetchingBlocks - startTimeFetchingBlocks,
-        },
-        logs: {
-          count: logs.length,
-          time: endTimeFetchingLogs - startTimeFetchingLogs,
-        },
-        events: {
-          count: enhancedEvents.length,
-          time: endTimeProcessingEvents - startTimeProcessingEvents,
-        },
-        queue: {
-          time: endTimeAddToProcessQueue - startTimeAddToProcessQueue,
-        },
-      })
-    );
+    if (!backfill) {
+      logger.info(
+        "sync-events-timing-2",
+        JSON.stringify({
+          message: `Events realtime syncing block range [${fromBlock}, ${toBlock}]`,
+          blocks: {
+            count: blocksSet.size,
+            time: endTimeFetchingBlocks - startTimeFetchingBlocks,
+          },
+          logs: {
+            count: logs.length,
+            time: endTimeFetchingLogs - startTimeFetchingLogs,
+          },
+          events: {
+            count: enhancedEvents.length,
+            time: endTimeProcessingEvents - startTimeProcessingEvents,
+          },
+          queue: {
+            time: endTimeAddToProcessQueue - startTimeAddToProcessQueue,
+          },
+        })
+      );
+    }
   });
 };
 
@@ -485,6 +491,6 @@ export const unsyncEvents = async (block: number, blockHash: string) => {
     es.ftTransfers.removeEvents(block, blockHash),
     es.nftApprovals.removeEvents(block, blockHash),
     es.nftTransfers.removeEvents(block, blockHash),
-    removeUnsyncedEventsActivities.addToQueue(blockHash),
+    removeUnsyncedEventsActivitiesJob.addToQueue({ blockHash }),
   ]);
 };

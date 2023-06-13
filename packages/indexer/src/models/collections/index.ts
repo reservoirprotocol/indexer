@@ -15,15 +15,19 @@ import { updateBlurRoyalties } from "@/utils/blur";
 import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import MetadataApi from "@/utils/metadata-api";
+import * as royalties from "@/utils/royalties";
 import {
   getOpenCollectionMints,
   simulateAndUpdateCollectionMint,
 } from "@/utils/mints/collection-mints";
-import * as royalties from "@/utils/royalties";
 
-import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
-import * as collectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
+import * as refreshActivitiesCollectionMetadata from "@/jobs/elasticsearch/refresh-activities-collection-metadata";
+
+import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
+import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
+
+import { config } from "@/config/index";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -93,6 +97,13 @@ export class Collections {
   }
 
   public static async updateCollectionCache(contract: string, tokenId: string, community = "") {
+    if (isNaN(Number(tokenId))) {
+      logger.error(
+        "updateCollectionCache",
+        `Invalid tokenId. contract=${contract}, tokenId=${tokenId}, community=${community}`
+      );
+    }
+
     const collectionExists = await idb.oneOrNone(
       `
         SELECT
@@ -110,7 +121,7 @@ export class Collections {
     );
     if (!collectionExists) {
       // If the collection doesn't exist, push a job to retrieve it
-      await collectionMetadata.addToQueue([
+      await fetchCollectionMetadataJob.addToQueue([
         {
           contract,
           tokenId,
@@ -139,7 +150,7 @@ export class Collections {
 
     const tokenCount = await Tokens.countTokensInCollection(collection.id);
 
-    await collectionRecalcOwnerCount.addToQueue([
+    await recalcOwnerCountQueueJob.addToQueue([
       {
         context: "updateCollectionCache",
         kind: "collectionId",
@@ -155,6 +166,15 @@ export class Collections {
         token_count = $/tokenCount/,
         updated_at = now()
       WHERE id = $/id/
+      RETURNING (
+                  SELECT
+                  json_build_object(
+                    'name', collections.name,
+                    'metadata', collections.metadata
+                  )
+                  FROM collections
+                  WHERE collections.id = $/id/
+                ) AS old_metadata
     `;
 
     const values = {
@@ -165,7 +185,15 @@ export class Collections {
       tokenCount,
     };
 
-    await idb.none(query, values);
+    const result = await idb.oneOrNone(query, values);
+
+    if (
+      config.doElasticsearchWork &&
+      (result?.old_metadata.name != collection.name ||
+        result?.old_metadata.metadata.imageUrl != (collection.metadata as any)?.imageUrl)
+    ) {
+      await refreshActivitiesCollectionMetadata.addToQueue(collection.id);
+    }
 
     // Refresh all royalty specs and the default royalties
     await royalties.refreshAllRoyaltySpecs(

@@ -13,11 +13,11 @@ import { TriggerKind } from "@/jobs/order-updates/types";
 
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
 import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
-import * as handleNewBuyOrder from "@/jobs/update-attribute/handle-new-buy-order";
 import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "../websocket-events/websocket-event-router";
+import { handleNewBuyOrderJob } from "@/jobs/update-attribute/handle-new-buy-order-job";
 
 const QUEUE_NAME = "order-updates-buy-order";
 
@@ -140,7 +140,7 @@ if (config.doBackgroundWork) {
 
             for (const result of buyOrderResult) {
               if (!_.isNull(result.attributeId)) {
-                await handleNewBuyOrder.addToQueue(result);
+                await handleNewBuyOrderJob.addToQueue(result);
               }
 
               if (!_.isNull(result.collectionId) && !tokenSetId.startsWith("token")) {
@@ -196,6 +196,7 @@ if (config.doBackgroundWork) {
                         WHEN $/fillabilityStatus/ = 'expired' THEN 'expired'
                         WHEN $/fillabilityStatus/ = 'no-balance' THEN 'inactive'
                         WHEN $/approvalStatus/ = 'no-approval' THEN 'inactive'
+                        WHEN $/approvalStatus/ = 'disabled' THEN 'inactive'
                         ELSE 'active'
                       END
                     )::order_event_status_t,

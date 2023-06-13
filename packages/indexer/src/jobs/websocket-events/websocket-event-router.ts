@@ -2,12 +2,11 @@ import * as saleWebsocketEventsTriggerQueue from "@/jobs/websocket-events/sale-w
 
 import * as bidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/bid-websocket-events-trigger-queue";
 
-import * as newTopBidTriggerQueue from "@/jobs/websocket-events/new-top-bid-trigger-queue";
 import * as approvalWebsocketEventsTriggerQueue from "@/jobs/websocket-events/approval-websocket-events-trigger-queue";
 import * as transferWebsocketEventsTriggerQueue from "@/jobs/websocket-events/transfer-websocket-events-trigger-queue";
-
+import * as tokenWebsocketEventsTriggerQueue from "@/jobs/websocket-events/token-websocket-events-trigger-queue";
+import * as topBidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/top-bid-websocket-events-trigger-queue";
 import * as askWebsocketEventsTriggerQueue from "@/jobs/websocket-events/ask-websocket-events-trigger-queue";
-import { NewTopBidWebsocketEventInfo } from "./events/new-top-bid-websocket-event";
 
 export const WebsocketEventRouter = async ({
   eventKind,
@@ -53,9 +52,16 @@ export const WebsocketEventRouter = async ({
       ]);
       break;
     case WebsocketEventKind.NewTopBid:
-      await newTopBidTriggerQueue.addToQueue([
+      await topBidWebsocketEventsTriggerQueue.addToQueue([
         {
-          data: eventInfo as NewTopBidWebsocketEventInfo,
+          data: eventInfo as topBidWebsocketEventsTriggerQueue.TopBidWebsocketEventInfo,
+        },
+      ]);
+      break;
+    case WebsocketEventKind.TokenEvent:
+      await tokenWebsocketEventsTriggerQueue.addToQueue([
+        {
+          data: eventInfo as tokenWebsocketEventsTriggerQueue.TokenWebsocketEventInfo,
         },
       ]);
       break;
@@ -70,12 +76,14 @@ export enum WebsocketEventKind {
   BalanceEvent = "balance-event",
   TransferEvent = "transfer-event",
   SaleEvent = "sale-event",
+  TokenEvent = "token-event",
 }
 
 export type EventInfo =
-  | NewTopBidWebsocketEventInfo
+  | topBidWebsocketEventsTriggerQueue.TopBidWebsocketEventInfo
   | askWebsocketEventsTriggerQueue.AskWebsocketEventInfo
   | bidWebsocketEventsTriggerQueue.BidWebsocketEventInfo
   | approvalWebsocketEventsTriggerQueue.ApprovalWebsocketEventInfo
   | transferWebsocketEventsTriggerQueue.TransferWebsocketEventInfo
-  | saleWebsocketEventsTriggerQueue.SaleWebsocketEventInfo;
+  | saleWebsocketEventsTriggerQueue.SaleWebsocketEventInfo
+  | tokenWebsocketEventsTriggerQueue.TokenWebsocketEventInfo;

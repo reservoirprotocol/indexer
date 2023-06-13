@@ -11,12 +11,12 @@ import { regex } from "@/common/utils";
 import { config } from "@/config/index";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as orderFixes from "@/jobs/order-fixes/fixes";
-import * as resyncAttributeCache from "@/jobs/update-attribute/resync-attribute-cache";
-import * as tokenRefreshCacheQueue from "@/jobs/token-updates/token-refresh-cache";
 import { ApiKeyManager } from "@/models/api-keys";
 import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
+import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
+import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
 
 const version = "v1";
 
@@ -137,10 +137,10 @@ export const postTokensRefreshV1Options: RouteOptions = {
       await orderFixes.addToQueue([{ by: "token", data: { token: payload.token } }]);
 
       // Revalidate the token attribute cache
-      await resyncAttributeCache.addToQueue(contract, tokenId, 0, overrideCoolDown);
+      await resyncAttributeCacheJob.addToQueue({ contract, tokenId }, 0, overrideCoolDown);
 
       // Refresh the token floor sell and top bid
-      await tokenRefreshCacheQueue.addToQueue(contract, tokenId, true);
+      await tokenRefreshCacheJob.addToQueue({ contract, tokenId, checkTopBid: true });
 
       logger.info(
         `post-tokens-refresh-${version}-handler`,
@@ -149,7 +149,7 @@ export const postTokensRefreshV1Options: RouteOptions = {
 
       return { message: "Request accepted" };
     } catch (error) {
-      logger.error(`post-tokens-refresh-${version}-handler`, `Handler failure: ${error}`);
+      logger.warn(`post-tokens-refresh-${version}-handler`, `Handler failure: ${error}`);
       throw error;
     }
   },

@@ -101,7 +101,10 @@ if (config.doBackgroundWork) {
               await collectionUpdatesMetadata.addToQueue(
                 collectionResult!.contract,
                 tokenId,
-                collectionResult!.community
+                collectionResult!.community,
+                0,
+                false,
+                QUEUE_NAME
               );
             } catch {
               // Skip on any errors

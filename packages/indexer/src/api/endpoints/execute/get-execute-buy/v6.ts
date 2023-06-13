@@ -836,6 +836,11 @@ export const getExecuteBuyV6Options: RouteOptions = {
       const relayer = payload.relayer;
       const txSender = relayer ?? taker;
 
+      // Cannot skip balance checking when filling Blur orders
+      if (payload.skipBalanceCheck && path.some((p) => p.source === "blur.io")) {
+        payload.skipBalanceCheck = false;
+      }
+
       for (const tx of txs) {
         const subPath = path.filter((p) => tx.orderIds.includes(p.orderId));
         const listings = listingDetails.filter((d) => tx.orderIds.includes(d.orderId));
@@ -933,7 +938,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
           user: payload.taker,
           orderId: item.orderId,
           quantity: item.quantity,
-          calldata: txs.find((tx) => tx.orderIds.includes(item.orderId))?.txData.data,
+          ...txs.find((tx) => tx.orderIds.includes(item.orderId))?.txData,
         });
       }
       await executionsBuffer.flush();

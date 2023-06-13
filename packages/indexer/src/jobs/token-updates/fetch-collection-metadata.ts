@@ -14,11 +14,11 @@ import MetadataApi from "@/utils/metadata-api";
 import * as royalties from "@/utils/royalties";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 
-import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
-import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
+import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
+import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
 
 const QUEUE_NAME = "token-updates-fetch-collection-metadata-queue";
 
@@ -45,14 +45,10 @@ if (config.doBackgroundWork) {
       const { contract, tokenId, mintedTimestamp, newCollection, oldCollectionId } =
         job.data as FetchCollectionMetadataInfo;
 
-      if (contract === "0x82c7a8f707110f5fbb16184a5933e9f78a34c6ab") {
-        logger.info(
-          QUEUE_NAME,
-          JSON.stringify({
-            topic: "debug-emblem-vault",
-            message: "Start",
-            jobData: job.data,
-          })
+      if (isNaN(Number(tokenId))) {
+        logger.error(
+          "updateCollectionCache",
+          `Invalid tokenId. jobData=${JSON.stringify(job.data)}`
         );
       }
 
@@ -133,32 +129,18 @@ if (config.doBackgroundWork) {
           },
         });
 
-        if (contract === "0x82c7a8f707110f5fbb16184a5933e9f78a34c6ab") {
-          logger.info(
-            QUEUE_NAME,
-            JSON.stringify({
-              topic: "debug-emblem-vault",
-              message: "After update tokens",
-              jobData: job.data,
-              collection,
-              tokenIdRange,
-              tokenFilter,
-            })
-          );
-        }
-
         // Write the collection to the database
         await idb.none(pgp.helpers.concat(queries));
 
         // Schedule a job to re-count tokens in the collection
-        await collectionRecalcTokenCount.addToQueue(collection.id);
-        await collectionRecalcOwnerCount.addToQueue([
+        await recalcTokenCountQueueJob.addToQueue({ collection: collection.id });
+        await recalcOwnerCountQueueJob.addToQueue([
           { context: QUEUE_NAME, kind: "collectionId", data: { collectionId: collection.id } },
         ]);
 
         // If token has moved collections, update the old collection's token count
         if (oldCollectionId) {
-          await collectionRecalcTokenCount.addToQueue(oldCollectionId, true);
+          await recalcTokenCountQueueJob.addToQueue({ collection: oldCollectionId, force: true });
         }
 
         // If this is a new collection, recalculate floor price

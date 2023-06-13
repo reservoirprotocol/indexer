@@ -144,6 +144,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           amount: "1",
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         break;
@@ -233,6 +235,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           amount: erc1155FillAmount,
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         break;

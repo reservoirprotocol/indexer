@@ -174,7 +174,14 @@ async function processCollection(collection: {
   const limit = Number(await redis.get(`${QUEUE_NAME}-tokens-limit`)) || 1000;
   if (!collection.slug) {
     const tokenId = await Tokens.getSingleToken(collection.id);
-    await collectionUpdatesMetadata.addToQueue(collection.contract, tokenId, "opensea", 0);
+    await collectionUpdatesMetadata.addToQueue(
+      collection.contract,
+      tokenId,
+      "opensea",
+      0,
+      false,
+      QUEUE_NAME
+    );
     await processCollectionTokens(collection, limit, indexingMethod);
     return;
   }

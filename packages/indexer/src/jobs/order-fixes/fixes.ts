@@ -357,6 +357,49 @@ if (config.doBackgroundWork) {
                   break;
                 }
 
+                case "sudoswap-v2": {
+                  try {
+                    const order = new Sdk.SudoswapV2.Order(config.chainId, result.raw_data);
+                    const cacheKey = `order-fixes:sudoswap-v2:${order.params.pair}`;
+                    if (!redis.get(cacheKey)) {
+                      await redis.set(cacheKey, "locked", "EX", 3600);
+                      await orderbook.addToQueue([
+                        {
+                          kind: "sudoswap-v2",
+                          info: {
+                            orderParams: {
+                              pool: order.params.pair,
+                              txHash: HashZero,
+                              txTimestamp: now(),
+                              txBlock: result.block_number,
+                              logIndex: result.log_index,
+                              forceRecheck: true,
+                            },
+                            metadata: {},
+                          },
+                        },
+                      ]);
+                    }
+
+                    // TODO: Add support for bid validation
+                    if (result.side === "sell") {
+                      const [, contract, tokenId] = result.token_set_id.split(":");
+                      const balance = await commonHelpers.getNftBalance(
+                        contract,
+                        tokenId,
+                        order.params.pair
+                      );
+                      if (balance.lte(0)) {
+                        fillabilityStatus = "no-balance";
+                      }
+                    }
+                  } catch {
+                    return;
+                  }
+
+                  break;
+                }
+
                 case "collectionxyz": {
                   try {
                     if (result.side === "sell") {

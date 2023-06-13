@@ -166,6 +166,18 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/pause-rabbit-queue",
+    options: adminEndpoints.postPauseRabbitQueueOptions,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/admin/resume-rabbit-queue",
+    options: adminEndpoints.postResumeRabbitQueueOptions,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/api-keys/metrics",
     options: adminEndpoints.postApiKeyMetrics,
   });
@@ -798,8 +810,8 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
-    path: "/execute/mint/v1",
-    options: executeEndpoints.postExecuteMintV1Options,
+    path: "/execute/results/v1",
+    options: executeEndpoints.postExecuteResultsV1,
   });
 
   // Health

@@ -29,9 +29,6 @@ export const config = {
       "opensea"
   ),
   metadataApiBaseUrl: String(process.env.METADATA_API_BASE_URL),
-  metadataApiBaseUrlAlt: String(
-    process.env.METADATA_API_BASE_URL_ALT || process.env.METADATA_API_BASE_URL
-  ),
 
   disableRealtimeMetadataRefresh: Boolean(Number(process.env.DISABLE_REALTIME_METADATA_REFRESH)),
 
@@ -82,13 +79,6 @@ export const config = {
     ? String(process.env.DATA_EXPORT_S3_ARCHIVE_BUCKET_NAME)
     : undefined,
 
-  openseaWebsocketEventsAwsFirehoseDeliveryStreamName: String(
-    process.env.OPENSEA_WEBSOCKET_EVENTS_AWS_FIREHOSE_DELIVERY_STREAM_NAME
-  ),
-  openseaWebsocketEventsAwsFirehoseDeliveryStreamRegion: String(
-    process.env.OPENSEA_WEBSOCKET_EVENTS_AWS_FIREHOSE_DELIVERY_STREAM_REGION
-  ),
-
   // For forwarding orders to OpenSea
   forwardOpenseaApiKey: String(process.env.FORWARD_OPENSEA_API_KEY),
   forwardReservoirApiKeys: process.env.FORWARD_RESERVOIR_API_KEYS
@@ -112,7 +102,6 @@ export const config = {
   blurWsUrl: process.env.BLUR_WS_URL,
 
   orderFetcherBaseUrl: String(process.env.ORDER_FETCHER_BASE_URL),
-  railwayStaticUrl: String(process.env.RAILWAY_STATIC_URL || ""),
 
   cipherSecret: String(process.env.CIPHER_SECRET),
 
@@ -141,4 +130,8 @@ export const config = {
   // realtime v2
   enableRealtimeProcessing: Boolean(process.env.ENABLE_REALTIME_PROCESSING),
   enableRealtimeV2BlockQueue: Boolean(process.env.ENABLE_REALTIME_V2_BLOCK_QUEUE),
+
+  // RabbitMq
+  rabbitMqUrl: `amqp://${String(process.env.RABBIT_URL)}:5672`,
+  rabbitHttpUrl: `http://${String(process.env.RABBIT_URL)}:15672`,
 };

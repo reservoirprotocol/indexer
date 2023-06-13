@@ -102,32 +102,48 @@ const MAPPINGS: MappingTypeMapping = {
   },
 };
 
-export const save = async (activities: ActivityDocument[]): Promise<void> => {
+export const save = async (activities: ActivityDocument[], upsert = true): Promise<void> => {
   try {
     const response = await elasticsearch.bulk({
       body: activities.flatMap((activity) => [
-        { index: { _index: INDEX_NAME, _id: activity.id } },
+        { [upsert ? "index" : "create"]: { _index: INDEX_NAME, _id: activity.id } },
         activity,
       ]),
     });
 
     if (response.errors) {
-      logger.error(
-        "elasticsearch-activities",
-        JSON.stringify({
-          topic: "save-errors",
-          data: {
-            activities: JSON.stringify(activities),
-          },
-          response,
-        })
-      );
+      if (upsert) {
+        logger.error(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "save-errors",
+            upsert,
+            data: {
+              activities: JSON.stringify(activities),
+            },
+            response,
+          })
+        );
+      } else {
+        logger.debug(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "save-conflicts",
+            upsert,
+            data: {
+              activities: JSON.stringify(activities),
+            },
+            response,
+          })
+        );
+      }
     }
   } catch (error) {
     logger.error(
       "elasticsearch-activities",
       JSON.stringify({
         topic: "save",
+        upsert,
         data: {
           activities: JSON.stringify(activities),
         },
@@ -654,6 +670,278 @@ export const updateActivitiesCollection = async (
 
     throw error;
   }
+};
+
+export const updateActivitiesTokenMetadata = async (
+  contract: string,
+  tokenId: string,
+  tokenData: { name?: string; image?: string; media?: string }
+): Promise<boolean> => {
+  let keepGoing = false;
+
+  tokenData = _.pickBy(tokenData, (value) => value !== null);
+
+  const should: any[] = [];
+
+  if (tokenData.name) {
+    should.push({
+      bool: {
+        must_not: [
+          {
+            term: {
+              "token.name": tokenData.name,
+            },
+          },
+        ],
+      },
+    });
+  }
+
+  if (tokenData.image) {
+    should.push({
+      bool: {
+        must_not: [
+          {
+            term: {
+              "token.image": tokenData.image,
+            },
+          },
+        ],
+      },
+    });
+  }
+
+  if (tokenData.media) {
+    should.push({
+      bool: {
+        must_not: [
+          {
+            term: {
+              "token.media": tokenData.media,
+            },
+          },
+        ],
+      },
+    });
+  }
+
+  const query = {
+    bool: {
+      must: [
+        {
+          term: {
+            contract: contract.toLowerCase(),
+          },
+        },
+        {
+          term: {
+            "token.id": tokenId,
+          },
+        },
+      ],
+      filter: {
+        bool: {
+          should,
+        },
+      },
+    },
+  };
+
+  try {
+    const response = await elasticsearch.updateByQuery({
+      index: INDEX_NAME,
+      conflicts: "proceed",
+      max_docs: 1000,
+      // This is needed due to issue with elasticsearch DSL.
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      query,
+      script: {
+        source:
+          "ctx._source.token.name = params.token_name; ctx._source.token.image = params.token_image; ctx._source.token.media = params.token_media;",
+        params: {
+          token_name: tokenData.name,
+          token_image: tokenData.image,
+          token_media: tokenData.media,
+        },
+      },
+    });
+
+    if (response?.failures?.length) {
+      logger.error(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "updateActivitiesTokenMetadata",
+          data: {
+            contract,
+            tokenId,
+            tokenData,
+          },
+          query: JSON.stringify(query),
+          response,
+        })
+      );
+    } else {
+      keepGoing = Boolean(
+        (response?.version_conflicts ?? 0) > 0 || (response?.updated ?? 0) === 1000
+      );
+
+      logger.info(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "updateActivitiesTokenMetadata",
+          data: {
+            contract,
+            tokenId,
+            tokenData,
+          },
+          query: JSON.stringify(query),
+          response,
+          keepGoing,
+        })
+      );
+    }
+  } catch (error) {
+    logger.error(
+      "elasticsearch-activities",
+      JSON.stringify({
+        topic: "updateActivitiesTokenMetadata",
+        data: {
+          contract,
+          tokenId,
+          tokenData,
+        },
+        query: JSON.stringify(query),
+        error,
+      })
+    );
+
+    throw error;
+  }
+
+  return keepGoing;
+};
+
+export const updateActivitiesCollectionMetadata = async (
+  collectionId: string,
+  collectionData: { name: string | null; image?: string | null }
+): Promise<boolean> => {
+  let keepGoing = false;
+
+  const should: any[] = [
+    {
+      bool: {
+        must_not: [
+          {
+            term: {
+              "collection.name": collectionData.name,
+            },
+          },
+        ],
+      },
+    },
+  ];
+
+  if (collectionData.image) {
+    should.push({
+      bool: {
+        must_not: [
+          {
+            term: {
+              "collection.image": collectionData.image,
+            },
+          },
+        ],
+      },
+    });
+  }
+
+  const query = {
+    bool: {
+      must: [
+        {
+          term: {
+            "collection.id": collectionId.toLowerCase(),
+          },
+        },
+      ],
+      filter: {
+        bool: {
+          should,
+        },
+      },
+    },
+  };
+
+  try {
+    const response = await elasticsearch.updateByQuery({
+      index: INDEX_NAME,
+      conflicts: "proceed",
+      max_docs: 1000,
+      // This is needed due to issue with elasticsearch DSL.
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      query,
+      script: {
+        source:
+          "ctx._source.collection.name = params.collection_name; ctx._source.collection.image = params.collection_image;",
+        params: {
+          collection_name: collectionData.name,
+          collection_image: collectionData.image,
+        },
+      },
+    });
+
+    if (response?.failures?.length) {
+      logger.error(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "updateActivitiesCollectionMetadata",
+          data: {
+            collectionId,
+            collectionData,
+          },
+          query: JSON.stringify(query),
+          response,
+        })
+      );
+    } else {
+      keepGoing = Boolean(
+        (response?.version_conflicts ?? 0) > 0 || (response?.updated ?? 0) === 1000
+      );
+
+      logger.info(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "updateActivitiesCollectionMetadata",
+          data: {
+            collectionId,
+            collectionData,
+          },
+          query: JSON.stringify(query),
+          response,
+          keepGoing,
+        })
+      );
+    }
+  } catch (error) {
+    logger.error(
+      "elasticsearch-activities",
+      JSON.stringify({
+        topic: "updateActivitiesCollectionMetadata",
+        data: {
+          collectionId,
+          collectionData,
+        },
+        query: JSON.stringify(query),
+        error,
+      })
+    );
+
+    throw error;
+  }
+
+  return keepGoing;
 };
 
 export const deleteActivitiesByBlockHash = async (blockHash: string): Promise<void> => {
