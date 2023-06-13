@@ -13,7 +13,10 @@ export type Execution = {
   user: string;
   orderId: string;
   quantity: number;
-  calldata?: string;
+  from?: string;
+  to?: string;
+  data?: string;
+  value?: string;
 };
 
 export class ExecutionsBuffer {
@@ -31,7 +34,7 @@ export class ExecutionsBuffer {
     request: Request,
     partialExecution: Pick<
       Execution,
-      "side" | "action" | "user" | "orderId" | "quantity" | "calldata"
+      "side" | "action" | "user" | "orderId" | "quantity" | "from" | "to" | "data" | "value"
     >
   ) {
     // Skip injected requests
@@ -58,7 +61,10 @@ export class ExecutionsBuffer {
         "user",
         "order_id",
         "quantity",
+        "from",
+        "to",
         "calldata",
+        "value",
       ],
       {
         table: "executions",
@@ -76,12 +82,17 @@ export class ExecutionsBuffer {
         user: toBuffer(execution.user),
         order_id: execution.orderId,
         quantity: execution.quantity,
-        calldata: execution.calldata ? toBuffer(execution.calldata) : null,
+        from: execution.from ? toBuffer(execution.from) : null,
+        to: execution.to ? toBuffer(execution.to) : null,
+        calldata: execution.data ? toBuffer(execution.data) : null,
+        value: execution.value ?? null,
       });
     }
 
     if (values.length) {
       await idb.none(pgp.helpers.insert(values, columns));
     }
+
+    return requestId;
   }
 }
