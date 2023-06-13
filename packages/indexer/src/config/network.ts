@@ -135,6 +135,8 @@ type NetworkSettings = {
     numberOfShards?: number;
     indexes?: { [index: string]: ElasticsearchIndexSettings };
   };
+
+  copyrightInfringementContracts: string[];
 };
 
 type ElasticsearchIndexSettings = {
@@ -167,6 +169,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     elasticsearch: {
       numberOfShards: 2,
     },
+    copyrightInfringementContracts: [],
   };
 
   switch (config.chainId) {
@@ -324,6 +327,13 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           },
         },
+        copyrightInfringementContracts: [
+          "0x783a32eb03a1175160d210cc99c79e6370a48317",
+          "0xc80ee060c83895d6debb5eb37bf60d4d2f7eb271",
+          "0x45dcf807722e43ba152d8033252398001f438817",
+          "0x7219f3a405844a4173ac822ee18994823bec2b4f",
+          "0x182d9d5680c2c0f50b6d40169a3a27cb94b1f2fe",
+        ],
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
@@ -387,6 +397,7 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           },
         },
+        copyrightInfringementContracts: ["0x8307112717070e5cd5fad5a393a97f236c3e165c"],
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
@@ -552,6 +563,10 @@ export const getNetworkSettings = (): NetworkSettings => {
           // CONE
           "0xba777ae3a3c91fcd83ef85bfe65410592bdd0f7c": true,
         },
+        copyrightInfringementContracts: [
+          "0xcf77e25cf1bfc57634bb7b95887b7120935a0d7f",
+          "0x27bde07c5d651856c483583899ed6823da3648b7",
+        ],
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([

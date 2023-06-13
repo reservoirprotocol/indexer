@@ -29,13 +29,6 @@ if (config.doBackgroundWork) {
       if (forceRefresh || (await acquireLock(`${QUEUE_NAME}:${contract}`, 5 * 60))) {
         if (await acquireLock(QUEUE_NAME, 1)) {
           try {
-            if (isNaN(Number(tokenId)) || tokenId == null) {
-              logger.error(
-                QUEUE_NAME,
-                `Invalid tokenId. contract=${contract}, tokenId=${tokenId}, community=${community}`
-              );
-            }
-
             await Collections.updateCollectionCache(contract, tokenId, community);
           } catch (error) {
             logger.error(

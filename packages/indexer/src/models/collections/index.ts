@@ -28,6 +28,7 @@ import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner
 import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
 
 import { config } from "@/config/index";
+import { getNetworkSettings } from "@/config/network";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -97,13 +98,6 @@ export class Collections {
   }
 
   public static async updateCollectionCache(contract: string, tokenId: string, community = "") {
-    if (isNaN(Number(tokenId))) {
-      logger.error(
-        "updateCollectionCache",
-        `Invalid tokenId. contract=${contract}, tokenId=${tokenId}, community=${community}`
-      );
-    }
-
     const collectionExists = await idb.oneOrNone(
       `
         SELECT
@@ -119,6 +113,7 @@ export class Collections {
         tokenId,
       }
     );
+
     if (!collectionExists) {
       // If the collection doesn't exist, push a job to retrieve it
       await fetchCollectionMetadataJob.addToQueue([
@@ -157,6 +152,11 @@ export class Collections {
         data: { collectionId: collection.id },
       },
     ]);
+
+    if (getNetworkSettings().copyrightInfringementContracts.includes(contract)) {
+      collection.name = collection.id;
+      collection.metadata = null;
+    }
 
     const query = `
       UPDATE collections SET
