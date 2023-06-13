@@ -222,6 +222,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
               WHEN orders.fillability_status = 'expired' THEN 'expired'
               WHEN orders.fillability_status = 'no-balance' THEN 'inactive'
               WHEN orders.approval_status = 'no-approval' THEN 'inactive'
+              WHEN orders.approval_status = 'disabled' THEN 'inactive'
               ELSE 'active'
             END
           ) AS status,

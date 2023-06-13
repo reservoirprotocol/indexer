@@ -16,7 +16,7 @@ export const handleEvent = async (payload: OrderValidationEventPayload) => {
     }
   );
 
-  if (currentStatus && currentStatus.fillability_status !== "cancelled") {
+  if (currentStatus && currentStatus.fillability_status === "cancelled") {
     await orderRevalidations.addToQueue([{ id: payload.order_hash, status: "active" }]);
   }
 
