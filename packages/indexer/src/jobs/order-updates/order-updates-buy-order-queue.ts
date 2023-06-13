@@ -196,6 +196,7 @@ if (config.doBackgroundWork) {
                         WHEN $/fillabilityStatus/ = 'expired' THEN 'expired'
                         WHEN $/fillabilityStatus/ = 'no-balance' THEN 'inactive'
                         WHEN $/approvalStatus/ = 'no-approval' THEN 'inactive'
+                        WHEN $/approvalStatus/ = 'disabled' THEN 'inactive'
                         ELSE 'active'
                       END
                     )::order_event_status_t,
