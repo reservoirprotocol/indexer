@@ -162,7 +162,9 @@ export const getOrdersAsksV4Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
-      orders: Joi.array().items(JoiOrder).description("`taker` will have wallet address if private listing."),
+      orders: Joi.array()
+        .items(JoiOrder)
+        .description("`taker` will have wallet address if private listing."),
       continuation: Joi.string().pattern(regex.base64).allow(null),
     }).label(`getOrdersAsks${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {

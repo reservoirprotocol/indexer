@@ -122,7 +122,9 @@ export const getOrdersBidsV5Options: RouteOptions = {
         .description("If true, criteria metadata is included in the response."),
       includeRawData: Joi.boolean()
         .default(false)
-        .description("If true, raw data is included in the response. Set `source=blur.io` and make this `true` to reveal individual blur bids."),
+        .description(
+          "If true, raw data is included in the response. Set `source=blur.io` and make this `true` to reveal individual blur bids."
+        ),
       includeDepth: Joi.boolean()
         .default(false)
         .description("If true, the depth of each order is included in the response."),
