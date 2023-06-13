@@ -96,3 +96,34 @@ export class ExecutionsBuffer {
     return requestId;
   }
 }
+
+export type ExecutionResult = {
+  requestId: string;
+  stepId: string;
+  apiKey?: string;
+  txHash?: string;
+  errorMessage?: string;
+};
+
+export const saveExecutionResult = async (executionResult: ExecutionResult) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const values: any[] = [];
+  const columns = new pgp.helpers.ColumnSet(
+    ["request_id", "step_id", "api_key", "tx_hash", "error_message"],
+    {
+      table: "execution_results",
+    }
+  );
+
+  values.push({
+    request_id: executionResult.requestId,
+    step_id: executionResult.stepId,
+    api_key: executionResult.apiKey ?? null,
+    tx_hash: executionResult.txHash ? toBuffer(executionResult.txHash) : null,
+    error_message: executionResult.errorMessage ?? null,
+  });
+
+  if (values.length) {
+    await idb.none(pgp.helpers.insert(values, columns));
+  }
+};

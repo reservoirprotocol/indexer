@@ -4,6 +4,7 @@ CREATE TABLE "execution_results" (
   "id" BIGSERIAL NOT NULL,
   "request_id" UUID NOT NULL,
   "step_id" TEXT NOT NULL,
+  "api_key" TEXT,
   "tx_hash" BYTEA,
   "error_message" TEXT,
   "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()
