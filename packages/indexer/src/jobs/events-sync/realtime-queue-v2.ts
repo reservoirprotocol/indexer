@@ -38,13 +38,12 @@ if (config.doBackgroundWork && config.enableRealtimeProcessing) {
         if (latestBlock) {
           const latestBlockNumber = Number(latestBlock);
           if (block > latestBlockNumber) {
-            if (block - latestBlockNumber === 1) {
-              await redis.set("latest-block-realtime", block);
-            } else {
+            await redis.set("latest-block-realtime", block);
+            if (block - latestBlockNumber > 1) {
               // if we are missing more than 1 block, we need to sync the missing blocks
               for (let i = latestBlockNumber + 1; i < block; i++) {
                 logger.info("sync-events-v2", `Found missing block: ${i}`);
-                await addToQueue({ block });
+                await addToQueue({ block: i });
               }
             }
           }

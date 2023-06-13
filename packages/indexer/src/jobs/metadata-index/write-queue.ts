@@ -24,6 +24,7 @@ import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collectio
 import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attribute-key-counts-job";
 import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-attribute-value-counts-job";
 import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
+import { getNetworkSettings } from "@/config/network";
 
 const QUEUE_NAME = "metadata-index-write-queue";
 
@@ -48,6 +49,15 @@ if (config.doBackgroundWork) {
     QUEUE_NAME,
     async (job: Job) => {
       const tokenAttributeCounter = {};
+
+      if (getNetworkSettings().copyrightInfringementContracts.includes(job.data.contract)) {
+        job.data = {
+          collection: job.data.collection,
+          contract: job.data.contract,
+          tokenId: job.data.tokenId,
+        };
+      }
+
       const {
         collection,
         contract,

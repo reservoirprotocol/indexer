@@ -86,7 +86,6 @@ export class RabbitMq {
               persistent: content.persistent,
               headers: {
                 "x-delay": delay,
-                "x-deduplication-header": content.jobId,
               },
             },
             (error) => {

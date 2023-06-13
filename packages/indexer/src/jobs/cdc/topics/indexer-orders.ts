@@ -10,7 +10,7 @@ import { config } from "@/config/index";
 export class IndexerOrdersHandler extends KafkaEventHandler {
   topicName = "indexer.public.orders";
 
-  protected async handleInsert(payload: any): Promise<void> {
+  protected async handleInsert(payload: any, offset: string): Promise<void> {
     if (!payload.after) {
       return;
     }
@@ -36,6 +36,7 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
           kind: payload.after.kind,
           orderId: payload.after.id,
           trigger: "insert",
+          offset,
         },
         eventKind,
       });
@@ -51,7 +52,7 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
     }
   }
 
-  protected async handleUpdate(payload: any): Promise<void> {
+  protected async handleUpdate(payload: any, offset: string): Promise<void> {
     if (!payload.after) {
       return;
     }
@@ -77,6 +78,7 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
           kind: payload.after.kind,
           orderId: payload.after.id,
           trigger: "update",
+          offset,
         },
         eventKind: eventKind,
       });

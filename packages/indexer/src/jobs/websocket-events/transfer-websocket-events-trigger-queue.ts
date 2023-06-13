@@ -61,6 +61,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             to: result.to,
           },
           data: result,
+          offset: data.offset,
         });
       } catch (error) {
         logger.error(
@@ -112,4 +113,5 @@ export type TransferWebsocketEventInfo = {
   created_at: string;
 
   trigger: "insert" | "update" | "delete";
+  offset: string;
 };

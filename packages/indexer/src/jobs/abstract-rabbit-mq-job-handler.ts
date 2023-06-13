@@ -155,7 +155,7 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
   public async send(job: { payload?: any; jobId?: string } = {}, delay = 0, priority = 0) {
     await RabbitMq.send(
       this.getQueue(),
-      { payload: job.payload, jobId: job.jobId ? `${this.getQueue()}:${job?.jobId}` : undefined },
+      { payload: job.payload, jobId: job.jobId },
       delay,
       priority
     );

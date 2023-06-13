@@ -172,6 +172,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             source: result.source.domain || "unknown",
           },
           data: result,
+          offset: data.offset,
         });
       } catch (error) {
         logger.error(
@@ -199,6 +200,7 @@ export type AskWebsocketEventInfo = {
   orderId: string;
   kind: string;
   trigger: "insert" | "update";
+  offset: string;
 };
 
 export const addToQueue = async (events: EventInfo[]) => {

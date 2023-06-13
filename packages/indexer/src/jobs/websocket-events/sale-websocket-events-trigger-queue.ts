@@ -149,6 +149,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             taker: fromBuffer(r.taker),
           },
           data: result,
+          offset: data.offset,
         });
       } catch (error) {
         logger.error(
@@ -190,4 +191,5 @@ export type SaleWebsocketEventInfo = {
   log_index: number;
   batch_index: number;
   trigger: "insert" | "update" | "delete";
+  offset: string;
 };
