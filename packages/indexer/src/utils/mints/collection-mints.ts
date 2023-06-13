@@ -60,7 +60,10 @@ export const getOpenCollectionMints = async (collection: string): Promise<Collec
   );
 };
 
-export const simulateCollectionMint = async (collectionMint: CollectionMint) => {
+export const simulateCollectionMint = async (
+  collectionMint: CollectionMint,
+  detectMaxMintsPerWallet = true
+) => {
   // Fetch the collection's contract and kind
   const collectionResult = await idb.oneOrNone(
     `
@@ -80,28 +83,44 @@ export const simulateCollectionMint = async (collectionMint: CollectionMint) => 
 
   const minter = "0x0000000000000000000000000000000000000001";
   const contract = fromBuffer(collectionResult.contract);
-  const quantity = 1;
   const price = collectionMint.price;
   const contractKind = collectionResult.kind;
 
-  // Generate the calldata for minting
-  const txData = generateMintTxData(collectionMint.details, minter, contract, quantity, price);
+  const simulate = async (quantity: number) => {
+    // Generate the calldata for minting
+    const txData = generateMintTxData(collectionMint.details, minter, contract, quantity, price);
 
-  // Simulate the mint
-  // TODO: Binary search for the maximum quantity per wallet
-  return simulateViaOnChainCall(
-    minter,
-    contract,
-    contractKind,
-    quantity,
-    price,
-    txData.to,
-    txData.data
-  );
+    // Simulate the mint
+    // TODO: Binary search for the maximum quantity per wallet
+    return simulateViaOnChainCall(
+      minter,
+      contract,
+      contractKind,
+      quantity,
+      price,
+      txData.to,
+      txData.data
+    );
+  };
+
+  if (detectMaxMintsPerWallet && collectionMint.maxMintsPerWallet === undefined) {
+    // Only try to detect the mintable quantity if we don't already
+    // know this information (eg.from a custom integration)
+
+    // TODO: Detect the maximum quantity mintable per wallet via binary search
+    const results = await Promise.all([simulate(1), simulate(2)]);
+    if (results[0] && !results[1]) {
+      collectionMint.maxMintsPerWallet = 1;
+    }
+
+    return results[0];
+  } else {
+    return simulate(1);
+  }
 };
 
 export const simulateAndUpdateCollectionMint = async (collectionMint: CollectionMint) => {
-  const success = await simulateCollectionMint(collectionMint);
+  const success = await simulateCollectionMint(collectionMint, false);
   await idb.none(
     `
       UPDATE collection_mints SET
