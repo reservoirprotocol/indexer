@@ -2,7 +2,7 @@ import { Request } from "@hapi/hapi";
 import { randomUUID } from "crypto";
 
 import { idb, pgp } from "@/common/db";
-import { toBuffer } from "@/common/utils";
+import { bn, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
 export type Execution = {
@@ -85,7 +85,7 @@ export class ExecutionsBuffer {
         from: execution.from ? toBuffer(execution.from) : null,
         to: execution.to ? toBuffer(execution.to) : null,
         calldata: execution.data ? toBuffer(execution.data) : null,
-        value: execution.value ?? null,
+        value: execution.value ? bn(execution.value).toString() : null,
       });
     }
 
