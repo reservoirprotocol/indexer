@@ -8,7 +8,7 @@ import {
 export class IndexerFillEventsHandler extends KafkaEventHandler {
   topicName = "indexer.public.fill_events_2";
 
-  protected async handleInsert(payload: any): Promise<void> {
+  protected async handleInsert(payload: any, offset: string): Promise<void> {
     if (!payload.after) {
       return;
     }
@@ -19,12 +19,13 @@ export class IndexerFillEventsHandler extends KafkaEventHandler {
         log_index: payload.after.log_index,
         batch_index: payload.after.batch_index,
         trigger: "insert",
+        offset,
       },
       eventKind: WebsocketEventKind.SaleEvent,
     });
   }
 
-  protected async handleUpdate(payload: any): Promise<void> {
+  protected async handleUpdate(payload: any, offset: string): Promise<void> {
     if (!payload.after) {
       return;
     }
@@ -35,6 +36,7 @@ export class IndexerFillEventsHandler extends KafkaEventHandler {
         log_index: payload.after.log_index,
         batch_index: payload.after.batch_index,
         trigger: "update",
+        offset,
       },
       eventKind: WebsocketEventKind.SaleEvent,
     });

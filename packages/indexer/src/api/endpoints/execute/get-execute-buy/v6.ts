@@ -938,7 +938,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
           user: payload.taker,
           orderId: item.orderId,
           quantity: item.quantity,
-          calldata: txs.find((tx) => tx.orderIds.includes(item.orderId))?.txData.data,
+          ...txs.find((tx) => tx.orderIds.includes(item.orderId))?.txData,
         });
       }
       await executionsBuffer.flush();

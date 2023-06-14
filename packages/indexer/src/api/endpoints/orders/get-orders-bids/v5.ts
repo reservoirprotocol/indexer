@@ -50,7 +50,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
         .lowercase()
         .pattern(regex.address)
         .description(
-          "Filter to a particular user. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
+          "Filter to a particular user. Must set `source=blur.io` to reveal maker's blur bids. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
         ),
       community: Joi.string()
         .lowercase()
@@ -114,7 +114,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
       source: Joi.string()
         .pattern(regex.domain)
         .description(
-          "Filter to a source by domain. Only active listed will be returned. Example: `opensea.io`"
+          "Filter to a source by domain. Only active listed will be returned. Must set `rawData=true` to reveal individual bids when `source=blur.io`. Example: `opensea.io`"
         ),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
       includeCriteriaMetadata: Joi.boolean()
@@ -122,7 +122,9 @@ export const getOrdersBidsV5Options: RouteOptions = {
         .description("If true, criteria metadata is included in the response."),
       includeRawData: Joi.boolean()
         .default(false)
-        .description("If true, raw data is included in the response."),
+        .description(
+          "If true, raw data is included in the response. Set `source=blur.io` and make this `true` to reveal individual blur bids."
+        ),
       includeDepth: Joi.boolean()
         .default(false)
         .description("If true, the depth of each order is included in the response."),

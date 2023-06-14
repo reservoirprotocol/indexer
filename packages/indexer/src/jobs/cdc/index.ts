@@ -67,7 +67,7 @@ export async function startKafkaConsumer(): Promise<void> {
                 event.payload.retryCount = 0;
               }
 
-              await handler.handle(event.payload);
+              await handler.handle(event.payload, message.offset);
               break;
             }
           }

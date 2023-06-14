@@ -313,6 +313,19 @@ export const getNetworkSettings = (): NetworkSettings => {
               },
             },
           ],
+          [
+            "0xd2d8d78087d0e43bc4804b6f946674b2ee406b80",
+            {
+              contract: "0xd2d8d78087d0e43bc4804b6f946674b2ee406b80",
+              name: "RugBank Token",
+              symbol: "RUG",
+              decimals: 18,
+              metadata: {
+                image:
+                  "https://raw.githubusercontent.com/dappradar/tokens/main/ethereum/0xd2d8d78087d0e43bc4804b6f946674b2ee406b80/logo.png",
+              },
+            },
+          ],
         ]),
         coingecko: {
           networkId: "ethereum",

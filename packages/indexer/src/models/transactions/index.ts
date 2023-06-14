@@ -187,9 +187,7 @@ export const saveTransactionsV2 = async (transactions: Transaction[]) => {
   );
 };
 
-export const getTransaction = async (
-  hash: string
-): Promise<Pick<Transaction, "hash" | "from" | "to" | "value" | "data" | "blockTimestamp">> => {
+export const getTransaction = async (hash: string): Promise<Transaction> => {
   const result = await idb.oneOrNone(
     `
       SELECT
@@ -197,6 +195,7 @@ export const getTransaction = async (
         transactions.to,
         transactions.value,
         transactions.data,
+        transactions.block_number,
         transactions.block_timestamp
       FROM transactions
       WHERE transactions.hash = $/hash/
@@ -210,6 +209,7 @@ export const getTransaction = async (
     to: fromBuffer(result.to),
     value: result.value,
     data: fromBuffer(result.data),
+    blockNumber: result.block_number,
     blockTimestamp: result.block_timestamp,
   };
 };

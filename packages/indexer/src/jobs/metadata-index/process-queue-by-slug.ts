@@ -9,7 +9,6 @@ import { config } from "@/config/index";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
 import MetadataApi from "@/utils/metadata-api";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import _ from "lodash";
 import {
   PendingRefreshTokensBySlug,
@@ -17,6 +16,7 @@ import {
 } from "@/models/pending-refresh-tokens-by-slug";
 import { Tokens } from "@/models/tokens";
 import { Collections } from "@/models/collections";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 
 const QUEUE_NAME = "metadata-index-process-queue-by-slug";
 
@@ -59,12 +59,14 @@ async function addToTokenRefreshQueueAndUpdateCollectionMetadata(
         ],
         true
       ),
-      collectionUpdatesMetadata.addToQueue(
-        refreshTokenBySlug.contract,
-        tokenId,
-        collection.community,
+      collectionMetadataQueueJob.addToQueue(
+        {
+          contract: refreshTokenBySlug.contract,
+          tokenId,
+          community: collection.community,
+          forceRefresh: false,
+        },
         0,
-        false,
         QUEUE_NAME
       ),
     ]);

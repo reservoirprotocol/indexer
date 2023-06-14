@@ -254,6 +254,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           },
           // changed: [],
           data: result,
+          offset: data.offset,
         });
       } catch (error) {
         logger.error(
@@ -342,4 +343,5 @@ export type TokenWebsocketEventInfo = {
   before: TokenInfo;
   after: TokenInfo;
   trigger: "insert" | "update" | "delete";
+  offset: string;
 };

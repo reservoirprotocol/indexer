@@ -137,7 +137,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             undefined
           ),
           validFrom: Number(rawResult.valid_from),
-          validUntil: Number(rawResult.valid_until),
+          validUntil: Number(rawResult.valid_until) || 0,
           quantityFilled: Number(rawResult.quantity_filled),
           quantityRemaining: Number(rawResult.quantity_remaining),
           criteria: rawResult.criteria,
@@ -172,6 +172,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             source: result.source.domain || "unknown",
           },
           data: result,
+          offset: data.offset,
         });
       } catch (error) {
         logger.error(
@@ -199,6 +200,7 @@ export type AskWebsocketEventInfo = {
   orderId: string;
   kind: string;
   trigger: "insert" | "update";
+  offset: string;
 };
 
 export const addToQueue = async (events: EventInfo[]) => {

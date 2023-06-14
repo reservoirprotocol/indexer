@@ -8,7 +8,7 @@ import {
 export class IndexerTokensHandler extends KafkaEventHandler {
   topicName = "indexer.public.tokens";
 
-  protected async handleInsert(payload: any): Promise<void> {
+  protected async handleInsert(payload: any, offset: string): Promise<void> {
     if (!payload.after) {
       return;
     }
@@ -18,12 +18,13 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         before: payload.before,
         after: payload.after,
         trigger: "insert",
+        offset: offset,
       },
       eventKind: WebsocketEventKind.TokenEvent,
     });
   }
 
-  protected async handleUpdate(payload: any): Promise<void> {
+  protected async handleUpdate(payload: any, offset: string): Promise<void> {
     if (!payload.after) {
       return;
     }
@@ -33,6 +34,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         before: payload.before,
         after: payload.after,
         trigger: "update",
+        offset: offset,
       },
       eventKind: WebsocketEventKind.TokenEvent,
     });

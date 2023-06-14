@@ -15,7 +15,7 @@ export type SudoswapV2Pool = {
   poolKind: SudoswapV2PoolKind;
   pairKind: number;
   propertyChecker: string;
-  tokenId: string | null;
+  tokenId?: string;
 };
 
 export const saveSudoswapV2Pool = async (sudoswapPool: SudoswapV2Pool) => {

@@ -34,6 +34,7 @@ export type CreatePolicyPayload = {
     expires?: number;
     "message-ttl"?: number;
     "alternate-exchange"?: string;
+    "queue-mode"?: "default" | "lazy";
   };
 };
 
@@ -85,7 +86,6 @@ export class RabbitMq {
               persistent: content.persistent,
               headers: {
                 "x-delay": delay,
-                "x-deduplication-header": content.jobId,
               },
             },
             (error) => {
@@ -187,10 +187,11 @@ export class RabbitMq {
     const consumerQueues = RabbitMqJobsConsumer.getQueues();
     for (const queue of consumerQueues) {
       const options = {
-        maxPriority: 1,
+        maxPriority: queue.getQueueType() === "classic" ? 1 : undefined,
         arguments: {
           "x-message-deduplication": true,
           "x-single-active-consumer": queue.getSingleActiveConsumer(),
+          "x-queue-type": queue.getQueueType(),
         },
       };
 
@@ -228,6 +229,20 @@ export class RabbitMq {
           applyTo: "queues",
           definition: {
             "max-length": queue.getMaxDeadLetterQueue(),
+          },
+        });
+      }
+
+      // If the queue defined as lazy ie use only disk for this queue messages
+      if (queue.isLazyMode()) {
+        await this.createOrUpdatePolicy({
+          name: `${queue.getQueue()}-policy`,
+          vhost: "/",
+          priority: 10,
+          pattern: `^${queue.getQueue()}$|^${queue.getRetryQueue()}$`,
+          applyTo: "queues",
+          definition: {
+            "queue-mode": "lazy",
           },
         });
       }

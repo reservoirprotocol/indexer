@@ -616,7 +616,7 @@ export const updateActivitiesCollection = async (
         params: {
           collection_id: newCollection.id,
           collection_name: newCollection.name,
-          collection_image: newCollection.metadata.imageUrl,
+          collection_image: newCollection.metadata?.imageUrl,
         },
       },
     });

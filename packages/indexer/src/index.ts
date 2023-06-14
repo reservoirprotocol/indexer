@@ -1,10 +1,10 @@
 import { config as dotEnvConfig } from "dotenv";
 dotEnvConfig();
 
+import "@/jobs/index";
 import "@/jobs/cdc/index";
 import "@/common/tracer";
 import "@/config/polyfills";
-import "@/jobs/index";
 import "@/pubsub/index";
 import "@/websockets/index";
 
@@ -13,10 +13,10 @@ import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { initIndexes } from "@/elasticsearch/indexes";
-import { Sources } from "@/models/sources";
 import { startKafkaConsumer, startKafkaProducer } from "@/jobs/cdc/index";
 import { RabbitMq } from "@/common/rabbit-mq";
 import { RabbitMqJobsConsumer } from "@/jobs/index";
+import { Sources } from "@/models/sources";
 
 process.on("unhandledRejection", (error) => {
   logger.error("process", `Unhandled rejection: ${error}`);

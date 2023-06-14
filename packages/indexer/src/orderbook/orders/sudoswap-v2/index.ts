@@ -48,10 +48,17 @@ type SaveResult = {
   triggerKind?: "new-order" | "reprice";
 };
 
-export const getOrderId = (pool: string, side: "sell" | "buy", tokenId?: string) =>
+export const getOrderId = (
+  pool: string,
+  tokenKind: "erc721" | "erc1155",
+  side: "sell" | "buy",
+  tokenId?: string
+) =>
   side === "buy"
-    ? // Buy orders have a single order id per pool
-      keccak256(["string", "address", "string"], ["sudoswap-v2", pool, side])
+    ? // Buy orders have a single order id per pool (or per token id in the ERC1155 case)
+      tokenKind === "erc721"
+      ? keccak256(["string", "address", "string"], ["sudoswap-v2", pool, side])
+      : keccak256(["string", "address", "string", "uint256"], ["sudoswap-v2", pool, side, tokenId])
     : // Sell orders have multiple order ids per pool (one for each potential token id)
       keccak256(["string", "address", "string", "uint256"], ["sudoswap-v2", pool, side, tokenId]);
 
@@ -128,10 +135,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       // Handle buy orders
       try {
         if ([SudoswapV2PoolKind.TOKEN, SudoswapV2PoolKind.TRADE].includes(pool.poolKind)) {
-          if (isERC1155) {
-            throw new Error("ERC1155 buy orders are not yet supported");
-          }
-
           if (pool.propertyChecker !== AddressZero) {
             throw new Error("Property checked pools are not yet supported on the buy-side");
           }
@@ -167,7 +170,12 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             prices.push(bn(priceList[i]).sub(i > 0 ? priceList[i - 1] : 0));
           }
 
-          const id = getOrderId(orderParams.pool, "buy");
+          const id = getOrderId(
+            orderParams.pool,
+            isERC1155 ? "erc1155" : "erc721",
+            "buy",
+            pool.tokenId
+          );
           if (prices.length) {
             // Handle: prices
             const price = prices[0].toString();
@@ -435,7 +443,12 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     return;
                   }
 
-                  const id = getOrderId(orderParams.pool, "sell", tokenId);
+                  const id = getOrderId(
+                    orderParams.pool,
+                    isERC1155 ? "erc1155" : "erc721",
+                    "sell",
+                    tokenId
+                  );
 
                   // Handle: royalties on top
                   const defaultRoyalties = await royalties.getRoyaltiesByTokenSet(

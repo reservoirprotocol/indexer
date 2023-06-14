@@ -206,6 +206,7 @@ export type EventSubKind =
   | "zeroex-v2-fill"
   | "zeroex-v3-fill"
   | "treasure-item-sold"
+  | "treasure-bid-accepted"
   | "looks-rare-v2-new-bid-ask-nonces"
   | "looks-rare-v2-order-nonces-cancelled"
   | "looks-rare-v2-subset-nonces-cancelled"
@@ -427,6 +428,7 @@ const allEventData = [
   sudoswapV2.deltaUpdate,
   sudoswapV2.newERC721Pair,
   sudoswapV2.newERC1155Pair,
+  treasure.bidAccepted,
 ];
 
 export const getEventData = (events?: string[]) => {

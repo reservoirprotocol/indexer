@@ -31,7 +31,7 @@ export const getPoolDetails = async (address: string) =>
           pairKind == 1 || pairKind == 3 ? (await pool.token()).toLowerCase() : AddressZero;
 
         // Only relevant for ERC1155 orders
-        let tokenId: string | null = null;
+        let tokenId: string | undefined = undefined;
         if (pairKind > 1) {
           tokenId = (await pool.nftId()).toString();
         }
