@@ -410,7 +410,7 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           },
         },
-        copyrightInfringementContracts: ["0x8307112717070e5cd5fad5a393a97f236c3e165c"],
+        copyrightInfringementContracts: ["0xad4f49887473c585d2364d29c3255bb5c00b8ee3"],
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([

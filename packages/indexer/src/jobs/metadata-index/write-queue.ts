@@ -50,22 +50,6 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const tokenAttributeCounter = {};
 
-      const copyrightInfringementContract =
-        getNetworkSettings().copyrightInfringementContracts.includes(
-          job.data.contract.toLowerCase()
-        );
-
-      logger.info(
-        QUEUE_NAME,
-        JSON.stringify({
-          topic: "debugCopyrightInfringementContracts",
-          message: "Collection is a copyright infringement",
-          jobData: job.data,
-          copyrightInfringementContract,
-          copyrightInfringementContracts: getNetworkSettings().copyrightInfringementContracts,
-        })
-      );
-
       if (
         getNetworkSettings().copyrightInfringementContracts.includes(
           job.data.contract.toLowerCase()
