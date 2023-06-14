@@ -153,7 +153,7 @@ export class Collections {
       },
     ]);
 
-    if (getNetworkSettings().copyrightInfringementContracts.includes(contract)) {
+    if (getNetworkSettings().copyrightInfringementContracts.includes(contract.toLowerCase())) {
       collection.name = collection.id;
       collection.metadata = null;
 
