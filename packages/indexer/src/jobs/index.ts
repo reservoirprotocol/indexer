@@ -107,6 +107,7 @@ import * as metadataIndexProcessBySlug from "@/jobs/metadata-index/process-queue
 import * as metadataIndexProcess from "@/jobs/metadata-index/process-queue";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
 
+import * as expiredMintsCron from "@/jobs/mints/cron/expired-mints";
 import * as mintsProcess from "@/jobs/mints/process";
 
 import * as updateNftBalanceFloorAskPrice from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
@@ -209,6 +210,7 @@ import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";
 import { topBidSingleTokenQueueJob } from "@/jobs/token-set-updates/top-bid-single-token-queue-job";
 import { fetchSourceInfoJob } from "@/jobs/sources/fetch-source-info-job";
 import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
+import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -303,6 +305,7 @@ export const allJobQueues = [
   metadataIndexProcess.queue,
   metadataIndexWrite.queue,
 
+  expiredMintsCron.queue,
   mintsProcess.queue,
 
   updateNftBalanceFloorAskPrice.queue,
@@ -406,6 +409,7 @@ export class RabbitMqJobsConsumer {
       topBidSingleTokenQueueJob,
       fetchSourceInfoJob,
       removeUnsyncedEventsActivitiesJob,
+      fixActivitiesMissingCollectionJob,
     ];
   }
 
