@@ -828,34 +828,6 @@ export const updateActivitiesCollectionMetadata = async (
 ): Promise<boolean> => {
   let keepGoing = false;
 
-  const should: any[] = [
-    {
-      bool: {
-        must_not: [
-          {
-            term: {
-              "collection.name": collectionData.name,
-            },
-          },
-        ],
-      },
-    },
-  ];
-
-  if (collectionData.image) {
-    should.push({
-      bool: {
-        must_not: [
-          {
-            term: {
-              "collection.image": collectionData.image,
-            },
-          },
-        ],
-      },
-    });
-  }
-
   const query = {
     bool: {
       must: [
@@ -865,11 +837,6 @@ export const updateActivitiesCollectionMetadata = async (
           },
         },
       ],
-      filter: {
-        bool: {
-          should,
-        },
-      },
     },
   };
 
@@ -883,8 +850,9 @@ export const updateActivitiesCollectionMetadata = async (
       // @ts-ignore
       query,
       script: {
-        source:
-          "ctx._source.collection.name = params.collection_name; ctx._source.collection.image = params.collection_image;",
+        source: `if (params.collection_name == null) { ctx._source.remove('collection.name') } else { ctx._source.collection.name = params.collection_name };
+           if (params.collection_image == null) { ctx._source.remove('collection.image') } else { ctx._source.collection.image = params.collection_image };
+          `,
         params: {
           collection_name: collectionData.name,
           collection_image: collectionData.image,

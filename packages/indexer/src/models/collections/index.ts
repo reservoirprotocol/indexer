@@ -202,7 +202,19 @@ export class Collections {
       (result?.old_metadata.name != collection.name ||
         result?.old_metadata.metadata.imageUrl != (collection.metadata as any)?.imageUrl)
     ) {
-      await refreshActivitiesCollectionMetadata.addToQueue(collection.id);
+      logger.info(
+        "updateCollectionCache",
+        JSON.stringify({
+          message: `Metadata changed.`,
+          collection,
+          result,
+        })
+      );
+
+      await refreshActivitiesCollectionMetadata.addToQueue(collection.id, {
+        name: collection.name,
+        image: (collection.metadata as any)?.imageUrl,
+      });
     }
 
     // Refresh all royalty specs and the default royalties
