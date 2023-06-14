@@ -288,59 +288,7 @@ export const getTokensV6Options: RouteOptions = {
   handler: async (request: Request) => {
     const query = request.query as any;
 
-    // Include top bid
-    let selectTopBid = "";
-    let topBidQuery = "";
     let nullsPosition = "LAST";
-
-    if (query.includeTopBid) {
-      selectTopBid = `, y.*`;
-      topBidQuery = `
-        LEFT JOIN LATERAL (
-          SELECT
-            o.id AS top_buy_id,
-            o.normalized_value AS top_buy_normalized_value,
-            o.currency_normalized_value AS top_buy_currency_normalized_value,
-            o.maker AS top_buy_maker,
-            o.currency AS top_buy_currency,
-            o.fee_breakdown AS top_buy_fee_breakdown,
-            o.currency_price AS top_buy_currency_price,
-            o.currency_value AS top_buy_currency_value,
-            o.price AS top_buy_price,
-            o.value AS top_buy_value,
-            o.source_id_int AS top_buy_source_id_int,
-            o.missing_royalties AS top_buy_missing_royalties,
-            DATE_PART('epoch', LOWER(o.valid_between)) AS top_buy_valid_from,
-            COALESCE(
-              NULLIF(DATE_PART('epoch', UPPER(o.valid_between)), 'Infinity'),
-              0
-            ) AS top_buy_valid_until
-          FROM orders o
-          JOIN token_sets_tokens tst
-            ON o.token_set_id = tst.token_set_id
-          WHERE tst.contract = t.contract
-            AND tst.token_id = t.token_id
-            AND o.side = 'buy'
-            AND o.fillability_status = 'fillable'
-            AND o.approval_status = 'approved'
-            AND EXISTS(
-              SELECT FROM nft_balances nb
-                WHERE nb.contract = t.contract
-                AND nb.token_id = t.token_id
-                AND nb.amount > 0
-                AND nb.owner != o.maker
-                AND (
-                  o.taker IS NULL
-                  OR o.taker = '\\x0000000000000000000000000000000000000000'
-                  OR o.taker = nb.owner
-                )
-            )
-            ${query.normalizeRoyalties ? " AND o.normalized_value IS NOT NULL" : ""}
-          ORDER BY o.value DESC
-          LIMIT 1
-        ) y ON TRUE
-      `;
-    }
 
     // Include attributes
     let selectAttributes = "";
@@ -564,12 +512,10 @@ export const getTokensV6Options: RouteOptions = {
             LIMIT 1
           ) AS owner
           ${selectAttributes}
-          ${selectTopBid}
           ${selectIncludeQuantity}
           ${selectIncludeDynamicPricing}
           ${selectRoyaltyBreakdown}
         FROM tokens t
-        ${topBidQuery}
         ${
           sourceCte !== ""
             ? "JOIN filtered_orders s ON s.contract = t.contract AND s.token_id = t.token_id"
@@ -875,6 +821,62 @@ export const getTokensV6Options: RouteOptions = {
       }
 
       baseQuery += ` LIMIT $/limit/`;
+
+      // Include top bid
+      if (query.includeTopBid) {
+        baseQuery = `
+          WITH x AS (
+            ${baseQuery}
+          )
+          SELECT 
+            x.*, 
+            y.*
+          FROM x
+          LEFT JOIN LATERAL (
+            SELECT
+              o.id AS top_buy_id,
+              o.normalized_value AS top_buy_normalized_value,
+              o.currency_normalized_value AS top_buy_currency_normalized_value,
+              o.maker AS top_buy_maker,
+              o.currency AS top_buy_currency,
+              o.fee_breakdown AS top_buy_fee_breakdown,
+              o.currency_price AS top_buy_currency_price,
+              o.currency_value AS top_buy_currency_value,
+              o.price AS top_buy_price,
+              o.value AS top_buy_value,
+              o.source_id_int AS top_buy_source_id_int,
+              o.missing_royalties AS top_buy_missing_royalties,
+              DATE_PART('epoch', LOWER(o.valid_between)) AS top_buy_valid_from,
+              COALESCE(
+                NULLIF(DATE_PART('epoch', UPPER(o.valid_between)), 'Infinity'),
+                0
+              ) AS top_buy_valid_until
+            FROM orders o
+            JOIN token_sets_tokens tst
+              ON o.token_set_id = tst.token_set_id
+            WHERE tst.contract = x.contract
+              AND tst.token_id = x.token_id
+              AND o.side = 'buy'
+              AND o.fillability_status = 'fillable'
+              AND o.approval_status = 'approved'
+              AND EXISTS(
+                SELECT FROM nft_balances nb
+                  WHERE nb.contract = x.contract
+                  AND nb.token_id = x.token_id
+                  AND nb.amount > 0
+                  AND nb.owner != o.maker
+                  AND (
+                    o.taker IS NULL
+                    OR o.taker = '\\x0000000000000000000000000000000000000000'
+                    OR o.taker = nb.owner
+                  )
+              )
+              ${query.normalizeRoyalties ? " AND o.normalized_value IS NOT NULL" : ""}
+            ORDER BY o.value DESC
+            LIMIT 1
+          ) y ON TRUE
+        `;
+      }
 
       const rawResult = await redb.manyOrNone(baseQuery, query);
 
