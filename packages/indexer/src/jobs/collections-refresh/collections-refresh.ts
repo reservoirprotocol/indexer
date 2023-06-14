@@ -11,10 +11,12 @@ import { config } from "@/config/index";
 import { sub, set, getUnixTime, add } from "date-fns";
 import { Collections } from "@/models/collections";
 import { CollectionsEntity } from "@/models/collections/collections-entity";
-import { CollectionMetadataInfo } from "@/jobs/collection-updates/metadata-queue";
 import { redb } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
-import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
+import {
+  collectionMetadataQueueJob,
+  CollectionMetadataInfo,
+} from "@/jobs/collection-updates/collection-metadata-queue-job";
 
 const QUEUE_NAME = "collections-refresh-queue";
 
