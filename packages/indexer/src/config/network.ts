@@ -313,6 +313,15 @@ export const getNetworkSettings = (): NetworkSettings => {
               },
             },
           ],
+          [
+            "0xD2d8D78087D0E43BC4804B6F946674b2Ee406b80",
+            {
+              contract: "0xD2d8D78087D0E43BC4804B6F946674b2Ee406b80",
+              name: "Rug Coin",
+              symbol: "RUG",
+              decimals: 18,
+            },
+          ],
         ]),
         coingecko: {
           networkId: "ethereum",
