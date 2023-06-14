@@ -50,7 +50,11 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const tokenAttributeCounter = {};
 
-      if (getNetworkSettings().copyrightInfringementContracts.includes(job.data.contract)) {
+      if (
+        getNetworkSettings().copyrightInfringementContracts.includes(
+          job.data.contract.toLowerCase()
+        )
+      ) {
         job.data = {
           collection: job.data.collection,
           contract: job.data.contract,
