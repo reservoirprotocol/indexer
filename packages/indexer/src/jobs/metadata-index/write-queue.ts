@@ -56,6 +56,15 @@ if (config.doBackgroundWork) {
           contract: job.data.contract,
           tokenId: job.data.tokenId,
         };
+
+        logger.info(
+          QUEUE_NAME,
+          JSON.stringify({
+            topic: "debugCopyrightInfringementContracts",
+            message: "Collection is a copyright infringement",
+            jobData: job.data,
+          })
+        );
       }
 
       const {

@@ -156,6 +156,16 @@ export class Collections {
     if (getNetworkSettings().copyrightInfringementContracts.includes(contract)) {
       collection.name = collection.id;
       collection.metadata = null;
+
+      logger.info(
+        "updateCollectionCache",
+        JSON.stringify({
+          topic: "debugCopyrightInfringementContracts",
+          message: "Collection is a copyright infringement",
+          contract,
+          collection,
+        })
+      );
     }
 
     const query = `
