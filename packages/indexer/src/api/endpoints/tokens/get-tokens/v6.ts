@@ -882,15 +882,15 @@ export const getTokensV6Options: RouteOptions = {
             FROM orders o
             JOIN token_sets_tokens tst
               ON o.token_set_id = tst.token_set_id
-            WHERE tst.contract = x.contract
-              AND tst.token_id = x.token_id
+            WHERE tst.contract = x.t_contract
+              AND tst.token_id = x.t_token_id
               AND o.side = 'buy'
               AND o.fillability_status = 'fillable'
               AND o.approval_status = 'approved'
               AND EXISTS(
                 SELECT FROM nft_balances nb
-                  WHERE nb.contract = x.contract
-                  AND nb.token_id = x.token_id
+                  WHERE nb.contract = x.t_contract
+                  AND nb.token_id = x.t_token_id
                   AND nb.amount > 0
                   AND nb.owner != o.maker
                   AND (
