@@ -53,8 +53,6 @@ import * as backfillCollectionsRoyalties from "@/jobs/backfill/backfill-collecti
 import * as backfillWrongNftBalances from "@/jobs/backfill/backfill-wrong-nft-balances";
 import * as backfillFoundationOrders from "@/jobs/backfill/backfill-foundation-orders";
 
-import * as topBidUpdate from "@/jobs/bid-updates/top-bid-update-queue";
-
 import * as collectionsRefresh from "@/jobs/collections-refresh/collections-refresh";
 import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections-refresh-cache";
 
@@ -212,6 +210,7 @@ import { topBidSingleTokenQueueJob } from "@/jobs/token-set-updates/top-bid-sing
 import { fetchSourceInfoJob } from "@/jobs/sources/fetch-source-info-job";
 import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
 import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -251,8 +250,6 @@ export const allJobQueues = [
   backfillBlurSales.queue,
 
   currencies.queue,
-
-  topBidUpdate.queue,
 
   collectionsRefresh.queue,
   collectionsRefreshCache.queue,
@@ -412,6 +409,7 @@ export class RabbitMqJobsConsumer {
       fetchSourceInfoJob,
       removeUnsyncedEventsActivitiesJob,
       fixActivitiesMissingCollectionJob,
+      collectionMetadataQueueJob,
     ];
   }
 
