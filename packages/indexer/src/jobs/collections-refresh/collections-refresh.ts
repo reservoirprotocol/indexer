@@ -14,6 +14,7 @@ import { Collections } from "@/models/collections";
 import { CollectionsEntity } from "@/models/collections/collections-entity";
 import { CollectionMetadataInfo } from "@/jobs/collection-updates/metadata-queue";
 import { redb } from "@/common/db";
+import { fromBuffer } from "@/common/utils";
 
 const QUEUE_NAME = "collections-refresh-queue";
 
@@ -87,9 +88,9 @@ if (config.doBackgroundWork) {
         results,
         (result) =>
           ({
-            contract: result.contract,
+            contract: fromBuffer(result.contract),
             community: result.community,
-            tokenId: result,
+            tokenId: result.token_id,
           } as CollectionMetadataInfo)
       );
 

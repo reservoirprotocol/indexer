@@ -77,6 +77,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         if (poolCallTrace) {
           const sighash = poolCallTrace.input.slice(0, 10);
           const pool = await sudoswapUtils.getPoolDetails(baseEventParams.address);
+          const isERC1155 = subKind.endsWith("erc1155");
+
           if (pool && sighash === swapTokenForSpecificNFTs) {
             const iface = new Interface([
               `
@@ -138,8 +140,14 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             }
 
             for (let i = 0; i < decodedInput.nftIds.length; i++) {
-              const tokenId = decodedInput.nftIds[i].toString();
-              const orderId = sudoswapV2.getOrderId(baseEventParams.address, "sell", tokenId);
+              const tokenId = isERC1155 ? pool.tokenId! : decodedInput.nftIds[i].toString();
+              const amount = isERC1155 ? decodedInput.nftIds[i].toString() : "1";
+              const orderId = sudoswapV2.getOrderId(
+                baseEventParams.address,
+                isERC1155 ? "erc1155" : "erc721",
+                "sell",
+                tokenId
+              );
 
               onChainData.fillEventsOnChain.push({
                 orderKind,
@@ -153,7 +161,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 currency: pool.token,
                 contract: pool.nft,
                 tokenId,
-                amount: "1",
+                amount,
                 orderSourceId: attributionData.orderSource?.id,
                 aggregatorSourceId: attributionData.aggregatorSource?.id,
                 fillSourceId: attributionData.fillSource?.id,
@@ -167,8 +175,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 context: `sudoswap-v2-${pool.nft}-${tokenId}-${baseEventParams.txHash}`,
                 orderSide: "sell",
                 contract: pool.nft,
-                tokenId: tokenId,
-                amount: "1",
+                tokenId,
+                amount,
                 price: priceData.nativePrice,
                 timestamp: baseEventParams.timestamp,
                 maker: baseEventParams.address,
@@ -240,6 +248,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         if (poolCallTrace) {
           const sighash = poolCallTrace.input.slice(0, 10);
           const pool = await sudoswapUtils.getPoolDetails(baseEventParams.address);
+          const isERC1155 = subKind.endsWith("erc1155");
 
           if (pool && sighash === swapNFTsForToken) {
             const iface = new Interface([
@@ -276,7 +285,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             }
 
             let taker = decodedInput.tokenRecipient.toLowerCase();
-            const price = bn(estimatedOutputAmount).div(decodedInput.nftIds.length).toString();
+
+            const numItemsSold = isERC1155 ? decodedInput.nftIds[0] : decodedInput.nftIds.length;
+            const price = bn(estimatedOutputAmount).div(numItemsSold).toString();
 
             // Handle: attribution
 
@@ -302,8 +313,14 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             }
 
             for (let i = 0; i < decodedInput.nftIds.length; i++) {
-              const tokenId = decodedInput.nftIds[i].toString();
-              const orderId = sudoswapV2.getOrderId(baseEventParams.address, "buy");
+              const tokenId = isERC1155 ? pool.tokenId! : decodedInput.nftIds[i].toString();
+              const amount = isERC1155 ? decodedInput.nftIds[i].toString() : "1";
+              const orderId = sudoswapV2.getOrderId(
+                baseEventParams.address,
+                isERC1155 ? "erc1155" : "erc721",
+                "buy",
+                pool.tokenId
+              );
 
               onChainData.fillEventsPartial.push({
                 orderKind,
@@ -317,7 +334,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 currency: pool.token,
                 contract: pool.nft,
                 tokenId,
-                amount: "1",
+                amount,
                 orderSourceId: attributionData.orderSource?.id,
                 aggregatorSourceId: attributionData.aggregatorSource?.id,
                 fillSourceId: attributionData.fillSource?.id,
@@ -331,8 +348,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 context: `sudoswap-v2-${pool.nft}-${tokenId}-${baseEventParams.txHash}`,
                 orderSide: "buy",
                 contract: pool.nft,
-                tokenId: tokenId,
-                amount: "1",
+                tokenId,
+                amount,
                 price: priceData.nativePrice,
                 timestamp: baseEventParams.timestamp,
                 maker: baseEventParams.address,

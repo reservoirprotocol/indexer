@@ -27,7 +27,7 @@ export const postExecuteResultsV1: RouteOptions = {
   },
   response: {
     schema: Joi.object({
-      auth: Joi.string(),
+      message: Joi.string().required(),
     }).label(`postExecuteResults${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
       logger.error(`post-execute-results-${version}-handler`, `Wrong response schema: ${error}`);
@@ -46,6 +46,8 @@ export const postExecuteResultsV1: RouteOptions = {
         txHash: payload.txHash,
         errorMessage: payload.errorMessage,
       });
+
+      return { message: "Success" };
     } catch (error) {
       logger.error(`post-execution-results-${version}-handler`, `Handler failure: ${error}`);
       throw error;
