@@ -54,6 +54,16 @@ if (config.doBackgroundWork) {
         if (getNetworkSettings().copyrightInfringementContracts.includes(contract)) {
           collection.name = collection.id;
           collection.metadata = null;
+
+          logger.info(
+            QUEUE_NAME,
+            JSON.stringify({
+              topic: "debugCopyrightInfringementContracts",
+              message: "Collection is a copyright infringement",
+              contract,
+              collection,
+            })
+          );
         }
 
         let tokenIdRange: string | null = null;
