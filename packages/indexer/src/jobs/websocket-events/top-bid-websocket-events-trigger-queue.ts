@@ -89,6 +89,10 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           { orderId: data.orderId }
         );
 
+        if (!order) {
+          logger.warn(QUEUE_NAME, `Missing order. data=${JSON.stringify(data)}`);
+        }
+
         const payloads = [];
         const owners = await getOwners(order.token_set_id);
         const ownersChunks = _.chunk(owners, 25 * 20);
