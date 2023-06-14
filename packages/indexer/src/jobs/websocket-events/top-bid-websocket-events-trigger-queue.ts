@@ -91,6 +91,8 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
 
         if (!order) {
           logger.warn(QUEUE_NAME, `Missing order. data=${JSON.stringify(data)}`);
+
+          return;
         }
 
         const payloads = [];
