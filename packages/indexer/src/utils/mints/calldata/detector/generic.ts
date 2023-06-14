@@ -23,10 +23,25 @@ export const tryParseCollectionMint = async (
   try {
     const c = new Contract(
       collection,
-      new Interface(["function totalSupply() view returns (uint256)"]),
+      new Interface([
+        "function maxSupply() view returns (uint256)",
+        "function MAX_SUPPLY() view returns (uint256)",
+      ]),
       baseProvider
     );
-    maxSupply = await c.totalSupply().then((t: BigNumber) => t.toString());
+
+    if (!maxSupply) {
+      maxSupply = await c
+        .maxSupply()
+        .then((t: BigNumber) => t.toString())
+        .catch(() => undefined);
+    }
+    if (!maxSupply) {
+      maxSupply = await c
+        .MAX_SUPPLY()
+        .then((t: BigNumber) => t.toString())
+        .catch(() => undefined);
+    }
   } catch {
     // Skip errors
   }
