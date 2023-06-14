@@ -1,18 +1,18 @@
 import { AddressZero } from "@ethersproject/constants";
 import { formatEther } from "@ethersproject/units";
-import * as Sdk from "@reservoir0x/sdk";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
-import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { fetchTransaction } from "@/events-sync/utils";
+import * as mintsSupplyCheck from "@/jobs/mints/supply-check";
 import { Sources } from "@/models/sources";
-import { AbiParam } from "@/utils/mints/calldata/generator";
 import { CollectionMint, simulateAndSaveCollectionMint } from "@/utils/mints/collection-mints";
-import { getMethodSignature } from "@/utils/mints/method-signatures";
+
+import * as generic from "@/utils/mints/calldata/detector/generic";
+import * as zora from "@/utils/mints/calldata/detector/zora";
 
 export const detectMint = async (txHash: string, skipCache = false) => {
   // Fetch all transfers associated to the transaction
@@ -80,6 +80,8 @@ export const detectMint = async (txHash: string, skipCache = false) => {
     return;
   }
 
+  await mintsSupplyCheck.addToQueue(collection);
+
   // For performance reasons, do at most one attempt per collection per 5 minutes
   if (!skipCache) {
     const mintDetailsLockKey = `mint-details:${collection}`;
@@ -106,8 +108,8 @@ export const detectMint = async (txHash: string, skipCache = false) => {
   }
 
   // Make sure something was actually minted
-  const amountMinted = transfers.map((t) => Number(t.amount)).reduce((a, b) => a + b);
-  if (amountMinted === 0) {
+  const amountMinted = transfers.map((t) => bn(t.amount)).reduce((a, b) => bn(a).add(b));
+  if (amountMinted.eq(0)) {
     return;
   }
 
@@ -140,90 +142,23 @@ export const detectMint = async (txHash: string, skipCache = false) => {
     }
   }
 
-  let collectionMint: CollectionMint;
-  if (tx.data.length === 10) {
-    collectionMint = {
+  let collectionMint: CollectionMint | undefined;
+
+  // Zora
+  if (!collectionMint) {
+    collectionMint = await zora.tryParseCollectionMint(collection, contract, tx);
+  }
+
+  // Fallback
+  if (!collectionMint) {
+    collectionMint = await generic.tryParseCollectionMint(
       collection,
-      stage: "public-sale",
-      kind: "public",
-      status: "open",
-      standard: "unknown",
-      details: {
-        tx: {
-          to: tx.to,
-          data: {
-            signature: tx.data,
-            params: [],
-          },
-        },
-      },
-      currency: Sdk.Common.Addresses.Eth[config.chainId],
-      price: pricePerAmountMinted.toString(),
-    };
+      contract,
+      tx,
+      pricePerAmountMinted,
+      amountMinted
+    );
   }
-
-  // Try to get the method signature from the calldata
-  const methodSignature = await getMethodSignature(tx.data);
-  if (!methodSignature) {
-    return;
-  }
-
-  // For now, we only support simple data types in the calldata
-  if (["(", ")", "[", "]", "bytes"].some((x) => methodSignature.params.includes(x))) {
-    return;
-  }
-
-  const params: AbiParam[] = [];
-
-  try {
-    methodSignature.params.split(",").forEach((abiType, i) => {
-      const decodedValue = methodSignature.decodedCalldata[i];
-
-      if (abiType.includes("int") && bn(decodedValue).eq(amountMinted)) {
-        params.push({
-          kind: "quantity",
-          abiType,
-        });
-      } else if (abiType.includes("address") && decodedValue.toLowerCase() === contract) {
-        params.push({
-          kind: "contract",
-          abiType,
-        });
-      } else if (abiType.includes("address") && decodedValue.toLowerCase() === tx.from) {
-        params.push({
-          kind: "recipient",
-          abiType,
-        });
-      } else {
-        params.push({
-          kind: "unknown",
-          abiType,
-          abiValue: decodedValue.toString().toLowerCase(),
-        });
-      }
-    });
-  } catch (error) {
-    logger.error("mints-process", JSON.stringify({ methodSignature }));
-  }
-
-  collectionMint = {
-    collection,
-    stage: "public-sale",
-    kind: "public",
-    status: "open",
-    standard: "unknown",
-    details: {
-      tx: {
-        to: tx.to,
-        data: {
-          signature: methodSignature.signature,
-          params,
-        },
-      },
-    },
-    currency: Sdk.Common.Addresses.Eth[config.chainId],
-    price: pricePerAmountMinted.toString(),
-  };
 
   if (collectionMint) {
     const result = await simulateAndSaveCollectionMint(collectionMint);

@@ -19,14 +19,17 @@ export const publishWebsocketEvent = async (message: WebsocketMessage): Promise<
   await redisWebsocketPublisher.publish("events", JSON.stringify(message));
 };
 
+const enabledOffsetLoggingEvents = ["sale.created", "sale.updated", "sale.deleted"];
+
 export const addOffsetToSortedSet = async (
   event: WebsocketMessage,
   offset?: string
 ): Promise<void> => {
   try {
-    if (!offset) {
+    if (!offset || !enabledOffsetLoggingEvents.includes(event.event)) {
       return;
     }
+
     const stringOffset = String(offset);
     const stringEvent = String(event.event);
 

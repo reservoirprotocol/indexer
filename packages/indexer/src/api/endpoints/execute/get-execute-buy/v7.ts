@@ -707,7 +707,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 );
                 if (collectionData) {
                   const quantityToMint = mint.maxMintsPerWallet
-                    ? Math.min(item.quantity, mint.maxMintsPerWallet)
+                    ? Math.min(item.quantity, Number(mint.maxMintsPerWallet))
                     : item.quantity;
 
                   const orderId = `mint:${item.collection}`;

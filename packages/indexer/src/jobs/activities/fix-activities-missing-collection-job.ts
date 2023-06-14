@@ -10,7 +10,6 @@ export type FixActivitiesMissingCollectionJobPayload = {
   contract: string;
   tokenId: string;
   retry?: number;
-  addToQueue?: boolean;
 };
 
 export class FixActivitiesMissingCollectionJob extends AbstractRabbitMqJobHandler {
@@ -29,8 +28,6 @@ export class FixActivitiesMissingCollectionJob extends AbstractRabbitMqJobHandle
     const { contract, tokenId, retry } = payload;
     const collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
 
-    payload.addToQueue = false;
-
     if (collection) {
       // Update the collection id of any missing activities
       await Promise.all([
@@ -46,15 +43,15 @@ export class FixActivitiesMissingCollectionJob extends AbstractRabbitMqJobHandle
         );
       }
     } else if (Number(retry) < this.maxRetries) {
-      payload.addToQueue = true;
+      await this.addToQueue(payload);
     } else {
       logger.debug(this.queueName, `Max retries reached for ${JSON.stringify(payload)}`);
     }
   }
 
   public async addToQueue(params: FixActivitiesMissingCollectionJobPayload) {
-    const jobId = `${params.contract}:${params.tokenId}`;
     params.retry = params.retry ?? 0;
+    const jobId = `${params.contract}:${params.tokenId}:${params.retry}`;
     const delay = params.retry ? params.retry ** 2 * 300 * 1000 : 0;
 
     await this.send({ payload: params, jobId }, delay);

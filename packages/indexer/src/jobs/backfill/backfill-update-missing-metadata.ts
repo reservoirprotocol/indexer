@@ -14,8 +14,8 @@ import * as metadataIndexProcessBySlug from "@/jobs/metadata-index/process-queue
 import * as metadataIndexProcess from "@/jobs/metadata-index/process-queue";
 import { getIndexingMethod } from "@/jobs/metadata-index/fetch-queue";
 import { PendingRefreshTokensBySlug } from "@/models/pending-refresh-tokens-by-slug";
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import { Tokens } from "@/models/tokens";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 
 const QUEUE_NAME = "backfill-update-missing-metadata-queue";
 
@@ -174,12 +174,14 @@ async function processCollection(collection: {
   const limit = Number(await redis.get(`${QUEUE_NAME}-tokens-limit`)) || 1000;
   if (!collection.slug) {
     const tokenId = await Tokens.getSingleToken(collection.id);
-    await collectionUpdatesMetadata.addToQueue(
-      collection.contract,
-      tokenId,
-      "opensea",
+    await collectionMetadataQueueJob.addToQueue(
+      {
+        contract: collection.contract,
+        tokenId,
+        community: "opensea",
+        forceRefresh: false,
+      },
       0,
-      false,
       QUEUE_NAME
     );
     await processCollectionTokens(collection, limit, indexingMethod);

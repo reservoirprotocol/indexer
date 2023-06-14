@@ -138,7 +138,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             undefined
           ),
           validFrom: Number(rawResult.valid_from),
-          validUntil: Number(rawResult.valid_until),
+          validUntil: Number(rawResult.valid_until) || 0,
           quantityFilled: Number(rawResult.quantity_filled),
           quantityRemaining: Number(rawResult.quantity_remaining),
           criteria: rawResult.criteria,

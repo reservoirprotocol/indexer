@@ -4,7 +4,6 @@
 
 import "@/jobs/arweave-relay";
 import "@/jobs/backfill";
-import "@/jobs/bid-updates";
 import "@/jobs/cache-check";
 import "@/jobs/collections-refresh";
 import "@/jobs/collection-updates";
@@ -52,8 +51,6 @@ import * as backfillNftTransferEventsCreatedAt from "@/jobs/backfill/backfill-nf
 import * as backfillCollectionsRoyalties from "@/jobs/backfill/backfill-collections-royalties";
 import * as backfillWrongNftBalances from "@/jobs/backfill/backfill-wrong-nft-balances";
 import * as backfillFoundationOrders from "@/jobs/backfill/backfill-foundation-orders";
-
-import * as topBidUpdate from "@/jobs/bid-updates/top-bid-update-queue";
 
 import * as collectionsRefresh from "@/jobs/collections-refresh/collections-refresh";
 import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections-refresh-cache";
@@ -107,7 +104,9 @@ import * as metadataIndexProcessBySlug from "@/jobs/metadata-index/process-queue
 import * as metadataIndexProcess from "@/jobs/metadata-index/process-queue";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
 
+import * as expiredMintsCron from "@/jobs/mints/cron/expired-mints";
 import * as mintsProcess from "@/jobs/mints/process";
+import * as mintsSupplyCheck from "@/jobs/mints/supply-check";
 
 import * as updateNftBalanceFloorAskPrice from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
 import * as updateNftBalanceTopBid from "@/jobs/nft-balance-updates/update-top-bid-queue";
@@ -209,6 +208,8 @@ import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";
 import { topBidSingleTokenQueueJob } from "@/jobs/token-set-updates/top-bid-single-token-queue-job";
 import { fetchSourceInfoJob } from "@/jobs/sources/fetch-source-info-job";
 import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
+import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -248,8 +249,6 @@ export const allJobQueues = [
   backfillBlurSales.queue,
 
   currencies.queue,
-
-  topBidUpdate.queue,
 
   collectionsRefresh.queue,
   collectionsRefreshCache.queue,
@@ -303,7 +302,9 @@ export const allJobQueues = [
   metadataIndexProcess.queue,
   metadataIndexWrite.queue,
 
+  expiredMintsCron.queue,
   mintsProcess.queue,
+  mintsSupplyCheck.queue,
 
   updateNftBalanceFloorAskPrice.queue,
   updateNftBalanceTopBid.queue,
@@ -406,6 +407,8 @@ export class RabbitMqJobsConsumer {
       topBidSingleTokenQueueJob,
       fetchSourceInfoJob,
       removeUnsyncedEventsActivitiesJob,
+      fixActivitiesMissingCollectionJob,
+      collectionMetadataQueueJob,
     ];
   }
 
