@@ -59,6 +59,7 @@ if (config.doBackgroundWork) {
           collection: job.data.collection,
           contract: job.data.contract,
           tokenId: job.data.tokenId,
+          attributes: [],
         };
 
         logger.info(
