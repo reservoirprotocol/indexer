@@ -275,7 +275,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       let feeAmount = order.getFeeAmount();
 
       // Handle: price and value
-      let price = bn(order.getMatchingPrice());
+      let price = bn(order.getMatchingPrice(Math.max(now(), startTime)));
       let value = price;
       if (info.side === "buy") {
         // For buy orders, we set the value as `price - fee` since it

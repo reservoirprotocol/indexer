@@ -10,18 +10,18 @@ export abstract class KafkaEventHandler {
   abstract topicName: string;
   maxRetries = 5;
 
-  async handle(payload: any): Promise<void> {
+  async handle(payload: any, offset: string): Promise<void> {
     try {
       // convert any hex strings to strings
 
       switch (payload.op) {
         case "c":
           this.convertPayloadHexToString(payload);
-          this.handleInsert(payload);
+          this.handleInsert(payload, offset);
           break;
         case "u":
           this.convertPayloadHexToString(payload);
-          this.handleUpdate(payload);
+          this.handleUpdate(payload, offset);
           break;
         case "d":
           this.handleDelete();
@@ -96,7 +96,7 @@ export abstract class KafkaEventHandler {
     }
   }
 
-  protected abstract handleInsert(payload: any): Promise<void>;
-  protected abstract handleUpdate(payload: any): Promise<void>;
+  protected abstract handleInsert(payload: any, offset: string): Promise<void>;
+  protected abstract handleUpdate(payload: any, offset: string): Promise<void>;
   protected abstract handleDelete(): Promise<void>;
 }

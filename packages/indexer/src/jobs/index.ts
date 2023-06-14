@@ -162,8 +162,8 @@ import * as approvalWebsocketEventsTriggerQueue from "@/jobs/websocket-events/ap
 import * as transferWebsocketEventsTriggerQueue from "@/jobs/websocket-events/transfer-websocket-events-trigger-queue";
 import * as saleWebsocketEventsTriggerQueue from "@/jobs/websocket-events/sale-websocket-events-trigger-queue";
 import * as tokenWebsocketEventsTriggerQueue from "@/jobs/websocket-events/token-websocket-events-trigger-queue";
+import * as topBidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/top-bid-websocket-events-trigger-queue";
 
-import * as newTopBidTriggerQueue from "@/jobs/websocket-events/new-top-bid-trigger-queue";
 import * as countApiUsage from "@/jobs/metrics/count-api-usage";
 
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
@@ -207,6 +207,8 @@ import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-at
 import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
 import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";
 import { topBidSingleTokenQueueJob } from "@/jobs/token-set-updates/top-bid-single-token-queue-job";
+import { fetchSourceInfoJob } from "@/jobs/sources/fetch-source-info-job";
+import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -356,7 +358,7 @@ export const allJobQueues = [
   transferWebsocketEventsTriggerQueue.queue,
   saleWebsocketEventsTriggerQueue.queue,
   tokenWebsocketEventsTriggerQueue.queue,
-  newTopBidTriggerQueue.queue,
+  topBidWebsocketEventsTriggerQueue.queue,
 
   countApiUsage.queue,
 
@@ -402,6 +404,8 @@ export class RabbitMqJobsConsumer {
       resyncAttributeCountsJob,
       topBidQueueJob,
       topBidSingleTokenQueueJob,
+      fetchSourceInfoJob,
+      removeUnsyncedEventsActivitiesJob,
     ];
   }
 
@@ -429,8 +433,22 @@ export class RabbitMqJobsConsumer {
       return;
     }
 
-    const channel = await this.rabbitMqConsumerConnection.createChannel();
-    RabbitMqJobsConsumer.queueToChannel.set(job.getQueue(), channel);
+    let channel: Channel;
+
+    // Some queues can use a shared channel as they are less important with low traffic
+    if (job.getUseSharedChannel()) {
+      const sharedChannel = RabbitMqJobsConsumer.queueToChannel.get(job.getSharedChannelName());
+
+      if (sharedChannel) {
+        channel = sharedChannel;
+      } else {
+        channel = await this.rabbitMqConsumerConnection.createChannel();
+        RabbitMqJobsConsumer.queueToChannel.set(job.getSharedChannelName(), channel);
+      }
+    } else {
+      channel = await this.rabbitMqConsumerConnection.createChannel();
+      RabbitMqJobsConsumer.queueToChannel.set(job.getQueue(), channel);
+    }
 
     await channel.prefetch(job.getConcurrency()); // Set the number of messages to consume simultaneously
 
@@ -473,6 +491,10 @@ export class RabbitMqJobsConsumer {
         consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getRetryQueue()),
       }
     );
+
+    channel.on("error", (error) => {
+      logger.error("rabbit-queues", `Channel error ${error}`);
+    });
   }
 
   /**
@@ -480,7 +502,8 @@ export class RabbitMqJobsConsumer {
    * @param job
    */
   static async unsubscribe(job: AbstractRabbitMqJobHandler) {
-    const channel = RabbitMqJobsConsumer.queueToChannel.get(job.getQueue());
+    const channelName = job.getUseSharedChannel() ? job.getSharedChannelName() : job.getQueue();
+    const channel = RabbitMqJobsConsumer.queueToChannel.get(channelName);
 
     if (channel) {
       await channel.cancel(RabbitMqJobsConsumer.getConsumerTag(job.getQueue()));

@@ -154,6 +154,7 @@ export const getExecuteSellV7Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
+      requestId: Joi.string(),
       steps: Joi.array().items(
         Joi.object({
           id: Joi.string().required().description("Returns `auth` or `nft-approval`"),
@@ -1180,14 +1181,14 @@ export const getExecuteSellV7Options: RouteOptions = {
 
       const executionsBuffer = new ExecutionsBuffer();
       for (const item of path) {
-        const calldata = txs.find((tx) => tx.orderIds.includes(item.orderId))?.txData.data;
+        const txData = txs.find((tx) => tx.orderIds.includes(item.orderId))?.txData;
 
         let orderId = item.orderId;
-        if (calldata && item.source === "blur.io") {
+        if (txData && item.source === "blur.io") {
           // Blur bids don't have the correct order id so we have to override it
           const orders = await new Sdk.Blur.Exchange(config.chainId).getMatchedOrdersFromCalldata(
             baseProvider,
-            calldata
+            txData!.data
           );
 
           const index = orders.findIndex(
@@ -1205,10 +1206,10 @@ export const getExecuteSellV7Options: RouteOptions = {
           user: payload.taker,
           orderId,
           quantity: item.quantity,
-          calldata,
+          ...txData,
         });
       }
-      await executionsBuffer.flush();
+      const requestId = await executionsBuffer.flush();
 
       const perfTime2 = performance.now();
 
@@ -1223,6 +1224,7 @@ export const getExecuteSellV7Options: RouteOptions = {
       );
 
       return {
+        requestId,
         steps: blurAuth ? [steps[0], ...steps.slice(1).filter((s) => s.items.length)] : steps,
         errors,
         path,

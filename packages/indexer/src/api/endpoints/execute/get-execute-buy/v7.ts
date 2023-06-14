@@ -180,6 +180,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
+      requestId: Joi.string(),
       steps: Joi.array().items(
         Joi.object({
           id: Joi.string().required(),
@@ -1330,10 +1331,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
           user: payload.taker,
           orderId: item.orderId,
           quantity: item.quantity,
-          calldata: txs.find((tx) => tx.orderIds.includes(item.orderId))?.txData.data,
+          ...txs.find((tx) => tx.orderIds.includes(item.orderId))?.txData,
         });
       }
-      await executionsBuffer.flush();
+      const requestId = await executionsBuffer.flush();
 
       const perfTime2 = performance.now();
 
@@ -1348,6 +1349,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       );
 
       return {
+        requestId,
         steps: blurAuth ? [steps[0], ...steps.slice(1).filter((s) => s.items.length)] : steps,
         errors,
         path,

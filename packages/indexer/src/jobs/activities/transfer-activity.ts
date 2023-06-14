@@ -8,10 +8,10 @@ import { UserActivities } from "@/models/user-activities";
 import { config } from "@/config/index";
 
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
-import * as fixActivitiesMissingCollection from "@/jobs/activities/fix-activities-missing-collection";
 import { NftTransferEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/nft-transfer-event-created";
 import { getNetworkSettings } from "@/config/network";
 import { logger } from "@/common/logger";
+import * as fixActivitiesMissingCollection from "@/jobs/activities/fix-activities-missing-collection";
 
 export class TransferActivity {
   public static async handleEvent(data: NftTransferEventData) {

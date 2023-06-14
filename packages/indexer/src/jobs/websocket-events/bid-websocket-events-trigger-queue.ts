@@ -173,6 +173,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             source: result.source.domain || "unknown",
           },
           data: result,
+          offset: data.offset,
         });
       } catch (error) {
         logger.error(
@@ -213,4 +214,5 @@ export type BidWebsocketEventInfo = {
   orderId: string;
   kind: TriggerKind;
   trigger: "insert" | "update";
+  offset: string;
 };

@@ -330,8 +330,6 @@ export const savePartialListings = async (
   const orderValues: DbOrder[] = [];
 
   const handleOrder = async ({ orderParams }: PartialListingOrderInfo) => {
-    // logger.info("blur-debug", JSON.stringify(orderInfos));
-
     try {
       // Fetch current owner
       const owner = await idb
@@ -511,6 +509,7 @@ export const savePartialListings = async (
               raw_data = $/rawData:json/
             WHERE orders.id = $/id/
               AND orders.fillability_status != 'fillable'
+              AND orders.approval_status = 'approved'
             RETURNING orders.id
           `,
           {
