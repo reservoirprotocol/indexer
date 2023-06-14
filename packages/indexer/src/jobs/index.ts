@@ -30,7 +30,6 @@ import "@/jobs/token-set-updates";
 
 // Export all job queues for monitoring through the BullMQ UI
 
-import * as fixActivitiesMissingCollection from "@/jobs/activities/fix-activities-missing-collection";
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
 import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
 
@@ -56,12 +55,8 @@ import * as collectionsRefresh from "@/jobs/collections-refresh/collections-refr
 import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections-refresh-cache";
 
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
-import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import * as collectionSetCommunity from "@/jobs/collection-updates/set-community-queue";
-import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
-import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import * as rarity from "@/jobs/collection-updates/rarity-queue";
 import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
 import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
@@ -70,7 +65,6 @@ import * as updateCollectionUserActivity from "@/jobs/collection-updates/update-
 import * as updateCollectionDailyVolume from "@/jobs/collection-updates/update-collection-daily-volume";
 
 import * as tokenSetUpdatesTopBid from "@/jobs/token-set-updates/top-bid-queue";
-import * as tokenSetUpdatesTopBidSingleToken from "@/jobs/token-set-updates/top-bid-single-token-queue";
 
 import * as currencies from "@/jobs/currencies/index";
 
@@ -137,23 +131,8 @@ import * as orderbookPostOrderExternalOpensea from "@/jobs/orderbook/post-order-
 import * as orderbookTokenSets from "@/jobs/orderbook/token-sets-queue";
 import * as orderbookOpenseaListings from "@/jobs/orderbook/opensea-listings-queue";
 
-import * as fetchSourceInfo from "@/jobs/sources/fetch-source-info";
-
-import * as tokenUpdatesMint from "@/jobs/token-updates/mint-queue";
-import * as tokenRefreshCache from "@/jobs/token-updates/token-refresh-cache";
-import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
 import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
 import * as tokenUpdatesNormalizedFloorAsk from "@/jobs/token-updates/normalized-floor-queue";
-import * as tokenRecalcSupply from "@/jobs/token-updates/token-reclac-supply";
-
-import * as handleNewSellOrder from "@/jobs/update-attribute/handle-new-sell-order";
-import * as handleNewBuyOrder from "@/jobs/update-attribute/handle-new-buy-order";
-import * as resyncAttributeCache from "@/jobs/update-attribute/resync-attribute-cache";
-import * as resyncAttributeCollection from "@/jobs/update-attribute/resync-attribute-collection";
-import * as resyncAttributeFloorSell from "@/jobs/update-attribute/resync-attribute-floor-sell";
-import * as resyncAttributeKeyCounts from "@/jobs/update-attribute/resync-attribute-key-counts";
-import * as resyncAttributeValueCounts from "@/jobs/update-attribute/resync-attribute-value-counts";
-import * as updateAttributeCounts from "@/jobs/update-attribute/update-attribute-counts";
 
 import * as askWebsocketEventsTriggerQueue from "@/jobs/websocket-events/ask-websocket-events-trigger-queue";
 import * as bidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/bid-websocket-events-trigger-queue";
@@ -226,7 +205,6 @@ export const gracefulShutdownJobWorkers = [
 ];
 
 export const allJobQueues = [
-  fixActivitiesMissingCollection.queue,
   processActivityEvent.queue,
   removeUnsyncedEventsActivities.queue,
 
@@ -254,16 +232,10 @@ export const allJobQueues = [
   collectionsRefreshCache.queue,
 
   collectionUpdatesFloorAsk.queue,
-  collectionUpdatesNormalizedFloorAsk.queue,
   collectionUpdatesNonFlaggedFloorAsk.queue,
   collectionSetCommunity.queue,
-  collectionRecalcTokenCount.queue,
-  collectionRecalcOwnerCount.queue,
 
   tokenSetUpdatesTopBid.queue,
-  tokenSetUpdatesTopBidSingleToken.queue,
-
-  collectionUpdatesMetadata.queue,
   rarity.queue,
   collectionUpdatesTopBid.queue,
   refreshContractCollectionsMetadata.queue,
@@ -335,23 +307,8 @@ export const allJobQueues = [
   orderbookTokenSets.queue,
   orderbookOpenseaListings.queue,
 
-  fetchSourceInfo.queue,
-
-  tokenUpdatesMint.queue,
-  tokenRefreshCache.queue,
-  fetchCollectionMetadata.queue,
   tokenUpdatesFloorAsk.queue,
   tokenUpdatesNormalizedFloorAsk.queue,
-  tokenRecalcSupply.queue,
-
-  handleNewSellOrder.queue,
-  handleNewBuyOrder.queue,
-  resyncAttributeCache.queue,
-  resyncAttributeCollection.queue,
-  resyncAttributeFloorSell.queue,
-  resyncAttributeKeyCounts.queue,
-  resyncAttributeValueCounts.queue,
-  updateAttributeCounts.queue,
 
   askWebsocketEventsTriggerQueue.queue,
   bidWebsocketEventsTriggerQueue.queue,
