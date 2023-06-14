@@ -7,8 +7,8 @@ import { redis } from "@/common/redis";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { getNetworkSettings } from "@/config/network";
 import { fetchTransaction } from "@/events-sync/utils";
+import * as mintsSupplyCheck from "@/jobs/mints/supply-check";
 import { Sources } from "@/models/sources";
-
 import { CollectionMint, simulateAndSaveCollectionMint } from "@/utils/mints/collection-mints";
 
 import * as generic from "@/utils/mints/calldata/detector/generic";
@@ -79,6 +79,8 @@ export const detectMint = async (txHash: string, skipCache = false) => {
   if (!collectionsResult.every((c) => c.collection_id && c.collection_id === collection)) {
     return;
   }
+
+  await mintsSupplyCheck.addToQueue(collection);
 
   // For performance reasons, do at most one attempt per collection per 5 minutes
   if (!skipCache) {
