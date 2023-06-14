@@ -2,9 +2,8 @@
 
 import { HashZero } from "@ethersproject/constants";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
-import _ from "lodash";
 
-import { idb, ridb } from "@/common/db";
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
@@ -13,15 +12,17 @@ import { TriggerKind } from "@/jobs/order-updates/types";
 import { Sources } from "@/models/sources";
 
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
-import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
+// import * as tokenSetUpdatesTopBidSingleToken from "@/jobs/token-set-updates/top-bid-single-token-queue";
+
 import * as updateNftBalanceFloorAskPriceQueue from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
-import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
-import * as tokenUpdatesNormalizedFloorAsk from "@/jobs/token-updates/normalized-floor-queue";
-import * as handleNewBuyOrder from "@/jobs/update-attribute/handle-new-buy-order";
 import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
+import { BidEventsList } from "@/models/bid-events-list";
+import { normalizedFloorQueueJob } from "@/jobs/token-updates/normalized-floor-queue-job";
+import { tokenFloorQueueJob } from "@/jobs/token-updates/token-floor-queue-job";
+import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";
 
 const QUEUE_NAME = "order-updates-by-id";
 
@@ -47,7 +48,7 @@ if (config.doBackgroundWork) {
   worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { id, trigger } = job.data as OrderInfo;
+      const { id, trigger, ingestMethod, ingestDelay } = job.data as OrderInfo;
       let { side, tokenSetId } = job.data as OrderInfo;
 
       try {
@@ -76,6 +77,8 @@ if (config.doBackgroundWork) {
                 orders.normalized_value,
                 orders.currency_normalized_value,
                 orders.raw_data,
+                orders.originated_at AS "originatedAt",
+                orders.created_at AS "createdAt",
                 token_sets_tokens.contract,
                 token_sets_tokens.token_id AS "tokenId"
               FROM orders
@@ -92,110 +95,18 @@ if (config.doBackgroundWork) {
         }
 
         if (side && tokenSetId) {
-          if (side === "buy" && !tokenSetId.startsWith("token")) {
-            let buyOrderResult = await idb.manyOrNone(
-              `
-                WITH x AS (
-                  SELECT
-                    token_sets.id AS token_set_id,
-                    y.*
-                  FROM token_sets
-                  LEFT JOIN LATERAL (
-                    SELECT
-                      orders.id AS order_id,
-                      orders.value,
-                      orders.maker
-                    FROM orders
-                    WHERE orders.token_set_id = token_sets.id
-                      AND orders.side = 'buy'
-                      AND orders.fillability_status = 'fillable'
-                      AND orders.approval_status = 'approved'
-                      AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-                    ORDER BY orders.value DESC
-                    LIMIT 1
-                  ) y ON TRUE
-                  WHERE token_sets.id = $/tokenSetId/
-                )
-                UPDATE token_sets SET
-                  top_buy_id = x.order_id,
-                  top_buy_value = x.value,
-                  top_buy_maker = x.maker,
-                  attribute_id = token_sets.attribute_id,
-                  collection_id = token_sets.collection_id
-                FROM x
-                WHERE token_sets.id = x.token_set_id
-                  AND (
-                    token_sets.top_buy_id IS DISTINCT FROM x.order_id
-                    OR token_sets.top_buy_value IS DISTINCT FROM x.value
-                  )
-                RETURNING
-                  collection_id AS "collectionId",
-                  attribute_id AS "attributeId",
-                  top_buy_value AS "topBuyValue",
-                  top_buy_id AS "topBuyId"
-              `,
-              { tokenSetId }
-            );
+          if (side === "buy") {
+            const topBidInfo = {
+              tokenSetId,
+              kind: trigger.kind,
+              txHash: trigger.txHash || null,
+              txTimestamp: trigger.txTimestamp || null,
+            };
 
-            if (!buyOrderResult.length && trigger.kind === "revalidation") {
-              // When revalidating, force revalidation of the attribute / collection
-              const tokenSetsResult = await ridb.manyOrNone(
-                `
-                  SELECT
-                    token_sets.collection_id,
-                    token_sets.attribute_id
-                  FROM token_sets
-                  WHERE token_sets.id = $/tokenSetId/
-                `,
-                {
-                  tokenSetId,
-                }
-              );
-
-              if (tokenSetsResult.length) {
-                buyOrderResult = tokenSetsResult.map(
-                  (result: { collection_id: any; attribute_id: any }) => ({
-                    kind: trigger.kind,
-                    collectionId: result.collection_id,
-                    attributeId: result.attribute_id,
-                    txHash: trigger.txHash || null,
-                    txTimestamp: trigger.txTimestamp || null,
-                  })
-                );
-              }
-            }
-
-            if (buyOrderResult.length) {
-              if (
-                trigger.kind === "new-order" &&
-                buyOrderResult[0].topBuyId &&
-                buyOrderResult[0].attributeId
-              ) {
-                //  Only trigger websocket event for non collection offers.
-                await WebsocketEventRouter({
-                  eventKind: WebsocketEventKind.NewTopBid,
-                  eventInfo: {
-                    orderId: buyOrderResult[0].topBuyId,
-                  },
-                });
-              }
-
-              for (const result of buyOrderResult) {
-                if (!_.isNull(result.attributeId)) {
-                  await handleNewBuyOrder.addToQueue(result);
-                }
-
-                if (!_.isNull(result.collectionId)) {
-                  await collectionUpdatesTopBid.addToQueue([
-                    {
-                      collectionId: result.collectionId,
-                      kind: trigger.kind,
-                      txHash: trigger.txHash || null,
-                      txTimestamp: trigger.txTimestamp || null,
-                    } as collectionUpdatesTopBid.TopBidInfo,
-                  ]);
-                }
-              }
+            if (tokenSetId.startsWith("token")) {
+              // await tokenSetUpdatesTopBidSingleToken.addToQueue([topBidInfo]);
+            } else {
+              await topBidQueueJob.addToQueue([topBidInfo]);
             }
           }
 
@@ -209,8 +120,8 @@ if (config.doBackgroundWork) {
             };
 
             await Promise.all([
-              tokenUpdatesFloorAsk.addToQueue([floorAskInfo]),
-              tokenUpdatesNormalizedFloorAsk.addToQueue([floorAskInfo]),
+              tokenFloorQueueJob.addToQueue([floorAskInfo]),
+              normalizedFloorQueueJob.addToQueue([floorAskInfo]),
             ]);
           }
 
@@ -251,6 +162,7 @@ if (config.doBackgroundWork) {
                         WHEN $/fillabilityStatus/ = 'expired' THEN 'expired'
                         WHEN $/fillabilityStatus/ = 'no-balance' THEN 'inactive'
                         WHEN $/approvalStatus/ = 'no-approval' THEN 'inactive'
+                        WHEN $/approvalStatus/ = 'disabled' THEN 'inactive'
                         ELSE 'active'
                       END
                     )::order_event_status_t,
@@ -309,87 +221,18 @@ if (config.doBackgroundWork) {
 
               await updateNftBalanceFloorAskPriceQueue.addToQueue([updateFloorAskPriceInfo]);
             } else if (order.side === "buy") {
-              // Insert a corresponding bid event
-              await idb.none(
-                `
-                  INSERT INTO bid_events (
-                    kind,
-                    status,
-                    contract,
-                    token_set_id,
-                    order_id,
-                    order_source_id_int,
-                    order_valid_between,
-                    order_quantity_remaining,
-                    order_nonce,
-                    maker,
-                    price,
-                    value,
-                    tx_hash,
-                    tx_timestamp,
-                    order_kind,
-                    order_currency,
-                    order_currency_price,
-                    order_normalized_value,
-                    order_currency_normalized_value,
-                    order_raw_data
-                  )
-                  VALUES (
-                    $/kind/,
-                    (
-                      CASE
-                        WHEN $/fillabilityStatus/ = 'filled' THEN 'filled'
-                        WHEN $/fillabilityStatus/ = 'cancelled' THEN 'cancelled'
-                        WHEN $/fillabilityStatus/ = 'expired' THEN 'expired'
-                        WHEN $/fillabilityStatus/ = 'no-balance' THEN 'inactive'
-                        WHEN $/approvalStatus/ = 'no-approval' THEN 'inactive'
-                        ELSE 'active'
-                      END
-                    )::order_event_status_t,
-                    $/contract/,
-                    $/tokenSetId/,
-                    $/orderId/,
-                    $/orderSourceIdInt/,
-                    $/validBetween/,
-                    $/quantityRemaining/,
-                    $/nonce/,
-                    $/maker/,
-                    $/price/,
-                    $/value/,
-                    $/txHash/,
-                    $/txTimestamp/,
-                    $/orderKind/,
-                    $/orderCurrency/,
-                    $/orderCurrencyPrice/,
-                    $/orderNormalizedValue/,
-                    $/orderCurrencyNormalizedValue/,
-                    $/orderRawData/
-                  )
-                `,
+              const bidEventsList = new BidEventsList();
+              await bidEventsList.add([
                 {
-                  fillabilityStatus: order.fillabilityStatus,
-                  approvalStatus: order.approvalStatus,
-                  contract: order.contract,
-                  tokenSetId: order.tokenSetId,
-                  orderId: order.id,
-                  orderSourceIdInt: order.sourceIdInt,
-                  validBetween: order.validBetween,
-                  quantityRemaining: order.quantityRemaining,
-                  nonce: order.nonce,
-                  maker: order.maker,
-                  price: order.price,
-                  value: order.value,
-                  kind: trigger.kind,
-                  txHash: trigger.txHash ? toBuffer(trigger.txHash) : null,
-                  txTimestamp: trigger.txTimestamp || null,
-                  orderKind: order.kind,
-                  orderCurrency: order.currency,
-                  orderCurrencyPrice: order.currency_price,
-                  orderNormalizedValue: order.normalized_value,
-                  orderCurrencyNormalizedValue: order.currency_normalized_value,
-                  orderRawData: order.raw_data,
-                }
-              );
+                  order: {
+                    ...order,
+                    maker: fromBuffer(order.maker),
+                    currency: fromBuffer(order.currency),
+                    contract: fromBuffer(order.contract),
+                  },
+                  trigger,
+                },
+              ]);
             }
 
             let eventInfo;
@@ -453,17 +296,23 @@ if (config.doBackgroundWork) {
             }
 
             if (eventInfo) {
-              await processActivityEvent.addToQueue([eventInfo as processActivityEvent.EventInfo]);
+              await processActivityEvent.addActivitiesToList([
+                eventInfo as processActivityEvent.EventInfo,
+              ]);
             }
 
-            await WebsocketEventRouter({
-              eventInfo: {
-                kind: trigger.kind,
-                orderId: order.id,
-              },
-              eventKind:
-                order.side === "sell" ? WebsocketEventKind.SellOrder : WebsocketEventKind.BuyOrder,
-            });
+            if (config.doOldOrderWebsocketWork) {
+              await WebsocketEventRouter({
+                eventInfo: {
+                  kind: trigger.kind,
+                  orderId: order.id,
+                },
+                eventKind:
+                  order.side === "sell"
+                    ? WebsocketEventKind.SellOrder
+                    : WebsocketEventKind.BuyOrder,
+              });
+            }
           }
         }
 
@@ -471,17 +320,35 @@ if (config.doBackgroundWork) {
         if (order && order.validBetween && trigger.kind === "new-order") {
           try {
             const orderStart = Math.floor(
-              new Date(JSON.parse(order.validBetween)[0]).getTime() / 1000
+              new Date(order.originatedAt ?? JSON.parse(order.validBetween)[0]).getTime() / 1000
             );
-            const currentTime = Math.floor(Date.now() / 1000);
+            const orderCreated = Math.floor(new Date(order.createdAt).getTime() / 1000);
             const source = (await Sources.getInstance()).get(order.sourceIdInt);
+            const orderType =
+              side === "sell"
+                ? "listing"
+                : tokenSetId?.startsWith("token")
+                ? "token_offer"
+                : tokenSetId?.startsWith("list")
+                ? "attribute_offer"
+                : "collection_offer";
 
-            if (orderStart <= currentTime) {
+            if (orderStart <= orderCreated) {
               logger.info(
                 "order-latency",
                 JSON.stringify({
-                  latency: currentTime - orderStart,
+                  latency: orderCreated - orderStart - Number(ingestDelay ?? 0),
                   source: source?.getTitle(),
+                  orderId: order.id,
+                  orderKind: order.kind,
+                  orderType,
+                  orderCreatedAt: new Date(order.createdAt).toISOString(),
+                  orderValidFrom: new Date(JSON.parse(order.validBetween)[0]).toISOString(),
+                  orderOriginatedAt: order.originatedAt
+                    ? new Date(order.originatedAt).toISOString()
+                    : null,
+                  ingestMethod: ingestMethod ?? "rest",
+                  ingestDelay,
                 })
               );
             }
@@ -497,7 +364,7 @@ if (config.doBackgroundWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 50 }
+    { connection: redis.duplicate(), concurrency: 80 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
@@ -533,6 +400,8 @@ export type OrderInfo = {
   // we don't have an order to check against.
   tokenSetId?: string;
   side?: "sell" | "buy";
+  ingestMethod?: "websocket" | "rest";
+  ingestDelay?: number;
 };
 
 export const addToQueue = async (orderInfos: OrderInfo[]) => {

@@ -8,10 +8,15 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import { sub, set, getUnixTime, add } from "date-fns";
 import { Collections } from "@/models/collections";
 import { CollectionsEntity } from "@/models/collections/collections-entity";
+import { redb } from "@/common/db";
+import { fromBuffer } from "@/common/utils";
+import {
+  collectionMetadataQueueJob,
+  CollectionMetadataInfo,
+} from "@/jobs/collection-updates/collection-metadata-queue-job";
 
 const QUEUE_NAME = "collections-refresh-queue";
 
@@ -61,11 +66,46 @@ if (config.doBackgroundWork) {
       // Get top collections by volume
       collections = collections.concat(await Collections.getTopCollectionsByVolume());
 
-      const contracts = _.map(collections, (collection) => ({
-        contract: collection.contract,
-        community: collection.community,
-      }));
-      await collectionUpdatesMetadata.addToQueue(contracts);
+      const collectionIds = _.map(collections, (collection) => collection.id);
+
+      const results = await redb.manyOrNone(
+        `
+                SELECT
+                  collections.contract,
+                  collections.community,
+                  t.token_id
+                FROM collections
+                JOIN LATERAL (
+                    SELECT t.token_id
+                    FROM tokens t
+                    WHERE t.collection_id = collections.id
+                    LIMIT 1
+                ) t ON TRUE
+                WHERE collections.id IN ($/collectionIds:list/)
+              `,
+        { collectionIds }
+      );
+
+      const infos = _.map(
+        results,
+        (result) =>
+          ({
+            contract: fromBuffer(result.contract),
+            community: result.community,
+            tokenId: result.token_id,
+          } as CollectionMetadataInfo)
+      );
+
+      logger.info(
+        QUEUE_NAME,
+        JSON.stringify({
+          topic: "debug",
+          collectionsCount: collections.length,
+          resultsCount: results.length,
+        })
+      );
+
+      await collectionMetadataQueueJob.addToQueueBulk(infos, 0, QUEUE_NAME);
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );

@@ -21,7 +21,7 @@ const version = "v5";
 export const getCollectionFloorAskOracleV5Options: RouteOptions = {
   description: "Collection floor",
   notes:
-    "Get a signed message of any collection's floor price (spot or twap). The oracle's address is 0xAeB1D03929bF87F69888f381e73FBf75753d75AF.",
+    "Get a signed message of any collection's floor price (spot or twap). The oracle's address is 0xAeB1D03929bF87F69888f381e73FBf75753d75AF. The address is the same for all chains.",
   tags: ["api", "Oracle"],
   plugins: {
     "hapi-swagger": {
@@ -312,10 +312,12 @@ export const getCollectionFloorAskOracleV5Options: RouteOptions = {
         ),
       };
     } catch (error) {
-      logger.error(
-        `get-collection-floor-ask-oracle-${version}-handler`,
-        `Handler failure: ${error}`
-      );
+      if (!(error instanceof Boom.Boom)) {
+        logger.error(
+          `get-collection-floor-ask-oracle-${version}-handler`,
+          `Handler failure: ${error}`
+        );
+      }
       throw error;
     }
   },

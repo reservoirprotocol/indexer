@@ -14,10 +14,11 @@ import MetadataApi from "@/utils/metadata-api";
 import * as royalties from "@/utils/royalties";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 
-import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
+import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
+import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
 
 const QUEUE_NAME = "token-updates-fetch-collection-metadata-queue";
 
@@ -44,6 +45,13 @@ if (config.doBackgroundWork) {
       const { contract, tokenId, mintedTimestamp, newCollection, oldCollectionId } =
         job.data as FetchCollectionMetadataInfo;
 
+      if (isNaN(Number(tokenId))) {
+        logger.error(
+          "updateCollectionCache",
+          `Invalid tokenId. jobData=${JSON.stringify(job.data)}`
+        );
+      }
+
       try {
         // Fetch collection metadata
         const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, "", {
@@ -63,28 +71,28 @@ if (config.doBackgroundWork) {
         const queries: PgPromiseQuery[] = [];
         queries.push({
           query: `
-              INSERT INTO "collections" (
-                "id",
-                "slug",
-                "name",
-                "community",
-                "metadata",
-                "contract",
-                "token_id_range",
-                "token_set_id",
-                "minted_timestamp"
-              ) VALUES (
-                $/id/,
-                $/slug/,
-                $/name/,
-                $/community/,
-                $/metadata:json/,
-                $/contract/,
-                ${tokenIdRangeParam},
-                $/tokenSetId/,
-                $/mintedTimestamp/
-              ) ON CONFLICT DO NOTHING;
-            `,
+            INSERT INTO "collections" (
+              "id",
+              "slug",
+              "name",
+              "community",
+              "metadata",
+              "contract",
+              "token_id_range",
+              "token_set_id",
+              "minted_timestamp"
+            ) VALUES (
+              $/id/,
+              $/slug/,
+              $/name/,
+              $/community/,
+              $/metadata:json/,
+              $/contract/,
+              ${tokenIdRangeParam},
+              $/tokenSetId/,
+              $/mintedTimestamp/
+            ) ON CONFLICT DO NOTHING;
+          `,
           values: {
             id: collection.id,
             slug: collection.slug,
@@ -94,7 +102,7 @@ if (config.doBackgroundWork) {
             contract: toBuffer(collection.contract),
             tokenIdRange,
             tokenSetId: collection.tokenSetId,
-            mintedTimestamp,
+            mintedTimestamp: mintedTimestamp ?? null,
           },
         });
 
@@ -125,11 +133,14 @@ if (config.doBackgroundWork) {
         await idb.none(pgp.helpers.concat(queries));
 
         // Schedule a job to re-count tokens in the collection
-        await collectionRecalcTokenCount.addToQueue(collection.id);
+        await recalcTokenCountQueueJob.addToQueue({ collection: collection.id });
+        await recalcOwnerCountQueueJob.addToQueue([
+          { context: QUEUE_NAME, kind: "collectionId", data: { collectionId: collection.id } },
+        ]);
 
         // If token has moved collections, update the old collection's token count
         if (oldCollectionId) {
-          await collectionRecalcTokenCount.addToQueue(oldCollectionId, true);
+          await recalcTokenCountQueueJob.addToQueue({ collection: oldCollectionId, force: true });
         }
 
         // If this is a new collection, recalculate floor price
@@ -199,9 +210,11 @@ if (config.doBackgroundWork) {
 export type FetchCollectionMetadataInfo = {
   contract: string;
   tokenId: string;
-  mintedTimestamp: number;
+  mintedTimestamp?: number;
   newCollection?: boolean;
   oldCollectionId?: string;
+  allowFallbackCollectionMetadata?: boolean;
+  context?: string;
 };
 
 export const addToQueue = async (infos: FetchCollectionMetadataInfo[], jobId = "") => {
@@ -213,6 +226,8 @@ export const addToQueue = async (infos: FetchCollectionMetadataInfo[], jobId = "
           ? `${info.contract}-${info.tokenId}`
           : info.contract;
       }
+
+      info.allowFallbackCollectionMetadata = info.allowFallbackCollectionMetadata ?? true;
 
       return {
         name: jobId,

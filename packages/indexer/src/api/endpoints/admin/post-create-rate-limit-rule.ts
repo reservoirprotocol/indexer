@@ -17,8 +17,9 @@ export const postCreateRateLimitRuleOptions: RouteOptions = {
     }).options({ allowUnknown: true }),
     payload: Joi.object({
       route: Joi.string().description("The route for which the rule is created").required(),
-      points: Joi.number().required(),
-      duration: Joi.number().required(),
+      points: Joi.number().optional(),
+      duration: Joi.number().optional(),
+      pointsToConsume: Joi.number().optional(),
       tier: Joi.number().default(null).optional(),
       apiKey: Joi.string().default("").uuid().optional(),
       method: Joi.string().valid("get", "post", "delete", "put", "").default("").optional(),
@@ -48,6 +49,7 @@ export const postCreateRateLimitRuleOptions: RouteOptions = {
         {
           points: payload.points,
           duration: payload.duration,
+          pointsToConsume: payload.pointsToConsume,
         },
         payload.payload || []
       );

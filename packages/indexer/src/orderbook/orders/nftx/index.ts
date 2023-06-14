@@ -1,3 +1,4 @@
+import { BigNumberish } from "@ethersproject/bignumber";
 import { AddressZero } from "@ethersproject/constants";
 import { keccak256 } from "@ethersproject/solidity";
 import * as Sdk from "@reservoir0x/sdk";
@@ -12,7 +13,12 @@ import { config } from "@/config/index";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Sources } from "@/models/sources";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
-import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
+import {
+  POOL_ORDERS_MAX_PRICE_POINTS_COUNT,
+  DbOrder,
+  OrderMetadata,
+  generateSchemaHash,
+} from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
 import * as nftx from "@/utils/nftx";
 import * as royalties from "@/utils/royalties";
@@ -80,7 +86,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       // Force recheck at most once per hour
       const recheckCondition = orderParams.forceRecheck
         ? `AND orders.updated_at < to_timestamp(${orderParams.txTimestamp - 3600})`
-        : `AND lower(orders.valid_between) < to_timestamp(${orderParams.txTimestamp})`;
+        : `AND (orders.block_number, orders.log_index) < (${orderParams.txBlock}, ${orderParams.logIndex})`;
 
       // Handle buy orders
       try {
@@ -123,21 +129,32 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             triggerKind: "cancel",
           });
         } else {
-          const priceList = [];
-          for (let index = 0; index < 10; index++) {
-            try {
-              const poolPrice = await Sdk.Nftx.Helpers.getPoolPrice(
-                orderParams.pool,
-                index + 1,
-                "sell",
-                slippage,
-                baseProvider
-              );
-              priceList.push(poolPrice);
-            } catch {
-              break;
-            }
+          let tmpPriceList: ({ feeBps: BigNumberish; price: BigNumberish } | undefined)[] =
+            Array.from({ length: POOL_ORDERS_MAX_PRICE_POINTS_COUNT }, () => undefined);
+          await Promise.all(
+            _.range(0, POOL_ORDERS_MAX_PRICE_POINTS_COUNT).map(async (index) => {
+              try {
+                // Don't get the price from 0x to avoid being rate-limited
+                const poolPrice = await Sdk.Nftx.Helpers.getPoolPrice(
+                  orderParams.pool,
+                  index + 1,
+                  "sell",
+                  slippage,
+                  baseProvider
+                );
+                tmpPriceList[index] = poolPrice;
+              } catch {
+                // Ignore errors
+              }
+            })
+          );
+
+          // Stop when the first `undefined` is encountered
+          const firstUndefined = tmpPriceList.findIndex((p) => p === undefined);
+          if (firstUndefined !== -1) {
+            tmpPriceList = tmpPriceList.slice(0, firstUndefined);
           }
+          const priceList = tmpPriceList.map((p) => p!);
 
           if (priceList.length) {
             // Handle: prices
@@ -145,10 +162,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             const value = bn(price).sub(bn(price).mul(bps).div(10000)).toString();
 
             const prices: string[] = [];
-            for (const p of priceList) {
+            for (let i = 0; i < priceList.length; i++) {
               prices.push(
-                bn(p.price)
-                  .sub(prices.length ? priceList[prices.length - 1].price : 0)
+                bn(priceList[i].price)
+                  .sub(i > 0 ? priceList[i - 1].price : 0)
                   .toString()
               );
             }
@@ -349,11 +366,17 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 UPDATE orders SET
                   fillability_status = 'no-balance',
                   expiration = to_timestamp(${orderParams.txTimestamp}),
+                  block_number = $/blockNumber/,
+                  log_index = $/logIndex/,
                   updated_at = now()
                 WHERE orders.id = $/id/
                   ${recheckCondition}
               `,
-              { id }
+              {
+                id,
+                blockNumber: orderParams.txBlock,
+                logIndex: orderParams.logIndex,
+              }
             );
             results.push({
               id,
@@ -373,53 +396,46 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       // Handle sell orders
       try {
-        const priceList = [];
-        for (let index = 0; index < 10; index++) {
-          try {
-            const poolPrice = await Sdk.Nftx.Helpers.getPoolPrice(
-              orderParams.pool,
-              index + 1,
-              "buy",
-              slippage,
-              baseProvider
-            );
-            priceList.push(poolPrice);
-          } catch {
-            break;
-          }
+        let tmpPriceList: ({ feeBps: BigNumberish; price: BigNumberish } | undefined)[] =
+          Array.from({ length: POOL_ORDERS_MAX_PRICE_POINTS_COUNT }, () => undefined);
+        await Promise.all(
+          _.range(0, POOL_ORDERS_MAX_PRICE_POINTS_COUNT).map(async (index) => {
+            try {
+              // Don't get the price from 0x to avoid being rate-limited
+              const poolPrice = await Sdk.Nftx.Helpers.getPoolPrice(
+                orderParams.pool,
+                index + 1,
+                "buy",
+                slippage,
+                baseProvider
+              );
+              tmpPriceList[index] = poolPrice;
+            } catch {
+              // Ignore errors
+            }
+          })
+        );
+
+        // Stop when the first `undefined` is encountered
+        const firstUndefined = tmpPriceList.findIndex((p) => p === undefined);
+        if (firstUndefined !== -1) {
+          tmpPriceList = tmpPriceList.slice(0, firstUndefined);
         }
+        const priceList = tmpPriceList.map((p) => p!);
 
         const prices: string[] = [];
-        for (const p of priceList) {
+        for (let i = 0; i < priceList.length; i++) {
           prices.push(
-            bn(p.price)
-              .sub(prices.length ? priceList[prices.length - 1].price : 0)
+            bn(priceList[i].price)
+              .sub(i > 0 ? priceList[i - 1].price : 0)
               .toString()
           );
         }
 
-        // Handle: prices
-        const { price, feeBps: bps } = priceList[0];
-        const value = price;
-
-        // Handle: fees
-        let feeBps = 0;
-        const feeBreakdown: {
-          kind: string;
-          recipient: string;
-          bps: number;
-        }[] = [];
-
-        // Handle: fees
-        feeBps = Number(bps);
-        feeBreakdown.push({
-          kind: "marketplace",
-          recipient: pool.address,
-          bps: feeBps,
-        });
-
         // Fetch all token ids owned by the pool
-        const poolOwnedTokenIds = await commonHelpers.getNfts(pool.nft, pool.address);
+        const poolOwnedTokenIds = await commonHelpers
+          .getNfts(pool.nft, pool.address)
+          .then((nfts) => nfts.map((nft) => nft.tokenId));
 
         const limit = pLimit(50);
         await Promise.all(
@@ -428,204 +444,247 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               try {
                 const id = getOrderId(orderParams.pool, "sell", tokenId);
 
-                // Handle: royalties on top
-                const defaultRoyalties = await royalties.getRoyaltiesByTokenSet(
-                  `token:${pool.nft}:${tokenId}`,
-                  "default"
-                );
-                const totalBuiltInBps = 0;
-                const totalDefaultBps = defaultRoyalties
-                  .map(({ bps }) => bps)
-                  .reduce((a, b) => a + b, 0);
+                if (priceList.length) {
+                  // Handle: prices
+                  const { price, feeBps: bps } = priceList[0];
+                  const value = price;
 
-                const missingRoyalties: { bps: number; amount: string; recipient: string }[] = [];
-                let missingRoyaltyAmount = bn(0);
-                if (totalBuiltInBps < totalDefaultBps) {
-                  const validRecipients = defaultRoyalties.filter(
-                    ({ bps, recipient }) => bps && recipient !== AddressZero
+                  // Handle: fees
+                  let feeBps = 0;
+                  const feeBreakdown: {
+                    kind: string;
+                    recipient: string;
+                    bps: number;
+                  }[] = [];
+
+                  // Handle: fees
+                  feeBps = Number(bps);
+                  feeBreakdown.push({
+                    kind: "marketplace",
+                    recipient: pool.address,
+                    bps: feeBps,
+                  });
+
+                  // Handle: royalties on top
+                  const defaultRoyalties = await royalties.getRoyaltiesByTokenSet(
+                    `token:${pool.nft}:${tokenId}`,
+                    "default"
                   );
-                  if (validRecipients.length) {
-                    const bpsDiff = totalDefaultBps - totalBuiltInBps;
-                    const amount = bn(price).mul(bpsDiff).div(10000);
-                    missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
+                  const totalBuiltInBps = 0;
+                  const totalDefaultBps = defaultRoyalties
+                    .map(({ bps }) => bps)
+                    .reduce((a, b) => a + b, 0);
 
-                    // Split the missing royalties pro-rata across all royalty recipients
-                    const totalBps = _.sumBy(validRecipients, ({ bps }) => bps);
-                    for (const { bps, recipient } of validRecipients) {
-                      // TODO: Handle lost precision (by paying it to the last or first recipient)
-                      missingRoyalties.push({
-                        bps: Math.floor((bpsDiff * bps) / totalBps),
-                        amount: amount.mul(bps).div(totalBps).toString(),
-                        recipient,
+                  const missingRoyalties: { bps: number; amount: string; recipient: string }[] = [];
+                  let missingRoyaltyAmount = bn(0);
+                  if (totalBuiltInBps < totalDefaultBps) {
+                    const validRecipients = defaultRoyalties.filter(
+                      ({ bps, recipient }) => bps && recipient !== AddressZero
+                    );
+                    if (validRecipients.length) {
+                      const bpsDiff = totalDefaultBps - totalBuiltInBps;
+                      const amount = bn(price).mul(bpsDiff).div(10000);
+                      missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
+
+                      // Split the missing royalties pro-rata across all royalty recipients
+                      const totalBps = _.sumBy(validRecipients, ({ bps }) => bps);
+                      for (const { bps, recipient } of validRecipients) {
+                        // TODO: Handle lost precision (by paying it to the last or first recipient)
+                        missingRoyalties.push({
+                          bps: Math.floor((bpsDiff * bps) / totalBps),
+                          amount: amount.mul(bps).div(totalBps).toString(),
+                          recipient,
+                        });
+                      }
+                    }
+                  }
+
+                  const normalizedValue = bn(value).add(missingRoyaltyAmount);
+
+                  // Requirements for sell orders:
+                  // - pool has target redeem enabled
+
+                  if (!poolFeatures.enableTargetRedeem) {
+                    await idb.none(
+                      `
+                        UPDATE orders SET
+                          fillability_status = 'cancelled',
+                          expiration = to_timestamp(${orderParams.txTimestamp}),
+                          updated_at = now()
+                        WHERE orders.id = $/id/
+                          ${recheckCondition}
+                      `,
+                      { id }
+                    );
+                    results.push({
+                      id,
+                      txHash: orderParams.txHash,
+                      txTimestamp: orderParams.txTimestamp,
+                      status: "success",
+                      triggerKind: "cancel",
+                    });
+                  } else {
+                    // Handle: core sdk order
+                    const sdkOrder = new Sdk.Nftx.Order(config.chainId, {
+                      vaultId: pool.vaultId.toString(),
+                      collection: pool.nft,
+                      pool: pool.address,
+                      specificIds: [tokenId],
+                      currency: Sdk.Common.Addresses.Weth[config.chainId],
+                      amount: "1",
+                      path: [Sdk.Common.Addresses.Weth[config.chainId], pool.address],
+                      price: price.toString(),
+                      extra: {
+                        prices,
+                      },
+                    });
+
+                    const orderResult = await redb.oneOrNone(
+                      `
+                        SELECT 1 FROM orders
+                        WHERE orders.id = $/id/
+                      `,
+                      { id }
+                    );
+                    if (!orderResult && poolFeatures.enableTargetRedeem) {
+                      // Handle: token set
+                      const schemaHash = generateSchemaHash();
+                      const [{ id: tokenSetId }] = await tokenSet.singleToken.save([
+                        {
+                          id: `token:${pool.nft}:${tokenId}`,
+                          schemaHash,
+                          contract: pool.nft,
+                          tokenId,
+                        },
+                      ]);
+                      if (!tokenSetId) {
+                        throw new Error("No token set available");
+                      }
+
+                      // Handle: source
+                      const sources = await Sources.getInstance();
+                      const source = await sources.getOrInsert("nftx.io");
+
+                      const validFrom = `date_trunc('seconds', to_timestamp(${orderParams.txTimestamp}))`;
+                      const validTo = `'Infinity'`;
+                      orderValues.push({
+                        id,
+                        kind: "nftx",
+                        side: "sell",
+                        fillability_status: "fillable",
+                        approval_status: "approved",
+                        token_set_id: tokenSetId,
+                        token_set_schema_hash: toBuffer(schemaHash),
+                        maker: toBuffer(pool.address),
+                        taker: toBuffer(AddressZero),
+                        price: price.toString(),
+                        value: value.toString(),
+                        currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
+                        currency_price: price.toString(),
+                        currency_value: value.toString(),
+                        needs_conversion: null,
+                        quantity_remaining: "1",
+                        valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
+                        nonce: null,
+                        source_id_int: source?.id,
+                        is_reservoir: null,
+                        contract: toBuffer(pool.nft),
+                        conduit: null,
+                        fee_bps: feeBps,
+                        fee_breakdown: feeBreakdown,
+                        dynamic: null,
+                        raw_data: sdkOrder.params,
+                        expiration: validTo,
+                        missing_royalties: missingRoyalties,
+                        normalized_value: normalizedValue.toString(),
+                        currency_normalized_value: normalizedValue.toString(),
+                        block_number: orderParams.txBlock ?? null,
+                        log_index: orderParams.logIndex ?? null,
+                      });
+
+                      results.push({
+                        id,
+                        txHash: orderParams.txHash,
+                        txTimestamp: orderParams.txTimestamp,
+                        status: "success",
+                        triggerKind: "new-order",
+                      });
+                    } else {
+                      await idb.none(
+                        `
+                          UPDATE orders SET
+                            fillability_status = 'fillable',
+                            approval_status = 'approved',
+                            price = $/price/,
+                            currency_price = $/price/,
+                            value = $/value/,
+                            currency_value = $/value/,
+                            quantity_remaining = 1,
+                            valid_between = tstzrange(date_trunc('seconds', to_timestamp(${orderParams.txTimestamp})), 'Infinity', '[]'),
+                            expiration = 'Infinity',
+                            updated_at = now(),
+                            raw_data = $/rawData:json/,
+                            missing_royalties = $/missingRoyalties:json/,
+                            normalized_value = $/normalizedValue/,
+                            currency_normalized_value = $/currencyNormalizedValue/,
+                            fee_bps = $/feeBps/,
+                            fee_breakdown = $/feeBreakdown:json/,
+                            currency = $/currency/,
+                            block_number = $/blockNumber/,
+                            log_index = $/logIndex/
+                          WHERE orders.id = $/id/
+                            ${recheckCondition}
+                        `,
+                        {
+                          id,
+                          price,
+                          value,
+                          rawData: sdkOrder.params,
+                          missingRoyalties: missingRoyalties,
+                          normalizedValue: normalizedValue.toString(),
+                          currencyNormalizedValue: normalizedValue.toString(),
+                          feeBps,
+                          feeBreakdown,
+                          currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
+                          blockNumber: orderParams.txBlock,
+                          logIndex: orderParams.logIndex,
+                        }
+                      );
+
+                      results.push({
+                        id,
+                        txHash: orderParams.txHash,
+                        txTimestamp: orderParams.txTimestamp,
+                        status: "success",
+                        triggerKind: "reprice",
                       });
                     }
                   }
-                }
-
-                const normalizedValue = bn(value).add(missingRoyaltyAmount);
-
-                // Requirements for sell orders:
-                // - pool has target redeem enabled
-
-                if (!poolFeatures.enableTargetRedeem) {
+                } else {
                   await idb.none(
                     `
                       UPDATE orders SET
-                        fillability_status = 'cancelled',
+                        fillability_status = 'no-balance',
                         expiration = to_timestamp(${orderParams.txTimestamp}),
+                        block_number = $/blockNumber/,
+                        log_index = $/logIndex/,
                         updated_at = now()
                       WHERE orders.id = $/id/
                         ${recheckCondition}
                     `,
-                    { id }
+                    {
+                      id,
+                      blockNumber: orderParams.txBlock,
+                      logIndex: orderParams.logIndex,
+                    }
                   );
                   results.push({
                     id,
                     txHash: orderParams.txHash,
                     txTimestamp: orderParams.txTimestamp,
                     status: "success",
-                    triggerKind: "cancel",
+                    triggerKind: "reprice",
                   });
-                } else {
-                  if (!priceList.length) {
-                    return;
-                  }
-
-                  // Handle: core sdk order
-                  const sdkOrder = new Sdk.Nftx.Order(config.chainId, {
-                    vaultId: pool.vaultId.toString(),
-                    collection: pool.nft,
-                    pool: pool.address,
-                    specificIds: [tokenId],
-                    currency: Sdk.Common.Addresses.Weth[config.chainId],
-                    amount: "1",
-                    path: [Sdk.Common.Addresses.Weth[config.chainId], pool.address],
-                    price: price.toString(),
-                    extra: {
-                      prices,
-                    },
-                  });
-
-                  const orderResult = await redb.oneOrNone(
-                    `
-                      SELECT 1 FROM orders
-                      WHERE orders.id = $/id/
-                    `,
-                    { id }
-                  );
-                  if (!orderResult && poolFeatures.enableTargetRedeem) {
-                    // Handle: token set
-                    const schemaHash = generateSchemaHash();
-                    const [{ id: tokenSetId }] = await tokenSet.singleToken.save([
-                      {
-                        id: `token:${pool.nft}:${tokenId}`,
-                        schemaHash,
-                        contract: pool.nft,
-                        tokenId,
-                      },
-                    ]);
-                    if (!tokenSetId) {
-                      throw new Error("No token set available");
-                    }
-
-                    // Handle: source
-                    const sources = await Sources.getInstance();
-                    const source = await sources.getOrInsert("nftx.io");
-
-                    const validFrom = `date_trunc('seconds', to_timestamp(${orderParams.txTimestamp}))`;
-                    const validTo = `'Infinity'`;
-                    orderValues.push({
-                      id,
-                      kind: "nftx",
-                      side: "sell",
-                      fillability_status: "fillable",
-                      approval_status: "approved",
-                      token_set_id: tokenSetId,
-                      token_set_schema_hash: toBuffer(schemaHash),
-                      maker: toBuffer(pool.address),
-                      taker: toBuffer(AddressZero),
-                      price: price.toString(),
-                      value: value.toString(),
-                      currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
-                      currency_price: price.toString(),
-                      currency_value: value.toString(),
-                      needs_conversion: null,
-                      quantity_remaining: "1",
-                      valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
-                      nonce: null,
-                      source_id_int: source?.id,
-                      is_reservoir: null,
-                      contract: toBuffer(pool.nft),
-                      conduit: null,
-                      fee_bps: feeBps,
-                      fee_breakdown: feeBreakdown,
-                      dynamic: null,
-                      raw_data: sdkOrder.params,
-                      expiration: validTo,
-                      missing_royalties: missingRoyalties,
-                      normalized_value: normalizedValue.toString(),
-                      currency_normalized_value: normalizedValue.toString(),
-                      block_number: orderParams.txBlock ?? null,
-                      log_index: orderParams.logIndex ?? null,
-                    });
-
-                    results.push({
-                      id,
-                      txHash: orderParams.txHash,
-                      txTimestamp: orderParams.txTimestamp,
-                      status: "success",
-                      triggerKind: "new-order",
-                    });
-                  } else {
-                    await idb.none(
-                      `
-                        UPDATE orders SET
-                          fillability_status = 'fillable',
-                          approval_status = 'approved',
-                          price = $/price/,
-                          currency_price = $/price/,
-                          value = $/value/,
-                          currency_value = $/value/,
-                          quantity_remaining = 1,
-                          valid_between = tstzrange(date_trunc('seconds', to_timestamp(${orderParams.txTimestamp})), 'Infinity', '[]'),
-                          expiration = 'Infinity',
-                          updated_at = now(),
-                          raw_data = $/rawData:json/,
-                          missing_royalties = $/missingRoyalties:json/,
-                          normalized_value = $/normalizedValue/,
-                          currency_normalized_value = $/currencyNormalizedValue/,
-                          fee_bps = $/feeBps/,
-                          fee_breakdown = $/feeBreakdown:json/,
-                          currency = $/currency/,
-                          block_number = $/blockNumber/,
-                          log_index = $/logIndex/
-                        WHERE orders.id = $/id/
-                          ${recheckCondition}
-                      `,
-                      {
-                        id,
-                        price,
-                        value,
-                        rawData: sdkOrder.params,
-                        missingRoyalties: missingRoyalties,
-                        normalizedValue: normalizedValue.toString(),
-                        currencyNormalizedValue: normalizedValue.toString(),
-                        feeBps,
-                        feeBreakdown,
-                        currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
-                        blockNumber: orderParams.txBlock,
-                        logIndex: orderParams.logIndex,
-                      }
-                    );
-
-                    results.push({
-                      id,
-                      txHash: orderParams.txHash,
-                      txTimestamp: orderParams.txTimestamp,
-                      status: "success",
-                      triggerKind: "reprice",
-                    });
-                  }
                 }
               } catch {
                 // Ignore any errors

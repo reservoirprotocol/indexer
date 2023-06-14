@@ -9,6 +9,8 @@ import { Provider } from "@ethersproject/abstract-provider";
 import { BigNumber, BigNumberish } from "ethers";
 import { bn } from "@/common/utils";
 import { config } from "@/config/index";
+import { parseTranscation } from "../utils/events";
+import { expect, jest, test, describe } from "@jest/globals";
 
 export const DEFAULT_SLIPPAGE = 1;
 
@@ -193,28 +195,34 @@ describe("NFTX", () => {
 
   test("event-parsing", async () => {
     const testCases = [
-      {
-        name: "gem-router",
-        tx: "0x92322cb1a279df41e3efe9a3dd605cfe8f1f056519a1f1315d5b4e442ba16880",
-      },
-      {
-        name: "buyAndRedeem-multiple",
-        tx: "0x49b39c167d61b1161cdf64c9e91eef14ecf538b383094089a547a2b71aa1720a",
-      },
-      {
-        name: "buyAndSwap721-multiple",
-        tx: "0x7139a5df97188bd4b1d039deb4c0e04d0bd74df9cc062e27993f28188f7d2367",
-      },
-      {
-        name: "mintAndSell721WETH-multiple",
-        tx: "0x191eec69b891bf6f7a84d256b5fccfbc2aef44fc51fabba3456f45802f905ad2",
-      },
+      // {
+      //   name: "gem-router",
+      //   tx: "0x92322cb1a279df41e3efe9a3dd605cfe8f1f056519a1f1315d5b4e442ba16880",
+      // },
+      // {
+      //   name: "buyAndRedeem-multiple",
+      //   tx: "0x49b39c167d61b1161cdf64c9e91eef14ecf538b383094089a547a2b71aa1720a",
+      // },
+      // {
+      //   name: "buyAndSwap721-multiple",
+      //   tx: "0x7139a5df97188bd4b1d039deb4c0e04d0bd74df9cc062e27993f28188f7d2367",
+      // },
+      // {
+      //   name: "mintAndSell721WETH-multiple",
+      //   tx: "0x191eec69b891bf6f7a84d256b5fccfbc2aef44fc51fabba3456f45802f905ad2",
+      // },
+      // {
+      //   name: "uniswapV3",
+      //   tx: "0x4db108871adb4a692c6fb42e7dec2aaa8f0473a78f958ced34f604025e4a42e4",
+      // },
     ];
 
     for (let index = 0; index < testCases.length; index++) {
       // const testCase = testCases[index];
-      // const tx = await baseProvider.getTransactionReceipt(testCase.tx);
-      // const events = await getEventsFromTx(tx);
+      // const {
+      //   events,
+      //   allOnChainData
+      // } = await parseTranscation(testCase.tx);
       // try {
       //   const result = await handleEvents(events);
       //   const order = result?.orders?.find((c) => c.kind === "nftx");
@@ -224,5 +232,31 @@ describe("NFTX", () => {
       // }
     }
     process.exit(0);
+  });
+
+  test("uniswapv3-swap", async () => {
+    const { events, allOnChainData } = await parseTranscation(
+      "0x4db108871adb4a692c6fb42e7dec2aaa8f0473a78f958ced34f604025e4a42e4"
+    );
+
+    const swapV3Event = events.find((c) => c.subKind === "nftx-swap-v3");
+    expect(swapV3Event).not.toBe(undefined);
+    if (allOnChainData.length) {
+      const order = allOnChainData[0].orders[0];
+      expect(order).not.toBe(undefined);
+    }
+  });
+
+  test("uniswapv3-price", async () => {
+    const { events, allOnChainData } = await parseTranscation(
+      "0xc70a4f018a0f28aba4c5a2ad33cf1ba100e94b146d5baf2846bfad0fb4816f6d"
+    );
+
+    const swapV3Event = events.find((c) => c.subKind === "nftx-swap-v3");
+    expect(swapV3Event).not.toBe(undefined);
+    if (allOnChainData.length) {
+      const order = allOnChainData[0].orders[0];
+      expect(order).not.toBe(undefined);
+    }
   });
 });

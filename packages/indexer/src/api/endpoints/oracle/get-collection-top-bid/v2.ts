@@ -19,7 +19,7 @@ const version = "v2";
 export const getCollectionTopBidOracleV2Options: RouteOptions = {
   description: "Collection top bid oracle",
   notes:
-    "Get a signed message of any collection's top bid price (spot or twap). The oracle's address is 0xAeB1D03929bF87F69888f381e73FBf75753d75AF.",
+    "Get a signed message of any collection's top bid price (spot or twap). The oracle's address is 0xAeB1D03929bF87F69888f381e73FBf75753d75AF. The address is the same for all chains.",
   tags: ["api", "Oracle"],
   plugins: {
     "hapi-swagger": {
@@ -312,7 +312,12 @@ export const getCollectionTopBidOracleV2Options: RouteOptions = {
         message,
       };
     } catch (error) {
-      logger.error(`get-collection-top-bid-oracle-${version}-handler`, `Handler failure: ${error}`);
+      if (!(error instanceof Boom.Boom)) {
+        logger.error(
+          `get-collection-top-bid-oracle-${version}-handler`,
+          `Handler failure: ${error}`
+        );
+      }
       throw error;
     }
   },

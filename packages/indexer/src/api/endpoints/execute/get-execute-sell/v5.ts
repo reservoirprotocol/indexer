@@ -141,7 +141,8 @@ export const getExecuteSellV5Options: RouteOptions = {
               orders.raw_data,
               orders.source_id_int,
               orders.maker,
-              orders.token_set_id
+              orders.token_set_id,
+              orders.fee_bps
             FROM orders
             JOIN contracts
               ON orders.contract = contracts.address
@@ -176,7 +177,8 @@ export const getExecuteSellV5Options: RouteOptions = {
               orders.raw_data,
               orders.source_id_int,
               orders.maker,
-              orders.token_set_id
+              orders.token_set_id,
+              orders.fee_bps
             FROM orders
             JOIN contracts
               ON orders.contract = contracts.address
@@ -235,6 +237,7 @@ export const getExecuteSellV5Options: RouteOptions = {
           unitPrice: orderResult.price,
           rawData: orderResult.raw_data,
           source: source || undefined,
+          builtInFeeBps: orderResult.fee_bps,
         },
         {
           kind: orderResult.token_kind,

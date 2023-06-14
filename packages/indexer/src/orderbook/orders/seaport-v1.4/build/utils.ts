@@ -54,7 +54,7 @@ export const getBuildInfo = async (
       throw new Error("Off-chain cancellation not supported when cross-posting to OpenSea");
     }
 
-    zone = Sdk.SeaportV14.Addresses.CancellationZone[config.chainId];
+    zone = Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId];
     if (options.replaceOrderId) {
       salt = options.replaceOrderId;
     }

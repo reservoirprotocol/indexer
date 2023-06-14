@@ -50,7 +50,7 @@ export const getTransfersBulkV1Options: RouteOptions = {
         .min(1)
         .max(1000)
         .default(100)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned in response. Max limit is 1000."),
       continuation: Joi.string()
         .pattern(regex.base64)
         .description("Use continuation token to request next offset of items."),
@@ -67,7 +67,7 @@ export const getTransfersBulkV1Options: RouteOptions = {
           }),
           from: Joi.string().lowercase().pattern(regex.address),
           to: Joi.string().lowercase().pattern(regex.address),
-          amount: Joi.string(),
+          amount: Joi.string().description("Can be more than 1 if erc1155."),
           block: Joi.number(),
           txHash: Joi.string().lowercase().pattern(regex.bytes32),
           logIndex: Joi.number(),

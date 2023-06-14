@@ -1,16 +1,16 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
-import _ from "lodash";
 
 import { logger } from "@/common/logger";
 import { acquireLock, redis, releaseLock } from "@/common/redis";
 import { config } from "@/config/index";
 import { redb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
-import { Tokens } from "@/models/tokens";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
-import { CollectionMetadataInfo } from "@/jobs/collection-updates/metadata-queue";
+import {
+  collectionMetadataQueueJob,
+  CollectionMetadataInfo,
+} from "@/jobs/collection-updates/collection-metadata-queue-job";
 
 const QUEUE_NAME = "refresh-contract-collections-metadata-queue";
 
@@ -34,12 +34,18 @@ if (config.doBackgroundWork) {
       if (await acquireLock(getLockName(contract), 60)) {
         const contractCollections = await redb.manyOrNone(
           `
-          SELECT
-            collections.id,
-            collections.community,
-            collections.token_id_range
-          FROM collections
-          WHERE collections.contract = $/contract/
+            SELECT
+              collections.community,
+              t.token_id
+            FROM collections
+            JOIN LATERAL (
+                      SELECT t.token_id
+                      FROM tokens t
+                      WHERE t.collection_id = collections.id
+                      LIMIT 1
+                  ) t ON TRUE
+            WHERE collections.contract = $/contract/
+            LIMIT 1000
         `,
           {
             contract: toBuffer(contract),
@@ -47,28 +53,13 @@ if (config.doBackgroundWork) {
         );
 
         if (contractCollections.length) {
-          const infos: CollectionMetadataInfo[] = [];
+          const infos: CollectionMetadataInfo[] = contractCollections.map((contractCollection) => ({
+            contract,
+            tokenId: contractCollection.token_id,
+            community: contractCollection.community,
+          }));
 
-          for (const contractCollection of contractCollections) {
-            let tokenId;
-
-            if (
-              _.isNull(contractCollection.token_id_range) ||
-              contractCollection.token_id_range === "(,)"
-            ) {
-              tokenId = await Tokens.getSingleToken(contractCollection.id);
-            } else {
-              tokenId = `${JSON.parse(contractCollection.token_id_range)[0]}`;
-            }
-
-            infos.push({
-              contract,
-              tokenId,
-              community: contractCollection.community,
-            });
-          }
-
-          await collectionUpdatesMetadata.addToQueueBulk(infos);
+          await collectionMetadataQueueJob.addToQueueBulk(infos, 0, QUEUE_NAME);
         } else {
           const contractToken = await redb.oneOrNone(
             `

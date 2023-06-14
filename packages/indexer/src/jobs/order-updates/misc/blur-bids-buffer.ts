@@ -40,19 +40,22 @@ if (config.doBackgroundWork) {
           await redis.del(getCacheKey(collection));
 
           const pricePoints = result.map((r) => JSON.parse(r));
-          await orderbook.addToQueue([
-            {
-              kind: "blur-bid",
-              info: {
-                orderParams: {
-                  collection,
-                  pricePoints,
+          if (pricePoints.length) {
+            await orderbook.addToQueue([
+              {
+                kind: "blur-bid",
+                info: {
+                  orderParams: {
+                    collection,
+                    pricePoints,
+                  },
+                  metadata: {},
                 },
-                metadata: {},
+                ingestMethod: "websocket",
               },
-            },
-          ]);
-          await blurBidsRefresh.addToQueue(collection);
+            ]);
+            await blurBidsRefresh.addToQueue(collection);
+          }
         }
       } catch (error) {
         logger.error(
@@ -62,7 +65,7 @@ if (config.doBackgroundWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 10 }
+    { connection: redis.duplicate(), concurrency: 30 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
@@ -73,8 +76,9 @@ export const addToQueue = async (
   collection: string,
   pricePoints: Sdk.Blur.Types.BlurBidPricePoint[]
 ) => {
-  await Promise.all(
-    pricePoints.map((pp) => redis.hset(getCacheKey(collection), pp.price, JSON.stringify(pp)))
+  await redis.hset(
+    getCacheKey(collection),
+    ...pricePoints.map((pp) => [pp.price, JSON.stringify(pp)]).flat()
   );
 
   await queue.add(
@@ -82,9 +86,7 @@ export const addToQueue = async (
     { collection },
     {
       jobId: collection,
-      repeat: {
-        every: 5 * 1000,
-      },
+      delay: 30 * 1000,
     }
   );
 };

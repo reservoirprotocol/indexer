@@ -65,7 +65,7 @@ export const getSearchCollectionsV2Options: RouteOptions = {
           name: Joi.string().allow("", null),
           slug: Joi.string().allow("", null),
           allTimeVolume: Joi.number().unsafe().allow(null),
-          floorAskPrice: JoiPrice.allow(null),
+          floorAskPrice: JoiPrice.allow(null).description("Current floor ask price."),
           openseaVerificationStatus: Joi.string().allow("", null),
         })
       ),

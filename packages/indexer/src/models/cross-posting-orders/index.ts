@@ -44,13 +44,14 @@ export const saveOrder = async (
 };
 
 export const updateOrderStatus = async (id: number, status: string, statusReason = "") =>
-  idb.none(
+  idb.oneOrNone(
     `
       UPDATE cross_posting_orders
       SET status = $/status/,
           status_reason = $/statusReason/,
           updated_at = now()
       WHERE id = $/id/
+      RETURNING *
     `,
     {
       id,

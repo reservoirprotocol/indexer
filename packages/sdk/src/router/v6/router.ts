@@ -4,6 +4,11 @@ import { AddressZero, HashZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
 import axios from "axios";
 
+// Needed for `collectionxyz`
+import { TokenIDs } from "fummpel";
+// Needed for `rarible`
+import { encodeForMatchOrders } from "../../rarible/utils";
+
 import * as Addresses from "./addresses";
 import * as ApprovalProxy from "./approval-proxy";
 
@@ -15,7 +20,6 @@ import {
   FillBidsResult,
   FillListingsResult,
   ListingDetails,
-  ListingFillDetails,
   NFTApproval,
   PerCurrencyListingDetails,
   PerPoolSwapDetails,
@@ -24,7 +28,6 @@ import {
 import { generateSwapExecutions } from "./uniswap";
 import { generateFTApprovalTxData, generateNFTApprovalTxData, isETH, isWETH } from "./utils";
 import * as Sdk from "../../index";
-import { encodeForMatchOrders } from "../../rarible/utils";
 import { TxData, bn, generateSourceBytes, getErrorMessage, uniqBy } from "../../utils";
 
 // Tokens
@@ -35,13 +38,16 @@ import RouterAbi from "./abis/ReservoirV6_0_1.json";
 // Misc
 import ApprovalProxyAbi from "./abis/ApprovalProxy.json";
 // Modules
+import CollectionXyzModuleAbi from "./abis/CollectionXyzModule.json";
 import ElementModuleAbi from "./abis/ElementModule.json";
 import FoundationModuleAbi from "./abis/FoundationModule.json";
 import LooksRareV2ModuleAbi from "./abis/LooksRareV2Module.json";
 import NFTXModuleAbi from "./abis/NFTXModule.json";
+import NFTXZeroExModuleAbi from "./abis/NFTXZeroExModule.json";
 import RaribleModuleAbi from "./abis/RaribleModule.json";
 import SeaportModuleAbi from "./abis/SeaportModule.json";
 import SeaportV14ModuleAbi from "./abis/SeaportV14Module.json";
+import SeaportV15ModuleAbi from "./abis/SeaportV15Module.json";
 import AlienswapModuleAbi from "./abis/AlienswapModule.json";
 import SudoswapModuleAbi from "./abis/SudoswapModule.json";
 import SuperRareModuleAbi from "./abis/SuperRareModule.json";
@@ -49,6 +55,7 @@ import SwapModuleAbi from "./abis/SwapModule.json";
 import X2Y2ModuleAbi from "./abis/X2Y2Module.json";
 import ZeroExV4ModuleAbi from "./abis/ZeroExV4Module.json";
 import ZoraModuleAbi from "./abis/ZoraModule.json";
+import SudoswapV2ModuleAbi from "./abis/SudoswapV2Module.json";
 
 type SetupOptions = {
   x2y2ApiKey?: string;
@@ -80,6 +87,11 @@ export class Router {
         provider
       ),
       // Initialize modules
+      collectionXyzModule: new Contract(
+        Addresses.CollectionXyzModule[chainId] ?? AddressZero,
+        CollectionXyzModuleAbi,
+        provider
+      ),
       elementModule: new Contract(
         Addresses.ElementModule[chainId] ?? AddressZero,
         ElementModuleAbi,
@@ -105,9 +117,19 @@ export class Router {
         SeaportV14ModuleAbi,
         provider
       ),
+      seaportV15Module: new Contract(
+        Addresses.SeaportV15Module[chainId] ?? AddressZero,
+        SeaportV15ModuleAbi,
+        provider
+      ),
       sudoswapModule: new Contract(
         Addresses.SudoswapModule[chainId] ?? AddressZero,
         SudoswapModuleAbi,
+        provider
+      ),
+      sudoswapV2Module: new Contract(
+        Addresses.SudoswapV2Module[chainId] ?? AddressZero,
+        SudoswapV2ModuleAbi,
         provider
       ),
       superRareModule: new Contract(
@@ -133,6 +155,11 @@ export class Router {
       nftxModule: new Contract(
         Addresses.NFTXModule[chainId] ?? AddressZero,
         NFTXModuleAbi,
+        provider
+      ),
+      nftxZeroExModule: new Contract(
+        Addresses.NFTXZeroExModule[chainId] ?? AddressZero,
+        NFTXZeroExModuleAbi,
         provider
       ),
       raribleModule: new Contract(
@@ -171,8 +198,8 @@ export class Router {
       blurAuth?: {
         accessToken: string;
       };
-      // Callback for handling recoverable errors
-      onRecoverableError?: (
+      // Callback for handling errors
+      onError?: (
         kind: string,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         error: any,
@@ -180,31 +207,33 @@ export class Router {
           orderId: string;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           additionalInfo: any;
+          isUnrecoverable?: boolean;
         }
       ) => Promise<void>;
     }
   ): Promise<FillListingsResult> {
     // Assume the listing details are consistent with the underlying order object
 
+    const txs: {
+      approvals: FTApproval[];
+      txData: TxData;
+      orderIds: string[];
+    }[] = [];
+    const success: { [orderId: string]: boolean } = {};
+
     // When filling a single order in partial mode, propagate any errors back directly
     if (options?.partial && details.length === 1) {
       options.partial = false;
     }
 
-    // TODO: Add Universe router module
     if (details.some(({ kind }) => kind === "universe")) {
       if (options?.relayer) {
         throw new Error("Relayer not supported for Universe orders");
       }
-
-      if (details.length > 1) {
-        throw new Error("Universe sweeping is not supported");
-      } else {
-        if (options?.globalFees?.length) {
+      for (const detail of details.filter(({ kind }) => kind === "universe")) {
+        if (detail.fees?.length || options?.globalFees?.length) {
           throw new Error("Fees not supported for Universe orders");
         }
-
-        const detail = details[0];
 
         let approval: FTApproval | undefined;
         if (!isETH(this.chainId, detail.currency)) {
@@ -220,69 +249,50 @@ export class Router {
             ),
           };
         }
-
         const order = detail.order as Sdk.Universe.Order;
         const exchange = new Sdk.Universe.Exchange(this.chainId);
-        return {
-          txs: [
-            {
-              approvals: approval ? [approval] : [],
-              txData: await exchange.fillOrderTx(taker, order, {
-                amount: Number(detail.amount),
-                source: options?.source,
-              }),
-              orderIds: [detail.orderId],
-            },
-          ],
-          success: { [detail.orderId]: true },
-        };
+        txs.push({
+          approvals: approval ? [approval] : [],
+          txData: await exchange.fillOrderTx(taker, order, {
+            amount: Number(detail.amount),
+            source: options?.source,
+          }),
+          orderIds: [detail.orderId],
+        });
+        success[detail.orderId] = true;
       }
     }
 
-    // TODO: Add Cryptopunks router module
     if (details.some(({ kind }) => kind === "cryptopunks")) {
       if (options?.relayer) {
         throw new Error("Relayer not supported for Cryptopunks orders");
       }
 
-      if (details.length > 1) {
-        throw new Error("Cryptopunks sweeping is not supported");
-      } else {
-        if (options?.globalFees?.length) {
+      for (const detail of details.filter(({ kind }) => kind === "cryptopunks")) {
+        if (detail.fees?.length || options?.globalFees?.length) {
           throw new Error("Fees not supported for Cryptopunks orders");
         }
 
-        const detail = details[0];
-
         const order = detail.order as Sdk.CryptoPunks.Order;
         const exchange = new Sdk.CryptoPunks.Exchange(this.chainId);
-        return {
-          txs: [
-            {
-              approvals: [],
-              txData: exchange.fillListingTx(taker, order, options),
-              orderIds: [detail.orderId],
-            },
-          ],
-          success: { [detail.orderId]: true },
-        };
+        txs.push({
+          approvals: [],
+          txData: exchange.fillListingTx(taker, order, options),
+          orderIds: [detail.orderId],
+        });
+        success[detail.orderId] = true;
       }
     }
 
-    // TODO: Add Flow router module
     if (details.some(({ kind }) => kind === "flow")) {
       if (options?.relayer) {
         throw new Error("Relayer not supported for Flow orders");
       }
 
-      if (details.length > 1) {
-        throw new Error("Flow sweeping is not supported");
-      } else {
-        if (options?.globalFees?.length) {
+      for (const detail of details.filter(({ kind }) => kind === "flow")) {
+        if (detail.fees?.length || options?.globalFees?.length) {
           throw new Error("Fees not supported for Flow orders");
         }
-
-        const detail = details[0];
 
         let approval: FTApproval | undefined;
         if (!isETH(this.chainId, detail.currency)) {
@@ -298,37 +308,26 @@ export class Router {
             ),
           };
         }
-
         const order = detail.order as Sdk.Flow.Order;
         const exchange = new Sdk.Flow.Exchange(this.chainId);
-
-        return {
-          txs: [
-            {
-              approvals: approval ? [approval] : [],
-              txData: exchange.takeMultipleOneOrdersTx(taker, [order]),
-              orderIds: [detail.orderId],
-            },
-          ],
-          success: { [detail.orderId]: true },
-        };
+        txs.push({
+          approvals: approval ? [approval] : [],
+          txData: exchange.takeMultipleOneOrdersTx(taker, [order]),
+          orderIds: [detail.orderId],
+        });
+        success[detail.orderId] = true;
       }
     }
 
-    // TODO: Add Manifold router module
     if (details.some(({ kind }) => kind === "manifold")) {
       if (options?.relayer) {
         throw new Error("Relayer not supported for Manifold orders");
       }
 
-      if (details.length > 1) {
-        throw new Error("Manifold sweeping is not supported");
-      } else {
-        if (options?.globalFees?.length) {
+      for (const detail of details.filter(({ kind }) => kind === "manifold")) {
+        if (detail.fees?.length || options?.globalFees?.length) {
           throw new Error("Fees not supported for Manifold orders");
         }
-
-        const detail = details[0];
 
         const order = detail.order as Sdk.Manifold.Order;
         const exchange = new Sdk.Manifold.Exchange(this.chainId);
@@ -336,37 +335,21 @@ export class Router {
         const amountFilled = Number(detail.amount) ?? 1;
         const orderPrice = bn(order.params.details.initialAmount).mul(amountFilled).toString();
 
-        return {
-          txs: [
-            {
-              approvals: [],
-              txData: exchange.fillOrderTx(
-                taker,
-                Number(order.params.id),
-                amountFilled,
-                orderPrice,
-                options
-              ),
-              orderIds: [detail.orderId],
-            },
-          ],
-          success: { [detail.orderId]: true },
-        };
+        txs.push({
+          approvals: [],
+          txData: exchange.fillOrderTx(
+            taker,
+            Number(order.params.id),
+            amountFilled,
+            orderPrice,
+            options
+          ),
+          orderIds: [detail.orderId],
+        });
+
+        success[detail.orderId] = true;
       }
     }
-
-    if (details.some(({ kind }) => kind === "blur")) {
-      if (options?.relayer) {
-        throw new Error("Relayer not supported for Blur orders");
-      }
-    }
-
-    const txs: {
-      approvals: FTApproval[];
-      txData: TxData;
-      orderIds: string[];
-    }[] = [];
-    const success: { [orderId: string]: boolean } = {};
 
     // Filling Blur listings is extremely tricky since they explicitly designed
     // their contracts so that it is not possible to fill indirectly (eg. via a
@@ -380,6 +363,10 @@ export class Router {
     // Extract any Blur-compatible listings
     const blurCompatibleListings: ListingDetails[] = [];
     if (details.find((d) => d.source === "blur.io")) {
+      if (options?.relayer) {
+        throw new Error("Relayer not supported when filling Blur orders");
+      }
+
       for (let i = 0; i < details.length; i++) {
         const detail = details[i];
         if (
@@ -431,12 +418,18 @@ export class Router {
 
           // Expose errors
           for (const { tokenId, reason } of data.errors) {
-            if (options?.onRecoverableError) {
+            if (options?.onError) {
               const listing = blurCompatibleListings.find(
                 (d) => d.contract === contract && d.tokenId === tokenId
               );
               if (listing) {
-                await options.onRecoverableError("order-fetcher-blur-listings", new Error(reason), {
+                await options.onError("order-fetcher-blur-listings", new Error(reason), {
+                  isUnrecoverable:
+                    listing.kind === "blur" &&
+                    reason === "ListingNotFound" &&
+                    listing.tokenId === tokenId
+                      ? true
+                      : false,
                   orderId: listing.orderId,
                   additionalInfo: { detail: listing, taker },
                 });
@@ -466,10 +459,10 @@ export class Router {
           }
         }
       } catch (error) {
-        if (options?.onRecoverableError) {
+        if (options?.onError) {
           for (const detail of details) {
             if (detail.source === "blur.io" && !success[detail.orderId]) {
-              await options.onRecoverableError("order-fetcher-blur-listings", error, {
+              await options.onError("order-fetcher-blur-listings", error, {
                 orderId: detail.orderId,
                 additionalInfo: { detail, taker },
               });
@@ -504,8 +497,8 @@ export class Router {
 
     await Promise.all(
       details.map(async (detail, i) => {
-        if (["seaport-partial", "seaport-v1.4-partial"].includes(detail.kind)) {
-          const protocolVersion = detail.kind === "seaport-partial" ? "v1.1" : "v1.4";
+        if (["seaport-v1.4-partial", "seaport-v1.5-partial"].includes(detail.kind)) {
+          const protocolVersion = detail.kind === "seaport-v1.4-partial" ? "v1.4" : "v1.5";
           const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
 
           try {
@@ -524,19 +517,19 @@ export class Router {
             // Override the details
             details[i] = {
               ...detail,
-              ...(protocolVersion === "v1.1"
+              ...(protocolVersion === "v1.4"
                 ? {
-                    kind: "seaport",
-                    order: new Sdk.SeaportV11.Order(this.chainId, result.data.order),
-                  }
-                : {
                     kind: "seaport-v1.4",
                     order: new Sdk.SeaportV14.Order(this.chainId, result.data.order),
+                  }
+                : {
+                    kind: "seaport-v1.5",
+                    order: new Sdk.SeaportV15.Order(this.chainId, result.data.order),
                   }),
             };
           } catch (error) {
-            if (options?.onRecoverableError) {
-              options.onRecoverableError("order-fetcher-opensea-listing", error, {
+            if (options?.onError) {
+              options.onError("order-fetcher-opensea-listing", error, {
                 orderId: detail.orderId,
                 additionalInfo: {
                   detail,
@@ -636,6 +629,81 @@ export class Router {
     if (
       details.every(
         ({ kind, fees, currency, order }) =>
+          kind === "seaport-v1.5" &&
+          buyInCurrency === currency &&
+          // All orders must have the same currency
+          currency === details[0].currency &&
+          // All orders must have the same conduit
+          (order as Sdk.SeaportV15.Order).params.conduitKey ===
+            (details[0].order as Sdk.SeaportV15.Order).params.conduitKey &&
+          !fees?.length
+      ) &&
+      !options?.globalFees?.length &&
+      !options?.forceRouter &&
+      !options?.relayer
+    ) {
+      const exchange = new Sdk.SeaportV15.Exchange(this.chainId);
+
+      const conduitKey = (details[0].order as Sdk.SeaportV15.Order).params.conduitKey;
+      const conduit = exchange.deriveConduit(conduitKey);
+
+      let approval: FTApproval | undefined;
+      if (!isETH(this.chainId, details[0].currency)) {
+        approval = {
+          currency: details[0].currency,
+          amount: details[0].price,
+          owner: taker,
+          operator: conduit,
+          txData: generateFTApprovalTxData(details[0].currency, taker, conduit),
+        };
+      }
+
+      if (details.length === 1) {
+        const order = details[0].order as Sdk.SeaportV15.Order;
+        return {
+          txs: [
+            {
+              approvals: approval ? [approval] : [],
+              txData: await exchange.fillOrderTx(
+                taker,
+                order,
+                order.buildMatching({ amount: details[0].amount }),
+                {
+                  ...options,
+                  conduitKey,
+                }
+              ),
+              orderIds: [details[0].orderId],
+            },
+          ],
+          success: { [details[0].orderId]: true },
+        };
+      } else {
+        const orders = details.map((d) => d.order as Sdk.SeaportV15.Order);
+        return {
+          txs: [
+            {
+              approvals: approval ? [approval] : [],
+              txData: await exchange.fillOrdersTx(
+                taker,
+                orders,
+                orders.map((order, i) => order.buildMatching({ amount: details[i].amount })),
+                {
+                  ...options,
+                  conduitKey,
+                }
+              ),
+              orderIds: details.map((d) => d.orderId),
+            },
+          ],
+          success: Object.fromEntries(details.map((d) => [d.orderId, true])),
+        };
+      }
+    }
+
+    if (
+      details.every(
+        ({ kind, fees, currency, order }) =>
           kind === "alienswap" &&
           buyInCurrency === currency &&
           // All orders must have the same currency
@@ -708,30 +776,24 @@ export class Router {
       }
     }
 
-    const getFees = (ownDetails: ListingFillDetails[]) => [
-      // Global fees
-      ...(options?.globalFees ?? [])
-        .filter(
-          ({ amount, recipient }) =>
-            // Skip zero amounts and/or recipients
-            bn(amount).gt(0) && recipient !== AddressZero
-        )
-        .map(({ recipient, amount }) => ({
+    const numDetailsToConsider = details.filter((d) => !success[d.orderId]).length;
+    const getFees = (ownDetails: ListingDetails[]) =>
+      [
+        // Global fees
+        ...(options?.globalFees ?? []).map(({ recipient, amount }) => ({
           recipient,
-          // The fees are averaged over the number of listings to fill
+          // The global fees are averaged over the number of listings to fill
           // TODO: Also take into account the quantity filled for ERC1155
-          amount: bn(amount).mul(ownDetails.length).div(details.length),
+          amount: bn(amount).mul(ownDetails.length).div(numDetailsToConsider),
         })),
-      // Local fees
-      // TODO: Should not split the local fees among all executions
-      ...ownDetails.flatMap(({ fees }) =>
-        (fees ?? []).filter(
-          ({ amount, recipient }) =>
-            // Skip zero amounts and/or recipients
-            bn(amount).gt(0) && recipient !== AddressZero
-        )
-      ),
-    ];
+        // Local fees
+        // TODO: Should not split the local fees among all executions
+        ...ownDetails.flatMap(({ fees }) => fees ?? []),
+      ].filter(
+        ({ amount, recipient }) =>
+          // Skip zero amounts and/or recipients
+          bn(amount).gt(0) && recipient !== AddressZero
+      );
 
     // Keep track of any approvals that might be needed
     const approvals: FTApproval[] = [];
@@ -751,8 +813,11 @@ export class Router {
     // Only `seaport`, `seaport-v1.4` and `alienswap` support non-ETH listings
     const seaportDetails: PerCurrencyListingDetails = {};
     const seaportV14Details: PerCurrencyListingDetails = {};
+    const seaportV15Details: PerCurrencyListingDetails = {};
     const alienswapDetails: PerCurrencyListingDetails = {};
     const sudoswapDetails: ListingDetails[] = [];
+    const sudoswapV2Details: ListingDetails[] = [];
+    const collectionXyzDetails: ListingDetails[] = [];
     const x2y2Details: ListingDetails[] = [];
     const zeroexV4Erc721Details: ListingDetails[] = [];
     const zeroexV4Erc1155Details: ListingDetails[] = [];
@@ -781,6 +846,10 @@ export class Router {
           break;
         }
 
+        case "collectionxyz":
+          detailsRef = collectionXyzDetails;
+          break;
+
         case "foundation":
           detailsRef = foundationDetails;
           break;
@@ -803,6 +872,13 @@ export class Router {
           detailsRef = seaportV14Details[currency];
           break;
 
+        case "seaport-v1.5":
+          if (!seaportV15Details[currency]) {
+            seaportV15Details[currency] = [];
+          }
+          detailsRef = seaportV15Details[currency];
+          break;
+
         case "alienswap":
           if (!alienswapDetails[currency]) {
             alienswapDetails[currency] = [];
@@ -812,6 +888,10 @@ export class Router {
 
         case "sudoswap":
           detailsRef = sudoswapDetails;
+          break;
+
+        case "sudoswap-v2":
+          detailsRef = sudoswapV2Details;
           break;
 
         case "x2y2":
@@ -1371,6 +1451,126 @@ export class Router {
       }
     }
 
+    // Handle Seaport V1.5 listings
+    if (Object.keys(seaportV15Details).length) {
+      const exchange = new Sdk.SeaportV15.Exchange(this.chainId);
+      for (const currency of Object.keys(seaportV15Details)) {
+        const currencyDetails = seaportV15Details[currency];
+
+        const orders = currencyDetails.map((d) => d.order as Sdk.SeaportV15.Order);
+        const module = this.contracts.seaportV15Module;
+
+        const fees = getFees(currencyDetails);
+        const price = orders
+          .map((order, i) =>
+            // Seaport orders can be partially-fillable
+            bn(order.getMatchingPrice())
+              .mul(currencyDetails[i].amount ?? 1)
+              .div(order.getInfo()!.amount)
+          )
+          .reduce((a, b) => a.add(b), bn(0));
+        const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+        const totalPrice = price.add(feeAmount);
+
+        const currencyIsETH = isETH(this.chainId, currency);
+        const buyInCurrencyIsETH = isETH(this.chainId, buyInCurrency);
+
+        executions.push({
+          module: module.address,
+          data:
+            orders.length === 1
+              ? module.interface.encodeFunctionData(
+                  `accept${currencyIsETH ? "ETH" : "ERC20"}Listing`,
+                  [
+                    {
+                      parameters: {
+                        ...orders[0].params,
+                        totalOriginalConsiderationItems: orders[0].params.consideration.length,
+                      },
+                      numerator: currencyDetails[0].amount ?? 1,
+                      denominator: orders[0].getInfo()!.amount,
+                      signature: orders[0].params.signature,
+                      extraData: await exchange.getExtraData(orders[0], {
+                        amount: currencyDetails[0].amount ?? 1,
+                      }),
+                    },
+                    {
+                      fillTo: taker,
+                      refundTo: relayer,
+                      revertIfIncomplete: Boolean(!options?.partial),
+                      amount: price,
+                      // Only needed for ERC20 listings
+                      token: currency,
+                    },
+                    fees,
+                  ]
+                )
+              : module.interface.encodeFunctionData(
+                  `accept${currencyIsETH ? "ETH" : "ERC20"}Listings`,
+                  [
+                    await Promise.all(
+                      orders.map(async (order, i) => {
+                        const totalAmount = order.getInfo()!.amount;
+                        const filledAmount = currencyDetails[i].amount ?? 1;
+
+                        const orderData = {
+                          parameters: {
+                            ...order.params,
+                            totalOriginalConsiderationItems: order.params.consideration.length,
+                          },
+                          numerator: filledAmount,
+                          denominator: totalAmount,
+                          signature: order.params.signature,
+                          extraData: await exchange.getExtraData(orders[0], {
+                            amount: filledAmount,
+                          }),
+                        };
+
+                        if (currencyIsETH) {
+                          return {
+                            order: orderData,
+                            price: bn(orders[i].getMatchingPrice())
+                              .mul(filledAmount)
+                              .div(totalAmount),
+                          };
+                        } else {
+                          return orderData;
+                        }
+                      })
+                    ),
+                    {
+                      fillTo: taker,
+                      refundTo: relayer,
+                      revertIfIncomplete: Boolean(!options?.partial),
+                      amount: price,
+                      // Only needed for ERC20 listings
+                      token: currency,
+                    },
+                    fees,
+                  ]
+                ),
+          value: buyInCurrencyIsETH && currencyIsETH ? totalPrice : 0,
+        });
+
+        // Track any possibly required swap
+        swapDetails.push({
+          tokenIn: buyInCurrency,
+          tokenOut: currency,
+          tokenOutAmount: totalPrice,
+          recipient: module.address,
+          refundTo: relayer,
+          details: currencyDetails,
+          executionIndex: executions.length - 1,
+        });
+
+        // Mark the listings as successfully handled
+        for (const { orderId } of currencyDetails) {
+          success[orderId] = true;
+          orderIds.push(orderId);
+        }
+      }
+    }
+
     // Handle Alienswap listings
     if (Object.keys(alienswapDetails).length) {
       const exchange = new Sdk.Alienswap.Exchange(this.chainId);
@@ -1490,6 +1690,86 @@ export class Router {
       }
     }
 
+    // Handle Collection listings
+    if (collectionXyzDetails.length) {
+      const ordersAndTokens = collectionXyzDetails.map(
+        (d) =>
+          ({ order: d.order, tokenId: d.tokenId } as {
+            order: Sdk.CollectionXyz.Order;
+            tokenId: string;
+          })
+      );
+      const module = this.contracts.collectionXyzModule;
+
+      const fees = getFees(collectionXyzDetails);
+      const price = ordersAndTokens
+        .map(({ order, tokenId }) =>
+          bn(
+            order.params.extra.prices[
+              // Handle multiple listings from the same pool
+              ordersAndTokens
+                .filter((ot) => ot.order.params.pool === order.params.pool)
+                .findIndex((ot) => ot.tokenId === tokenId)
+            ]
+          )
+        )
+        .reduce((a, b) => a.add(b), bn(0));
+      const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+      const totalPrice = price.add(feeAmount);
+
+      const isERC20 = buyInCurrency !== Sdk.Common.Addresses.Eth[this.chainId];
+      const functionName = `buyWith${isERC20 ? "ERC20" : "ETH"}`;
+      const listingParams = isERC20
+        ? {
+            fillTo: taker,
+            refundTo: relayer,
+            revertIfIncomplete: Boolean(!options?.partial),
+            token: buyInCurrency,
+            amount: price,
+          }
+        : {
+            fillTo: taker,
+            refundTo: relayer,
+            revertIfIncomplete: Boolean(!options?.partial),
+            amount: price,
+          };
+
+      executions.push({
+        module: module.address,
+        data: module.interface.encodeFunctionData(functionName, [
+          collectionXyzDetails.map((d) => (d.order as Sdk.CollectionXyz.Order).params.pool),
+          collectionXyzDetails.map((d) => ({
+            nftId: d.tokenId,
+            // Unused for buying from pools
+            proof: [],
+            proofFlags: [],
+            externalFilterContext: [],
+          })),
+          Math.floor(Date.now() / 1000) + 10 * 60,
+          listingParams,
+          fees,
+        ]),
+        value: isERC20 ? 0 : totalPrice,
+      });
+
+      // Track any possibly required swap
+      swapDetails.push({
+        tokenIn: buyInCurrency,
+        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOutAmount: totalPrice,
+        recipient: module.address,
+        refundTo: relayer,
+        details: collectionXyzDetails,
+        executionIndex: executions.length - 1,
+      });
+
+      // Mark the listings as successfully handled
+      for (const { orderId } of collectionXyzDetails) {
+        success[orderId] = true;
+        orderIds.push(orderId);
+      }
+    }
+
     // Handle Sudoswap listings
     if (sudoswapDetails.length) {
       const orders = sudoswapDetails.map((d) => d.order as Sdk.Sudoswap.Order);
@@ -1546,54 +1826,128 @@ export class Router {
       }
     }
 
-    // Handle NFTX listings
-    if (nftxDetails.length) {
-      const orders = nftxDetails.map((d) => d.order as Sdk.Nftx.Order);
-      const module = this.contracts.nftxModule;
+    // Handle Sudoswap V2 listings
+    if (sudoswapV2Details.length) {
+      const orders = sudoswapV2Details.map((d) => ({
+        order: d.order as Sdk.SudoswapV2.Order,
+        amount: d.amount,
+        contractKind: d.contractKind,
+      }));
+      const module = this.contracts.sudoswapV2Module;
 
-      const fees = getFees(nftxDetails);
+      const fees = getFees(sudoswapV2Details);
       const price = orders
-        .map((order) =>
+        .map(({ order, amount, contractKind }) =>
           bn(
-            order.params.extra.prices[
-              // Handle multiple listings from the same pool
-              orders
-                .filter((o) => o.params.pool === order.params.pool)
-                .findIndex((o) => o.params.specificIds?.[0] === order.params.specificIds?.[0])
-            ]
+            // Handle multiple listings from the same pool
+            contractKind === "erc721"
+              ? // For ERC721, each order from the same pool gets a different price
+                order.params.extra.prices[
+                  orders
+                    .map(({ order }) => order)
+                    .filter((o) => o.params.pair === order.params.pair)
+                    .findIndex((o) => o.params.tokenId === order.params.tokenId)
+                ]
+              : // For ERC1155, each amount from the same pool gets a different price
+                order.params.extra.prices
+                  .slice(0, Number(amount ?? 1))
+                  .reduce((a, b) => a.add(b), bn(0))
           )
         )
         .reduce((a, b) => a.add(b), bn(0));
       const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
       const totalPrice = price.add(feeAmount);
 
+      executions.push({
+        module: module.address,
+        data: module.interface.encodeFunctionData("buyWithETH", [
+          sudoswapV2Details.map((d) => (d.order as Sdk.SudoswapV2.Order).params.pair),
+          sudoswapV2Details.map((d) => (d.contractKind === "erc721" ? d.tokenId : d.amount ?? 1)),
+          {
+            fillTo: taker,
+            refundTo: relayer,
+            revertIfIncomplete: Boolean(!options?.partial),
+            amount: price,
+          },
+          fees,
+        ]),
+        value: totalPrice,
+      });
+
+      // Track any possibly required swap
+      swapDetails.push({
+        tokenIn: buyInCurrency,
+        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOutAmount: totalPrice,
+        recipient: module.address,
+        refundTo: relayer,
+        details: sudoswapV2Details,
+        executionIndex: executions.length - 1,
+      });
+
+      // Mark the listings as successfully handled
+      for (const { orderId } of sudoswapV2Details) {
+        success[orderId] = true;
+        orderIds.push(orderId);
+      }
+    }
+
+    // Handle NFTX listings
+    if (nftxDetails.length) {
+      const module = this.contracts.nftxZeroExModule;
+
       // Aggregate same-pool orders
       const perPoolOrders: { [pool: string]: Sdk.Nftx.Order[] } = {};
       for (const details of nftxDetails) {
-        const order = details.order as Sdk.Nftx.Order;
-        if (!perPoolOrders[order.params.pool]) {
-          perPoolOrders[order.params.pool] = [];
-        }
-        perPoolOrders[order.params.pool].push(order);
+        try {
+          const order = details.order as Sdk.Nftx.Order;
 
-        // Update the order's price in-place
-        order.params.price = order.params.extra.prices[perPoolOrders[order.params.pool].length - 1];
+          if (!perPoolOrders[order.params.pool]) {
+            perPoolOrders[order.params.pool] = [];
+          }
+
+          // Attach the ZeroEx calldata
+          const index = perPoolOrders[order.params.pool].length;
+          const { swapCallData, price } = await order.getQuote(index + 1, 500, this.provider);
+          order.params.swapCallData = swapCallData;
+          order.params.price = price.toString();
+
+          perPoolOrders[order.params.pool].push(order);
+        } catch (error) {
+          if (options?.onError) {
+            await options.onError("nftx-listing", error, {
+              orderId: details.orderId,
+              additionalInfo: { detail: details, taker },
+            });
+          }
+
+          if (!options?.partial) {
+            throw new Error(getErrorMessage(error));
+          }
+        }
       }
+
+      const aggregatedOrders = Object.entries(perPoolOrders).map(([pool, orders]) => ({
+        vaultId: perPoolOrders[pool][0].params.vaultId,
+        collection: perPoolOrders[pool][0].params.collection,
+        specificIds: perPoolOrders[pool].map((o) => o.params.specificIds![0]),
+        amount: perPoolOrders[pool].length,
+        path: perPoolOrders[pool][0].params.path,
+        // Need to use the price and swap calldata of the last order
+        swapCallData: perPoolOrders[pool][orders.length - 1].params.swapCallData,
+        price: perPoolOrders[pool][orders.length - 1].params.price,
+      }));
+
+      // Consider the updated prices (fetched above from 0x)
+      const fees = getFees(nftxDetails);
+      const price = aggregatedOrders.map((order) => order.price).reduce((a, b) => a.add(b), bn(0));
+      const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+      const totalPrice = price.add(feeAmount);
 
       executions.push({
         module: module.address,
         data: module.interface.encodeFunctionData("buyWithETH", [
-          Object.keys(perPoolOrders).map((pool) => ({
-            vaultId: perPoolOrders[pool][0].params.vaultId,
-            collection: perPoolOrders[pool][0].params.collection,
-            specificIds: perPoolOrders[pool].map((o) => o.params.specificIds![0]),
-            amount: perPoolOrders[pool].length,
-            path: perPoolOrders[pool][0].params.path,
-            price: perPoolOrders[pool]
-              .map((o) => bn(o.params.price))
-              .reduce((a, b) => a.add(b))
-              .toString(),
-          })),
+          aggregatedOrders,
           {
             fillTo: taker,
             refundTo: relayer,
@@ -1679,10 +2033,14 @@ export class Router {
           success[x2y2Details[0].orderId] = true;
           orderIds.push(x2y2Details[0].orderId);
         } catch (error) {
-          if (options?.onRecoverableError) {
-            await options.onRecoverableError("x2y2-listing", error, {
+          if (options?.onError) {
+            await options.onError("x2y2-listing", error, {
               orderId: x2y2Details[0].orderId,
               additionalInfo: { detail: x2y2Details[0], taker },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              isUnrecoverable: (error as any).response?.data?.errors?.some((e: { code: number }) =>
+                Sdk.X2Y2.Helpers.UnrecoverableErrorCodes.includes(e.code)
+              ),
             });
           }
 
@@ -1710,8 +2068,8 @@ export class Router {
                   exchange.contract.interface.decodeFunctionData("run", input).input
               )
               .catch(async (error) => {
-                if (options?.onRecoverableError) {
-                  await options.onRecoverableError("x2y2-listing", error, {
+                if (options?.onError) {
+                  await options.onError("x2y2-listing", error, {
                     orderId: x2y2Details[i].orderId,
                     additionalInfo: { detail: x2y2Details[i], taker },
                   });
@@ -1775,8 +2133,8 @@ export class Router {
           await new Sdk.ZeroExV4.Exchange(this.chainId, String(this.options?.cbApiKey))
             .releaseOrder(taker, order)
             .catch(async (error) => {
-              if (options?.onRecoverableError) {
-                await options.onRecoverableError("zeroex-v4-erc721-listing", error, {
+              if (options?.onError) {
+                await options.onError("zeroex-v4-erc721-listing", error, {
                   orderId: zeroexV4Erc721Details[i].orderId,
                   additionalInfo: { detail: zeroexV4Erc721Details[i], taker },
                 });
@@ -1873,8 +2231,8 @@ export class Router {
           await new Sdk.ZeroExV4.Exchange(this.chainId, String(this.options?.cbApiKey))
             .releaseOrder(taker, order)
             .catch(async (error) => {
-              if (options?.onRecoverableError) {
-                await options.onRecoverableError("zeroex-v4-erc1155-listing", error, {
+              if (options?.onError) {
+                await options.onError("zeroex-v4-erc1155-listing", error, {
                   orderId: zeroexV4Erc1155Details[i].orderId,
                   additionalInfo: { detail: zeroexV4Erc1155Details[i], taker },
                 });
@@ -2288,8 +2646,8 @@ export class Router {
                   tx.orderIds = tx.orderIds.filter((orderId) => orderId !== detail.orderId);
                 });
 
-                if (options?.onRecoverableError) {
-                  await options.onRecoverableError("swap-generation", error, {
+                if (options?.onError) {
+                  await options.onError("swap-generation", error, {
                     orderId: detail.orderId,
                     additionalInfo: { detail, taker },
                   });
@@ -2327,14 +2685,15 @@ export class Router {
           ...(ftTransferItems.length
             ? {
                 to: this.contracts.approvalProxy.address,
-                data: this.contracts.approvalProxy.interface.encodeFunctionData(
-                  "bulkTransferWithExecute",
-                  [
-                    ftTransferItems,
-                    executions,
-                    Sdk.SeaportBase.Addresses.ReservoirConduitKey[this.chainId],
-                  ]
-                ),
+                data:
+                  this.contracts.approvalProxy.interface.encodeFunctionData(
+                    "bulkTransferWithExecute",
+                    [
+                      ftTransferItems,
+                      executions,
+                      Sdk.SeaportBase.Addresses.ReservoirConduitKey[this.chainId],
+                    ]
+                  ) + generateSourceBytes(options?.source),
               }
             : {
                 to: this.contracts.router.address,
@@ -2370,14 +2729,16 @@ export class Router {
       source?: string;
       // Skip any errors (either off-chain or on-chain)
       partial?: boolean;
+      // Will be split among all bids to get filled
+      globalFees?: Fee[];
       // Force filling via the approval proxy
       forceApprovalProxy?: boolean;
       // Needed for filling Blur orders
       blurAuth?: {
         accessToken: string;
       };
-      // Callback for handling recoverable errors
-      onRecoverableError?: (
+      // Callback for handling errors
+      onError?: (
         kind: string,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         error: any,
@@ -2385,6 +2746,7 @@ export class Router {
           orderId: string;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           additionalInfo: any;
+          isUnrecoverable?: boolean;
         }
       ) => Promise<void>;
     }
@@ -2396,18 +2758,25 @@ export class Router {
       options.partial = false;
     }
 
+    const txs: {
+      approvals: NFTApproval[];
+      txData: TxData;
+      orderIds: string[];
+    }[] = [];
+    const success: { [orderId: string]: boolean } = {};
+
     // CASE 1
     // Handle exchanges which don't have a router module implemented by filling directly
 
-    // TODO: Add Universe router module
     if (details.some(({ kind }) => kind === "universe")) {
-      if (details.length > 1) {
-        throw new Error("Universe multi-selling is not supported");
-      } else {
-        const detail = details[0];
+      for (const detail of details.filter(({ kind }) => kind === "universe")) {
+        if (detail.fees?.length || options?.globalFees?.length) {
+          throw new Error("Fees not supported for Universe orders");
+        }
 
         // Approve Universe's Exchange contract
-        const approval = {
+        const approval: NFTApproval = {
+          orderIds: [detail.orderId],
           contract: detail.contract,
           owner: taker,
           operator: Sdk.Universe.Addresses.Exchange[this.chainId],
@@ -2420,28 +2789,52 @@ export class Router {
 
         const order = detail.order as Sdk.Universe.Order;
         const exchange = new Sdk.Universe.Exchange(this.chainId);
-        return {
-          txs: [
-            {
-              approvals: [approval],
-              txData: await exchange.fillOrderTx(taker, order, {
-                amount: Number(detail.amount ?? 1),
-                source: options?.source,
-              }),
-              orderIds: [detail.orderId],
-            },
-          ],
-          success: { [detail.orderId]: true },
-        };
+
+        txs.push({
+          approvals: [approval],
+          txData: await exchange.fillOrderTx(taker, order, {
+            amount: Number(detail.amount ?? 1),
+            source: options?.source,
+          }),
+          orderIds: [detail.orderId],
+        });
+
+        success[detail.orderId] = true;
       }
     }
 
-    const txs: {
-      approvals: NFTApproval[];
-      txData: TxData;
-      orderIds: string[];
-    }[] = [];
-    const success: { [orderId: string]: boolean } = {};
+    // TODO: Add Flow router module
+    if (details.some(({ kind }) => kind === "flow")) {
+      for (const detail of details.filter(({ kind }) => kind === "flow")) {
+        if (detail.fees?.length || options?.globalFees?.length) {
+          throw new Error("Fees not supported for Universe orders");
+        }
+
+        // Approve Universe's Exchange contract
+        const approval: NFTApproval = {
+          orderIds: [detail.orderId],
+          contract: detail.contract,
+          owner: taker,
+          operator: Sdk.Flow.Addresses.Exchange[this.chainId],
+          txData: generateNFTApprovalTxData(
+            detail.contract,
+            taker,
+            Sdk.Universe.Addresses.Exchange[this.chainId]
+          ),
+        };
+
+        const order = detail.order as Sdk.Flow.Order;
+        const exchange = new Sdk.Flow.Exchange(this.chainId);
+
+        txs.push({
+          approvals: approval ? [approval] : [],
+          txData: exchange.takeMultipleOneOrdersTx(taker, [order]),
+          orderIds: [detail.orderId],
+        });
+
+        success[detail.orderId] = true;
+      }
+    }
 
     // CASE 2
     // Handle orders which require special handling such as direct filling
@@ -2484,14 +2877,14 @@ export class Router {
 
           // Expose errors
           for (const { tokenId, reason } of data.errors) {
-            if (options?.onRecoverableError) {
+            if (options?.onError) {
               const detail = blurDetails.find(
                 (d) => d.contract === contract && d.tokenId === tokenId
               );
               if (detail) {
-                await options.onRecoverableError("order-fetcher-blur-offers", new Error(reason), {
+                await options.onError("order-fetcher-blur-offers", new Error(reason), {
                   orderId: detail.orderId,
-                  additionalInfo: { detail, taker },
+                  additionalInfo: { detail, taker, contract },
                 });
               }
             }
@@ -2519,10 +2912,10 @@ export class Router {
           }
         }
       } catch (error) {
-        if (options?.onRecoverableError) {
+        if (options?.onError) {
           for (const detail of blurDetails) {
             if (!success[detail.orderId]) {
-              await options.onRecoverableError("order-fetcher-blur-offers", error, {
+              await options.onError("order-fetcher-blur-offers", error, {
                 orderId: detail.orderId,
                 additionalInfo: { detail, taker },
               });
@@ -2560,12 +2953,14 @@ export class Router {
 
       const contract = detail.contract;
       const owner = taker;
-      const operator = new Sdk.SeaportV11.Exchange(this.chainId).deriveConduit(
+      const conduitController = new Sdk.SeaportBase.ConduitController(this.chainId);
+      const operator = conduitController.deriveConduit(
         Sdk.SeaportBase.Addresses.ReservoirConduitKey[this.chainId]
       );
 
       // Generate approval
       approvals.push({
+        orderIds: [detail.orderId],
         contract,
         owner,
         operator,
@@ -2580,8 +2975,7 @@ export class Router {
           break;
         }
 
-        case "seaport":
-        case "seaport-partial": {
+        case "seaport": {
           module = this.contracts.seaportModule;
           break;
         }
@@ -2592,6 +2986,12 @@ export class Router {
           break;
         }
 
+        case "seaport-v1.5":
+        case "seaport-v1.5-partial": {
+          module = this.contracts.seaportV15Module;
+          break;
+        }
+
         case "alienswap": {
           module = this.contracts.alienswapModule;
           break;
@@ -2599,6 +2999,16 @@ export class Router {
 
         case "sudoswap": {
           module = this.contracts.sudoswapModule;
+          break;
+        }
+
+        case "sudoswap-v2": {
+          module = this.contracts.sudoswapV2Module;
+          break;
+        }
+
+        case "collectionxyz": {
+          module = this.contracts.collectionXyzModule;
           break;
         }
 
@@ -2651,6 +3061,26 @@ export class Router {
     // Step 2
     // Handle calldata generation
 
+    const numDetailsToConsider = details.filter(
+      (d) => !success[d.orderId] && !d.isProtected
+    ).length;
+    const getFees = (ownDetail: BidDetails) =>
+      [
+        // Global fees
+        ...(options?.globalFees ?? []).map(({ recipient, amount }) => ({
+          recipient,
+          // The global fees are averaged over the number of bids to fill
+          // TODO: Also take into account the quantity filled for ERC1155
+          amount: bn(amount).div(numDetailsToConsider),
+        })),
+        // Local fees
+        ...(ownDetail.fees ?? []),
+      ].filter(
+        ({ amount, recipient }) =>
+          // Skip zero amounts and/or recipients
+          bn(amount).gt(0) && recipient !== AddressZero
+      );
+
     // Generate router executions
     const executionsWithDetails: {
       detail: BidDetails;
@@ -2659,6 +3089,7 @@ export class Router {
 
     for (let i = 0; i < details.length; i++) {
       const detail = details[i];
+      const fees = getFees(detail);
 
       switch (detail.kind) {
         case "looks-rare-v2": {
@@ -2685,7 +3116,7 @@ export class Router {
                     refundTo: taker,
                     revertIfIncomplete: Boolean(!options?.partial),
                   },
-                  detail.fees ?? [],
+                  fees,
                 ]
               ),
               value: 0,
@@ -2731,7 +3162,7 @@ export class Router {
                     refundTo: taker,
                     revertIfIncomplete: Boolean(!options?.partial),
                   },
-                  detail.fees ?? [],
+                  fees,
                 ]
               ),
               value: 0,
@@ -2777,7 +3208,7 @@ export class Router {
                     refundTo: taker,
                     revertIfIncomplete: Boolean(!options?.partial),
                   },
-                  detail.fees ?? [],
+                  fees,
                 ]
               ),
               value: 0,
@@ -2789,9 +3220,61 @@ export class Router {
           break;
         }
 
-        case "seaport-v1.4-partial": {
+        case "seaport-v1.5": {
+          const order = detail.order as Sdk.SeaportV15.Order;
+          const module = this.contracts.seaportV15Module;
+
+          const matchParams = order.buildMatching({
+            tokenId: detail.tokenId,
+            amount: detail.amount ?? 1,
+            ...(detail.extraArgs ?? {}),
+          });
+
+          const exchange = new Sdk.SeaportV15.Exchange(this.chainId);
+          executionsWithDetails.push({
+            detail,
+            execution: {
+              module: module.address,
+              data: module.interface.encodeFunctionData(
+                detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
+                [
+                  {
+                    parameters: {
+                      ...order.params,
+                      totalOriginalConsiderationItems: order.params.consideration.length,
+                    },
+                    numerator: matchParams.amount ?? 1,
+                    denominator: order.getInfo()!.amount,
+                    signature: order.params.signature,
+                    extraData: await exchange.getExtraData(order, matchParams),
+                  },
+                  matchParams.criteriaResolvers ?? [],
+                  {
+                    fillTo: taker,
+                    refundTo: taker,
+                    revertIfIncomplete: Boolean(!options?.partial),
+                  },
+                  fees,
+                ]
+              ),
+              value: 0,
+            },
+          });
+
+          success[detail.orderId] = true;
+
+          break;
+        }
+
+        case "seaport-v1.5-partial": {
           const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
-          const module = this.contracts.seaportV14Module;
+          const module = this.contracts.seaportV15Module;
+
+          if (detail.isProtected) {
+            if (detail.fees?.length || options?.globalFees?.length) {
+              throw new Error("Fees not supported for protected OpenSea orders");
+            }
+          }
 
           try {
             const result = await axios.post(`${this.options?.orderFetcherBaseUrl}/api/offer`, {
@@ -2800,7 +3283,7 @@ export class Router {
               tokenId: order.tokenId,
               taker: detail.isProtected ? taker : detail.owner ?? taker,
               chainId: this.chainId,
-              protocolVersion: "1.4",
+              protocolVersion: "v1.5",
               unitPrice: order.unitPrice,
               isProtected: detail.isProtected,
               openseaApiKey: this.options?.openseaApiKey,
@@ -2815,64 +3298,60 @@ export class Router {
               );
 
               // Fill directly
-              return {
-                txs: [
+              txs.push({
+                txData: {
+                  from: taker,
+                  to: Sdk.SeaportV15.Addresses.Exchange[this.chainId],
+                  data: result.data.calldata + generateSourceBytes(options?.source),
+                },
+                approvals: [
                   {
-                    txData: {
-                      from: taker,
-                      to: Sdk.SeaportV14.Addresses.Exchange[this.chainId],
-                      data: result.data.calldata + generateSourceBytes(options?.source),
-                    },
-                    approvals: [
-                      {
-                        contract,
-                        owner,
-                        operator,
-                        txData: generateNFTApprovalTxData(contract, owner, operator),
-                      },
-                    ],
                     orderIds: [detail.orderId],
+                    contract,
+                    owner,
+                    operator,
+                    txData: generateNFTApprovalTxData(contract, owner, operator),
                   },
                 ],
-                success: { [detail.orderId]: true },
-              };
-            }
-
-            const fullOrder = new Sdk.SeaportV14.Order(this.chainId, result.data.order);
-            executionsWithDetails.push({
-              detail,
-              execution: {
-                module: module.address,
-                data: module.interface.encodeFunctionData(
-                  detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
-                  [
-                    {
-                      parameters: {
-                        ...fullOrder.params,
-                        totalOriginalConsiderationItems: fullOrder.params.consideration.length,
+                orderIds: [detail.orderId],
+              });
+            } else {
+              const fullOrder = new Sdk.SeaportV15.Order(this.chainId, result.data.order);
+              executionsWithDetails.push({
+                detail,
+                execution: {
+                  module: module.address,
+                  data: module.interface.encodeFunctionData(
+                    detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
+                    [
+                      {
+                        parameters: {
+                          ...fullOrder.params,
+                          totalOriginalConsiderationItems: fullOrder.params.consideration.length,
+                        },
+                        numerator: detail.amount ?? 1,
+                        denominator: fullOrder.getInfo()!.amount,
+                        signature: fullOrder.params.signature,
+                        extraData: result.data.extraData,
                       },
-                      numerator: detail.amount ?? 1,
-                      denominator: fullOrder.getInfo()!.amount,
-                      signature: fullOrder.params.signature,
-                      extraData: result.data.extraData,
-                    },
-                    result.data.criteriaResolvers ?? [],
-                    {
-                      fillTo: taker,
-                      refundTo: taker,
-                      revertIfIncomplete: Boolean(!options?.partial),
-                    },
-                    detail.fees ?? [],
-                  ]
-                ),
-                value: 0,
-              },
-            });
+                      result.data.criteriaResolvers ?? [],
+                      {
+                        fillTo: taker,
+                        refundTo: taker,
+                        revertIfIncomplete: Boolean(!options?.partial),
+                      },
+                      fees,
+                    ]
+                  ),
+                  value: 0,
+                },
+              });
+            }
 
             success[detail.orderId] = true;
           } catch (error) {
-            if (options?.onRecoverableError) {
-              options.onRecoverableError("order-fetcher-opensea-offer", error, {
+            if (options?.onError) {
+              options.onError("order-fetcher-opensea-offer", error, {
                 orderId: detail.orderId,
                 additionalInfo: {
                   detail,
@@ -2923,7 +3402,7 @@ export class Router {
                     refundTo: taker,
                     revertIfIncomplete: Boolean(!options?.partial),
                   },
-                  detail.fees ?? [],
+                  fees,
                 ]
               ),
               value: 0,
@@ -2956,7 +3435,80 @@ export class Router {
                   refundTo: taker,
                   revertIfIncomplete: Boolean(!options?.partial),
                 },
-                detail.fees ?? [],
+                fees,
+              ]),
+              value: 0,
+            },
+          });
+
+          success[detail.orderId] = true;
+
+          break;
+        }
+
+        case "sudoswap-v2": {
+          const order = detail.order as Sdk.SudoswapV2.Order;
+          const module = this.contracts.sudoswapV2Module;
+
+          executionsWithDetails.push({
+            detail,
+            execution: {
+              module: module.address,
+              data: module.interface.encodeFunctionData("sell", [
+                order.params.pair,
+                detail.contractKind === "erc721" ? detail.tokenId : detail.amount ?? 1,
+                bn(order.params.extra.prices[0]).sub(
+                  // Take into account the protocol fee of 0.5%
+                  bn(order.params.extra.prices[0]).mul(50).div(10000)
+                ),
+                {
+                  fillTo: taker,
+                  refundTo: taker,
+                  revertIfIncomplete: Boolean(!options?.partial),
+                },
+                fees,
+              ]),
+              value: 0,
+            },
+          });
+
+          success[detail.orderId] = true;
+
+          break;
+        }
+
+        case "collectionxyz": {
+          const order = detail.order as Sdk.CollectionXyz.Order;
+          const module = this.contracts.collectionXyzModule;
+
+          const acceptedSet = detail.extraArgs.tokenIds as string[];
+          const { proof, proofFlags } =
+            // acceptedSet === [] for unfiltered pools
+            acceptedSet.length === 0
+              ? { proof: [], proofFlags: [] }
+              : new TokenIDs(acceptedSet.map(BigInt)).proof([BigInt(detail.tokenId)]);
+
+          executionsWithDetails.push({
+            detail,
+            execution: {
+              module: module.address,
+              data: module.interface.encodeFunctionData("sell", [
+                order.params.pool,
+                // Single id, no need to sort
+                { nftId: detail.tokenId, proof, proofFlags, externalFilterContext: [] },
+                bn(order.params.extra.prices[0]).sub(
+                  // Take into account any fees
+                  bn(order.params.extra.prices[0])
+                    .mul(detail.extraArgs?.totalFeeBps ?? 0)
+                    .div(10000)
+                ),
+                Math.floor(Date.now() / 1000) + 10 * 60,
+                {
+                  fillTo: taker,
+                  refundTo: taker,
+                  revertIfIncomplete: Boolean(!options?.partial),
+                },
+                fees,
               ]),
               value: 0,
             },
@@ -2997,7 +3549,7 @@ export class Router {
                       refundTo: taker,
                       revertIfIncomplete: Boolean(!options?.partial),
                     },
-                    detail.fees ?? [],
+                    fees,
                   ]
                 ),
                 value: 0,
@@ -3006,13 +3558,17 @@ export class Router {
 
             success[detail.orderId] = true;
           } catch (error) {
-            if (options?.onRecoverableError) {
-              options.onRecoverableError("x2y2-offer", error, {
+            if (options?.onError) {
+              options.onError("x2y2-offer", error, {
                 orderId: detail.orderId,
                 additionalInfo: {
                   detail,
                   taker,
                 },
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                isUnrecoverable: (error as any).response?.data?.errors?.some(
+                  (e: { code: number }) => Sdk.X2Y2.Helpers.UnrecoverableErrorCodes.includes(e.code)
+                ),
               });
             }
 
@@ -3051,7 +3607,7 @@ export class Router {
                       revertIfIncomplete: Boolean(!options?.partial),
                     },
                     detail.tokenId,
-                    detail.fees ?? [],
+                    fees,
                   ]),
                   value: 0,
                 },
@@ -3071,7 +3627,7 @@ export class Router {
                       revertIfIncomplete: Boolean(!options?.partial),
                     },
                     detail.tokenId,
-                    detail.fees ?? [],
+                    fees,
                   ]),
                   value: 0,
                 },
@@ -3080,8 +3636,8 @@ export class Router {
 
             success[detail.orderId] = true;
           } catch (error) {
-            if (options?.onRecoverableError) {
-              options.onRecoverableError("zeroex-v4-offer", error, {
+            if (options?.onError) {
+              options.onError("zeroex-v4-offer", error, {
                 orderId: detail.orderId,
                 additionalInfo: {
                   detail,
@@ -3116,7 +3672,7 @@ export class Router {
                     revertIfIncomplete: Boolean(!options?.partial),
                   },
                   detail.tokenId,
-                  detail.fees ?? [],
+                  fees,
                 ]),
                 value: 0,
               },
@@ -3136,7 +3692,7 @@ export class Router {
                     revertIfIncomplete: Boolean(!options?.partial),
                   },
                   detail.tokenId,
-                  detail.fees ?? [],
+                  fees,
                 ]),
                 value: 0,
               },
@@ -3150,10 +3706,19 @@ export class Router {
 
         case "nftx": {
           const order = detail.order as Sdk.Nftx.Order;
+
+          // Can't use the ZeroEx module here since it only supports single-swaps
+          // and here we potentially need multiple swaps for the same token pair,
+          // considering the price impact the first swaps have on the next ones.
           const module = this.contracts.nftxModule;
 
           const tokenId = detail.tokenId;
           order.params.specificIds = [tokenId];
+
+          // Cover the case where the path is missing
+          order.params.path = order.params.path.length
+            ? order.params.path
+            : [order.params.pool, Sdk.Common.Addresses.Weth[this.chainId]];
 
           executionsWithDetails.push({
             detail,
@@ -3166,7 +3731,7 @@ export class Router {
                   refundTo: taker,
                   revertIfIncomplete: Boolean(!options?.partial),
                 },
-                detail.fees ?? [],
+                fees,
               ]),
               value: 0,
             },
@@ -3203,7 +3768,7 @@ export class Router {
                     refundTo: taker,
                     revertIfIncomplete: Boolean(!options?.partial),
                   },
-                  detail.fees ?? [],
+                  fees,
                 ]
               ),
               value: 0,
@@ -3260,14 +3825,12 @@ export class Router {
         txData: {
           from: taker,
           to: this.contracts.approvalProxy.address,
-          data: this.contracts.approvalProxy.interface.encodeFunctionData(
-            "bulkTransferWithExecute",
-            [
+          data:
+            this.contracts.approvalProxy.interface.encodeFunctionData("bulkTransferWithExecute", [
               nftTransferItems,
               executionsWithDetails.map(({ execution }) => execution),
               Sdk.SeaportBase.Addresses.ReservoirConduitKey[this.chainId],
-            ]
-          ),
+            ]) + generateSourceBytes(options?.source),
         },
         // Ensure approvals are unique
         approvals: uniqBy(

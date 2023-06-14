@@ -1,17 +1,20 @@
 import { BulkJobOptions } from "bullmq";
 import { randomUUID } from "crypto";
 import Redis from "ioredis";
+import _ from "lodash";
 import Redlock from "redlock";
 
 import { config } from "@/config/index";
-import _ from "lodash";
 
 // TODO: Research using a connection pool rather than
 // creating a new connection every time, as we do now.
 
+// Main redis
 export const redis = new Redis(config.redisUrl, {
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
+  // To avoid annoying timeout errors
+  connectTimeout: process.env.LOCAL_TESTING ? 1000 * 1000 : undefined,
 });
 
 export const redisSubscriber = new Redis(config.redisUrl, {
@@ -19,11 +22,18 @@ export const redisSubscriber = new Redis(config.redisUrl, {
   enableReadyCheck: false,
 });
 
+// Websocket redis
 export const redisWebsocketPublisher = new Redis(config.redisWebsocketUrl, {
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
 });
 
+export const redisWebsocketClient = new Redis(config.redisWebsocketUrl, {
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
+});
+
+// Rate limiter redis
 export const rateLimitRedis = new Redis(config.rateLimitRedisUrl, {
   maxRetriesPerRequest: 1,
   enableReadyCheck: false,
@@ -31,7 +41,25 @@ export const rateLimitRedis = new Redis(config.rateLimitRedisUrl, {
   commandTimeout: 600,
 });
 
+// Metric redis
 export const metricsRedis = new Redis(config.metricsRedisUrl, {
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
+});
+
+// Orders book redis
+export const orderbookRedis = new Redis(config.orderbookRedisUrl, {
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
+});
+
+// All chains sync redis
+export const allChainsSyncRedis = new Redis(config.allChainsSyncRedisUrl, {
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
+});
+
+export const allChainsSyncRedisSubscriber = new Redis(config.allChainsSyncRedisUrl, {
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
 });

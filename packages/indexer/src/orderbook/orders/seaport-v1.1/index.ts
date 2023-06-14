@@ -64,7 +64,8 @@ type SaveResult = {
 
 export const save = async (
   orderInfos: OrderInfo[],
-  validateBidValue?: boolean
+  validateBidValue?: boolean,
+  ingestMethod?: "websocket" | "rest"
 ): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
@@ -221,7 +222,7 @@ export const save = async (
       let approvalStatus = "approved";
       const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
       try {
-        await offChainCheck(order, exchange, {
+        await offChainCheck(order, "seaport", exchange, {
           onChainApprovalRecheck: true,
           singleTokenERC721ApprovalCheck: metadata.fromOnChain,
         });
@@ -398,7 +399,7 @@ export const save = async (
       let feeAmount = order.getFeeAmount();
 
       // Handle: price and value
-      let price = bn(order.getMatchingPrice());
+      let price = bn(order.getMatchingPrice(Math.max(now(), startTime)));
       let value = price;
       if (info.side === "buy") {
         // For buy orders, we set the value as `price - fee` since it
@@ -761,6 +762,7 @@ export const save = async (
               trigger: {
                 kind: "new-order",
               },
+              ingestMethod,
             } as ordersUpdateById.OrderInfo)
         )
     );
@@ -826,8 +828,12 @@ const getCollection = async (
       );
 
       logger.info(
-        "orders-seaport-save-partial",
-        `Unknown Collection. orderId=${orderParams.hash}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, lockAcquired=${lockAcquired}`
+        "unknown-collection-slug",
+        JSON.stringify({
+          orderId: orderParams.hash,
+          contract: orderParams.contract,
+          collectionSlug: orderParams.collectionSlug,
+        })
       );
 
       if (lockAcquired) {

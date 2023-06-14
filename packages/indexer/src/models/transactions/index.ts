@@ -122,9 +122,72 @@ export const saveTransactions = async (transactions: Transaction[]) => {
   );
 };
 
-export const getTransaction = async (
-  hash: string
-): Promise<Pick<Transaction, "hash" | "from" | "to" | "value" | "data" | "blockTimestamp">> => {
+/**
+ * Store batch transactions and return nothing (fast version)
+ * @param transactions
+ */
+export const saveTransactionsV2 = async (transactions: Transaction[]) => {
+  const CHUNK_SIZE = 10;
+
+  if (_.isEmpty(transactions)) {
+    return;
+  }
+
+  const columns = new pgp.helpers.ColumnSet(
+    [
+      "hash",
+      "from",
+      "to",
+      "value",
+      "data",
+      "block_number",
+      "block_timestamp",
+      "gas_price",
+      "gas_used",
+      "gas_fee",
+    ],
+    { table: "transactions" }
+  );
+
+  const transactionsValues = _.map(transactions, (transaction) => ({
+    hash: toBuffer(transaction.hash),
+    from: toBuffer(transaction.from),
+    to: toBuffer(transaction.to),
+    value: transaction.value,
+    data: toBuffer(transaction.data),
+    block_number: transaction.blockNumber,
+    block_timestamp: transaction.blockTimestamp,
+    gas_price: transaction.gasPrice,
+    gas_used: transaction.gasUsed,
+    gas_fee: transaction.gasFee,
+  }));
+
+  const chunks = _.chunk(transactionsValues, CHUNK_SIZE);
+
+  await Promise.all(
+    chunks.map((chunk) =>
+      idb.none(
+        `
+        INSERT INTO transactions (
+          hash,
+          "from",
+          "to",
+          value,
+          data,
+          block_number,
+          block_timestamp,
+          gas_price,
+          gas_used,
+          gas_fee
+        ) VALUES ${pgp.helpers.values(chunk, columns)}
+        ON CONFLICT DO NOTHING
+      `
+      )
+    )
+  );
+};
+
+export const getTransaction = async (hash: string): Promise<Transaction> => {
   const result = await idb.oneOrNone(
     `
       SELECT
@@ -132,6 +195,7 @@ export const getTransaction = async (
         transactions.to,
         transactions.value,
         transactions.data,
+        transactions.block_number,
         transactions.block_timestamp
       FROM transactions
       WHERE transactions.hash = $/hash/
@@ -145,6 +209,7 @@ export const getTransaction = async (
     to: fromBuffer(result.to),
     value: result.value,
     data: fromBuffer(result.data),
+    blockNumber: result.block_number,
     blockTimestamp: result.block_timestamp,
   };
 };

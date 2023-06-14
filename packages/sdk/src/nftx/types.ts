@@ -6,6 +6,7 @@ export type OrderParams = {
   amounts?: string[];
   amount?: string;
   path: string[];
+  swapCallData?: string;
   currency?: string;
   price: string;
   extra: {

@@ -7,8 +7,7 @@ import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { Attributes } from "@/models/attributes";
 import { Tokens } from "@/models/tokens";
-
-import * as resyncAttributeCache from "@/jobs/update-attribute/resync-attribute-cache";
+import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
 
 const QUEUE_NAME = "handle-new-sell-order-queue";
 
@@ -42,13 +41,13 @@ if (config.doBackgroundWork) {
       // If this is a new sale
       if (_.isNull(previousPrice) && !_.isNull(price)) {
         await Attributes.incrementOnSaleCount(tokenAttributesIds, 1);
-        await resyncAttributeCache.addToQueue(contract, tokenId);
+        await resyncAttributeCacheJob.addToQueue({ contract, tokenId });
       }
 
       // The sale ended
       if (!_.isNull(previousPrice) && _.isNull(price)) {
         await Attributes.incrementOnSaleCount(tokenAttributesIds, -1);
-        await resyncAttributeCache.addToQueue(contract, tokenId);
+        await resyncAttributeCacheJob.addToQueue({ contract, tokenId });
       }
 
       // Check for new sell floor price

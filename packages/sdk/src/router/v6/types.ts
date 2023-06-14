@@ -15,6 +15,7 @@ export type NFTToken = {
 };
 
 export type NFTApproval = {
+  orderIds: string[];
   contract: string;
   owner: string;
   operator: string;
@@ -68,15 +69,19 @@ export type GenericOrder =
       order: Sdk.SeaportV11.Order;
     }
   | {
-      kind: "seaport-partial";
-      order: Sdk.SeaportBase.Types.PartialOrder;
-    }
-  | {
       kind: "seaport-v1.4";
       order: Sdk.SeaportV14.Order;
     }
   | {
       kind: "seaport-v1.4-partial";
+      order: Sdk.SeaportBase.Types.PartialOrder;
+    }
+  | {
+      kind: "seaport-v1.5";
+      order: Sdk.SeaportV15.Order;
+    }
+  | {
+      kind: "seaport-v1.5-partial";
       order: Sdk.SeaportBase.Types.PartialOrder;
     }
   | {
@@ -90,6 +95,10 @@ export type GenericOrder =
   | {
       kind: "sudoswap";
       order: Sdk.Sudoswap.Order;
+    }
+  | {
+      kind: "collectionxyz";
+      order: Sdk.CollectionXyz.Order;
     }
   | {
       kind: "zora";
@@ -134,6 +143,10 @@ export type GenericOrder =
   | {
       kind: "looks-rare-v2";
       order: Sdk.LooksRareV2.Order;
+    }
+  | {
+      kind: "sudoswap-v2";
+      order: Sdk.SudoswapV2.Order;
     };
 
 // Listings

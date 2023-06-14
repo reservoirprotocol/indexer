@@ -12,9 +12,15 @@ import * as Common from "../common";
 import { Exchange } from "./exchange";
 import { Builders } from "../seaport-base/builders";
 import { BaseBuilder, BaseOrderInfo } from "../seaport-base/builders/base";
-import { IOrder, ORDER_EIP712_TYPES, SeaportOrderKind } from "../seaport-base/order";
+import { IOrder, ORDER_EIP712_TYPES } from "../seaport-base/order";
 import * as Types from "../seaport-base/types";
-import { bn, getCurrentTimestamp, lc, n, s } from "../utils";
+import { bn, lc, n, s } from "../utils";
+import {
+  isPrivateOrder,
+  constructPrivateListingCounterOrder,
+  getPrivateListingFulfillments,
+  computeDynamicPrice,
+} from "../seaport-base/helpers";
 
 export class Order implements IOrder {
   public chainId: number;
@@ -191,10 +197,6 @@ export class Order implements IOrder {
     return this.getBuilder().getInfo(this);
   }
 
-  public getKind(): SeaportOrderKind {
-    return SeaportOrderKind.SEAPORT_V14;
-  }
-
   public getMatchingPrice(timestampOverride?: number): BigNumberish {
     const info = this.getInfo();
     if (!info) {
@@ -209,29 +211,20 @@ export class Order implements IOrder {
         return bn(info.price).add(this.getFeeAmount());
       }
     } else {
-      if (info.side === "buy") {
-        // Reverse dutch-auctions are not supported
-        return bn(info.price);
-      } else {
-        let price = bn(0);
-        for (const c of this.params.consideration) {
-          price = price.add(
-            // startAmount - (currentTime - startTime) / (endTime - startTime) * (startAmount - endAmount)
-            bn(c.startAmount).sub(
-              bn(timestampOverride ?? getCurrentTimestamp(-60))
-                .sub(this.params.startTime)
-                .mul(bn(c.startAmount).sub(c.endAmount))
-                .div(bn(this.params.endTime).sub(this.params.startTime))
-            )
-          );
-          // Ensure we don't return any negative prices
-          if (price.lt(c.endAmount)) {
-            price = bn(c.endAmount);
-          }
-        }
-        return price;
-      }
+      return computeDynamicPrice(info.side === "buy", this.params, timestampOverride);
     }
+  }
+
+  public getPrivateListingFulfillments(): Types.MatchOrdersFulfillment[] {
+    return getPrivateListingFulfillments(this.params);
+  }
+
+  public isPrivateOrder() {
+    return isPrivateOrder(this.params);
+  }
+
+  public constructPrivateListingCounterOrder(privateSaleRecipient: string): Types.OrderWithCounter {
+    return constructPrivateListingCounterOrder(privateSaleRecipient, this.params);
   }
 
   public getFeeAmount(): BigNumber {

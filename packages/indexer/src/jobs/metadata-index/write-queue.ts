@@ -10,17 +10,20 @@ import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
-import * as resyncAttributeKeyCounts from "@/jobs/update-attribute/resync-attribute-key-counts";
-import * as resyncAttributeValueCounts from "@/jobs/update-attribute/resync-attribute-value-counts";
 import * as rarityQueue from "@/jobs/collection-updates/rarity-queue";
-import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
 import * as flagStatusUpdate from "@/jobs/flag-status/update";
 import * as updateCollectionActivity from "@/jobs/collection-updates/update-collection-activity";
 import * as updateCollectionUserActivity from "@/jobs/collection-updates/update-collection-user-activity";
 import * as updateCollectionDailyVolume from "@/jobs/collection-updates/update-collection-daily-volume";
-import * as updateAttributeCounts from "@/jobs/update-attribute/update-attribute-counts";
+import * as updateActivitiesCollection from "@/jobs/elasticsearch/update-activities-collection";
+import * as refreshActivitiesTokenMetadata from "@/jobs/elasticsearch/refresh-activities-token-metadata";
+
 import PgPromise from "pg-promise";
 import { updateActivities } from "@/jobs/activities/utils";
+import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
+import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attribute-key-counts-job";
+import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-attribute-value-counts-job";
+import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
 
 const QUEUE_NAME = "metadata-index-write-queue";
 
@@ -51,7 +54,12 @@ if (config.doBackgroundWork) {
         tokenId,
         name,
         description,
+        originalMetadata,
         imageUrl,
+        imageOriginalUrl,
+        imageProperties,
+        animationOriginalUrl,
+        metadataOriginalUrl,
         mediaUrl,
         flagged,
         attributes,
@@ -65,13 +73,24 @@ if (config.doBackgroundWork) {
               name = $/name/,
               description = $/description/,
               image = $/image/,
+              metadata = $/metadata:json/,
               media = $/media/,
               updated_at = now(),
               collection_id = collection_id,
               created_at = created_at
             WHERE tokens.contract = $/contract/
             AND tokens.token_id = $/tokenId/
-            RETURNING collection_id, created_at
+            RETURNING collection_id, created_at, (
+                  SELECT
+                  json_build_object(
+                    'name', tokens.name,
+                    'image', tokens.image,
+                    'media', tokens.media
+                  )
+                  FROM tokens
+                  WHERE tokens.contract = $/contract/
+                  AND tokens.token_id = $/tokenId/
+                ) AS old_metadata
           `,
           {
             contract: toBuffer(contract),
@@ -79,6 +98,14 @@ if (config.doBackgroundWork) {
             name: name || null,
             description: description || null,
             image: imageUrl || null,
+            metadata:
+              {
+                original_metadata: originalMetadata || null,
+                image_original_url: imageOriginalUrl || null,
+                image_properties: imageProperties || null,
+                animation_original_url: animationOriginalUrl || null,
+                metadata_original_url: metadataOriginalUrl || null,
+              } || {},
             media: mediaUrl || null,
           }
         );
@@ -86,6 +113,19 @@ if (config.doBackgroundWork) {
         // Skip if there is no associated entry in the `tokens` table
         if (!result) {
           return;
+        }
+
+        if (
+          config.doElasticsearchWork &&
+          (result.old_metadata.name != name ||
+            result.old_metadata.image != imageUrl ||
+            result.old_metadata.media != mediaUrl)
+        ) {
+          await refreshActivitiesTokenMetadata.addToQueue(contract, tokenId, collection, {
+            name,
+            image: imageUrl,
+            media: mediaUrl,
+          });
         }
 
         // If the new collection ID is different from the collection ID currently stored
@@ -117,10 +157,19 @@ if (config.doBackgroundWork) {
 
             // Trigger a delayed job to recalc the daily volumes
             await updateCollectionDailyVolume.addToQueue(collection, contract);
+
+            if (config.doElasticsearchWork) {
+              await updateActivitiesCollection.addToQueue(
+                contract,
+                tokenId,
+                collection,
+                result.collection_id
+              );
+            }
           }
 
           // Set the new collection and update the token association
-          await fetchCollectionMetadata.addToQueue(
+          await fetchCollectionMetadataJob.addToQueue(
             [
               {
                 contract,
@@ -128,6 +177,7 @@ if (config.doBackgroundWork) {
                 mintedTimestamp: getUnixTime(new Date(result.created_at)),
                 newCollection: true,
                 oldCollectionId: result.collection_id,
+                context: "write-queue",
               },
             ],
             `${contract}:${tokenId}`
@@ -397,8 +447,12 @@ if (config.doBackgroundWork) {
 
         // Schedule attribute refresh
         _.forEach(attributesToRefresh, (attribute) => {
-          resyncAttributeKeyCounts.addToQueue(collection, attribute.key);
-          resyncAttributeValueCounts.addToQueue(collection, attribute.key, attribute.value);
+          resyncAttributeKeyCountsJob.addToQueue({ collection, key: attribute.key });
+          resyncAttributeValueCountsJob.addToQueue({
+            collection,
+            key: attribute.key,
+            value: attribute.value,
+          });
         });
 
         // If any attributes changed
@@ -407,7 +461,7 @@ if (config.doBackgroundWork) {
         }
 
         if (!_.isEmpty(tokenAttributeCounter)) {
-          await updateAttributeCounts.addToQueue(tokenAttributeCounter);
+          await resyncAttributeCountsJob.addToQueue({ tokenAttributeCounter });
         }
 
         // Mark the token as having metadata indexed.
@@ -444,7 +498,17 @@ export type TokenMetadataInfo = {
   tokenId: string;
   name?: string;
   description?: string;
+  originalMetadata?: JSON;
   imageUrl?: string;
+  imageOriginalUrl?: string;
+  imageProperties?: {
+    width?: number;
+    height?: number;
+    size?: number;
+    mime_type?: string;
+  };
+  animationOriginalUrl?: string;
+  metadataOriginalUrl?: string;
   mediaUrl?: string;
   flagged?: boolean;
   attributes: {

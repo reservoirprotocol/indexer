@@ -8,6 +8,10 @@ export const MarketplaceZap: ChainIdToAddress = {
   [Network.Ethereum]: "0x0fc584529a2aefa997697fafacba5831fac0c22d",
 };
 
+export const ZeroExMarketplaceZap: ChainIdToAddress = {
+  [Network.Ethereum]: "0x941a6d105802cccaa06de58a13a6f49ebdcd481c",
+};
+
 export const NFTXStakingZap: ChainIdToAddress = {
   [Network.Ethereum]: "0xdc774d5260ec66e5dd4627e1dd800eff3911345c",
 };

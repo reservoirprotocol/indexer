@@ -61,6 +61,7 @@ if (config.doBackgroundWork) {
         {
           contract: string;
           from: string;
+          to: string;
           tokenId: string;
           amount: string;
           baseEventParams: BaseEventParams;
@@ -84,6 +85,7 @@ if (config.doBackgroundWork) {
               batchIndex: result.batch_index,
             };
             const from = fromBuffer(result.from);
+            const to = fromBuffer(result.to);
             const tokenId = result.token_id;
             const amount = result.amount;
 
@@ -99,6 +101,7 @@ if (config.doBackgroundWork) {
                 contract: baseEventParams.address,
                 tokenId,
                 from,
+                to,
                 amount,
                 baseEventParams,
               });
@@ -157,7 +160,7 @@ if (config.doBackgroundWork) {
               fillEvents.push({
                 orderKind,
                 orderSide: "sell",
-                taker: tx.from,
+                taker: mint.to,
                 maker: mint.from,
                 amount: mint.amount,
                 currency,

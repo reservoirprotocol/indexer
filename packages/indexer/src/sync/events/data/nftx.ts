@@ -63,6 +63,53 @@ export const swap: EventData = {
   ]),
 };
 
+export const swapV3: EventData = {
+  kind: "nftx",
+  subKind: "nftx-swap-v3",
+  topic: "0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67",
+  numTopics: 3,
+  abi: new Interface([
+    `event Swap(
+      address indexed sender,
+      address indexed recipient,
+      int256 amount0,
+      int256 amount1,
+      uint160 sqrtPriceX96,
+      uint128 liquidity,
+      int24 tick
+    )`,
+  ]),
+};
+
+export const mint: EventData = {
+  kind: "nftx",
+  subKind: "nftx-mint",
+  topic: "0x4c209b5fc8ad50758f13e2e1088ba56a560dff690a1c6fef26394f4c03821c4f",
+  numTopics: 2,
+  abi: new Interface([
+    `event Mint(
+      address indexed sender,
+      uint256 amount0,
+      uint256 amount1
+    )`,
+  ]),
+};
+
+export const burn: EventData = {
+  kind: "nftx",
+  subKind: "nftx-burn",
+  topic: "0xdccd412f0b1252819cb1fd330b93224ca42612892bb3f4f789976e6d81936496",
+  numTopics: 3,
+  abi: new Interface([
+    `event Burn(
+      address indexed sender,
+      uint256 amount0,
+      uint256 amount1,
+      address indexed to
+    )`,
+  ]),
+};
+
 export const vaultInit: EventData = {
   kind: "nftx",
   subKind: "nftx-vault-init",

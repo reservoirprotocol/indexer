@@ -9,7 +9,9 @@ import { config } from "@/config/index";
 
 import { Activities } from "@/models/activities";
 import { UserActivities } from "@/models/user-activities";
-import { Tokens } from "@/models/tokens";
+import { Collections } from "@/models/collections";
+
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
 const QUEUE_NAME = "fix-activities-missing-collection-queue";
 const MAX_RETRIES = 5;
@@ -29,21 +31,29 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
+      // Temporarily disable goerli prod
+      if (config.chainId === 5 && config.environment === "prod") {
+        return;
+      }
       const { contract, tokenId, retry } = job.data;
-      const collectionId = await Tokens.getCollectionId(contract, tokenId);
+      const collection = await Collections.getByContractAndTokenId(contract, tokenId);
 
       job.data.addToQueue = false;
 
-      if (collectionId) {
+      if (collection) {
         // Update the collection id of any missing activities
         await Promise.all([
-          Activities.updateMissingCollectionId(contract, tokenId, collectionId),
-          UserActivities.updateMissingCollectionId(contract, tokenId, collectionId),
+          Activities.updateMissingCollectionId(contract, tokenId, collection.id),
+          UserActivities.updateMissingCollectionId(contract, tokenId, collection.id),
         ]);
+
+        if (config.doElasticsearchWork) {
+          await ActivitiesIndex.updateActivitiesMissingCollection(contract, tokenId, collection);
+        }
       } else if (retry < MAX_RETRIES) {
         job.data.addToQueue = true;
       } else {
-        logger.warn(QUEUE_NAME, `Max retries reached for ${JSON.stringify(job.data)}`);
+        logger.debug(QUEUE_NAME, `Max retries reached for ${JSON.stringify(job.data)}`);
       }
     },
     { connection: redis.duplicate(), concurrency: 15 }

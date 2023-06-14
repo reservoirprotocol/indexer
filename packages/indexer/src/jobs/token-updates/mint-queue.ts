@@ -9,10 +9,10 @@ import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import * as tokenSets from "@/orderbook/token-sets";
 
-import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
-import * as tokenRefreshCache from "@/jobs/token-updates/token-refresh-cache";
-import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
+import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
+import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
+import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
 
 const QUEUE_NAME = "token-updates-mint-queue";
 
@@ -47,13 +47,13 @@ if (config.doBackgroundWork) {
         } | null = await idb.oneOrNone(
           `
             SELECT
-              "c"."id",
-              "c"."token_set_id",
-              "c"."community"
-            FROM "collections" "c"
-            WHERE "c"."contract" = $/contract/
-              AND "c"."token_id_range" @> $/tokenId/::NUMERIC(78, 0)
-            ORDER BY "c"."created_at" DESC
+              collections.id,
+              collections.token_set_id,
+              collections.community
+            FROM collections
+            WHERE collections.contract = $/contract/
+              AND collections.token_id_range @> $/tokenId/::NUMERIC(78, 0)
+            ORDER BY collections.created_at DESC
             LIMIT 1
           `,
           {
@@ -69,12 +69,12 @@ if (config.doBackgroundWork) {
           // all we needed to do is to associate it with the token
           queries.push({
             query: `
-              UPDATE "tokens" AS "t"
-              SET "collection_id" = $/collection/,
-                  "updated_at" = now()
-              WHERE "t"."contract" = $/contract/
-              AND "t"."token_id" = $/tokenId/
-              AND "t"."collection_id" IS NULL;
+              UPDATE tokens SET
+                collection_id = $/collection/,
+                updated_at = now()
+              WHERE tokens.contract = $/contract/
+                AND tokens.token_id = $/tokenId/
+                AND tokens.collection_id IS NULL
             `,
             values: {
               contract: toBuffer(contract),
@@ -83,29 +83,26 @@ if (config.doBackgroundWork) {
             },
           });
 
-          // Schedule a job to re-count tokens in the collection
-          await collectionRecalcTokenCount.addToQueue(collection.id);
-
           // Include the new token to any collection-wide token set
           if (collection.token_set_id) {
             queries.push({
               query: `
-                WITH "x" AS (
+                WITH x AS (
                   SELECT DISTINCT
-                    "ts"."id"
-                  FROM "token_sets" "ts"
-                  WHERE "ts"."id" = $/tokenSetId/
+                    token_sets.id
+                  FROM token_sets
+                  WHERE token_sets.id = $/tokenSetId/
                 )
-                INSERT INTO "token_sets_tokens" (
-                  "token_set_id",
-                  "contract",
-                  "token_id"
+                INSERT INTO token_sets_tokens (
+                  token_set_id,
+                  contract,
+                  token_id
                 ) (
                   SELECT
-                    "x"."id",
+                    x.id,
                     $/contract/,
                     $/tokenId/
-                  FROM "x"
+                  FROM x
                 ) ON CONFLICT DO NOTHING
               `,
               values: {
@@ -115,6 +112,12 @@ if (config.doBackgroundWork) {
               },
             });
           }
+
+          // Trigger the queries
+          await idb.none(pgp.helpers.concat(queries));
+
+          // Schedule a job to re-count tokens in the collection
+          await recalcTokenCountQueueJob.addToQueue({ collection: collection.id });
 
           // Refresh any dynamic token set
           const cacheKey = `refresh-collection-non-flagged-token-set:${collection.id}`;
@@ -142,8 +145,7 @@ if (config.doBackgroundWork) {
             await redis.set(cacheKey, "locked", "EX", 10 * 60);
           }
 
-          await idb.none(pgp.helpers.concat(queries));
-
+          // Refresh the metadata for the new token
           if (!config.disableRealtimeMetadataRefresh) {
             const delay = getNetworkSettings().metadataMintDelay;
             const method = metadataIndexFetch.getIndexingMethod(collection.community);
@@ -166,17 +168,18 @@ if (config.doBackgroundWork) {
           }
         } else {
           // We fetch the collection metadata from upstream
-          await fetchCollectionMetadata.addToQueue([
+          await fetchCollectionMetadataJob.addToQueue([
             {
               contract,
               tokenId,
               mintedTimestamp,
+              context: "mint-queue",
             },
           ]);
         }
 
         // Set any cached information (eg. floor sell)
-        await tokenRefreshCache.addToQueue(contract, tokenId);
+        await tokenRefreshCacheJob.addToQueue({ contract, tokenId });
       } catch (error) {
         logger.error(
           QUEUE_NAME,

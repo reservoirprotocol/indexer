@@ -1,6 +1,6 @@
 import { Exchange } from "./exchange";
 import * as Types from "../seaport-base/types";
-import { IOrder, SeaportOrderKind } from "../seaport-base/order";
+import { IOrder } from "../seaport-base/order";
 import { Order as SeaportV14Order } from "../seaport-v1.4/order";
 
 export class Order extends SeaportV14Order implements IOrder {
@@ -10,11 +10,5 @@ export class Order extends SeaportV14Order implements IOrder {
 
   public exchange() {
     return new Exchange(this.chainId);
-  }
-
-  // Private methods
-
-  public override getKind(): SeaportOrderKind {
-    return SeaportOrderKind.ALIENSWAP;
   }
 }

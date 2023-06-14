@@ -53,6 +53,7 @@ export type PartialFillEvent = {
   tokenId: string;
   currency: string;
   price: string;
+  currencyPrice?: string;
   amount: string;
   maker: string;
   taker: string;
@@ -94,6 +95,7 @@ export const getFillEventsFromTx = async (txHash: string): Promise<PartialFillEv
         contract: fromBuffer(r.contract),
         tokenId: r.token_id,
         currency: fromBuffer(r.currency),
+        currencyPrice: r.currency_price,
         price: r.price,
         amount: r.amount,
         maker: fromBuffer(r.maker),
@@ -182,7 +184,7 @@ export const assignRoyaltiesToFillEvents = async (
               fillEvent.paidFullRoyalty = result.paidFullRoyalty;
 
               fillEvent.netAmount = subFeeWithBps(
-                fillEvent.price,
+                fillEvent.currencyPrice ?? fillEvent.price,
                 result.royaltyFeeBps + result.marketplaceFeeBps
               );
             }

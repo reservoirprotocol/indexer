@@ -13,7 +13,7 @@ export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
   defaultJobOptions: {
     attempts: 10,
-    removeOnComplete: 100,
+    removeOnComplete: true,
     removeOnFail: 1000,
   },
 });
@@ -77,6 +77,7 @@ if (config.doBackgroundWork) {
       const tokenUrlGoerli = getTokenUrl(html, url, "goerli");
       const tokenUrlArbitrum = getTokenUrl(html, url, "arbitrum");
       const tokenUrlOptimism = getTokenUrl(html, url, "optimism");
+      const tokenUrlBsc = getTokenUrl(html, url, "bsc");
 
       // Update the source data
       const sources = await Sources.getInstance();
@@ -88,6 +89,7 @@ if (config.doBackgroundWork) {
         tokenUrlPolygon,
         tokenUrlArbitrum,
         tokenUrlOptimism,
+        tokenUrlBsc,
         tokenUrlGoerli,
       });
     },
@@ -122,5 +124,5 @@ function getTokenUrl(html: HTMLElement, domain: string, network: string) {
 
 export const addToQueue = async (sourceDomain: string, delay = 0) => {
   const jobId = `${sourceDomain}`;
-  await queue.add(jobId, { sourceDomain }, { delay });
+  await queue.add(jobId, { sourceDomain }, { delay, jobId });
 };

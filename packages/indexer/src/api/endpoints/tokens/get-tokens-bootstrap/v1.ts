@@ -65,7 +65,7 @@ export const getTokensBootstrapV1Options: RouteOptions = {
           maker: Joi.string().lowercase().pattern(regex.address),
           validFrom: Joi.number().unsafe(),
           validUntil: Joi.number().unsafe(),
-          price: Joi.number().unsafe(),
+          price: Joi.number().unsafe().description("Native currency of chain"),
           source: Joi.string().allow("", null),
         })
       ),

@@ -537,9 +537,8 @@ describe("ElementTestnet", () => {
       await axios.post("http://localhost:3000/orders/v1", postData, {
         headers,
       });
-      // console.log("data", data)
     } catch (e) {
-      // console.log("error", e)
+      //
     }
 
     await wait(10 * 1000);

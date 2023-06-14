@@ -60,6 +60,11 @@ if (config.doBackgroundWork) {
         );
 
         if (await acquireLock(metadataIndexProcessBySlug.getLockName(data.method), 60 * 5)) {
+          logger.info(
+            QUEUE_NAME,
+            `Full collection by slug - acquireLock. data=${JSON.stringify(data)}`
+          );
+
           await metadataIndexProcessBySlug.addToQueue();
         }
         return;

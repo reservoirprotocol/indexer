@@ -66,7 +66,9 @@ type SaveResult = {
 
 export const save = async (
   orderInfos: OrderInfo[],
-  validateBidValue?: boolean
+  validateBidValue?: boolean,
+  ingestMethod?: "websocket" | "rest",
+  ingestDelay?: number
 ): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
@@ -121,8 +123,8 @@ export const save = async (
       if (
         ![
           HashZero,
-          Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId],
           Sdk.SeaportBase.Addresses.OriginConduitKey[config.chainId],
+          Sdk.SeaportBase.Addresses.SpaceIdConduitKey[config.chainId],
         ].includes(order.params.conduitKey)
       ) {
         return results.push({
@@ -159,6 +161,8 @@ export const save = async (
               kind: "seaport-v1.4",
               info: { orderParams, metadata, isReservoir, isOpenSea, openSeaOrderParams },
               validateBidValue,
+              ingestMethod,
+              ingestDelay: startTime - currentTime + 5,
             },
           ],
           false,
@@ -199,8 +203,8 @@ export const save = async (
       }
 
       const isProtectedOffer =
-        Sdk.SeaportV14.Addresses.OpenSeaProtectedOffersZone[config.chainId] === order.params.zone &&
-        info.side === "buy";
+        Sdk.SeaportBase.Addresses.OpenSeaProtectedOffersZone[config.chainId] ===
+          order.params.zone && info.side === "buy";
 
       // Check: order has a known zone
       if (order.params.orderType > 1) {
@@ -209,7 +213,7 @@ export const save = async (
             // No zone
             AddressZero,
             // Cancellation zone
-            Sdk.SeaportV14.Addresses.CancellationZone[config.chainId],
+            Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId],
           ].includes(order.params.zone) &&
           // Protected offers zone
           !isProtectedOffer
@@ -257,7 +261,7 @@ export const save = async (
       let approvalStatus = "approved";
       const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
       try {
-        await offChainCheck(order, exchange, {
+        await offChainCheck(order, "seaport-v1.4", exchange, {
           onChainApprovalRecheck: true,
           singleTokenERC721ApprovalCheck: metadata.fromOnChain,
         });
@@ -441,7 +445,7 @@ export const save = async (
       let feeAmount = order.getFeeAmount();
 
       // Handle: price and value
-      let price = bn(order.getMatchingPrice());
+      let price = bn(order.getMatchingPrice(Math.max(now(), startTime)));
       let value = price;
       if (info.side === "buy") {
         // For buy orders, we set the value as `price - fee` since it
@@ -648,6 +652,17 @@ export const save = async (
             Number(tokenId)
           );
 
+          logger.debug(
+            "orders-seaport-v1.4-save",
+            JSON.stringify({
+              topic: "validateBidValue",
+              collectionTopBidValue,
+              contract: info.contract,
+              tokenId,
+              value: value.toString(),
+            })
+          );
+
           if (collectionTopBidValue) {
             if (Number(value.toString()) <= collectionTopBidValue) {
               return results.push({
@@ -687,7 +702,9 @@ export const save = async (
       }
 
       // Handle: off-chain cancellation via replacement
-      if (order.params.zone === Sdk.SeaportV14.Addresses.CancellationZone[config.chainId]) {
+      if (
+        order.params.zone === Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
+      ) {
         const replacedOrderResult = await idb.oneOrNone(
           `
             SELECT
@@ -703,7 +720,7 @@ export const save = async (
           replacedOrderResult &&
           // Replacement is only possible if the replaced order is an off-chain cancellable one
           replacedOrderResult.raw_data.zone ===
-            Sdk.SeaportV14.Addresses.CancellationZone[config.chainId]
+            Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
         ) {
           await axios.post(
             `https://seaport-oracle-${
@@ -856,6 +873,8 @@ export const save = async (
               trigger: {
                 kind: "new-order",
               },
+              ingestMethod,
+              ingestDelay,
             } as ordersUpdateById.OrderInfo)
         )
     );
@@ -921,8 +940,12 @@ const getCollection = async (
       );
 
       logger.info(
-        "orders-seaport-v1.4-save-partial",
-        `Unknown Collection. orderId=${orderParams.hash}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, lockAcquired=${lockAcquired}`
+        "unknown-collection-slug",
+        JSON.stringify({
+          orderId: orderParams.hash,
+          contract: orderParams.contract,
+          collectionSlug: orderParams.collectionSlug,
+        })
       );
 
       if (lockAcquired) {

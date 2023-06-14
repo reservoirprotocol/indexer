@@ -1,3 +1,4 @@
+import { defaultAbiCoder } from "@ethersproject/abi";
 import { BigNumberish } from "@ethersproject/bignumber";
 
 import { BaseBuildParams, BaseBuilder } from "../base";
@@ -58,10 +59,12 @@ export class SingleTokenBuilder extends BaseBuilder {
     });
   }
 
-  public buildMatching(order: Order, recipient: string) {
+  public buildMatching(_order: Order, recipient: string, data: { tokenId: BigNumberish }) {
     return {
       recipient,
-      additionalParameters: BytesEmpty,
+      // In theory no additional data is needed for filling single-token orders.
+      // However, the router module expects the token id to be encoded in there.
+      additionalParameters: defaultAbiCoder.encode(["uint256"], [data.tokenId]),
     };
   }
 }

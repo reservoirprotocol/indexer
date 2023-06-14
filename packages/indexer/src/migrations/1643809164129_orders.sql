@@ -112,6 +112,10 @@ CREATE INDEX "orders_side_contract_created_at_id_index"
   ON "orders" ("side", "contract", "created_at" DESC, "id" DESC)
   WHERE ("fillability_status" = 'fillable' AND "approval_status" = 'approved');
 
+CREATE INDEX "orders_expired_bids_updated_at_id_index"
+  ON "orders" ("updated_at", "id")
+  WHERE ("side" = 'buy' AND "fillability_status" = 'expired');
+
 CREATE INDEX "orders_updated_at_id_index"
   ON "orders" ("updated_at", "id");
 
@@ -138,6 +142,10 @@ CREATE INDEX "orders_asks_updated_at_asc_id_index"
 CREATE INDEX "orders_updated_at_asc_id_active_index"
   ON "orders" ("side", "updated_at" ASC, "id" ASC)
   WHERE ("fillability_status" = 'fillable' AND "approval_status" = 'approved');
+
+CREATE INDEX "orders_bids_updated_at_asc_id_index"
+  ON "orders" ("updated_at" ASC, "id" ASC)
+  WHERE ("side" = 'buy');
 
 -- Down Migration
 

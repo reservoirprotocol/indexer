@@ -25,7 +25,7 @@ import {
 } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 
 const version = "v6";
 
@@ -48,7 +48,9 @@ export const getTokensV6Options: RouteOptions = {
         ),
       collectionsSetId: Joi.string()
         .lowercase()
-        .description("Filter to a particular collection set.")
+        .description(
+          "Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
+        )
         .when("flagStatus", {
           is: Joi.exist(),
           then: Joi.forbidden(),
@@ -74,24 +76,23 @@ export const getTokensV6Options: RouteOptions = {
           otherwise: Joi.allow(),
         }),
       tokenName: Joi.string().description(
-        "Filter to a particular token by name. Example: `token #1`"
+        "Filter to a particular token by name. This is case sensitive. Example: `token #1`"
       ),
       tokens: Joi.alternatives().try(
         Joi.array()
           .max(50)
           .items(Joi.string().lowercase().pattern(regex.token))
           .description(
-            "Array of tokens. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
+            "Array of tokens. Max limit is 50. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
           ),
         Joi.string()
           .lowercase()
           .pattern(regex.token)
           .description(
-            "Array of tokens. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
+            "Array of tokens. Max limit is 50. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
           )
       ),
       tokenSetId: Joi.string()
-        .lowercase()
         .description(
           "Filter to a particular token set. `Example: token:0xa7d8d9ef8d8ce8992df33d8b8cf4aebabd5bd270:129000685`"
         )
@@ -103,7 +104,7 @@ export const getTokensV6Options: RouteOptions = {
       attributes: Joi.object()
         .unknown()
         .description(
-          "Filter to a particular attribute. Note: Our docs do not support this parameter correctly. To test, you can use the following URL in your browser. Example: `https://api.reservoir.tools/owners/v1?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original` or `https://api.reservoir.tools/owners/v1?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original&attributes[Type]=Sibling`"
+          "Filter to a particular attribute. Attributes are case sensitive. Note: Our docs do not support this parameter correctly. To test, you can use the following URL in your browser. Example: `https://api.reservoir.tools/tokens/v6?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original` or `https://api.reservoir.tools/tokens/v6?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original&attributes[Type]=Sibling`"
         ),
       source: Joi.string().description(
         "Domain of the order source. Example `opensea.io` (Only listed tokens are returned when filtering by source)"
@@ -120,10 +121,10 @@ export const getTokensV6Options: RouteOptions = {
         .min(1)
         .description("Get tokens with a max rarity rank (inclusive)"),
       minFloorAskPrice: Joi.number().description(
-        "Get tokens with a min floor ask price (inclusive)"
+        "Get tokens with a min floor ask price (inclusive); use native currency"
       ),
       maxFloorAskPrice: Joi.number().description(
-        "Get tokens with a max floor ask price (inclusive)"
+        "Get tokens with a max floor ask price (inclusive); use native currency"
       ),
       flagStatus: Joi.number()
         .allow(-1, 0, 1)
@@ -133,14 +134,16 @@ export const getTokensV6Options: RouteOptions = {
       sortBy: Joi.string()
         .valid("floorAskPrice", "tokenId", "rarity")
         .default("floorAskPrice")
-        .description("Order the items are returned in the response."),
+        .description(
+          "Order the items are returned in the response. Options are `floorAskPrice`, `tokenId`, and `rarity`."
+        ),
       sortDirection: Joi.string().lowercase().valid("asc", "desc"),
       currencies: Joi.alternatives().try(
         Joi.array()
           .max(50)
           .items(Joi.string().lowercase().pattern(regex.address))
           .description(
-            "Filter to tokens with a listing in a particular currency. `Example: currencies[0]: 0x0000000000000000000000000000000000000000`"
+            "Filter to tokens with a listing in a particular currency. Max limit is 50. `Example: currencies[0]: 0x0000000000000000000000000000000000000000`"
           ),
         Joi.string()
           .lowercase()
@@ -154,7 +157,7 @@ export const getTokensV6Options: RouteOptions = {
         .min(1)
         .max(100)
         .default(20)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned in response. Max limit is 100."),
       includeTopBid: Joi.boolean()
         .default(false)
         .description("If true, top bid will be returned in the response."),
@@ -183,7 +186,7 @@ export const getTokensV6Options: RouteOptions = {
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Return result in given currency"),
+        .description("Input any ERC20 address to return result in given currency"),
     })
       .or("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
       .oxor("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
@@ -201,11 +204,19 @@ export const getTokensV6Options: RouteOptions = {
             name: Joi.string().allow("", null),
             description: Joi.string().allow("", null),
             image: Joi.string().allow("", null),
+            imageSmall: Joi.string().allow("", null),
+            imageLarge: Joi.string().allow("", null),
+            metadata: Joi.object().allow(null),
             media: Joi.string().allow("", null),
-            kind: Joi.string().allow("", null),
+            kind: Joi.string().allow("", null).description("Can be erc721, erc115, etc."),
             isFlagged: Joi.boolean().default(false),
             lastFlagUpdate: Joi.string().allow("", null),
             lastFlagChange: Joi.string().allow("", null),
+            supply: Joi.number()
+              .unsafe()
+              .allow(null)
+              .description("Can be higher than 1 if erc1155"),
+            remainingSupply: Joi.number().unsafe().allow(null),
             rarity: Joi.number().unsafe().allow(null),
             rarityRank: Joi.number().unsafe().allow(null),
             collection: Joi.object({
@@ -219,9 +230,9 @@ export const getTokensV6Options: RouteOptions = {
             attributes: Joi.array()
               .items(
                 Joi.object({
-                  key: Joi.string(),
-                  kind: Joi.string(),
-                  value: JoiAttributeValue,
+                  key: Joi.string().description("Case sensitive."),
+                  kind: Joi.string().description("Can be `string`, `number`, `date`, or `range`."),
+                  value: JoiAttributeValue.description("Case sensitive."),
                   tokenCount: Joi.number(),
                   onSaleCount: Joi.number(),
                   floorAskPrice: Joi.number().unsafe().allow(null),
@@ -243,7 +254,7 @@ export const getTokensV6Options: RouteOptions = {
               dynamicPricing: Joi.object({
                 kind: Joi.string().valid("dutch", "pool"),
                 data: Joi.object(),
-              }),
+              }).description("Can be null if no active ask."),
               source: Joi.object().allow(null),
             },
             topBid: Joi.object({
@@ -256,12 +267,13 @@ export const getTokensV6Options: RouteOptions = {
               feeBreakdown: Joi.array()
                 .items(
                   Joi.object({
-                    kind: Joi.string(),
+                    kind: Joi.string().description("Can be `marketplace` or `royalty`."),
                     recipient: Joi.string().lowercase().pattern(regex.address).allow(null),
                     bps: Joi.number(),
                   })
                 )
-                .allow(null),
+                .allow(null)
+                .description("Can be null if no active bids"),
             }).optional(),
           }),
         })
@@ -317,6 +329,11 @@ export const getTokensV6Options: RouteOptions = {
                 AND nb.token_id = t.token_id
                 AND nb.amount > 0
                 AND nb.owner != o.maker
+                AND (
+                  o.taker IS NULL
+                  OR o.taker = '\\x0000000000000000000000000000000000000000'
+                  OR o.taker = nb.owner
+                )
             )
             ${query.normalizeRoyalties ? " AND o.normalized_value IS NOT NULL" : ""}
           ORDER BY o.value DESC
@@ -436,7 +453,7 @@ export const getTokensV6Options: RouteOptions = {
         `;
     }
 
-    let sourceQuery = "";
+    let sourceCte = "";
     if (query.nativeSource) {
       const sources = await Sources.getInstance();
       let nativeSource = sources.getByName(query.nativeSource, false);
@@ -455,26 +472,19 @@ export const getTokensV6Options: RouteOptions = {
       selectFloorData = "s.*";
 
       const sourceConditions: string[] = [];
-      sourceConditions.push(`o.side = 'sell'`);
-      sourceConditions.push(`o.fillability_status = 'fillable'`);
-      sourceConditions.push(`o.approval_status = 'approved'`);
-      sourceConditions.push(`o.source_id_int = $/nativeSource/`);
+      sourceConditions.push(`side = 'sell'`);
+      sourceConditions.push(`fillability_status = 'fillable'`);
+      sourceConditions.push(`approval_status = 'approved'`);
+      sourceConditions.push(`source_id_int = $/nativeSource/`);
       sourceConditions.push(
-        `o.taker = '\\x0000000000000000000000000000000000000000' OR o.taker IS NULL`
+        `taker = '\\x0000000000000000000000000000000000000000' OR taker IS NULL`
       );
       if (query.currencies) {
-        sourceConditions.push(`o.currency IN ($/currenciesFilter:raw/)`);
+        sourceConditions.push(`currency IN ($/currenciesFilter:raw/)`);
       }
 
-      sourceConditions.push(`
-        tst.token_id IN (
-          SELECT token_id FROM orders
-          WHERE ${sourceConditions.join(" AND ")}
-        )
-      `);
-
       if (query.contract) {
-        sourceConditions.push(`tst.contract = $/contract/`);
+        sourceConditions.push(`contract = $/contract/`);
       } else if (query.collection) {
         let contractString = query.collection;
         if (query.collection.includes(":")) {
@@ -483,53 +493,53 @@ export const getTokensV6Options: RouteOptions = {
         }
 
         (query as any).contract = contractString;
-        sourceConditions.push(`tst.contract = $/contract/`);
+        sourceConditions.push(`contract = $/contract/`);
       }
 
-      sourceQuery = `
-        JOIN LATERAL (
+      sourceCte = `
+        WITH approved_orders AS (
+          SELECT *
+          FROM orders
+          WHERE ${sourceConditions.map((c) => `(${c})`).join(" AND ")}
+        ),
+        filtered_orders AS (
           SELECT
-                  DISTINCT ON (token_id, contract)
-                  tst.token_id AS token_id,
-                  tst.contract AS contract,
-                  o.id AS floor_sell_id,
-                  o.maker AS floor_sell_maker,
-                  o.id AS source_floor_sell_id,
-                  date_part('epoch', lower(o.valid_between)) AS floor_sell_valid_from,
-                  coalesce(
-                    nullif(date_part('epoch', upper(o.valid_between)), 'Infinity'),
-                    0
-                  ) AS floor_sell_valid_to,
-                  o.source_id_int AS floor_sell_source_id_int,
-                  ${
-                    query.normalizeRoyalties ? "o.normalized_value" : "o.value"
-                  } AS floor_sell_value,
-                  o.currency AS floor_sell_currency,
-                  ${
-                    query.normalizeRoyalties ? "o.currency_normalized_value" : "o.currency_value"
-                  } AS floor_sell_currency_value
-          FROM orders o
+            DISTINCT ON (token_id, contract)
+            tst.token_id AS token_id,
+            tst.contract AS contract,
+            o.id AS floor_sell_id,
+            o.maker AS floor_sell_maker,
+            o.id AS source_floor_sell_id,
+            date_part('epoch', lower(o.valid_between)) AS floor_sell_valid_from,
+            coalesce(
+              nullif(date_part('epoch', upper(o.valid_between)), 'Infinity'),
+              0
+            ) AS floor_sell_valid_to,
+            o.source_id_int AS floor_sell_source_id_int,
+            ${
+              query.normalizeRoyalties ? "o.normalized_value" : "o.value"
+            } AS floor_sell_value, o.currency AS floor_sell_currency,
+            ${
+              query.normalizeRoyalties ? "o.currency_normalized_value" : "o.currency_value"
+            } AS floor_sell_currency_value
+          FROM approved_orders o
           JOIN token_sets_tokens tst ON o.token_set_id = tst.token_set_id
-          ${
-            sourceConditions.length
-              ? " WHERE " + sourceConditions.map((c) => `(${c})`).join(" AND ")
-              : ""
-          }
           ORDER BY token_id, contract, ${
             query.normalizeRoyalties ? "o.normalized_value" : "o.value"
           }
-        ) s ON s.contract = t.contract AND s.token_id = t.token_id
-      `;
+        )`;
     }
 
     try {
       let baseQuery = `
+        ${sourceCte}
         SELECT
           t.contract,
           t.token_id,
           t.name,
           t.description,
           t.image,
+          t.metadata,
           t.media,
           t.collection_id,
           c.name AS collection_name,
@@ -540,6 +550,8 @@ export const getTokensV6Options: RouteOptions = {
           t.is_flagged,
           t.last_flag_update,
           t.last_flag_change,
+          t.supply,
+          t.remaining_supply,
           c.slug,
           (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
           (
@@ -558,7 +570,11 @@ export const getTokensV6Options: RouteOptions = {
           ${selectRoyaltyBreakdown}
         FROM tokens t
         ${topBidQuery}
-        ${sourceQuery}
+        ${
+          sourceCte !== ""
+            ? "JOIN filtered_orders s ON s.contract = t.contract AND s.token_id = t.token_id"
+            : ""
+        }
         ${includeQuantityQuery}
         ${includeDynamicPricingQuery}
         ${includeRoyaltyBreakdownQuery}
@@ -995,33 +1011,14 @@ export const getTokensV6Options: RouteOptions = {
                   },
                 },
               };
-            } else if (r.floor_sell_order_kind === "sudoswap") {
+            } else if (
+              ["sudoswap", "sudoswap-v2", "nftx", "collectionxyz"].includes(r.floor_sell_order_kind)
+            ) {
               // Pool orders
               dynamicPricing = {
                 kind: "pool",
                 data: {
-                  pool: r.floor_sell_raw_data.pair,
-                  prices: await Promise.all(
-                    (r.floor_sell_raw_data.extra.prices as string[]).map((price) =>
-                      getJoiPriceObject(
-                        {
-                          gross: {
-                            amount: bn(price).add(missingRoyalties).toString(),
-                          },
-                        },
-                        floorAskCurrency,
-                        query.displayCurrency
-                      )
-                    )
-                  ),
-                },
-              };
-            } else if (r.floor_sell_order_kind === "nftx") {
-              // Pool orders
-              dynamicPricing = {
-                kind: "pool",
-                data: {
-                  pool: r.floor_sell_raw_data.pool,
+                  pool: r.floor_sell_raw_data.pair ?? r.floor_sell_raw_data.pool,
                   prices: await Promise.all(
                     (r.floor_sell_raw_data.extra.prices as string[]).map((price) =>
                       getJoiPriceObject(
@@ -1048,11 +1045,20 @@ export const getTokensV6Options: RouteOptions = {
             name: r.name,
             description: r.description,
             image: Assets.getLocalAssetsLink(r.image),
+            imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small),
+            imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large),
+            metadata: r.metadata?.image_original_url
+              ? {
+                  imageOriginal: r.metadata.image_original_url,
+                }
+              : undefined,
             media: r.media,
             kind: r.kind,
             isFlagged: Boolean(Number(r.is_flagged)),
             lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
             lastFlagChange: r.last_flag_change ? new Date(r.last_flag_change).toISOString() : null,
+            supply: !_.isNull(r.supply) ? r.supply : null,
+            remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : null,
             rarity: r.rarity_score,
             rarityRank: r.rarity_rank,
             collection: {
