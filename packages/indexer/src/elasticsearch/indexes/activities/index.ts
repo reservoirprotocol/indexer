@@ -850,9 +850,8 @@ export const updateActivitiesCollectionMetadata = async (
       // @ts-ignore
       query,
       script: {
-        source: `if (params.collection_name == null) { ctx._source.remove('collection.name') } else { ctx._source.collection.name = params.collection_name };
-           if (params.collection_image == null) { ctx._source.remove('collection.image') } else { ctx._source.collection.image = params.collection_image };
-          `,
+        source:
+          "if (params.collection_name == null) { ctx._source.collection.remove('name') } else { ctx._source.collection.name = params.collection_name } if (params.collection_image == null) { ctx._source.collection.remove('image') } else { ctx._source.collection.image = params.collection_image }",
         params: {
           collection_name: collectionData.name,
           collection_image: collectionData.image,

@@ -209,6 +209,10 @@ export const getAsksEventsV3Options: RouteOptions = {
         (query as any).createdAt = createdAt;
         (query as any).id = id;
 
+        if (isNaN(Number(id))) {
+          throw new Error("Invalid continuation string used");
+        }
+
         conditions.push(
           `(order_events.created_at, order_events.id) ${
             query.sortDirection === "asc" ? ">" : "<"
