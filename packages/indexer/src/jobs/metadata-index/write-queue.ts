@@ -3,12 +3,14 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { getUnixTime } from "date-fns";
 import _ from "lodash";
+import PgPromise from "pg-promise";
 
 import { idb, ridb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { getNetworkSettings } from "@/config/network";
 
 import * as flagStatusUpdate from "@/jobs/flag-status/update";
 import * as updateCollectionActivity from "@/jobs/collection-updates/update-collection-activity";
@@ -17,14 +19,12 @@ import * as updateCollectionDailyVolume from "@/jobs/collection-updates/update-c
 import * as updateActivitiesCollection from "@/jobs/elasticsearch/update-activities-collection";
 import * as refreshActivitiesTokenMetadata from "@/jobs/elasticsearch/refresh-activities-token-metadata";
 
-import PgPromise from "pg-promise";
 import { updateActivities } from "@/jobs/activities/utils";
 import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
 import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attribute-key-counts-job";
 import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-attribute-value-counts-job";
 import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
 import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
-import { getNetworkSettings } from "@/config/network";
 
 const QUEUE_NAME = "metadata-index-write-queue";
 
