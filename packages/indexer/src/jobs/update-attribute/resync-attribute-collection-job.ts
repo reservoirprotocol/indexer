@@ -7,7 +7,6 @@ import { logger } from "@/common/logger";
 
 export type ResyncAttributeCollectionJobPayload = {
   continuation?: string;
-  cursor?: string | null;
 };
 
 export class ResyncAttributeCollectionJob extends AbstractRabbitMqJobHandler {
@@ -24,6 +23,7 @@ export class ResyncAttributeCollectionJob extends AbstractRabbitMqJobHandler {
     const updateValues = {};
     const replacementParams = {};
     let continuationFilter = "";
+    let nextBatchCursor = null;
 
     if (continuation != "") {
       continuationFilter = `WHERE id > ${Number(continuation)}`;
@@ -54,7 +54,6 @@ export class ResyncAttributeCollectionJob extends AbstractRabbitMqJobHandler {
 
       updateValuesString = _.trimEnd(updateValuesString, ",");
 
-      payload.cursor = null;
       if (_.size(attributeKeys) == limit) {
         const lastAttributeKey = _.last(attributeKeys);
         logger.info(
@@ -64,19 +63,23 @@ export class ResyncAttributeCollectionJob extends AbstractRabbitMqJobHandler {
           )}`
         );
 
-        payload.cursor = lastAttributeKey.id;
+        nextBatchCursor = lastAttributeKey.id;
       }
 
       try {
         const updateQuery = `UPDATE attributes
-                               SET key = x.keyColumn
-                               FROM (VALUES ${updateValuesString}) AS x(idColumn, keyColumn)
-                               WHERE x.idColumn = attributes.attribute_key_id`;
+                             SET key = x.keyColumn
+                             FROM (VALUES ${updateValuesString}) AS x(idColumn, keyColumn)
+                             WHERE x.idColumn = attributes.attribute_key_id`;
 
         await idb.none(updateQuery, replacementParams);
       } catch (error) {
         logger.error(this.queueName, `${error}`);
       }
+    }
+
+    if (nextBatchCursor) {
+      await this.addToQueue({ continuation: nextBatchCursor });
     }
   }
 
@@ -86,9 +89,3 @@ export class ResyncAttributeCollectionJob extends AbstractRabbitMqJobHandler {
 }
 
 export const resyncAttributeCollectionJob = new ResyncAttributeCollectionJob();
-
-resyncAttributeCollectionJob.on("onCompleted", async (message) => {
-  if (message.payload.cursor) {
-    await resyncAttributeCollectionJob.addToQueue({ continuation: message.payload.cursor });
-  }
-});

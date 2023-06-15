@@ -16,7 +16,6 @@ export type MetadataQueueJobPayload = {
   tokenId: string;
   community: string;
   forceRefresh?: boolean;
-  addToQueue?: boolean;
 };
 
 export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
@@ -51,11 +50,11 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
           );
         }
       } else {
-        payload.addToQueue = true;
-
         if (!forceRefresh) {
           await releaseLock(`${this.queueName}:${contract}`);
         }
+
+        await this.addToQueue(payload, 1000);
       }
     }
   }
@@ -128,9 +127,3 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
 }
 
 export const collectionMetadataQueueJob = new CollectionMetadataQueueJob();
-
-collectionMetadataQueueJob.on("onCompleted", async (message) => {
-  if (message.payload.addToQueue) {
-    await collectionMetadataQueueJob.addToQueue(message.payload, 1000);
-  }
-});

@@ -6,7 +6,6 @@ import { fromBuffer } from "@/common/utils";
 
 export type ResyncAttributeFloorSellJobPayload = {
   continuation?: string;
-  cursor?: string | null;
 };
 
 export class ResyncAttributeFloorSellJob extends AbstractRabbitMqJobHandler {
@@ -59,10 +58,9 @@ export class ResyncAttributeFloorSellJob extends AbstractRabbitMqJobHandler {
         );
       });
 
-      payload.cursor = null;
       if (_.size(collections) == limit) {
         const lastCollection = _.last(collections);
-        payload.cursor = lastCollection.id;
+        await this.addToQueue({ continuation: lastCollection.id });
       }
     }
   }
@@ -73,9 +71,3 @@ export class ResyncAttributeFloorSellJob extends AbstractRabbitMqJobHandler {
 }
 
 export const resyncAttributeFloorSellJob = new ResyncAttributeFloorSellJob();
-
-resyncAttributeFloorSellJob.on("onCompleted", async (message) => {
-  if (message.payload.cursor) {
-    await resyncAttributeFloorSellJob.addToQueue({ continuation: message.payload.cursor });
-  }
-});

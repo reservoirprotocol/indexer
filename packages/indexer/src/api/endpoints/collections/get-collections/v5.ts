@@ -22,7 +22,6 @@ import { config } from "@/config/index";
 import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
-import { parse } from "path";
 
 const version = "v5";
 
@@ -471,6 +470,7 @@ export const getCollectionsV5Options: RouteOptions = {
               tokens.image
             FROM tokens
             WHERE tokens.collection_id = collections.id
+            ORDER BY rarity_rank DESC NULLS LAST
             LIMIT 4
           ) AS sample_images,
           (
