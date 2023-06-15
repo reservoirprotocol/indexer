@@ -153,7 +153,10 @@ export class Collections {
       },
     ]);
 
-    if (getNetworkSettings().copyrightInfringementContracts.includes(contract.toLowerCase())) {
+    const isCopyrightInfringementContract =
+      getNetworkSettings().copyrightInfringementContracts.includes(contract.toLowerCase());
+
+    if (isCopyrightInfringementContract) {
       collection.name = collection.id;
       collection.metadata = null;
 
@@ -199,7 +202,8 @@ export class Collections {
 
     if (
       config.doElasticsearchWork &&
-      (result?.old_metadata.name != collection.name ||
+      (isCopyrightInfringementContract ||
+        result?.old_metadata.name != collection.name ||
         result?.old_metadata.metadata.imageUrl != (collection.metadata as any)?.imageUrl)
     ) {
       logger.info(
@@ -212,8 +216,8 @@ export class Collections {
       );
 
       await refreshActivitiesCollectionMetadata.addToQueue(collection.id, {
-        name: collection.name,
-        image: (collection.metadata as any)?.imageUrl,
+        name: collection.name || null,
+        image: (collection.metadata as any)?.imageUrl || null,
       });
     }
 

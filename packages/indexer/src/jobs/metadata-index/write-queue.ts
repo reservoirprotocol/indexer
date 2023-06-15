@@ -142,7 +142,8 @@ if (config.doBackgroundWork) {
 
         if (
           config.doElasticsearchWork &&
-          (result.old_metadata.name != name ||
+          (isCopyrightInfringementContract ||
+            result.old_metadata.name != name ||
             result.old_metadata.image != imageUrl ||
             result.old_metadata.media != mediaUrl)
         ) {
@@ -151,9 +152,9 @@ if (config.doBackgroundWork) {
             tokenId,
             collection,
             {
-              name,
-              image: imageUrl,
-              media: mediaUrl,
+              name: name || null,
+              image: imageUrl || null,
+              media: mediaUrl || null,
             },
             isCopyrightInfringementContract
           );

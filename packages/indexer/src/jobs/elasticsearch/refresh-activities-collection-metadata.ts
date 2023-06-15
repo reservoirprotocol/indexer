@@ -6,6 +6,7 @@ import { config } from "@/config/index";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { Collections } from "@/models/collections";
 import { randomUUID } from "crypto";
+import _ from "lodash";
 
 const QUEUE_NAME = "refresh-activities-collection-metadata-queue";
 
@@ -37,13 +38,13 @@ if (config.doBackgroundWork) {
 
         if (collectionData) {
           collectionUpdateData = {
-            name: collectionData.name,
-            image: collectionData.metadata?.imageUrl,
+            name: collectionData.name || null,
+            image: collectionData.metadata?.imageUrl || null,
           };
         }
       }
 
-      if (collectionUpdateData) {
+      if (!_.isEmpty(collectionUpdateData)) {
         const keepGoing = await ActivitiesIndex.updateActivitiesCollectionMetadata(
           collectionId,
           collectionUpdateData
