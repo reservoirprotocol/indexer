@@ -239,16 +239,6 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
   return [...txHashToEventsBatch.values()];
 };
 
-// const _getLogs = async (eventFilter: Filter) => {
-//   const timerStart = Date.now();
-//   const logs = await baseProvider.getLogs(eventFilter);
-//   const timerEnd = Date.now();
-//   return {
-//     logs,
-//     getLogsTime: timerEnd - timerStart,
-//   };
-// };
-
 const _getTransactionTraces = async (Txs: { hash: string }[], block: number) => {
   const timerStart = Date.now();
   let traces = (await syncEventsUtils.getTracesFromBlock(block)) as TransactionTrace[];
@@ -290,9 +280,12 @@ const _saveBlock = async (blockData: Block) => {
   };
 };
 
-const _saveTransactions = async (blockData: BlockWithTransactions) => {
+const _saveTransactions = async (
+  blockData: BlockWithTransactions,
+  transactionReceipts: TransactionReceipt[]
+) => {
   const timerStart = Date.now();
-  await syncEventsUtils.saveBlockTransactions(blockData);
+  await syncEventsUtils.saveBlockTransactions(blockData, transactionReceipts);
   const timerEnd = Date.now();
   return timerEnd - timerStart;
 };
@@ -323,6 +316,7 @@ const getBlockSyncData = async (blockData: BlockWithTransactions) => {
 };
 
 const saveLogsAndTracesAndTransactions = async (
+  blockData: BlockWithTransactions,
   transactionReceipts: TransactionReceipt[],
   traces: TransactionTrace[]
 ) => {
@@ -348,13 +342,13 @@ const saveLogsAndTracesAndTransactions = async (
   await Promise.all([
     ...transactionLogs.map((txLogs) => saveTransactionLogs(txLogs)),
     saveTransactionTraces(traces),
-    _saveTransactions(transactionReceipts),
+    _saveTransactions(blockData, transactionReceipts),
   ]);
 
   const endTime = Date.now();
 
   return {
-    saveLogsAndTracesTime: endTime - startTime,
+    saveLogsAndTracesAndTransactionsTime: endTime - startTime,
     logs,
   };
 };
@@ -421,6 +415,7 @@ export const syncEvents = async (block: number) => {
     } = await getBlockSyncData(blockData);
 
     const { saveLogsAndTracesAndTransactionsTime, logs } = await saveLogsAndTracesAndTransactions(
+      blockData,
       transactionReceipts,
       traces
     );
