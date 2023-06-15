@@ -5,7 +5,7 @@ import _ from "lodash";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
-import { idb, redb } from "@/common/db";
+import { idb, ridb } from "@/common/db";
 import { formatEth, fromBuffer } from "@/common/utils";
 import { getJoiPriceObject } from "@/common/joi";
 import { Orders } from "@/utils/orders";
@@ -215,7 +215,7 @@ const getOwners = async (tokenSetId: string): Promise<string[]> => {
 
   if (!owners) {
     owners = (
-      await redb.manyOrNone(
+      await ridb.manyOrNone(
         `
                 SELECT
                   DISTINCT nb.owner

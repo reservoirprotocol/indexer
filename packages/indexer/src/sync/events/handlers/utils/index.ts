@@ -19,6 +19,12 @@ import { FillEventData } from "@/jobs/activities/sale-activity";
 import { RecalcCollectionOwnerCountInfo } from "@/jobs/collection-updates/recalc-owner-count-queue";
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import { mintQueueJob, MintQueueJobPayload } from "@/jobs/token-updates/mint-queue-job";
+import {
+  WebsocketEventKind,
+  WebsocketEventRouter,
+} from "@/jobs/websocket-events/websocket-event-router";
+import { config } from "@/config/index";
+import { logger } from "@/common/logger";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -112,6 +118,13 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   ]);
   const endPersistEvents = Date.now();
 
+  // concat all fill events
+  const allFillEventsForWebsocket = concat(
+    data.fillEvents,
+    data.fillEventsPartial,
+    data.fillEventsOnChain
+  );
+
   // Persist other events
   const startPersistOtherEvents = Date.now();
   await Promise.all([
@@ -125,6 +138,73 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   ]);
 
   const endPersistOtherEvents = Date.now();
+
+  try {
+    if (config.doOldOrderWebsocketWork) {
+      await Promise.all([
+        ...allFillEventsForWebsocket.map((event) =>
+          WebsocketEventRouter({
+            eventInfo: {
+              tx_hash: event.baseEventParams.txHash,
+              log_index: event.baseEventParams.logIndex,
+              batch_index: event.baseEventParams.batchIndex,
+              trigger: "insert",
+              offset: "",
+            },
+            eventKind: WebsocketEventKind.SaleEvent,
+          })
+        ),
+        ...data.nftApprovalEvents.map((event) =>
+          WebsocketEventRouter({
+            eventInfo: {
+              address: event.baseEventParams.address,
+              block: event.baseEventParams.block.toString(),
+              block_hash: event.baseEventParams.blockHash,
+              timestamp: event.baseEventParams.timestamp.toString(),
+              owner: event.owner,
+              operator: event.operator,
+              approved: event.approved.toString(),
+              tx_hash: event.baseEventParams.txHash,
+              tx_index: event.baseEventParams.txIndex.toString(),
+              log_index: event.baseEventParams.logIndex.toString(),
+              batch_index: event.baseEventParams.batchIndex.toString(),
+              offset: "",
+              trigger: "insert",
+            },
+            eventKind: WebsocketEventKind.ApprovalEvent,
+          })
+        ),
+
+        ...data.nftTransferEvents.map((event) =>
+          WebsocketEventRouter({
+            eventInfo: {
+              address: event.baseEventParams.address,
+              block: event.baseEventParams.block.toString(),
+              block_hash: event.baseEventParams.blockHash,
+              timestamp: event.baseEventParams.timestamp.toString(),
+              tx_hash: event.baseEventParams.txHash,
+              tx_index: event.baseEventParams.txIndex.toString(),
+              log_index: event.baseEventParams.logIndex.toString(),
+              batch_index: event.baseEventParams.batchIndex.toString(),
+              to: event.to,
+              from: event.from,
+              amount: event.amount.toString(),
+              token_id: event.tokenId.toString(),
+              created_at: new Date(event.baseEventParams.timestamp).toISOString(),
+              offset: "",
+              trigger: "insert",
+            },
+            eventKind: WebsocketEventKind.TransferEvent,
+          })
+        ),
+      ]);
+    }
+  } catch (error) {
+    logger.error(
+      "processOnChainData",
+      `Error processing websocket event. error=${JSON.stringify(error)}`
+    );
+  }
 
   // Trigger further processes:
   // - revalidate potentially-affected orders

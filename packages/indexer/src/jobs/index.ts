@@ -189,6 +189,7 @@ import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsy
 import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
 import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
+import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -366,6 +367,7 @@ export class RabbitMqJobsConsumer {
       fixActivitiesMissingCollectionJob,
       collectionMetadataQueueJob,
       rarityQueueJob,
+      nonFlaggedFloorQueueJob,
     ];
   }
 
