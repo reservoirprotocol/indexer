@@ -57,7 +57,6 @@ import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import * as collectionSetCommunity from "@/jobs/collection-updates/set-community-queue";
-import * as rarity from "@/jobs/collection-updates/rarity-queue";
 import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
 import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
 import * as updateCollectionActivity from "@/jobs/collection-updates/update-collection-activity";
@@ -237,7 +236,6 @@ export const allJobQueues = [
   collectionSetCommunity.queue,
 
   tokenSetUpdatesTopBid.queue,
-  rarity.queue,
   collectionUpdatesTopBid.queue,
   refreshContractCollectionsMetadata.queue,
   updateCollectionActivity.queue,
@@ -420,13 +418,7 @@ export class RabbitMqJobsConsumer {
       async (msg) => {
         if (!_.isNull(msg)) {
           const rabbitMQMessage = JSON.parse(msg.content.toString()) as RabbitMQMessage;
-
-          await job.consume(rabbitMQMessage);
-          await channel.ack(msg);
-
-          if (rabbitMQMessage.completeTime) {
-            job.emit("onCompleted", rabbitMQMessage);
-          }
+          await job.consume(channel, msg, rabbitMQMessage);
         }
       },
       {
@@ -440,13 +432,7 @@ export class RabbitMqJobsConsumer {
       async (msg) => {
         if (!_.isNull(msg)) {
           const rabbitMQMessage = JSON.parse(msg.content.toString()) as RabbitMQMessage;
-
-          await job.consume(rabbitMQMessage);
-          await channel.ack(msg);
-
-          if (rabbitMQMessage.completeTime) {
-            job.emit("onCompleted", rabbitMQMessage);
-          }
+          await job.consume(channel, msg, rabbitMQMessage);
         }
       },
       {
