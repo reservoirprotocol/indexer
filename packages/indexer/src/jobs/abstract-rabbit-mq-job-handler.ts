@@ -7,6 +7,7 @@ import _ from "lodash";
 import { getNetworkName } from "@/config/network";
 import EventEmitter from "events";
 import TypedEmitter from "typed-emitter";
+import { Channel, ConsumeMessage } from "amqplib";
 
 export type BackoffStrategy =
   | {
@@ -45,37 +46,35 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
 
   private sharedChannelName = "shared-channel";
 
-  public async consume(message: RabbitMQMessage): Promise<void> {
+  public async consume(
+    channel: Channel,
+    consumeMessage: ConsumeMessage,
+    message: RabbitMQMessage
+  ): Promise<void> {
     message.consumedTime = message.consumedTime ?? _.now();
     message.retryCount = message.retryCount ?? 0;
 
     try {
-      await this.process(message.payload);
-      message.completeTime = _.now();
+      await this.process(message.payload); // Process the message
+      message.completeTime = _.now(); // Set the complete time
+      await channel.ack(consumeMessage); // Ack the message with rabbit
+      this.emit("onCompleted", message); // Emit on Completed event
     } catch (error) {
+      this.emit("onError", message, error); // Emit error event
+
       message.retryCount += 1;
-      this.emit("onError", message, error);
       let queueName = this.getRetryQueue();
 
       // Set the backoff strategy delay
       let delay = this.getBackoffDelay(message);
 
-      // Retry enforce duplications
-      if (message.jobId) {
-        message.jobId = `${message.jobId}.retry-${message.retryCount}`;
-      }
-
       // If the event has already been retried maxRetries times, send it to the dead letter queue
       if (message.retryCount > this.maxRetries) {
-        // String the retry from the job id when sending to the dead letter
-        if (message.jobId) {
-          message.jobId = _.replace(message.jobId, /\.retry-\d+/, "");
-        }
-
         queueName = this.getDeadLetterQueue();
         delay = 0;
       }
 
+      // Lof the error
       logger.error(
         this.queueName,
         `Error handling event: ${error}, queueName=${queueName}, payload=${JSON.stringify(
@@ -83,7 +82,8 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
         )}, retryCount=${message.retryCount}`
       );
 
-      await RabbitMq.send(queueName, message, delay);
+      await channel.ack(consumeMessage); // Ack the message with rabbit
+      await RabbitMq.send(queueName, message, delay); // Trigger the retry / or send to dead letter queue
     }
   }
 

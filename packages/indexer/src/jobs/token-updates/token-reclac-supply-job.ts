@@ -5,7 +5,6 @@ import { redb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { AddressZero } from "@ethersproject/constants";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { logger } from "@/common/logger";
 
 export type TokenRecalcSupplyPayload = {
   contract: string;
@@ -65,12 +64,3 @@ export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
 }
 
 export const tokenReclacSupplyJob = new TokenReclacSupplyJob();
-
-tokenReclacSupplyJob.on("onCompleted", (message) => {
-  logger.info(
-    tokenReclacSupplyJob.queueName,
-    `COMPLETED in ${
-      (Number(message.completeTime) - Number(message.publishTime)) / 1000
-    } message ${JSON.stringify(message)}`
-  );
-});
