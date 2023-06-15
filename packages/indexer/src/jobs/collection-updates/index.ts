@@ -1,9 +1,5 @@
 import "@/jobs/collection-updates/floor-queue";
 import "@/jobs/collection-updates/normalized-floor-queue";
 import "@/jobs/collection-updates/metadata-queue";
-import "@/jobs/collection-updates/top-bid-queue";
 import "@/jobs/collection-updates/recalc-token-count-queue";
 import "@/jobs/collection-updates/recalc-owner-count-queue";
-import "@/jobs/collection-updates/update-collection-activity";
-import "@/jobs/collection-updates/update-collection-user-activity";
-import "@/jobs/collection-updates/update-collection-daily-volume";

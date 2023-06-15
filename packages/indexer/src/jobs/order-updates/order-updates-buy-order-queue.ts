@@ -12,12 +12,15 @@ import { config } from "@/config/index";
 import { TriggerKind } from "@/jobs/order-updates/types";
 
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
-import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
 import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "../websocket-events/websocket-event-router";
 import { handleNewBuyOrderJob } from "@/jobs/update-attribute/handle-new-buy-order-job";
+import {
+  topBidCollectionJob,
+  TopBidCollectionJobPayload,
+} from "@/jobs/collection-updates/top-bid-collection-job";
 
 const QUEUE_NAME = "order-updates-buy-order";
 
@@ -144,13 +147,13 @@ if (config.doBackgroundWork) {
               }
 
               if (!_.isNull(result.collectionId) && !tokenSetId.startsWith("token")) {
-                await collectionUpdatesTopBid.addToQueue([
+                await topBidCollectionJob.addToQueue([
                   {
                     collectionId: result.collectionId,
                     kind: trigger.kind,
                     txHash: trigger.txHash || null,
                     txTimestamp: trigger.txTimestamp || null,
-                  } as collectionUpdatesTopBid.TopBidInfo,
+                  } as TopBidCollectionJobPayload,
                 ]);
               }
             }

@@ -11,8 +11,11 @@ import {
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
 import _ from "lodash";
-import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
 import { handleNewBuyOrderJob } from "@/jobs/update-attribute/handle-new-buy-order-job";
+import {
+  topBidCollectionJob,
+  TopBidCollectionJobPayload,
+} from "@/jobs/collection-updates/top-bid-collection-job";
 
 const QUEUE_NAME = "token-set-updates-top-bid-queue";
 
@@ -155,13 +158,13 @@ export const jobProcessor = async (job: Job) => {
         }
 
         if (!_.isNull(result.collectionId)) {
-          await collectionUpdatesTopBid.addToQueue([
+          await topBidCollectionJob.addToQueue([
             {
               collectionId: result.collectionId,
               kind: kind,
               txHash: txHash || null,
               txTimestamp: txTimestamp || null,
-            } as collectionUpdatesTopBid.TopBidInfo,
+            } as TopBidCollectionJobPayload,
           ]);
         }
       }

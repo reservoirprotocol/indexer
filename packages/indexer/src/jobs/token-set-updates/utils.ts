@@ -7,8 +7,11 @@ import {
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
 import { handleNewBuyOrderJob } from "@/jobs/update-attribute/handle-new-buy-order-job";
-import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
 import { logger } from "@/common/logger";
+import {
+  topBidCollectionJob,
+  TopBidCollectionJobPayload,
+} from "@/jobs/collection-updates/top-bid-collection-job";
 
 export type topBidPayload = {
   kind: string;
@@ -112,13 +115,13 @@ export async function processTopBid(payload: topBidPayload, queueName: string) {
         }
 
         if (!_.isNull(result.collectionId)) {
-          await collectionUpdatesTopBid.addToQueue([
+          await topBidCollectionJob.addToQueue([
             {
               collectionId: result.collectionId,
               kind: payload.kind,
               txHash: payload.txHash || null,
               txTimestamp: payload.txTimestamp || null,
-            } as collectionUpdatesTopBid.TopBidInfo,
+            } as TopBidCollectionJobPayload,
           ]);
         }
       }
