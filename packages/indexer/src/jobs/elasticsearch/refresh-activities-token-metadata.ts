@@ -30,38 +30,40 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { contract, tokenId, collectionId } = job.data;
+      const { contract, tokenId, collectionId, force } = job.data;
 
       let collectionDay30Rank;
 
-      if (collectionId) {
-        const collectionDay30RankCache = await redis.get(`collection-day-30-rank:${collectionId}`);
-
-        if (collectionDay30RankCache != null) {
-          collectionDay30Rank = Number(collectionDay30RankCache);
-        }
-      }
-
-      if (!collectionDay30Rank) {
-        const collection = await Collections.getByContractAndTokenId(contract, tokenId);
-
-        if (collection) {
-          collectionDay30Rank = collection.day30Rank;
-
-          await redis.set(
-            `collection-day-30-rank:${collection.id}`,
-            collectionDay30Rank,
-            "EX",
-            3600
+      if (!force) {
+        if (collectionId) {
+          const collectionDay30RankCache = await redis.get(
+            `collection-day-30-rank:${collectionId}`
           );
+
+          if (collectionDay30RankCache != null) {
+            collectionDay30Rank = Number(collectionDay30RankCache);
+          }
+        }
+
+        if (!collectionDay30Rank) {
+          const collection = await Collections.getByContractAndTokenId(contract, tokenId);
+
+          if (collection) {
+            collectionDay30Rank = collection.day30Rank;
+
+            await redis.set(
+              `collection-day-30-rank:${collection.id}`,
+              collectionDay30Rank,
+              "EX",
+              3600
+            );
+          }
         }
       }
 
-      if (collectionDay30Rank && collectionDay30Rank <= 1000) {
-        let tokenUpdateData =
+      if (force || (collectionDay30Rank && collectionDay30Rank <= 1000)) {
+        const tokenUpdateData =
           job.data.tokenUpdateData ?? (await Tokens.getByContractAndTokenId(contract, tokenId));
-
-        tokenUpdateData = _.pickBy(tokenUpdateData, (value) => value !== null);
 
         if (!_.isEmpty(tokenUpdateData)) {
           const keepGoing = await ActivitiesIndex.updateActivitiesTokenMetadata(
@@ -88,7 +90,8 @@ export const addToQueue = async (
   contract: string,
   tokenId: string,
   collectionId: string,
-  tokenUpdateData?: { name?: string | null; image?: string | null; media?: string | null }
+  tokenUpdateData?: { name?: string | null; image?: string | null; media?: string | null },
+  force = false
 ) => {
-  await queue.add(randomUUID(), { contract, tokenId, collectionId, tokenUpdateData });
+  await queue.add(randomUUID(), { contract, tokenId, collectionId, tokenUpdateData, force });
 };

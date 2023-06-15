@@ -675,55 +675,9 @@ export const updateActivitiesCollection = async (
 export const updateActivitiesTokenMetadata = async (
   contract: string,
   tokenId: string,
-  tokenData: { name?: string; image?: string; media?: string }
+  tokenData: { name?: string | null; image?: string | null; media?: string | null }
 ): Promise<boolean> => {
   let keepGoing = false;
-
-  tokenData = _.pickBy(tokenData, (value) => value !== null);
-
-  const should: any[] = [];
-
-  if (tokenData.name) {
-    should.push({
-      bool: {
-        must_not: [
-          {
-            term: {
-              "token.name": tokenData.name,
-            },
-          },
-        ],
-      },
-    });
-  }
-
-  if (tokenData.image) {
-    should.push({
-      bool: {
-        must_not: [
-          {
-            term: {
-              "token.image": tokenData.image,
-            },
-          },
-        ],
-      },
-    });
-  }
-
-  if (tokenData.media) {
-    should.push({
-      bool: {
-        must_not: [
-          {
-            term: {
-              "token.media": tokenData.media,
-            },
-          },
-        ],
-      },
-    });
-  }
 
   const query = {
     bool: {
@@ -739,11 +693,6 @@ export const updateActivitiesTokenMetadata = async (
           },
         },
       ],
-      filter: {
-        bool: {
-          should,
-        },
-      },
     },
   };
 
@@ -758,11 +707,11 @@ export const updateActivitiesTokenMetadata = async (
       query,
       script: {
         source:
-          "ctx._source.token.name = params.token_name; ctx._source.token.image = params.token_image; ctx._source.token.media = params.token_media;",
+          "if (params.token_name == null) { ctx._source.token.remove('name') } else { ctx._source.token.name = params.token_name } if (params.token_image == null) { ctx._source.token.remove('image') } else { ctx._source.token.image = params.token_image } if (params.token_media == null) { ctx._source.token.remove('media') } else { ctx._source.token.media = params.token_media }",
         params: {
-          token_name: tokenData.name,
-          token_image: tokenData.image,
-          token_media: tokenData.media,
+          token_name: tokenData.name ?? null,
+          token_image: tokenData.image ?? null,
+          token_media: tokenData.media ?? null,
         },
       },
     });
@@ -824,7 +773,7 @@ export const updateActivitiesTokenMetadata = async (
 
 export const updateActivitiesCollectionMetadata = async (
   collectionId: string,
-  collectionData: { name: string | null; image?: string | null }
+  collectionData: { name?: string | null; image?: string | null }
 ): Promise<boolean> => {
   let keepGoing = false;
 
@@ -853,8 +802,8 @@ export const updateActivitiesCollectionMetadata = async (
         source:
           "if (params.collection_name == null) { ctx._source.collection.remove('name') } else { ctx._source.collection.name = params.collection_name } if (params.collection_image == null) { ctx._source.collection.remove('image') } else { ctx._source.collection.image = params.collection_image }",
         params: {
-          collection_name: collectionData.name,
-          collection_image: collectionData.image,
+          collection_name: collectionData.name ?? null,
+          collection_image: collectionData.image ?? null,
         },
       },
     });
