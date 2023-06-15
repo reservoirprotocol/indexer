@@ -50,11 +50,12 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const tokenAttributeCounter = {};
 
-      if (
+      const isCopyrightInfringementContract =
         getNetworkSettings().copyrightInfringementContracts.includes(
           job.data.contract.toLowerCase()
-        )
-      ) {
+        );
+
+      if (isCopyrightInfringementContract) {
         job.data = {
           collection: job.data.collection,
           contract: job.data.contract,
@@ -145,11 +146,17 @@ if (config.doBackgroundWork) {
             result.old_metadata.image != imageUrl ||
             result.old_metadata.media != mediaUrl)
         ) {
-          await refreshActivitiesTokenMetadata.addToQueue(contract, tokenId, collection, {
-            name,
-            image: imageUrl,
-            media: mediaUrl,
-          });
+          await refreshActivitiesTokenMetadata.addToQueue(
+            contract,
+            tokenId,
+            collection,
+            {
+              name,
+              image: imageUrl,
+              media: mediaUrl,
+            },
+            isCopyrightInfringementContract
+          );
         }
 
         // If the new collection ID is different from the collection ID currently stored
