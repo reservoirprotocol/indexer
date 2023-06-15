@@ -249,7 +249,3 @@ jobs:
             ./prod/platform/indexer-worker-polygon-master.yaml \
             ${{ github.sha }} \
             indexer-worker-polygon-master
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-2.yaml \
-            ${{ github.sha }} \
-            indexer-worker-2

@@ -13,7 +13,7 @@ import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { initIndexes } from "@/elasticsearch/indexes";
-// import { startKafkaConsumer, startKafkaProducer } from "@/jobs/cdc/index";
+import { startKafkaConsumer, startKafkaProducer } from "@/jobs/cdc/index";
 import { RabbitMq } from "@/common/rabbit-mq";
 import { RabbitMqJobsConsumer } from "@/jobs/index";
 import { Sources } from "@/models/sources";
@@ -43,10 +43,10 @@ const setup = async () => {
     }
   }
 
-  // if (config.doKafkaWork) {
-  //   startKafkaConsumer();
-  //   startKafkaProducer();
-  // }
+  if (config.doKafkaWork) {
+    startKafkaConsumer();
+    startKafkaProducer();
+  }
 
   await Sources.getInstance();
   await Sources.forceDataReload();
