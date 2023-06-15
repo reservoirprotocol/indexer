@@ -7,13 +7,13 @@ import _ from "lodash";
 import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
-import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
 import { config } from "@/config/index";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import { getNetworkSettings } from "@/config/network";
 import * as royalties from "@/utils/royalties";
 import * as marketplaceFees from "@/utils/marketplace-fees";
+import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
 
 export type FetchCollectionMetadataJobPayload = {
   contract: string;
@@ -143,7 +143,7 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
 
         await Promise.all([
           collectionUpdatesFloorAsk.addToQueue([floorAskInfo]),
-          collectionUpdatesNonFlaggedFloorAsk.addToQueue([floorAskInfo]),
+          nonFlaggedFloorQueueJob.addToQueue([floorAskInfo]),
           collectionUpdatesNormalizedFloorAsk.addToQueue([floorAskInfo]),
         ]);
       }
