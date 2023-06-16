@@ -62,6 +62,7 @@ export const refresh = async (conduit: string) => {
         AND seaport_conduit_open_channels.channel NOT IN ($/channels:list/)
     `,
     {
+      conduitKey: toBuffer(conduitKey),
       channels: values.map((c: { channel: Buffer }) => c.channel),
     }
   );
