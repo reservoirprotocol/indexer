@@ -1,6 +1,7 @@
 import { logger } from "@/common/logger";
 import { redisWebsocketClient, redisWebsocketPublisher } from "./redis";
 import { producer } from "@/jobs/cdc";
+import { getNetworkName } from "@/config/network";
 
 export interface WebsocketMessage {
   published_at?: number;
@@ -20,7 +21,7 @@ export const publishWebsocketEvent = async (message: WebsocketMessage): Promise<
   await redisWebsocketPublisher.publish("events", JSON.stringify(message));
 
   await producer.send({
-    topic: "events",
+    topic: getNetworkName() + "-websocket-events",
     messages: [{ value: JSON.stringify(message) }],
   });
 };
