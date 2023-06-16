@@ -1,9 +1,11 @@
 import { Interface } from "@ethersproject/abi";
+import { BigNumber } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk";
 
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
+import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 import { Transaction } from "@/models/transactions";
 import { CollectionMint } from "@/utils/mints/collection-mints";
@@ -40,12 +42,17 @@ export const tryParseCollectionMint = async (
               )
             )
           `,
+          "function zoraFeeForAmount(uint256 quantity) view returns (address recipient, uint256 fee)",
         ]),
         baseProvider
       );
 
       const saleDetails = await c.saleDetails();
       if (saleDetails.publicSaleActive) {
+        // Include the Zora mint fee into the price
+        const fee = await c.zoraFeeForAmount(1).then((f: { fee: BigNumber }) => f.fee);
+        const price = bn(saleDetails.publicSalePrice).add(fee).toString();
+
         return {
           collection,
           stage: "public-sale",
@@ -68,7 +75,7 @@ export const tryParseCollectionMint = async (
             },
           },
           currency: Sdk.Common.Addresses.Eth[config.chainId],
-          price: saleDetails.publicSalePrice.toString(),
+          price,
           maxMintsPerWallet: saleDetails.maxSalePurchasePerAddress.toString(),
           maxSupply: saleDetails.maxSupply.toString(),
           startTime: saleDetails.publicSaleStart.toNumber(),
