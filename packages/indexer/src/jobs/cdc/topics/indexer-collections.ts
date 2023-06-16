@@ -5,7 +5,7 @@ import {
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
 
-export class IndexerTokensHandler extends KafkaEventHandler {
+export class IndexerCollectionsHandler extends KafkaEventHandler {
   topicName = "indexer.public.collections";
 
   protected async handleInsert(payload: any): Promise<void> {
