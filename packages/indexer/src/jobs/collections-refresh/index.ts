@@ -4,7 +4,7 @@ import { logger } from "@/common/logger";
 import { redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
-import * as collectionsRefresh from "@/jobs/collections-refresh/collections-refresh";
+import { collectionRefreshJob } from "@/jobs/collections-refresh/collections-refresh-job";
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork && getNetworkSettings().enableMetadataAutoRefresh) {
@@ -17,7 +17,7 @@ if (config.doBackgroundWork && getNetworkSettings().enableMetadataAutoRefresh) {
           logger.info("daily-collections-refresh", "Starting refresh collections metadata");
 
           try {
-            await collectionsRefresh.addToQueue();
+            await collectionRefreshJob.addToQueue();
           } catch (error) {
             logger.error("daily-collections-refresh", `Failed to refresh: ${error}`);
           }
