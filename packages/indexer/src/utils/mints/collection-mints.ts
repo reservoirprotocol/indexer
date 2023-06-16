@@ -18,10 +18,11 @@ export type CollectionMint = {
   // TODO: Refactor these hardcoded types
   kind: "public";
   status: "open" | "closed";
-  standard: "unknown" | "zora";
+  standard: "unknown" | "zora" | "manifold";
   details: MintDetails;
   currency: string;
   price: string;
+  tokenId?: string;
   maxMintsPerWallet?: string;
   maxSupply?: string;
   startTime?: number;
@@ -54,6 +55,7 @@ export const getOpenCollectionMints = async (collection: string): Promise<Collec
         details: r.details,
         currency: fromBuffer(r.currency),
         price: r.price,
+        tokenId: r.token_id,
         maxMintsPerWallet: r.max_mints_per_wallet,
         maxSupply: r.max_supply,
         startTime: r.start_time ? Math.floor(new Date(r.start_time).getTime() / 1000) : undefined,
@@ -169,6 +171,7 @@ export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMi
           details,
           currency,
           price,
+          token_id,
           max_mints_per_wallet,
           max_supply,
           start_time,
@@ -181,6 +184,7 @@ export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMi
           $/details:json/,
           $/currency/,
           $/price/,
+          $/tokenId/,
           $/maxMintsPerWallet/,
           $/maxSupply/,
           $/startTime/,
@@ -195,6 +199,7 @@ export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMi
         details: collectionMint.details,
         currency: toBuffer(collectionMint.currency),
         price: collectionMint.price,
+        tokenId: collectionMint.tokenId ?? null,
         maxMintsPerWallet: collectionMint.maxMintsPerWallet ?? null,
         maxSupply: collectionMint.maxSupply ?? null,
         startTime: collectionMint.startTime ? new Date(collectionMint.startTime * 1000) : null,

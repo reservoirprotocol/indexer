@@ -7,7 +7,8 @@ export type AbiParam =
   | {
       kind: "unknown";
       abiType: string;
-      abiValue: string;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      abiValue: any;
     }
   | {
       kind: "quantity";

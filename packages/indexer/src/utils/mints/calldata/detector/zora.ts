@@ -12,7 +12,6 @@ import { CollectionMint } from "@/utils/mints/collection-mints";
 
 export const tryParseCollectionMint = async (
   collection: string,
-  contract: string,
   tx: Transaction
 ): Promise<CollectionMint | undefined> => {
   if (
@@ -23,7 +22,7 @@ export const tryParseCollectionMint = async (
   ) {
     try {
       const c = new Contract(
-        collection,
+        tx.to,
         new Interface([
           `
             function saleDetails() view returns (
@@ -61,7 +60,7 @@ export const tryParseCollectionMint = async (
           standard: "zora",
           details: {
             tx: {
-              to: contract,
+              to: tx.to,
               data: {
                 // `purchase`
                 signature: "0xefef39a1",

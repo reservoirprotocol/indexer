@@ -12,6 +12,7 @@ import { Sources } from "@/models/sources";
 import { CollectionMint, simulateAndSaveCollectionMint } from "@/utils/mints/collection-mints";
 
 import * as generic from "@/utils/mints/calldata/detector/generic";
+import * as manifold from "@/utils/mints/calldata/detector/manifold";
 import * as zora from "@/utils/mints/calldata/detector/zora";
 
 export const detectMint = async (txHash: string, skipCache = false) => {
@@ -144,9 +145,14 @@ export const detectMint = async (txHash: string, skipCache = false) => {
 
   let collectionMint: CollectionMint | undefined;
 
+  // Manifold
+  if (!collectionMint) {
+    collectionMint = await manifold.tryParseCollectionMint(collection, tx);
+  }
+
   // Zora
   if (!collectionMint) {
-    collectionMint = await zora.tryParseCollectionMint(collection, contract, tx);
+    collectionMint = await zora.tryParseCollectionMint(collection, tx);
   }
 
   // Fallback
