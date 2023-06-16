@@ -40,9 +40,14 @@ export const getBuildInfo = async (
 
   const exchange = new Sdk.SeaportV15.Exchange(config.chainId);
 
-  // Use OpenSea's conduit for sharing approvals (where available)
+  // Priority of conduits:
+  // - requested one
+  // - OpenSea conduit
+  // - Reservoir conduit
   const conduitKey =
-    options.conduitKey ?? Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId];
+    options.conduitKey ??
+    Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId] ??
+    Sdk.SeaportBase.Addresses.ReservoirConduitKey[config.chainId];
 
   // Generate the salt
   let salt = padSourceToSalt(options.salt ?? getRandomBytes(16).toString(), options.source);
