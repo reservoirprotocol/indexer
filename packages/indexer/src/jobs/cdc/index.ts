@@ -63,11 +63,11 @@ export async function startKafkaConsumer(): Promise<void> {
 
           for (const handler of TopicHandlers) {
             if (handler.getTopics().includes(batch.topic)) {
-              if (!event.payload.retryCount) {
-                event.payload.retryCount = 0;
+              if (!event.retryCount) {
+                event.retryCount = 0;
               }
 
-              await handler.handle(event.payload, message.offset);
+              await handler.handle(event, message.offset);
               break;
             }
           }
