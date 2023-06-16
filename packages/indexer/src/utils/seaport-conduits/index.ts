@@ -38,12 +38,12 @@ export const refresh = async (conduit: string) => {
     baseProvider
   );
 
-  const [conduitKey, channels] = await Promise.all([
-    conduitController.getKey(conduit).then((key: string) => key.toLowerCase()),
-    conduitController
-      .getChannels(conduit)
-      .then((channels: string[]) => channels.map((c) => c.toLowerCase())),
-  ]);
+  const conduitKey = await conduitController
+    .getKey(conduit)
+    .then((key: string) => key.toLowerCase());
+  const channels = await conduitController
+    .getChannels(conduit)
+    .then((channels: string[]) => channels.map((c) => c.toLowerCase()));
 
   const columns = new pgp.helpers.ColumnSet(["conduit_key", "channel"], {
     table: "seaport_conduit_open_channels",
