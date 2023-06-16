@@ -111,82 +111,80 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
 
         baseQuery += ` LIMIT 1`;
 
-        const result = await redb
-          .oneOrNone(baseQuery, { contract: toBuffer(data.after.id) })
-          .then((r) =>
-            !r
-              ? null
-              : {
-                  id: r.id,
-                  slug: r.slug,
-                  name: r.name,
-                  metadata: {
-                    ...r.metadata,
-                    imageUrl:
-                      Assets.getLocalAssetsLink(r.metadata?.imageUrl) ||
-                      (r.sample_images?.length
-                        ? Assets.getLocalAssetsLink(r.sample_images[0])
-                        : null),
-                  },
-                  sampleImages: Assets.getLocalAssetsLink(r.sample_images) || [],
-                  tokenCount: String(r.token_count),
-                  onSaleCount: String(r.on_sale_count),
-                  primaryContract: fromBuffer(r.contract),
-                  tokenSetId: r.token_set_id,
-                  royalties: r.royalties ? r.royalties[0] : null,
-                  lastBuy: {
-                    value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
-                    timestamp: r.last_buy_timestamp,
-                  },
-                  topBid: {
-                    id: r.top_buy_id,
-                    value: r.top_buy_value ? formatEth(r.top_buy_value) : null,
-                    maker: r.top_buy_maker ? fromBuffer(r.top_buy_maker) : null,
-                    validFrom: r.top_buy_valid_from,
-                    validUntil: r.top_buy_value ? r.top_buy_valid_until : null,
-                  },
-                  rank: {
-                    "1day": r.day1_rank,
-                    "7day": r.day7_rank,
-                    "30day": r.day30_rank,
-                    allTime: r.all_time_rank,
-                  },
-                  volume: {
-                    "1day": r.day1_volume ? formatEth(r.day1_volume) : null,
-                    "7day": r.day7_volume ? formatEth(r.day7_volume) : null,
-                    "30day": r.day30_volume ? formatEth(r.day30_volume) : null,
-                    allTime: r.all_time_volume ? formatEth(r.all_time_volume) : null,
-                  },
-                  volumeChange: {
-                    "1day": r.day1_volume_change,
-                    "7day": r.day7_volume_change,
-                    "30day": r.day30_volume_change,
-                  },
-                  floorSale: {
-                    "1day": r.day1_floor_sell_value ? formatEth(r.day1_floor_sell_value) : null,
-                    "7day": r.day7_floor_sell_value ? formatEth(r.day7_floor_sell_value) : null,
-                    "30day": r.day30_floor_sell_value ? formatEth(r.day30_floor_sell_value) : null,
-                  },
-                  floorSaleChange: {
-                    "1day": Number(r.day1_floor_sell_value)
-                      ? Number(r.floor_sell_value) / Number(r.day1_floor_sell_value)
-                      : null,
-                    "7day": Number(r.day7_floor_sell_value)
-                      ? Number(r.floor_sell_value) / Number(r.day7_floor_sell_value)
-                      : null,
-                    "30day": Number(r.day30_floor_sell_value)
-                      ? Number(r.floor_sell_value) / Number(r.day30_floor_sell_value)
-                      : null,
-                  },
-                  collectionBidSupported: Number(r.token_count) <= config.maxTokenSetSize,
-                  ownerCount: Number(r.ownerCount),
-                  attributes: _.map(_.sortBy(r.attributes, ["rank", "key"]), (attribute) => ({
-                    key: attribute.key,
-                    kind: attribute.kind,
-                    count: Number(attribute.count),
-                  })),
-                }
-          );
+        const result = await redb.oneOrNone(baseQuery, { id: toBuffer(data.after.id) }).then((r) =>
+          !r
+            ? null
+            : {
+                id: r.id,
+                slug: r.slug,
+                name: r.name,
+                metadata: {
+                  ...r.metadata,
+                  imageUrl:
+                    Assets.getLocalAssetsLink(r.metadata?.imageUrl) ||
+                    (r.sample_images?.length
+                      ? Assets.getLocalAssetsLink(r.sample_images[0])
+                      : null),
+                },
+                sampleImages: Assets.getLocalAssetsLink(r.sample_images) || [],
+                tokenCount: String(r.token_count),
+                onSaleCount: String(r.on_sale_count),
+                primaryContract: fromBuffer(r.contract),
+                tokenSetId: r.token_set_id,
+                royalties: r.royalties ? r.royalties[0] : null,
+                lastBuy: {
+                  value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
+                  timestamp: r.last_buy_timestamp,
+                },
+                topBid: {
+                  id: r.top_buy_id,
+                  value: r.top_buy_value ? formatEth(r.top_buy_value) : null,
+                  maker: r.top_buy_maker ? fromBuffer(r.top_buy_maker) : null,
+                  validFrom: r.top_buy_valid_from,
+                  validUntil: r.top_buy_value ? r.top_buy_valid_until : null,
+                },
+                rank: {
+                  "1day": r.day1_rank,
+                  "7day": r.day7_rank,
+                  "30day": r.day30_rank,
+                  allTime: r.all_time_rank,
+                },
+                volume: {
+                  "1day": r.day1_volume ? formatEth(r.day1_volume) : null,
+                  "7day": r.day7_volume ? formatEth(r.day7_volume) : null,
+                  "30day": r.day30_volume ? formatEth(r.day30_volume) : null,
+                  allTime: r.all_time_volume ? formatEth(r.all_time_volume) : null,
+                },
+                volumeChange: {
+                  "1day": r.day1_volume_change,
+                  "7day": r.day7_volume_change,
+                  "30day": r.day30_volume_change,
+                },
+                floorSale: {
+                  "1day": r.day1_floor_sell_value ? formatEth(r.day1_floor_sell_value) : null,
+                  "7day": r.day7_floor_sell_value ? formatEth(r.day7_floor_sell_value) : null,
+                  "30day": r.day30_floor_sell_value ? formatEth(r.day30_floor_sell_value) : null,
+                },
+                floorSaleChange: {
+                  "1day": Number(r.day1_floor_sell_value)
+                    ? Number(r.floor_sell_value) / Number(r.day1_floor_sell_value)
+                    : null,
+                  "7day": Number(r.day7_floor_sell_value)
+                    ? Number(r.floor_sell_value) / Number(r.day7_floor_sell_value)
+                    : null,
+                  "30day": Number(r.day30_floor_sell_value)
+                    ? Number(r.floor_sell_value) / Number(r.day30_floor_sell_value)
+                    : null,
+                },
+                collectionBidSupported: Number(r.token_count) <= config.maxTokenSetSize,
+                ownerCount: Number(r.ownerCount),
+                attributes: _.map(_.sortBy(r.attributes, ["rank", "key"]), (attribute) => ({
+                  key: attribute.key,
+                  kind: attribute.kind,
+                  count: Number(attribute.count),
+                })),
+              }
+        );
 
         let eventType = "";
         // const changed = [];
