@@ -21,7 +21,7 @@ export const publishWebsocketEvent = async (message: WebsocketMessage): Promise<
   await redisWebsocketPublisher.publish("events", JSON.stringify(message));
 
   await producer.send({
-    topic: getNetworkName() + "-websocket-events",
+    topic: getNetworkName() + ".websocket-events",
     messages: [{ value: JSON.stringify(message) }],
   });
 };
