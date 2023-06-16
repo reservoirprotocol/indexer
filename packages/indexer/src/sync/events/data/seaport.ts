@@ -1,5 +1,5 @@
 import { Interface } from "@ethersproject/abi";
-import { SeaportV11 } from "@reservoir0x/sdk";
+import { SeaportBase, SeaportV11 } from "@reservoir0x/sdk";
 
 import { config } from "@/config/index";
 import { EventData } from "@/events-sync/data";
@@ -75,4 +75,13 @@ export const orderValidated: EventData = {
       address indexed zone
     )`,
   ]),
+};
+
+export const channelUpdated: EventData = {
+  kind: "seaport",
+  subKind: "seaport-channel-updated",
+  addresses: { [SeaportBase.Addresses.ConduitController[config.chainId]?.toLowerCase()]: true },
+  topic: "0xae63067d43ac07563b7eb8db6595635fc77f1578a2a5ea06ba91b63e2afa37e2",
+  numTopics: 2,
+  abi: new Interface([`event ChannelUpdated(address indexed channel, bool open)`]),
 };
