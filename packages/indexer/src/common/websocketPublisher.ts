@@ -1,5 +1,6 @@
 import { logger } from "@/common/logger";
 import { redisWebsocketClient, redisWebsocketPublisher } from "./redis";
+import { producer } from "@/jobs/cdc";
 
 export interface WebsocketMessage {
   published_at?: number;
@@ -17,6 +18,11 @@ export const publishWebsocketEvent = async (message: WebsocketMessage): Promise<
   await addOffsetToSortedSet(message, message.offset);
   message.published_at = Date.now();
   await redisWebsocketPublisher.publish("events", JSON.stringify(message));
+
+  await producer.send({
+    topic: "events",
+    messages: [{ value: JSON.stringify(message) }],
+  });
 };
 
 const enabledOffsetLoggingEvents = ["sale.created", "sale.updated", "sale.deleted"];
