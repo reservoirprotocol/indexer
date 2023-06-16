@@ -51,7 +51,7 @@ export async function startKafkaConsumer(): Promise<void> {
     eachBatch: async ({ batch, resolveOffset, heartbeat }) => {
       const messagePromises = batch.messages.map(async (message) => {
         try {
-          const event = JSON.parse(message.value!.toString());
+          const event = JSON.parse(message.value!.toString("utf8"));
 
           if (batch.topic.endsWith("-dead-letter")) {
             logger.info(
