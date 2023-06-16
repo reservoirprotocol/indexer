@@ -9,7 +9,7 @@ import _ from "lodash";
 
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
 import { redb } from "@/common/db";
-import { fromBuffer, toBuffer, formatEth } from "@/common/utils";
+import { fromBuffer, formatEth } from "@/common/utils";
 import { Assets } from "@/utils/assets";
 
 const QUEUE_NAME = "collection-websocket-events-trigger-queue";
@@ -111,7 +111,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
 
         baseQuery += ` LIMIT 1`;
 
-        const result = await redb.oneOrNone(baseQuery, { id: toBuffer(data.after.id) }).then((r) =>
+        const result = await redb.oneOrNone(baseQuery, { id: data.after.id }).then((r) =>
           !r
             ? null
             : {
