@@ -166,6 +166,10 @@ jobs:
             ${{ github.sha }} \
             indexer-api-goerli
           ./utils/version_update.sh \
+            ./prod/platform/indexer-api-zora.yaml \
+            ${{ github.sha }} \
+            indexer-api-zora
+          ./utils/version_update.sh \
             ./prod/platform/indexer-worker.yaml \
             ${{ github.sha }} \
             indexer-worker
@@ -229,6 +233,10 @@ jobs:
             ./prod/platform/indexer-worker-goerli.yaml \
             ${{ github.sha }} \
             indexer-worker-goerli
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-zora.yaml \
+            ${{ github.sha }} \
+            indexer-worker-zora
           ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-ethereum.yaml \
             ${{ github.sha }} \

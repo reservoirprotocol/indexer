@@ -92,7 +92,7 @@ export class BidCreatedEventHandler extends BaseActivityEventHandler {
   }
 
   parseEvent(data: any) {
-    if (!data.token_set_id.startsWith("token:")) {
+    if (!data?.token_set_id.startsWith("token:")) {
       delete data.token_id;
     }
 
