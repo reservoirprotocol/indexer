@@ -22,7 +22,6 @@ import { config } from "@/config/index";
 import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
-import { parse } from "path";
 
 const version = "v5";
 
