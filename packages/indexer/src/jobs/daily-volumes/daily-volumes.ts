@@ -4,7 +4,7 @@ import { randomUUID } from "crypto";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
-import { DailyVolume } from "../../models/daily-volumes/daily-volume";
+import { DailyVolume } from "@/models/daily-volumes/daily-volume";
 
 const QUEUE_NAME = "calculate-daily-volumes";
 

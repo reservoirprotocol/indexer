@@ -11,7 +11,6 @@ export const Eth: ChainIdToAddress = {
   [Network.Gnosis]: AddressZero,
   [Network.Polygon]: AddressZero,
   [Network.Arbitrum]: AddressZero,
-  [Network.Avalanche]: AddressZero,
   [Network.ScrollAlpha]: AddressZero,
   [Network.MantleTestnet]: AddressZero,
   [Network.LineaTestnet]: AddressZero,
@@ -19,6 +18,7 @@ export const Eth: ChainIdToAddress = {
   [Network.Mumbai]: AddressZero,
   [Network.ArbitrumNova]: AddressZero,
   [Network.BaseGoerli]: AddressZero,
+  [Network.Zora]: AddressZero,
 };
 
 export const Weth: ChainIdToAddress = {
@@ -34,13 +34,13 @@ export const Weth: ChainIdToAddress = {
   // Polygon: Wrapped MATIC
   [Network.Polygon]: "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
   [Network.Mumbai]: "0x9c3c9283d3e44854697cd22d3faa240cfb032889",
-  // Avalanche: Wrapped AVAX
-  [Network.Avalanche]: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
   [Network.ScrollAlpha]: "0x7160570bb153edd0ea1775ec2b2ac9b65f1ab61b",
   [Network.MantleTestnet]: "0xbaafec4b6ef4f5e0bafa850cbc48364b953efcf9",
   [Network.LineaTestnet]: "0x2c1b868d6596a18e32e61b901e4060c872647b6c",
   [Network.ZoraTestnet]: "0x4200000000000000000000000000000000000006",
+  [Network.Zora]: "0x4200000000000000000000000000000000000006",
   [Network.BaseGoerli]: "0x4200000000000000000000000000000000000006",
+  [Network.Zora]: "0x4200000000000000000000000000000000000006",
 };
 
 // TODO: Include addresses across all supported chains
@@ -66,6 +66,7 @@ export const RoyaltyEngine: ChainIdToAddress = {
   [Network.Mumbai]: "0x60b433ee91680189deb2c94b0b062ea283f6b4dd",
   [Network.BaseGoerli]: "0x8755310f937528173e7c5a106131d79a3601c9d9",
   [Network.ArbitrumNova]: "0x60b433ee91680189deb2c94b0b062ea283f6b4dd",
+  [Network.Zora]: "0x8755310f937528173e7c5a106131d79a3601c9d9",
 };
 
 export const SwapRouter: ChainIdToAddress = {
@@ -81,4 +82,5 @@ export const Create3Factory: ChainIdToAddress = {
   [Network.EthereumSepolia]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
   [Network.ZoraTestnet]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
   [Network.BaseGoerli]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
+  [Network.Zora]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
 };

@@ -1,4 +1,4 @@
-import { AddressZero, HashZero } from "@ethersproject/constants";
+import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import { OrderKind } from "@reservoir0x/sdk/dist/seaport-base/types";
@@ -25,11 +25,12 @@ import * as tokenSet from "@/orderbook/token-sets";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
+import { isOpen } from "@/utils/seaport-conduits";
 
-import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { topBidsCache } from "@/models/top-bids-caching";
 import * as orderbook from "@/jobs/orderbook/orders-queue";
+import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
 
 export type OrderInfo = {
   orderParams: Sdk.SeaportBase.Types.OrderComponents;
@@ -122,12 +123,7 @@ export const save = async (
 
       // Check: order has a supported conduit
       if (
-        ![
-          HashZero,
-          Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId],
-          Sdk.SeaportBase.Addresses.OriginConduitKey[config.chainId],
-          Sdk.SeaportBase.Addresses.SpaceIdConduitKey[config.chainId],
-        ].includes(order.params.conduitKey)
+        !(await isOpen(order.params.conduitKey, Sdk.SeaportV15.Addresses.Exchange[config.chainId]))
       ) {
         return results.push({
           id,
@@ -961,7 +957,9 @@ const getCollection = async (
 
       if (lockAcquired) {
         // Try to refresh the contract collections metadata.
-        await refreshContractCollectionsMetadata.addToQueue(orderParams.contract);
+        await refreshContractCollectionsMetadataQueueJob.addToQueue({
+          contract: orderParams.contract,
+        });
       }
     }
 

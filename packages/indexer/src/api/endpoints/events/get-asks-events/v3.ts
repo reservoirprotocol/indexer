@@ -9,6 +9,7 @@ import { JoiOrderCriteria, JoiPrice, getJoiPriceObject } from "@/common/joi";
 import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { Orders } from "@/utils/orders";
+import * as Boom from "@hapi/boom";
 
 const version = "v3";
 
@@ -210,7 +211,7 @@ export const getAsksEventsV3Options: RouteOptions = {
         (query as any).id = id;
 
         if (isNaN(Number(id))) {
-          throw new Error("Invalid continuation string used");
+          throw Boom.badRequest("Invalid continuation string used");
         }
 
         conditions.push(

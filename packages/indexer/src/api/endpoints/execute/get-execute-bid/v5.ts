@@ -104,9 +104,7 @@ export const getExecuteBidV5Options: RouteOptions = {
           attributeValue: Joi.string().description(
             "Bid on a particular attribute value. This is case sensitive. Example: `Teddy (#33)`"
           ),
-          quantity: Joi.number().description(
-            "Quantity of tokens user is buying. Only compatible with ERC1155 tokens. Example: `5`"
-          ),
+          quantity: Joi.number().description("Quantity of tokens to bid on."),
           weiPrice: Joi.string()
             .pattern(regex.number)
             .description("Amount bidder is willing to offer in wei. Example: `1000000000000000000`")

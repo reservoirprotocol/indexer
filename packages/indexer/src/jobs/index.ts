@@ -7,7 +7,6 @@ import "@/jobs/backfill";
 import "@/jobs/cache-check";
 import "@/jobs/collections-refresh";
 import "@/jobs/collection-updates";
-import "@/jobs/currencies";
 import "@/jobs/daily-volumes";
 import "@/jobs/data-archive";
 import "@/jobs/data-export";
@@ -51,27 +50,9 @@ import * as backfillCollectionsRoyalties from "@/jobs/backfill/backfill-collecti
 import * as backfillWrongNftBalances from "@/jobs/backfill/backfill-wrong-nft-balances";
 import * as backfillFoundationOrders from "@/jobs/backfill/backfill-foundation-orders";
 
-import * as collectionsRefresh from "@/jobs/collections-refresh/collections-refresh";
-import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections-refresh-cache";
-
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
-import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
-import * as collectionSetCommunity from "@/jobs/collection-updates/set-community-queue";
-import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
-import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
-import * as updateCollectionActivity from "@/jobs/collection-updates/update-collection-activity";
-import * as updateCollectionUserActivity from "@/jobs/collection-updates/update-collection-user-activity";
-import * as updateCollectionDailyVolume from "@/jobs/collection-updates/update-collection-daily-volume";
 
 import * as tokenSetUpdatesTopBid from "@/jobs/token-set-updates/top-bid-queue";
-
-import * as currencies from "@/jobs/currencies/index";
-
-import * as dailyVolumes from "@/jobs/daily-volumes/daily-volumes";
-import * as oneDayVolumes from "@/jobs/daily-volumes/1day-volumes";
-
-import * as processArchiveData from "@/jobs/data-archive/process-archive-data";
-import * as exportData from "@/jobs/data-export/export-data";
 
 import * as eventsSyncProcessResyncRequest from "@/jobs/events-sync/process-resync-request-queue";
 import * as eventsSyncBackfill from "@/jobs/events-sync/backfill-queue";
@@ -140,7 +121,9 @@ import * as transferWebsocketEventsTriggerQueue from "@/jobs/websocket-events/tr
 import * as saleWebsocketEventsTriggerQueue from "@/jobs/websocket-events/sale-websocket-events-trigger-queue";
 import * as tokenWebsocketEventsTriggerQueue from "@/jobs/websocket-events/token-websocket-events-trigger-queue";
 import * as topBidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/top-bid-websocket-events-trigger-queue";
+import * as collectionWebsocketEventsTriggerQueue from "@/jobs/websocket-events/collection-websocket-events-trigger-queue";
 
+import * as dailyVolumeQueue from "@/jobs/daily-volumes/daily-volumes";
 import * as countApiUsage from "@/jobs/metrics/count-api-usage";
 
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
@@ -190,6 +173,19 @@ import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activit
 import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
 import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
+import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
+import { setCommunityQueueJob } from "@/jobs/collection-updates/set-community-queue-job";
+import { topBidCollectionJob } from "@/jobs/collection-updates/top-bid-collection-job";
+import { updateCollectionActivityJob } from "@/jobs/collection-updates/update-collection-activity-job";
+import { updateCollectionDailyVolumeJob } from "@/jobs/collection-updates/update-collection-daily-volume-job";
+import { updateCollectionUserActivityJob } from "@/jobs/collection-updates/update-collection-user-activity-job";
+import { collectionRefreshJob } from "@/jobs/collections-refresh/collections-refresh-job";
+import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
+import { currenciesFetchJob } from "@/jobs/currencies/currencies-fetch-job";
+import { oneDayVolumeJob } from "@/jobs/daily-volumes/1day-volumes-job";
+// import { dailyVolumeJob } from "@/jobs/daily-volumes/daily-volumes-job";
+import { processArchiveDataJob } from "@/jobs/data-archive/process-archive-data-job";
+import { exportDataJob } from "@/jobs/data-export/export-data-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -227,28 +223,9 @@ export const allJobQueues = [
   backfillInvalidateSeaportV14Orders.queue,
   backfillBlurSales.queue,
 
-  currencies.queue,
-
-  collectionsRefresh.queue,
-  collectionsRefreshCache.queue,
-
   collectionUpdatesFloorAsk.queue,
-  collectionUpdatesNonFlaggedFloorAsk.queue,
-  collectionSetCommunity.queue,
 
   tokenSetUpdatesTopBid.queue,
-  collectionUpdatesTopBid.queue,
-  refreshContractCollectionsMetadata.queue,
-  updateCollectionActivity.queue,
-  updateCollectionUserActivity.queue,
-  updateCollectionDailyVolume.queue,
-
-  dailyVolumes.queue,
-  oneDayVolumes.queue,
-
-  processArchiveData.queue,
-
-  exportData.queue,
 
   eventsSyncProcessResyncRequest.queue,
   eventsSyncBackfill.queue,
@@ -280,6 +257,7 @@ export const allJobQueues = [
 
   updateNftBalanceFloorAskPrice.queue,
   updateNftBalanceTopBid.queue,
+  dailyVolumeQueue.queue,
 
   orderFixes.queue,
   orderRevalidations.queue,
@@ -317,6 +295,7 @@ export const allJobQueues = [
   saleWebsocketEventsTriggerQueue.queue,
   tokenWebsocketEventsTriggerQueue.queue,
   topBidWebsocketEventsTriggerQueue.queue,
+  collectionWebsocketEventsTriggerQueue.queue,
 
   countApiUsage.queue,
 
@@ -338,6 +317,7 @@ export const allJobQueues = [
 export class RabbitMqJobsConsumer {
   private static rabbitMqConsumerConnection: Connection;
   private static queueToChannel: Map<string, Channel> = new Map();
+  private static channelsToJobs: Map<Channel, AbstractRabbitMqJobHandler[]> = new Map();
 
   /**
    * Return array of all jobs classes, any new job MUST be added here
@@ -368,6 +348,19 @@ export class RabbitMqJobsConsumer {
       collectionMetadataQueueJob,
       rarityQueueJob,
       nonFlaggedFloorQueueJob,
+      refreshContractCollectionsMetadataQueueJob,
+      setCommunityQueueJob,
+      topBidCollectionJob,
+      updateCollectionActivityJob,
+      updateCollectionDailyVolumeJob,
+      updateCollectionUserActivityJob,
+      collectionRefreshJob,
+      collectionRefreshCacheJob,
+      currenciesFetchJob,
+      oneDayVolumeJob,
+      // dailyVolumeJob,
+      processArchiveDataJob,
+      exportDataJob,
     ];
   }
 
@@ -412,6 +405,10 @@ export class RabbitMqJobsConsumer {
       RabbitMqJobsConsumer.queueToChannel.set(job.getQueue(), channel);
     }
 
+    RabbitMqJobsConsumer.channelsToJobs.get(channel)
+      ? RabbitMqJobsConsumer.channelsToJobs.get(channel)?.push(job)
+      : RabbitMqJobsConsumer.channelsToJobs.set(channel, [job]);
+
     await channel.prefetch(job.getConcurrency()); // Set the number of messages to consume simultaneously
 
     // Subscribe to the queue
@@ -443,7 +440,17 @@ export class RabbitMqJobsConsumer {
     );
 
     channel.on("error", (error) => {
-      logger.error("rabbit-queues", `Channel error ${error}`);
+      logger.error("rabbit-channel-error", `Channel error ${error}`);
+
+      const jobs = RabbitMqJobsConsumer.channelsToJobs.get(channel);
+      if (jobs) {
+        logger.error(
+          "rabbit-channel-error",
+          `Jobs stopped consume ${JSON.stringify(
+            jobs.map((job: AbstractRabbitMqJobHandler) => job.queueName)
+          )}`
+        );
+      }
     });
   }
 

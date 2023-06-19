@@ -1,4 +1,4 @@
-import { AddressZero, HashZero } from "@ethersproject/constants";
+import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import { OrderKind } from "@reservoir0x/sdk/dist/seaport-base/types";
@@ -22,10 +22,11 @@ import * as tokenSet from "@/orderbook/token-sets";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
+import { isOpen } from "@/utils/seaport-conduits";
 
-import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/config";
+import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
 
 export type OrderInfo = {
   kind?: "full";
@@ -116,7 +117,9 @@ export const save = async (
         });
       }
 
-      if (![HashZero].includes(order.params.conduitKey)) {
+      if (
+        !(await isOpen(order.params.conduitKey, Sdk.SeaportV11.Addresses.Exchange[config.chainId]))
+      ) {
         return results.push({
           id,
           status: "unsupported-conduit",
@@ -838,7 +841,9 @@ const getCollection = async (
 
       if (lockAcquired) {
         // Try to refresh the contract collections metadata.
-        await refreshContractCollectionsMetadata.addToQueue(orderParams.contract);
+        await refreshContractCollectionsMetadataQueueJob.addToQueue({
+          contract: orderParams.contract,
+        });
       }
     }
 

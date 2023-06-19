@@ -8,6 +8,7 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { parseEther } from "@ethersproject/units";
 import { JoiPrice, getJoiPriceObject } from "@/common/joi";
 import {
   buildContinuation,
@@ -66,6 +67,8 @@ export const getCollectionsV5Options: RouteOptions = {
       name: Joi.string()
         .lowercase()
         .description("Search for collections that match a string. Example: `bored`"),
+      maxFloorAskPrice: Joi.number().description("Maximum floor price of the collection"),
+      minFloorAskPrice: Joi.number().description("Minumum floor price of the collection"),
       includeTopBid: Joi.boolean()
         .default(false)
         .description("If true, top bid will be returned in the response."),
@@ -509,6 +512,16 @@ export const getCollectionsV5Options: RouteOptions = {
       if (query.name) {
         query.name = `%${query.name}%`;
         conditions.push(`collections.name ILIKE $/name/`);
+      }
+
+      if (query.maxFloorAskPrice) {
+        query.maxFloorAskPrice = parseEther(query.maxFloorAskPrice.toString()).toString();
+        conditions.push(`collections.floor_sell_value <= $/maxFloorAskPrice/`);
+      }
+
+      if (query.minFloorAskPrice) {
+        query.minFloorAskPrice = parseEther(query.minFloorAskPrice.toString()).toString();
+        conditions.push(`collections.floor_sell_value >= $/minFloorAskPrice/`);
       }
 
       // Sorting and pagination

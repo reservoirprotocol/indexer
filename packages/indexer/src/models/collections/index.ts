@@ -209,7 +209,8 @@ export class Collections {
       logger.info(
         "updateCollectionCache",
         JSON.stringify({
-          message: `Metadata changed.`,
+          message: `Metadata refresh.`,
+          isCopyrightInfringementContract,
           collection,
           result,
         })

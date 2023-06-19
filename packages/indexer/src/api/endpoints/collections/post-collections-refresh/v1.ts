@@ -14,13 +14,13 @@ import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 
-import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections-refresh-cache";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
 import * as orderFixes from "@/jobs/order-fixes/fixes";
 import * as blurBidsRefresh from "@/jobs/order-updates/misc/blur-bids-refresh";
 import * as blurListingsRefresh from "@/jobs/order-updates/misc/blur-listings-refresh";
 import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
+import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
 
 const version = "v1";
 
@@ -203,7 +203,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         }
 
         // Refresh the contract floor sell and top bid
-        await collectionsRefreshCache.addToQueue(collection.id);
+        await collectionRefreshCacheJob.addToQueue({ collection: collection.id });
 
         // Revalidate the contract orders
         await orderFixes.addToQueue([{ by: "contract", data: { contract: collection.contract } }]);
