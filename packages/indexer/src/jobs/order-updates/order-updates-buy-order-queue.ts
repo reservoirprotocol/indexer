@@ -12,12 +12,15 @@ import { config } from "@/config/index";
 import { TriggerKind } from "@/jobs/order-updates/types";
 
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
-import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
-import * as handleNewBuyOrder from "@/jobs/update-attribute/handle-new-buy-order";
 import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "../websocket-events/websocket-event-router";
+import { handleNewBuyOrderJob } from "@/jobs/update-attribute/handle-new-buy-order-job";
+import {
+  topBidCollectionJob,
+  TopBidCollectionJobPayload,
+} from "@/jobs/collection-updates/top-bid-collection-job";
 
 const QUEUE_NAME = "order-updates-buy-order";
 
@@ -51,8 +54,9 @@ if (config.doBackgroundWork) {
           return;
         }
 
-        let buyOrderResult = await idb.manyOrNone(
-          `
+        if (!tokenSetId.startsWith("token")) {
+          let buyOrderResult = await idb.manyOrNone(
+            `
                 WITH x AS (
                   SELECT
                     token_sets.id AS token_set_id,
@@ -92,65 +96,66 @@ if (config.doBackgroundWork) {
                   top_buy_value AS "topBuyValue",
                   top_buy_id AS "topBuyId"
               `,
-          { tokenSetId }
-        );
+            { tokenSetId }
+          );
 
-        if (!buyOrderResult.length && trigger.kind === "revalidation") {
-          // When revalidating, force revalidation of the attribute / collection
-          const tokenSetsResult = await ridb.manyOrNone(
-            `
+          if (!buyOrderResult.length && trigger.kind === "revalidation") {
+            // When revalidating, force revalidation of the attribute / collection
+            const tokenSetsResult = await ridb.manyOrNone(
+              `
                   SELECT
                     token_sets.collection_id,
                     token_sets.attribute_id
                   FROM token_sets
                   WHERE token_sets.id = $/tokenSetId/
                 `,
-            {
-              tokenSetId,
-            }
-          );
-
-          if (tokenSetsResult.length) {
-            buyOrderResult = tokenSetsResult.map(
-              (result: { collection_id: any; attribute_id: any }) => ({
-                kind: trigger.kind,
-                collectionId: result.collection_id,
-                attributeId: result.attribute_id,
-                txHash: trigger.txHash || null,
-                txTimestamp: trigger.txTimestamp || null,
-              })
+              {
+                tokenSetId,
+              }
             );
-          }
-        }
 
-        if (buyOrderResult.length) {
-          if (
-            trigger.kind === "new-order" &&
-            buyOrderResult[0].topBuyId &&
-            buyOrderResult[0].attributeId
-          ) {
-            await WebsocketEventRouter({
-              eventKind: WebsocketEventKind.NewTopBid,
-              eventInfo: {
-                orderId: buyOrderResult[0].topBuyId,
-              },
-            });
-          }
-
-          for (const result of buyOrderResult) {
-            if (!_.isNull(result.attributeId)) {
-              await handleNewBuyOrder.addToQueue(result);
-            }
-
-            if (!_.isNull(result.collectionId) && !tokenSetId.startsWith("token")) {
-              await collectionUpdatesTopBid.addToQueue([
-                {
-                  collectionId: result.collectionId,
+            if (tokenSetsResult.length) {
+              buyOrderResult = tokenSetsResult.map(
+                (result: { collection_id: any; attribute_id: any }) => ({
                   kind: trigger.kind,
+                  collectionId: result.collection_id,
+                  attributeId: result.attribute_id,
                   txHash: trigger.txHash || null,
                   txTimestamp: trigger.txTimestamp || null,
-                } as collectionUpdatesTopBid.TopBidInfo,
-              ]);
+                })
+              );
+            }
+          }
+
+          if (buyOrderResult.length) {
+            if (
+              trigger.kind === "new-order" &&
+              buyOrderResult[0].topBuyId &&
+              buyOrderResult[0].attributeId
+            ) {
+              await WebsocketEventRouter({
+                eventKind: WebsocketEventKind.NewTopBid,
+                eventInfo: {
+                  orderId: buyOrderResult[0].topBuyId,
+                },
+              });
+            }
+
+            for (const result of buyOrderResult) {
+              if (!_.isNull(result.attributeId)) {
+                await handleNewBuyOrderJob.addToQueue(result);
+              }
+
+              if (!_.isNull(result.collectionId) && !tokenSetId.startsWith("token")) {
+                await topBidCollectionJob.addToQueue([
+                  {
+                    collectionId: result.collectionId,
+                    kind: trigger.kind,
+                    txHash: trigger.txHash || null,
+                    txTimestamp: trigger.txTimestamp || null,
+                  } as TopBidCollectionJobPayload,
+                ]);
+              }
             }
           }
         }
@@ -194,6 +199,7 @@ if (config.doBackgroundWork) {
                         WHEN $/fillabilityStatus/ = 'expired' THEN 'expired'
                         WHEN $/fillabilityStatus/ = 'no-balance' THEN 'inactive'
                         WHEN $/approvalStatus/ = 'no-approval' THEN 'inactive'
+                        WHEN $/approvalStatus/ = 'disabled' THEN 'inactive'
                         ELSE 'active'
                       END
                     )::order_event_status_t,
@@ -296,19 +302,20 @@ if (config.doBackgroundWork) {
                 data: eventData,
               };
             }
-
-            await WebsocketEventRouter({
-              eventInfo: {
-                kind: trigger.kind,
-                orderId: order.id,
-              },
-              eventKind:
-                order.side === "sell" ? WebsocketEventKind.SellOrder : WebsocketEventKind.BuyOrder,
-            });
           }
+          await WebsocketEventRouter({
+            eventInfo: {
+              kind: trigger.kind,
+              orderId: order.id,
+            },
+            eventKind:
+              order.side === "sell" ? WebsocketEventKind.SellOrder : WebsocketEventKind.BuyOrder,
+          });
 
           if (eventInfo) {
-            await processActivityEvent.addToQueue([eventInfo as processActivityEvent.EventInfo]);
+            await processActivityEvent.addActivitiesToList([
+              eventInfo as processActivityEvent.EventInfo,
+            ]);
           }
         }
 

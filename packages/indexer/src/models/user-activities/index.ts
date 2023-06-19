@@ -10,6 +10,7 @@ import {
   UserActivitiesEntityParams,
 } from "@/models/user-activities/user-activities-entity";
 import { Orders } from "@/utils/orders";
+import { logger } from "@/common/logger";
 
 export class UserActivities {
   public static async addActivities(activities: UserActivitiesEntityInsertParams[]) {
@@ -56,7 +57,15 @@ export class UserActivities {
 
     const query = pgp.helpers.insert(data, columns) + " ON CONFLICT DO NOTHING";
 
-    await idb.none(query);
+    try {
+      await idb.none(query);
+    } catch (error) {
+      logger.error(
+        "add-user-activities",
+        `failed to insert into user activities error ${error} query ${query}`
+      );
+      throw error;
+    }
   }
 
   public static async getActivities(

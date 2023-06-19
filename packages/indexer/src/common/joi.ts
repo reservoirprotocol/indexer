@@ -26,9 +26,9 @@ const JoiPriceAmount = Joi.object({
 
 const JoiPriceCurrency = Joi.object({
   contract: Joi.string().pattern(regex.address),
-  name: Joi.string(),
-  symbol: Joi.string(),
-  decimals: Joi.number(),
+  name: Joi.string().allow(null),
+  symbol: Joi.string().allow(null),
+  decimals: Joi.number().allow(null),
 });
 
 export const JoiPrice = Joi.object({
@@ -86,7 +86,9 @@ export const getJoiAmountObject = async (
     if (usdPrice) {
       usdPrice = subFeeWithBps(usdPrice, totalFeeBps);
     }
-    if (nativeAmount) nativeAmount = subFeeWithBps(nativeAmount, totalFeeBps);
+    if (nativeAmount) {
+      nativeAmount = subFeeWithBps(nativeAmount, totalFeeBps);
+    }
   }
 
   return {
@@ -262,27 +264,31 @@ export const JoiOrderDepth = Joi.array().items(
 
 export const JoiOrder = Joi.object({
   id: Joi.string().required(),
-  kind: Joi.string().required(),
-  side: Joi.string().valid("buy", "sell").required(),
-  status: Joi.string(),
+  kind: Joi.string().required().description("This is the `orderKind`."),
+  side: Joi.string().valid("buy", "sell").required().description("Either `buy` or `sell`"),
+  status: Joi.string().description(
+    "Can be `active`, `inactive`, `expired`, `canceled`, or `filled`"
+  ),
   tokenSetId: Joi.string().required(),
   tokenSetSchemaHash: Joi.string().lowercase().pattern(regex.bytes32).required(),
   contract: Joi.string().lowercase().pattern(regex.address),
   maker: Joi.string().lowercase().pattern(regex.address).required(),
   taker: Joi.string().lowercase().pattern(regex.address).required(),
-  price: JoiPrice,
+  price: JoiPrice.description("Return native currency unless displayCurrency contract was passed."),
   validFrom: Joi.number().required(),
   validUntil: Joi.number().required(),
-  quantityFilled: Joi.number().unsafe(),
-  quantityRemaining: Joi.number().unsafe(),
+  quantityFilled: Joi.number().unsafe().description("With ERC1155s, quantity can be higher than 1"),
+  quantityRemaining: Joi.number()
+    .unsafe()
+    .description("With ERC1155s, quantity can be higher than 1"),
   dynamicPricing: JoiDynamicPrice.allow(null),
-  criteria: JoiOrderCriteria.allow(null),
+  criteria: JoiOrderCriteria.allow(null).description("Kind can be token, collection, or attribute"),
   source: Joi.object().allow(null),
   feeBps: Joi.number().allow(null),
   feeBreakdown: Joi.array()
     .items(
       Joi.object({
-        kind: Joi.string(),
+        kind: Joi.string().description("Can be marketplace or royalty"),
         recipient: Joi.string().allow("", null),
         bps: Joi.number(),
       })
@@ -291,9 +297,10 @@ export const JoiOrder = Joi.object({
   expiration: Joi.number().required(),
   isReservoir: Joi.boolean().allow(null),
   isDynamic: Joi.boolean(),
-  createdAt: Joi.string().required(),
-  updatedAt: Joi.string().required(),
+  createdAt: Joi.string().required().description("Time when added to indexer"),
+  updatedAt: Joi.string().required().description("Time when updated in indexer"),
   rawData: Joi.object().optional().allow(null),
+  isNativeOffChainCancellable: Joi.boolean().optional(),
   depth: JoiOrderDepth,
 });
 
@@ -311,7 +318,8 @@ export const getJoiDynamicPricingObject = async (
   raw_data:
     | Sdk.SeaportBase.Types.OrderComponents
     | Sdk.Sudoswap.OrderParams
-    | Sdk.Nftx.Types.OrderParams,
+    | Sdk.Nftx.Types.OrderParams
+    | Sdk.CollectionXyz.Types.OrderParams,
   currency?: string,
   missing_royalties?: []
 ) => {
@@ -324,7 +332,7 @@ export const getJoiDynamicPricingObject = async (
         .reduce((a, b) => a.add(b), bn(0))
     : bn(0);
 
-  if (dynamic && (kind === "seaport" || kind === "seaport-v1.4")) {
+  if (dynamic && (kind === "seaport" || kind === "seaport-v1.4" || kind === "seaport-v1.5")) {
     const order = new Sdk.SeaportV14.Order(
       config.chainId,
       raw_data as Sdk.SeaportBase.Types.OrderComponents
@@ -362,7 +370,7 @@ export const getJoiDynamicPricingObject = async (
         },
       },
     };
-  } else if (kind === "sudoswap") {
+  } else if (kind === "sudoswap" || kind === "sudoswap-v2") {
     // Pool orders
     return {
       kind: "pool",
@@ -378,6 +386,27 @@ export const getJoiDynamicPricingObject = async (
               },
               floorAskCurrency
             )
+          )
+        ),
+      },
+    };
+  } else if (kind === "collectionxyz") {
+    // Pool orders
+    return {
+      kind: "pool",
+      data: {
+        pool: (raw_data as Sdk.CollectionXyz.Types.OrderParams).pool,
+        prices: await Promise.all(
+          ((raw_data as Sdk.CollectionXyz.Types.OrderParams).extra.prices as string[]).map(
+            (price) =>
+              getJoiPriceObject(
+                {
+                  gross: {
+                    amount: bn(price).add(missingRoyalties).toString(),
+                  },
+                },
+                floorAskCurrency
+              )
           )
         ),
       },
@@ -423,7 +452,8 @@ export const getJoiOrderDepthObject = async (
   const scale = (value: number) => Number(value.toFixed(precisionDecimals));
 
   switch (kind) {
-    case "sudoswap": {
+    case "sudoswap":
+    case "sudoswap-v2": {
       const order = rawData as Sdk.Sudoswap.OrderParams;
       return Promise.all(
         order.extra.prices.map(async (price) => ({
@@ -565,8 +595,8 @@ export const getJoiOrderObject = async (order: {
   }
 
   const feeBreakdown = order.feeBreakdown;
-  let feeBps = Number(order.feeBps);
 
+  let feeBps = Number(order.feeBps);
   if (order.normalizeRoyalties && order.missingRoyalties) {
     for (let i = 0; i < order.missingRoyalties.length; i++) {
       const index: number = order.feeBreakdown.findIndex(
@@ -593,6 +623,7 @@ export const getJoiOrderObject = async (order: {
     : order.side === "sell"
     ? Sdk.Common.Addresses.Eth[config.chainId]
     : Sdk.Common.Addresses.Weth[config.chainId];
+
   return {
     id: order.id,
     kind: order.kind,
@@ -653,6 +684,10 @@ export const getJoiOrderObject = async (order: {
     createdAt: new Date(order.createdAt * 1000).toISOString(),
     updatedAt: new Date(order.updatedAt * 1000).toISOString(),
     rawData: order.includeRawData ? order.rawData : undefined,
+    isNativeOffChainCancellable: order.includeRawData
+      ? (order.rawData as any).zone ===
+        Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
+      : undefined,
     depth: order.includeDepth
       ? await getJoiOrderDepthObject(
           order.kind,
@@ -671,7 +706,7 @@ export const getJoiActivityOrderObject = async (order: {
   id: string | null;
   side: string | null;
   sourceIdInt: number | null | undefined;
-  criteria: Record<string, unknown> | null;
+  criteria: Record<string, unknown> | null | undefined;
 }) => {
   const sources = await Sources.getInstance();
   const orderSource = order.sourceIdInt ? sources.get(order.sourceIdInt) : undefined;
@@ -699,8 +734,8 @@ export const JoiFeeBreakdown = Joi.object({
 });
 
 export const JoiSale = Joi.object({
-  id: Joi.string(),
-  saleId: Joi.string(),
+  id: Joi.string().description("Deprecated. Use `saleId` instead."),
+  saleId: Joi.string().description("Unique identifier made from txn hash, price, etc."),
   token: Joi.object({
     contract: Joi.string().lowercase().pattern(regex.address),
     tokenId: Joi.string().pattern(regex.number),
@@ -712,7 +747,7 @@ export const JoiSale = Joi.object({
     }),
   }).optional(),
   orderSource: Joi.string().allow("", null).optional(),
-  orderSide: Joi.string().valid("ask", "bid").optional(),
+  orderSide: Joi.string().valid("ask", "bid").optional().description("Can be `ask` or `bid`."),
   orderKind: Joi.string().optional(),
   orderId: Joi.string().allow(null).optional(),
   from: Joi.string().lowercase().pattern(regex.address).optional(),
@@ -723,16 +758,19 @@ export const JoiSale = Joi.object({
   txHash: Joi.string().lowercase().pattern(regex.bytes32).optional(),
   logIndex: Joi.number().optional(),
   batchIndex: Joi.number().optional(),
-  timestamp: Joi.number(),
+  timestamp: Joi.number().description("Time added on the blockchain"),
   price: JoiPrice,
   washTradingScore: Joi.number().optional(),
   royaltyFeeBps: Joi.number().optional(),
   marketplaceFeeBps: Joi.number().optional(),
   paidFullRoyalty: Joi.boolean().optional(),
-  feeBreakdown: Joi.array().items(JoiFeeBreakdown).optional(),
+  feeBreakdown: Joi.array()
+    .items(JoiFeeBreakdown)
+    .optional()
+    .description("`kind` can be `marketplace` or `royalty`"),
   isDeleted: Joi.boolean().optional(),
-  createdAt: Joi.string().optional(),
-  updatedAt: Joi.string().optional(),
+  createdAt: Joi.string().optional().description("Time when added to indexer"),
+  updatedAt: Joi.string().optional().description("Time when updated in indexer"),
 });
 
 export const feeInfoIsValid = (
@@ -919,3 +957,13 @@ export const getJoiSaleObject = async (sale: {
     updatedAt: sale.updatedAt,
   };
 };
+
+// --- Fees ---
+
+export const JoiExecuteFee = Joi.object({
+  kind: Joi.string(),
+  recipient: Joi.string().pattern(regex.address),
+  bps: Joi.number().unsafe(),
+  amount: Joi.number().unsafe(),
+  rawAmount: Joi.string().pattern(regex.number),
+});

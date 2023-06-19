@@ -17,6 +17,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
     {
       contract: string;
       from: string;
+      to: string;
       tokenId: string;
       amount: string;
       baseEventParams: BaseEventParams;
@@ -85,6 +86,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             tokenId,
             mintedTimestamp: baseEventParams.timestamp,
           });
+          onChainData.mints.push({
+            txHash: baseEventParams.txHash,
+          });
 
           if (!ns.mintsAsSalesBlacklist.includes(baseEventParams.address)) {
             if (!mintedTokens.has(baseEventParams.txHash)) {
@@ -94,6 +98,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               contract: baseEventParams.address,
               tokenId,
               from,
+              to,
               amount,
               baseEventParams,
             });
@@ -163,6 +168,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               tokenId: tokenIds[i],
               mintedTimestamp: baseEventParams.timestamp,
             });
+            onChainData.mints.push({
+              txHash: baseEventParams.txHash,
+            });
 
             if (!ns.mintsAsSalesBlacklist.includes(baseEventParams.address)) {
               if (!mintedTokens.has(baseEventParams.txHash)) {
@@ -173,6 +181,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 tokenId: tokenIds[i],
                 amount: amounts[i],
                 from,
+                to,
                 baseEventParams,
               });
             }
@@ -228,7 +237,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         onChainData.fillEvents.push({
           orderKind,
           orderSide: "sell",
-          taker: tx.from,
+          taker: mint.to,
           maker: mint.from,
           amount: mint.amount,
           currency,

@@ -25,7 +25,7 @@ export class Exchange {
 
   // --- Sign order ---
 
-  private hash(order: Types.LocalOrder): string {
+  public hash(order: Types.LocalOrder): string {
     return keccak256(
       defaultAbiCoder.encode(
         [

@@ -26,6 +26,8 @@ export type TokensEntityUpdateParams = {
   isFlagged?: number;
   lastFlagUpdate?: string;
   lastFlagChange?: string;
+  supply?: number;
+  remainingSupply?: number;
 };
 
 // Define the fields need to instantiate the entity

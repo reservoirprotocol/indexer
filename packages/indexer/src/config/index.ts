@@ -2,6 +2,7 @@ export const config = {
   version: String(process.env.VERSION),
   port: Number(process.env.PORT),
   chainId: Number(process.env.CHAIN_ID),
+  environment: String(process.env.ENVIRONMENT),
 
   adminApiKey: String(process.env.ADMIN_API_KEY),
   bullmqAdminPassword: String(process.env.BULLMQ_ADMIN_PASSWORD),
@@ -28,9 +29,6 @@ export const config = {
       "opensea"
   ),
   metadataApiBaseUrl: String(process.env.METADATA_API_BASE_URL),
-  metadataApiBaseUrlAlt: String(
-    process.env.METADATA_API_BASE_URL_ALT || process.env.METADATA_API_BASE_URL
-  ),
 
   disableRealtimeMetadataRefresh: Boolean(Number(process.env.DISABLE_REALTIME_METADATA_REFRESH)),
 
@@ -43,6 +41,8 @@ export const config = {
   rateLimitRedisUrl: String(process.env.RATE_LIMIT_REDIS_URL || process.env.REDIS_URL),
   redisWebsocketUrl: String(process.env.REDIS_WEBSOCKET_URL || process.env.REDIS_URL),
   metricsRedisUrl: String(process.env.METRICS_REDIS_URL || process.env.REDIS_URL),
+  orderbookRedisUrl: String(process.env.ORDERSBOOK_REDIS_URL || process.env.REDIS_URL),
+  allChainsSyncRedisUrl: String(process.env.ALL_CHAINS_SYNC_REDIS_URL || process.env.REDIS_URL),
   redshiftUrl: String(process.env.REDSHIFT_URL),
 
   master: Boolean(Number(process.env.MASTER)),
@@ -52,6 +52,17 @@ export const config = {
   doWebsocketServerWork: Boolean(Number(process.env.DO_WEBSOCKET_SERVER_WORK)),
   doEventsSyncBackfill: Boolean(Number(process.env.DO_EVENTS_SYNC_BACKFILL)),
   disableOrders: Boolean(Number(process.env.DISABLE_ORDERS)),
+
+  // for kafka
+  doKafkaWork: Boolean(Number(process.env.DO_KAFKA_WORK)),
+  kafkaPartitionsConsumedConcurrently: Number(process.env.KAFKA_PARTITIONS_CONSUMED_CONCURRENTLY),
+  kafkaConsumerGroupId: String(process.env.KAFKA_CONSUMER_GROUP_ID),
+  kafkaBrokers: String(process.env.KAFKA_BROKERS).split(","),
+  kafkaClientId: String(process.env.KAFKA_CLIENT_ID),
+  kafkaMaxBytesPerPartition: Number(process.env.KAFKA_MAX_BYTES_PER_PARTITION),
+
+  // for testing order websocket triggers
+  doOldOrderWebsocketWork: Boolean(Number(process.env.DO_OLD_ORDER_WEBSOCKET_WORK)),
 
   maxTokenSetSize: 100000,
 
@@ -68,13 +79,6 @@ export const config = {
     ? String(process.env.DATA_EXPORT_S3_ARCHIVE_BUCKET_NAME)
     : undefined,
 
-  openseaWebsocketEventsAwsFirehoseDeliveryStreamName: String(
-    process.env.OPENSEA_WEBSOCKET_EVENTS_AWS_FIREHOSE_DELIVERY_STREAM_NAME
-  ),
-  openseaWebsocketEventsAwsFirehoseDeliveryStreamRegion: String(
-    process.env.OPENSEA_WEBSOCKET_EVENTS_AWS_FIREHOSE_DELIVERY_STREAM_REGION
-  ),
-
   // For forwarding orders to OpenSea
   forwardOpenseaApiKey: String(process.env.FORWARD_OPENSEA_API_KEY),
   forwardReservoirApiKeys: process.env.FORWARD_RESERVOIR_API_KEYS
@@ -83,12 +87,10 @@ export const config = {
 
   looksRareApiKey: String(process.env.LOOKSRARE_API_KEY),
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
+  openSeaApiUrl: String(process.env.OPENSEA_API_URL || ""),
+
   openSeaCrossPostingApiKey: String(
     process.env.OPENSEA_CROSS_POSTING_API_KEY || process.env.OPENSEA_API_KEY
-  ),
-  openSeaCrossPostingApiUrl: String(process.env.OPENSEA_CROSS_POSTING_API_URL || ""),
-  openSeaCrossPostingApiKeyHeader: String(
-    process.env.OPENSEA_CROSS_POSTING_API_HEADER || "X-Api-Key"
   ),
 
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
@@ -100,7 +102,6 @@ export const config = {
   blurWsUrl: process.env.BLUR_WS_URL,
 
   orderFetcherBaseUrl: String(process.env.ORDER_FETCHER_BASE_URL),
-  railwayStaticUrl: String(process.env.RAILWAY_STATIC_URL || ""),
 
   cipherSecret: String(process.env.CIPHER_SECRET),
 
@@ -114,9 +115,23 @@ export const config = {
   ),
 
   // Backfilling
+  doFtTransfersWrite: Boolean(Number(process.env.DO_FT_TRANSFERS_WRITE)),
   doNftTransfersWrite: Boolean(Number(process.env.DO_NFT_TRANSFERS_WRITE)),
   doProcessBackfilling: Boolean(Number(process.env.DO_PROCESS_BACKFILLING)),
   doProcessRealtime: Boolean(Number(process.env.DO_PROCESS_REALTIME)),
 
   enableDebug: Boolean(Number(process.env.ENABLE_DEBUG)),
+
+  // Elasticsearch
+  elasticsearchUrl: String(process.env.ELASTICSEARCH_URL || ""),
+  doElasticsearchWork: Boolean(Number(process.env.DO_ELASTICSEARCH_WORK)),
+  enableElasticsearchRead: Boolean(Number(process.env.ENABLE_ELASTICSEARCH_READ)),
+
+  // realtime v2
+  enableRealtimeProcessing: Boolean(process.env.ENABLE_REALTIME_PROCESSING),
+  enableRealtimeV2BlockQueue: Boolean(process.env.ENABLE_REALTIME_V2_BLOCK_QUEUE),
+
+  // RabbitMq
+  rabbitMqUrl: `amqp://${String(process.env.RABBIT_URL)}:5672`,
+  rabbitHttpUrl: `http://${String(process.env.RABBIT_URL)}:15672`,
 };

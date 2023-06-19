@@ -18,7 +18,8 @@ export const getBidEventsV3Options: RouteOptions = {
     expiresIn: 5000,
   },
   description: "Bid status changes",
-  notes: "Get updates any time a bid status changes",
+  notes:
+    "Every time a bid of a collection or token changes (i.e. the ‘offer’), an event is generated. This API is designed to be polled at high frequency, in order to keep an external system in sync with accurate prices for any token.\n\nThere are multiple event types, which describe what caused the change in price:\n\n- `new-order` > new offer at a lower price\n\n- `expiry` > the previous best offer expired\n\n- `sale` > the previous best offer was filled\n\n- `cancel` > the previous best offer was canceled\n\n- `balance-change` > the best offer was invalidated due to no longer owning the NFT\n\n- `approval-change` > the best offer was invalidated due to revoked approval\n\n- `revalidation` > manual revalidation of orders (e.g. after a bug fixed)\n\n- `reprice` > price update for dynamic orders (e.g. dutch auctions)\n\n- `bootstrap` > initial loading of data, so that all tokens have a price associated\n\nSome considerations to keep in mind\n\n- Selling a partial quantity of available 1155 tokens in a listing will generate a `sale` and will have a new quantity.\n\n- Due to the complex nature of monitoring off-chain liquidity across multiple marketplaces, including dealing with block re-orgs, events should be considered 'relative' to the perspective of the indexer, ie _when they were discovered_, rather than _when they happened_. A more deterministic historical record of price changes is in development, but in the meantime, this method is sufficent for keeping an external system in sync with the best available prices.\n\n- Events are only generated if the best bid changes. So if a new bid happens without changing the best bid, no event is generated. This is more common with 1155 tokens, which have multiple owners and more depth. For this reason, if you need sales data, use the Sales API.",
   tags: ["api", "Events"],
   plugins: {
     "hapi-swagger": {
@@ -54,7 +55,7 @@ export const getBidEventsV3Options: RouteOptions = {
         .min(1)
         .max(1000)
         .default(50)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned in response. Max limit is 1000."),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
@@ -69,19 +70,25 @@ export const getBidEventsV3Options: RouteOptions = {
       events: Joi.array().items(
         Joi.object({
           bid: Joi.object({
-            id: Joi.string(),
-            status: Joi.string(),
+            id: Joi.string().description("Order Id"),
+            status: Joi.string().description(
+              "Can return `active`,  inactive`, `expired`, `canceled`, or `filled`."
+            ),
             contract: Joi.string().lowercase().pattern(regex.address),
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             price: JoiPrice.allow(null),
-            quantityRemaining: Joi.number().unsafe(),
+            quantityRemaining: Joi.number()
+              .unsafe()
+              .description("With ERC1155s, quantity can be higher than 1"),
             nonce: Joi.string().pattern(regex.number).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
             rawData: Joi.object(),
             kind: Joi.string(),
             source: Joi.string().allow("", null),
-            criteria: JoiOrderCriteria.allow(null),
+            criteria: JoiOrderCriteria.allow(null).description(
+              "`kind` can return `token`, `collection`, or `attribute`."
+            ),
           }),
           event: Joi.object({
             id: Joi.number().unsafe(),
@@ -97,8 +104,8 @@ export const getBidEventsV3Options: RouteOptions = {
               "reprice"
             ),
             txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null),
-            txTimestamp: Joi.number().allow(null),
-            createdAt: Joi.string(),
+            txTimestamp: Joi.number().allow(null).description("Time when added on the blockchain."),
+            createdAt: Joi.string().description("Time when added to indexer"),
           }),
         })
       ),
@@ -168,7 +175,7 @@ export const getBidEventsV3Options: RouteOptions = {
         FROM bid_events
         ${
           joinWithOrders
-            ? `LEFT JOIN LATERAL (
+            ? `JOIN LATERAL (
                 SELECT
                   orders.currency AS order_currency,
                   orders.currency_price AS order_currency_price,

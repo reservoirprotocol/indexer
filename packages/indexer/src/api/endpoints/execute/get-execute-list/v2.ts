@@ -291,7 +291,9 @@ export const getExecuteListV2Options: RouteOptions = {
           // Check the order's fillability
           const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
           try {
-            await seaportCheck.offChainCheck(order, exchange, { onChainApprovalRecheck: true });
+            await seaportCheck.offChainCheck(order, "seaport", exchange, {
+              onChainApprovalRecheck: true,
+            });
           } catch (error: any) {
             switch (error.message) {
               case "no-balance-no-approval":

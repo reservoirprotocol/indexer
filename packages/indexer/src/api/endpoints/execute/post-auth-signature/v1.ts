@@ -31,7 +31,7 @@ export const postAuthSignatureV1Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
-      message: Joi.string(),
+      auth: Joi.string(),
     }).label(`postAuthSignature${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
       logger.error(`post-auth-signature-${version}-handler`, `Wrong response schema: ${error}`);
@@ -56,6 +56,15 @@ export const postAuthSignatureV1Options: RouteOptions = {
             query.signature
           ).toLowerCase();
           if (recoveredSigner !== authChallenge.walletAddress.toLowerCase()) {
+            logger.error(
+              "blur-auth-challenge-signature",
+              JSON.stringify({
+                recoveredSigner,
+                walletAddress: authChallenge.walletAddress.toLowerCase(),
+                authChallenge,
+                signature: query.signature,
+              })
+            );
             throw Boom.badRequest("Invalid auth challenge signature");
           }
 
@@ -80,7 +89,7 @@ export const postAuthSignatureV1Options: RouteOptions = {
               60
           );
 
-          break;
+          return { auth: await b.getAuth(authId).then((a) => a?.accessToken) };
         }
 
         case "opensea": {
@@ -111,11 +120,9 @@ export const postAuthSignatureV1Options: RouteOptions = {
             24 * 59 * 60
           );
 
-          break;
+          return { auth: await o.getAuth(authId).then((a) => a?.authorization) };
         }
       }
-
-      return { message: "Success" };
     } catch (error) {
       logger.error(`post-auth-signature-${version}-handler`, `Handler failure: ${error}`);
       throw error;

@@ -38,8 +38,6 @@ if (config.doBackgroundWork) {
       await idb.none(query, {
         collection,
       });
-
-      logger.info(QUEUE_NAME, `Updated token count for collection ${collection}`);
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );

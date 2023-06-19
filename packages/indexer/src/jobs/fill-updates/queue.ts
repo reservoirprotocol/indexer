@@ -32,8 +32,6 @@ if (config.doBackgroundWork) {
         job.data as FillInfo;
 
       try {
-        logger.info(QUEUE_NAME, `Updating last sale info: ${JSON.stringify(job.data)}`);
-
         if (orderId) {
           const result = await idb.oneOrNone(
             `
@@ -69,26 +67,21 @@ if (config.doBackgroundWork) {
           }
         }
 
-        // TODO: Remove condition after deployment.
-        if (maker && taker) {
-          logger.info(QUEUE_NAME, `Updating nft balance last sale. ${JSON.stringify(job.data)}`);
-
-          await idb.none(
-            `
+        await idb.none(
+          `
                 UPDATE nft_balances SET
                   last_token_appraisal_value = $/price/
                 WHERE contract = $/contract/
                 AND token_id = $/tokenId/
                 AND owner = $/owner/
               `,
-            {
-              contract: toBuffer(contract),
-              tokenId,
-              owner: orderSide === "sell" ? toBuffer(taker) : toBuffer(maker),
-              price: bn(price).div(amount).toString(),
-            }
-          );
-        }
+          {
+            contract: toBuffer(contract),
+            tokenId,
+            owner: orderSide === "sell" ? toBuffer(taker) : toBuffer(maker),
+            price: bn(price).div(amount).toString(),
+          }
+        );
 
         await idb.none(
           `
@@ -141,8 +134,8 @@ export type FillInfo = {
   amount: string;
   price: string;
   timestamp: number;
-  maker?: string;
-  taker?: string;
+  maker: string;
+  taker: string;
 };
 
 export const addToQueue = async (fillInfos: FillInfo[]) => {

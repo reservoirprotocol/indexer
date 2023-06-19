@@ -10,7 +10,8 @@ import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import * as orders from "@/orderbook/orders";
 
-import * as postOrderExternal from "@/jobs/orderbook/post-order-external";
+import * as postOrderExternalOpensea from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-queue";
+
 import * as crossPostingOrdersModel from "@/models/cross-posting-orders";
 
 const version = "v2";
@@ -201,7 +202,7 @@ export const postOrderV2Options: RouteOptions = {
               rawData: order.data,
             } as crossPostingOrdersModel.CrossPostingOrder);
 
-            await postOrderExternal.addToQueue({
+            await postOrderExternalOpensea.addToQueue({
               crossPostingOrderId: crossPostingOrder.id,
               orderId,
               orderData: order.data,

@@ -3,10 +3,17 @@ import { Provider } from "@ethersproject/abstract-provider";
 import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
 import { parseEther } from "@ethersproject/units";
+import axios from "axios";
 
+import * as Addresses from "./addresses";
 import * as Common from "../common";
 import { bn } from "../utils";
-import * as Addresses from "./addresses";
+
+const ZEROEX_ENDPOINT = "https://api.0x.org";
+// TODO: Pass via an environment variable
+const ZEROEX_API_KEY = "e519f152-3749-49ea-a8f3-2964bb0f90ac";
+
+const UNIT = parseEther("1");
 
 export const getPoolFeatures = async (address: string, provider: Provider) => {
   const iface = new Interface([
@@ -59,12 +66,11 @@ export const getPoolPrice = async (
 
   const localAmount = parseEther(amount.toString());
   const fees = await getPoolFees(vault, provider);
-  const unit = parseEther("1");
 
   if (side === "buy") {
     const path = [weth, vault];
     const amounts = await sushiRouter.getAmountsIn(
-      localAmount.add(localAmount.mul(fees.redeemFee).div(unit)),
+      localAmount.add(localAmount.mul(fees.redeemFee).div(UNIT)),
       path
     );
 
@@ -80,7 +86,7 @@ export const getPoolPrice = async (
   } else {
     const path = [vault, weth];
     const amounts = await sushiRouter.getAmountsOut(
-      localAmount.sub(localAmount.mul(fees.mintFee).div(unit)),
+      localAmount.sub(localAmount.mul(fees.mintFee).div(UNIT)),
       path
     );
 
@@ -90,6 +96,76 @@ export const getPoolPrice = async (
     }
 
     return {
+      feeBps: bn(fees.mintFee).div("100000000000000").toString(),
+      price: price.toString(),
+    };
+  }
+};
+
+export const getPoolPriceFrom0x = async (
+  vault: string,
+  amount: number,
+  side: "sell" | "buy",
+  slippage: number,
+  provider: Provider
+): Promise<{
+  feeBps: BigNumberish;
+  price: BigNumberish;
+  swapCallData: string;
+}> => {
+  const chainId = await provider.getNetwork().then((n) => n.chainId);
+  const weth = Common.Addresses.Weth[chainId];
+  const localAmount = parseEther(amount.toString());
+  const fees = await getPoolFees(vault, provider);
+
+  if (side === "buy") {
+    const params = {
+      buyToken: vault,
+      sellToken: weth,
+      slippagePercentage: (slippage / 100000).toString(),
+      buyAmount: localAmount.add(localAmount.mul(fees.redeemFee).div(UNIT)).toString(),
+    };
+    const { data } = await axios.get(`${ZEROEX_ENDPOINT}/swap/v1/quote`, {
+      params,
+      headers: {
+        "0x-api-key": ZEROEX_API_KEY,
+      },
+    });
+
+    // Useful reference:
+    // https://github.com/NFTX-project/nftxjs/blob/aae44048d078626ac14b40d5cd1fde60323816b7/packages/trade/src/trade/buy/buy.ts#L143-L147
+
+    let price = parseEther(data.guaranteedPrice).mul(params.buyAmount).div(UNIT);
+    if (slippage) {
+      price = bn(price).add(bn(price).mul(slippage).div(100000));
+    }
+
+    return {
+      swapCallData: data.data,
+      feeBps: bn(fees.redeemFee).div("100000000000000").toString(),
+      price: price.toString(),
+    };
+  } else {
+    const params = {
+      buyToken: weth,
+      sellToken: vault,
+      slippagePercentage: (slippage / 100000).toString(),
+      sellAmount: localAmount.sub(localAmount.mul(fees.mintFee).div(UNIT)).toString(),
+    };
+    const { data } = await axios.get(`${ZEROEX_ENDPOINT}/swap/v1/quote`, {
+      params,
+      headers: {
+        "0x-api-key": ZEROEX_API_KEY,
+      },
+    });
+
+    let price = parseEther(data.guaranteedPrice).mul(params.sellAmount);
+    if (slippage) {
+      price = bn(price).sub(bn(price).mul(slippage).div(100000));
+    }
+
+    return {
+      swapCallData: data.data,
       feeBps: bn(fees.mintFee).div("100000000000000").toString(),
       price: price.toString(),
     };

@@ -17,7 +17,7 @@ const version = "v2";
 export const getTokenStatusOracleV2Options: RouteOptions = {
   description: "Token status oracle",
   notes:
-    "Get a signed message of a token's details (flagged status and last transfer time). The oracle's address is 0xAeB1D03929bF87F69888f381e73FBf75753d75AF.",
+    "Get a signed message of a token's details (flagged status and last transfer time). The oracle's address is 0xAeB1D03929bF87F69888f381e73FBf75753d75AF. The address is the same for all chains.",
   tags: ["api", "Oracle"],
   plugins: {
     "hapi-swagger": {
@@ -190,7 +190,9 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
 
       return { messages };
     } catch (error) {
-      logger.error(`get-token-status-oracle-${version}-handler`, `Handler failure: ${error}`);
+      if (!(error instanceof Boom.Boom)) {
+        logger.error(`get-token-status-oracle-${version}-handler`, `Handler failure: ${error}`);
+      }
       throw error;
     }
   },

@@ -29,7 +29,8 @@ const version = "v4";
 
 export const getUserTopBidsV4Options: RouteOptions = {
   description: "User Top Bids",
-  notes: "Return the top bids for the given user tokens",
+  notes:
+    "Return the top bids for the given user tokens. Please mark `excludeEOA` as `true` to exclude Blur orders.",
   tags: ["api", "Orders"],
   plugins: {
     "hapi-swagger": {
@@ -58,7 +59,9 @@ export const getUserTopBidsV4Options: RouteOptions = {
         .description("Filter to a particular community. Example: `artblocks`"),
       collectionsSetId: Joi.string()
         .lowercase()
-        .description("Filter to a particular collection set."),
+        .description(
+          "Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
+        ),
       optimizeCheckoutURL: Joi.boolean()
         .default(false)
         .description(
@@ -84,52 +87,62 @@ export const getUserTopBidsV4Options: RouteOptions = {
       sortBy: Joi.string()
         .valid("topBidValue", "dateCreated", "orderExpiry", "floorDifferencePercentage")
         .default("topBidValue")
-        .description("Order of the items are returned in the response."),
+        .description(
+          "Order of the items are returned in the response. Options are `topBidValue`, `dateCreated`, `orderExpiry`, and `floorDifferencePercentage`."
+        ),
       sortDirection: Joi.string().lowercase().valid("asc", "desc").default("desc"),
       limit: Joi.number()
         .integer()
         .min(1)
         .max(100)
         .default(20)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned in response. Max limit is 100"),
       sampleSize: Joi.number()
         .integer()
         .min(1000)
         .max(100000)
         .default(10000)
-        .description("Amount of tokens considered."),
+        .description("Amount of tokens considered. Min is 1000, max is default."),
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Return result in given currency"),
+        .description("Input any ERC20 address to return result in given currency"),
     }).oxor("collection", "collectionsSetId"),
   },
   response: {
     schema: Joi.object({
-      totalTokensWithBids: Joi.number(),
-      totalAmount: Joi.number(),
+      totalTokensWithBids: Joi.number().description("Amount of token with bids."),
+      totalAmount: Joi.number().description(
+        "Amount of currency from all token bids; native currency unless `displayCurrency` passed"
+      ),
       topBids: Joi.array().items(
         Joi.object({
           id: Joi.string(),
-          price: JoiPrice,
+          price: JoiPrice.description(
+            "Return native currency unless displayCurrency contract was passed."
+          ),
           maker: Joi.string()
             .lowercase()
             .pattern(/^0x[a-fA-F0-9]{40}$/),
-          createdAt: Joi.string(),
+          createdAt: Joi.string().description("Time when added to indexer"),
           validFrom: Joi.number().unsafe(),
           validUntil: Joi.number().unsafe(),
-          floorDifferencePercentage: Joi.number().unsafe(),
+          floorDifferencePercentage: Joi.number()
+            .unsafe()
+            .description("Percentage difference between this bid and the current floor price."),
           source: Joi.object().allow(null),
           feeBreakdown: Joi.array()
             .items(
               Joi.object({
-                kind: Joi.string(),
+                kind: Joi.string().description("Can be marketplace or royalty"),
                 recipient: Joi.string().allow("", null),
                 bps: Joi.number(),
               })
             )
             .allow(null),
-          criteria: JoiOrderCriteria.allow(null),
+          criteria: JoiOrderCriteria.allow(null).description(
+            "Kind can be token, collection, or attribute"
+          ),
           token: Joi.object({
             contract: Joi.string(),
             tokenId: Joi.string(),
@@ -141,7 +154,9 @@ export const getUserTopBidsV4Options: RouteOptions = {
               id: Joi.string().allow(null),
               name: Joi.string().allow("", null),
               imageUrl: Joi.string().allow(null),
-              floorAskPrice: JoiPrice.allow(null),
+              floorAskPrice: JoiPrice.allow(null).description(
+                "Native currency to chain unless displayCurrency is passed."
+              ),
             }),
           }),
         })

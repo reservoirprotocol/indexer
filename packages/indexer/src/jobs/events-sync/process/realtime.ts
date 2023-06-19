@@ -1,12 +1,12 @@
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
+import _ from "lodash";
+import cron from "node-cron";
 
 import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import { EventsBatch, processEventsBatch } from "@/events-sync/handlers";
-import cron from "node-cron";
-import _ from "lodash";
 
 const QUEUE_NAME = "events-sync-process-realtime";
 
@@ -28,7 +28,7 @@ new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate(), maxStalledCount:
 // BACKGROUND WORKER ONLY
 if (
   config.doBackgroundWork &&
-  (_.includes([137, 42161, 10], config.chainId) ? config.doProcessRealtime : true)
+  (_.includes([137, 42161, 10, 56], config.chainId) ? config.doProcessRealtime : true)
 ) {
   const worker = new Worker(
     QUEUE_NAME,
@@ -55,7 +55,7 @@ if (
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: config.chainId === 137 ? 10 : 20 }
+    { connection: redis.duplicate(), concurrency: 20 }
   );
 
   worker.on("error", (error) => {

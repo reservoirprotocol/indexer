@@ -10,6 +10,8 @@ import { CollectionSets } from "@/models/collection-sets";
 import { Assets } from "@/utils/assets";
 import { Sources } from "@/models/sources";
 import { getJoiPriceObject, JoiPrice } from "@/common/joi";
+import * as Sdk from "@reservoir0x/sdk";
+import { config } from "@/config/index";
 
 const version = "v3";
 
@@ -39,7 +41,9 @@ export const getUserCollectionsV3Options: RouteOptions = {
         .description("Filter to a particular community. Example: `artblocks`"),
       collectionsSetId: Joi.string()
         .lowercase()
-        .description("Filter to a particular collection set."),
+        .description(
+          "Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
+        ),
       collection: Joi.string()
         .lowercase()
         .description(
@@ -56,17 +60,17 @@ export const getUserCollectionsV3Options: RouteOptions = {
         .min(0)
         .max(10000)
         .default(0)
-        .description("Use offset to request the next batch of items."),
+        .description("Use offset to request the next batch of items. Max is 10,000."),
       limit: Joi.number()
         .integer()
         .min(1)
         .max(100)
         .default(20)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned in response. max limit is 100."),
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Return result in given currency"),
+        .description("Input any ERC20 address to return result in given currency."),
     }),
   },
   response: {
@@ -74,7 +78,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
       collections: Joi.array().items(
         Joi.object({
           collection: Joi.object({
-            id: Joi.string(),
+            id: Joi.string().description("Collection Id"),
             slug: Joi.string().allow("", null),
             name: Joi.string().allow("", null),
             image: Joi.string().allow("", null),
@@ -85,13 +89,15 @@ export const getUserCollectionsV3Options: RouteOptions = {
             openseaVerificationStatus: Joi.string().allow("", null),
             description: Joi.string().allow("", null),
             sampleImages: Joi.array().items(Joi.string().allow("", null)),
-            tokenCount: Joi.string(),
+            tokenCount: Joi.string().description("Total token count"),
             tokenSetId: Joi.string().allow(null),
             primaryContract: Joi.string()
               .lowercase()
               .pattern(/^0x[a-fA-F0-9]{40}$/),
-            floorAskPrice: JoiPrice.allow(null),
-            topBidValue: JoiPrice.allow(null),
+            floorAskPrice: JoiPrice.allow(null).description("Current floor ask price"),
+            topBidValue: JoiPrice.allow(null).description(
+              "Top bid offer currently if offer is valid"
+            ),
             topBidMaker: Joi.string()
               .lowercase()
               .pattern(/^0x[a-fA-F0-9]{40}$/)
@@ -102,23 +108,25 @@ export const getUserCollectionsV3Options: RouteOptions = {
               "7day": Joi.number().unsafe().allow(null),
               "30day": Joi.number().unsafe().allow(null),
               allTime: Joi.number().unsafe().allow(null),
-            }),
+            }).description("Current rank based from overall volume"),
             volume: Joi.object({
               "1day": Joi.number().unsafe().allow(null),
               "7day": Joi.number().unsafe().allow(null),
               "30day": Joi.number().unsafe().allow(null),
               allTime: Joi.number().unsafe().allow(null),
-            }),
-            volumeChange: {
+            }).description("Total volume in given time period."),
+            volumeChange: Joi.object({
               "1day": Joi.number().unsafe().allow(null),
               "7day": Joi.number().unsafe().allow(null),
               "30day": Joi.number().unsafe().allow(null),
-            },
-            floorSale: {
+            }).description(
+              "Total volume change X-days vs previous X-days. (e.g. 7day [days 1-7] vs 7day prior [days 8-14])"
+            ),
+            floorSale: Joi.object({
               "1day": Joi.number().unsafe().allow(null),
               "7day": Joi.number().unsafe().allow(null),
               "30day": Joi.number().unsafe().allow(null),
-            },
+            }).description("The floor sale from X-days ago."),
           }),
           ownership: Joi.object({
             tokenCount: Joi.string(),
@@ -371,7 +379,9 @@ export const getUserCollectionsV3Options: RouteOptions = {
                     nativeAmount: String(r.top_buy_value),
                   },
                 },
-                fromBuffer(r.top_buy_currency),
+                r.top_buy_currency
+                  ? fromBuffer(r.top_buy_currency)
+                  : Sdk.Common.Addresses.Eth[config.chainId],
                 query.displayCurrency
               )
             : undefined;

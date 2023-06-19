@@ -9,13 +9,14 @@ import { config } from "@/config/index";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
 import MetadataApi from "@/utils/metadata-api";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import _ from "lodash";
 import {
   PendingRefreshTokensBySlug,
   RefreshTokenBySlug,
 } from "@/models/pending-refresh-tokens-by-slug";
 import { Tokens } from "@/models/tokens";
+import { Collections } from "@/models/collections";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 
 const QUEUE_NAME = "metadata-index-process-queue-by-slug";
 
@@ -35,30 +36,41 @@ export const queue = new Queue(QUEUE_NAME, {
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 async function addToTokenRefreshQueueAndUpdateCollectionMetadata(
-  method: string,
   refreshTokenBySlug: RefreshTokenBySlug
 ) {
-  logger.info(
-    QUEUE_NAME,
-    `Fallback. method=${method}, refreshTokenBySlug=${JSON.stringify(refreshTokenBySlug)}`
-  );
+  logger.info(QUEUE_NAME, `Fallback. refreshTokenBySlug=${JSON.stringify(refreshTokenBySlug)}`);
 
   const tokenId = await Tokens.getSingleToken(refreshTokenBySlug.collection);
-  await Promise.all([
-    metadataIndexFetch.addToQueue(
-      [
-        {
-          kind: "full-collection",
-          data: {
-            method,
-            collection: refreshTokenBySlug.collection,
+  const collection = await Collections.getById(refreshTokenBySlug.collection);
+
+  if (collection) {
+    const method = metadataIndexFetch.getIndexingMethod(collection.community);
+
+    await Promise.all([
+      metadataIndexFetch.addToQueue(
+        [
+          {
+            kind: "full-collection",
+            data: {
+              method,
+              collection: refreshTokenBySlug.collection,
+            },
           },
+        ],
+        true
+      ),
+      collectionMetadataQueueJob.addToQueue(
+        {
+          contract: refreshTokenBySlug.contract,
+          tokenId,
+          community: collection.community,
+          forceRefresh: false,
         },
-      ],
-      true
-    ),
-    collectionUpdatesMetadata.addToQueue(refreshTokenBySlug.contract, tokenId, method, 0),
-  ]);
+        0,
+        QUEUE_NAME
+      ),
+    ]);
+  }
 }
 
 // BACKGROUND WORKER ONLY
@@ -69,6 +81,7 @@ if (config.doBackgroundWork) {
       const method = "opensea";
       const count = 1; // Default number of tokens to fetch
       let retry = false;
+      job.data.addToQueue = false;
 
       const countTotal = config.maxParallelTokenCollectionSlugRefreshJobs * count;
 
@@ -95,7 +108,7 @@ if (config.doBackgroundWork) {
           );
           if (results.metadata.length === 0) {
             //  Slug might be missing or might be wrong.
-            await addToTokenRefreshQueueAndUpdateCollectionMetadata(method, refreshTokenBySlug);
+            await addToTokenRefreshQueueAndUpdateCollectionMetadata(refreshTokenBySlug);
             return;
           }
           if (results.continuation) {
@@ -168,16 +181,8 @@ if (config.doBackgroundWork) {
       // If there are potentially more tokens to process trigger another job
       if (rateLimitExpiredIn || _.size(refreshTokensBySlug) == countTotal || retry) {
         if (await extendLock(getLockName(method), 60 * 5 + rateLimitExpiredIn)) {
-          logger.info(
-            QUEUE_NAME,
-            `Debug. jobId=${job.id}, method=${method}, refreshTokensBySlugSize=${_.size(
-              refreshTokensBySlug
-            )}, metadata=${
-              metadata.length
-            }, rateLimitExpiredIn=${rateLimitExpiredIn}, retry=${retry}, countTotal=${countTotal}`
-          );
-
-          await addToQueue(rateLimitExpiredIn * 1000);
+          job.data.addToQueue = true;
+          job.data.addToQueueDelay = rateLimitExpiredIn * 1000;
         }
       } else {
         await releaseLock(getLockName(method));
@@ -188,6 +193,14 @@ if (config.doBackgroundWork) {
 
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
+  });
+
+  worker.on("completed", async (job) => {
+    logger.info(QUEUE_NAME, `Worker completed. JobData=${JSON.stringify(job.data)}`);
+
+    if (job.data.addToQueue) {
+      await addToQueue(job.data.addToQueueDelay);
+    }
   });
 }
 

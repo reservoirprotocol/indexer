@@ -6,6 +6,7 @@ import * as erc1155 from "@/events-sync/data/erc1155";
 
 import * as bendDao from "@/events-sync/data/bend-dao";
 import * as blur from "@/events-sync/data/blur";
+import * as collectionxyz from "@/events-sync/data/collectionxyz";
 import * as cryptoPunks from "@/events-sync/data/cryptopunks";
 import * as decentraland from "@/events-sync/data/decentraland";
 import * as element from "@/events-sync/data/element";
@@ -21,6 +22,7 @@ import * as quixotic from "@/events-sync/data/quixotic";
 import * as rarible from "@/events-sync/data/rarible";
 import * as seaport from "@/events-sync/data/seaport";
 import * as seaportV14 from "@/events-sync/data/seaport-v1.4";
+import * as seaportV15 from "@/events-sync/data/seaport-v1.5";
 import * as alienswap from "@/events-sync/data/alienswap";
 import * as sudoswap from "@/events-sync/data/sudoswap";
 import * as superrare from "@/events-sync/data/superrare";
@@ -35,6 +37,8 @@ import * as zeroExV3 from "@/events-sync/data/zeroex-v3";
 import * as zeroExV4 from "@/events-sync/data/zeroex-v4";
 import * as zora from "@/events-sync/data/zora";
 import * as looksRareV2 from "@/events-sync/data/looks-rare-v2";
+import * as blend from "@/events-sync/data/blend";
+import * as sudoswapV2 from "@/events-sync/data/sudoswap-v2";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -48,6 +52,7 @@ export type EventKind =
   | "erc1155"
   | "bend-dao"
   | "blur"
+  | "collectionxyz"
   | "cryptopunks"
   | "decentraland"
   | "element"
@@ -73,7 +78,9 @@ export type EventKind =
   | "zeroex-v3"
   | "zeroex-v4"
   | "zora"
-  | "looks-rare-v2";
+  | "looks-rare-v2"
+  | "blend"
+  | "sudoswap-v2";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -102,17 +109,24 @@ export type EventSubKind =
   | "foundation-buy-price-invalidated"
   | "foundation-buy-price-cancelled"
   | "foundation-buy-price-accepted"
+  | "foundation-offer-accepted"
   | "x2y2-order-cancelled"
   | "x2y2-order-inventory"
   | "seaport-order-cancelled"
   | "seaport-order-filled"
   | "seaport-counter-incremented"
   | "seaport-order-validated"
+  | "seaport-channel-updated"
   | "seaport-v1.4-order-cancelled"
   | "seaport-v1.4-order-filled"
   | "seaport-v1.4-orders-matched"
   | "seaport-v1.4-counter-incremented"
   | "seaport-v1.4-order-validated"
+  | "seaport-v1.5-order-cancelled"
+  | "seaport-v1.5-order-filled"
+  | "seaport-v1.5-orders-matched"
+  | "seaport-v1.5-counter-incremented"
+  | "seaport-v1.5-order-validated"
   | "alienswap-order-cancelled"
   | "alienswap-order-filled"
   | "alienswap-orders-matched"
@@ -160,6 +174,9 @@ export type EventSubKind =
   | "nftx-user-staked"
   | "nftx-swapped"
   | "nftx-swap"
+  | "nftx-swap-v3"
+  | "nftx-mint"
+  | "nftx-burn"
   | "nftx-vault-init"
   | "nftx-vault-shutdown"
   | "nftx-eligibility-deployed"
@@ -191,11 +208,52 @@ export type EventSubKind =
   | "zeroex-v2-fill"
   | "zeroex-v3-fill"
   | "treasure-item-sold"
+  | "treasure-bid-accepted"
   | "looks-rare-v2-new-bid-ask-nonces"
   | "looks-rare-v2-order-nonces-cancelled"
   | "looks-rare-v2-subset-nonces-cancelled"
   | "looks-rare-v2-taker-ask"
-  | "looks-rare-v2-taker-bid";
+  | "looks-rare-v2-taker-bid"
+  | "blend-loan-offer-taken"
+  | "blend-repay"
+  | "blend-refinance"
+  | "blend-buy-locked"
+  | "blend-nonce-incremented"
+  | "collectionxyz-new-pool"
+  | "collectionxyz-token-deposit"
+  | "collectionxyz-token-withdrawal"
+  | "collectionxyz-nft-deposit"
+  | "collectionxyz-nft-withdrawal"
+  | "collectionxyz-accrued-trade-fee-withdrawal"
+  | "collectionxyz-accepts-token-ids"
+  | "collectionxyz-swap-nft-in-pool"
+  | "collectionxyz-swap-nft-out-pool"
+  | "collectionxyz-spot-price-update"
+  | "collectionxyz-delta-update"
+  | "collectionxyz-props-update"
+  | "collectionxyz-state-update"
+  | "collectionxyz-royalty-numerator-update"
+  | "collectionxyz-royalty-recipient-fallback-update"
+  | "collectionxyz-external-filter-set"
+  | "collectionxyz-fee-update"
+  | "collectionxyz-protocol-fee-multiplier-update"
+  | "collectionxyz-carry-fee-multiplier-update"
+  | "collectionxyz-asset-recipient-change"
+  | "sudoswap-v2-sell-erc721"
+  | "sudoswap-v2-sell-erc1155"
+  | "sudoswap-v2-buy-erc721"
+  | "sudoswap-v2-buy-erc1155"
+  | "sudoswap-v2-token-deposit"
+  | "sudoswap-v2-token-withdrawal"
+  | "sudoswap-v2-nft-withdrawal-erc721"
+  | "sudoswap-v2-nft-withdrawal-erc1155"
+  | "sudoswap-v2-erc20-deposit"
+  | "sudoswap-v2-erc721-deposit"
+  | "sudoswap-v2-erc1155-deposit"
+  | "sudoswap-v2-spot-price-update"
+  | "sudoswap-v2-delta-update"
+  | "sudoswap-v2-new-erc721-pair"
+  | "sudoswap-v2-new-erc1155-pair";
 
 export type EventData = {
   kind: EventKind;
@@ -222,6 +280,7 @@ const allEventData = [
   foundation.buyPriceCancelled,
   foundation.buyPriceInvalidated,
   foundation.buyPriceSet,
+  foundation.offerAccepted,
   looksRare.cancelAllOrders,
   looksRare.cancelMultipleOrders,
   looksRare.takerAsk,
@@ -235,11 +294,17 @@ const allEventData = [
   seaport.orderCancelled,
   seaport.orderFulfilled,
   seaport.orderValidated,
+  seaport.channelUpdated,
   seaportV14.counterIncremented,
   seaportV14.orderCancelled,
   seaportV14.orderFulfilled,
   seaportV14.ordersMatched,
   seaportV14.orderValidated,
+  seaportV15.counterIncremented,
+  seaportV15.orderCancelled,
+  seaportV15.orderFulfilled,
+  seaportV15.ordersMatched,
+  seaportV15.orderValidated,
   alienswap.counterIncremented,
   alienswap.orderCancelled,
   alienswap.orderFulfilled,
@@ -294,6 +359,8 @@ const allEventData = [
   nftx.redeemed,
   nftx.swapped,
   nftx.swap,
+  nftx.mint,
+  nftx.burn,
   nftx.vaultInit,
   nftx.vaultShutdown,
   nftx.eligibilityDeployed,
@@ -325,6 +392,47 @@ const allEventData = [
   zeroExV2.fill,
   zeroExV3.fill,
   treasure.itemSold,
+  blend.buyLocked,
+  blend.loanOfferTaken,
+  blend.refinance,
+  blend.repay,
+  blend.nonceIncremented,
+  collectionxyz.acceptsTokenIds,
+  collectionxyz.accruedTradeFeeWithdrawal,
+  collectionxyz.assetRecipientChange,
+  collectionxyz.carryFeeMultiplierUpdate,
+  collectionxyz.deltaUpdate,
+  collectionxyz.externalFilterSet,
+  collectionxyz.feeUpdate,
+  collectionxyz.newPool,
+  collectionxyz.nftDeposit,
+  collectionxyz.nftWithdrawal,
+  collectionxyz.propsUpdate,
+  collectionxyz.protocolFeeMultiplierUpdate,
+  collectionxyz.royaltyNumeratorUpdate,
+  collectionxyz.royaltyRecipientFallbackUpdate,
+  collectionxyz.spotPriceUpdate,
+  collectionxyz.stateUpdate,
+  collectionxyz.swapNftInPool,
+  collectionxyz.swapNftOutPool,
+  collectionxyz.tokenDeposit,
+  collectionxyz.tokenWithdrawal,
+  sudoswapV2.buyERC1155,
+  sudoswapV2.buyERC721,
+  sudoswapV2.sellERC721,
+  sudoswapV2.sellERC1155,
+  sudoswapV2.tokenDeposit,
+  sudoswapV2.tokenWithdrawal,
+  sudoswapV2.nftWithdrawalERC721,
+  sudoswapV2.nftWithdrawalERC1155,
+  sudoswapV2.erc20Deposit,
+  sudoswapV2.erc721Deposit,
+  sudoswapV2.erc1155Deposit,
+  sudoswapV2.spotPriceUpdate,
+  sudoswapV2.deltaUpdate,
+  sudoswapV2.newERC721Pair,
+  sudoswapV2.newERC1155Pair,
+  treasure.bidAccepted,
 ];
 
 export const getEventData = (events?: string[]) => {

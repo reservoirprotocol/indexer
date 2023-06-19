@@ -67,7 +67,7 @@ if (config.doBackgroundWork) {
           const eventType = result.event_type as EventType;
           const eventData = JSON.parse(result.event_data);
 
-          const openSeaOrderParams = handleEvent(eventType, eventData.payload);
+          const openSeaOrderParams = await handleEvent(eventType, eventData.payload);
 
           if (openSeaOrderParams) {
             const protocolData = parseProtocolData(eventData.payload);
@@ -102,7 +102,7 @@ if (config.doBackgroundWork) {
 
       logger.info(QUEUE_NAME, `Processed ${results.length} records`);
 
-      if (results.length >= limit) {
+      if (results.length >= Number(limit)) {
         const lastResult = results[results.length - 1];
 
         logger.info(

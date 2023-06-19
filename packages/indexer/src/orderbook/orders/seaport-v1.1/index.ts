@@ -1,4 +1,4 @@
-import { AddressZero, HashZero } from "@ethersproject/constants";
+import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import { OrderKind } from "@reservoir0x/sdk/dist/seaport-base/types";
@@ -22,10 +22,11 @@ import * as tokenSet from "@/orderbook/token-sets";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
+import { isOpen } from "@/utils/seaport-conduits";
 
-import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/config";
+import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
 
 export type OrderInfo = {
   kind?: "full";
@@ -64,7 +65,8 @@ type SaveResult = {
 
 export const save = async (
   orderInfos: OrderInfo[],
-  validateBidValue?: boolean
+  validateBidValue?: boolean,
+  ingestMethod?: "websocket" | "rest"
 ): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
@@ -115,7 +117,9 @@ export const save = async (
         });
       }
 
-      if (![HashZero].includes(order.params.conduitKey)) {
+      if (
+        !(await isOpen(order.params.conduitKey, Sdk.SeaportV11.Addresses.Exchange[config.chainId]))
+      ) {
         return results.push({
           id,
           status: "unsupported-conduit",
@@ -221,7 +225,7 @@ export const save = async (
       let approvalStatus = "approved";
       const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
       try {
-        await offChainCheck(order, exchange, {
+        await offChainCheck(order, "seaport", exchange, {
           onChainApprovalRecheck: true,
           singleTokenERC721ApprovalCheck: metadata.fromOnChain,
         });
@@ -398,7 +402,7 @@ export const save = async (
       let feeAmount = order.getFeeAmount();
 
       // Handle: price and value
-      let price = bn(order.getMatchingPrice());
+      let price = bn(order.getMatchingPrice(Math.max(now(), startTime)));
       let value = price;
       if (info.side === "buy") {
         // For buy orders, we set the value as `price - fee` since it
@@ -761,6 +765,7 @@ export const save = async (
               trigger: {
                 kind: "new-order",
               },
+              ingestMethod,
             } as ordersUpdateById.OrderInfo)
         )
     );
@@ -826,13 +831,19 @@ const getCollection = async (
       );
 
       logger.info(
-        "orders-seaport-save-partial",
-        `Unknown Collection. orderId=${orderParams.hash}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, lockAcquired=${lockAcquired}`
+        "unknown-collection-slug",
+        JSON.stringify({
+          orderId: orderParams.hash,
+          contract: orderParams.contract,
+          collectionSlug: orderParams.collectionSlug,
+        })
       );
 
       if (lockAcquired) {
         // Try to refresh the contract collections metadata.
-        await refreshContractCollectionsMetadata.addToQueue(orderParams.contract);
+        await refreshContractCollectionsMetadataQueueJob.addToQueue({
+          contract: orderParams.contract,
+        });
       }
     }
 

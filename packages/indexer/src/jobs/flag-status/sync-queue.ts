@@ -10,10 +10,10 @@ import * as flagStatusGenerateCollectionTokenSet from "@/jobs/flag-status/genera
 import MetadataApi from "@/utils/metadata-api";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
-import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import { randomUUID } from "crypto";
 import _ from "lodash";
 import { TokensEntityUpdateParams } from "@/models/tokens/tokens-entity";
+import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
 
 const QUEUE_NAME = "flag-status-sync-queue";
 const LIMIT = 40;
@@ -97,7 +97,7 @@ if (config.doBackgroundWork) {
                   `Flag Status Diff. collectionId:${collectionId}, contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, tokenIsFlagged:${pendingSyncFlagStatusToken.isFlagged}, isFlagged:${isFlagged}`
                 );
 
-                await collectionUpdatesNonFlaggedFloorAsk.addToQueue([
+                await nonFlaggedFloorQueueJob.addToQueue([
                   {
                     kind: "revalidation",
                     contract,

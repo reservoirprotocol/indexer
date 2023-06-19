@@ -17,10 +17,12 @@ import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/util
 import { config } from "@/config/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { Sources } from "@/models/sources";
-import { generateBidDetailsV6, routerOnRecoverableError } from "@/orderbook/orders";
+import { generateBidDetailsV6 } from "@/orderbook/orders";
+import { fillErrorCallback, getExecuteError } from "@/orderbook/orders/errors";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
+import { ExecutionsBuffer } from "@/utils/executions";
 import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
 
 const version = "v6";
@@ -29,7 +31,7 @@ export const getExecuteSellV6Options: RouteOptions = {
   description: "Sell tokens (accept bids)",
   tags: ["api", "x-deprecated"],
   timeout: {
-    server: 20 * 1000,
+    server: 40 * 1000,
   },
   plugins: {
     "hapi-swagger": {
@@ -47,9 +49,8 @@ export const getExecuteSellV6Options: RouteOptions = {
             "looks-rare",
             "zeroex-v4",
             "seaport",
-            "seaport-partial",
             "seaport-v1.4",
-            "seaport-v1.4-partial",
+            "seaport-v1.5",
             "x2y2",
             "universe",
             "flow"
@@ -218,7 +219,8 @@ export const getExecuteSellV6Options: RouteOptions = {
                 orders.currency,
                 orders.missing_royalties,
                 orders.maker,
-                orders.token_set_id
+                orders.token_set_id,
+                orders.fee_bps
               FROM orders
               JOIN contracts
                 ON orders.contract = contracts.address
@@ -263,7 +265,8 @@ export const getExecuteSellV6Options: RouteOptions = {
                 orders.currency,
                 orders.missing_royalties,
                 orders.maker,
-                orders.token_set_id
+                orders.token_set_id,
+                orders.fee_bps
               FROM orders
               JOIN contracts
                 ON orders.contract = contracts.address
@@ -304,6 +307,12 @@ export const getExecuteSellV6Options: RouteOptions = {
       }
 
       const sources = await Sources.getInstance();
+
+      // Save the fill source if it doesn't exist yet
+      if (payload.source) {
+        await sources.getOrInsert(payload.source);
+      }
+
       const sourceId = orderResult.source_id_int;
       const source = sourceId ? sources.get(sourceId)?.domain ?? null : null;
 
@@ -343,7 +352,7 @@ export const getExecuteSellV6Options: RouteOptions = {
 
       // Partial Seaport orders require knowing the owner
       let owner: string | undefined;
-      if (["seaport-partial", "seaport-v1.4-partial"].includes(orderResult.kind)) {
+      if (["seaport-v1.4-partial", "seaport-v1.5-partial"].includes(orderResult.kind)) {
         const ownerResult = await idb.oneOrNone(
           `
             SELECT
@@ -373,10 +382,11 @@ export const getExecuteSellV6Options: RouteOptions = {
           rawData: orderResult.raw_data,
           source: source || undefined,
           fees,
+          builtInFeeBps: orderResult.fee_bps,
           isProtected:
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (orderResult.raw_data as any).zone ===
-            Sdk.SeaportV14.Addresses.OpenSeaProtectedOffersZone[config.chainId],
+            Sdk.SeaportBase.Addresses.OpenSeaProtectedOffersZone[config.chainId],
         },
         {
           kind: orderResult.token_kind,
@@ -388,9 +398,13 @@ export const getExecuteSellV6Options: RouteOptions = {
       );
 
       if (
-        ["x2y2", "seaport", "seaport-v1.4", "seaport-partial", "seaport-v1.4-partial"].includes(
-          bidDetails!.kind
-        )
+        [
+          "x2y2",
+          "seaport-v1.4",
+          "seaport-v1.5",
+          "seaport-v1.4-partial",
+          "seaport-v1.5-partial",
+        ].includes(bidDetails!.kind)
       ) {
         const tokenToSuspicious = await tryGetTokensSuspiciousStatus(
           tokenResult.last_flag_update < now() - 3600 ? [payload.token] : []
@@ -558,7 +572,7 @@ export const getExecuteSellV6Options: RouteOptions = {
 
       if (
         orderResult?.raw_data?.zone ===
-        Sdk.SeaportV14.Addresses.OpenSeaProtectedOffersZone[config.chainId]
+        Sdk.SeaportBase.Addresses.OpenSeaProtectedOffersZone[config.chainId]
       ) {
         // Ensure the taker owns the NFTs to get sold
         const takerIsOwner = await idb.oneOrNone(
@@ -599,20 +613,18 @@ export const getExecuteSellV6Options: RouteOptions = {
       try {
         result = await router.fillBidsTx([bidDetails!], payload.taker, {
           source: payload.source,
-          onRecoverableError: async (kind, error, data) => {
+          onError: async (kind, error, data) => {
             errors.push({
               orderId: data.orderId,
               message: error.response?.data ?? error.message,
             });
-            await routerOnRecoverableError(kind, error, data);
+            await fillErrorCallback(kind, error, data);
           },
           blurAuth,
         });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
-        const boomError = Boom.badRequest(error.message);
-        boomError.output.payload.errors = errors;
-        throw boomError;
+        throw getExecuteError(error.message, errors);
       }
 
       const { txs } = result;
@@ -739,6 +751,38 @@ export const getExecuteSellV6Options: RouteOptions = {
         steps = steps.slice(1);
       }
 
+      const executionsBuffer = new ExecutionsBuffer();
+      for (const item of path) {
+        const txData = txs.find((tx) => tx.orderIds.includes(item.orderId))?.txData;
+
+        let orderId = item.orderId;
+        if (txData && item.source === "blur.io") {
+          // Blur bids don't have the correct order id so we have to override it
+          const orders = await new Sdk.Blur.Exchange(config.chainId).getMatchedOrdersFromCalldata(
+            baseProvider,
+            txData!.data
+          );
+
+          const index = orders.findIndex(
+            ({ sell }) =>
+              sell.params.collection === item.contract && sell.params.tokenId === item.tokenId
+          );
+          if (index !== -1) {
+            orderId = orders[index].buy.hash();
+          }
+        }
+
+        executionsBuffer.addFromRequest(request, {
+          side: "sell",
+          action: "fill",
+          user: payload.taker,
+          orderId,
+          quantity: item.quantity,
+          ...txData,
+        });
+      }
+      await executionsBuffer.flush();
+
       return {
         steps,
         errors,
@@ -750,7 +794,7 @@ export const getExecuteSellV6Options: RouteOptions = {
           `get-execute-sell-${version}-handler`,
           `Handler failure: ${error} (path = ${JSON.stringify(path)}, request = ${JSON.stringify(
             payload
-          )})`
+          )}, trace=${(error as any).stack})`
         );
       }
       throw error;

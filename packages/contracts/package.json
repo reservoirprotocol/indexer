@@ -12,7 +12,8 @@
   "dependencies": {
     "@tenderly/hardhat-tenderly": "^1.6.1",
     "@uniswap/permit2-sdk": "^1.2.0",
-    "hardhat-tracer": "^1.2.1"
+    "hardhat-tracer": "^1.2.1",
+    "solmate": "^6.7.0"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.2.1",

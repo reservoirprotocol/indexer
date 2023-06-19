@@ -178,7 +178,7 @@ export const save = async (orderInfos: OrderInfo[]) => {
       const side = order.isSellOrder ? "sell" : "buy";
 
       // Handle: fees
-      const FEE_BPS = 50;
+      const FEE_BPS = 200;
       const feeBreakdown = [
         {
           kind: "marketplace",

@@ -73,7 +73,7 @@ if (config.doBackgroundWork && (config.chainId === 137 ? config.doProcessBackfil
 export const addToQueue = async (batches: EventsBatch[]) => {
   const jobs: { name: string; data: { id: string } }[] = [];
   for (const batch of batches) {
-    const ids = await MqJobsDataManager.addJobData(QUEUE_NAME, batch);
+    const ids = await MqJobsDataManager.addMultipleJobData(QUEUE_NAME, batch);
     for (const id of ids) {
       jobs.push({ name: `${batch.id}-${id}`, data: { id } });
     }

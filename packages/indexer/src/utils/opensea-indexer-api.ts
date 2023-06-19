@@ -1,6 +1,8 @@
 import axios from "axios";
 
+import { ridb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
 export class OpenseaIndexerApi {
@@ -14,16 +16,31 @@ export class OpenseaIndexerApi {
   }
 
   static async fastContractSync(contract: string) {
-    return axios
-      .post(
-        `${config.openseaIndexerApiBaseUrl}/fast-contract-sync`,
-        { contract },
-        { timeout: 60000 }
+    const results = await ridb.manyOrNone(
+      `
+        SELECT
+          collections.slug
+        FROM collections
+        WHERE collections.contract = $/contract/
+      `,
+      {
+        contract: toBuffer(contract),
+      }
+    );
+
+    return Promise.all(
+      results.map((r) =>
+        axios
+          .post(`${config.openseaIndexerApiBaseUrl}/fast-contract-sync`, { contract, slug: r.slug })
+          .catch((error) => {
+            logger.error(
+              "fast_contract_sync",
+              `Failed to sync contract=${contract}, slug=${r.slug}, error=${error}`
+            );
+            return false;
+          })
       )
-      .catch((error) => {
-        logger.error("fast_contract_sync", `Failed to sync contract=${contract}, error=${error}`);
-        return false;
-      });
+    );
   }
 }
 

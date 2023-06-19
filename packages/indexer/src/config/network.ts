@@ -16,16 +16,46 @@ export const getNetworkName = () => {
       return "mainnet";
 
     case 5:
-      return "goerli";
+      return config.environment === "prod" ? "prod-goerli" : "goerli";
 
     case 10:
       return "optimism";
+
+    case 56:
+      return "bsc";
 
     case 137:
       return "polygon";
 
     case 42161:
       return "arbitrum";
+
+    case 534353:
+      return "scroll-alpha";
+
+    case 5001:
+      return "mantle-testnet";
+
+    case 59140:
+      return "linea-testnet";
+
+    case 11155111:
+      return "sepolia";
+
+    case 80001:
+      return "mumbai";
+
+    case 84531:
+      return "base-goerli";
+
+    case 42170:
+      return "arbitrum-nova";
+
+    case 999:
+      return "zora-testnet";
+
+    case 7777777:
+      return "zora";
 
     default:
       return "unknown";
@@ -39,6 +69,9 @@ export const getOpenseaNetworkName = () => {
 
     case 10:
       return "optimism";
+
+    case 56:
+      return "bsc";
 
     case 137:
       return "matic";
@@ -100,6 +133,15 @@ type NetworkSettings = {
   };
   onStartup?: () => Promise<void>;
   subDomain: string;
+
+  elasticsearch?: {
+    numberOfShards?: number;
+    indexes?: { [index: string]: ElasticsearchIndexSettings };
+  };
+};
+
+type ElasticsearchIndexSettings = {
+  numberOfShards?: number;
 };
 
 export const getNetworkSettings = (): NetworkSettings => {
@@ -125,6 +167,9 @@ export const getNetworkSettings = (): NetworkSettings => {
     whitelistedCurrencies: new Map<string, Currency>(),
     supportedBidCurrencies: { [Sdk.Common.Addresses.Weth[config.chainId]?.toLowerCase()]: true },
     subDomain: "api",
+    elasticsearch: {
+      numberOfShards: 2,
+    },
   };
 
   switch (config.chainId) {
@@ -153,7 +198,12 @@ export const getNetworkSettings = (): NetworkSettings => {
           "0x942bc2d3e7a589fe5bd4a5c6ef9727dfd82f5c8a",
           "0x32d4be5ee74376e08038d652d4dc26e62c67f436",
         ],
-        washTradingBlacklistedAddresses: ["0xac335e6855df862410f96f345f93af4f96351a87"],
+        washTradingBlacklistedAddresses: [
+          "0xac335e6855df862410f96f345f93af4f96351a87",
+          "0x81c6686fbe1594d599ac86a0d8e81d84a2f9bcf2",
+          "0x06d51314d152ca4f88d691f87b40cf3bf453df7c",
+          "0x39fdf1b13dd5b86eb8b7fdd50bce4607beae0722",
+        ],
         multiCollectionContracts: [
           // ArtBlocks Contracts
           "0x059edd72cd353df5106d2b9cc5ab83a52287ac3a",
@@ -190,6 +240,10 @@ export const getNetworkSettings = (): NetworkSettings => {
           // Nifty Gateway Omnibus
           "0xe052113bd7d7700d623414a0a4585bcae754e9d5",
         ],
+        supportedBidCurrencies: {
+          ...defaultNetworkSettings.supportedBidCurrencies,
+          [Sdk.Common.Addresses.Usdc[config.chainId]]: true,
+        },
         whitelistedCurrencies: new Map([
           [
             "0xceb726e6383468dd8ac0b513c8330cc9fb4024a8",
@@ -258,9 +312,42 @@ export const getNetworkSettings = (): NetworkSettings => {
               },
             },
           ],
+          [
+            "0xda9f05a3e133c2907e7173495022a936a3808d45",
+            {
+              contract: "0xda9f05a3e133c2907e7173495022a936a3808d45",
+              name: "Nelkcoin",
+              symbol: "NELK",
+              decimals: 18,
+              metadata: {
+                image:
+                  "https://ipfs.thirdwebcdn.com/ipfs/QmTVfXH5aogD3u5yCPDp4KAvbFeBGvwkxQKRVEQsftXkfo/favicon-32x32.png",
+              },
+            },
+          ],
+          [
+            "0xd2d8d78087d0e43bc4804b6f946674b2ee406b80",
+            {
+              contract: "0xd2d8d78087d0e43bc4804b6f946674b2ee406b80",
+              name: "RugBank Token",
+              symbol: "RUG",
+              decimals: 18,
+              metadata: {
+                image:
+                  "https://raw.githubusercontent.com/dappradar/tokens/main/ethereum/0xd2d8d78087d0e43bc4804b6f946674b2ee406b80/logo.png",
+              },
+            },
+          ],
         ]),
         coingecko: {
           networkId: "ethereum",
+        },
+        elasticsearch: {
+          indexes: {
+            activities: {
+              numberOfShards: 40,
+            },
+          },
         },
         onStartup: async () => {
           // Insert the native currency
@@ -291,22 +378,39 @@ export const getNetworkSettings = (): NetworkSettings => {
         ...defaultNetworkSettings,
         backfillBlockBatchSize: 128,
         subDomain: "api-goerli",
+        mintsAsSalesBlacklist: [
+          ...defaultNetworkSettings.mintsAsSalesBlacklist,
+          // Uniswap V3: Positions NFT
+          "0xc36442b4a4522e871399cd717abdd847ab11fe88",
+        ],
         washTradingExcludedContracts: [
           // ArtBlocks Contracts
           "0xda62f67be7194775a75be91cbf9feedcc5776d4b",
           // Sound.xyz Contracts
           "0xbe8f3dfce2fcbb6dd08a7e8109958355785c968b",
+          // ArtBlocks Engine Contracts
+          "0xe480a895de49b49e37a8f0a8bd7e07fc9844cdb9",
         ],
         multiCollectionContracts: [
           // ArtBlocks Contracts
           "0xda62f67be7194775a75be91cbf9feedcc5776d4b",
           // Sound.xyz Contracts
           "0xbe8f3dfce2fcbb6dd08a7e8109958355785c968b",
+          // ArtBlocks Engine Contracts
+          "0xe480a895de49b49e37a8f0a8bd7e07fc9844cdb9",
         ],
         supportedBidCurrencies: {
           ...defaultNetworkSettings.supportedBidCurrencies,
-          // Backed USDC
-          "0x68b7e050e6e2c7efe11439045c9d49813c1724b8": true,
+          [Sdk.Common.Addresses.Usdc[config.chainId]]: true,
+          // OpenSea USDC
+          "0x2f3a40a3db8a7e3d09b0adfefbce4f6f81927557": true,
+        },
+        elasticsearch: {
+          indexes: {
+            activities: {
+              numberOfShards: 10,
+            },
+          },
         },
         onStartup: async () => {
           // Insert the native currency
@@ -347,6 +451,13 @@ export const getNetworkSettings = (): NetworkSettings => {
         coingecko: {
           networkId: "optimistic-ethereum",
         },
+        elasticsearch: {
+          indexes: {
+            activities: {
+              numberOfShards: 10,
+            },
+          },
+        },
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
@@ -364,6 +475,50 @@ export const getNetworkSettings = (): NetworkSettings => {
                   'ETH',
                   18,
                   '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // BSC
+    case 56: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        headBlockDelay: 10,
+        subDomain: "api-bsc",
+        coingecko: {
+          networkId: "binance-smart-chain",
+        },
+        elasticsearch: {
+          indexes: {
+            activities: {
+              numberOfShards: 10,
+            },
+          },
+        },
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Binance Coin',
+                  'BNB',
+                  18,
+                  '{"coingeckoCurrencyId": "binancecoin", "image": "https://assets.coingecko.com/coins/images/12591/large/binance-coin-logo.png"}'
                 ) ON CONFLICT DO NOTHING
               `
             ),
@@ -416,10 +571,20 @@ export const getNetworkSettings = (): NetworkSettings => {
         coingecko: {
           networkId: "polygon-pos",
         },
+        elasticsearch: {
+          indexes: {
+            activities: {
+              numberOfShards: 40,
+            },
+          },
+        },
         supportedBidCurrencies: {
           ...defaultNetworkSettings.supportedBidCurrencies,
+          [Sdk.Common.Addresses.Usdc[config.chainId]]: true,
           // WETH
           "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619": true,
+          // CONE
+          "0xba777ae3a3c91fcd83ef85bfe65410592bdd0f7c": true,
         },
         onStartup: async () => {
           // Insert the native currency
@@ -458,6 +623,331 @@ export const getNetworkSettings = (): NetworkSettings => {
         coingecko: {
           networkId: "arbitrum-one",
         },
+        elasticsearch: {
+          indexes: {
+            activities: {
+              numberOfShards: 10,
+            },
+          },
+        },
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // Scroll Alpha
+    case 534353: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        headBlockDelay: 10,
+        subDomain: "api-scroll-alpha",
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    case 5001: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        headBlockDelay: 10,
+        subDomain: "api-mantle-testnet",
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'BitDAO',
+                  'BIT',
+                  18,
+                  '{"coingeckoCurrencyId": "bitdao", "image": "https://assets.coingecko.com/coins/images/17627/large/rI_YptK8.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    case 59140: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        headBlockDelay: 10,
+        subDomain: "api-linea-testnet",
+        onStartup: async () => {
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // Sepolia
+    case 11155111: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        subDomain: "api-sepolia",
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // Mumbai
+    case 80001: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        subDomain: "api-mumbai",
+        elasticsearch: {
+          indexes: {
+            activities: {
+              numberOfShards: 10,
+            },
+          },
+        },
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Matic',
+                  'MATIC',
+                  18,
+                  '{"coingeckoCurrencyId": "matic-network"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // Base Goerli
+    case 84531: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        subDomain: "api-base-goerli",
+        elasticsearch: {
+          indexes: {
+            activities: {
+              numberOfShards: 5,
+            },
+          },
+        },
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // Arbitrum Nova
+    case 42170: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        subDomain: "api-arbitrum-nova",
+        elasticsearch: {
+          indexes: {
+            activities: {
+              numberOfShards: 10,
+            },
+          },
+        },
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // Zora Testnet
+    case 999: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        subDomain: "api-zora-testnet",
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // Zora
+    case 7777777: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        subDomain: "api-zora",
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([

@@ -44,7 +44,7 @@ export const getBuildInfo = async (
   // No zone by default
   let zone = AddressZero;
   if (options.useOffChainCancellation) {
-    zone = Sdk.SeaportV14.Addresses.CancellationZone[config.chainId];
+    zone = Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId];
   }
 
   // Generate the salt

@@ -42,10 +42,14 @@ export const getCrossPostingOrdersV1Options: RouteOptions = {
           id: Joi.number().required(),
           orderId: Joi.string().required().allow(null),
           orderbook: Joi.string().required(),
-          status: Joi.string().required(),
+          status: Joi.string()
+            .required()
+            .description(
+              "Possible values: pending - Waiting to be submitted. posted - Successfully submitted to the marketplace. posted - Failed to be submitted to the marketplace (see statusReason for detail)."
+            ),
           statusReason: Joi.string().required().allow(null, ""),
-          createdAt: Joi.string().required(),
-          updatedAt: Joi.string().required(),
+          createdAt: Joi.string().required().description("Time when added to indexer"),
+          updatedAt: Joi.string().required().description("Time when updated in indexer"),
         })
       ),
       continuation: Joi.string().pattern(regex.number).allow(null),

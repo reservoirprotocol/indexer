@@ -318,7 +318,6 @@ describe("LooksRareV2 - Indexer Integration Test", () => {
           const transcation = lastSetp.items[0];
           const tx = await buyer.sendTransaction({
             ...transcation.data,
-            gasLimit: 300000,
           });
           await tx.wait();
           fillTxHash = tx.hash;

@@ -18,7 +18,8 @@ export const getAsksEventsV3Options: RouteOptions = {
     expiresIn: 5000,
   },
   description: "Asks status changes",
-  notes: "Get updates any time an asks status changes",
+  notes:
+    "Every time an ask of a collection or token changes (i.e. the ‘listing’), an event is generated. This API is designed to be polled at high frequency, in order to keep an external system in sync with accurate prices for any token.\n\nThere are multiple event types, which describe what caused the change in price:\n\n- `new-order` > new listing at a lower price\n\n- `expiry` > the previous best listing expired\n\n- `sale` > the previous best listing was filled\n\n- `cancel` > the previous best listing was canceled\n\n- `balance-change` > the best listing was invalidated due to no longer owning the NFT\n\n- `approval-change` > the best listing was invalidated due to revoked approval\n\n- `revalidation` > manual revalidation of orders (e.g. after a bug fixed)\n\n- `reprice` > price update for dynamic orders (e.g. dutch auctions)\n\n- `bootstrap` > initial loading of data, so that all tokens have a price associated\n\nSome considerations to keep in mind\n\n- Selling a partial quantity of available 1155 tokens in a listing will generate a `sale` and will have a new quantity.\n\n- Due to the complex nature of monitoring off-chain liquidity across multiple marketplaces, including dealing with block re-orgs, events should be considered 'relative' to the perspective of the indexer, ie _when they were discovered_, rather than _when they happened_. A more deterministic historical record of price changes is in development, but in the meantime, this method is sufficent for keeping an external system in sync with the best available prices.\n\n- Events are only generated if the best listing changes. So if a new listing happens without changing the best listing, no event is generated. This is more common with 1155 tokens, which have multiple owners and more depth. For this reason, if you need sales data, use the Sales API.\n\n- Private listings (asks) will not appear in the results.",
   tags: ["api", "Events"],
   plugins: {
     "hapi-swagger": {
@@ -54,14 +55,14 @@ export const getAsksEventsV3Options: RouteOptions = {
         .min(1)
         .max(1000)
         .default(50)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned in response. Max is 1000"),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Return result in given currency"),
+        .description("Input any ERC20 address to return result in given currency"),
     }).oxor("contract"),
   },
   response: {
@@ -69,12 +70,14 @@ export const getAsksEventsV3Options: RouteOptions = {
       events: Joi.array().items(
         Joi.object({
           order: Joi.object({
-            id: Joi.string(),
+            id: Joi.string().description("Order Id"),
             status: Joi.string(),
             contract: Joi.string().lowercase().pattern(regex.address),
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             price: JoiPrice.allow(null),
-            quantityRemaining: Joi.number().unsafe(),
+            quantityRemaining: Joi.number()
+              .unsafe()
+              .description("With ERC1155s, quantity can be higher than 1"),
             nonce: Joi.string().pattern(regex.number).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
@@ -82,7 +85,9 @@ export const getAsksEventsV3Options: RouteOptions = {
             kind: Joi.string(),
             source: Joi.string().allow("", null),
             isDynamic: Joi.boolean(),
-            criteria: JoiOrderCriteria.allow(null),
+            criteria: JoiOrderCriteria.allow(null).description(
+              "`kind` can return `token`, `collection`, or `attribute`."
+            ),
           }),
           event: Joi.object({
             id: Joi.number().unsafe(),
@@ -98,8 +103,8 @@ export const getAsksEventsV3Options: RouteOptions = {
               "reprice"
             ),
             txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null),
-            txTimestamp: Joi.number().allow(null),
-            createdAt: Joi.string(),
+            txTimestamp: Joi.number().allow(null).description("Time when added on the blockchain."),
+            createdAt: Joi.string().description("Time when added to indexer"),
           }),
         })
       ),

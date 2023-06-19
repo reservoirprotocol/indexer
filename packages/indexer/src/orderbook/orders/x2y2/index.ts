@@ -420,7 +420,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 context: `cancelled-${id}`,
                 id,
                 trigger: {
-                  kind: "new-order",
+                  kind: "cancel",
                 },
               } as ordersUpdateById.OrderInfo)
           )

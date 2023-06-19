@@ -7,7 +7,7 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { toBuffer } from "@/common/utils";
 import { getNetworkSettings } from "@/config/network";
-import * as currenciesQueue from "@/jobs/currencies/index";
+import { currenciesFetchJob } from "@/jobs/currencies/currencies-fetch-job";
 
 type CurrencyMetadata = {
   coingeckoCurrencyId?: string;
@@ -73,7 +73,7 @@ export const getCurrency = async (currencyAddress: string): Promise<Currency> =>
           // update the memory cache (otherwise the cache will be stale).
 
           // Retry fetching the currency details
-          await currenciesQueue.addToQueue({ currency: currencyAddress });
+          await currenciesFetchJob.addToQueue({ currency: currencyAddress });
         }
       }
 

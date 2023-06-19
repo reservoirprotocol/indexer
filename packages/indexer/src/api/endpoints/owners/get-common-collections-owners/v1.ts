@@ -16,7 +16,7 @@ export const getCommonCollectionsOwnersV1Options: RouteOptions = {
     expiresIn: 60 * 60 * 1000,
   },
   description: "Common Collections",
-  notes: "This API can be used to find top common collections among the given owners",
+  notes: "This API can be used to find top common collections from an array of owners.",
   tags: ["api", "Owners"],
   plugins: {
     "hapi-swagger": {
@@ -36,13 +36,13 @@ export const getCommonCollectionsOwnersV1Options: RouteOptions = {
             .min(1)
             .max(50)
             .description(
-              "Array of owner addresses. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+              "Array of owner addresses. Max limit is 50. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
             ),
           Joi.string()
             .lowercase()
             .pattern(/^0x[a-fA-F0-9]{40}$/)
             .description(
-              "Array of owner addresses. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+              "Array of owner addresses. Max limit is 50. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
             )
         )
         .required(),
@@ -51,15 +51,15 @@ export const getCommonCollectionsOwnersV1Options: RouteOptions = {
         .min(1)
         .max(50)
         .default(20)
-        .description("Amount of collections returned in response."),
+        .description("Amount of collections returned in response. Max limit is 50."),
     }),
   },
   response: {
     schema: Joi.object({
       collections: Joi.array().items(
         Joi.object({
-          address: Joi.string(),
-          count: Joi.number(),
+          address: Joi.string().description("Contract address"),
+          count: Joi.number().description("Token count"),
           owners: Joi.array(),
         })
       ),

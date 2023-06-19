@@ -3,6 +3,7 @@ version: "3"
 services:
   postgres:
     image: postgres:13.2
+    command: postgres -N 2000
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
@@ -18,6 +19,18 @@ services:
       - local
     ports:
       - 6379:6379
+
+  rabbitmq:
+    image: ipelegi/rabbitmq:latest
+    container_name: 'rabbitmq'
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    ports:
+      - 5672:5672
+      - 15672:15672
+    networks:
+      - local
 
 networks:
   local:

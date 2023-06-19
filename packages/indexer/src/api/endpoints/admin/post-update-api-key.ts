@@ -7,6 +7,7 @@ import Joi from "joi";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { ApiKeyManager } from "@/models/api-keys";
+import { regex } from "@/common/utils";
 
 export const postUpdateApiKeyOptions: RouteOptions = {
   description: "Update the given api key",
@@ -19,6 +20,8 @@ export const postUpdateApiKeyOptions: RouteOptions = {
       apiKey: Joi.string().description("The api key to update"),
       tier: Joi.number().optional(),
       active: Joi.boolean().optional(),
+      ips: Joi.array().items(Joi.string().lowercase().pattern(regex.ipv4)).optional(),
+      origins: Joi.array().items(Joi.string().lowercase().pattern(regex.origin)).optional(),
     }),
   },
   handler: async (request: Request) => {
@@ -32,6 +35,8 @@ export const postUpdateApiKeyOptions: RouteOptions = {
       await ApiKeyManager.update(payload.apiKey, {
         tier: payload.tier,
         active: payload.active,
+        ips: payload.ips,
+        origins: payload.origins,
       });
 
       return {

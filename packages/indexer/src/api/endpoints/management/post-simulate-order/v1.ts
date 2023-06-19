@@ -1,12 +1,15 @@
+import { parseEther } from "@ethersproject/units";
 import { CallTrace } from "@georgeroman/evm-tx-simulator/dist/types";
 import Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
+import axios from "axios";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
 import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { baseProvider } from "@/common/provider";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
@@ -57,17 +60,19 @@ export const postSimulateOrderV1Options: RouteOptions = {
         revalidate?: boolean;
       }
     ) => {
-      logger.warn(
-        `post-revalidate-order-${version}-handler`,
-        JSON.stringify({
-          error: "stale-order",
-          callTrace: options?.callTrace,
-          payload: options?.payload,
-          orderId: id,
-        })
-      );
-
       if (!payload.skipRevalidation && options?.revalidate) {
+        logger.warn(
+          `post-revalidate-order-${version}-handler`,
+          JSON.stringify({
+            error: "stale-order",
+            callTrace: options?.callTrace,
+            block: await baseProvider.getBlock("latest").then((b) => b.number),
+            payload: options?.payload,
+            orderId: id,
+            status,
+          })
+        );
+
         // Revalidate the order
         await inject({
           method: "POST",
@@ -92,6 +97,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
           SELECT
             orders.kind,
             orders.side,
+            orders.price,
             orders.currency,
             orders.contract,
             orders.token_set_id,
@@ -105,7 +111,29 @@ export const postSimulateOrderV1Options: RouteOptions = {
       if (!orderResult?.side || !orderResult?.contract) {
         throw Boom.badRequest("Could not find order");
       }
-      if (["blur", "nftx", "sudoswap", "universe"].includes(orderResult.kind)) {
+
+      // Custom logic for simulating Blur listings
+      if (orderResult.side === "sell" && orderResult.kind === "blur") {
+        const [, contract, tokenId] = orderResult.token_set_id.split(":");
+
+        const blurPrice = await axios
+          .get(
+            `${config.orderFetcherBaseUrl}/api/blur-token?contract=${contract}&tokenId=${tokenId}`
+          )
+          .then((response) =>
+            response.data.blurPrice
+              ? parseEther(response.data.blurPrice).toString()
+              : response.data.blurPrice
+          );
+        if (orderResult.price !== blurPrice) {
+          logger.info("debug-blur-simulation", JSON.stringify({ contract, tokenId, id }));
+          await logAndRevalidateOrder(id, "inactive", {
+            revalidate: true,
+          });
+        }
+      }
+
+      if (["blur", "nftx", "sudoswap", "sudoswap-v2", "universe"].includes(orderResult.kind)) {
         return { message: "Order not simulatable" };
       }
       if (getNetworkSettings().whitelistedCurrencies.has(fromBuffer(orderResult.currency))) {
@@ -113,6 +141,14 @@ export const postSimulateOrderV1Options: RouteOptions = {
       }
       if (getNetworkSettings().nonSimulatableContracts.includes(fromBuffer(orderResult.contract))) {
         return { message: "Associated contract is not simulatable" };
+      }
+      if (
+        orderResult.side === "buy" &&
+        fromBuffer(orderResult.contract) === "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85"
+      ) {
+        return {
+          message: "ENS bids are not simulatable due to us not yet handling expiration of domains",
+        };
       }
 
       const contractResult = await redb.one(
@@ -144,7 +180,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
           },
         });
 
-        if (JSON.parse(response.payload).statusCode !== 200) {
+        if (response.statusCode !== 200) {
           return { message: "Simulation failed" };
         }
 
@@ -248,7 +284,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
           },
         });
 
-        if (JSON.parse(response.payload).statusCode !== 200) {
+        if (response.statusCode !== 200) {
           return { message: "Simulation failed" };
         }
 

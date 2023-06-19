@@ -8,7 +8,7 @@ import { config } from "@/config/index";
 import {
   WebsocketEventKind,
   WebsocketEventRouter,
-} from "../websocket-events/websocket-event-router";
+} from "@/jobs/websocket-events/websocket-event-router";
 import { topBidsCache } from "@/models/top-bids-caching";
 
 const QUEUE_NAME = "collection-updates-top-bid-queue";
@@ -138,22 +138,27 @@ if (config.doBackgroundWork) {
           }
         );
 
-        if (collectionTopBid?.order_id) {
-          // cache the new top bid
+        try {
+          if (collectionTopBid?.order_id) {
+            // Cache the new top bid and set redis expiry as seconds until the top bid expires
+            const expiryInSeconds = collectionTopBid?.valid_until - now();
 
-          const expiry = new Date();
-          // set redis expiry as seconds until the top bid expires
-          expiry.setSeconds(collectionTopBid?.valid_until - now());
-          const seconds = expiry.getSeconds();
-
-          await topBidsCache.cacheCollectionTopBidValue(
-            collectionId,
-            Number(collectionTopBid?.top_buy_value.toString()),
-            seconds
+            if (expiryInSeconds > 0) {
+              await topBidsCache.cacheCollectionTopBidValue(
+                collectionId,
+                Number(collectionTopBid?.top_buy_value.toString()),
+                expiryInSeconds
+              );
+            }
+          } else {
+            // clear the cache
+            await topBidsCache.clearCacheCollectionTopBidValue(collectionId);
+          }
+        } catch (error) {
+          logger.error(
+            QUEUE_NAME,
+            `Failed to cache collection top-bid value ${JSON.stringify(job.data)}: ${error}`
           );
-        } else {
-          // clear the cache
-          await topBidsCache.clearCacheCollectionTopBidValue(collectionId);
         }
 
         if (kind === "new-order" && collectionTopBid?.order_id) {
@@ -170,7 +175,7 @@ if (config.doBackgroundWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 10 }
+    { connection: redis.duplicate(), concurrency: 5 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);

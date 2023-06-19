@@ -16,16 +16,17 @@ import {
   toBuffer,
 } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
+import { ContractSets } from "@/models/contract-sets";
 import { Sources } from "@/models/sources";
-import { Orders } from "@/utils/orders";
 import { TokenSets } from "@/models/token-sets";
+import { Orders } from "@/utils/orders";
 
 const version = "v4";
 
 export const getOrdersAsksV4Options: RouteOptions = {
   description: "Asks (listings)",
   notes:
-    "Get a list of asks (listings), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing",
+    "Get a list of asks (listings), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing.\n\n Please mark `excludeEOA` as `true` to exclude Blur orders.",
   tags: ["api", "Orders"],
   plugins: {
     "hapi-swagger": {
@@ -43,11 +44,9 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .description(
           "Filter to a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
         ),
-      tokenSetId: Joi.string()
-        .lowercase()
-        .description(
-          "Filter to a particular set, e.g. `contract:0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
-        ),
+      tokenSetId: Joi.string().description(
+        "Filter to a particular set, e.g. `contract:0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+      ),
       maker: Joi.string()
         .lowercase()
         .pattern(regex.address)
@@ -59,7 +58,10 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .description("Filter to a particular community. Example: `artblocks`"),
       collectionsSetId: Joi.string()
         .lowercase()
-        .description("Filter to a particular collection set."),
+        .description(
+          "Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
+        ),
+      contractsSetId: Joi.string().lowercase().description("Filter to a particular contracts set."),
       contracts: Joi.alternatives()
         .try(
           Joi.array().max(80).items(Joi.string().lowercase().pattern(regex.address)),
@@ -92,11 +94,13 @@ export const getOrdersAsksV4Options: RouteOptions = {
           otherwise: Joi.valid("active"),
         })
         .description(
-          "active = currently valid\ninactive = temporarily invalid\nexpired, cancelled, filled = permanently invalid\nany = any status\nAvailable when filtering by maker, otherwise only valid orders will be returned"
+          "activeª^º = currently valid\ninactiveª^ = temporarily invalid\nexpiredª^, canceledª^, filledª^ = permanently invalid\nanyªº = any status\nª when an `id` is passed\n^ when a `maker` is passed\nº when a `contract` is passed"
         ),
       source: Joi.string()
         .pattern(regex.domain)
-        .description("Filter to a source by domain. Example: `opensea.io`"),
+        .description(
+          "Filter to a source by domain. Only active listed will be returned. Example: `opensea.io`"
+        ),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
       includePrivate: Joi.boolean()
         .default(false)
@@ -152,12 +156,15 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .description("Return result in given currency"),
     })
       .oxor("token", "tokenSetId")
+      .oxor("contracts", "contractsSetId")
       .with("community", "maker")
       .with("collectionsSetId", "maker"),
   },
   response: {
     schema: Joi.object({
-      orders: Joi.array().items(JoiOrder),
+      orders: Joi.array()
+        .items(JoiOrder)
+        .description("`taker` will have wallet address if private listing."),
       continuation: Joi.string().pattern(regex.base64).allow(null),
     }).label(`getOrdersAsks${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
@@ -217,6 +224,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
               WHEN orders.fillability_status = 'expired' THEN 'expired'
               WHEN orders.fillability_status = 'no-balance' THEN 'inactive'
               WHEN orders.approval_status = 'no-approval' THEN 'inactive'
+              WHEN orders.approval_status = 'disabled' THEN 'inactive'
               ELSE 'active'
             END
           ) AS status,
@@ -350,6 +358,13 @@ export const getOrdersAsksV4Options: RouteOptions = {
         }
       }
 
+      if (query.contractsSetId) {
+        query.contracts = await ContractSets.getContracts(query.contractsSetId);
+        if (_.isEmpty(query.contracts)) {
+          throw Boom.badRequest(`No contracts for contracts set ${query.contractsSetId}`);
+        }
+      }
+
       if (query.contracts) {
         if (!_.isArray(query.contracts)) {
           query.contracts = [query.contracts];
@@ -441,9 +456,15 @@ export const getOrdersAsksV4Options: RouteOptions = {
             conditions.push(`(orders.price, orders.id) > ($/priceOrCreatedAtOrUpdatedAt/, $/id/)`);
           }
         } else if (query.sortBy === "updatedAt") {
-          conditions.push(
-            `(orders.updated_at, orders.id) < (to_timestamp($/priceOrCreatedAtOrUpdatedAt/), $/id/)`
-          );
+          if (query.sortDirection === "asc") {
+            conditions.push(
+              `(orders.updated_at, orders.id) > (to_timestamp($/priceOrCreatedAtOrUpdatedAt/), $/id/)`
+            );
+          } else {
+            conditions.push(
+              `(orders.updated_at, orders.id) < (to_timestamp($/priceOrCreatedAtOrUpdatedAt/), $/id/)`
+            );
+          }
         } else {
           conditions.push(
             `(orders.created_at, orders.id) < (to_timestamp($/priceOrCreatedAtOrUpdatedAt/), $/id/)`
@@ -546,6 +567,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
           missingRoyalties: r.missing_royalties,
           includeDynamicPricing: query.includeDynamicPricing,
           dynamic: r.dynamic,
+          displayCurrency: query.displayCurrency,
         });
       });
 

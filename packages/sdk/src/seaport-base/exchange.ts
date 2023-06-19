@@ -45,6 +45,7 @@ export abstract class SeaportBaseExchange {
         recipient: BigNumberish;
       }[];
       source?: string;
+      timestampOverride?: number;
     }
   ): Promise<TransactionResponse> {
     const tx = await this.fillOrderTx(await taker.getAddress(), order, matchParams, options);
@@ -62,6 +63,7 @@ export abstract class SeaportBaseExchange {
         amount: string;
         recipient: BigNumberish;
       }[];
+      timestampOverride?: number;
       source?: string;
     }
   ): Promise<TxData> {
@@ -75,6 +77,35 @@ export abstract class SeaportBaseExchange {
     }
 
     if (info.side === "sell") {
+      if (order.isPrivateOrder()) {
+        info = info as BaseOrderInfo;
+        const counterOrder = order.constructPrivateListingCounterOrder(taker);
+        const fulfillments = order.getPrivateListingFulfillments();
+        const orderWith = {
+          parameters: {
+            ...order.params,
+            totalOriginalConsiderationItems: order.params.consideration.length,
+          },
+          signature: order.params.signature,
+        };
+        return {
+          from: taker,
+          to: this.contract.address,
+          data:
+            this.contract.interface.encodeFunctionData("matchOrders", [
+              [orderWith, counterOrder],
+              fulfillments,
+            ]) + generateSourceBytes(options?.source),
+          value:
+            info.paymentToken === CommonAddresses.Eth[this.chainId]
+              ? bn(order.getMatchingPrice(options?.timestampOverride))
+                  .mul(matchParams.amount || "1")
+                  .div(info.amount)
+                  .toHexString()
+              : undefined,
+        };
+      }
+
       if (
         // Order is not private
         recipient === AddressZero &&
@@ -92,7 +123,7 @@ export abstract class SeaportBaseExchange {
           from: taker,
           to: this.contract.address,
           data:
-            this.contract.interface.encodeFunctionData("fulfillBasicOrder", [
+            this.contract.interface.encodeFunctionData("fulfillBasicOrder_efficient_6GL6yc", [
               {
                 considerationToken: info.paymentToken,
                 considerationIdentifier: "0",
@@ -129,7 +160,7 @@ export abstract class SeaportBaseExchange {
             ]) + generateSourceBytes(options?.source),
           value:
             info.paymentToken === CommonAddresses.Eth[this.chainId]
-              ? bn(order.getMatchingPrice())
+              ? bn(order.getMatchingPrice(options?.timestampOverride))
                   .mul(matchParams.amount || "1")
                   .div(info.amount)
                   .toHexString()
@@ -158,7 +189,7 @@ export abstract class SeaportBaseExchange {
             ]) + generateSourceBytes(options?.source),
           value:
             info.paymentToken === CommonAddresses.Eth[this.chainId]
-              ? bn(order.getMatchingPrice())
+              ? bn(order.getMatchingPrice(options?.timestampOverride))
                   .mul(matchParams.amount || "1")
                   .div(info.amount)
                   .toHexString()
@@ -174,10 +205,10 @@ export abstract class SeaportBaseExchange {
         // Order has no criteria
         !matchParams.criteriaResolvers &&
         // Order requires no extra data
-        !this.requiresExtraData(order)
+        !this.requiresExtraData(order) &&
+        !info.isDynamic
       ) {
         info = info as BaseOrderInfo;
-
         // Use "basic" fulfillment
         return {
           from: taker,
@@ -252,6 +283,7 @@ export abstract class SeaportBaseExchange {
       conduitKey?: string;
       source?: string;
       maxOrdersToFulfill?: number;
+      timestampOverride?: number;
     }
   ): Promise<TransactionResponse> {
     const tx = await this.fillOrdersTx(await taker.getAddress(), orders, matchParams, options);
@@ -267,6 +299,7 @@ export abstract class SeaportBaseExchange {
       conduitKey?: string;
       source?: string;
       maxOrdersToFulfill?: number;
+      timestampOverride?: number;
     }
   ): Promise<TxData> {
     const recipient = options?.recipient ?? AddressZero;
@@ -331,7 +364,7 @@ export abstract class SeaportBaseExchange {
             );
           })
           .map((order, i) =>
-            bn(order.getMatchingPrice())
+            bn(order.getMatchingPrice(options?.timestampOverride))
               .mul(matchParams[i].amount || "1")
               .div(order.getInfo()!.amount)
           )
@@ -444,7 +477,10 @@ export abstract class SeaportBaseExchange {
 
           return {
             // To cover the generic `matchOrders` case
-            recipientOverride,
+            recipientOverride:
+              recipientOverride && recipientOverride !== AddressZero
+                ? recipientOverride
+                : undefined,
             contract: nSpentItems[0].token,
             tokenId: nSpentItems[0].identifier,
             amount: nSpentItems[0].amount,

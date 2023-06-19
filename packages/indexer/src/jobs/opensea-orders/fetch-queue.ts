@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import _ from "lodash";
-import { Queue, QueueScheduler, Worker } from "bullmq";
+import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { logger } from "@/common/logger";
@@ -15,7 +15,7 @@ import { parseProtocolData } from "@/websockets/opensea";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import { Tokens } from "@/models/tokens";
 import { Collections } from "@/models/collections";
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 
 const QUEUE_NAME = "opensea-orders-fetch-queue";
 
@@ -38,9 +38,11 @@ new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
-    async () => {
+    async (job: Job) => {
       let collectionOffers = [];
       let rateLimitExpiredIn = 0;
+
+      job.data.addToQueue = false;
 
       const pendingRefreshOpenseaCollectionOffersCollections =
         new PendingRefreshOpenseaCollectionOffersCollections();
@@ -72,20 +74,18 @@ if (config.doBackgroundWork) {
           collectionOffers = fetchCollectionOffersResponse.data.offers;
         } catch (error) {
           if ((error as any).response?.status === 429) {
-            logger.info(
-              QUEUE_NAME,
-              `fetchCollectionOffers throttled. error=${JSON.stringify(error)}`
-            );
+            logger.info(QUEUE_NAME, `Throttled. error=${JSON.stringify(error)}`);
 
             rateLimitExpiredIn = 5;
-            pendingRefreshOpenseaCollectionOffersCollections.add(
+
+            await pendingRefreshOpenseaCollectionOffersCollections.add(
               refreshOpenseaCollectionOffersCollections,
               true
             );
           } else if ((error as any).response?.status === 404) {
-            logger.info(
+            logger.warn(
               QUEUE_NAME,
-              `fetchCollectionOffers throttled. refreshOpenseaCollectionOffersCollections=${refreshOpenseaCollectionOffersCollections}, error=${JSON.stringify(
+              `Collection Not Found. refreshOpenseaCollectionOffersCollections=${refreshOpenseaCollectionOffersCollections}, error=${JSON.stringify(
                 error
               )}`
             );
@@ -98,10 +98,15 @@ if (config.doBackgroundWork) {
                 refreshOpenseaCollectionOffersCollections[0].collection
               );
 
-              await collectionUpdatesMetadata.addToQueue(
-                collectionResult!.contract,
-                tokenId,
-                collectionResult!.community
+              await collectionMetadataQueueJob.addToQueue(
+                {
+                  contract: collectionResult!.contract,
+                  tokenId,
+                  community: collectionResult!.community,
+                  forceRefresh: false,
+                },
+                0,
+                QUEUE_NAME
               );
             } catch {
               // Skip on any errors
@@ -117,7 +122,7 @@ if (config.doBackgroundWork) {
 
       logger.info(
         QUEUE_NAME,
-        `Debug. refreshOpenseaCollectionOffersCollections=${JSON.stringify(
+        `Success. refreshOpenseaCollectionOffersCollections=${JSON.stringify(
           refreshOpenseaCollectionOffersCollections
         )}, collectionOffersCount=${
           collectionOffers.length
@@ -160,7 +165,8 @@ if (config.doBackgroundWork) {
       // If there are potentially more collections to process trigger another job
       if (rateLimitExpiredIn || _.size(refreshOpenseaCollectionOffersCollections) == 1) {
         if (await extendLock(getLockName(), 60 * 5 + rateLimitExpiredIn)) {
-          await addToQueue(rateLimitExpiredIn * 1000);
+          job.data.addToQueue = true;
+          job.data.addToQueueDelay = rateLimitExpiredIn * 1000;
         }
       } else {
         await releaseLock(getLockName());
@@ -171,6 +177,12 @@ if (config.doBackgroundWork) {
 
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
+  });
+
+  worker.on("completed", async (job) => {
+    if (job.data.addToQueue) {
+      await addToQueue(job.data.addToQueueDelay);
+    }
   });
 }
 

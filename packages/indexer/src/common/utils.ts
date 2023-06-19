@@ -115,6 +115,8 @@ export const buildContinuation = (c: string) => Buffer.from(c).toString("base64"
 export const regex = {
   base64: /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/,
   domain: /^[a-zA-Z0-9.-]+\.[a-zA-Z0-9]{2,}$|localhost/,
+  origin: /^https?:\/\/(?:[^@\n]+@)?(?:www\.)?([^:\n?]+)/,
+  ipv4: /^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\.(?!$)|$)){4}$/,
   address: /^0x[a-fA-F0-9]{40}$/,
   bytes32: /^0x[a-fA-F0-9]{64}$/,
   bytes: /^0x[a-fA-F0-9]+$/,
@@ -122,4 +124,40 @@ export const regex = {
   fee: /^0x[a-fA-F0-9]{40}:[0-9]+$/,
   number: /^[0-9]+$/,
   unixTimestamp: /^[0-9]{10}$/,
+};
+
+// --- base64 ---
+
+export const isBase64 = (base64: string) => {
+  try {
+    // The base64 regex above is normally used for strings > 4 characters, and it has issues with
+    // strings that are exactly 4 characters long. Most base64 regex that I've seen have this issue.
+    // This function is mainly for detecting base64 strings in payloads from debeezium, which are sometimes 4 characters long.
+    // An example of this is the "side" field in the orders table, which is either "buy" or "sell". For "sell" string, this function
+    // normally would return true if it was not for the check below that checks if the string is exactly "sell".
+
+    if (!base64 || base64.length % 4 !== 0 || typeof base64 !== "string" || base64 === "sell") {
+      return false;
+    }
+    // This is strictly for hex from postgres
+    // if it ends with an equal sign, it's very likely to be base64
+    if (base64.endsWith("=")) {
+      return true;
+    }
+    return regex.base64.test(base64);
+  } catch (error) {
+    return false;
+  }
+};
+
+export const base64ToHex = (base64: string) => {
+  try {
+    if (!isBase64(base64)) {
+      return base64;
+    }
+
+    return "0x" + Buffer.from(base64, "base64").toString("hex");
+  } catch (error) {
+    return base64;
+  }
 };

@@ -18,8 +18,9 @@ export const getAttributesExploreV4Options: RouteOptions = {
     expiresIn: 10000,
   },
   description: "Explore attributes",
-  notes: "Get detailed aggregate about attributes in a collection, attribute floors",
-  tags: ["api", "Attributes"],
+  notes:
+    "Use this API to see stats on a specific attribute within a collection. This endpoint will return `tokenCount`, `onSaleCount`, `sampleImages`, and `floorAsk` by default. ",
+  tags: ["api", "x-deprecated", "Attributes"],
   plugins: {
     "hapi-swagger": {
       order: 15,
@@ -67,19 +68,25 @@ export const getAttributesExploreV4Options: RouteOptions = {
         .min(1)
         .max(5000)
         .default(20)
-        .description("Amount of items returned in response."),
+        .description(
+          "Amount of items returned in response. Default limit is 20. Max limit is 5000."
+        ),
     }),
   },
   response: {
     schema: Joi.object({
       attributes: Joi.array().items(
         Joi.object({
-          key: Joi.string().required(),
-          value: JoiAttributeValue,
-          tokenCount: Joi.number().required(),
-          onSaleCount: Joi.number().required(),
+          key: Joi.string().required().description("Case sensitive"),
+          value: JoiAttributeValue.description("Case sensitive"),
+          tokenCount: Joi.number().required().description("Total token count with this attribute."),
+          onSaleCount: Joi.number()
+            .required()
+            .description("Token count with this attribute on sale."),
           sampleImages: Joi.array().items(Joi.string().allow("", null)),
-          floorAskPrices: Joi.array().items(Joi.number().unsafe()),
+          floorAskPrices: Joi.array()
+            .items(Joi.number().unsafe())
+            .description("Current floor price ask."),
           lastBuys: Joi.array().items(
             Joi.object({
               tokenId: Joi.string().required(),
@@ -193,7 +200,7 @@ export const getAttributesExploreV4Options: RouteOptions = {
                   date_part('epoch', lower(orders.valid_between)) AS "top_buy_valid_from",
                   coalesce(nullif(date_part('epoch', upper(orders.valid_between)), 'Infinity'), 0) AS "top_buy_valid_until"
           FROM token_sets
-          LEFT JOIN orders ON token_sets.top_buy_id = orders.id
+          JOIN orders ON token_sets.top_buy_id = orders.id
           WHERE token_sets.attribute_id = attributes.id
           ORDER BY token_sets.top_buy_value DESC NULLS LAST
           LIMIT 1

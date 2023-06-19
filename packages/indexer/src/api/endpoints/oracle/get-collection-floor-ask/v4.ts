@@ -311,10 +311,12 @@ export const getCollectionFloorAskOracleV4Options: RouteOptions = {
         ),
       };
     } catch (error) {
-      logger.error(
-        `get-collection-floor-ask-oracle-${version}-handler`,
-        `Handler failure: ${error}`
-      );
+      if (!(error instanceof Boom.Boom)) {
+        logger.error(
+          `get-collection-floor-ask-oracle-${version}-handler`,
+          `Handler failure: ${error}`
+        );
+      }
       throw error;
     }
   },

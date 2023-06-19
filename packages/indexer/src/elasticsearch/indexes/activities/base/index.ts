@@ -1,0 +1,186 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import { fromBuffer } from "@/common/utils";
+import * as Sdk from "@reservoir0x/sdk";
+import { config } from "@/config/index";
+
+import { BuildDocumentData, BaseDocument, DocumentBuilder } from "@/elasticsearch/indexes/base";
+
+export enum ActivityType {
+  sale = "sale",
+  ask = "ask",
+  transfer = "transfer",
+  mint = "mint",
+  bid = "bid",
+  bid_cancel = "bid_cancel",
+  ask_cancel = "ask_cancel",
+}
+
+export interface ActivityDocument extends BaseDocument {
+  timestamp: number;
+  type: ActivityType;
+  contract: string;
+  fromAddress: string;
+  toAddress: string | null;
+  amount: number;
+  pricing?: {
+    price?: string;
+    currencyPrice?: string;
+    usdPrice?: number;
+    feeBps?: number;
+    currency?: string;
+    value?: string;
+    currencyValue?: string;
+    normalizedValue?: string;
+    currencyNormalizedValue?: string;
+  };
+  event?: {
+    timestamp: number;
+    txHash: string;
+    logIndex: number;
+    batchIndex: number;
+    blockHash: string;
+  };
+  token?: {
+    id: string;
+    name: string;
+    image: string;
+    media: string;
+  };
+  collection?: {
+    id: string;
+    name: string;
+    image: string;
+  };
+  order?: {
+    id: string;
+    side: string;
+    sourceId: number;
+    kind: string;
+    criteria: {
+      kind: string;
+      data: {
+        attribute?: {
+          key: string;
+          value: string;
+        };
+        collection?: {
+          id: string;
+        };
+        token?: {
+          tokenId: string;
+        };
+      };
+    };
+  };
+}
+
+export interface BuildActivityData extends BuildDocumentData {
+  id: string;
+  type: ActivityType;
+  timestamp: number;
+  contract: Buffer;
+  collection_id: string;
+  token_id?: string;
+  from: Buffer;
+  to?: Buffer;
+  pricing_price?: number;
+  pricing_currency_price?: Buffer;
+  pricing_usd_price: number;
+  pricing_fee_bps?: number;
+  pricing_currency?: Buffer;
+  pricing_value?: number;
+  pricing_currency_value?: number;
+  pricing_normalized_value?: number;
+  pricing_currency_normalized_value?: number;
+  amount?: number;
+  token_name?: string;
+  token_image?: string;
+  token_media?: string;
+  collection_name?: string;
+  collection_image?: string;
+  event_block_hash?: Buffer | null;
+  event_timestamp?: number;
+  event_tx_hash?: Buffer;
+  event_log_index?: number;
+  event_batch_index?: number;
+  order_id?: string | null;
+  order_side?: string;
+  order_source_id_int?: number;
+  order_kind?: string;
+  order_criteria?: {
+    kind: string;
+    data: Record<string, unknown>;
+  };
+}
+
+export class ActivityBuilder extends DocumentBuilder {
+  public buildDocument(data: BuildActivityData): ActivityDocument {
+    const baseActivity = super.buildDocument(data);
+
+    return {
+      ...baseActivity,
+      timestamp: data.timestamp,
+      type: data.type,
+      fromAddress: fromBuffer(data.from),
+      toAddress: data.to ? fromBuffer(data.to) : undefined,
+      amount: data.amount,
+      contract: fromBuffer(data.contract),
+      pricing: data.pricing_price
+        ? {
+            price: String(data.pricing_price),
+            currencyPrice: data.pricing_currency_price
+              ? String(data.pricing_currency_price)
+              : undefined,
+            usdPrice: data.pricing_usd_price ?? undefined,
+            feeBps: data.pricing_fee_bps ?? undefined,
+            currency: data.pricing_currency
+              ? fromBuffer(data.pricing_currency)
+              : Sdk.Common.Addresses.Eth[config.chainId],
+            value: data.pricing_value ? String(data.pricing_value) : undefined,
+            currencyValue: data.pricing_currency_value
+              ? String(data.pricing_currency_value)
+              : undefined,
+            normalizedValue: data.pricing_normalized_value
+              ? String(data.pricing_normalized_value)
+              : undefined,
+            currencyNormalizedValue: data.pricing_currency_normalized_value
+              ? String(data.pricing_currency_normalized_value)
+              : undefined,
+          }
+        : undefined,
+      event: data.event_tx_hash
+        ? {
+            timestamp: data.event_timestamp,
+            txHash: fromBuffer(data.event_tx_hash),
+            logIndex: data.event_log_index,
+            batchIndex: data.event_batch_index,
+            blockHash: fromBuffer(data.event_block_hash!),
+          }
+        : undefined,
+      token: data.token_id
+        ? {
+            id: data.token_id,
+            name: data.token_name,
+            image: data.token_image,
+            // media: data.token_media,
+          }
+        : undefined,
+      collection: data.collection_id
+        ? {
+            id: data.collection_id,
+            name: data.collection_name,
+            image: data.collection_image,
+          }
+        : undefined,
+      order: data.order_id
+        ? {
+            id: data.order_id,
+            side: data.order_side,
+            sourceId: data.order_source_id_int,
+            criteria: data.order_criteria,
+          }
+        : undefined,
+    } as ActivityDocument;
+  }
+}

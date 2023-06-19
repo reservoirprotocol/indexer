@@ -38,6 +38,9 @@ import * as zeroExV2 from "@/events-sync/handlers/zeroex-v2";
 import * as zeroExV3 from "@/events-sync/handlers/zeroex-v3";
 import * as treasure from "@/events-sync/handlers/treasure";
 import * as looksRareV2 from "@/events-sync/handlers/looks-rare-v2";
+import * as blend from "@/events-sync/handlers/blend";
+import * as collectionxyz from "@/events-sync/handlers/collectionxyz";
+import * as sudoswapV2 from "@/events-sync/handlers/sudoswap-v2";
 
 // A list of events having the same high-level kind
 export type EventsByKind = {
@@ -61,6 +64,7 @@ export const eventKindToHandler = new Map<
   ["erc721", (e, d) => erc721.handleEvents(e, d)],
   ["erc1155", (e, d) => erc1155.handleEvents(e, d)],
   ["blur", (e, d) => blur.handleEvents(e, d)],
+  ["collectionxyz", (e, d) => collectionxyz.handleEvents(e, d)],
   ["cryptopunks", (e, d) => cryptopunks.handleEvents(e, d)],
   ["decentraland", (e, d) => decentraland.handleEvents(e, d)],
   ["element", (e, d) => element.handleEvents(e, d)],
@@ -88,25 +92,28 @@ export const eventKindToHandler = new Map<
   ["zeroex-v3", (e, d) => zeroExV3.handleEvents(e, d)],
   ["treasure", (e, d) => treasure.handleEvents(e, d)],
   ["looks-rare-v2", (e, d) => looksRareV2.handleEvents(e, d)],
+  ["sudoswap-v2", (e, d) => sudoswapV2.handleEvents(e, d)],
+  ["blend", (e, d) => blend.handleEvents(e, d)],
 ]);
 
 export const processEventsBatch = async (batch: EventsBatch, skipProcessing?: boolean) => {
   const onChainData = initOnChainData();
   await Promise.all(
     batch.events.map(async (events) => {
-      if (events.data.length) {
-        const handler = eventKindToHandler.get(events.kind);
-        if (handler) {
-          await handler(events.data, onChainData, batch.backfill);
-        } else {
-          logger.error(
-            "process-events-batch",
-            JSON.stringify({
-              error: "missing-handler-for-event-kind",
-              data: `Event kind ${events.kind} is missing a corresponding handler`,
-            })
-          );
-        }
+      if (!events.data.length) {
+        return;
+      }
+      const handler = eventKindToHandler.get(events.kind);
+      if (handler) {
+        await handler(events.data, onChainData, batch.backfill);
+      } else {
+        logger.error(
+          "process-events-batch",
+          JSON.stringify({
+            error: "missing-handler-for-event-kind",
+            data: `Event kind ${events.kind} is missing a corresponding handler`,
+          })
+        );
       }
     })
   );
@@ -116,4 +123,66 @@ export const processEventsBatch = async (batch: EventsBatch, skipProcessing?: bo
   }
 
   return onChainData;
+};
+
+export const processEventsBatchV2 = async (batches: EventsBatch[]) => {
+  const startTime = Date.now();
+  const onChainData = initOnChainData();
+
+  const batchArray = batches.map((batch) => {
+    return batch.events.map((events) => {
+      return events;
+    });
+  });
+
+  const flattenedArray = batchArray.flat(2);
+
+  const startProcessLogsTime = Date.now();
+
+  const latencies: {
+    eventKind: EventKind;
+    latency: number;
+  }[] = [];
+  await Promise.all(
+    flattenedArray.map(async (events) => {
+      const startTime = Date.now();
+      if (!events.data.length) {
+        return;
+      }
+      const handler = eventKindToHandler.get(events.kind);
+      if (handler) {
+        await handler(events.data, onChainData, false);
+      } else {
+        logger.error(
+          "process-events-batch",
+          JSON.stringify({
+            error: "missing-handler-for-event-kind",
+            data: `Event kind ${events.kind} is missing a corresponding handler`,
+          })
+        );
+      }
+
+      const endTime = Date.now();
+
+      latencies.push({
+        eventKind: events.kind,
+        latency: endTime - startTime,
+      });
+    })
+  );
+  const endProcessLogsTime = Date.now();
+
+  const startSaveOnChainDataTime = Date.now();
+  const processOnChainLatencies = await processOnChainData(onChainData, false);
+  const endSaveOnChainDataTime = Date.now();
+
+  const endTime = Date.now();
+
+  return {
+    processLogsTime: endProcessLogsTime - startProcessLogsTime,
+    saveOnChainDataTime: endSaveOnChainDataTime - startSaveOnChainDataTime,
+    totalTime: endTime - startTime,
+    latencies,
+    processOnChainLatencies,
+  };
 };

@@ -25,9 +25,7 @@ export const getCollectionV1Options: RouteOptions = {
         .description(
           "Filter to a particular collection, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
-      slug: Joi.string()
-        .lowercase()
-        .description("Filter to a particular slug, e.g. `boredapeyachtclub`"),
+      slug: Joi.string().description("Filter to a particular slug, e.g. `boredapeyachtclub`"),
     })
       .or("id", "slug")
       .oxor("id", "slug"),

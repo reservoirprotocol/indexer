@@ -8,17 +8,19 @@ import _ from "lodash";
 
 import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { regex } from "@/common/utils";
 import { ApiKeyManager } from "@/models/api-keys";
 import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 
-import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections-refresh-cache";
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
 import * as orderFixes from "@/jobs/order-fixes/fixes";
 import * as blurBidsRefresh from "@/jobs/order-updates/misc/blur-bids-refresh";
+import * as blurListingsRefresh from "@/jobs/order-updates/misc/blur-listings-refresh";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
+import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
 
 const version = "v1";
 
@@ -96,19 +98,17 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
 
       if (payload.metadataOnly) {
         // Refresh the collection metadata
-        let tokenId;
-        if (collection.tokenIdRange?.length) {
-          tokenId = `${collection.tokenIdRange[0]}`;
-        } else {
-          tokenId = await Tokens.getSingleToken(payload.collection);
-        }
+        const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionUpdatesMetadata.addToQueue(
-          collection.contract,
-          tokenId,
-          collection.community,
+        await collectionMetadataQueueJob.addToQueue(
+          {
+            contract: collection.contract,
+            tokenId,
+            community: collection.community,
+            forceRefresh: true,
+          },
           0,
-          true
+          "post-refresh-collection-v1"
         );
 
         if (collection.slug) {
@@ -127,6 +127,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
 
         // Refresh Blur bids
         await blurBidsRefresh.addToQueue(collection.id, true);
+        await blurListingsRefresh.addToQueue(collection.id, true);
 
         // Refresh listings
         await OpenseaIndexerApi.fastContractSync(collection.contract);
@@ -174,19 +175,17 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         );
 
         // Refresh the collection metadata
-        let tokenId;
-        if (collection.tokenIdRange?.length) {
-          tokenId = `${collection.tokenIdRange[0]}`;
-        } else {
-          tokenId = await Tokens.getSingleToken(payload.collection);
-        }
+        const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionUpdatesMetadata.addToQueue(
-          collection.contract,
-          tokenId,
-          collection.community,
+        await collectionMetadataQueueJob.addToQueue(
+          {
+            contract: collection.contract,
+            tokenId,
+            community: collection.community,
+            forceRefresh: payload.overrideCoolDown,
+          },
           0,
-          payload.overrideCoolDown
+          "post-refresh-collection-v1"
         );
 
         if (collection.slug) {
@@ -204,13 +203,15 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         }
 
         // Refresh the contract floor sell and top bid
-        await collectionsRefreshCache.addToQueue(collection.id);
+        await collectionRefreshCacheJob.addToQueue({ collection: collection.id });
 
         // Revalidate the contract orders
         await orderFixes.addToQueue([{ by: "contract", data: { contract: collection.contract } }]);
 
         // Refresh Blur bids
-        await blurBidsRefresh.addToQueue(collection.id, true);
+        if (collection.id.match(regex.address)) {
+          await blurBidsRefresh.addToQueue(collection.id, true);
+        }
 
         // Refresh listings
         await OpenseaIndexerApi.fastContractSync(collection.contract);

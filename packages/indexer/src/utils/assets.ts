@@ -1,6 +1,12 @@
 import _ from "lodash";
 import { MergeRefs, ReqRefDefaults } from "@hapi/hapi";
 
+export enum ImageSize {
+  small = 250,
+  medium = 512,
+  large = 1000,
+}
+
 export class Assets {
   public static getLocalAssetsLink(assets: string | string[]) {
     if (_.isEmpty(assets) || assets == "") {
@@ -41,5 +47,25 @@ export class Assets {
     });
 
     return `${baseUrl}?${queryParams.toString()}`;
+  }
+
+  public static getResizedImageUrl(imageUrl: string, size: number): string {
+    if (imageUrl?.includes("lh3.googleusercontent.com")) {
+      if (imageUrl.match(/=s\d+$/)) {
+        return imageUrl.replace(/=s\d+$/, `=s${size}`);
+      } else {
+        return `${imageUrl}=s${size}`;
+      }
+    }
+
+    if (imageUrl?.includes("i.seadn.io")) {
+      if (imageUrl.match(/w=\d+/)) {
+        return imageUrl.replace(/w=\d+/, `w=${size}`);
+      } else {
+        return `${imageUrl}?w=${size}`;
+      }
+    }
+
+    return imageUrl;
   }
 }

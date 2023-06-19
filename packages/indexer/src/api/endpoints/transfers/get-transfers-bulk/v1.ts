@@ -45,12 +45,18 @@ export const getTransfersBulkV1Options: RouteOptions = {
       endTimestamp: Joi.number().description(
         "Get events before a particular unix timestamp (inclusive)"
       ),
+      txHash: Joi.string()
+        .lowercase()
+        .pattern(regex.bytes32)
+        .description(
+          "Filter to a particular transaction. Example: `0x04654cc4c81882ed4d20b958e0eeb107915d75730110cce65333221439de6afc`"
+        ),
       limit: Joi.number()
         .integer()
         .min(1)
         .max(1000)
         .default(100)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned in response. Max limit is 1000."),
       continuation: Joi.string()
         .pattern(regex.base64)
         .description("Use continuation token to request next offset of items."),
@@ -67,7 +73,7 @@ export const getTransfersBulkV1Options: RouteOptions = {
           }),
           from: Joi.string().lowercase().pattern(regex.address),
           to: Joi.string().lowercase().pattern(regex.address),
-          amount: Joi.string(),
+          amount: Joi.string().description("Can be more than 1 if erc1155."),
           block: Joi.number(),
           txHash: Joi.string().lowercase().pattern(regex.bytes32),
           logIndex: Joi.number(),
@@ -114,6 +120,10 @@ export const getTransfersBulkV1Options: RouteOptions = {
         (query as any).tokenId = tokenId;
         conditions.push(`nft_transfer_events.address = $/contract/`);
         conditions.push(`nft_transfer_events.token_id = $/tokenId/`);
+      }
+      if (query.txHash) {
+        (query as any).txHash = toBuffer(query.txHash);
+        conditions.push(`nft_transfer_events.tx_hash = $/txHash/`);
       }
 
       if (query.continuation) {

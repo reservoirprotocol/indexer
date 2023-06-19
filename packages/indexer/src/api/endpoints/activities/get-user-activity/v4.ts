@@ -13,6 +13,9 @@ import { getOrderSourceByOrderKind, OrderKind } from "@/orderbook/orders";
 import { CollectionSets } from "@/models/collection-sets";
 import * as Boom from "@hapi/boom";
 import { JoiOrderMetadata } from "@/common/joi";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { Collections } from "@/models/collections";
+import { config } from "@/config/index";
 
 const version = "v4";
 
@@ -92,10 +95,13 @@ export const getUserActivityV4Options: RouteOptions = {
             .valid(..._.values(ActivityType))
         )
         .description("Types of events returned in response. Example: 'types=sale'"),
-    }).oxor("collection", "collectionsSetId", "community"),
+    })
+      .oxor("collection", "collectionsSetId", "community")
+      .options({ allowUnknown: true, stripUnknown: false }),
   },
   response: {
     schema: Joi.object({
+      es: Joi.boolean().default(false),
       continuation: Joi.string().allow(null),
       activities: Joi.array().items(
         Joi.object({
@@ -148,10 +154,6 @@ export const getUserActivityV4Options: RouteOptions = {
       query.users = [query.users];
     }
 
-    if (query.continuation) {
-      query.continuation = splitContinuation(query.continuation)[0];
-    }
-
     if (query.collectionsSetId) {
       query.collection = await CollectionSets.getCollectionsIds(query.collectionsSetId);
       if (_.isEmpty(query.collection)) {
@@ -160,6 +162,123 @@ export const getUserActivityV4Options: RouteOptions = {
     }
 
     try {
+      if (query.es !== "0" && config.enableElasticsearchRead) {
+        if (query.collection && !_.isArray(query.collection)) {
+          query.collection = [query.collection];
+        }
+
+        if (query.community) {
+          query.collection = await Collections.getIdsByCommunity(query.community);
+
+          if (query.collection.length === 0) {
+            throw Boom.badRequest(`No collections for community ${query.community}`);
+          }
+        }
+
+        const sources = await Sources.getInstance();
+
+        const { activities, continuation } = await ActivitiesIndex.search({
+          types: query.types,
+          users: query.users,
+          collections: query.collection,
+          sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
+          limit: query.limit,
+          continuation: query.continuation,
+        });
+
+        const result = _.map(activities, (activity) => {
+          let order;
+
+          if (query.includeMetadata) {
+            const orderSource = activity.order?.sourceId
+              ? sources.get(activity.order.sourceId)
+              : undefined;
+
+            let orderCriteria;
+
+            if (activity.order?.criteria) {
+              orderCriteria = {
+                kind: activity.order.criteria.kind,
+                data: {
+                  collectionName: activity.collection?.name,
+                  image:
+                    activity.order.criteria.kind === "token"
+                      ? activity.token?.image
+                      : activity.collection?.image,
+                },
+              };
+
+              if (activity.order.criteria.kind === "token") {
+                (orderCriteria as any).data.tokenName = activity.token?.name;
+              }
+
+              if (activity.order.criteria.kind === "attribute") {
+                (orderCriteria as any).data.attributes = [activity.order.criteria.data.attribute];
+              }
+            }
+
+            order = activity.order?.id
+              ? {
+                  id: activity.order.id,
+                  side: activity.order.side
+                    ? activity.order.side === "sell"
+                      ? "ask"
+                      : "bid"
+                    : undefined,
+                  source: orderSource
+                    ? {
+                        domain: orderSource?.domain,
+                        name: orderSource?.getTitle(),
+                        icon: orderSource?.getIcon(),
+                      }
+                    : undefined,
+                  metadata: orderCriteria,
+                }
+              : undefined;
+          } else {
+            order = activity.order?.id
+              ? {
+                  id: activity.order.id,
+                }
+              : undefined;
+          }
+
+          return {
+            type: activity.type,
+            fromAddress: activity.fromAddress,
+            toAddress: activity.toAddress || null,
+            price: formatEth(activity.pricing?.price || 0),
+            amount: Number(activity.amount),
+            timestamp: activity.timestamp,
+            createdAt: new Date(activity.createdAt).toISOString(),
+            contract: activity.contract,
+            token: {
+              tokenId: activity.token?.id || null,
+              tokenName: query.includeMetadata ? activity.token?.name || null : undefined,
+              tokenImage: query.includeMetadata ? activity.token?.image || null : undefined,
+            },
+            collection: {
+              collectionId: activity.collection?.id,
+              collectionName: query.includeMetadata ? activity.collection?.name : undefined,
+              collectionImage:
+                query.includeMetadata && activity.collection?.image != null
+                  ? activity.collection?.image
+                  : undefined,
+            },
+            txHash: activity.event?.txHash,
+            logIndex: activity.event?.logIndex,
+            batchIndex: activity.event?.batchIndex,
+            order,
+          };
+        });
+
+        return { activities: result, continuation, es: true };
+      }
+
+      if (query.continuation) {
+        query.continuation = splitContinuation(query.continuation)[0];
+      }
+
       const activities = await UserActivities.getActivities(
         query.users,
         query.collection,

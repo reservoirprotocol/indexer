@@ -12,6 +12,10 @@ export const MaxUint256 = BigNumber.from("0x" + "f".repeat(64));
 
 export const getRandomBytes = (numBytes = 32) => bn(randomBytes(numBytes));
 
+export const generateRandomSalt = () => {
+  return `0x${Buffer.from(randomBytes(8)).toString("hex").padStart(24, "0")}`;
+};
+
 // BigNumber
 
 export const bn = (value: BigNumberish) => BigNumber.from(value);
@@ -95,21 +99,24 @@ export type TxData = {
 };
 
 export enum Network {
-  // Ethereum
+  // Mainnets
   Ethereum = 1,
-  EthereumGoerli = 5,
-  // Optimism
   Optimism = 10,
-  // Gnosis
+  Bsc = 56,
   Gnosis = 100,
-  // Polygon
   Polygon = 137,
-  PolygonMumbai = 80001,
-  // Arbitrum
   Arbitrum = 42161,
-  // Avalanche
-  Avalanche = 43114,
-  AvalancheFuji = 43113,
+  ArbitrumNova = 42170,
+  Zora = 7777777,
+  // Testnets
+  EthereumGoerli = 5,
+  ZoraTestnet = 999,
+  MantleTestnet = 5001,
+  LineaTestnet = 59140,
+  Mumbai = 80001,
+  BaseGoerli = 84531,
+  ScrollAlpha = 534353,
+  EthereumSepolia = 11155111,
 }
 
 export type ChainIdToAddress = { [chainId: number]: string };
