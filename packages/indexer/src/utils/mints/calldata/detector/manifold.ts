@@ -130,7 +130,7 @@ export const tryParseCollectionMint = async (
           currency: Sdk.Common.Addresses.Eth[config.chainId],
           price,
           tokenId: claim.tokenId.toString(),
-          maxMintsPerWallet: claim.walletMax.toString(),
+          maxMintsPerWallet: bn(claim.walletMax).eq(0) ? null : claim.walletMax.toString(),
           maxSupply: claim.totalMax.toString(),
           startTime: claim.startDate ? claim.startDate : null,
           endTime: claim.endDate ? claim.endDate : null,

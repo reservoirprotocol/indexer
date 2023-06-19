@@ -18,7 +18,7 @@ export type CollectionMint = {
   // TODO: Refactor these hardcoded types
   kind: "public";
   status: "open" | "closed";
-  standard: "unknown" | "zora" | "manifold";
+  standard: "unknown" | "zora" | "manifold" | "thirdweb";
   details: MintDetails;
   currency: string;
   price: string;

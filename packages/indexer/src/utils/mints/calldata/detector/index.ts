@@ -13,6 +13,7 @@ import { CollectionMint, simulateAndSaveCollectionMint } from "@/utils/mints/col
 
 import * as generic from "@/utils/mints/calldata/detector/generic";
 import * as manifold from "@/utils/mints/calldata/detector/manifold";
+import * as thirdweb from "@/utils/mints/calldata/detector/thirdweb";
 import * as zora from "@/utils/mints/calldata/detector/zora";
 
 export const detectMint = async (txHash: string, skipCache = false) => {
@@ -148,6 +149,11 @@ export const detectMint = async (txHash: string, skipCache = false) => {
   // Manifold
   if (!collectionMint) {
     collectionMint = await manifold.tryParseCollectionMint(collection, tx);
+  }
+
+  // Thirdweb
+  if (!collectionMint) {
+    collectionMint = await thirdweb.tryParseCollectionMint(collection, tx);
   }
 
   // Zora
