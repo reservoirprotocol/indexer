@@ -47,7 +47,7 @@ const setup = async () => {
     startKafkaConsumer();
   }
 
-  if (config.doKafkaWork || config.doBackgroundWork) {
+  if ((config.doKafkaWork || config.doBackgroundWork) && config.kafkaBrokers.length > 0) {
     startKafkaProducer();
   }
 

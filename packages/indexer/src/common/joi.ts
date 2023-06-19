@@ -685,7 +685,7 @@ export const getJoiOrderObject = async (order: {
     updatedAt: new Date(order.updatedAt * 1000).toISOString(),
     rawData: order.includeRawData ? order.rawData : undefined,
     isNativeOffChainCancellable: order.includeRawData
-      ? (order.rawData as any).zone ===
+      ? (order.rawData as any)?.zone ===
         Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
       : undefined,
     depth: order.includeDepth
