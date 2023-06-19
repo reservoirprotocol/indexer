@@ -397,7 +397,7 @@ export const getNetworkSettings = (): NetworkSettings => {
           [
             "0x3b45a986621f91eb51be84547fbd9c26d0d46d02",
             {
-              contract: "0x3B45a986621f91Eb51bE84547fBd9c26D0D46D02",
+              contract: "0x3b45a986621f91eb51be84547fbd9c26d0d46d02",
               name: "Gold Bar Currency",
               symbol: "GXB",
               decimals: 18,
