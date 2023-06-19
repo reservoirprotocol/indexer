@@ -237,6 +237,15 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
+            "0x45f93404AE1E4f0411a7F42BC6a5Dc395792738D",
+            {
+              contract: "0x45f93404AE1E4f0411a7F42BC6a5Dc395792738D",
+              name: "DEGEN",
+              symbol: "DGEN",
+              decimals: 18,
+            },
+          ],
+          [
             "0x4c7c1ec97279a6f3323eab9ab317202dee7ad922",
             {
               contract: "0x4c7c1ec97279a6f3323eab9ab317202dee7ad922",
@@ -388,9 +397,18 @@ export const getNetworkSettings = (): NetworkSettings => {
           [
             "0x3b45a986621f91eb51be84547fbd9c26d0d46d02",
             {
-              contract: "0x3b45a986621f91eb51be84547fbd9c26d0d46d02",
+              contract: "0x3B45a986621f91Eb51bE84547fBd9c26D0D46D02",
               name: "Gold Bar Currency",
               symbol: "GXB",
+              decimals: 18,
+            },
+          ],
+          [
+            "0xdBb5Da27FFcFeBea8799a5832D4607714fc6aBa8",
+            {
+              contract: "0xdBb5Da27FFcFeBea8799a5832D4607714fc6aBa8",
+              name: "DEGEN",
+              symbol: "DGEN",
               decimals: 18,
             },
           ]
