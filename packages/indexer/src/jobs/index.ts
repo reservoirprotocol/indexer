@@ -439,31 +439,31 @@ export class RabbitMqJobsConsumer {
       }
     );
 
-    // Subscribe to the retry queue
-    await channel.consume(
-      job.getRetryQueue(),
-      async (msg) => {
-        if (!_.isNull(msg)) {
-          await job.consume(channel, msg);
-        }
-      },
-      {
-        consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getRetryQueue()),
-      }
-    );
-
-    // Subscribe to the queue
-    await channel.consume(
-      _.replace(job.getQueue(), ".new", ""),
-      async (msg) => {
-        if (!_.isNull(msg)) {
-          await job.consume(channel, msg);
-        }
-      },
-      {
-        consumerTag: RabbitMqJobsConsumer.getConsumerTag(_.replace(job.getQueue(), ".new", "")),
-      }
-    );
+    // // Subscribe to the retry queue
+    // await channel.consume(
+    //   job.getRetryQueue(),
+    //   async (msg) => {
+    //     if (!_.isNull(msg)) {
+    //       await job.consume(channel, msg);
+    //     }
+    //   },
+    //   {
+    //     consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getRetryQueue()),
+    //   }
+    // );
+    //
+    // // Subscribe to the queue
+    // await channel.consume(
+    //   _.replace(job.getQueue(), ".new", ""),
+    //   async (msg) => {
+    //     if (!_.isNull(msg)) {
+    //       await job.consume(channel, msg);
+    //     }
+    //   },
+    //   {
+    //     consumerTag: RabbitMqJobsConsumer.getConsumerTag(_.replace(job.getQueue(), ".new", "")),
+    //   }
+    // );
 
     // Subscribe to the retry queue
     await channel.consume(
