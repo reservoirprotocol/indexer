@@ -47,7 +47,7 @@ export const tryParseCollectionMint = async (
       );
 
       const saleDetails = await c.saleDetails();
-      if (saleDetails.publicSaleActive && saleDetails.publicStartDate.toNumber() >= now()) {
+      if (saleDetails.publicSaleActive && saleDetails.publicSaleStart.toNumber() >= now()) {
         // Include the Zora mint fee into the price
         const fee = await c.zoraFeeForAmount(1).then((f: { fee: BigNumber }) => f.fee);
         const price = bn(saleDetails.publicSalePrice).add(fee).toString();

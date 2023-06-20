@@ -183,7 +183,7 @@ export const detectMint = async (txHash: string, skipCache = false) => {
     logger.info("mints-process", JSON.stringify({ success: result, collectionMint }));
     return result;
   } else {
-    logger.info("mints-process", JSON.stringify({ success: false, collectionMint }));
+    logger.info("mints-process", JSON.stringify({ success: false, collection }));
     return false;
   }
 };

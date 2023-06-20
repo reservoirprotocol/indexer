@@ -350,6 +350,9 @@ export const getNetworkSettings = (): NetworkSettings => {
           "0x45dcf807722e43ba152d8033252398001f438817",
           "0x7219f3a405844a4173ac822ee18994823bec2b4f",
           "0x182d9d5680c2c0f50b6d40169a3a27cb94b1f2fe",
+          "0xaf7416127f127f82b4ed7b0818fbd2b3e5c0e07a",
+          "0xb8f2de4905576c18633a7b4b1a5422fa8ae2a8b5",
+          "0xe2997a26fa424361eb6e7dc6a42ef7f72134d26e",
         ],
         onStartup: async () => {
           // Insert the native currency
