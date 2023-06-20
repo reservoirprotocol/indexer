@@ -21,6 +21,19 @@ export async function startKafkaProducer(): Promise<void> {
   logger.info(`kafka-producer`, "Starting Kafka producer");
   await producer.connect();
 
+  const connectPromise = new Promise((resolve, reject) => {
+    producer.on("producer.connect", async () => {
+      logger.info(`kafka-producer`, "Producer connected");
+      resolve(undefined);
+    });
+
+    setTimeout(() => {
+      reject("Producer connection timeout");
+    }, 20000);
+  });
+
+  await connectPromise;
+
   producer.on("producer.disconnect", async (error) => {
     logger.error(`kafka-producer`, `Producer disconnected, error=${error}`);
     await restartKafkaProducer();
