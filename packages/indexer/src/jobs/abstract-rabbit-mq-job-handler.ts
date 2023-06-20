@@ -24,7 +24,7 @@ export type BackoffStrategy =
 export type QueueType = "classic" | "quorum";
 
 export type AbstractRabbitMqJobHandlerEvents = {
-  onCompleted: (message: RabbitMQMessage) => void;
+  onCompleted: (message: RabbitMQMessage, processResult: any) => void;
   onError: (message: RabbitMQMessage, error: any) => void;
 };
 
@@ -34,7 +34,7 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
   abstract queueName: string;
   abstract maxRetries: number;
 
-  protected abstract process(payload: any): Promise<void>;
+  protected abstract process(payload: any): Promise<any>;
 
   protected concurrency = 1;
   protected maxDeadLetterQueue = 5000;
@@ -52,10 +52,10 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
     message.retryCount = message.retryCount ?? 0;
 
     try {
-      await this.process(message.payload); // Process the message
+      const processResult = await this.process(message.payload); // Process the message
       message.completeTime = _.now(); // Set the complete time
       await channel.ack(consumeMessage); // Ack the message with rabbit
-      this.emit("onCompleted", message); // Emit on Completed event
+      this.emit("onCompleted", message, processResult); // Emit on Completed event
 
       // Release lock if there's a job id with no delay
       if (message.jobId && !message.delay) {

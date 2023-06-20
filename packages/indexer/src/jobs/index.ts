@@ -452,34 +452,6 @@ export class RabbitMqJobsConsumer {
       }
     );
 
-    // Subscribe to the queue
-    await channel.consume(
-      _.replace(job.getQueue(), ".new", ""),
-      async (msg) => {
-        if (!_.isNull(msg)) {
-          await job.consume(channel, msg);
-        }
-      },
-      {
-        consumerTag: RabbitMqJobsConsumer.getConsumerTag(_.replace(job.getQueue(), ".new", "")),
-      }
-    );
-
-    // Subscribe to the retry queue
-    await channel.consume(
-      _.replace(job.getRetryQueue(), ".new", ""),
-      async (msg) => {
-        if (!_.isNull(msg)) {
-          await job.consume(channel, msg);
-        }
-      },
-      {
-        consumerTag: RabbitMqJobsConsumer.getConsumerTag(
-          _.replace(job.getRetryQueue(), ".new", "")
-        ),
-      }
-    );
-
     channel.on("error", (error) => {
       logger.error("rabbit-channel-error", `Channel error ${error}`);
 
