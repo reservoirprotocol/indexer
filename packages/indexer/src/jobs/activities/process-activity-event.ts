@@ -73,7 +73,7 @@ if (config.doBackgroundWork) {
         }
       } else {
         // Get the next batch of activities
-        const limit = 85;
+        const limit = 50;
         const activitiesList = new ActivitiesList();
         const activitiesToProcess = await activitiesList.get(limit);
         job.data.checkForMore = !_.isEmpty(activitiesToProcess);
@@ -169,7 +169,7 @@ if (config.doBackgroundWork) {
         }
       }
     },
-    { connection: redis.duplicate(), concurrency: 45 }
+    { connection: redis.duplicate(), concurrency: 20 }
   );
 
   worker.on("completed", async (job) => {
