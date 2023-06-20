@@ -65,8 +65,10 @@ export class RabbitMq {
     content.publishTime = content.publishTime ?? _.now();
 
     try {
-      // For deduplication messages with delay use redis lock
+      // For deduplication messages use redis lock
       if (delay && content.jobId && !(await acquireLock(content.jobId, Number(delay / 1000)))) {
+        return;
+      } else if (content.jobId && !(await acquireLock(content.jobId, 5 * 60))) {
         return;
       }
 
@@ -103,7 +105,6 @@ export class RabbitMq {
             Buffer.from(JSON.stringify(content)),
             {
               priority,
-              headers: { "x-deduplication-header": content.jobId },
               persistent: content.persistent,
             },
             (error) => {
@@ -189,7 +190,6 @@ export class RabbitMq {
       const options = {
         maxPriority: queue.getQueueType() === "classic" ? 1 : undefined,
         arguments: {
-          "x-message-deduplication": true,
           "x-single-active-consumer": queue.getSingleActiveConsumer(),
           "x-queue-type": queue.getQueueType(),
         },
@@ -215,37 +215,35 @@ export class RabbitMq {
       );
 
       // Create dead letter queue for all jobs the failed more than the max retries
-      await this.rabbitMqPublisherChannels[0].assertQueue(queue.getDeadLetterQueue(), {
-        arguments: { "x-message-deduplication": true },
-      });
+      await this.rabbitMqPublisherChannels[0].assertQueue(queue.getDeadLetterQueue());
 
-      // If the dead letter queue have custom max length
-      if (queue.getMaxDeadLetterQueue() !== AbstractRabbitMqJobHandler.defaultMaxDeadLetterQueue) {
-        await this.createOrUpdatePolicy({
-          name: `${queue.getDeadLetterQueue()}-policy`,
-          vhost: "/",
-          priority: 10,
-          pattern: `^${queue.getDeadLetterQueue()}$`,
-          applyTo: "queues",
-          definition: {
-            "max-length": queue.getMaxDeadLetterQueue(),
-          },
-        });
-      }
+      // // If the dead letter queue have custom max length
+      // if (queue.getMaxDeadLetterQueue() !== AbstractRabbitMqJobHandler.defaultMaxDeadLetterQueue) {
+      //   await this.createOrUpdatePolicy({
+      //     name: `${queue.getDeadLetterQueue()}-policy`,
+      //     vhost: "/",
+      //     priority: 10,
+      //     pattern: `^${queue.getDeadLetterQueue()}$`,
+      //     applyTo: "queues",
+      //     definition: {
+      //       "max-length": queue.getMaxDeadLetterQueue(),
+      //     },
+      //   });
+      // }
 
-      // If the queue defined as lazy ie use only disk for this queue messages
-      if (queue.isLazyMode()) {
-        await this.createOrUpdatePolicy({
-          name: `${queue.getQueue()}-policy`,
-          vhost: "/",
-          priority: 10,
-          pattern: `^${queue.getQueue()}$|^${queue.getRetryQueue()}$`,
-          applyTo: "queues",
-          definition: {
-            "queue-mode": "lazy",
-          },
-        });
-      }
+      // // If the queue defined as lazy ie use only disk for this queue messages
+      // if (queue.isLazyMode()) {
+      //   await this.createOrUpdatePolicy({
+      //     name: `${queue.getQueue()}-policy`,
+      //     vhost: "/",
+      //     priority: 10,
+      //     pattern: `^${queue.getQueue()}$|^${queue.getRetryQueue()}$`,
+      //     applyTo: "queues",
+      //     definition: {
+      //       "queue-mode": "lazy",
+      //     },
+      //   });
+      // }
     }
 
     // Create general rule for all dead letters queues

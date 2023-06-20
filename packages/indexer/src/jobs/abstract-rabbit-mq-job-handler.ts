@@ -8,6 +8,7 @@ import { getNetworkName } from "@/config/network";
 import EventEmitter from "events";
 import TypedEmitter from "typed-emitter";
 import { Channel, ConsumeMessage } from "amqplib";
+import { releaseLock } from "@/common/redis";
 
 export type BackoffStrategy =
   | {
@@ -44,13 +45,9 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
   protected lazyMode = false;
   protected queueType: QueueType = "classic";
 
-  private sharedChannelName = "shared-channel";
+  public async consume(channel: Channel, consumeMessage: ConsumeMessage): Promise<void> {
+    const message = JSON.parse(consumeMessage.content.toString()) as RabbitMQMessage;
 
-  public async consume(
-    channel: Channel,
-    consumeMessage: ConsumeMessage,
-    message: RabbitMQMessage
-  ): Promise<void> {
     message.consumedTime = message.consumedTime ?? _.now();
     message.retryCount = message.retryCount ?? 0;
 
@@ -59,6 +56,11 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
       message.completeTime = _.now(); // Set the complete time
       await channel.ack(consumeMessage); // Ack the message with rabbit
       this.emit("onCompleted", message); // Emit on Completed event
+
+      // Release lock if there's a job id with no delay
+      if (message.jobId && !message.delay) {
+        await releaseLock(message.jobId).catch();
+      }
     } catch (error) {
       this.emit("onError", message, error); // Emit error event
 
@@ -105,7 +107,7 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
   }
 
   public getQueue(): string {
-    return `${getNetworkName()}.${this.queueName}`;
+    return `${getNetworkName()}.new.${this.queueName}`;
   }
 
   public getRetryQueue(queueName?: string): string {
@@ -126,10 +128,6 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
 
   public getMaxDeadLetterQueue(): number {
     return this.maxDeadLetterQueue;
-  }
-
-  public getSharedChannelName(): string {
-    return this.sharedChannelName;
   }
 
   public getUseSharedChannel(): boolean {
