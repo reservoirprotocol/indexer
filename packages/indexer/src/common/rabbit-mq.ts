@@ -217,33 +217,33 @@ export class RabbitMq {
       // Create dead letter queue for all jobs the failed more than the max retries
       await this.rabbitMqPublisherChannels[0].assertQueue(queue.getDeadLetterQueue());
 
-      // // If the dead letter queue have custom max length
-      // if (queue.getMaxDeadLetterQueue() !== AbstractRabbitMqJobHandler.defaultMaxDeadLetterQueue) {
-      //   await this.createOrUpdatePolicy({
-      //     name: `${queue.getDeadLetterQueue()}-policy`,
-      //     vhost: "/",
-      //     priority: 10,
-      //     pattern: `^${queue.getDeadLetterQueue()}$`,
-      //     applyTo: "queues",
-      //     definition: {
-      //       "max-length": queue.getMaxDeadLetterQueue(),
-      //     },
-      //   });
-      // }
+      // If the dead letter queue have custom max length
+      if (queue.getMaxDeadLetterQueue() !== AbstractRabbitMqJobHandler.defaultMaxDeadLetterQueue) {
+        await this.createOrUpdatePolicy({
+          name: `${queue.getDeadLetterQueue()}-policy`,
+          vhost: "/",
+          priority: 10,
+          pattern: `^${queue.getDeadLetterQueue()}$`,
+          applyTo: "queues",
+          definition: {
+            "max-length": queue.getMaxDeadLetterQueue(),
+          },
+        });
+      }
 
-      // // If the queue defined as lazy ie use only disk for this queue messages
-      // if (queue.isLazyMode()) {
-      //   await this.createOrUpdatePolicy({
-      //     name: `${queue.getQueue()}-policy`,
-      //     vhost: "/",
-      //     priority: 10,
-      //     pattern: `^${queue.getQueue()}$|^${queue.getRetryQueue()}$`,
-      //     applyTo: "queues",
-      //     definition: {
-      //       "queue-mode": "lazy",
-      //     },
-      //   });
-      // }
+      // If the queue defined as lazy ie use only disk for this queue messages
+      if (queue.isLazyMode()) {
+        await this.createOrUpdatePolicy({
+          name: `${queue.getQueue()}-policy`,
+          vhost: "/",
+          priority: 10,
+          pattern: `^${queue.getQueue()}$|^${queue.getRetryQueue()}$`,
+          applyTo: "queues",
+          definition: {
+            "queue-mode": "lazy",
+          },
+        });
+      }
     }
 
     // Create general rule for all dead letters queues
