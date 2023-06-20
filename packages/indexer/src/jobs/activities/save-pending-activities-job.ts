@@ -5,6 +5,10 @@ import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/queue
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
+import { config } from "@/config/index";
+import cron from "node-cron";
+import { redlock } from "@/common/redis";
+import { addToQueue } from "@/jobs/activities/process-activity-event";
 
 export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
   queueName = "save-pending-activities-queue";
@@ -55,3 +59,16 @@ export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
 }
 
 export const savePendingActivitiesJob = new SavePendingActivitiesJob();
+
+if (config.doBackgroundWork) {
+  cron.schedule(
+    "*/5 * * * * *",
+    async () =>
+      await redlock
+        .acquire(["save-pending-activities-queue-lock"], (5 - 1) * 1000)
+        .then(async () => addToQueue())
+        .catch(() => {
+          // Skip on any errors
+        })
+  );
+}
