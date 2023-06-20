@@ -21,7 +21,7 @@ export class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler {
 
     const query = `
           UPDATE "collections"
-          SET "token_count" = (SELECT COUNT(*) FROM "tokens" WHERE "collection_id" = $/collection/),
+          SET "token_count" = (SELECT COUNT(*) FROM "tokens" WHERE "collection_id" = $/collection/ AND (remaining_supply > 0 OR remaining_supply is null),
               "updated_at" = now()
           WHERE "id" = $/collection/;
       `;
