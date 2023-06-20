@@ -73,7 +73,7 @@ if (config.doBackgroundWork) {
           );
 
           if (keepGoing) {
-            await addToQueue(contract, tokenId, collectionId, tokenUpdateData);
+            await addToQueue(contract, tokenId, collectionId, tokenUpdateData, force);
           }
         }
       }
