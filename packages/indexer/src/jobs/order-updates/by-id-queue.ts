@@ -21,11 +21,14 @@ import { normalizedFloorQueueJob } from "@/jobs/token-updates/normalized-floor-q
 import { tokenFloorQueueJob } from "@/jobs/token-updates/token-floor-queue-job";
 import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";
 import { topBidSingleTokenQueueJob } from "@/jobs/token-set-updates/top-bid-single-token-queue-job";
-import {
-  processActivityEventJob,
-  EventKind as ProcessActivityEventKind,
-  ProcessActivityEventJobPayload,
-} from "@/jobs/activities/process-activity-event-job";
+
+// import {
+//   processActivityEventJob,
+//   EventKind as ProcessActivityEventKind,
+//   ProcessActivityEventJobPayload,
+// } from "@/jobs/activities/process-activity-event-job";
+
+import * as processActivityEvent from "@/jobs/activities/process-activity-event";
 
 const QUEUE_NAME = "order-updates-by-id";
 
@@ -241,21 +244,27 @@ if (config.doBackgroundWork) {
             let eventInfo;
             if (trigger.kind == "cancel") {
               const eventData = {
-                orderId: order.id,
+                orderSourceIdInt: order.sourceIdInt,
+                contract: fromBuffer(order.contract),
+                tokenId: order.tokenId,
+                maker: fromBuffer(order.maker),
+                price: order.price,
+                amount: order.quantityRemaining,
                 transactionHash: trigger.txHash,
                 logIndex: trigger.logIndex,
                 batchIndex: trigger.batchIndex,
                 blockHash: trigger.blockHash,
+                timestamp: trigger.txTimestamp || Math.floor(Date.now() / 1000),
               };
 
               if (order.side === "sell") {
                 eventInfo = {
-                  kind: ProcessActivityEventKind.sellOrderCancelled,
+                  kind: processActivityEvent.EventKind.sellOrderCancelled,
                   data: eventData,
                 };
               } else if (order.side === "buy") {
                 eventInfo = {
-                  kind: ProcessActivityEventKind.buyOrderCancelled,
+                  kind: processActivityEvent.EventKind.buyOrderCancelled,
                   data: eventData,
                 };
               }
@@ -266,27 +275,34 @@ if (config.doBackgroundWork) {
             ) {
               const eventData = {
                 orderId: order.id,
+                orderSourceIdInt: order.sourceIdInt,
+                contract: fromBuffer(order.contract),
+                tokenId: order.tokenId,
+                maker: fromBuffer(order.maker),
+                price: order.price,
+                amount: order.quantityRemaining,
                 transactionHash: trigger.txHash,
                 logIndex: trigger.logIndex,
                 batchIndex: trigger.batchIndex,
+                timestamp: trigger.txTimestamp || Math.floor(Date.now() / 1000),
               };
 
               if (order.side === "sell") {
                 eventInfo = {
-                  kind: ProcessActivityEventKind.newSellOrder,
+                  kind: processActivityEvent.EventKind.newSellOrder,
                   data: eventData,
                 };
               } else if (order.side === "buy") {
                 eventInfo = {
-                  kind: ProcessActivityEventKind.newBuyOrder,
+                  kind: processActivityEvent.EventKind.newBuyOrder,
                   data: eventData,
                 };
               }
             }
 
             if (eventInfo) {
-              await processActivityEventJob.addToQueue([
-                eventInfo as ProcessActivityEventJobPayload,
+              await processActivityEvent.addActivitiesToList([
+                eventInfo as processActivityEvent.EventInfo,
               ]);
             }
 

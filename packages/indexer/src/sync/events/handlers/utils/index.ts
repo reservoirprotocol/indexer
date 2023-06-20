@@ -25,11 +25,14 @@ import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
-import {
-  processActivityEventJob,
-  EventKind as ProcessActivityEventKind,
-  ProcessActivityEventJobPayload,
-} from "@/jobs/activities/process-activity-event-job";
+
+// import {
+//   processActivityEventJob,
+//   EventKind as ProcessActivityEventKind,
+//   ProcessActivityEventJobPayload,
+// } from "@/jobs/activities/process-activity-event-job";
+
+import * as processActivityEvent from "@/jobs/activities/process-activity-event";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -257,31 +260,61 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   }
 
   // Process fill activities
-  const fillActivityInfos: ProcessActivityEventJobPayload[] = allFillEvents.map((event) => {
+  const fillActivityInfos: processActivityEvent.EventInfo[] = allFillEvents.map((event) => {
+    let fromAddress = event.maker;
+    let toAddress = event.taker;
+
+    if (event.orderSide === "buy") {
+      fromAddress = event.taker;
+      toAddress = event.maker;
+    }
+
     return {
-      kind: ProcessActivityEventKind.fillEvent,
+      kind: processActivityEvent.EventKind.fillEvent,
       data: {
+        contract: event.contract,
+        tokenId: event.tokenId,
+        fromAddress,
+        toAddress,
+        price: Number(event.price),
+        amount: Number(event.amount),
         transactionHash: event.baseEventParams.txHash,
         logIndex: event.baseEventParams.logIndex,
         batchIndex: event.baseEventParams.batchIndex,
+        blockHash: event.baseEventParams.blockHash,
+        timestamp: event.baseEventParams.timestamp,
+        orderId: event.orderId || "",
+        orderSourceIdInt: Number(event.orderSourceId),
       },
     };
   });
 
   const startProcessActivityEvent = Date.now();
-  await processActivityEventJob.addToQueue(fillActivityInfos);
+  await processActivityEvent.addActivitiesToList(fillActivityInfos);
   const endProcessActivityEvent = Date.now();
 
   // Process transfer activities
-  const transferActivityInfos: ProcessActivityEventJobPayload[] = data.nftTransferEvents.map(
+  const transferActivityInfos: processActivityEvent.EventInfo[] = data.nftTransferEvents.map(
     (event) => ({
-      kind: ProcessActivityEventKind.nftTransferEvent,
+      context: [
+        processActivityEvent.EventKind.nftTransferEvent,
+        event.baseEventParams.txHash,
+        event.baseEventParams.logIndex,
+        event.baseEventParams.batchIndex,
+      ].join(":"),
+      kind: processActivityEvent.EventKind.nftTransferEvent,
       data: {
+        contract: event.baseEventParams.address,
+        tokenId: event.tokenId,
+        fromAddress: event.from,
+        toAddress: event.to,
+        amount: Number(event.amount),
         transactionHash: event.baseEventParams.txHash,
         logIndex: event.baseEventParams.logIndex,
         batchIndex: event.baseEventParams.batchIndex,
         blockHash: event.baseEventParams.blockHash,
-      },
+        timestamp: event.baseEventParams.timestamp,
+      } as NftTransferEventData,
     })
   );
 
@@ -304,7 +337,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   });
 
   const startProcessTransferActivityEvent = Date.now();
-  await processActivityEventJob.addToQueue(filteredTransferActivityInfos);
+  await processActivityEvent.addActivitiesToList(filteredTransferActivityInfos);
   const endProcessTransferActivityEvent = Date.now();
 
   return {
