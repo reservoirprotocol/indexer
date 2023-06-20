@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { fromBuffer, toBuffer } from "@/common/utils";
-import { redb } from "@/common/db";
+import { idb } from "@/common/db";
 
 import { ActivityDocument, ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { getActivityHash } from "@/elasticsearch/indexes/activities/utils";
@@ -23,7 +23,7 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
   }
 
   async generateActivity(): Promise<ActivityDocument | null> {
-    const data = await redb.oneOrNone(
+    const data = await idb.oneOrNone(
       `
                 ${NftTransferEventCreatedEventHandler.buildBaseQuery()}
                 WHERE tx_hash = $/txHash/

@@ -30,7 +30,6 @@ import "@/jobs/token-set-updates";
 // Export all job queues for monitoring through the BullMQ UI
 
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
-import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
 
 import * as backfillBlockTimestamps from "@/jobs/backfill/backfill-block-timestamps";
 import * as backfillCancelSeaport11Orders from "@/jobs/backfill/backfill-cancel-seaport-v11-orders";
@@ -90,8 +89,6 @@ import * as orderFixes from "@/jobs/order-fixes/fixes";
 import * as orderRevalidations from "@/jobs/order-fixes/revalidations";
 
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
-import * as orderUpdatesBuyOrder from "@/jobs/order-updates/order-updates-buy-order-queue";
-import * as orderUpdatesSellOrder from "@/jobs/order-updates/order-updates-sell-order-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as bundleOrderUpdatesByMaker from "@/jobs/order-updates/by-maker-bundle-queue";
 import * as dynamicOrdersCron from "@/jobs/order-updates/cron/dynamic-orders-queue";
@@ -186,11 +183,11 @@ import { oneDayVolumeJob } from "@/jobs/daily-volumes/1day-volumes-job";
 // import { dailyVolumeJob } from "@/jobs/daily-volumes/daily-volumes-job";
 import { processArchiveDataJob } from "@/jobs/data-archive/process-archive-data-job";
 import { exportDataJob } from "@/jobs/data-export/export-data-job";
+import { processActivityEventJob } from "@/jobs/activities/process-activity-event-job";
+import { savePendingActivitiesJob } from "@/jobs/activities/save-pending-activities-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
-  orderUpdatesBuyOrder.worker,
-  orderUpdatesSellOrder.worker,
   orderUpdatesByMaker.worker,
   bundleOrderUpdatesByMaker.worker,
   dynamicOrdersCron.worker,
@@ -203,8 +200,6 @@ export const gracefulShutdownJobWorkers = [
 
 export const allJobQueues = [
   processActivityEvent.queue,
-  removeUnsyncedEventsActivities.queue,
-
   backfillBlockTimestamps.queue,
   backfillCancelSeaport11Orders.queue,
   backfillInvalidatedOrders.queue,
@@ -264,8 +259,6 @@ export const allJobQueues = [
   orderRevalidations.queue,
 
   orderUpdatesById.queue,
-  orderUpdatesBuyOrder.queue,
-  orderUpdatesSellOrder.queue,
   orderUpdatesByMaker.queue,
   bundleOrderUpdatesByMaker.queue,
   dynamicOrdersCron.queue,
@@ -365,6 +358,8 @@ export class RabbitMqJobsConsumer {
       oneDayVolumeJob,
       processArchiveDataJob,
       exportDataJob,
+      processActivityEventJob,
+      savePendingActivitiesJob,
     ];
   }
 

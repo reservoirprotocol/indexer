@@ -1,3 +1,6 @@
+import { config } from "@/config/index";
+import { logger } from "@/common/logger";
+
 import { Log } from "@ethersproject/abstract-provider";
 
 import { concat } from "@/common/utils";
@@ -6,7 +9,6 @@ import { assignSourceToFillEvents } from "@/events-sync/handlers/utils/fills";
 import { BaseEventParams } from "@/events-sync/parser";
 import * as es from "@/events-sync/storage";
 
-import * as processActivityEvent from "@/jobs/activities/process-activity-event";
 import * as fillUpdates from "@/jobs/fill-updates/queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
@@ -23,8 +25,11 @@ import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
-import { config } from "@/config/index";
-import { logger } from "@/common/logger";
+import {
+  processActivityEventJob,
+  EventKind as ProcessActivityEventKind,
+  ProcessActivityEventJobPayload,
+} from "@/jobs/activities/process-activity-event-job";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -252,61 +257,31 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   }
 
   // Process fill activities
-  const fillActivityInfos: processActivityEvent.EventInfo[] = allFillEvents.map((event) => {
-    let fromAddress = event.maker;
-    let toAddress = event.taker;
-
-    if (event.orderSide === "buy") {
-      fromAddress = event.taker;
-      toAddress = event.maker;
-    }
-
+  const fillActivityInfos: ProcessActivityEventJobPayload[] = allFillEvents.map((event) => {
     return {
-      kind: processActivityEvent.EventKind.fillEvent,
+      kind: ProcessActivityEventKind.fillEvent,
       data: {
-        contract: event.contract,
-        tokenId: event.tokenId,
-        fromAddress,
-        toAddress,
-        price: Number(event.price),
-        amount: Number(event.amount),
         transactionHash: event.baseEventParams.txHash,
         logIndex: event.baseEventParams.logIndex,
         batchIndex: event.baseEventParams.batchIndex,
-        blockHash: event.baseEventParams.blockHash,
-        timestamp: event.baseEventParams.timestamp,
-        orderId: event.orderId || "",
-        orderSourceIdInt: Number(event.orderSourceId),
       },
     };
   });
 
   const startProcessActivityEvent = Date.now();
-  await processActivityEvent.addActivitiesToList(fillActivityInfos);
+  await processActivityEventJob.addToQueue(fillActivityInfos);
   const endProcessActivityEvent = Date.now();
 
   // Process transfer activities
-  const transferActivityInfos: processActivityEvent.EventInfo[] = data.nftTransferEvents.map(
+  const transferActivityInfos: ProcessActivityEventJobPayload[] = data.nftTransferEvents.map(
     (event) => ({
-      context: [
-        processActivityEvent.EventKind.nftTransferEvent,
-        event.baseEventParams.txHash,
-        event.baseEventParams.logIndex,
-        event.baseEventParams.batchIndex,
-      ].join(":"),
-      kind: processActivityEvent.EventKind.nftTransferEvent,
+      kind: ProcessActivityEventKind.nftTransferEvent,
       data: {
-        contract: event.baseEventParams.address,
-        tokenId: event.tokenId,
-        fromAddress: event.from,
-        toAddress: event.to,
-        amount: Number(event.amount),
         transactionHash: event.baseEventParams.txHash,
         logIndex: event.baseEventParams.logIndex,
         batchIndex: event.baseEventParams.batchIndex,
         blockHash: event.baseEventParams.blockHash,
-        timestamp: event.baseEventParams.timestamp,
-      } as NftTransferEventData,
+      },
     })
   );
 
@@ -329,7 +304,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   });
 
   const startProcessTransferActivityEvent = Date.now();
-  await processActivityEvent.addActivitiesToList(filteredTransferActivityInfos);
+  await processActivityEventJob.addToQueue(filteredTransferActivityInfos);
   const endProcessTransferActivityEvent = Date.now();
 
   return {

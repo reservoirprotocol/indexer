@@ -73,7 +73,7 @@ if (config.doBackgroundWork) {
         }
       } else {
         // Get the next batch of activities
-        const limit = 50;
+        const limit = 75;
         const activitiesList = new ActivitiesList();
         const activitiesToProcess = await activitiesList.get(limit);
         job.data.checkForMore = !_.isEmpty(activitiesToProcess);
