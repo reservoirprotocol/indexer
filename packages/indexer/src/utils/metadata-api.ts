@@ -75,6 +75,7 @@ export class MetadataApi {
         contract,
         tokenIdRange: null,
         tokenSetId: `contract:${contract}`,
+        paymentTokens: undefined,
       };
     } else {
       const indexingMethod = MetadataApi.getCollectionIndexingMethod(community);
@@ -98,6 +99,7 @@ export class MetadataApi {
         tokenIdRange: [string, string] | null;
         tokenSetId: string | null;
         isFallback?: boolean;
+        paymentTokens?: object | null;
       } = (data as any).collection;
 
       if (collection.isFallback && !options?.allowFallback) {
