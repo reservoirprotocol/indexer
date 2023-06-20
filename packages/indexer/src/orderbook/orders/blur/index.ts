@@ -353,11 +353,9 @@ export const savePartialListings = async (
         )
         .then((r) => fromBuffer(r.owner));
 
-      const id = getBlurListingId(orderParams, owner);
-
       if (orderParams.owner && orderParams.owner.toLowerCase() !== owner) {
-        results.push({
-          id,
+        return results.push({
+          id: "unknown",
           status: "redundant",
         });
       }
@@ -408,6 +406,8 @@ export const savePartialListings = async (
           status: "no-active-orders",
         });
       }
+
+      const id = getBlurListingId(orderParams, owner);
 
       // Handle: royalties
       let feeBps = 0;

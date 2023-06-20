@@ -869,8 +869,20 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/oracle/collections/top-bid/v3",
+    options: oracleEndpoints.getCollectionTopBidOracleV3Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/oracle/tokens/status/v2",
     options: oracleEndpoints.getTokenStatusOracleV2Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/oracle/tokens/status/v3",
+    options: oracleEndpoints.getTokenStatusOracleV3Options,
   });
 
   // Orders
