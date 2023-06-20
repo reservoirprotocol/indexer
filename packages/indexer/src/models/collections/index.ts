@@ -126,7 +126,12 @@ export class Collections {
       return;
     }
 
-    const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, community);
+    const isCopyrightInfringementContract =
+      getNetworkSettings().copyrightInfringementContracts.includes(contract.toLowerCase());
+
+    const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, community, {
+      allowFallback: isCopyrightInfringementContract,
+    });
 
     if (collection.metadata == null) {
       const collectionResult = await Collections.getById(collection.id);
@@ -152,9 +157,6 @@ export class Collections {
         data: { collectionId: collection.id },
       },
     ]);
-
-    const isCopyrightInfringementContract =
-      getNetworkSettings().copyrightInfringementContracts.includes(contract.toLowerCase());
 
     if (isCopyrightInfringementContract) {
       collection.name = collection.id;
