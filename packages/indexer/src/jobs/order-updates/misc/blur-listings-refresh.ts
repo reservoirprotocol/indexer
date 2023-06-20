@@ -14,10 +14,10 @@ const QUEUE_NAME = "blur-listings-refresh";
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
   defaultJobOptions: {
-    attempts: 3,
+    attempts: 20,
     backoff: {
-      type: "exponential",
-      delay: 10000,
+      type: "fixed",
+      delay: 30000,
     },
     removeOnComplete: 0,
     removeOnFail: 10000,
@@ -57,6 +57,7 @@ if (config.doBackgroundWork) {
               orderParams: {
                 collection,
                 tokenId: l.tokenId,
+                owner: l.owner,
                 price: l.price,
                 createdAt: l.createdAt,
               },

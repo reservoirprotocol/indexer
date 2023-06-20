@@ -5,7 +5,7 @@ import * as Sdk from "@reservoir0x/sdk";
 
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import { bn } from "@/common/utils";
+import { bn, now } from "@/common/utils";
 import { config } from "@/config/index";
 import { Transaction } from "@/models/transactions";
 import { CollectionMint } from "@/utils/mints/collection-mints";
@@ -47,7 +47,7 @@ export const tryParseCollectionMint = async (
       );
 
       const saleDetails = await c.saleDetails();
-      if (saleDetails.publicSaleActive) {
+      if (saleDetails.publicSaleActive && saleDetails.publicStartDate.toNumber() >= now()) {
         // Include the Zora mint fee into the price
         const fee = await c.zoraFeeForAmount(1).then((f: { fee: BigNumber }) => f.fee);
         const price = bn(saleDetails.publicSalePrice).add(fee).toString();
