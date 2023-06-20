@@ -527,7 +527,7 @@ export const updateActivitiesMissingCollection = async (
         params: {
           collection_id: collection.id,
           collection_name: collection.name,
-          collection_image: collection.metadata.imageUrl,
+          collection_image: collection.metadata?.imageUrl,
         },
       },
     });
