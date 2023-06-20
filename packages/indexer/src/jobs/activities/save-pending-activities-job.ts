@@ -22,33 +22,40 @@ export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
     const pendingActivitiesQueue = new PendingActivitiesQueue();
     const pendingActivities = await pendingActivitiesQueue.get(limit);
 
-    try {
-      await ActivitiesIndex.save(pendingActivities, false);
-
-      for (const activity of pendingActivities) {
-        // If collection information is not available yet when a mint event
-        if (activity.type === ActivityType.mint && !activity.collection?.id) {
-          await fixActivitiesMissingCollectionJob.addToQueue({
-            contract: activity.contract,
-            tokenId: activity.token!.id,
-          });
-        }
-      }
-    } catch (error) {
-      logger.error(
-        this.queueName,
-        `failed to insert into activities. error=${error}, pendingActivities=${JSON.stringify(
-          pendingActivities
-        )}`
-      );
-
-      await pendingActivitiesQueue.add(pendingActivities);
-    }
-
     if (pendingActivities.length > 0) {
-      logger.info(this.queueName, `requeue job.`);
+      try {
+        await ActivitiesIndex.save(pendingActivities, false);
 
-      await savePendingActivitiesJob.addToQueue();
+        for (const activity of pendingActivities) {
+          // If collection information is not available yet when a mint event
+          if (activity.type === ActivityType.mint && !activity.collection?.id) {
+            await fixActivitiesMissingCollectionJob.addToQueue({
+              contract: activity.contract,
+              tokenId: activity.token!.id,
+            });
+          }
+        }
+      } catch (error) {
+        logger.error(
+          this.queueName,
+          `failed to insert into activities. error=${error}, pendingActivities=${JSON.stringify(
+            pendingActivities
+          )}`
+        );
+
+        await pendingActivitiesQueue.add(pendingActivities);
+      }
+
+      const pendingActivitiesCount = await pendingActivitiesQueue.count();
+
+      if (pendingActivitiesCount > 0) {
+        logger.info(
+          this.queueName,
+          `requeue job. pendingActivitiesCount=${pendingActivitiesCount}`
+        );
+
+        await savePendingActivitiesJob.addToQueue();
+      }
     }
   }
 
