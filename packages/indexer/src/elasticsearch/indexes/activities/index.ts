@@ -773,9 +773,46 @@ export const updateActivitiesTokenMetadata = async (
 
 export const updateActivitiesCollectionMetadata = async (
   collectionId: string,
-  collectionData: { name?: string | null; image?: string | null }
+  collectionData: { name: string | null; image: string | null }
 ): Promise<boolean> => {
   let keepGoing = false;
+
+  const should: any[] = [
+    {
+      bool: {
+        must_not: [
+          collectionData.name
+            ? {
+                term: {
+                  "collection.name": collectionData.name,
+                },
+              }
+            : {
+                exists: {
+                  field: "collection.name",
+                },
+              },
+        ],
+      },
+    },
+    {
+      bool: {
+        must_not: [
+          collectionData.image
+            ? {
+                term: {
+                  "collection.image": collectionData.image,
+                },
+              }
+            : {
+                exists: {
+                  field: "collection.image",
+                },
+              },
+        ],
+      },
+    },
+  ];
 
   const query = {
     bool: {
@@ -786,6 +823,11 @@ export const updateActivitiesCollectionMetadata = async (
           },
         },
       ],
+      filter: {
+        bool: {
+          should,
+        },
+      },
     },
   };
 
@@ -793,6 +835,7 @@ export const updateActivitiesCollectionMetadata = async (
     const response = await elasticsearch.updateByQuery({
       index: INDEX_NAME,
       conflicts: "proceed",
+      refresh: true,
       max_docs: 1000,
       // This is needed due to issue with elasticsearch DSL.
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
