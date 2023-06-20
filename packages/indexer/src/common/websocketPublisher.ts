@@ -2,7 +2,6 @@ import { logger } from "@/common/logger";
 import { redisWebsocketClient, redisWebsocketPublisher } from "./redis";
 import { producer } from "@/jobs/cdc";
 import { getNetworkName } from "@/config/network";
-import { config } from "@/config/index";
 
 export interface WebsocketMessage {
   published_at?: number;
@@ -29,9 +28,7 @@ export const publishWebsocketEvent = async (message: WebsocketMessage): Promise<
   } catch (error) {
     logger.error(
       "publish-websocket-event",
-      `Failed to publish websocket message=${JSON.stringify(
-        message
-      )}, event=${error}, brokers=${JSON.stringify(config.kafkaBrokers)}}`
+      `Failed to publish websocket message=${JSON.stringify(message)}, event=${error}`
     );
   }
 };

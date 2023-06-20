@@ -8,7 +8,7 @@ import {
   collectionMetadataQueueJob,
 } from "@/jobs/collection-updates/collection-metadata-queue-job";
 import { redb } from "@/common/db";
-import { logger } from "@/common/logger";
+import { fromBuffer } from "@/common/utils";
 
 export class CollectionRefreshJob extends AbstractRabbitMqJobHandler {
   queueName = "collections-refresh-queue";
@@ -71,22 +71,13 @@ export class CollectionRefreshJob extends AbstractRabbitMqJobHandler {
       results,
       (result) =>
         ({
-          contract: result.contract,
+          contract: fromBuffer(result.contract),
           community: result.community,
-          tokenId: result,
+          tokenId: result.token_id,
         } as CollectionMetadataInfo)
     );
 
-    logger.info(
-      this.queueName,
-      JSON.stringify({
-        topic: "debug",
-        collectionsCount: collections.length,
-        resultsCount: results.length,
-      })
-    );
-
-    await collectionMetadataQueueJob.addToQueueBulk(infos);
+    await collectionMetadataQueueJob.addToQueueBulk(infos, 0, this.queueName);
   }
 
   public async addToQueue() {

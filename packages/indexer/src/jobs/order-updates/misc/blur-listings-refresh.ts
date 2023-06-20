@@ -57,6 +57,7 @@ if (config.doBackgroundWork) {
               orderParams: {
                 collection,
                 tokenId: l.tokenId,
+                owner: l.owner,
                 price: l.price,
                 createdAt: l.createdAt,
               },
