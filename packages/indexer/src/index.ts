@@ -33,6 +33,14 @@ const setup = async () => {
   await RabbitMq.connect(); // Connect the rabbitmq
   await RabbitMq.assertQueuesAndExchanges(); // Assert queues and exchanges
 
+  if (config.doKafkaWork) {
+    await startKafkaConsumer();
+  }
+
+  if ((config.doKafkaWork || config.doBackgroundWork) && config.kafkaBrokers.length > 0) {
+    await startKafkaProducer();
+  }
+
   if (config.doBackgroundWork) {
     await Sources.syncSources();
     await RabbitMqJobsConsumer.startRabbitJobsConsumer();
@@ -41,14 +49,6 @@ const setup = async () => {
     if (networkSettings.onStartup) {
       await networkSettings.onStartup();
     }
-  }
-
-  if (config.doKafkaWork) {
-    startKafkaConsumer();
-  }
-
-  if ((config.doKafkaWork || config.doBackgroundWork) && config.kafkaBrokers.length > 0) {
-    startKafkaProducer();
   }
 
   await Sources.getInstance();

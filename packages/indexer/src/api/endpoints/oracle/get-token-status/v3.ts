@@ -12,16 +12,16 @@ import { fromBuffer, now, regex, safeOracleTimestamp, toBuffer } from "@/common/
 import { config } from "@/config/index";
 import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
 
-const version = "v2";
+const version = "v3";
 
-export const getTokenStatusOracleV2Options: RouteOptions = {
+export const getTokenStatusOracleV3Options: RouteOptions = {
   description: "Token status oracle",
   notes:
     "Get a signed message of a token's details (flagged status and last transfer time). The oracle's address is 0xAeB1D03929bF87F69888f381e73FBf75753d75AF. The address is the same for all chains.",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Oracle"],
   plugins: {
     "hapi-swagger": {
-      deprecated: true,
+      order: 12,
     },
   },
   validate: {
@@ -136,6 +136,7 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
             { name: "id", type: "bytes32" },
             { name: "payload", type: "bytes" },
             { name: "timestamp", type: "uint256" },
+            { name: "chainId", type: "uint256" },
           ],
         },
         Token: {
@@ -165,6 +166,7 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
             id: string;
             payload: string;
             timestamp: number;
+            chainId: string;
             signature?: string;
           } = {
             id,
@@ -173,6 +175,7 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
               [isFlagged, result.last_transfer_time]
             ),
             timestamp,
+            chainId: String(config.chainId),
           };
 
           message.signature = await addressToSigner[query.signer]().signMessage(

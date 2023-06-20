@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { defaultAbiCoder } from "@ethersproject/abi";
 import { arrayify } from "@ethersproject/bytes";
 import { AddressZero } from "@ethersproject/constants";
@@ -10,34 +8,37 @@ import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
 import Joi from "joi";
 
-import { redb } from "@/common/db";
+import { edb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { Signers, addressToSigner } from "@/common/signers";
-import { bn, formatPrice, safeOracleTimestamp } from "@/common/utils";
+import { bn, formatPrice, regex, safeOracleTimestamp, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
 const version = "v3";
 
-export const getCollectionFloorAskOracleV3Options: RouteOptions = {
-  description: "Collection floor",
+export const getCollectionTopBidOracleV3Options: RouteOptions = {
+  description: "Collection top bid oracle",
   notes:
-    "Get a signed message of any collection's floor price (spot or twap). The oracle's address is 0x32dA57E736E05f75aa4FaE2E9Be60FD904492726.",
-  tags: ["api", "x-deprecated"],
+    "Get a signed message of any collection's top bid price (spot or twap). The oracle's address is 0xAeB1D03929bF87F69888f381e73FBf75753d75AF. The address is the same for all chains.",
+  tags: ["api", "Oracle"],
   plugins: {
     "hapi-swagger": {
       order: 12,
     },
   },
   validate: {
-    params: Joi.object({
-      collection: Joi.string().lowercase().required(),
-    }),
     query: Joi.object({
       kind: Joi.string().valid("spot", "twap", "lower", "upper").default("spot"),
       currency: Joi.string().lowercase().default(AddressZero),
-      twapSeconds: Joi.number().default(24 * 60 * 60),
-      eip3668Calldata: Joi.string(),
-    }),
+      twapSeconds: Joi.number()
+        .greater(0)
+        .default(24 * 3600),
+      collection: Joi.string().lowercase(),
+      token: Joi.string().pattern(regex.token).lowercase(),
+      signer: Joi.string().valid(Signers.V1, Signers.V2).default(Signers.V2),
+    })
+      .or("collection", "token")
+      .oxor("collection", "token"),
   },
   response: {
     schema: Joi.object({
@@ -48,33 +49,70 @@ export const getCollectionFloorAskOracleV3Options: RouteOptions = {
         timestamp: Joi.number().required(),
         signature: Joi.string().required(),
       }),
-      data: Joi.string(),
-    }).label(`getCollectionFloorAskOracle${version.toUpperCase()}Response`),
+    }).label(`getCollectionTopBidOracle${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
       logger.error(
-        `get-collection-floor-ask-oracle-${version}-handler`,
+        `get-collection-top-bid-oracle-${version}-handler`,
         `Wrong response schema: ${error}`
       );
       throw error;
     },
   },
   handler: async (request: Request) => {
-    const query = request.query as any;
-    const params = request.params as any;
+    const query = request.query;
 
-    if (query.eip3668Calldata) {
-      const [currency, kind] = defaultAbiCoder.decode(["address", "string"], query.eip3668Calldata);
-      (query as any).currency = currency.toLowerCase();
-      (query as any).kind = kind;
+    if (query.token) {
+      const [contract, tokenId] = query.token.split(":");
+      const collectionResult = await edb.oneOrNone(
+        `
+          SELECT
+            tokens.collection_id
+          FROM tokens
+          WHERE tokens.contract = $/contract/
+            AND tokens.token_id = $/tokenId/
+        `,
+        {
+          contract: toBuffer(contract),
+          tokenId,
+        }
+      );
+
+      if (collectionResult) {
+        query.collection = collectionResult.collection_id;
+      } else {
+        throw new Error("Token is not associated to any collection");
+      }
     }
 
     try {
+      const collectionHasTopBid = await redb.oneOrNone(
+        `
+          SELECT
+            1
+          FROM orders
+          JOIN token_sets
+            ON orders.token_set_id = token_sets.id
+          WHERE orders.side = 'buy'
+            AND orders.fillability_status = 'fillable'
+            AND orders.approval_status = 'approved'
+            AND token_sets.collection_id = $/collection/
+            AND token_sets.attribute_id IS NULL
+          LIMIT 1
+        `,
+        {
+          collection: query.collection,
+        }
+      );
+      if (!collectionHasTopBid) {
+        throw Boom.badRequest("Collection has no top bid");
+      }
+
       const spotQuery = `
         SELECT
-          collection_floor_sell_events.price
-        FROM collection_floor_sell_events
-        WHERE collection_floor_sell_events.collection_id = $/collection/
-        ORDER BY collection_floor_sell_events.created_at DESC
+          e.price
+        FROM collection_top_bid_events e
+        WHERE e.collection_id = $/collection/
+        ORDER BY e.created_at DESC
         LIMIT 1
       `;
 
@@ -82,19 +120,19 @@ export const getCollectionFloorAskOracleV3Options: RouteOptions = {
         WITH
           x AS (
             SELECT
-              *
-            FROM collection_floor_sell_events
-            WHERE collection_floor_sell_events.collection_id = $/collection/
-              AND collection_floor_sell_events.created_at >= now() - interval '${query.twapSeconds} seconds'
-            ORDER BY collection_floor_sell_events.created_at
+              e.*
+            FROM collection_top_bid_events e
+            WHERE e.collection_id = $/collection/
+              AND e.created_at >= now() - interval '${query.twapSeconds} seconds'
+            ORDER BY e.created_at
           ),
           y AS (
             SELECT
-              *
-            FROM collection_floor_sell_events
-            WHERE collection_floor_sell_events.collection_id = $/collection/
-              AND collection_floor_sell_events.created_at < (SELECT COALESCE(MIN(x.created_at), 'Infinity') FROM x)
-            ORDER BY collection_floor_sell_events.created_at DESC
+              e.*
+            FROM collection_top_bid_events e
+            WHERE e.collection_id = $/collection/
+              AND e.created_at < (SELECT COALESCE(MIN(x.created_at), 'Infinity') FROM x)
+            ORDER BY e.created_at DESC
             LIMIT 1
           ),
           z AS (
@@ -127,26 +165,26 @@ export const getCollectionFloorAskOracleV3Options: RouteOptions = {
       let price: string;
       let decimals = 18;
       if (query.kind === "spot") {
-        const result = await redb.oneOrNone(spotQuery, params);
+        const result = await redb.oneOrNone(spotQuery, query);
         if (!result?.price) {
-          throw Boom.badRequest("No floor ask price available");
+          throw Boom.badRequest("No top bid available");
         }
 
         kind = PriceKind.SPOT;
         price = result.price;
       } else if (query.kind === "twap") {
-        const result = await redb.oneOrNone(twapQuery, params);
+        const result = await redb.oneOrNone(twapQuery, query);
         if (!result?.price) {
-          throw Boom.badRequest("No floor ask price available");
+          throw Boom.badRequest("No top bid available");
         }
 
         kind = PriceKind.TWAP;
         price = result.price;
       } else {
-        const spotResult = await redb.oneOrNone(spotQuery, params);
-        const twapResult = await redb.oneOrNone(twapQuery, params);
+        const spotResult = await redb.oneOrNone(spotQuery, query);
+        const twapResult = await redb.oneOrNone(twapQuery, query);
         if (!spotResult?.price || !twapResult?.price) {
-          throw Boom.badRequest("No floor ask price available");
+          throw Boom.badRequest("No top bid available");
         }
 
         if (query.kind === "lower") {
@@ -165,34 +203,55 @@ export const getCollectionFloorAskOracleV3Options: RouteOptions = {
             { name: "id", type: "bytes32" },
             { name: "payload", type: "bytes" },
             { name: "timestamp", type: "uint256" },
+            { name: "chainId", type: "uint256" },
           ],
         },
-        ContractWideCollectionPrice: {
-          ContractWideCollectionPrice: [
+        ContractWideCollectionTopBidPrice: {
+          ContractWideCollectionTopBidPrice: [
             { name: "kind", type: "uint8" },
             { name: "twapSeconds", type: "uint256" },
             { name: "contract", type: "address" },
           ],
         },
-        TokenRangeCollectionPrice: {
-          TokenRangeCollectionPrice: [
+        TokenRangeCollectionTopBidPrice: {
+          TokenRangeCollectionTopBidPrice: [
             { name: "kind", type: "uint8" },
             { name: "twapSeconds", type: "uint256" },
             { name: "startTokenId", type: "uint256" },
             { name: "endTokenId", type: "uint256" },
           ],
         },
+        CollectionTopBidPriceByToken: {
+          CollectionTopBidPriceByToken: [
+            { name: "kind", type: "uint8" },
+            { name: "twapSeconds", type: "uint256" },
+            { name: "token", type: "address" },
+            { name: "tokenId", type: "uint256" },
+          ],
+        },
       };
 
       let id: string;
-      if (params.collection.includes(":")) {
-        const [contract, startTokenId, endTokenId] = params.collection.split(":");
+      if (query.token) {
+        const [token, tokenId] = query.token.split(":");
         id = _TypedDataEncoder.hashStruct(
-          "TokenRangeCollectionPrice",
-          EIP712_TYPES.TokenRangeCollectionPrice,
+          "CollectionTopBidPriceByToken",
+          EIP712_TYPES.CollectionTopBidPriceByToken,
           {
             kind,
-            twapSeconds: kind === PriceKind.SPOT ? 0 : query.twapSeconds,
+            twapSeconds: query.twapSeconds,
+            token,
+            tokenId,
+          }
+        );
+      } else if (query.collection.includes(":")) {
+        const [contract, startTokenId, endTokenId] = query.collection.split(":");
+        id = _TypedDataEncoder.hashStruct(
+          "TokenRangeCollectionTopBidPrice",
+          EIP712_TYPES.TokenRangeCollectionTopBidPrice,
+          {
+            kind,
+            twapSeconds: query.twapSeconds,
             contract,
             startTokenId,
             endTokenId,
@@ -200,12 +259,12 @@ export const getCollectionFloorAskOracleV3Options: RouteOptions = {
         );
       } else {
         id = _TypedDataEncoder.hashStruct(
-          "ContractWideCollectionPrice",
-          EIP712_TYPES.ContractWideCollectionPrice,
+          "ContractWideCollectionTopBidPrice",
+          EIP712_TYPES.ContractWideCollectionTopBidPrice,
           {
             kind,
-            twapSeconds: kind === PriceKind.SPOT ? 0 : query.twapSeconds,
-            contract: params.collection,
+            twapSeconds: query.twapSeconds,
+            contract: query.collection,
           }
         );
       }
@@ -214,11 +273,11 @@ export const getCollectionFloorAskOracleV3Options: RouteOptions = {
         // ETH: do nothing
       } else if (Object.values(Sdk.Common.Addresses.Weth).includes(query.currency)) {
         // WETH: do nothing
-      } else if ([...Object.values(Sdk.Common.Addresses.Usdc)].includes(query.currency)) {
+      } else if (Object.values(Sdk.Common.Addresses.Usdc).includes(query.currency)) {
         // USDC: convert price to USDC
         const usdPrice = await axios
           .get("https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd")
-          .then((response) => (response.data as any).ethereum.usd);
+          .then((response) => response.data.ethereum.usd);
 
         // USDC has 6 decimals
         price = bn(Math.floor(usdPrice * 1000000))
@@ -234,15 +293,17 @@ export const getCollectionFloorAskOracleV3Options: RouteOptions = {
         id: string;
         payload: string;
         timestamp: number;
+        chainId: string;
         signature?: string;
       } = {
         id,
         payload: defaultAbiCoder.encode(["address", "uint256"], [query.currency, price]),
         timestamp: await safeOracleTimestamp(),
+        chainId: String(config.chainId),
       };
 
       if (config.oraclePrivateKey) {
-        message.signature = await addressToSigner[Signers.V1]().signMessage(
+        message.signature = await addressToSigner[query.signer]().signMessage(
           arrayify(_TypedDataEncoder.hashStruct("Message", EIP712_TYPES.Message, message))
         );
       } else {
@@ -252,16 +313,11 @@ export const getCollectionFloorAskOracleV3Options: RouteOptions = {
       return {
         price: formatPrice(price, decimals),
         message,
-        // For EIP-3668 compatibility
-        data: defaultAbiCoder.encode(
-          ["(bytes32 id, bytes payload, uint256 timestamp, bytes signature)"],
-          [message]
-        ),
       };
     } catch (error) {
       if (!(error instanceof Boom.Boom)) {
         logger.error(
-          `get-collection-floor-ask-oracle-${version}-handler`,
+          `get-collection-top-bid-oracle-${version}-handler`,
           `Handler failure: ${error}`
         );
       }

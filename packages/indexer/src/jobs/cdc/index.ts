@@ -1,4 +1,4 @@
-import { Kafka, logLevel } from "kafkajs";
+import { Kafka, Producer, logLevel } from "kafkajs";
 
 import { config } from "@/config/index";
 import { TopicHandlers } from "@/jobs/cdc/topics";
@@ -10,13 +10,14 @@ const kafka = new Kafka({
   logLevel: logLevel.ERROR,
 });
 
-export const producer = kafka.producer();
+export let producer: Producer;
 export const consumer = kafka.consumer({
   groupId: config.kafkaConsumerGroupId,
   maxBytesPerPartition: config.kafkaMaxBytesPerPartition || 1048576, // (default is 1MB)
 });
 
 export async function startKafkaProducer(): Promise<void> {
+  producer = kafka.producer();
   logger.info(`kafka-producer`, "Starting Kafka producer");
   await producer.connect();
 

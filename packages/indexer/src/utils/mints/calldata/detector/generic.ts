@@ -1,6 +1,4 @@
-import { Interface } from "@ethersproject/abi";
 import { BigNumber } from "@ethersproject/bignumber";
-import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk";
 
 import { logger } from "@/common/logger";
@@ -8,9 +6,9 @@ import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 import { Transaction } from "@/models/transactions";
 import { AbiParam } from "@/utils/mints/calldata/generator";
+import { getMaxSupply } from "@/utils/mints/calldata/detector/helpers";
 import { CollectionMint } from "@/utils/mints/collection-mints";
 import { getMethodSignature } from "@/utils/mints/method-signatures";
-import { baseProvider } from "@/common/provider";
 
 export const tryParseCollectionMint = async (
   collection: string,
@@ -19,32 +17,7 @@ export const tryParseCollectionMint = async (
   pricePerAmountMinted: BigNumber,
   amountMinted: BigNumber
 ): Promise<CollectionMint | undefined> => {
-  let maxSupply: string | undefined;
-  try {
-    const c = new Contract(
-      collection,
-      new Interface([
-        "function maxSupply() view returns (uint256)",
-        "function MAX_SUPPLY() view returns (uint256)",
-      ]),
-      baseProvider
-    );
-
-    if (!maxSupply) {
-      maxSupply = await c
-        .maxSupply()
-        .then((t: BigNumber) => t.toString())
-        .catch(() => undefined);
-    }
-    if (!maxSupply) {
-      maxSupply = await c
-        .MAX_SUPPLY()
-        .then((t: BigNumber) => t.toString())
-        .catch(() => undefined);
-    }
-  } catch {
-    // Skip errors
-  }
+  const maxSupply = await getMaxSupply(contract);
 
   if (tx.data.length === 10) {
     return {

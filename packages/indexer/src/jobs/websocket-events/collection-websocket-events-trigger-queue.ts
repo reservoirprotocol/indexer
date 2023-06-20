@@ -30,7 +30,7 @@ export const queue = new Queue(QUEUE_NAME, {
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork && config.doWebsocketServerWork) {
+if (config.doBackgroundWork && config.doWebsocketServerWork && config.kafkaBrokers.length > 0) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
@@ -237,6 +237,8 @@ export type EventInfo = {
 };
 
 export const addToQueue = async (events: EventInfo[]) => {
+  return;
+
   if (!config.doWebsocketServerWork) {
     return;
   }

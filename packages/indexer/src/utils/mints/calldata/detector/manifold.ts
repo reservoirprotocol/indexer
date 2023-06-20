@@ -5,7 +5,7 @@ import * as Sdk from "@reservoir0x/sdk";
 
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import { bn } from "@/common/utils";
+import { bn, now } from "@/common/utils";
 import { config } from "@/config/index";
 import { Transaction } from "@/models/transactions";
 import { CollectionMint } from "@/utils/mints/collection-mints";
@@ -76,7 +76,8 @@ export const tryParseCollectionMint = async (
       );
       if (
         claim.merkleRoot === HashZero &&
-        claim.erc20.toLowerCase() === Sdk.Common.Addresses.Eth[config.chainId]
+        claim.erc20.toLowerCase() === Sdk.Common.Addresses.Eth[config.chainId] &&
+        (claim.startDate ? claim.startDate >= now() : true)
       ) {
         // Include the Manifold mint fee into the price
         const fee = await c.MINT_FEE();

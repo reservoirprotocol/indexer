@@ -13,6 +13,7 @@ import { CollectionMint, simulateAndSaveCollectionMint } from "@/utils/mints/col
 
 import * as generic from "@/utils/mints/calldata/detector/generic";
 import * as manifold from "@/utils/mints/calldata/detector/manifold";
+import * as seadrop from "@/utils/mints/calldata/detector/seadrop";
 import * as thirdweb from "@/utils/mints/calldata/detector/thirdweb";
 import * as zora from "@/utils/mints/calldata/detector/zora";
 
@@ -151,6 +152,11 @@ export const detectMint = async (txHash: string, skipCache = false) => {
     collectionMint = await manifold.tryParseCollectionMint(collection, tx);
   }
 
+  // Seadrop
+  if (!collectionMint) {
+    collectionMint = await seadrop.tryParseCollectionMint(collection, contract, tx);
+  }
+
   // Thirdweb
   if (!collectionMint) {
     collectionMint = await thirdweb.tryParseCollectionMint(collection, tx);
@@ -177,7 +183,7 @@ export const detectMint = async (txHash: string, skipCache = false) => {
     logger.info("mints-process", JSON.stringify({ success: result, collectionMint }));
     return result;
   } else {
-    logger.info("mints-process", JSON.stringify({ success: false, collectionMint }));
+    logger.info("mints-process", JSON.stringify({ success: false, collection }));
     return false;
   }
 };

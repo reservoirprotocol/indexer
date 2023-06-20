@@ -57,7 +57,7 @@ export const config = {
   doKafkaWork: Boolean(Number(process.env.DO_KAFKA_WORK)),
   kafkaPartitionsConsumedConcurrently: Number(process.env.KAFKA_PARTITIONS_CONSUMED_CONCURRENTLY),
   kafkaConsumerGroupId: String(process.env.KAFKA_CONSUMER_GROUP_ID),
-  kafkaBrokers: String(process.env.KAFKA_BROKERS).split(","),
+  kafkaBrokers: process.env.KAFKA_BROKERS ? String(process.env.KAFKA_BROKERS).split(",") : [],
   kafkaClientId: String(process.env.KAFKA_CLIENT_ID),
   kafkaMaxBytesPerPartition: Number(process.env.KAFKA_MAX_BYTES_PER_PARTITION),
 

@@ -358,7 +358,6 @@ export class RabbitMqJobsConsumer {
       collectionRefreshCacheJob,
       currenciesFetchJob,
       oneDayVolumeJob,
-      // dailyVolumeJob,
       processArchiveDataJob,
       exportDataJob,
     ];

@@ -5,7 +5,7 @@ import * as Sdk from "@reservoir0x/sdk";
 
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import { bn } from "@/common/utils";
+import { bn, now } from "@/common/utils";
 import { config } from "@/config/index";
 import { Transaction } from "@/models/transactions";
 import { CollectionMint } from "@/utils/mints/collection-mints";
@@ -93,7 +93,8 @@ export const tryParseCollectionMint = async (
           : await c.getClaimConditionById(claimConditionId);
         if (
           claimCondition.merkleRoot === HashZero &&
-          claimCondition.currency.toLowerCase() === Sdk.ZeroExV4.Addresses.Eth[config.chainId]
+          claimCondition.currency.toLowerCase() === Sdk.ZeroExV4.Addresses.Eth[config.chainId] &&
+          claimCondition.startTimestamp >= now()
         ) {
           const price = claimCondition.pricePerToken.toString();
           const maxMintsPerWallet = claimCondition.quantityLimitPerWallet.toString();
