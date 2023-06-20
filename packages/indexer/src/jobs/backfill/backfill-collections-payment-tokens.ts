@@ -6,8 +6,9 @@ import { randomUUID } from "crypto";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
+import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import MetadataApi from "@/utils/metadata-api";
+import { Collections } from "@/models/collections";
 
 const QUEUE_NAME = "backfill-collections-payment-tokens";
 
@@ -45,21 +46,7 @@ if (config.doBackgroundWork) {
       );
 
       for (const { contract, token_id } of result) {
-        const collection = await MetadataApi.getCollectionMetadata(contract, token_id, "");
-
-        const query = `
-          UPDATE collections SET
-            payment_tokens = $/paymentTokens/,
-            updated_at = now()
-          WHERE id = $/id/
-        `;
-
-        const values = {
-          id: collection.id,
-          paymentTokens: collection.paymentTokens ? { opensea: collection.paymentTokens } : {},
-        };
-
-        await idb.oneOrNone(query, values);
+        await Collections.updateCollectionCache(fromBuffer(contract), token_id);
         await new Promise((resolve) => setTimeout(resolve, 2000));
       }
 
