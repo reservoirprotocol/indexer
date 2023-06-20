@@ -133,7 +133,20 @@ export class Collections {
       allowFallback: isCopyrightInfringementContract,
     });
 
-    if (collection.metadata == null) {
+    if (isCopyrightInfringementContract) {
+      collection.name = collection.id;
+      collection.metadata = null;
+
+      logger.info(
+        "updateCollectionCache",
+        JSON.stringify({
+          topic: "debugCopyrightInfringementContracts",
+          message: "Collection is a copyright infringement",
+          contract,
+          collection,
+        })
+      );
+    } else if (collection.metadata == null) {
       const collectionResult = await Collections.getById(collection.id);
 
       if (collectionResult?.metadata != null) {
@@ -157,21 +170,6 @@ export class Collections {
         data: { collectionId: collection.id },
       },
     ]);
-
-    if (isCopyrightInfringementContract) {
-      collection.name = collection.id;
-      collection.metadata = null;
-
-      logger.info(
-        "updateCollectionCache",
-        JSON.stringify({
-          topic: "debugCopyrightInfringementContracts",
-          message: "Collection is a copyright infringement",
-          contract,
-          collection,
-        })
-      );
-    }
 
     const query = `
       UPDATE collections SET
