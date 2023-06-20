@@ -426,59 +426,59 @@ export class RabbitMqJobsConsumer {
 
     await channel.prefetch(job.getConcurrency()); // Set the number of messages to consume simultaneously
 
-    // // Subscribe to the queue
-    // await channel.consume(
-    //   job.getQueue(),
-    //   async (msg) => {
-    //     if (!_.isNull(msg)) {
-    //       await job.consume(channel, msg);
-    //     }
-    //   },
-    //   {
-    //     consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getQueue()),
-    //   }
-    // );
-    //
-    // // Subscribe to the retry queue
-    // await channel.consume(
-    //   job.getRetryQueue(),
-    //   async (msg) => {
-    //     if (!_.isNull(msg)) {
-    //       await job.consume(channel, msg);
-    //     }
-    //   },
-    //   {
-    //     consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getRetryQueue()),
-    //   }
-    // );
-
     // Subscribe to the queue
     await channel.consume(
-      _.replace(job.getQueue(), ".new", ""),
+      job.getQueue(),
       async (msg) => {
         if (!_.isNull(msg)) {
           await job.consume(channel, msg);
         }
       },
       {
-        consumerTag: RabbitMqJobsConsumer.getConsumerTag(_.replace(job.getQueue(), ".new", "")),
+        consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getQueue()),
       }
     );
 
     // Subscribe to the retry queue
     await channel.consume(
-      _.replace(job.getRetryQueue(), ".new", ""),
+      job.getRetryQueue(),
       async (msg) => {
         if (!_.isNull(msg)) {
           await job.consume(channel, msg);
         }
       },
       {
-        consumerTag: RabbitMqJobsConsumer.getConsumerTag(
-          _.replace(job.getRetryQueue(), ".new", "")
-        ),
+        consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getRetryQueue()),
       }
     );
+
+    // // Subscribe to the queue
+    // await channel.consume(
+    //   _.replace(job.getQueue(), ".new", ""),
+    //   async (msg) => {
+    //     if (!_.isNull(msg)) {
+    //       await job.consume(channel, msg);
+    //     }
+    //   },
+    //   {
+    //     consumerTag: RabbitMqJobsConsumer.getConsumerTag(_.replace(job.getQueue(), ".new", "")),
+    //   }
+    // );
+    //
+    // // Subscribe to the retry queue
+    // await channel.consume(
+    //   _.replace(job.getRetryQueue(), ".new", ""),
+    //   async (msg) => {
+    //     if (!_.isNull(msg)) {
+    //       await job.consume(channel, msg);
+    //     }
+    //   },
+    //   {
+    //     consumerTag: RabbitMqJobsConsumer.getConsumerTag(
+    //       _.replace(job.getRetryQueue(), ".new", "")
+    //     ),
+    //   }
+    // );
 
     channel.on("error", (error) => {
       logger.error("rabbit-channel-error", `Channel error ${error}`);
