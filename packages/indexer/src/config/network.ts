@@ -166,7 +166,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     multiCollectionContracts: [],
     mintsAsSalesBlacklist: [],
     mintAddresses: [AddressZero],
-    burnAddresses: [AddressZero],
+    burnAddresses: [AddressZero, "0x000000000000000000000000000000000000dead"],
     reorgCheckFrequency: [1, 5, 10, 30, 60], // In minutes
     whitelistedCurrencies: new Map<string, Currency>(),
     supportedBidCurrencies: { [Sdk.Common.Addresses.Weth[config.chainId]?.toLowerCase()]: true },
@@ -245,10 +245,6 @@ export const getNetworkSettings = (): NetworkSettings => {
           ...defaultNetworkSettings.mintAddresses,
           // Nifty Gateway Omnibus
           "0xe052113bd7d7700d623414a0a4585bcae754e9d5",
-        ],
-        burnAddresses: [
-          ...defaultNetworkSettings.burnAddresses,
-          "0x000000000000000000000000000000000000dead",
         ],
         supportedBidCurrencies: {
           ...defaultNetworkSettings.supportedBidCurrencies,
