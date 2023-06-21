@@ -94,7 +94,7 @@ export const tryParseCollectionMint = async (
         if (
           claimCondition.merkleRoot === HashZero &&
           claimCondition.currency.toLowerCase() === Sdk.ZeroExV4.Addresses.Eth[config.chainId] &&
-          claimCondition.startTimestamp >= now()
+          claimCondition.startTimestamp <= now()
         ) {
           const price = claimCondition.pricePerToken.toString();
           const maxMintsPerWallet = claimCondition.quantityLimitPerWallet.toString();

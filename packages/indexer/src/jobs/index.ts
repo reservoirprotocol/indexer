@@ -122,7 +122,6 @@ import * as tokenWebsocketEventsTriggerQueue from "@/jobs/websocket-events/token
 import * as topBidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/top-bid-websocket-events-trigger-queue";
 import * as collectionWebsocketEventsTriggerQueue from "@/jobs/websocket-events/collection-websocket-events-trigger-queue";
 
-import * as dailyVolumeQueue from "@/jobs/daily-volumes/daily-volumes";
 import * as countApiUsage from "@/jobs/metrics/count-api-usage";
 
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
@@ -139,7 +138,6 @@ import * as updateActivitiesCollection from "@/jobs/elasticsearch/update-activit
 import * as refreshActivitiesTokenMetadata from "@/jobs/elasticsearch/refresh-activities-token-metadata";
 import * as refreshActivitiesCollectionMetadata from "@/jobs/elasticsearch/refresh-activities-collection-metadata";
 
-import { getNetworkName } from "@/config/network";
 import amqplib, { Channel, Connection } from "amqplib";
 import { config } from "@/config/index";
 import _ from "lodash";
@@ -181,7 +179,7 @@ import { collectionRefreshJob } from "@/jobs/collections-refresh/collections-ref
 import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
 import { currenciesFetchJob } from "@/jobs/currencies/currencies-fetch-job";
 import { oneDayVolumeJob } from "@/jobs/daily-volumes/1day-volumes-job";
-// import { dailyVolumeJob } from "@/jobs/daily-volumes/daily-volumes-job";
+import { dailyVolumeJob } from "@/jobs/daily-volumes/daily-volumes-job";
 import { processArchiveDataJob } from "@/jobs/data-archive/process-archive-data-job";
 import { exportDataJob } from "@/jobs/data-export/export-data-job";
 import { processActivityEventJob } from "@/jobs/activities/process-activity-event-job";
@@ -254,7 +252,6 @@ export const allJobQueues = [
 
   updateNftBalanceFloorAskPrice.queue,
   updateNftBalanceTopBid.queue,
-  dailyVolumeQueue.queue,
 
   orderFixes.queue,
   orderRevalidations.queue,
@@ -357,6 +354,7 @@ export class RabbitMqJobsConsumer {
       collectionRefreshCacheJob,
       currenciesFetchJob,
       oneDayVolumeJob,
+      dailyVolumeJob,
       processArchiveDataJob,
       exportDataJob,
       processActivityEventJob,
@@ -451,36 +449,6 @@ export class RabbitMqJobsConsumer {
       },
       {
         consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getRetryQueue()),
-      }
-    );
-
-    // Subscribe to the queue
-    await channel.consume(
-      _.replace(job.getQueue(), `${getNetworkName()}.`, `${getNetworkName()}.new.`),
-      async (msg) => {
-        if (!_.isNull(msg)) {
-          await job.consume(channel, msg);
-        }
-      },
-      {
-        consumerTag: RabbitMqJobsConsumer.getConsumerTag(
-          _.replace(job.getQueue(), `${getNetworkName()}.`, `${getNetworkName()}.new.`)
-        ),
-      }
-    );
-
-    // Subscribe to the retry queue
-    await channel.consume(
-      _.replace(job.getRetryQueue(), `${getNetworkName()}.`, `${getNetworkName()}.new.`),
-      async (msg) => {
-        if (!_.isNull(msg)) {
-          await job.consume(channel, msg);
-        }
-      },
-      {
-        consumerTag: RabbitMqJobsConsumer.getConsumerTag(
-          _.replace(job.getRetryQueue(), `${getNetworkName()}.`, `${getNetworkName()}.new.`)
-        ),
       }
     );
 

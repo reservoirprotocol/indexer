@@ -8,7 +8,7 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { DailyVolume } from "@/models/daily-volumes/daily-volume";
-import * as dailyVolumeQueue from "@/jobs/daily-volumes/daily-volumes";
+import { dailyVolumeJob } from "@/jobs/daily-volumes/daily-volumes-job";
 
 export const postSyncDailyVolumes: RouteOptions = {
   description:
@@ -72,7 +72,7 @@ export const postSyncDailyVolumes: RouteOptions = {
 
       // Trigger a sync job for each day
       for (let x: number = startDay; x < currentDay; x = x + 3600 * 24) {
-        await dailyVolumeQueue.addToQueue(x, true);
+        await dailyVolumeJob.addToQueue({ startTime: x, ignoreInsertedRows: true });
       }
 
       return { message: "Request accepted" };

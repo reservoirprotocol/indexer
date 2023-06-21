@@ -35,6 +35,7 @@ export type CreatePolicyPayload = {
     "message-ttl"?: number;
     "alternate-exchange"?: string;
     "queue-mode"?: "default" | "lazy";
+    "consumer-timeout"?: number;
   };
 };
 
@@ -238,17 +239,26 @@ export class RabbitMq {
         });
       }
 
+      const definition: CreatePolicyPayload["definition"] = {};
+
       // If the queue defined as lazy ie use only disk for this queue messages
       if (queue.isLazyMode()) {
+        definition["queue-mode"] = "lazy";
+      }
+
+      // If the queue has specific timeout
+      if (queue.getConsumerTimeout()) {
+        definition["consumer-timeout"] = queue.getConsumerTimeout();
+      }
+
+      if (!_.isEmpty(definition)) {
         await this.createOrUpdatePolicy({
           name: `${queue.getQueue()}-policy`,
           vhost: "/",
           priority: 10,
           pattern: `^${queue.getQueue()}$|^${queue.getRetryQueue()}$`,
           applyTo: "queues",
-          definition: {
-            "queue-mode": "lazy",
-          },
+          definition,
         });
       }
     }
