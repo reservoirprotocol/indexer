@@ -17,7 +17,6 @@ export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
   concurrency = 1;
   persistent = true;
   lazyMode = true;
-  useSharedChannel = true;
 
   protected async process() {
     const pendingActivitiesQueue = new PendingActivitiesQueue();
@@ -50,11 +49,6 @@ export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
       const pendingActivitiesCount = await pendingActivitiesQueue.count();
 
       if (pendingActivitiesCount > 0) {
-        logger.info(
-          this.queueName,
-          `requeue job. pendingActivitiesCount=${pendingActivitiesCount}`
-        );
-
         await savePendingActivitiesJob.addToQueue();
       }
     }
@@ -64,6 +58,10 @@ export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
     await this.send();
   }
 }
+
+export const getLockName = () => {
+  return `${savePendingActivitiesJob.queueName}-lock`;
+};
 
 export const savePendingActivitiesJob = new SavePendingActivitiesJob();
 

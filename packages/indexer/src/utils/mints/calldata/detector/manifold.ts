@@ -77,7 +77,7 @@ export const tryParseCollectionMint = async (
       if (
         claim.merkleRoot === HashZero &&
         claim.erc20.toLowerCase() === Sdk.Common.Addresses.Eth[config.chainId] &&
-        (claim.startDate ? claim.startDate >= now() : true)
+        (claim.startDate ? claim.startDate <= now() : true)
       ) {
         // Include the Manifold mint fee into the price
         const fee = await c.MINT_FEE();

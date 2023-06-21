@@ -49,7 +49,7 @@ export const tryParseCollectionMint = async (
       );
 
       const drop = await c.getPublicDrop(contract);
-      if (drop.startTime && drop.endTime && drop.startTime >= now()) {
+      if (drop.startTime && drop.endTime && drop.startTime <= now()) {
         return {
           collection,
           stage: "public-sale",
