@@ -27,6 +27,12 @@ import {
   ProcessActivityEventJobPayload,
 } from "@/jobs/activities/process-activity-event-job";
 
+import {
+  processActivityEventJob,
+  EventKind as ProcessActivityEventKind,
+  ProcessActivityEventJobPayload,
+} from "@/jobs/activities/process-activity-event-job";
+
 const QUEUE_NAME = "order-updates-by-id";
 
 export const queue = new Queue(QUEUE_NAME, {
@@ -245,7 +251,6 @@ if (config.doBackgroundWork) {
                 transactionHash: trigger.txHash,
                 logIndex: trigger.logIndex,
                 batchIndex: trigger.batchIndex,
-                blockHash: trigger.blockHash,
               };
 
               if (order.side === "sell") {

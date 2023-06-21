@@ -84,7 +84,6 @@ export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
   concurrency = 15;
   persistent = true;
   lazyMode = true;
-  useSharedChannel = true;
 
   protected async process(payload: ProcessActivityEventJobPayload) {
     const { kind, data } = payload;

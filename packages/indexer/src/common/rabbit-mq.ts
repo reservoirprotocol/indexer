@@ -55,10 +55,17 @@ export class RabbitMq {
     RabbitMq.rabbitMqPublisherConnection = await amqplib.connect(config.rabbitMqUrl);
 
     for (let i = 0; i < RabbitMq.maxPublisherChannelsCount; ++i) {
-      RabbitMq.rabbitMqPublisherChannels.push(
-        await this.rabbitMqPublisherConnection.createConfirmChannel()
-      );
+      const channel = await this.rabbitMqPublisherConnection.createConfirmChannel();
+      RabbitMq.rabbitMqPublisherChannels.push(channel);
+
+      channel.once("error", (error) => {
+        logger.error("rabbit-error", `Publisher channel error ${error}`);
+      });
     }
+
+    RabbitMq.rabbitMqPublisherConnection.once("error", (error) => {
+      logger.error("rabbit-error", `Publisher connection error ${error}`);
+    });
   }
 
   public static async send(queueName: string, content: RabbitMQMessage, delay = 0, priority = 0) {

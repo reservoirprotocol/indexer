@@ -25,6 +25,7 @@ import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
+
 import {
   processActivityEventJob,
   EventKind as ProcessActivityEventKind,
@@ -275,12 +276,17 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   // Process transfer activities
   const transferActivityInfos: ProcessActivityEventJobPayload[] = data.nftTransferEvents.map(
     (event) => ({
+      // context: [
+      //   ProcessActivityEventKind.nftTransferEvent,
+      //   event.baseEventParams.txHash,
+      //   event.baseEventParams.logIndex,
+      //   event.baseEventParams.batchIndex,
+      // ].join(":"),
       kind: ProcessActivityEventKind.nftTransferEvent,
       data: {
         transactionHash: event.baseEventParams.txHash,
         logIndex: event.baseEventParams.logIndex,
         batchIndex: event.baseEventParams.batchIndex,
-        blockHash: event.baseEventParams.blockHash,
       },
     })
   );

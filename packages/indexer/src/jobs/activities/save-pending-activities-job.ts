@@ -9,6 +9,8 @@ import { config } from "@/config/index";
 import cron from "node-cron";
 import { redlock } from "@/common/redis";
 
+const BATCH_SIZE = 500;
+
 export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
   queueName = "save-pending-activities-queue";
   maxRetries = 10;
@@ -18,9 +20,8 @@ export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
   useSharedChannel = true;
 
   protected async process() {
-    const limit = 75;
     const pendingActivitiesQueue = new PendingActivitiesQueue();
-    const pendingActivities = await pendingActivitiesQueue.get(limit);
+    const pendingActivities = await pendingActivitiesQueue.get(BATCH_SIZE);
 
     if (pendingActivities.length > 0) {
       try {

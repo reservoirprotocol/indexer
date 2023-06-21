@@ -28,6 +28,7 @@ import "@/jobs/monitoring";
 import "@/jobs/token-set-updates";
 
 // Export all job queues for monitoring through the BullMQ UI
+import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
 
@@ -49,6 +50,7 @@ import * as backfillCollectionsRoyalties from "@/jobs/backfill/backfill-collecti
 import * as backfillCollectionsPaymentTokens from "@/jobs/backfill/backfill-collections-payment-tokens";
 import * as backfillWrongNftBalances from "@/jobs/backfill/backfill-wrong-nft-balances";
 import * as backfillFoundationOrders from "@/jobs/backfill/backfill-foundation-orders";
+import * as backfillLooksrareFills from "@/jobs/backfill/backfill-looks-rare-fills";
 
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
 
@@ -138,7 +140,7 @@ import * as updateActivitiesCollection from "@/jobs/elasticsearch/update-activit
 import * as refreshActivitiesTokenMetadata from "@/jobs/elasticsearch/refresh-activities-token-metadata";
 import * as refreshActivitiesCollectionMetadata from "@/jobs/elasticsearch/refresh-activities-collection-metadata";
 
-import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { getNetworkName } from "@/config/network";
 import amqplib, { Channel, Connection } from "amqplib";
 import { config } from "@/config/index";
 import _ from "lodash";
@@ -218,6 +220,7 @@ export const allJobQueues = [
   backfillWrongNftBalances.queue,
   backfillInvalidateSeaportV14Orders.queue,
   backfillBlurSales.queue,
+  backfillLooksrareFills.queue,
 
   collectionUpdatesFloorAsk.queue,
 
@@ -371,10 +374,16 @@ export class RabbitMqJobsConsumer {
     for (let i = 0; i < RabbitMqJobsConsumer.maxConsumerConnectionsCount; ++i) {
       const connection = await amqplib.connect(config.rabbitMqUrl);
       RabbitMqJobsConsumer.rabbitMqConsumerConnections.push(connection);
+
+      // Create a shared channel for each connection
       RabbitMqJobsConsumer.sharedChannels.set(
         RabbitMqJobsConsumer.getSharedChannelName(i),
         await connection.createChannel()
       );
+
+      connection.once("error", (error) => {
+        logger.error("rabbit-error", `Consumer connection error ${error}`);
+      });
     }
   }
 
@@ -447,13 +456,43 @@ export class RabbitMqJobsConsumer {
       }
     );
 
-    channel.on("error", (error) => {
-      logger.error("rabbit-channel-error", `Channel error ${error}`);
+    // Subscribe to the queue
+    await channel.consume(
+      _.replace(job.getQueue(), `${getNetworkName()}.`, `${getNetworkName()}.new.`),
+      async (msg) => {
+        if (!_.isNull(msg)) {
+          await job.consume(channel, msg);
+        }
+      },
+      {
+        consumerTag: RabbitMqJobsConsumer.getConsumerTag(
+          _.replace(job.getQueue(), `${getNetworkName()}.`, `${getNetworkName()}.new.`)
+        ),
+      }
+    );
+
+    // Subscribe to the retry queue
+    await channel.consume(
+      _.replace(job.getRetryQueue(), `${getNetworkName()}.`, `${getNetworkName()}.new.`),
+      async (msg) => {
+        if (!_.isNull(msg)) {
+          await job.consume(channel, msg);
+        }
+      },
+      {
+        consumerTag: RabbitMqJobsConsumer.getConsumerTag(
+          _.replace(job.getRetryQueue(), `${getNetworkName()}.`, `${getNetworkName()}.new.`)
+        ),
+      }
+    );
+
+    channel.once("error", (error) => {
+      logger.error("rabbit-error", `Consumer channel error ${error}`);
 
       const jobs = RabbitMqJobsConsumer.channelsToJobs.get(channel);
       if (jobs) {
         logger.error(
-          "rabbit-channel-error",
+          "rabbit-error",
           `Jobs stopped consume ${JSON.stringify(
             jobs.map((job: AbstractRabbitMqJobHandler) => job.queueName)
           )}`
@@ -479,17 +518,21 @@ export class RabbitMqJobsConsumer {
    * Going over all the jobs and calling the subscribe function for each queue
    */
   static async startRabbitJobsConsumer(): Promise<void> {
-    await RabbitMqJobsConsumer.connect(); // Create a connection for the consumer
+    try {
+      await RabbitMqJobsConsumer.connect(); // Create a connection for the consumer
 
-    for (const queue of RabbitMqJobsConsumer.getQueues()) {
-      try {
-        await RabbitMqJobsConsumer.subscribe(queue);
-      } catch (error) {
-        logger.error(
-          "rabbit-subscribe",
-          `failed to subscribe to ${queue.queueName} error ${error}`
-        );
+      for (const queue of RabbitMqJobsConsumer.getQueues()) {
+        try {
+          await RabbitMqJobsConsumer.subscribe(queue);
+        } catch (error) {
+          logger.error(
+            "rabbit-subscribe",
+            `failed to subscribe to ${queue.queueName} error ${error}`
+          );
+        }
       }
+    } catch (error) {
+      logger.error("rabbit-subscribe-connection", `failed to open connections to consume ${error}`);
     }
   }
 }
