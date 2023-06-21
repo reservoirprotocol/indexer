@@ -675,9 +675,75 @@ export const updateActivitiesCollection = async (
 export const updateActivitiesTokenMetadata = async (
   contract: string,
   tokenId: string,
-  tokenData: { name?: string | null; image?: string | null; media?: string | null }
+  tokenData: { name: string | null; image: string | null; media: string | null }
 ): Promise<boolean> => {
   let keepGoing = false;
+
+  const should: any[] = [
+    {
+      bool: tokenData.name
+        ? {
+            must_not: [
+              {
+                term: {
+                  "token.name": tokenData.name,
+                },
+              },
+            ],
+          }
+        : {
+            must: [
+              {
+                exists: {
+                  field: "token.name",
+                },
+              },
+            ],
+          },
+    },
+    {
+      bool: tokenData.image
+        ? {
+            must_not: [
+              {
+                term: {
+                  "token.image": tokenData.image,
+                },
+              },
+            ],
+          }
+        : {
+            must: [
+              {
+                exists: {
+                  field: "token.image",
+                },
+              },
+            ],
+          },
+    },
+    {
+      bool: tokenData.media
+        ? {
+            must_not: [
+              {
+                term: {
+                  "token.media": tokenData.media,
+                },
+              },
+            ],
+          }
+        : {
+            must: [
+              {
+                exists: {
+                  field: "token.media",
+                },
+              },
+            ],
+          },
+    },
+  ];
 
   const query = {
     bool: {
@@ -693,6 +759,11 @@ export const updateActivitiesTokenMetadata = async (
           },
         },
       ],
+      filter: {
+        bool: {
+          should,
+        },
+      },
     },
   };
 
@@ -700,6 +771,7 @@ export const updateActivitiesTokenMetadata = async (
     const response = await elasticsearch.updateByQuery({
       index: INDEX_NAME,
       conflicts: "proceed",
+      refresh: true,
       max_docs: 1000,
       // This is needed due to issue with elasticsearch DSL.
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
