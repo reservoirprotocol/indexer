@@ -39,11 +39,6 @@ export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
               });
             }
           }
-
-          logger.info(
-            this.queueName,
-            `Inserted activities. pendingActivitiesCount=${pendingActivities.length}`
-          );
         } catch (error) {
           logger.error(
             this.queueName,
