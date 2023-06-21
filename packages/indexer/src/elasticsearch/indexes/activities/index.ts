@@ -779,38 +779,46 @@ export const updateActivitiesCollectionMetadata = async (
 
   const should: any[] = [
     {
-      bool: {
-        must_not: [
-          collectionData.name
-            ? {
+      bool: collectionData.name
+        ? {
+            must_not: [
+              {
                 term: {
                   "collection.name": collectionData.name,
                 },
-              }
-            : {
+              },
+            ],
+          }
+        : {
+            must: [
+              {
                 exists: {
                   field: "collection.name",
                 },
               },
-        ],
-      },
+            ],
+          },
     },
     {
-      bool: {
-        must_not: [
-          collectionData.image
-            ? {
+      bool: collectionData.image
+        ? {
+            must_not: [
+              {
                 term: {
                   "collection.image": collectionData.image,
                 },
-              }
-            : {
+              },
+            ],
+          }
+        : {
+            must: [
+              {
                 exists: {
                   field: "collection.image",
                 },
               },
-        ],
-      },
+            ],
+          },
     },
   ];
 
