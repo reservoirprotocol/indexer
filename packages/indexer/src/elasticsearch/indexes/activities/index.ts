@@ -356,12 +356,16 @@ const _search = async (
       })
     );
 
-    if ((error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception") {
+    const retryableError =
+      (error as any).meta?.aborted ||
+      (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+
+    if (retryableError) {
       logger.warn(
         "elasticsearch-activities",
         JSON.stringify({
           topic: "_search",
-          message: "node_not_connected_exception error",
+          message: "Retrying...",
           data: {
             params: JSON.stringify(params),
           },
