@@ -184,6 +184,7 @@ import { processArchiveDataJob } from "@/jobs/data-archive/process-archive-data-
 import { exportDataJob } from "@/jobs/data-export/export-data-job";
 import { processActivityEventJob } from "@/jobs/activities/process-activity-event-job";
 import { savePendingActivitiesJob } from "@/jobs/activities/save-pending-activities-job";
+import { eventsSyncFtTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/ft-transfers-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -359,6 +360,7 @@ export class RabbitMqJobsConsumer {
       exportDataJob,
       processActivityEventJob,
       savePendingActivitiesJob,
+      eventsSyncFtTransfersWriteBufferJob,
     ];
   }
 
