@@ -291,7 +291,7 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
-            "0x45f93404AE1E4f0411a7F42BC6a5Dc395792738D",
+            "0x45f93404ae1E4f0411a7f42bc6a5dc395792738d",
             {
               contract: "0x45f93404AE1E4f0411a7F42BC6a5Dc395792738D",
               name: "DEGEN",
@@ -559,7 +559,7 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
-            "0xdBb5Da27FFcFeBea8799a5832D4607714fc6aBa8",
+            "0xdbb5da27ffcfebea8799a5832d4607714fc6aba8",
             {
               contract: "0xdBb5Da27FFcFeBea8799a5832D4607714fc6aBa8",
               name: "DEGEN",
