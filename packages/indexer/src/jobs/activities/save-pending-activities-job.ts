@@ -50,6 +50,8 @@ export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
           await pendingActivitiesQueue.add(pendingActivities);
         }
 
+        await releaseLock(getLockName());
+
         const pendingActivitiesCount = await pendingActivitiesQueue.count();
 
         if (pendingActivitiesCount > 0) {
@@ -60,8 +62,6 @@ export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
 
           await savePendingActivitiesJob.addToQueue();
         }
-
-        await releaseLock(getLockName());
       }
     }
   }
