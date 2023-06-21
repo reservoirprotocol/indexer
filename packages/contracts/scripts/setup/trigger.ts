@@ -123,9 +123,16 @@ export const trigger = {
         if (!result.exists) {
           await conduitController.createConduit(conduitKey, DEPLOYER);
           await new Promise((resolve) => setTimeout(resolve, 30000));
+          // Grant ApprovalProxy
           await conduitController.updateChannel(
             result.conduit,
             Sdk.RouterV6.Addresses.ApprovalProxy[chainId],
+            true
+          );
+          // Grant Seaport
+          await conduitController.updateChannel(
+            result.conduit,
+            Sdk.SeaportV15.Addresses.Exchange[chainId],
             true
           );
         }
@@ -253,6 +260,12 @@ export const trigger = {
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.CollectionXyz.Addresses.CollectionRouter[chainId],
+      ]),
+    CryptoPunksModule: async (chainId: number) =>
+      dv("CryptoPunksModule", "v1", [
+        DEPLOYER,
+        Sdk.RouterV6.Addresses.Router[chainId],
+        Sdk.CryptoPunks.Addresses.Exchange[chainId],
       ]),
   },
   // Utilities

@@ -49,6 +49,7 @@ import * as backfillNftTransferEventsCreatedAt from "@/jobs/backfill/backfill-nf
 import * as backfillCollectionsRoyalties from "@/jobs/backfill/backfill-collections-royalties";
 import * as backfillWrongNftBalances from "@/jobs/backfill/backfill-wrong-nft-balances";
 import * as backfillFoundationOrders from "@/jobs/backfill/backfill-foundation-orders";
+import * as backfillLooksrareFills from "@/jobs/backfill/backfill-looks-rare-fills";
 
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
 
@@ -147,9 +148,9 @@ import { getMachineId } from "@/common/machine-id";
 import { PausedRabbitMqQueues } from "@/models/paused-rabbit-mq-queues";
 import { logger } from "@/common/logger";
 import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
-// import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
-// import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
-// import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
+import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
+import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
+import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
 import { normalizedFloorQueueJob } from "@/jobs/token-updates/normalized-floor-queue-job";
 import { mintQueueJob } from "@/jobs/token-updates/mint-queue-job";
 import { tokenFloorQueueJob } from "@/jobs/token-updates/token-floor-queue-job";
@@ -164,24 +165,24 @@ import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-at
 import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
 import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";
 import { topBidSingleTokenQueueJob } from "@/jobs/token-set-updates/top-bid-single-token-queue-job";
-// import { fetchSourceInfoJob } from "@/jobs/sources/fetch-source-info-job";
-// import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
-// import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
-// import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
-// import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
+import { fetchSourceInfoJob } from "@/jobs/sources/fetch-source-info-job";
+import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
+import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
+import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
 import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
-// import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
-// import { setCommunityQueueJob } from "@/jobs/collection-updates/set-community-queue-job";
+import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
+import { setCommunityQueueJob } from "@/jobs/collection-updates/set-community-queue-job";
 import { topBidCollectionJob } from "@/jobs/collection-updates/top-bid-collection-job";
-// import { updateCollectionActivityJob } from "@/jobs/collection-updates/update-collection-activity-job";
-// import { updateCollectionDailyVolumeJob } from "@/jobs/collection-updates/update-collection-daily-volume-job";
-// import { updateCollectionUserActivityJob } from "@/jobs/collection-updates/update-collection-user-activity-job";
-// import { collectionRefreshJob } from "@/jobs/collections-refresh/collections-refresh-job";
-// import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
-// import { currenciesFetchJob } from "@/jobs/currencies/currencies-fetch-job";
-// import { oneDayVolumeJob } from "@/jobs/daily-volumes/1day-volumes-job";
+import { updateCollectionActivityJob } from "@/jobs/collection-updates/update-collection-activity-job";
+import { updateCollectionDailyVolumeJob } from "@/jobs/collection-updates/update-collection-daily-volume-job";
+import { updateCollectionUserActivityJob } from "@/jobs/collection-updates/update-collection-user-activity-job";
+import { collectionRefreshJob } from "@/jobs/collections-refresh/collections-refresh-job";
+import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
+import { currenciesFetchJob } from "@/jobs/currencies/currencies-fetch-job";
+import { oneDayVolumeJob } from "@/jobs/daily-volumes/1day-volumes-job";
 // import { dailyVolumeJob } from "@/jobs/daily-volumes/daily-volumes-job";
-// import { processArchiveDataJob } from "@/jobs/data-archive/process-archive-data-job";
+import { processArchiveDataJob } from "@/jobs/data-archive/process-archive-data-job";
 import { exportDataJob } from "@/jobs/data-export/export-data-job";
 import { processActivityEventJob } from "@/jobs/activities/process-activity-event-job";
 import { savePendingActivitiesJob } from "@/jobs/activities/save-pending-activities-job";
@@ -217,6 +218,7 @@ export const allJobQueues = [
   backfillWrongNftBalances.queue,
   backfillInvalidateSeaportV14Orders.queue,
   backfillBlurSales.queue,
+  backfillLooksrareFills.queue,
 
   collectionUpdatesFloorAsk.queue,
 
@@ -322,9 +324,9 @@ export class RabbitMqJobsConsumer {
   public static getQueues(): AbstractRabbitMqJobHandler[] {
     return [
       tokenReclacSupplyJob,
-      // tokenRefreshCacheJob,
-      // recalcOwnerCountQueueJob,
-      // recalcTokenCountQueueJob,
+      tokenRefreshCacheJob,
+      recalcOwnerCountQueueJob,
+      recalcTokenCountQueueJob,
       normalizedFloorQueueJob,
       mintQueueJob,
       tokenFloorQueueJob,
@@ -339,23 +341,23 @@ export class RabbitMqJobsConsumer {
       resyncAttributeCountsJob,
       topBidQueueJob,
       topBidSingleTokenQueueJob,
-      // fetchSourceInfoJob,
-      // removeUnsyncedEventsActivitiesJob,
-      // fixActivitiesMissingCollectionJob,
-      // collectionMetadataQueueJob,
-      // rarityQueueJob,
+      fetchSourceInfoJob,
+      removeUnsyncedEventsActivitiesJob,
+      fixActivitiesMissingCollectionJob,
+      collectionMetadataQueueJob,
+      rarityQueueJob,
       nonFlaggedFloorQueueJob,
-      // refreshContractCollectionsMetadataQueueJob,
-      // setCommunityQueueJob,
+      refreshContractCollectionsMetadataQueueJob,
+      setCommunityQueueJob,
       topBidCollectionJob,
-      // updateCollectionActivityJob,
-      // updateCollectionDailyVolumeJob,
-      // updateCollectionUserActivityJob,
-      // collectionRefreshJob,
-      // collectionRefreshCacheJob,
-      // currenciesFetchJob,
-      // oneDayVolumeJob,
-      // processArchiveDataJob,
+      updateCollectionActivityJob,
+      updateCollectionDailyVolumeJob,
+      updateCollectionUserActivityJob,
+      collectionRefreshJob,
+      collectionRefreshCacheJob,
+      currenciesFetchJob,
+      oneDayVolumeJob,
+      processArchiveDataJob,
       exportDataJob,
       processActivityEventJob,
       savePendingActivitiesJob,
@@ -370,13 +372,15 @@ export class RabbitMqJobsConsumer {
     for (let i = 0; i < RabbitMqJobsConsumer.maxConsumerConnectionsCount; ++i) {
       const connection = await amqplib.connect(config.rabbitMqUrl);
       RabbitMqJobsConsumer.rabbitMqConsumerConnections.push(connection);
+
+      // Create a shared channel for each connection
       RabbitMqJobsConsumer.sharedChannels.set(
         RabbitMqJobsConsumer.getSharedChannelName(i),
         await connection.createChannel()
       );
 
       connection.once("error", (error) => {
-        logger.error("rabbit-connection-error", `Connection error ${error}`);
+        logger.error("rabbit-error", `Consumer connection error ${error}`);
       });
     }
   }
@@ -480,19 +484,19 @@ export class RabbitMqJobsConsumer {
       }
     );
 
-    // channel.once("error", (error) => {
-    //   logger.error("rabbit-channel-error", `Channel error ${error}`);
-    //
-    //   const jobs = RabbitMqJobsConsumer.channelsToJobs.get(channel);
-    //   if (jobs) {
-    //     logger.error(
-    //       "rabbit-channel-error",
-    //       `Jobs stopped consume ${JSON.stringify(
-    //         jobs.map((job: AbstractRabbitMqJobHandler) => job.queueName)
-    //       )}`
-    //     );
-    //   }
-    // });
+    channel.once("error", (error) => {
+      logger.error("rabbit-error", `Consumer channel error ${error}`);
+
+      const jobs = RabbitMqJobsConsumer.channelsToJobs.get(channel);
+      if (jobs) {
+        logger.error(
+          "rabbit-error",
+          `Jobs stopped consume ${JSON.stringify(
+            jobs.map((job: AbstractRabbitMqJobHandler) => job.queueName)
+          )}`
+        );
+      }
+    });
   }
 
   /**

@@ -53,6 +53,7 @@ export const getCollectionFloorAskOracleV6Options: RouteOptions = {
         id: Joi.string().required(),
         payload: Joi.string().required(),
         timestamp: Joi.number().required(),
+        chainId: Joi.string().required(),
         signature: Joi.string().required(),
       }),
       data: Joi.string(),
