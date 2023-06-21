@@ -14,6 +14,7 @@ import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
+import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
 
 export const postRefreshTokenOptions: RouteOptions = {
   description: "Refresh a token's orders and metadata",
@@ -83,6 +84,9 @@ export const postRefreshTokenOptions: RouteOptions = {
 
       // Refresh the token floor sell and top bid
       await tokenRefreshCacheJob.addToQueue({ contract, tokenId, checkTopBid: true });
+
+      // Recalc supply
+      await tokenReclacSupplyJob.addToQueue([{ contract, tokenId }]);
 
       return { message: "Request accepted" };
     } catch (error) {
