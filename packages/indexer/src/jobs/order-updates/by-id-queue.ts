@@ -21,11 +21,6 @@ import { normalizedFloorQueueJob } from "@/jobs/token-updates/normalized-floor-q
 import { tokenFloorQueueJob } from "@/jobs/token-updates/token-floor-queue-job";
 import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";
 import { topBidSingleTokenQueueJob } from "@/jobs/token-set-updates/top-bid-single-token-queue-job";
-import {
-  processActivityEventJob,
-  EventKind as ProcessActivityEventKind,
-  ProcessActivityEventJobPayload,
-} from "@/jobs/activities/process-activity-event-job";
 
 import {
   processActivityEventJob,
