@@ -30,8 +30,6 @@ import "@/jobs/token-set-updates";
 // Export all job queues for monitoring through the BullMQ UI
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
-import * as processActivityEvent from "@/jobs/activities/process-activity-event";
-
 import * as backfillBlockTimestamps from "@/jobs/backfill/backfill-block-timestamps";
 import * as backfillCancelSeaport11Orders from "@/jobs/backfill/backfill-cancel-seaport-v11-orders";
 import * as backfillInvalidatedOrders from "@/jobs/backfill/backfill-invalidated-orders";
@@ -199,7 +197,6 @@ export const gracefulShutdownJobWorkers = [
 ];
 
 export const allJobQueues = [
-  processActivityEvent.queue,
   backfillBlockTimestamps.queue,
   backfillCancelSeaport11Orders.queue,
   backfillInvalidatedOrders.queue,

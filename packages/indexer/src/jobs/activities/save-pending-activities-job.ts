@@ -49,11 +49,6 @@ export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
       const pendingActivitiesCount = await pendingActivitiesQueue.count();
 
       if (pendingActivitiesCount > 0) {
-        logger.info(
-          this.queueName,
-          `requeue job. pendingActivitiesCount=${pendingActivitiesCount}`
-        );
-
         await savePendingActivitiesJob.addToQueue();
       }
     }
