@@ -7,7 +7,6 @@ import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
-import * as bundleOrderUpdatesByMaker from "@/jobs/order-updates/by-maker-bundle-queue";
 import { TriggerKind } from "@/jobs/order-updates/types";
 import { Sources } from "@/models/sources";
 import { OrderKind } from "@/orderbook/orders";
@@ -412,9 +411,6 @@ if (config.doBackgroundWork) {
               }))
             );
 
-            // Revalidate any bundles
-            await bundleOrderUpdatesByMaker.addToQueue([job.data]);
-
             break;
           }
 
@@ -539,9 +535,6 @@ if (config.doBackgroundWork) {
                 trigger,
               }))
             );
-
-            // Revalidate any bundles
-            await bundleOrderUpdatesByMaker.addToQueue([job.data]);
 
             break;
           }

@@ -4,7 +4,7 @@ import { logger } from "@/common/logger";
 import { redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import { oneDayVolumeJob } from "@/jobs/daily-volumes/1day-volumes-job";
-import * as dailyVolumeQueue from "@/jobs/daily-volumes/daily-volumes";
+import { dailyVolumeJob } from "@/jobs/daily-volumes/daily-volumes-job";
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
@@ -18,7 +18,7 @@ if (config.doBackgroundWork) {
           logger.info("daily-volumes", "Calculating daily volumes");
 
           try {
-            await dailyVolumeQueue.addToQueue();
+            await dailyVolumeJob.addToQueue();
           } catch (error) {
             logger.error("daily-volumes", `Failed to calculate daily volumes: ${error}`);
           }

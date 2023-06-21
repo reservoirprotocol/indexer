@@ -28,9 +28,7 @@ import "@/jobs/monitoring";
 import "@/jobs/token-set-updates";
 
 // Export all job queues for monitoring through the BullMQ UI
-
-import * as processActivityEvent from "@/jobs/activities/process-activity-event";
-import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
+import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
 import * as backfillBlockTimestamps from "@/jobs/backfill/backfill-block-timestamps";
 import * as backfillCancelSeaport11Orders from "@/jobs/backfill/backfill-cancel-seaport-v11-orders";
@@ -49,6 +47,7 @@ import * as backfillNftTransferEventsCreatedAt from "@/jobs/backfill/backfill-nf
 import * as backfillCollectionsRoyalties from "@/jobs/backfill/backfill-collections-royalties";
 import * as backfillWrongNftBalances from "@/jobs/backfill/backfill-wrong-nft-balances";
 import * as backfillFoundationOrders from "@/jobs/backfill/backfill-foundation-orders";
+import * as backfillLooksrareFills from "@/jobs/backfill/backfill-looks-rare-fills";
 
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
 
@@ -89,10 +88,7 @@ import * as orderFixes from "@/jobs/order-fixes/fixes";
 import * as orderRevalidations from "@/jobs/order-fixes/revalidations";
 
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
-import * as orderUpdatesBuyOrder from "@/jobs/order-updates/order-updates-buy-order-queue";
-import * as orderUpdatesSellOrder from "@/jobs/order-updates/order-updates-sell-order-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
-import * as bundleOrderUpdatesByMaker from "@/jobs/order-updates/by-maker-bundle-queue";
 import * as dynamicOrdersCron from "@/jobs/order-updates/cron/dynamic-orders-queue";
 import * as erc20OrdersCron from "@/jobs/order-updates/cron/erc20-orders-queue";
 import * as expiredOrdersCron from "@/jobs/order-updates/cron/expired-orders-queue";
@@ -123,7 +119,6 @@ import * as tokenWebsocketEventsTriggerQueue from "@/jobs/websocket-events/token
 import * as topBidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/top-bid-websocket-events-trigger-queue";
 import * as collectionWebsocketEventsTriggerQueue from "@/jobs/websocket-events/collection-websocket-events-trigger-queue";
 
-import * as dailyVolumeQueue from "@/jobs/daily-volumes/daily-volumes";
 import * as countApiUsage from "@/jobs/metrics/count-api-usage";
 
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
@@ -140,7 +135,6 @@ import * as updateActivitiesCollection from "@/jobs/elasticsearch/update-activit
 import * as refreshActivitiesTokenMetadata from "@/jobs/elasticsearch/refresh-activities-token-metadata";
 import * as refreshActivitiesCollectionMetadata from "@/jobs/elasticsearch/refresh-activities-collection-metadata";
 
-import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import amqplib, { Channel, Connection } from "amqplib";
 import { config } from "@/config/index";
 import _ from "lodash";
@@ -182,16 +176,16 @@ import { collectionRefreshJob } from "@/jobs/collections-refresh/collections-ref
 import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
 import { currenciesFetchJob } from "@/jobs/currencies/currencies-fetch-job";
 import { oneDayVolumeJob } from "@/jobs/daily-volumes/1day-volumes-job";
-// import { dailyVolumeJob } from "@/jobs/daily-volumes/daily-volumes-job";
+import { dailyVolumeJob } from "@/jobs/daily-volumes/daily-volumes-job";
 import { processArchiveDataJob } from "@/jobs/data-archive/process-archive-data-job";
 import { exportDataJob } from "@/jobs/data-export/export-data-job";
+import { processActivityEventJob } from "@/jobs/activities/process-activity-event-job";
+import { savePendingActivitiesJob } from "@/jobs/activities/save-pending-activities-job";
+import { eventsSyncFtTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/ft-transfers-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
-  orderUpdatesBuyOrder.worker,
-  orderUpdatesSellOrder.worker,
   orderUpdatesByMaker.worker,
-  bundleOrderUpdatesByMaker.worker,
   dynamicOrdersCron.worker,
   erc20OrdersCron.worker,
   expiredOrdersCron.worker,
@@ -201,9 +195,6 @@ export const gracefulShutdownJobWorkers = [
 ];
 
 export const allJobQueues = [
-  processActivityEvent.queue,
-  removeUnsyncedEventsActivities.queue,
-
   backfillBlockTimestamps.queue,
   backfillCancelSeaport11Orders.queue,
   backfillInvalidatedOrders.queue,
@@ -221,6 +212,7 @@ export const allJobQueues = [
   backfillWrongNftBalances.queue,
   backfillInvalidateSeaportV14Orders.queue,
   backfillBlurSales.queue,
+  backfillLooksrareFills.queue,
 
   collectionUpdatesFloorAsk.queue,
 
@@ -256,16 +248,12 @@ export const allJobQueues = [
 
   updateNftBalanceFloorAskPrice.queue,
   updateNftBalanceTopBid.queue,
-  dailyVolumeQueue.queue,
 
   orderFixes.queue,
   orderRevalidations.queue,
 
   orderUpdatesById.queue,
-  orderUpdatesBuyOrder.queue,
-  orderUpdatesSellOrder.queue,
   orderUpdatesByMaker.queue,
-  bundleOrderUpdatesByMaker.queue,
   dynamicOrdersCron.queue,
   erc20OrdersCron.queue,
   expiredOrdersCron.queue,
@@ -361,8 +349,12 @@ export class RabbitMqJobsConsumer {
       collectionRefreshCacheJob,
       currenciesFetchJob,
       oneDayVolumeJob,
+      dailyVolumeJob,
       processArchiveDataJob,
       exportDataJob,
+      processActivityEventJob,
+      savePendingActivitiesJob,
+      eventsSyncFtTransfersWriteBufferJob,
     ];
   }
 
@@ -374,10 +366,16 @@ export class RabbitMqJobsConsumer {
     for (let i = 0; i < RabbitMqJobsConsumer.maxConsumerConnectionsCount; ++i) {
       const connection = await amqplib.connect(config.rabbitMqUrl);
       RabbitMqJobsConsumer.rabbitMqConsumerConnections.push(connection);
+
+      // Create a shared channel for each connection
       RabbitMqJobsConsumer.sharedChannels.set(
         RabbitMqJobsConsumer.getSharedChannelName(i),
         await connection.createChannel()
       );
+
+      connection.once("error", (error) => {
+        logger.error("rabbit-error", `Consumer connection error ${error}`);
+      });
     }
   }
 
@@ -450,41 +448,13 @@ export class RabbitMqJobsConsumer {
       }
     );
 
-    // // Subscribe to the queue
-    // await channel.consume(
-    //   _.replace(job.getQueue(), ".new", ""),
-    //   async (msg) => {
-    //     if (!_.isNull(msg)) {
-    //       await job.consume(channel, msg);
-    //     }
-    //   },
-    //   {
-    //     consumerTag: RabbitMqJobsConsumer.getConsumerTag(_.replace(job.getQueue(), ".new", "")),
-    //   }
-    // );
-    //
-    // // Subscribe to the retry queue
-    // await channel.consume(
-    //   _.replace(job.getRetryQueue(), ".new", ""),
-    //   async (msg) => {
-    //     if (!_.isNull(msg)) {
-    //       await job.consume(channel, msg);
-    //     }
-    //   },
-    //   {
-    //     consumerTag: RabbitMqJobsConsumer.getConsumerTag(
-    //       _.replace(job.getRetryQueue(), ".new", "")
-    //     ),
-    //   }
-    // );
-
-    channel.on("error", (error) => {
-      logger.error("rabbit-channel-error", `Channel error ${error}`);
+    channel.once("error", (error) => {
+      logger.error("rabbit-error", `Consumer channel error ${error}`);
 
       const jobs = RabbitMqJobsConsumer.channelsToJobs.get(channel);
       if (jobs) {
         logger.error(
-          "rabbit-channel-error",
+          "rabbit-error",
           `Jobs stopped consume ${JSON.stringify(
             jobs.map((job: AbstractRabbitMqJobHandler) => job.queueName)
           )}`
@@ -510,17 +480,21 @@ export class RabbitMqJobsConsumer {
    * Going over all the jobs and calling the subscribe function for each queue
    */
   static async startRabbitJobsConsumer(): Promise<void> {
-    await RabbitMqJobsConsumer.connect(); // Create a connection for the consumer
+    try {
+      await RabbitMqJobsConsumer.connect(); // Create a connection for the consumer
 
-    for (const queue of RabbitMqJobsConsumer.getQueues()) {
-      try {
-        await RabbitMqJobsConsumer.subscribe(queue);
-      } catch (error) {
-        logger.error(
-          "rabbit-subscribe",
-          `failed to subscribe to ${queue.queueName} error ${error}`
-        );
+      for (const queue of RabbitMqJobsConsumer.getQueues()) {
+        try {
+          await RabbitMqJobsConsumer.subscribe(queue);
+        } catch (error) {
+          logger.error(
+            "rabbit-subscribe",
+            `failed to subscribe to ${queue.queueName} error ${error}`
+          );
+        }
       }
+    } catch (error) {
+      logger.error("rabbit-subscribe-connection", `failed to open connections to consume ${error}`);
     }
   }
 }

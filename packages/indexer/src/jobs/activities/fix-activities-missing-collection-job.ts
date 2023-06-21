@@ -1,6 +1,4 @@
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { Activities } from "@/models/activities";
-import { UserActivities } from "@/models/user-activities";
 import { config } from "@/config/index";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { Collections } from "@/models/collections";
@@ -21,27 +19,22 @@ export class FixActivitiesMissingCollectionJob extends AbstractRabbitMqJobHandle
   useSharedChannel = true;
 
   protected async process(payload: FixActivitiesMissingCollectionJobPayload) {
+    const { contract, tokenId, retry } = payload;
+
     // Temporarily disable goerli prod
     if (config.chainId === 5 && config.environment === "prod") {
       return;
     }
-    const { contract, tokenId, retry } = payload;
+
     const collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
 
     if (collection) {
       // Update the collection id of any missing activities
-      await Promise.all([
-        Activities.updateMissingCollectionId(contract, tokenId, collection.id),
-        UserActivities.updateMissingCollectionId(contract, tokenId, collection.id),
-      ]);
-
-      if (config.doElasticsearchWork) {
-        await ActivitiesIndex.updateActivitiesMissingCollection(
-          contract,
-          Number(tokenId),
-          collection
-        );
-      }
+      await ActivitiesIndex.updateActivitiesMissingCollection(
+        contract,
+        Number(tokenId),
+        collection
+      );
     } else if (Number(retry) < this.maxRetries) {
       await this.addToQueue({ ...payload, retry: Number(retry) + 1 });
     } else {
@@ -50,6 +43,10 @@ export class FixActivitiesMissingCollectionJob extends AbstractRabbitMqJobHandle
   }
 
   public async addToQueue(params: FixActivitiesMissingCollectionJobPayload) {
+    if (!config.doElasticsearchWork) {
+      return;
+    }
+
     params.retry = params.retry ?? 0;
     const jobId = `${params.contract}:${params.tokenId}:${params.retry}`;
     const delay = params.retry ? params.retry ** 2 * 300 * 1000 : 0;

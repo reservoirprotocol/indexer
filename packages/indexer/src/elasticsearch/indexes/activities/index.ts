@@ -356,12 +356,16 @@ const _search = async (
       })
     );
 
-    if ((error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception") {
+    const retryableError =
+      (error as any).meta?.aborted ||
+      (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+
+    if (retryableError) {
       logger.warn(
         "elasticsearch-activities",
         JSON.stringify({
           topic: "_search",
-          message: "node_not_connected_exception error",
+          message: "Retrying...",
           data: {
             params: JSON.stringify(params),
           },
@@ -527,7 +531,7 @@ export const updateActivitiesMissingCollection = async (
         params: {
           collection_id: collection.id,
           collection_name: collection.name,
-          collection_image: collection.metadata.imageUrl,
+          collection_image: collection.metadata?.imageUrl,
         },
       },
     });
@@ -675,9 +679,75 @@ export const updateActivitiesCollection = async (
 export const updateActivitiesTokenMetadata = async (
   contract: string,
   tokenId: string,
-  tokenData: { name?: string | null; image?: string | null; media?: string | null }
+  tokenData: { name: string | null; image: string | null; media: string | null }
 ): Promise<boolean> => {
   let keepGoing = false;
+
+  const should: any[] = [
+    {
+      bool: tokenData.name
+        ? {
+            must_not: [
+              {
+                term: {
+                  "token.name": tokenData.name,
+                },
+              },
+            ],
+          }
+        : {
+            must: [
+              {
+                exists: {
+                  field: "token.name",
+                },
+              },
+            ],
+          },
+    },
+    {
+      bool: tokenData.image
+        ? {
+            must_not: [
+              {
+                term: {
+                  "token.image": tokenData.image,
+                },
+              },
+            ],
+          }
+        : {
+            must: [
+              {
+                exists: {
+                  field: "token.image",
+                },
+              },
+            ],
+          },
+    },
+    {
+      bool: tokenData.media
+        ? {
+            must_not: [
+              {
+                term: {
+                  "token.media": tokenData.media,
+                },
+              },
+            ],
+          }
+        : {
+            must: [
+              {
+                exists: {
+                  field: "token.media",
+                },
+              },
+            ],
+          },
+    },
+  ];
 
   const query = {
     bool: {
@@ -693,6 +763,11 @@ export const updateActivitiesTokenMetadata = async (
           },
         },
       ],
+      filter: {
+        bool: {
+          should,
+        },
+      },
     },
   };
 
@@ -700,6 +775,7 @@ export const updateActivitiesTokenMetadata = async (
     const response = await elasticsearch.updateByQuery({
       index: INDEX_NAME,
       conflicts: "proceed",
+      refresh: true,
       max_docs: 1000,
       // This is needed due to issue with elasticsearch DSL.
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -773,9 +849,54 @@ export const updateActivitiesTokenMetadata = async (
 
 export const updateActivitiesCollectionMetadata = async (
   collectionId: string,
-  collectionData: { name?: string | null; image?: string | null }
+  collectionData: { name: string | null; image: string | null }
 ): Promise<boolean> => {
   let keepGoing = false;
+
+  const should: any[] = [
+    {
+      bool: collectionData.name
+        ? {
+            must_not: [
+              {
+                term: {
+                  "collection.name": collectionData.name,
+                },
+              },
+            ],
+          }
+        : {
+            must: [
+              {
+                exists: {
+                  field: "collection.name",
+                },
+              },
+            ],
+          },
+    },
+    {
+      bool: collectionData.image
+        ? {
+            must_not: [
+              {
+                term: {
+                  "collection.image": collectionData.image,
+                },
+              },
+            ],
+          }
+        : {
+            must: [
+              {
+                exists: {
+                  field: "collection.image",
+                },
+              },
+            ],
+          },
+    },
+  ];
 
   const query = {
     bool: {
@@ -786,6 +907,11 @@ export const updateActivitiesCollectionMetadata = async (
           },
         },
       ],
+      filter: {
+        bool: {
+          should,
+        },
+      },
     },
   };
 
@@ -793,6 +919,7 @@ export const updateActivitiesCollectionMetadata = async (
     const response = await elasticsearch.updateByQuery({
       index: INDEX_NAME,
       conflicts: "proceed",
+      refresh: true,
       max_docs: 1000,
       // This is needed due to issue with elasticsearch DSL.
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
