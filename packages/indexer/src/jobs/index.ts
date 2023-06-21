@@ -164,11 +164,11 @@ import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-at
 import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
 import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";
 import { topBidSingleTokenQueueJob } from "@/jobs/token-set-updates/top-bid-single-token-queue-job";
-import { fetchSourceInfoJob } from "@/jobs/sources/fetch-source-info-job";
-import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
-import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
-import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
-import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
+// import { fetchSourceInfoJob } from "@/jobs/sources/fetch-source-info-job";
+// import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
+// import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
+// import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
+// import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
 import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
 // import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
 // import { setCommunityQueueJob } from "@/jobs/collection-updates/set-community-queue-job";
@@ -339,11 +339,11 @@ export class RabbitMqJobsConsumer {
       resyncAttributeCountsJob,
       topBidQueueJob,
       topBidSingleTokenQueueJob,
-      fetchSourceInfoJob,
-      removeUnsyncedEventsActivitiesJob,
-      fixActivitiesMissingCollectionJob,
-      collectionMetadataQueueJob,
-      rarityQueueJob,
+      // fetchSourceInfoJob,
+      // removeUnsyncedEventsActivitiesJob,
+      // fixActivitiesMissingCollectionJob,
+      // collectionMetadataQueueJob,
+      // rarityQueueJob,
       nonFlaggedFloorQueueJob,
       // refreshContractCollectionsMetadataQueueJob,
       // setCommunityQueueJob,
