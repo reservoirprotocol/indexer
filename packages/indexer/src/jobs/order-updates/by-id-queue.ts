@@ -272,10 +272,17 @@ if (config.doBackgroundWork) {
               };
 
               if (order.side === "sell") {
-                eventInfo = {
-                  kind: ProcessActivityEventKind.newSellOrder,
-                  data: eventData,
-                };
+                if (order.kind === "blur" && order.raw_data?.expirationTime != null) {
+                  logger.info(
+                    QUEUE_NAME,
+                    `Skip creating activity for old blur order. orderId=${order.id}`
+                  );
+                } else {
+                  eventInfo = {
+                    kind: ProcessActivityEventKind.newSellOrder,
+                    data: eventData,
+                  };
+                }
               } else if (order.side === "buy") {
                 eventInfo = {
                   kind: ProcessActivityEventKind.newBuyOrder,
