@@ -16,8 +16,6 @@ import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as mintsProcess from "@/jobs/mints/process";
 import * as fillPostProcess from "@/jobs/fill-updates/fill-post-process";
 import { AddressZero } from "@ethersproject/constants";
-import { NftTransferEventData } from "@/jobs/activities/transfer-activity";
-import { FillEventData } from "@/jobs/activities/sale-activity";
 import { RecalcCollectionOwnerCountInfo } from "@/jobs/collection-updates/recalc-owner-count-queue";
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import { mintQueueJob, MintQueueJobPayload } from "@/jobs/token-updates/mint-queue-job";
@@ -273,15 +271,25 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   await processActivityEventJob.addToQueue(fillActivityInfos);
   const endProcessActivityEvent = Date.now();
 
+  const filteredNftTransferEvents = data.nftTransferEvents.filter((event) => {
+    if (event.from !== AddressZero) {
+      return true;
+    }
+
+    return !fillActivityInfos.some((fillActivityInfo) => {
+      const fillActivityInfoData = fillActivityInfo.data;
+
+      return (
+        fillActivityInfoData.transactionHash === event.baseEventParams.txHash &&
+        fillActivityInfoData.logIndex === event.baseEventParams.logIndex &&
+        fillActivityInfoData.batchIndex === event.baseEventParams.batchIndex
+      );
+    });
+  });
+
   // Process transfer activities
-  const transferActivityInfos: ProcessActivityEventJobPayload[] = data.nftTransferEvents.map(
+  const transferActivityInfos: ProcessActivityEventJobPayload[] = filteredNftTransferEvents.map(
     (event) => ({
-      // context: [
-      //   ProcessActivityEventKind.nftTransferEvent,
-      //   event.baseEventParams.txHash,
-      //   event.baseEventParams.logIndex,
-      //   event.baseEventParams.batchIndex,
-      // ].join(":"),
       kind: ProcessActivityEventKind.nftTransferEvent,
       data: {
         transactionHash: event.baseEventParams.txHash,
@@ -291,26 +299,8 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     })
   );
 
-  const filteredTransferActivityInfos = transferActivityInfos.filter((transferActivityInfo) => {
-    const transferActivityInfoData = transferActivityInfo.data as NftTransferEventData;
-
-    if (transferActivityInfoData.fromAddress !== AddressZero) {
-      return true;
-    }
-
-    return !fillActivityInfos.some((fillActivityInfo) => {
-      const fillActivityInfoData = fillActivityInfo.data as FillEventData;
-
-      return (
-        fillActivityInfoData.transactionHash === transferActivityInfoData.transactionHash &&
-        fillActivityInfoData.logIndex === transferActivityInfoData.logIndex &&
-        fillActivityInfoData.batchIndex === transferActivityInfoData.batchIndex
-      );
-    });
-  });
-
   const startProcessTransferActivityEvent = Date.now();
-  await processActivityEventJob.addToQueue(filteredTransferActivityInfos);
+  await processActivityEventJob.addToQueue(transferActivityInfos);
   const endProcessTransferActivityEvent = Date.now();
 
   return {
