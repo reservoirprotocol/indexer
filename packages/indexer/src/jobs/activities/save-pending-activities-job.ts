@@ -7,7 +7,7 @@ import { ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
 import { config } from "@/config/index";
 import cron from "node-cron";
-import { acquireLock, releaseLock, redlock } from "@/common/redis";
+import { redlock } from "@/common/redis";
 
 const BATCH_SIZE = 500;
 
@@ -17,51 +17,44 @@ export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
   concurrency = 1;
   persistent = true;
   lazyMode = true;
-  useSharedChannel = true;
 
   protected async process() {
-    const acquiredLock = await acquireLock(getLockName(), 30);
+    const pendingActivitiesQueue = new PendingActivitiesQueue();
+    const pendingActivities = await pendingActivitiesQueue.get(BATCH_SIZE);
 
-    if (acquiredLock) {
-      const pendingActivitiesQueue = new PendingActivitiesQueue();
-      const pendingActivities = await pendingActivitiesQueue.get(BATCH_SIZE);
+    if (pendingActivities.length > 0) {
+      try {
+        await ActivitiesIndex.save(pendingActivities, false);
 
-      if (pendingActivities.length > 0) {
-        try {
-          await ActivitiesIndex.save(pendingActivities, false);
-
-          for (const activity of pendingActivities) {
-            // If collection information is not available yet when a mint event
-            if (activity.type === ActivityType.mint && !activity.collection?.id) {
-              await fixActivitiesMissingCollectionJob.addToQueue({
-                contract: activity.contract,
-                tokenId: activity.token!.id,
-              });
-            }
+        for (const activity of pendingActivities) {
+          // If collection information is not available yet when a mint event
+          if (activity.type === ActivityType.mint && !activity.collection?.id) {
+            await fixActivitiesMissingCollectionJob.addToQueue({
+              contract: activity.contract,
+              tokenId: activity.token!.id,
+            });
           }
-        } catch (error) {
-          logger.error(
-            this.queueName,
-            `failed to insert into activities. error=${error}, pendingActivities=${JSON.stringify(
-              pendingActivities
-            )}`
-          );
-
-          await pendingActivitiesQueue.add(pendingActivities);
         }
+      } catch (error) {
+        logger.error(
+          this.queueName,
+          `failed to insert into activities. error=${error}, pendingActivities=${JSON.stringify(
+            pendingActivities
+          )}`
+        );
 
-        await releaseLock(getLockName());
+        await pendingActivitiesQueue.add(pendingActivities);
+      }
 
-        const pendingActivitiesCount = await pendingActivitiesQueue.count();
+      const pendingActivitiesCount = await pendingActivitiesQueue.count();
 
-        if (pendingActivitiesCount > 0) {
-          logger.info(
-            this.queueName,
-            `requeue job. pendingActivitiesCount=${pendingActivitiesCount}`
-          );
+      if (pendingActivitiesCount > 0) {
+        logger.info(
+          this.queueName,
+          `requeue job. pendingActivitiesCount=${pendingActivitiesCount}`
+        );
 
-          await savePendingActivitiesJob.addToQueue();
-        }
+        await savePendingActivitiesJob.addToQueue();
       }
     }
   }
