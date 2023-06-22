@@ -254,7 +254,7 @@ const _getTransactionTraces = async (Txs: { hash: string }[], block: number) => 
     traces = traces.map((trace, index) => {
       return {
         ...trace,
-        transactionHash: Txs[index].hash,
+        hash: Txs[index].hash,
       };
     });
   } else {
@@ -266,7 +266,7 @@ const _getTransactionTraces = async (Txs: { hash: string }[], block: number) => 
         ]);
         return {
           ...trace,
-          transactionHash: tx.hash,
+          hash: tx.hash,
         };
       })
     );
@@ -369,6 +369,17 @@ const saveLogsAndTracesAndTransactions = async (
   });
 
   const startTime = Date.now();
+  logger.info(
+    "sync-events-v2",
+    JSON.stringify({
+      message: `Events realtime syncing block ${blockData.number}`,
+      block: blockData.number,
+      logs: transactionLogs,
+      traces,
+      transactionReceipts,
+      blockData,
+    })
+  );
   await Promise.all([
     ...transactionLogs.map((txLogs) => saveTransactionLogs(txLogs)),
     saveTransactionTraces(traces),
