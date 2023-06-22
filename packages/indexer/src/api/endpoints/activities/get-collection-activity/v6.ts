@@ -205,7 +205,11 @@ export const getCollectionActivityV6Options: RouteOptions = {
           contracts.push(fromBuffer(tokensResult[0].contract));
         }
 
-        const debug = query.collection.contains("0x8ce578bad214d59aefafb49bd20408e81271796f");
+        let debug = false;
+
+        if (query.collection) {
+          debug = query.collection.includes("0x8ce578bad214d59aefafb49bd20408e81271796f");
+        }
 
         const { activities, continuation } = await ActivitiesIndex.search(
           {
