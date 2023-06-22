@@ -254,7 +254,7 @@ const _getTransactionTraces = async (Txs: { hash: string }[], block: number) => 
     traces = traces.map((trace, index) => {
       return {
         ...trace,
-        transactionHash: Txs[index].hash,
+        hash: Txs[index].hash,
       };
     });
   } else {
@@ -266,7 +266,7 @@ const _getTransactionTraces = async (Txs: { hash: string }[], block: number) => 
         ]);
         return {
           ...trace,
-          transactionHash: tx.hash,
+          hash: tx.hash,
         };
       })
     );
