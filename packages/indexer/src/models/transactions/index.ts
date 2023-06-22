@@ -299,7 +299,6 @@ export const getTransaction = async (hash: string): Promise<Transaction> => {
     to: fromBuffer(result.to),
     value: result.value,
     data: fromBuffer(result.data),
-    blockNumber: result.block_number,
     blockTimestamp: result.block_timestamp,
     gasPrice: result.gas_price,
     gasUsed: result.gas_used,

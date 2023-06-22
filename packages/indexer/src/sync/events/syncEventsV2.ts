@@ -15,7 +15,7 @@ import { Block } from "@/models/blocks";
 import { saveTransactionLogs } from "@/models/transaction-logs";
 import { TransactionTrace, saveTransactionTraces } from "@/models/transaction-traces";
 import { TransactionReceipt } from "@ethersproject/providers";
-
+import { baseProvider } from "@/common/provider";
 
 export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBatch[] => {
   const txHashToEvents = new Map<string, EnhancedEvent[]>();
@@ -483,7 +483,6 @@ export const unsyncEvents = async (block: number, blockHash: string) => {
     es.ftTransfers.removeEvents(block, blockHash),
     es.nftApprovals.removeEvents(block, blockHash),
     es.nftTransfers.removeEvents(block, blockHash),
-    removeUnsyncedEventsActivitiesJob.addToQueue({ blockHash }),
   ]);
 };
 
