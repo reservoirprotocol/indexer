@@ -16,6 +16,9 @@ export const saveTransactionTraces = async (transactionTraces: TransactionTrace[
   });
 
   for (const { hash, calls } of transactionTraces) {
+    if (!calls) {
+      continue;
+    }
     values.push({
       hash: toBuffer(hash),
       calls,

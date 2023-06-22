@@ -1,12 +1,10 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
-import _ from "lodash";
 
 import { logger } from "@/common/logger";
-import { BullMQBulkJob, getMemUsage, redis } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { config } from "@/config/index";
-import { getNetworkSettings } from "@/config/network";
-import { EventSubKind } from "@/events-sync/data";
-import { syncEvents } from "@/events-sync/index";
+import * as historicalEventsSync from "@/jobs/events-sync/historical-queue";
+import { randomUUID } from "crypto";
 
 const QUEUE_NAME = "events-sync-backfill";
 
@@ -30,35 +28,28 @@ if (config.doBackgroundWork && config.doEventsSyncBackfill) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { fromBlock, toBlock, syncDetails } = job.data;
-      const { backfill } = job.data;
+      const blockSyncRange = job.data as { fromBlock: number; toBlock: number };
 
-      // Check if redis is reaching max memory usage
-      const maxMemUsage = 1024 * 1000 * 1000 * config.redisMaxMemoryGB;
-      const currentMemUsage = await getMemUsage();
-      if (currentMemUsage > maxMemUsage) {
-        const delay = _.random(1000 * 60 * 60, 1000 * 60 * 120);
-        logger.warn(
-          QUEUE_NAME,
-          `Max memory reached ${_.round(currentMemUsage / (1024 * 1000 * 1000), 2)} GB, delay job ${
-            job.id
-          } for ${_.round(delay / 1000)}s`
-        );
-
-        job.opts.attempts = _.toInteger(job.opts.attempts) + 1;
-        await addToQueue(fromBlock, toBlock, _.merge(job.opts, job.data, { delay }));
-        return;
+      let startBlock = blockSyncRange.fromBlock;
+      const latestBlock = await redis.get("latest-block-backfill");
+      const blockAddToQueueBatchSize = await redis.get("block-add-to-queue-batch-size");
+      if (!latestBlock || !blockAddToQueueBatchSize) {
+        throw new Error("Missing latest block or block add to queue batch size");
       }
 
-      try {
-        await syncEvents(fromBlock, toBlock, { backfill, syncDetails });
-        logger.info(QUEUE_NAME, `Events backfill syncing block range [${fromBlock}, ${toBlock}]`);
-      } catch (error) {
-        logger.error(
-          QUEUE_NAME,
-          `Events for [${fromBlock}, ${toBlock}] backfill syncing failed: ${error}`
-        );
-        throw error;
+      const blocksPerBatch = parseInt(blockAddToQueueBatchSize);
+
+      // check if the block difference is = to the batch size
+      // if so, we can assume that the queue is empty
+      // and we can add the entire range to the queue
+      if (parseInt(latestBlock) - startBlock === 0) {
+        // add next batch range to queue
+        startBlock = startBlock + blocksPerBatch;
+        for (let i = startBlock; i <= startBlock + blocksPerBatch; i++) {
+          await historicalEventsSync.addToQueue({ block: i });
+        }
+      } else {
+        await addToQueue(startBlock, blockSyncRange.toBlock);
       }
     },
     { connection: redis.duplicate(), concurrency: 5 }
@@ -68,58 +59,6 @@ if (config.doBackgroundWork && config.doEventsSyncBackfill) {
   });
 }
 
-export const addToQueue = async (
-  fromBlock: number,
-  toBlock: number,
-  options?: {
-    attempts?: number;
-    delay?: number;
-    blocksPerBatch?: number;
-    prioritized?: boolean;
-    backfill?: boolean;
-    syncDetails?:
-      | {
-          method: "events";
-          events: EventSubKind[];
-        }
-      | {
-          method: "address";
-          address: string;
-        };
-  }
-) => {
-  // Syncing is done in several batches since the requested block
-  // range might result in lots of events which could potentially
-  // not fit within a single provider response
-  const blocksPerBatch = options?.blocksPerBatch ?? getNetworkSettings().backfillBlockBatchSize;
-
-  // Important backfill processes should be prioritized
-  const prioritized = options?.prioritized ?? false;
-
-  // Sync in reverse to handle more recent events first
-  const jobs: BullMQBulkJob[] = [];
-  for (let to = toBlock; to >= fromBlock; to -= blocksPerBatch) {
-    const from = Math.max(fromBlock, to - blocksPerBatch + 1);
-    const jobId = options?.attempts ? `${from}-${to}-${options.attempts}` : `${from}-${to}`;
-
-    jobs.push({
-      name: `${from}-${to}`,
-      data: {
-        fromBlock: from,
-        toBlock: to,
-        backfill: options?.backfill,
-        syncDetails: options?.syncDetails,
-      },
-      opts: {
-        priority: prioritized ? 1 : undefined,
-        jobId,
-        delay: options?.delay,
-        attempts: options?.attempts,
-      },
-    });
-  }
-
-  for (const chunkedJobs of _.chunk(jobs, 1000)) {
-    await queue.addBulk(chunkedJobs);
-  }
+export const addToQueue = async (fromBlock: number, toBlock: number) => {
+  await queue.add(randomUUID(), { fromBlock, toBlock });
 };

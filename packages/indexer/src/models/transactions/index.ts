@@ -16,7 +16,7 @@ export type Transaction = {
   cumulativeGasUsed?: string;
   contractAddress?: string;
   logsBloom?: string;
-  status?: number;
+  status?: boolean;
   transactionIndex?: number;
 };
 
@@ -127,73 +127,11 @@ export const saveTransactions = async (transactions: Transaction[]) => {
   );
 };
 
-/**
- * Store batch transactions and return nothing (fast version)
- * @param transactions
- */
 export const saveTransactionsV2 = async (transactions: Transaction[]) => {
   const CHUNK_SIZE = 10;
 
-  if (_.isEmpty(transactions)) {
-    return;
-  }
-
-  const columns = new pgp.helpers.ColumnSet(
-    [
-      "hash",
-      "from",
-      "to",
-      "value",
-      "data",
-      "block_number",
-      "block_timestamp",
-      "gas_price",
-      "gas_used",
-      "gas_fee",
-    ],
-    { table: "transactions" }
-  );
-
-  const transactionsValues = _.map(transactions, (transaction) => ({
-    hash: toBuffer(transaction.hash),
-    from: toBuffer(transaction.from),
-    to: toBuffer(transaction.to),
-    value: transaction.value,
-    data: toBuffer(transaction.data),
-    block_number: transaction.blockNumber,
-    block_timestamp: transaction.blockTimestamp,
-    gas_price: transaction.gasPrice,
-    gas_used: transaction.gasUsed,
-    gas_fee: transaction.gasFee,
-  }));
-
-  const chunks = _.chunk(transactionsValues, CHUNK_SIZE);
-
-  await Promise.all(
-    chunks.map((chunk) =>
-      idb.none(
-        `
-        INSERT INTO transactions (
-          hash,
-          "from",
-          "to",
-          value,
-          data,
-          block_number,
-          block_timestamp,
-          gas_price,
-          gas_used,
-          gas_fee
-        ) VALUES ${pgp.helpers.values(chunk, columns)}
-        ON CONFLICT DO NOTHING
-      `
-      )
-    )
-  );
-};
-
-export const saveTransactionsV3 = async (transactions: Transaction[]) => {
-  const CHUNK_SIZE = 10;
+  // eslint-disable-next-line
+  // console.log(JSON.stringify(transactions));
 
   if (_.isEmpty(transactions)) {
     return;
@@ -241,9 +179,10 @@ export const saveTransactionsV3 = async (transactions: Transaction[]) => {
   const chunks = _.chunk(transactionsValues, CHUNK_SIZE);
 
   await Promise.all(
-    chunks.map((chunk) =>
-      idb.none(
-        `
+    chunks.map(async (chunk) => {
+      try {
+        await idb.none(
+          `
         INSERT INTO transactions (
           hash,
           "from",
@@ -263,8 +202,32 @@ export const saveTransactionsV3 = async (transactions: Transaction[]) => {
         ) VALUES ${pgp.helpers.values(chunk, columns)}
         ON CONFLICT DO NOTHING
       `
-      )
-    )
+        );
+      } catch (error) {
+        // eslint-disable-next-line
+        console.log(
+          error,
+          ` INSERT INTO transactions (
+          hash,
+          "from",
+          "to",
+          value,
+          data,
+          block_number,
+          block_timestamp,
+          gas_price,
+          gas_used,
+          gas_fee,
+          cumulative_gas_used,
+          contract_address,
+          logs_bloom,
+          status,
+          transaction_index
+        ) VALUES ${pgp.helpers.values(chunk, columns)}
+        ON CONFLICT DO NOTHING`
+        );
+      }
+    })
   );
 };
 
