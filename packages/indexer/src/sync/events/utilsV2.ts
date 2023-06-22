@@ -56,13 +56,17 @@ export const saveBlockTransactions = async (
 
 export const getTracesFromBlock = async (blockNumber: number) => {
   const traces = await baseProvider.send("debug_traceBlockByNumber", [
-    blockNumber,
+    blockNumberToHex(blockNumber),
     { tracer: "callTracer" },
   ]);
   return traces;
 };
 
 export const getTransactionReceiptsFromBlock = async (blockNumber: number) => {
-  const receipts = await baseProvider.send("eth_getBlockReceipts", [blockNumber]);
+  const receipts = await baseProvider.send("eth_getBlockReceipts", [blockNumberToHex(blockNumber)]);
   return receipts;
+};
+
+const blockNumberToHex = (blockNumber: number) => {
+  return "0x" + blockNumber.toString(16);
 };
