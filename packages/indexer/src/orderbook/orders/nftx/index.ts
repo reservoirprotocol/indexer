@@ -433,7 +433,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         }
 
         // Fetch all token ids owned by the pool
-        const poolOwnedTokenIds = await commonHelpers.getNfts(pool.nft, pool.address);
+        const poolOwnedTokenIds = await commonHelpers
+          .getNfts(pool.nft, pool.address)
+          .then((nfts) => nfts.map((nft) => nft.tokenId));
 
         const limit = pLimit(50);
         await Promise.all(

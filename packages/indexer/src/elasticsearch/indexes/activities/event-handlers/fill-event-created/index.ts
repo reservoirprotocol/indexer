@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { toBuffer } from "@/common/utils";
-import { redb } from "@/common/db";
+import { idb } from "@/common/db";
 
 import {
   ActivityDocument,
@@ -26,7 +26,7 @@ export class FillEventCreatedEventHandler extends BaseActivityEventHandler {
   }
 
   async generateActivity(): Promise<ActivityDocument> {
-    const data = await redb.oneOrNone(
+    const data = await idb.oneOrNone(
       `
                 ${FillEventCreatedEventHandler.buildBaseQuery()}
                 WHERE tx_hash = $/txHash/

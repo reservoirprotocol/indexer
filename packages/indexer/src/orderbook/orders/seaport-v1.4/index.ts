@@ -1,4 +1,4 @@
-import { AddressZero, HashZero } from "@ethersproject/constants";
+import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import { OrderKind } from "@reservoir0x/sdk/dist/seaport-base/types";
@@ -24,11 +24,12 @@ import * as tokenSet from "@/orderbook/token-sets";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
+import { isOpen } from "@/utils/seaport-conduits";
 
-import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { topBidsCache } from "@/models/top-bids-caching";
 import * as orderbook from "@/jobs/orderbook/orders-queue";
+import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
 
 export type OrderInfo = {
   orderParams: Sdk.SeaportBase.Types.OrderComponents;
@@ -67,7 +68,8 @@ type SaveResult = {
 export const save = async (
   orderInfos: OrderInfo[],
   validateBidValue?: boolean,
-  ingestMethod?: "websocket" | "rest"
+  ingestMethod?: "websocket" | "rest",
+  ingestDelay?: number
 ): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
@@ -120,11 +122,7 @@ export const save = async (
 
       // Check: order has a supported conduit
       if (
-        ![
-          HashZero,
-          Sdk.SeaportBase.Addresses.OriginConduitKey[config.chainId],
-          Sdk.SeaportBase.Addresses.SpaceIdConduitKey[config.chainId],
-        ].includes(order.params.conduitKey)
+        !(await isOpen(order.params.conduitKey, Sdk.SeaportV14.Addresses.Exchange[config.chainId]))
       ) {
         return results.push({
           id,
@@ -160,6 +158,8 @@ export const save = async (
               kind: "seaport-v1.4",
               info: { orderParams, metadata, isReservoir, isOpenSea, openSeaOrderParams },
               validateBidValue,
+              ingestMethod,
+              ingestDelay: startTime - currentTime + 5,
             },
           ],
           false,
@@ -442,7 +442,7 @@ export const save = async (
       let feeAmount = order.getFeeAmount();
 
       // Handle: price and value
-      let price = bn(order.getMatchingPrice());
+      let price = bn(order.getMatchingPrice(Math.max(now(), startTime)));
       let value = price;
       if (info.side === "buy") {
         // For buy orders, we set the value as `price - fee` since it
@@ -871,6 +871,7 @@ export const save = async (
                 kind: "new-order",
               },
               ingestMethod,
+              ingestDelay,
             } as ordersUpdateById.OrderInfo)
         )
     );
@@ -946,7 +947,9 @@ const getCollection = async (
 
       if (lockAcquired) {
         // Try to refresh the contract collections metadata.
-        await refreshContractCollectionsMetadata.addToQueue(orderParams.contract);
+        await refreshContractCollectionsMetadataQueueJob.addToQueue({
+          contract: orderParams.contract,
+        });
       }
     }
 

@@ -31,8 +31,12 @@ if (config.doBackgroundWork) {
 
       try {
         await detectMint(txHash);
-      } catch (error) {
-        logger.error(QUEUE_NAME, `Failed to process mint ${JSON.stringify(job.data)}: ${error}`);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        logger.error(
+          QUEUE_NAME,
+          `Failed to process mint ${JSON.stringify(job.data)}: ${error} (${error.stack})`
+        );
         throw error;
       }
     },

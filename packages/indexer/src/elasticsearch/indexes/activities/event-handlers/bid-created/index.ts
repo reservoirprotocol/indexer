@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { redb } from "@/common/db";
+import { idb } from "@/common/db";
 
 import { ActivityDocument, ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { getActivityHash } from "@/elasticsearch/indexes/activities/utils";
@@ -23,7 +23,7 @@ export class BidCreatedEventHandler extends BaseActivityEventHandler {
   }
 
   async generateActivity(): Promise<ActivityDocument> {
-    const data = await redb.oneOrNone(
+    const data = await idb.oneOrNone(
       `
           ${BidCreatedEventHandler.buildBaseQuery()}
           WHERE id = $/orderId/
@@ -92,7 +92,7 @@ export class BidCreatedEventHandler extends BaseActivityEventHandler {
   }
 
   parseEvent(data: any) {
-    if (!data.token_set_id.startsWith("token:")) {
+    if (!data?.token_set_id.startsWith("token:")) {
       delete data.token_id;
     }
 

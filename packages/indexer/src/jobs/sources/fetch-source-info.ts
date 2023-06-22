@@ -13,7 +13,7 @@ export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
   defaultJobOptions: {
     attempts: 10,
-    removeOnComplete: 100,
+    removeOnComplete: true,
     removeOnFail: 1000,
   },
 });
@@ -124,5 +124,5 @@ function getTokenUrl(html: HTMLElement, domain: string, network: string) {
 
 export const addToQueue = async (sourceDomain: string, delay = 0) => {
   const jobId = `${sourceDomain}`;
-  await queue.add(jobId, { sourceDomain }, { delay });
+  await queue.add(jobId, { sourceDomain }, { delay, jobId });
 };

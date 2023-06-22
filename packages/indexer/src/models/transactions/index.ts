@@ -272,12 +272,10 @@ export const getTransaction = async (hash: string): Promise<Transaction> => {
   const result = await idb.oneOrNone(
     `
       SELECT
-        transactions.block_number,
         transactions.from,
         transactions.to,
         transactions.value,
         transactions.data,
-        transactions.block_timestamp,
         transactions.gas_price,
         transactions.gas_used,
         transactions.gas_fee,
@@ -286,6 +284,8 @@ export const getTransaction = async (hash: string): Promise<Transaction> => {
         transactions.logs_bloom,
         transactions.status,
         transactions.transaction_index
+        transactions.block_number,
+        transactions.block_timestamp
       FROM transactions
       WHERE transactions.hash = $/hash/
     `,
@@ -299,6 +299,7 @@ export const getTransaction = async (hash: string): Promise<Transaction> => {
     to: fromBuffer(result.to),
     value: result.value,
     data: fromBuffer(result.data),
+    blockNumber: result.block_number,
     blockTimestamp: result.block_timestamp,
     gasPrice: result.gas_price,
     gasUsed: result.gas_used,
