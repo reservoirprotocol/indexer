@@ -107,7 +107,7 @@ export const getTokensIdsV4Options: RouteOptions = {
       }
 
       // Sorting
-      baseQuery += ` ORDER BY "t"."token_id"`;
+      baseQuery += ` ORDER BY "t"."contract", "t"."token_id"`;
       baseQuery += ` LIMIT $/limit/`;
 
       const rawResult = await redb.manyOrNone(baseQuery, query);

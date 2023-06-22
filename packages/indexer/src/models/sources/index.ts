@@ -3,12 +3,11 @@ import { keccak256 } from "@ethersproject/solidity";
 import { randomBytes } from "crypto";
 import _ from "lodash";
 
-import { idb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { regex } from "@/common/utils";
 import { config } from "@/config/index";
-import * as fetchSourceInfo from "@/jobs/sources/fetch-source-info";
 import {
   SourcesEntity,
   SourcesEntityParams,
@@ -17,6 +16,7 @@ import {
 import { Channel } from "@/pubsub/channels";
 
 import { default as sourcesFromJson } from "./sources.json";
+import { fetchSourceInfoJob } from "@/jobs/sources/fetch-source-info-job";
 
 export class Sources {
   private static instance: Sources;
@@ -127,8 +127,9 @@ export class Sources {
     address: string,
     metadata: object
   ) {
-    await idb.none(
-      `
+    try {
+      await idb.none(
+        `
         INSERT INTO sources_v2(
           id,
           domain,
@@ -148,19 +149,38 @@ export class Sources {
           metadata = $/metadata:json/,
           domain = $/domain/
       `,
-      {
-        id,
-        domain,
-        domainHash,
-        name,
-        address,
-        metadata,
-      }
-    );
+        {
+          id,
+          domain,
+          domainHash,
+          name,
+          address,
+          metadata,
+        }
+      );
+    } catch (error) {
+      // Ignore errors when loading from JSON
+    }
   }
 
   public async create(domain: string, address: string, metadata: object = {}) {
-    const source = await idb.oneOrNone(
+    // It could be the source already exist
+    let source = await redb.oneOrNone(
+      `
+      SELECT *
+      FROM sources_v2
+      WHERE domain = $/domain/
+    `,
+      {
+        domain,
+      }
+    );
+
+    if (source) {
+      return new SourcesEntity(source);
+    }
+
+    source = await idb.oneOrNone(
       `
         INSERT INTO sources_v2(
           domain,
@@ -190,7 +210,7 @@ export class Sources {
     // Reload the cache
     await Sources.instance.loadData(true);
     // Fetch domain info
-    await fetchSourceInfo.addToQueue(domain);
+    await fetchSourceInfoJob.addToQueue({ sourceDomain: domain });
 
     await redis.publish(Channel.SourcesUpdated, `New source ${domain}`);
     logger.info("sources", `New source '${domain}' was added`);

@@ -18,6 +18,7 @@ export const Router: ChainIdToAddress = {
   [Network.BaseGoerli]: "0x1aed60a97192157fda7fb26267a439d523d09c5e",
   [Network.ArbitrumNova]: "0xc2c862322e9c97d6244a3506655da95f05246fd8",
   [Network.Bsc]: "0xc2c862322e9c97d6244a3506655da95f05246fd8",
+  [Network.Zora]: "0x1aed60a97192157fda7fb26267a439d523d09c5e",
 };
 
 // Approval proxy
@@ -37,6 +38,7 @@ export const ApprovalProxy: ChainIdToAddress = {
   [Network.BaseGoerli]: "0x224ecb4eae96d31372d1090c3b0233c8310dbbab",
   [Network.ArbitrumNova]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
   [Network.Bsc]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
+  [Network.Zora]: "0x224ecb4eae96d31372d1090c3b0233c8310dbbab",
 };
 
 // Utility modules
@@ -102,6 +104,7 @@ export const SeaportV15Module: ChainIdToAddress = {
   [Network.BaseGoerli]: "0x0df8a66ba3010af4f86ca4db6a6da9e367385a03",
   [Network.ArbitrumNova]: "0xf645877ab54e5856f39dc90425ae21748f52b5d4",
   [Network.Bsc]: "0xf645877ab54e5856f39dc90425ae21748f52b5d4",
+  [Network.Zora]: "0x0df8a66ba3010af4f86ca4db6a6da9e367385a03",
 };
 
 export const AlienswapModule: ChainIdToAddress = {
@@ -114,6 +117,11 @@ export const AlienswapModule: ChainIdToAddress = {
 
 export const SudoswapModule: ChainIdToAddress = {
   [Network.Ethereum]: "0xa97727370e2592f83602bc92975c49c4fea4491f",
+};
+
+export const SudoswapV2Module: ChainIdToAddress = {
+  [Network.Ethereum]: "0xe2840826c43c25e88a5ef43ff790d7105889dd6e",
+  [Network.EthereumGoerli]: "0xe2840826c43c25e88a5ef43ff790d7105889dd6e",
 };
 
 export const X2Y2Module: ChainIdToAddress = {
@@ -149,4 +157,8 @@ export const RaribleModule: ChainIdToAddress = {
 
 export const SuperRareModule: ChainIdToAddress = {
   [Network.Ethereum]: "0x512a6a1a74f1f08aac8155605b9da8ace46b3d9c",
+};
+
+export const CryptoPunksModule: ChainIdToAddress = {
+  [Network.Ethereum]: "0x8be240e8689547f1068a835d14f1d943958095dc",
 };

@@ -14,83 +14,86 @@ export type Operator = {
   marketplace: OrderKind;
 };
 
-export const checkMarketplaceIsFiltered = async (contract: string, marketplace: OrderKind) => {
-  const conduitController = new Sdk.SeaportBase.ConduitController(config.chainId);
-  const allOperatorsList: Operator[] = [
-    {
-      address: Sdk.Blur.Addresses.ExecutionDelegate[config.chainId],
-      marketplace: "blur",
-    },
-    {
-      address: Sdk.LooksRare.Addresses.TransferManagerErc721[config.chainId],
-      marketplace: "looks-rare",
-    },
-    {
-      address: Sdk.LooksRare.Addresses.TransferManagerErc1155[config.chainId],
-      marketplace: "looks-rare",
-    },
-    {
-      address: Sdk.Nftx.Addresses.MarketplaceZap[config.chainId],
-      marketplace: "nftx",
-    },
-    {
-      address: conduitController.deriveConduit(
-        Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
-      ),
-      marketplace: "seaport",
-    },
-    {
-      address: conduitController.deriveConduit(
-        Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
-      ),
-      marketplace: "seaport-v1.4",
-    },
-    {
-      address: conduitController.deriveConduit(
-        Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
-      ),
-      marketplace: "seaport-v1.5",
-    },
-    {
-      address: Sdk.X2Y2.Addresses.Erc721Delegate[config.chainId],
-      marketplace: "x2y2",
-    },
-    {
-      address: Sdk.Element.Addresses.Exchange[config.chainId],
-      marketplace: "element-erc721",
-    },
-    {
-      address: Sdk.Element.Addresses.Exchange[config.chainId],
-      marketplace: "element-erc1155",
-    },
-    {
-      address: Sdk.Sudoswap.Addresses.LSSVMRouter[config.chainId],
-      marketplace: "sudoswap",
-    },
-  ];
-
-  const cacheKey = `marketplace-blacklist:${contract}`;
-  let result = await redis.get(cacheKey).then((r) => (r ? (JSON.parse(r) as string[]) : null));
-  if (!result) {
-    result = await getMarketplaceBlacklistFromDB(contract);
-    await redis.set(cacheKey, JSON.stringify(result), "EX", 24 * 3600);
+export const checkMarketplaceIsFiltered = async (
+  contract: string,
+  operators: string[],
+  refresh?: boolean
+) => {
+  let result: string[] | null = [];
+  if (refresh) {
+    result = await updateMarketplaceBlacklist(contract);
+  } else {
+    const cacheKey = `marketplace-blacklist:${contract}`;
+    result = refresh
+      ? null
+      : await redis.get(cacheKey).then((r) => (r ? (JSON.parse(r) as string[]) : null));
+    if (!result) {
+      result = await getMarketplaceBlacklistFromDB(contract);
+      await redis.set(cacheKey, JSON.stringify(result), "EX", 24 * 3600);
+    }
   }
 
-  const operatorsList = allOperatorsList.filter((c) => c.marketplace === marketplace);
-  return operatorsList.some((c) => result!.includes(c.address));
+  const customCheck = await isBlockedByCustomRegistry(contract, operators);
+  if (customCheck) {
+    return customCheck;
+  }
+
+  return operators.some((c) => result!.includes(c));
+};
+
+export const isBlockedByCustomRegistry = async (contract: string, operators: string[]) => {
+  const cacheKey = `marketplace-blacklist-custom-registry:${contract}:${JSON.stringify(operators)}`;
+  const cache = await redis.get(cacheKey);
+  if (!cache) {
+    const iface = new Interface(["function registry() external view returns (address)"]);
+    const nft = new Contract(contract, iface, baseProvider);
+
+    let result = false;
+    try {
+      const registry = new Contract(
+        await nft.registry(),
+        new Interface([
+          "function isAllowedOperator(address operator) external view returns (bool)",
+        ]),
+        baseProvider
+      );
+      const allowed = await Promise.all(operators.map((c) => registry.isAllowedOperator(c)));
+      result = allowed.some((c) => c === false);
+    } catch {
+      // Skip errors
+    }
+
+    await redis.set(cacheKey, result ? "1" : "0", "EX", 24 * 3600);
+    return result;
+  }
+
+  return Boolean(Number(cache));
 };
 
 export const getMarketplaceBlacklist = async (contract: string): Promise<string[]> => {
-  const c = new Contract(
+  const iface = new Interface([
+    "function filteredOperators(address registrant) external view returns (address[])",
+  ]);
+
+  const opensea = new Contract(
     Sdk.SeaportBase.Addresses.OperatorFilterRegistry[config.chainId],
-    new Interface([
-      "function filteredOperators(address registrant) external view returns (address[] memory)",
-    ]),
+    iface,
     baseProvider
   );
+  const blur = new Contract(
+    Sdk.Blur.Addresses.OperatorFilterRegistry[config.chainId],
+    iface,
+    baseProvider
+  );
+  const [openseaOperators, blurOperators] = await Promise.all([
+    opensea.filteredOperators(contract),
+    blur.filteredOperators(contract),
+  ]);
 
-  const operators = await c.filteredOperators(contract);
-  return operators.map((o: string) => o.toLowerCase());
+  const allOperatorsList = openseaOperators
+    .concat(blurOperators)
+    .map((o: string) => o.toLowerCase());
+  return Array.from(new Set(allOperatorsList));
 };
 
 export const getMarketplaceBlacklistFromDB = async (contract: string): Promise<string[]> => {
@@ -103,7 +106,6 @@ export const getMarketplaceBlacklistFromDB = async (contract: string): Promise<s
     `,
     { contract: toBuffer(contract) }
   );
-
   return result?.filtered_operators || [];
 };
 
@@ -120,4 +122,5 @@ export const updateMarketplaceBlacklist = async (contract: string) => {
       blacklist,
     }
   );
+  return blacklist;
 };

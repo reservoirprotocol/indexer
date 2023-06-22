@@ -14,6 +14,7 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, now, regex } from "@/common/utils";
 import { config } from "@/config/index";
+import { getExecuteError } from "@/orderbook/orders/errors";
 import * as b from "@/utils/auth/blur";
 import { ExecutionsBuffer } from "@/utils/executions";
 
@@ -78,6 +79,9 @@ export const getExecuteBidV5Options: RouteOptions = {
         .description(
           `Domain of your app that is creating the order, e.g. \`myapp.xyz\`. This is used for filtering, and to attribute the "order source" of sales in on-chain analytics, to help your app get discovered. Lean more <a href='https://docs.reservoir.tools/docs/calldata-attribution'>here</a>`
         ),
+      blurAuth: Joi.string().description(
+        "Advanced use case to pass personal blurAuthToken; the API will generate one if left empty."
+      ),
       params: Joi.array().items(
         Joi.object({
           token: Joi.string()
@@ -100,9 +104,7 @@ export const getExecuteBidV5Options: RouteOptions = {
           attributeValue: Joi.string().description(
             "Bid on a particular attribute value. This is case sensitive. Example: `Teddy (#33)`"
           ),
-          quantity: Joi.number().description(
-            "Quantity of tokens user is buying. Only compatible with ERC1155 tokens. Example: `5`"
-          ),
+          quantity: Joi.number().description("Quantity of tokens to bid on."),
           weiPrice: Joi.string()
             .pattern(regex.number)
             .description("Amount bidder is willing to offer in wei. Example: `1000000000000000000`")
@@ -354,58 +356,62 @@ export const getExecuteBidV5Options: RouteOptions = {
       // Handle Blur authentication
       let blurAuth: b.Auth | undefined;
       if (params.some((p) => p.orderKind === "blur")) {
-        const blurAuthId = b.getAuthId(maker);
+        if (payload.blurAuth) {
+          blurAuth = { accessToken: payload.blurAuth };
+        } else {
+          const blurAuthId = b.getAuthId(maker);
 
-        blurAuth = await b.getAuth(blurAuthId);
-        if (!blurAuth) {
-          const blurAuthChallengeId = b.getAuthChallengeId(maker);
+          blurAuth = await b.getAuth(blurAuthId);
+          if (!blurAuth) {
+            const blurAuthChallengeId = b.getAuthChallengeId(maker);
 
-          let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
-          if (!blurAuthChallenge) {
-            blurAuthChallenge = (await axios
-              .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${maker}`)
-              .then((response) => response.data.authChallenge)) as b.AuthChallenge;
+            let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
+            if (!blurAuthChallenge) {
+              blurAuthChallenge = (await axios
+                .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${maker}`)
+                .then((response) => response.data.authChallenge)) as b.AuthChallenge;
 
-            await b.saveAuthChallenge(
-              blurAuthChallengeId,
-              blurAuthChallenge,
-              // Give a 1 minute buffer for the auth challenge to expire
-              Math.floor(new Date(blurAuthChallenge?.expiresOn).getTime() / 1000) - now() - 60
-            );
-          }
+              await b.saveAuthChallenge(
+                blurAuthChallengeId,
+                blurAuthChallenge,
+                // Give a 1 minute buffer for the auth challenge to expire
+                Math.floor(new Date(blurAuthChallenge?.expiresOn).getTime() / 1000) - now() - 60
+              );
+            }
 
-          steps[0].items.push({
-            status: "incomplete",
-            data: {
-              sign: {
-                signatureKind: "eip191",
-                message: blurAuthChallenge.message,
-              },
-              post: {
-                endpoint: "/execute/auth-signature/v1",
-                method: "POST",
-                body: {
-                  kind: "blur",
-                  id: blurAuthChallengeId,
+            steps[0].items.push({
+              status: "incomplete",
+              data: {
+                sign: {
+                  signatureKind: "eip191",
+                  message: blurAuthChallenge.message,
+                },
+                post: {
+                  endpoint: "/execute/auth-signature/v1",
+                  method: "POST",
+                  body: {
+                    kind: "blur",
+                    id: blurAuthChallengeId,
+                  },
                 },
               },
-            },
-          });
+            });
 
-          // Force the client to poll
-          steps[1].items.push({
-            status: "incomplete",
-            tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
-          });
+            // Force the client to poll
+            steps[1].items.push({
+              status: "incomplete",
+              tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
+            });
 
-          // Return an early since any next steps are dependent on the Blur auth
-          return {
-            steps,
-          };
-        } else {
-          steps[0].items.push({
-            status: "complete",
-          });
+            // Return an early since any next steps are dependent on the Blur auth
+            return {
+              steps,
+            };
+          } else {
+            steps[0].items.push({
+              status: "complete",
+            });
+          }
         }
       }
 
@@ -618,7 +624,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                   params.royaltyBps !== undefined &&
                   Number(params.royaltyBps) < 50
                 ) {
-                  throw Boom.badRequest(
+                  throw getExecuteError(
                     "Royalties should be at least 0.5% when posting to OpenSea"
                   );
                 }
@@ -1446,7 +1452,7 @@ export const getExecuteBidV5Options: RouteOptions = {
       }
 
       if (!steps[3].items.length) {
-        const error = Boom.badRequest("No bids can be created");
+        const error = getExecuteError("No orders can be created");
         error.output.payload.errors = errors;
         throw error;
       }

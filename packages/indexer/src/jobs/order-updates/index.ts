@@ -12,9 +12,6 @@
 
 import "@/jobs/order-updates/by-id-queue";
 import "@/jobs/order-updates/by-maker-queue";
-import "@/jobs/order-updates/by-maker-bundle-queue";
-import "@/jobs/order-updates/order-updates-sell-order-queue";
-import "@/jobs/order-updates/order-updates-buy-order-queue";
 import "@/jobs/order-updates/save-bid-events";
 
 // Various cron jobs that must run once in a while
@@ -29,3 +26,4 @@ import "@/jobs/order-updates/cron/oracle-orders-queue";
 import "@/jobs/order-updates/misc/blur-bids-buffer";
 import "@/jobs/order-updates/misc/blur-bids-refresh";
 import "@/jobs/order-updates/misc/blur-listings-refresh";
+import "@/jobs/order-updates/misc/opensea-off-chain-cancellations";

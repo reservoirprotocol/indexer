@@ -55,30 +55,26 @@ if (config.doWebsocketWork && config.blurWsUrl && config.blurWsApiKey) {
       } = JSON.parse(message);
 
       const collection = parsedMessage.contractAddress.toLowerCase();
-      if (
-        collection === "0xe6d48bf4ee912235398b96e16db6f310c21e82cb" ||
-        collection === "0x19b86299c21505cdf59ce63740b240a9c822b5e4"
-      ) {
-        logger.info(COMPONENT, message);
+      const orderInfos = parsedMessage.tops.map((t) => ({
+        kind: "blur-listing",
+        info: {
+          orderParams: {
+            collection,
+            tokenId: t.tokenId,
+            price: t.topAsk?.marketplace === "BLUR" ? t.topAsk.amount : undefined,
+            createdAt: t.topAsk?.marketplace === "BLUR" ? t.topAsk.createdAt : undefined,
+          },
+          metadata: {},
+        },
+        ingestMethod: "websocket",
+      }));
 
-        await orderbook.addToQueue(
-          parsedMessage.tops.map((t) => ({
-            kind: "blur-listing",
-            info: {
-              orderParams: {
-                collection,
-                tokenId: t.tokenId,
-                price: t.topAsk?.marketplace === "BLUR" ? t.topAsk.amount : undefined,
-                createdAt: t.topAsk?.marketplace === "BLUR" ? t.topAsk.createdAt : undefined,
-              },
-              metadata: {},
-            },
-            ingestMethod: "websocket",
-          }))
-        );
+      logger.info(COMPONENT, JSON.stringify({ message, parsedMessage, orderInfos }));
 
-        await blurListingsRefresh.addToQueue(collection);
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await orderbook.addToQueue(orderInfos as any);
+
+      await blurListingsRefresh.addToQueue(collection);
     } catch (error) {
       logger.error(COMPONENT, `Error handling listing: ${error} (message = ${message})`);
     }

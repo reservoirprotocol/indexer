@@ -14,10 +14,10 @@ const QUEUE_NAME = "blur-listings-refresh";
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
   defaultJobOptions: {
-    attempts: 3,
+    attempts: 20,
     backoff: {
-      type: "exponential",
-      delay: 10000,
+      type: "fixed",
+      delay: 30000,
     },
     removeOnComplete: 0,
     removeOnFail: 10000,
@@ -57,6 +57,7 @@ if (config.doBackgroundWork) {
               orderParams: {
                 collection,
                 tokenId: l.tokenId,
+                owner: l.owner,
                 price: l.price,
                 createdAt: l.createdAt,
               },
@@ -98,8 +99,8 @@ if (config.doBackgroundWork) {
                 info: {
                   orderParams: {
                     collection,
-                    tokenId: l.tokenId,
-                    createdAt: l.createdAt,
+                    tokenId: l.raw_data.tokenId,
+                    createdAt: l.raw_data.createdAt,
                   },
                   metadata: {},
                 },
@@ -138,7 +139,7 @@ export const addToQueue = async (collection: string, force = false) => {
   if (force) {
     await queue.add(collection, { collection });
   } else {
-    const delayInSeconds = 30 * 60;
+    const delayInSeconds = 10 * 60;
     const halfDelayInSeconds = delayInSeconds / 2;
 
     // At most one job per collection per `delayInSeconds` seconds

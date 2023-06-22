@@ -6,7 +6,7 @@ import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
-import * as tokenUpdatesRefreshCache from "@/jobs/token-updates/token-refresh-cache";
+import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 
 const QUEUE_NAME = "collection-updates-floor-ask-queue";
 
@@ -173,10 +173,10 @@ if (config.doBackgroundWork) {
             }
           );
           if (floorToken) {
-            await tokenUpdatesRefreshCache.addToQueue(
-              fromBuffer(floorToken.contract),
-              floorToken.token_id
-            );
+            await tokenRefreshCacheJob.addToQueue({
+              contract: fromBuffer(floorToken.contract),
+              tokenId: floorToken.token_id,
+            });
           }
         }
       } catch (error) {

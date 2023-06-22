@@ -36,15 +36,21 @@ const getNetworkConfig = (chainId?: number) => {
       case 42170:
         url = "";
         break;
+      case 7777777:
+        url = "https://rpc.zora.co";
+        break;
       // Testnets
       case 5:
         url = `https://eth-goerli.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
         break;
       case 999:
-        url = "";
+        url = "https://testnet.rpc.zora.co";
         break;
       case 5001:
         url = "https://rpc.testnet.mantle.xyz";
+        break;
+      case 59140:
+        url = "https://rpc.goerli.linea.build/";
         break;
       case 80001:
         url = `https://polygon-mumbai.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
@@ -57,9 +63,6 @@ const getNetworkConfig = (chainId?: number) => {
         break;
       case 11155111:
         url = `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
-        break;
-      case 59140:
-        url = "https://rpc.goerli.linea.build/";
         break;
       default:
         throw new Error("Unsupported chain id");
@@ -109,10 +112,11 @@ const config: HardhatUserConfig = {
     // Mainnets
     mainnet: getNetworkConfig(1),
     optimism: getNetworkConfig(10),
+    bsc: getNetworkConfig(56),
     polygon: getNetworkConfig(137),
     arbitrum: getNetworkConfig(42161),
     "arbitrum-nova": getNetworkConfig(42170),
-    bsc: getNetworkConfig(56),
+    zora: getNetworkConfig(7777777),
     // Testnets
     goerli: getNetworkConfig(5),
     "zora-testnet": getNetworkConfig(999),

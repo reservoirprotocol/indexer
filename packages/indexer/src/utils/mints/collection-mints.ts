@@ -18,11 +18,13 @@ export type CollectionMint = {
   // TODO: Refactor these hardcoded types
   kind: "public";
   status: "open" | "closed";
-  standard: "unknown";
+  standard: "unknown" | "zora" | "manifold" | "thirdweb" | "seadrop-v1.0";
   details: MintDetails;
   currency: string;
   price: string;
-  maxMintsPerWallet?: number;
+  tokenId?: string;
+  maxMintsPerWallet?: string;
+  maxSupply?: string;
   startTime?: number;
   endTime?: number;
 };
@@ -53,14 +55,19 @@ export const getOpenCollectionMints = async (collection: string): Promise<Collec
         details: r.details,
         currency: fromBuffer(r.currency),
         price: r.price,
+        tokenId: r.token_id,
         maxMintsPerWallet: r.max_mints_per_wallet,
+        maxSupply: r.max_supply,
         startTime: r.start_time ? Math.floor(new Date(r.start_time).getTime() / 1000) : undefined,
         endTime: r.end_time ? Math.floor(new Date(r.end_time).getTime() / 1000) : undefined,
       } as CollectionMint)
   );
 };
 
-export const simulateCollectionMint = async (collectionMint: CollectionMint) => {
+export const simulateCollectionMint = async (
+  collectionMint: CollectionMint,
+  detectMaxMintsPerWallet = true
+) => {
   // Fetch the collection's contract and kind
   const collectionResult = await idb.oneOrNone(
     `
@@ -80,28 +87,44 @@ export const simulateCollectionMint = async (collectionMint: CollectionMint) => 
 
   const minter = "0x0000000000000000000000000000000000000001";
   const contract = fromBuffer(collectionResult.contract);
-  const quantity = 1;
   const price = collectionMint.price;
   const contractKind = collectionResult.kind;
 
-  // Generate the calldata for minting
-  const txData = generateMintTxData(collectionMint.details, minter, contract, quantity, price);
+  const simulate = async (quantity: number) => {
+    // Generate the calldata for minting
+    const txData = generateMintTxData(collectionMint.details, minter, contract, quantity, price);
 
-  // Simulate the mint
-  // TODO: Binary search for the maximum quantity per wallet
-  return simulateViaOnChainCall(
-    minter,
-    contract,
-    contractKind,
-    quantity,
-    price,
-    txData.to,
-    txData.data
-  );
+    // Simulate the mint
+    // TODO: Binary search for the maximum quantity per wallet
+    return simulateViaOnChainCall(
+      minter,
+      contract,
+      contractKind,
+      quantity,
+      price,
+      txData.to,
+      txData.data
+    );
+  };
+
+  if (detectMaxMintsPerWallet && collectionMint.maxMintsPerWallet === undefined) {
+    // Only try to detect the mintable quantity if we don't already
+    // know this information (eg.from a custom integration)
+
+    // TODO: Detect the maximum quantity mintable per wallet via binary search
+    const results = await Promise.all([simulate(1), simulate(2)]);
+    if (results[0] && !results[1]) {
+      collectionMint.maxMintsPerWallet = "1";
+    }
+
+    return results[0];
+  } else {
+    return simulate(1);
+  }
 };
 
 export const simulateAndUpdateCollectionMint = async (collectionMint: CollectionMint) => {
-  const success = await simulateCollectionMint(collectionMint);
+  const success = await simulateCollectionMint(collectionMint, false);
   await idb.none(
     `
       UPDATE collection_mints SET
@@ -148,7 +171,9 @@ export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMi
           details,
           currency,
           price,
+          token_id,
           max_mints_per_wallet,
+          max_supply,
           start_time,
           end_time
         ) VALUES (
@@ -159,7 +184,9 @@ export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMi
           $/details:json/,
           $/currency/,
           $/price/,
+          $/tokenId/,
           $/maxMintsPerWallet/,
+          $/maxSupply/,
           $/startTime/,
           $/endTime/
         ) ON CONFLICT DO NOTHING
@@ -172,7 +199,9 @@ export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMi
         details: collectionMint.details,
         currency: toBuffer(collectionMint.currency),
         price: collectionMint.price,
+        tokenId: collectionMint.tokenId ?? null,
         maxMintsPerWallet: collectionMint.maxMintsPerWallet ?? null,
+        maxSupply: collectionMint.maxSupply ?? null,
         startTime: collectionMint.startTime ? new Date(collectionMint.startTime * 1000) : null,
         endTime: collectionMint.endTime ? new Date(collectionMint.endTime * 1000) : null,
       }

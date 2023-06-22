@@ -336,6 +336,8 @@ export class ApiKeyManager {
         JSON.stringify({ key, fields })
       );
     }
+
+    logger.info("api-key", `Update key ${key} with ${JSON.stringify(fields)}`);
   }
 
   static async notifyApiKeyCreated(values: ApiKeyRecord) {

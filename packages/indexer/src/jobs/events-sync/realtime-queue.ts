@@ -113,25 +113,19 @@ if (
 
   // Monitor the job as bullmq has bugs and job might be stuck and needs to be manually removed
   cron.schedule(`*/${getNetworkSettings().realtimeSyncFrequencySeconds} * * * * *`, async () => {
-    if (_.includes([1, 137, 42161, 10], config.chainId)) {
-      const job = await queue.getJob(`${config.chainId}`);
+    const job = await queue.getJob(`${config.chainId}`);
 
-      if (job && (await job.isFailed())) {
-        logger.info(QUEUE_NAME, `removing failed job ${job.timestamp} now = ${now()}`);
-        await job.remove();
-      } else if (job && _.toInteger(job.timestamp) < now() - 45 * 1000) {
-        logger.info(QUEUE_NAME, `removing stale job ${job.timestamp} now = ${now()}`);
-        await job.remove();
-      }
+    if (job && (await job.isFailed())) {
+      logger.info(QUEUE_NAME, `removing failed job ${job.timestamp} now = ${now()}`);
+      await job.remove();
+    } else if (job && _.toInteger(job.timestamp) < now() - 45 * 1000) {
+      logger.info(QUEUE_NAME, `removing stale job ${job.timestamp} now = ${now()}`);
+      await job.remove();
     }
   });
 }
 
 export const addToQueue = async () => {
-  let jobId;
-  if (_.includes([1, 137, 42161, 10], config.chainId)) {
-    jobId = `${config.chainId}`;
-  }
-
+  const jobId = `${config.chainId}`;
   await queue.add(randomUUID(), {}, { jobId });
 };
