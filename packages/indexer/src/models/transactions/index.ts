@@ -268,17 +268,24 @@ export const saveTransactionsV3 = async (transactions: Transaction[]) => {
   );
 };
 
-export const getTransaction = async (
-  hash: string
-): Promise<Pick<Transaction, "hash" | "from" | "to" | "value" | "data" | "blockTimestamp">> => {
+export const getTransaction = async (hash: string): Promise<Transaction> => {
   const result = await idb.oneOrNone(
     `
       SELECT
+        transactions.block_number,
         transactions.from,
         transactions.to,
         transactions.value,
         transactions.data,
-        transactions.block_timestamp
+        transactions.block_timestamp,
+        transactions.gas_price,
+        transactions.gas_used,
+        transactions.gas_fee,
+        transactions.cumulative_gas_used,
+        transactions.contract_address,
+        transactions.logs_bloom,
+        transactions.status,
+        transactions.transaction_index
       FROM transactions
       WHERE transactions.hash = $/hash/
     `,
@@ -287,10 +294,17 @@ export const getTransaction = async (
 
   return {
     hash,
+    blockNumber: result.block_number,
     from: fromBuffer(result.from),
     to: fromBuffer(result.to),
     value: result.value,
     data: fromBuffer(result.data),
     blockTimestamp: result.block_timestamp,
+    gasPrice: result.gas_price,
+    gasUsed: result.gas_used,
+    gasFee: result.gas_fee,
+    cumulativeGasUsed: result.cumulative_gas_used,
+    status: result.status,
+    transactionIndex: result.transaction_index,
   };
 };
