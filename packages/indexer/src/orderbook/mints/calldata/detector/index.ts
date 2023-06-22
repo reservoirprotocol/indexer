@@ -2,22 +2,23 @@ import { AddressZero } from "@ethersproject/constants";
 import { formatEther } from "@ethersproject/units";
 
 import { idb } from "@/common/db";
-import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { getNetworkSettings } from "@/config/network";
 import { fetchTransaction } from "@/events-sync/utils";
 import * as mintsSupplyCheck from "@/jobs/mints/supply-check";
 import { Sources } from "@/models/sources";
-import { CollectionMint, simulateAndSaveCollectionMint } from "@/utils/mints/collection-mints";
+import { CollectionMint } from "@/orderbook/mints";
 
-import * as generic from "@/utils/mints/calldata/detector/generic";
-import * as manifold from "@/utils/mints/calldata/detector/manifold";
-import * as seadrop from "@/utils/mints/calldata/detector/seadrop";
-import * as thirdweb from "@/utils/mints/calldata/detector/thirdweb";
-import * as zora from "@/utils/mints/calldata/detector/zora";
+import * as generic from "@/orderbook/mints/calldata/detector/generic";
+import * as manifold from "@/orderbook/mints/calldata/detector/manifold";
+import * as seadrop from "@/orderbook/mints/calldata/detector/seadrop";
+import * as thirdweb from "@/orderbook/mints/calldata/detector/thirdweb";
+import * as zora from "@/orderbook/mints/calldata/detector/zora";
 
-export const detectMint = async (txHash: string, skipCache = false) => {
+export { manifold, seadrop, thirdweb, zora };
+
+export const detectCollectionMint = async (txHash: string, skipCache = false) => {
   // Fetch all transfers associated to the transaction
   const transfers = await idb
     .manyOrNone(
@@ -178,12 +179,5 @@ export const detectMint = async (txHash: string, skipCache = false) => {
     );
   }
 
-  if (collectionMint) {
-    const result = await simulateAndSaveCollectionMint(collectionMint);
-    logger.info("mints-process", JSON.stringify({ success: result, collectionMint }));
-    return result;
-  } else {
-    logger.info("mints-process", JSON.stringify({ success: false, collection }));
-    return false;
-  }
+  return collectionMint;
 };

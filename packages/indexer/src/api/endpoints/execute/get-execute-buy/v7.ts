@@ -28,8 +28,8 @@ import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import { ExecutionsBuffer } from "@/utils/executions";
 import * as onChainData from "@/utils/on-chain-data";
-import * as mints from "@/utils/mints/collection-mints";
-import { generateMintTxData } from "@/utils/mints/calldata/generator";
+import * as mints from "@/orderbook/mints";
+import { generateCollectionMintTxData } from "@/orderbook/mints/calldata/generator";
 import { getUSDAndCurrencyPrices } from "@/utils/prices";
 
 const version = "v7";
@@ -713,8 +713,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   const orderId = `mint:${item.collection}`;
                   mintTxs.push({
                     orderId,
-                    txData: generateMintTxData(
-                      mint.details,
+                    txData: await generateCollectionMintTxData(
+                      mint,
                       payload.taker,
                       fromBuffer(collectionData.contract),
                       quantityToMint,

@@ -16,10 +16,7 @@ import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import MetadataApi from "@/utils/metadata-api";
 import * as royalties from "@/utils/royalties";
-import {
-  getOpenCollectionMints,
-  simulateAndUpdateCollectionMint,
-} from "@/utils/mints/collection-mints";
+import { getOpenCollectionMints, refreshCollectionMint } from "@/orderbook/mints";
 
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as refreshActivitiesCollectionMetadata from "@/jobs/elasticsearch/refresh-activities-collection-metadata";
@@ -245,7 +242,7 @@ export class Collections {
     // Simulate any open mints
     const collectionMints = await getOpenCollectionMints(collection.id);
     await Promise.all(
-      collectionMints.map((collectionMint) => simulateAndUpdateCollectionMint(collectionMint))
+      collectionMints.map((collectionMint) => refreshCollectionMint(collectionMint))
     );
   }
 

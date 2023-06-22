@@ -10,7 +10,7 @@ export type EventsSyncFtTransfersWriteBufferPayload = {
 export class EventsSyncFtTransfersWriteBufferJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-ft-transfers-write";
   maxRetries = 10;
-  concurrency = 10;
+  concurrency = 15;
   lazyMode = true;
 
   protected async process(payload: EventsSyncFtTransfersWriteBufferPayload) {

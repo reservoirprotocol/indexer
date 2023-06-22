@@ -7,8 +7,8 @@ import { baseProvider } from "@/common/provider";
 import { now } from "@/common/utils";
 import { config } from "@/config/index";
 import { Transaction } from "@/models/transactions";
-import { getMaxSupply } from "@/utils/mints/calldata/detector/helpers";
-import { CollectionMint } from "@/utils/mints/collection-mints";
+import { getMaxSupply } from "@/orderbook/mints/calldata/detector/helpers";
+import { CollectionMint } from "@/orderbook/mints";
 
 export const tryParseCollectionMint = async (
   collection: string,
