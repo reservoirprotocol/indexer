@@ -18,6 +18,11 @@ import { Block } from "@/models/blocks";
 import { saveTransactionLogs } from "@/models/transaction-logs";
 import { TransactionTrace, saveTransactionTraces } from "@/models/transaction-traces";
 import { TransactionReceipt } from "@ethersproject/providers";
+import {
+  supports_eth_getBlockReceipts,
+  supports_eth_getBlockTrace,
+} from "@/jobs/events-sync/realtime-queue-v2";
+import { baseProvider } from "@/common/provider";
 
 export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBatch[] => {
   const txHashToEvents = new Map<string, EnhancedEvent[]>();
@@ -241,16 +246,33 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
 
 const _getTransactionTraces = async (Txs: { hash: string }[], block: number) => {
   const timerStart = Date.now();
-  let traces = (await syncEventsUtils.getTracesFromBlock(block)) as TransactionTrace[];
-  const timerEnd = Date.now();
+  let traces;
+  if (supports_eth_getBlockTrace) {
+    traces = (await syncEventsUtils.getTracesFromBlock(block)) as TransactionTrace[];
 
-  // traces don't have the transaction hash, so we need to add it by using the txs array we are passing in by using the index of the trace
-  traces = traces.map((trace, index) => {
-    return {
-      ...trace,
-      transactionHash: Txs[index].hash,
-    };
-  });
+    // traces don't have the transaction hash, so we need to add it by using the txs array we are passing in by using the index of the trace
+    traces = traces.map((trace, index) => {
+      return {
+        ...trace,
+        transactionHash: Txs[index].hash,
+      };
+    });
+  } else {
+    traces = await Promise.all(
+      Txs.map(async (tx) => {
+        const trace = await baseProvider.send("debug_traceTransaction", [
+          tx.hash,
+          { tracer: "callTracer" },
+        ]);
+        return {
+          ...trace,
+          transactionHash: tx.hash,
+        };
+      })
+    );
+  }
+
+  const timerEnd = Date.now();
 
   return {
     traces,
@@ -258,11 +280,19 @@ const _getTransactionTraces = async (Txs: { hash: string }[], block: number) => 
   };
 };
 
-const _getTransactionReceiptsFromBlock = async (block: number) => {
+const _getTransactionReceiptsFromBlock = async (block: BlockWithTransactions) => {
   const timerStart = Date.now();
-  const transactionReceipts = (await syncEventsUtils.getTransactionReceiptsFromBlock(
-    block
-  )) as TransactionReceipt[];
+  let transactionReceipts;
+  if (supports_eth_getBlockReceipts) {
+    transactionReceipts = (await syncEventsUtils.getTransactionReceiptsFromBlock(
+      block.number
+    )) as TransactionReceipt[];
+  } else {
+    transactionReceipts = await Promise.all(
+      block.transactions.map((tx) => baseProvider.getTransactionReceipt(tx.hash))
+    );
+  }
+
   const timerEnd = Date.now();
   return {
     transactionReceipts,
@@ -297,7 +327,7 @@ const getBlockSyncData = async (blockData: BlockWithTransactions) => {
     { saveBlocksTime, endSaveBlocksTime },
   ] = await Promise.all([
     _getTransactionTraces(blockData.transactions, blockData.number),
-    _getTransactionReceiptsFromBlock(blockData.number),
+    _getTransactionReceiptsFromBlock(blockData),
     _saveBlock({
       number: blockData.number,
       hash: blockData.hash,

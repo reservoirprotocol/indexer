@@ -5,8 +5,30 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { syncEvents } from "@/events-sync/syncEventsV2";
+import { baseProvider } from "@/common/provider";
 
 const QUEUE_NAME = "events-sync-realtime-v2";
+
+export let supports_eth_getBlockReceipts = false;
+export let supports_eth_getBlockTrace = false;
+
+const checkSupports = async () => {
+  // try to call eth_getBlockReceipts
+  try {
+    await baseProvider.send("eth_getBlockReceipts", ["0x0"]);
+    supports_eth_getBlockReceipts = true;
+  } catch (error) {
+    supports_eth_getBlockReceipts = false;
+  }
+
+  // try to call eth_getBlockTrace
+  try {
+    await baseProvider.send("debug_traceBlockByNumber", ["0x0", { tracer: "callTracer" }]);
+    supports_eth_getBlockTrace = true;
+  } catch (error) {
+    supports_eth_getBlockTrace = false;
+  }
+};
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
@@ -27,6 +49,7 @@ new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork && config.enableRealtimeProcessing) {
+  checkSupports();
   const worker = new Worker(
     QUEUE_NAME,
     async (job) => {
