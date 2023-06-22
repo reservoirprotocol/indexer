@@ -63,3 +63,30 @@ export const getBlocks = async (number: number): Promise<Block[]> =>
         timestamp,
       }))
     );
+
+// get block with number=number and hash!=hash
+export const getBlockWithNumber = async (number: number, hash: string): Promise<Block | null> =>
+  idb
+    .oneOrNone(
+      `
+        SELECT
+          blocks.hash,
+          blocks.timestamp
+        FROM blocks
+        WHERE blocks.number = $/number/
+          AND blocks.hash != $/hash/
+      `,
+      {
+        hash: toBuffer(hash),
+        number,
+      }
+    )
+    .then((result) =>
+      result
+        ? {
+            hash: fromBuffer(result.hash),
+            number,
+            timestamp: result.timestamp,
+          }
+        : null
+    );

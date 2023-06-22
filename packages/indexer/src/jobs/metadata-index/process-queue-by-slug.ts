@@ -9,13 +9,14 @@ import { config } from "@/config/index";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
 import MetadataApi from "@/utils/metadata-api";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import _ from "lodash";
 import {
   PendingRefreshTokensBySlug,
   RefreshTokenBySlug,
 } from "@/models/pending-refresh-tokens-by-slug";
 import { Tokens } from "@/models/tokens";
+import { Collections } from "@/models/collections";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 
 const QUEUE_NAME = "metadata-index-process-queue-by-slug";
 
@@ -35,30 +36,41 @@ export const queue = new Queue(QUEUE_NAME, {
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 async function addToTokenRefreshQueueAndUpdateCollectionMetadata(
-  method: string,
   refreshTokenBySlug: RefreshTokenBySlug
 ) {
-  logger.info(
-    QUEUE_NAME,
-    `Fallback. method=${method}, refreshTokenBySlug=${JSON.stringify(refreshTokenBySlug)}`
-  );
+  logger.info(QUEUE_NAME, `Fallback. refreshTokenBySlug=${JSON.stringify(refreshTokenBySlug)}`);
 
   const tokenId = await Tokens.getSingleToken(refreshTokenBySlug.collection);
-  await Promise.all([
-    metadataIndexFetch.addToQueue(
-      [
-        {
-          kind: "full-collection",
-          data: {
-            method,
-            collection: refreshTokenBySlug.collection,
+  const collection = await Collections.getById(refreshTokenBySlug.collection);
+
+  if (collection) {
+    const method = metadataIndexFetch.getIndexingMethod(collection.community);
+
+    await Promise.all([
+      metadataIndexFetch.addToQueue(
+        [
+          {
+            kind: "full-collection",
+            data: {
+              method,
+              collection: refreshTokenBySlug.collection,
+            },
           },
+        ],
+        true
+      ),
+      collectionMetadataQueueJob.addToQueue(
+        {
+          contract: refreshTokenBySlug.contract,
+          tokenId,
+          community: collection.community,
+          forceRefresh: false,
         },
-      ],
-      true
-    ),
-    collectionUpdatesMetadata.addToQueue(refreshTokenBySlug.contract, tokenId, method, 0),
-  ]);
+        0,
+        QUEUE_NAME
+      ),
+    ]);
+  }
 }
 
 // BACKGROUND WORKER ONLY
@@ -96,7 +108,7 @@ if (config.doBackgroundWork) {
           );
           if (results.metadata.length === 0) {
             //  Slug might be missing or might be wrong.
-            await addToTokenRefreshQueueAndUpdateCollectionMetadata(method, refreshTokenBySlug);
+            await addToTokenRefreshQueueAndUpdateCollectionMetadata(refreshTokenBySlug);
             return;
           }
           if (results.continuation) {

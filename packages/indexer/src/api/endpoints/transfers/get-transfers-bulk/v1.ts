@@ -45,6 +45,12 @@ export const getTransfersBulkV1Options: RouteOptions = {
       endTimestamp: Joi.number().description(
         "Get events before a particular unix timestamp (inclusive)"
       ),
+      txHash: Joi.string()
+        .lowercase()
+        .pattern(regex.bytes32)
+        .description(
+          "Filter to a particular transaction. Example: `0x04654cc4c81882ed4d20b958e0eeb107915d75730110cce65333221439de6afc`"
+        ),
       limit: Joi.number()
         .integer()
         .min(1)
@@ -114,6 +120,10 @@ export const getTransfersBulkV1Options: RouteOptions = {
         (query as any).tokenId = tokenId;
         conditions.push(`nft_transfer_events.address = $/contract/`);
         conditions.push(`nft_transfer_events.token_id = $/tokenId/`);
+      }
+      if (query.txHash) {
+        (query as any).txHash = toBuffer(query.txHash);
+        conditions.push(`nft_transfer_events.tx_hash = $/txHash/`);
       }
 
       if (query.continuation) {

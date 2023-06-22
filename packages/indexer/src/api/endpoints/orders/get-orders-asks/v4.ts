@@ -162,7 +162,9 @@ export const getOrdersAsksV4Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
-      orders: Joi.array().items(JoiOrder),
+      orders: Joi.array()
+        .items(JoiOrder)
+        .description("`taker` will have wallet address if private listing."),
       continuation: Joi.string().pattern(regex.base64).allow(null),
     }).label(`getOrdersAsks${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
@@ -222,6 +224,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
               WHEN orders.fillability_status = 'expired' THEN 'expired'
               WHEN orders.fillability_status = 'no-balance' THEN 'inactive'
               WHEN orders.approval_status = 'no-approval' THEN 'inactive'
+              WHEN orders.approval_status = 'disabled' THEN 'inactive'
               ELSE 'active'
             END
           ) AS status,

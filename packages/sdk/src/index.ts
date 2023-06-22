@@ -27,7 +27,6 @@ import * as SeaportV11 from "./seaport-v1.1";
 import * as SeaportV14 from "./seaport-v1.4";
 import * as SeaportV15 from "./seaport-v1.5";
 import * as Alienswap from "./alienswap";
-import * as Seadrop from "./seadrop";
 import * as SeaportBase from "./seaport-base";
 import * as Sudoswap from "./sudoswap";
 import * as SuperRare from "./superrare";
@@ -43,6 +42,7 @@ import * as ZeroExV4 from "./zeroex-v4";
 import * as Zora from "./zora";
 import * as LooksRareV2 from "./looks-rare-v2";
 import * as Blend from "./blend";
+import * as SudoswapV2 from "./sudoswap-v2";
 
 // Overrides (shouldn't belong here)
 if (process.env.SEAPORT_V15_OVERRIDE) {
@@ -93,7 +93,6 @@ export {
   Okex,
   Quixotic,
   Rarible,
-  Seadrop,
   SeaportV11,
   SeaportV14,
   SeaportV15,
@@ -113,4 +112,5 @@ export {
   Zora,
   LooksRareV2,
   Blend,
+  SudoswapV2,
 };

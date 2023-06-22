@@ -59,6 +59,7 @@ export type TokensEntityParams = {
   rarity_score: number;
   rarity_rank: number;
   media: string;
+  supply: number | null;
 };
 
 export class TokensEntity {
@@ -89,6 +90,7 @@ export class TokensEntity {
   rarityScore: number;
   rarityRank: number;
   media: string;
+  supply: number;
 
   constructor(params: TokensEntityParams) {
     this.contract = fromBuffer(params.contract);
@@ -122,5 +124,6 @@ export class TokensEntity {
     this.rarityScore = params.rarity_score;
     this.rarityRank = params.rarity_rank;
     this.media = params.media;
+    this.supply = Number(params.supply);
   }
 }

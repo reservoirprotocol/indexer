@@ -25,10 +25,10 @@ import { RateLimiterRedis, RateLimiterRes } from "rate-limiter-flexible";
 import * as crossPostingOrdersModel from "@/models/cross-posting-orders";
 import { CrossPostingOrderStatus } from "@/models/cross-posting-orders";
 import { TSTAttribute, TSTCollection, TSTCollectionNonFlagged } from "@/orderbook/token-sets/utils";
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import { fromBuffer, now, toBuffer } from "@/common/utils";
 
 import { addToQueue as addToQueueOpensea } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-queue";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 
 const QUEUE_NAME = "orderbook-post-order-external-queue";
 const MAX_RETRIES = 5;
@@ -251,11 +251,11 @@ export const jobProcessor = async (job: Job) => {
               )}, rawResult=${JSON.stringify(rawResult)}, retry: ${retry}`
             );
 
-            await collectionUpdatesMetadata.addToQueue(
-              fromBuffer(rawResult.contract),
-              rawResult.token_id,
-              rawResult.community
-            );
+            await collectionMetadataQueueJob.addToQueue({
+              contract: fromBuffer(rawResult.contract),
+              tokenId: rawResult.token_id,
+              community: rawResult.community,
+            });
           }
         }
       } else if (retry < MAX_RETRIES) {

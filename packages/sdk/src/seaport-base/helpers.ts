@@ -1,6 +1,7 @@
-import * as Types from "../seaport-base/types";
-import { generateRandomSalt, lc } from "../utils";
 import { BigNumber } from "@ethersproject/bignumber";
+
+import * as Types from "../seaport-base/types";
+import { bn, getCurrentTimestamp, generateRandomSalt, lc } from "../utils";
 
 export const isCurrencyItem = ({ itemType }: { itemType: Types.ItemType }) =>
   [Types.ItemType.NATIVE, Types.ItemType.ERC20].includes(itemType);
@@ -146,4 +147,32 @@ export function constructPrivateListingCounterOrder(
     signature: "0x",
   };
   return counterOrder;
+}
+
+export function computeDynamicPrice(
+  isBuy: boolean,
+  params: Types.OrderComponents,
+  timestampOverride?: number
+) {
+  let price = bn(0);
+
+  const items = isBuy ? params.offer : params.consideration;
+  for (const c of items) {
+    const decreasing = bn(c.startAmount).gt(c.endAmount);
+
+    // startAmount + (currentTime - startTime) / (endTime - startTime) * (endAmount - startAmount)
+    const priceChange = bn(timestampOverride ?? getCurrentTimestamp(-60))
+      .sub(params.startTime)
+      .mul(bn(c.endAmount).sub(c.startAmount))
+      .div(bn(params.endTime).sub(params.startTime));
+    price = price.add(bn(c.startAmount).add(priceChange));
+
+    // Ensure we don't return any negative prices
+    const limitAmount = decreasing ? c.endAmount : c.startAmount;
+    if (price.lt(limitAmount)) {
+      price = bn(limitAmount);
+    }
+  }
+
+  return price;
 }

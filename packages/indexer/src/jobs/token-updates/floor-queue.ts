@@ -7,8 +7,8 @@ import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
-import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
-import * as handleNewSellOrder from "@/jobs/update-attribute/handle-new-sell-order";
+import { handleNewSellOrderJob } from "@/jobs/update-attribute/handle-new-sell-order-job";
+import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
 
 const QUEUE_NAME = "token-updates-floor-ask-queue";
 
@@ -175,14 +175,14 @@ if (config.doBackgroundWork) {
         if (sellOrderResult) {
           // Update attributes floor
           sellOrderResult.contract = fromBuffer(sellOrderResult.contract);
-          await handleNewSellOrder.addToQueue(sellOrderResult);
+          await handleNewSellOrderJob.addToQueue(sellOrderResult);
 
           // Update collection floor
           sellOrderResult.txHash = sellOrderResult.txHash
             ? fromBuffer(sellOrderResult.txHash)
             : null;
           await collectionUpdatesFloorAsk.addToQueue([sellOrderResult]);
-          await collectionUpdatesNonFlaggedFloorAsk.addToQueue([sellOrderResult]);
+          await nonFlaggedFloorQueueJob.addToQueue([sellOrderResult]);
 
           if (kind === "revalidation") {
             logger.error(QUEUE_NAME, `StaleCache: ${JSON.stringify(sellOrderResult)}`);

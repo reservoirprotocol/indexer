@@ -166,6 +166,18 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/pause-rabbit-queue",
+    options: adminEndpoints.postPauseRabbitQueueOptions,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/admin/resume-rabbit-queue",
+    options: adminEndpoints.postResumeRabbitQueueOptions,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/api-keys/metrics",
     options: adminEndpoints.postApiKeyMetrics,
   });
@@ -798,8 +810,8 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
-    path: "/execute/mint/v1",
-    options: executeEndpoints.postExecuteMintV1Options,
+    path: "/execute/results/v1",
+    options: executeEndpoints.postExecuteResultsV1,
   });
 
   // Health
@@ -833,24 +845,6 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
-    path: "/oracle/collections/{collection}/floor-ask/v1",
-    options: oracleEndpoints.getCollectionFloorAskOracleV1Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/oracle/collections/{collection}/floor-ask/v2",
-    options: oracleEndpoints.getCollectionFloorAskOracleV2Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/oracle/collections/{collection}/floor-ask/v3",
-    options: oracleEndpoints.getCollectionFloorAskOracleV3Options,
-  });
-
-  server.route({
-    method: "GET",
     path: "/oracle/collections/floor-ask/v4",
     options: oracleEndpoints.getCollectionFloorAskOracleV4Options,
   });
@@ -863,8 +857,8 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
-    path: "/oracle/collections/top-bid/v1",
-    options: oracleEndpoints.getCollectionTopBidOracleV1Options,
+    path: "/oracle/collections/floor-ask/v6",
+    options: oracleEndpoints.getCollectionFloorAskOracleV6Options,
   });
 
   server.route({
@@ -875,14 +869,20 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
-    path: "/oracle/tokens/status/v1",
-    options: oracleEndpoints.getTokenStatusOracleV1Options,
+    path: "/oracle/collections/top-bid/v3",
+    options: oracleEndpoints.getCollectionTopBidOracleV3Options,
   });
 
   server.route({
     method: "GET",
     path: "/oracle/tokens/status/v2",
     options: oracleEndpoints.getTokenStatusOracleV2Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/oracle/tokens/status/v3",
+    options: oracleEndpoints.getTokenStatusOracleV3Options,
   });
 
   // Orders

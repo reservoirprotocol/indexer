@@ -45,6 +45,7 @@ export abstract class SeaportBaseExchange {
         recipient: BigNumberish;
       }[];
       source?: string;
+      timestampOverride?: number;
     }
   ): Promise<TransactionResponse> {
     const tx = await this.fillOrderTx(await taker.getAddress(), order, matchParams, options);
@@ -62,6 +63,7 @@ export abstract class SeaportBaseExchange {
         amount: string;
         recipient: BigNumberish;
       }[];
+      timestampOverride?: number;
       source?: string;
     }
   ): Promise<TxData> {
@@ -96,7 +98,7 @@ export abstract class SeaportBaseExchange {
             ]) + generateSourceBytes(options?.source),
           value:
             info.paymentToken === CommonAddresses.Eth[this.chainId]
-              ? bn(order.getMatchingPrice())
+              ? bn(order.getMatchingPrice(options?.timestampOverride))
                   .mul(matchParams.amount || "1")
                   .div(info.amount)
                   .toHexString()
@@ -158,7 +160,7 @@ export abstract class SeaportBaseExchange {
             ]) + generateSourceBytes(options?.source),
           value:
             info.paymentToken === CommonAddresses.Eth[this.chainId]
-              ? bn(order.getMatchingPrice())
+              ? bn(order.getMatchingPrice(options?.timestampOverride))
                   .mul(matchParams.amount || "1")
                   .div(info.amount)
                   .toHexString()
@@ -187,7 +189,7 @@ export abstract class SeaportBaseExchange {
             ]) + generateSourceBytes(options?.source),
           value:
             info.paymentToken === CommonAddresses.Eth[this.chainId]
-              ? bn(order.getMatchingPrice())
+              ? bn(order.getMatchingPrice(options?.timestampOverride))
                   .mul(matchParams.amount || "1")
                   .div(info.amount)
                   .toHexString()
@@ -203,10 +205,10 @@ export abstract class SeaportBaseExchange {
         // Order has no criteria
         !matchParams.criteriaResolvers &&
         // Order requires no extra data
-        !this.requiresExtraData(order)
+        !this.requiresExtraData(order) &&
+        !info.isDynamic
       ) {
         info = info as BaseOrderInfo;
-
         // Use "basic" fulfillment
         return {
           from: taker,
@@ -281,6 +283,7 @@ export abstract class SeaportBaseExchange {
       conduitKey?: string;
       source?: string;
       maxOrdersToFulfill?: number;
+      timestampOverride?: number;
     }
   ): Promise<TransactionResponse> {
     const tx = await this.fillOrdersTx(await taker.getAddress(), orders, matchParams, options);
@@ -296,6 +299,7 @@ export abstract class SeaportBaseExchange {
       conduitKey?: string;
       source?: string;
       maxOrdersToFulfill?: number;
+      timestampOverride?: number;
     }
   ): Promise<TxData> {
     const recipient = options?.recipient ?? AddressZero;
@@ -360,7 +364,7 @@ export abstract class SeaportBaseExchange {
             );
           })
           .map((order, i) =>
-            bn(order.getMatchingPrice())
+            bn(order.getMatchingPrice(options?.timestampOverride))
               .mul(matchParams[i].amount || "1")
               .div(order.getInfo()!.amount)
           )

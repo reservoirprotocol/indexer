@@ -38,6 +38,7 @@ import * as zeroExV4 from "@/events-sync/data/zeroex-v4";
 import * as zora from "@/events-sync/data/zora";
 import * as looksRareV2 from "@/events-sync/data/looks-rare-v2";
 import * as blend from "@/events-sync/data/blend";
+import * as sudoswapV2 from "@/events-sync/data/sudoswap-v2";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -78,7 +79,8 @@ export type EventKind =
   | "zeroex-v4"
   | "zora"
   | "looks-rare-v2"
-  | "blend";
+  | "blend"
+  | "sudoswap-v2";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -107,12 +109,14 @@ export type EventSubKind =
   | "foundation-buy-price-invalidated"
   | "foundation-buy-price-cancelled"
   | "foundation-buy-price-accepted"
+  | "foundation-offer-accepted"
   | "x2y2-order-cancelled"
   | "x2y2-order-inventory"
   | "seaport-order-cancelled"
   | "seaport-order-filled"
   | "seaport-counter-incremented"
   | "seaport-order-validated"
+  | "seaport-channel-updated"
   | "seaport-v1.4-order-cancelled"
   | "seaport-v1.4-order-filled"
   | "seaport-v1.4-orders-matched"
@@ -204,6 +208,7 @@ export type EventSubKind =
   | "zeroex-v2-fill"
   | "zeroex-v3-fill"
   | "treasure-item-sold"
+  | "treasure-bid-accepted"
   | "looks-rare-v2-new-bid-ask-nonces"
   | "looks-rare-v2-order-nonces-cancelled"
   | "looks-rare-v2-subset-nonces-cancelled"
@@ -233,7 +238,22 @@ export type EventSubKind =
   | "collectionxyz-fee-update"
   | "collectionxyz-protocol-fee-multiplier-update"
   | "collectionxyz-carry-fee-multiplier-update"
-  | "collectionxyz-asset-recipient-change";
+  | "collectionxyz-asset-recipient-change"
+  | "sudoswap-v2-sell-erc721"
+  | "sudoswap-v2-sell-erc1155"
+  | "sudoswap-v2-buy-erc721"
+  | "sudoswap-v2-buy-erc1155"
+  | "sudoswap-v2-token-deposit"
+  | "sudoswap-v2-token-withdrawal"
+  | "sudoswap-v2-nft-withdrawal-erc721"
+  | "sudoswap-v2-nft-withdrawal-erc1155"
+  | "sudoswap-v2-erc20-deposit"
+  | "sudoswap-v2-erc721-deposit"
+  | "sudoswap-v2-erc1155-deposit"
+  | "sudoswap-v2-spot-price-update"
+  | "sudoswap-v2-delta-update"
+  | "sudoswap-v2-new-erc721-pair"
+  | "sudoswap-v2-new-erc1155-pair";
 
 export type EventData = {
   kind: EventKind;
@@ -260,6 +280,7 @@ const allEventData = [
   foundation.buyPriceCancelled,
   foundation.buyPriceInvalidated,
   foundation.buyPriceSet,
+  foundation.offerAccepted,
   looksRare.cancelAllOrders,
   looksRare.cancelMultipleOrders,
   looksRare.takerAsk,
@@ -273,6 +294,7 @@ const allEventData = [
   seaport.orderCancelled,
   seaport.orderFulfilled,
   seaport.orderValidated,
+  seaport.channelUpdated,
   seaportV14.counterIncremented,
   seaportV14.orderCancelled,
   seaportV14.orderFulfilled,
@@ -395,6 +417,22 @@ const allEventData = [
   collectionxyz.swapNftOutPool,
   collectionxyz.tokenDeposit,
   collectionxyz.tokenWithdrawal,
+  sudoswapV2.buyERC1155,
+  sudoswapV2.buyERC721,
+  sudoswapV2.sellERC721,
+  sudoswapV2.sellERC1155,
+  sudoswapV2.tokenDeposit,
+  sudoswapV2.tokenWithdrawal,
+  sudoswapV2.nftWithdrawalERC721,
+  sudoswapV2.nftWithdrawalERC1155,
+  sudoswapV2.erc20Deposit,
+  sudoswapV2.erc721Deposit,
+  sudoswapV2.erc1155Deposit,
+  sudoswapV2.spotPriceUpdate,
+  sudoswapV2.deltaUpdate,
+  sudoswapV2.newERC721Pair,
+  sudoswapV2.newERC1155Pair,
+  treasure.bidAccepted,
 ];
 
 export const getEventData = (events?: string[]) => {

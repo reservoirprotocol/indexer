@@ -31,7 +31,7 @@ export const queue = new Queue(QUEUE_NAME, {
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork && config.doWebsocketServerWork) {
+if (config.doBackgroundWork && config.doWebsocketServerWork && config.kafkaBrokers.length > 0) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
@@ -149,6 +149,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             taker: fromBuffer(r.taker),
           },
           data: result,
+          offset: data.offset,
         });
       } catch (error) {
         logger.error(
@@ -190,4 +191,5 @@ export type SaleWebsocketEventInfo = {
   log_index: number;
   batch_index: number;
   trigger: "insert" | "update" | "delete";
+  offset: string;
 };
