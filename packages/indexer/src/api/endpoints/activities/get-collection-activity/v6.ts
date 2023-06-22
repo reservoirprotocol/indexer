@@ -205,24 +205,15 @@ export const getCollectionActivityV6Options: RouteOptions = {
           contracts.push(fromBuffer(tokensResult[0].contract));
         }
 
-        let debug = false;
-
-        if (query.collection) {
-          debug = query.collection.includes("0x8ce578bad214d59aefafb49bd20408e81271796f");
-        }
-
-        const { activities, continuation } = await ActivitiesIndex.search(
-          {
-            types: query.types,
-            contracts,
-            tokens,
-            collections: query.collection,
-            sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
-            limit: query.limit,
-            continuation: query.continuation,
-          },
-          debug
-        );
+        const { activities, continuation } = await ActivitiesIndex.search({
+          types: query.types,
+          contracts,
+          tokens,
+          collections: query.collection,
+          sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
+          limit: query.limit,
+          continuation: query.continuation,
+        });
 
         const result = _.map(activities, async (activity) => {
           const currency = activity.pricing?.currency
