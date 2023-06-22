@@ -921,6 +921,7 @@ export const getTokensV6Options: RouteOptions = {
         // Otherwise continuation string will just be based on the last tokenId. This is because only use sorting
         // when we have collection/attributes
         if (
+          query.contract ||
           query.collection ||
           query.attributes ||
           query.tokenSetId ||
