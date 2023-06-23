@@ -273,7 +273,7 @@ if (config.doBackgroundWork) {
 
               if (order.side === "sell") {
                 if (order.kind === "blur" && order.raw_data?.expirationTime != null) {
-                  logger.info(
+                  logger.debug(
                     QUEUE_NAME,
                     `Skip creating activity for old blur order. orderId=${order.id}`
                   );
