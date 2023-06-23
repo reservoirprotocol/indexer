@@ -1,47 +1,16 @@
 import { idb } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
-
-import * as calldataDetails from "@/orderbook/mints/calldata/detector";
+import { MintTxSchema, CustomInfo } from "@/orderbook/mints/calldata";
 import { simulateCollectionMint } from "@/orderbook/mints/simulation";
-
-export type AbiParam =
-  | {
-      kind: "unknown";
-      abiType: string;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      abiValue: any;
-    }
-  | {
-      kind: "quantity";
-      abiType: string;
-    }
-  | {
-      kind: "recipient";
-      abiType: string;
-    }
-  | {
-      kind: "contract";
-      abiType: string;
-    }
-  | {
-      kind: "allowlist-proof";
-      abiType: string;
-    };
-
-export type CollectionMintDetails = {
-  tx: {
-    to: string;
-    data: {
-      signature: string;
-      params: AbiParam[];
-    };
-  };
-  info?: calldataDetails.zora.Info;
-};
 
 type CollectionMintKind = "public" | "allowlist";
 type CollectionMintStatus = "open" | "closed";
 type CollectionMintStandard = "unknown" | "manifold" | "seadrop-v1.0" | "thirdweb" | "zora";
+
+export type CollectionMintDetails = {
+  tx: MintTxSchema;
+  info?: CustomInfo;
+};
 
 export type CollectionMint = {
   collection: string;
@@ -51,7 +20,7 @@ export type CollectionMint = {
   standard: CollectionMintStandard;
   details: CollectionMintDetails;
   currency: string;
-  price: string;
+  price?: string;
   tokenId?: string;
   maxMintsPerWallet?: string;
   maxSupply?: string;
@@ -124,8 +93,7 @@ export const refreshCollectionMint = async (collectionMint: CollectionMint) => {
 };
 
 export const saveCollectionMint = async (collectionMint: CollectionMint) => {
-  const success =
-    collectionMint.kind === "public" ? await simulateCollectionMint(collectionMint) : true;
+  const success = await simulateCollectionMint(collectionMint);
   if (success) {
     await idb.none(
       `
@@ -182,7 +150,7 @@ export const saveCollectionMint = async (collectionMint: CollectionMint) => {
         status: collectionMint.status,
         details: collectionMint.details,
         currency: toBuffer(collectionMint.currency),
-        price: collectionMint.price,
+        price: collectionMint.price ?? null,
         tokenId: collectionMint.tokenId ?? null,
         maxMintsPerWallet: collectionMint.maxMintsPerWallet ?? null,
         maxSupply: collectionMint.maxSupply ?? null,

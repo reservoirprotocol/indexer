@@ -103,35 +103,27 @@ export const tryParseCollectionMint = async (
     try {
       const saleDetails = await c.saleDetails();
       if (saleDetails.presaleActive && saleDetails.presaleStart.toNumber() <= now()) {
-        const merkleRoot = c.presaleMerkleRoot;
+        const merkleRoot = saleDetails.presaleMerkleRoot;
         const allowlistItems = await axios
           .get(`https://allowlist.zora.co/allowlist/${merkleRoot}`)
           .then(({ data }) => data)
-          .then((data: { entries: { user: string; price: string; maxCanMint: number }[] }) =>
-            data.entries.map(
-              (e) =>
-                ({
-                  address: e.user,
-                  price: e.price,
-                  maxMints: String(e.maxCanMint),
-                } as AllowlistItem)
-            )
+          .then(
+            async (data: { entries: { user: string; price: string; maxCanMint: number }[] }) => {
+              const fee = await c.zoraFeeForAmount(1).then((f: { fee: BigNumber }) => f.fee);
+              return data.entries.map(
+                (e) =>
+                  ({
+                    address: e.user,
+                    maxMints: String(e.maxCanMint),
+                    price: e.price,
+                    // Include the Zora mint fee into the actual price
+                    actualPrice: bn(e.price).add(fee).toString(),
+                  } as AllowlistItem)
+              );
+            }
           );
 
-        if (
-          !allowlistItems.every(
-            (item) =>
-              item.maxMints === allowlistItems[0].maxMints && item.price === allowlistItems[0].price
-          )
-        ) {
-          throw new Error("Only same item allowlists are supported");
-        }
-
         await createAllowlist(merkleRoot, allowlistItems);
-
-        // Include the Zora mint fee into the price
-        const fee = await c.zoraFeeForAmount(1).then((f: { fee: BigNumber }) => f.fee);
-        const price = bn(allowlistItems[0].price!).add(fee).toString();
 
         return {
           collection,
@@ -151,29 +143,29 @@ export const tryParseCollectionMint = async (
                     abiType: "uint256",
                   },
                   {
-                    kind: "unknown",
+                    kind: "allowlist",
                     abiType: "uint256",
-                    abiValue: allowlistItems[0].maxMints,
                   },
                   {
-                    kind: "unknown",
+                    kind: "allowlist",
                     abiType: "uint256",
-                    abiValue: allowlistItems[0].price,
                   },
                   {
-                    kind: "allowlist-proof",
+                    kind: "allowlist",
                     abiType: "bytes32[]",
                   },
                 ],
               },
             },
+            info: {
+              merkleRoot,
+            },
           },
           currency: Sdk.Common.Addresses.Eth[config.chainId],
-          price,
-          maxMintsPerWallet: allowlistItems[0].maxMints!.toString(),
           maxSupply: saleDetails.maxSupply.toString(),
           startTime: saleDetails.presaleStart.toNumber(),
           endTime: saleDetails.presaleEnd.toNumber(),
+          allowlistId: merkleRoot,
         };
       }
     } catch (error) {

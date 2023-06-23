@@ -96,15 +96,6 @@ export const detectCollectionMint = async (txHash: string, skipCache = false) =>
     await redis.set(mintDetailsLockKey, "locked", "EX", 5 * 60);
   }
 
-  // Return early if we already have the mint details for the collection
-  const collectionMintResult = await idb.oneOrNone(
-    "SELECT 1 FROM collection_mints WHERE collection_id = $/collection/",
-    { collection }
-  );
-  if (collectionMintResult) {
-    return;
-  }
-
   // Make sure every mint in the transaction goes to the transaction sender
   const tx = await fetchTransaction(txHash);
   if (!transfers.every((t) => t.from === AddressZero && t.to === tx.from)) {

@@ -4,7 +4,10 @@ import { toBuffer } from "@/common/utils";
 export type AllowlistItem = {
   address: string;
   maxMints?: string;
+  // Original price (which will potentially get included in the merkle proof)
   price?: string;
+  // Actual price (which includes fees)
+  actualPrice?: string;
 };
 
 export const createAllowlist = async (id: string, allowlist: AllowlistItem[]) => {
@@ -48,7 +51,7 @@ export const createAllowlist = async (id: string, allowlist: AllowlistItem[]) =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const values: any[] = [];
     const columns = new pgp.helpers.ColumnSet(
-      ["allowlist_id", "index", "address", "max_mints", "price"],
+      ["allowlist_id", "index", "address", "max_mints", "price", "actual_price"],
       {
         table: "allowlists_items",
       }
@@ -60,11 +63,12 @@ export const createAllowlist = async (id: string, allowlist: AllowlistItem[]) =>
         address: toBuffer(allowlist[i].address),
         max_mints: allowlist[i].maxMints ?? null,
         price: allowlist[i].price ?? null,
+        actual_price: allowlist[i].actualPrice ?? null,
       });
     }
 
     await idb.none(
-      pgp.helpers.insert(values, columns, "allowlist_items") + " ON CONFLICT DO NOTHING"
+      pgp.helpers.insert(values, columns, "allowlists_items") + " ON CONFLICT DO NOTHING"
     );
   }
 };

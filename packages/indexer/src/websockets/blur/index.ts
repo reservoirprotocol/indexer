@@ -11,8 +11,9 @@ const COMPONENT = "blur-websocket";
 
 if (config.doWebsocketWork && config.blurWsUrl && config.blurWsApiKey) {
   const client = io(config.blurWsUrl, {
-    extraHeaders: {
-      "Api-Key": config.blurWsApiKey,
+    transports: ["websocket"],
+    auth: {
+      "api-key": config.blurWsApiKey,
     },
   });
 
