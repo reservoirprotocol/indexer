@@ -132,36 +132,6 @@ export const setupRoutes = (server: Server) => {
     options: activitiesEndpoints.getUserActivityV6Options,
   });
 
-  server.route({
-    method: "GET",
-    path: "/activity/v1",
-    options: activitiesEndpoints.getActivityV1Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/activity/v2",
-    options: activitiesEndpoints.getActivityV2Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/activity/v3",
-    options: activitiesEndpoints.getActivityV3Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/activity/v4",
-    options: activitiesEndpoints.getActivityV4Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/activity/v5",
-    options: activitiesEndpoints.getActivityV5Options,
-  });
-
   // Admin
 
   server.route({
