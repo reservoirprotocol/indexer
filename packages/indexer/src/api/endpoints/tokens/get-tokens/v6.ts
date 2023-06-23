@@ -695,6 +695,7 @@ export const getTokensV6Options: RouteOptions = {
           contArr = splitContinuation(contArr[0]);
         }
         if (
+          query.contract ||
           query.collection ||
           query.attributes ||
           query.tokenSetId ||
@@ -811,6 +812,7 @@ export const getTokensV6Options: RouteOptions = {
 
       // Only allow sorting on floorSell when we filter by collection / attributes / tokenSetId / rarity
       if (
+        query.contract ||
         query.collection ||
         query.attributes ||
         query.tokenSetId ||
@@ -819,10 +821,6 @@ export const getTokensV6Options: RouteOptions = {
         query.tokens
       ) {
         baseQuery += getSort(query.sortBy, false);
-      } else if (query.contract) {
-        baseQuery += ` ORDER BY t.contract ${query.sortDirection || "ASC"}, t.token_id ${
-          query.sortDirection || "ASC"
-        }`;
       }
 
       // Break query into UNION of results for each collectionId for sets up to 20 collections
@@ -923,6 +921,7 @@ export const getTokensV6Options: RouteOptions = {
         // Otherwise continuation string will just be based on the last tokenId. This is because only use sorting
         // when we have collection/attributes
         if (
+          query.contract ||
           query.collection ||
           query.attributes ||
           query.tokenSetId ||
