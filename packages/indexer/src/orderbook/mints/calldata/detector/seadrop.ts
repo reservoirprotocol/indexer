@@ -10,7 +10,7 @@ import { Transaction } from "@/models/transactions";
 import { CollectionMint } from "@/orderbook/mints";
 import { getMaxSupply } from "@/orderbook/mints/calldata/helpers";
 
-export const extractFromTx = async (
+export const extractByTx = async (
   collection: string,
   contract: string,
   tx: Transaction

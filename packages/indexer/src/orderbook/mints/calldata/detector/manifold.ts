@@ -10,7 +10,7 @@ import { config } from "@/config/index";
 import { Transaction } from "@/models/transactions";
 import { CollectionMint } from "@/orderbook/mints";
 
-export const extractFromTx = async (
+export const extractByTx = async (
   collection: string,
   tx: Transaction
 ): Promise<CollectionMint[]> => {

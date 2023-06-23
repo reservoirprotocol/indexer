@@ -5,12 +5,16 @@ import { logger } from "@/common/logger";
 import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 import { Transaction } from "@/models/transactions";
-import { CollectionMint } from "@/orderbook/mints";
+import {
+  CollectionMint,
+  getCollectionMints,
+  simulateAndUpsertCollectionMint,
+} from "@/orderbook/mints";
 import { AbiParam } from "@/orderbook/mints/calldata";
 import { getMaxSupply } from "@/orderbook/mints/calldata/helpers";
 import { getMethodSignature } from "@/orderbook/mints/method-signatures";
 
-export const extractFromTx = async (
+export const extractByTx = async (
   collection: string,
   contract: string,
   tx: Transaction,
@@ -110,4 +114,14 @@ export const extractFromTx = async (
       maxSupply,
     },
   ];
+};
+
+export const refreshByCollection = async (collection: string) => {
+  const existingCollectionMints = await getCollectionMints(collection, { standard: "unknown" });
+
+  // TODO: We should look into re-detecting and updating any fields that
+  // could have changed on the mint since the initial detection
+  for (const collectionMint of existingCollectionMints) {
+    await simulateAndUpsertCollectionMint(collectionMint);
+  }
 };

@@ -3,8 +3,6 @@ import { fromBuffer, toBuffer } from "@/common/utils";
 import { MintTxSchema, CustomInfo } from "@/orderbook/mints/calldata";
 import { simulateCollectionMint } from "@/orderbook/mints/simulation";
 
-import * as zora from "@/orderbook/mints/calldata/detector/zora";
-
 export type CollectionMintKind = "public" | "allowlist";
 export type CollectionMintStatus = "open" | "closed";
 export type CollectionMintStandard = "unknown" | "manifold" | "seadrop-v1.0" | "thirdweb" | "zora";
@@ -36,6 +34,7 @@ export const getCollectionMints = async (
   collection: string,
   filters?: {
     status?: CollectionMintStatus;
+    standard?: CollectionMintStandard;
     stage?: string;
     tokenId?: string;
   }
@@ -54,6 +53,7 @@ export const getCollectionMints = async (
       WHERE collection_mints.collection_id = $/collection/
       ${filters?.stage ? " AND collection_mints.stage = $/stage/" : ""}
       ${filters?.tokenId ? " AND collection_mints.token_id = $/tokenId/" : ""}
+      ${filters?.standard ? " AND collection_mint_standards.standard = $/standard/" : ""}
         ${
           filters?.status === "open"
             ? " AND collection_mints.status = 'open'"
@@ -65,6 +65,7 @@ export const getCollectionMints = async (
     {
       collection,
       stage: filters?.stage,
+      standard: filters?.standard,
       tokenId: filters?.tokenId,
       status: filters?.status,
     }
@@ -104,6 +105,7 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
 
   const existingCollectionMint = await getCollectionMints(collectionMint.collection, {
     stage: collectionMint.stage,
+    standard: collectionMint.standard,
     tokenId: collectionMint.tokenId,
   }).then((results) => (results.length ? results[0] : undefined));
 
@@ -113,6 +115,11 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
     const updatedFields: string[] = [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updatedParams: any = {};
+
+    if (collectionMint.standard !== existingCollectionMint.standard) {
+      updatedFields.push(" standard = $/standard/");
+      updatedParams.standard = collectionMint.standard;
+    }
 
     if (collectionMint.status !== existingCollectionMint.status) {
       updatedFields.push(" status = $/status/");
@@ -184,23 +191,47 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
 
     return isOpen;
   } else if (isOpen) {
-    // Otherwise, it's the first time we see this collection mint so we save it (only if it's an active mint)
+    // Otherwise, it's the first time we see this collection mint so we save it (only if it's open)
 
-    await idb.none(
+    const standardResult = await idb.oneOrNone(
       `
-        INSERT INTO collection_mint_standards (
-          collection_id,
-          standard
-        ) VALUES (
-          $/collection/,
-          $/standard/
-        ) ON CONFLICT DO NOTHING
+        SELECT
+          collection_mint_standards.standard
+        FROM collection_mint_standards
+        WHERE collection_mint_standards.collection_id = $/collection/
       `,
       {
         collection: collectionMint.collection,
-        standard: collectionMint.standard,
       }
     );
+    if (!standardResult) {
+      await idb.none(
+        `
+          INSERT INTO collection_mint_standards (
+            collection_id,
+            standard
+          ) VALUES (
+            $/collection/,
+            $/standard/
+          ) ON CONFLICT DO NOTHING
+        `,
+        {
+          collection: collectionMint.collection,
+          standard: collectionMint.standard,
+        }
+      );
+    } else if (standardResult.standard !== collectionMint.standard) {
+      // If the standard got updated (eg. `unknown` -> something known), then
+      // we need to delete all existing mints since they have different stages
+      await idb.none(
+        `
+          DELETE FROM collection_mints WHERE collection_id = $/collection/
+        `,
+        {
+          collection: collectionMint.collection,
+        }
+      );
+    }
 
     await idb.none(
       `
@@ -253,56 +284,6 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
 
     return true;
   }
-};
 
-export const refreshMintsForCollection = async (collection: string) => {
-  const existingCollectionMints = await getCollectionMints(collection);
-  if (existingCollectionMints.length) {
-    // It is guaranteed that all collection mints have the same standard
-    const standard = existingCollectionMints[0].standard;
-
-    switch (standard) {
-      // For unknown mints, we re-simulate and update the status accordingly
-      // TODO: We should look into re-detecting and updating any fields that
-      // could have changed on the mint since the initial detection
-
-      case "unknown": {
-        for (const collectionMint of existingCollectionMints) {
-          await simulateAndUpsertCollectionMint(collectionMint);
-        }
-
-        break;
-      }
-
-      // For known mints, we can detect any field changes
-
-      case "zora": {
-        // Fetch and save/update the currently available mints
-        const latestCollectionMints = await zora.getCollectionMints(collection);
-        for (const collectionMint of latestCollectionMints) {
-          await simulateAndUpsertCollectionMint(collectionMint);
-        }
-
-        // Assume anything that exists in our system but was not returned
-        // in the above call is not available anymore so we can close
-        for (const existing of existingCollectionMints) {
-          if (
-            !latestCollectionMints.find(
-              (latest) =>
-                latest.collection === existing.collection &&
-                latest.stage === existing.stage &&
-                latest.tokenId === existing.tokenId
-            )
-          ) {
-            await simulateAndUpsertCollectionMint({
-              ...existing,
-              status: "closed",
-            });
-          }
-        }
-
-        break;
-      }
-    }
-  }
+  return false;
 };

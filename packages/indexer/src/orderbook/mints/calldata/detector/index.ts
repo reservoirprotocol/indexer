@@ -15,7 +15,7 @@ import * as seadrop from "@/orderbook/mints/calldata/detector/seadrop";
 import * as thirdweb from "@/orderbook/mints/calldata/detector/thirdweb";
 import * as zora from "@/orderbook/mints/calldata/detector/zora";
 
-export const extractFromTx = async (txHash: string, skipCache = false) => {
+export const extractByTx = async (txHash: string, skipCache = false) => {
   // Fetch all transfers associated to the transaction
   const transfers = await idb
     .manyOrNone(
@@ -135,10 +135,10 @@ export const extractFromTx = async (txHash: string, skipCache = false) => {
   }
 
   return [
-    ...(await manifold.extractFromTx(collection, tx)),
-    ...(await zora.extractFromTx(collection, tx)),
-    ...(await seadrop.extractFromTx(collection, contract, tx)),
-    ...(await thirdweb.extractFromTx(collection, tx)),
-    ...(await generic.extractFromTx(collection, contract, tx, pricePerAmountMinted, amountMinted)),
+    ...(await manifold.extractByTx(collection, tx)),
+    ...(await zora.extractByTx(collection, tx)),
+    ...(await seadrop.extractByTx(collection, contract, tx)),
+    ...(await thirdweb.extractByTx(collection, tx)),
+    ...(await generic.extractByTx(collection, contract, tx, pricePerAmountMinted, amountMinted)),
   ];
 };

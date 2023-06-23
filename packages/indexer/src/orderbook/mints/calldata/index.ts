@@ -6,6 +6,8 @@ import { idb } from "@/common/db";
 import { bn, toBuffer } from "@/common/utils";
 import { CollectionMint } from "@/orderbook/mints";
 
+import * as Generic from "@/orderbook/mints/calldata/detector/generic";
+import * as Thirdweb from "@/orderbook/mints/calldata/detector/thirdweb";
 import * as Zora from "@/orderbook/mints/calldata/detector/zora";
 
 export type AbiParam =
@@ -177,4 +179,28 @@ export const generateCollectionMintTxData = async (
     },
     price: price!,
   };
+};
+
+export const refreshMintsForCollection = async (collection: string) => {
+  const standardResult = await idb.oneOrNone(
+    `
+      SELECT
+        collection_mint_standards.standard
+      FROM collection_mint_standards
+      WHERE collection_mint_standards.collection_id = $/collection/
+    `,
+    {
+      collection,
+    }
+  );
+  if (standardResult) {
+    switch (standardResult.standard) {
+      case "unknown":
+        return Generic.refreshByCollection(collection);
+      case "thirdweb":
+        return Thirdweb.refreshByCollection(collection);
+      case "zora":
+        return Zora.refreshByCollection(collection);
+    }
+  }
 };

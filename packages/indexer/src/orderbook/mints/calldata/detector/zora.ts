@@ -9,15 +9,19 @@ import { baseProvider } from "@/common/provider";
 import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 import { Transaction } from "@/models/transactions";
-import { CollectionMint } from "@/orderbook/mints";
+import {
+  CollectionMint,
+  getCollectionMints,
+  simulateAndUpsertCollectionMint,
+} from "@/orderbook/mints";
 import { AllowlistItem, createAllowlist } from "@/orderbook/mints/allowlists";
 import { getStatus, toSafeTime } from "@/orderbook/mints/calldata/helpers";
 
 export type Info = {
-  merkleRoot: string;
+  merkleRoot?: string;
 };
 
-export const getCollectionMints = async (collection: string): Promise<CollectionMint[]> => {
+export const extractByCollection = async (collection: string): Promise<CollectionMint[]> => {
   const c = new Contract(
     collection,
     new Interface([
@@ -164,7 +168,7 @@ export const getCollectionMints = async (collection: string): Promise<Collection
   return results;
 };
 
-export const extractFromTx = async (
+export const extractByTx = async (
   collection: string,
   tx: Transaction
 ): Promise<CollectionMint[]> => {
@@ -176,8 +180,36 @@ export const extractFromTx = async (
       "0x2e706b5a", // `purchasePresaleWithComment`
     ].some((bytes4) => tx.data.startsWith(bytes4))
   ) {
-    return getCollectionMints(collection);
+    return extractByCollection(collection);
   }
 
   return [];
+};
+
+export const refreshByCollection = async (collection: string) => {
+  const existingCollectionMints = await getCollectionMints(collection, { standard: "zora" });
+
+  // Fetch and save/update the currently available mints
+  const latestCollectionMints = await extractByCollection(collection);
+  for (const collectionMint of latestCollectionMints) {
+    await simulateAndUpsertCollectionMint(collectionMint);
+  }
+
+  // Assume anything that exists in our system but was not returned
+  // in the above call is not available anymore so we can close
+  for (const existing of existingCollectionMints) {
+    if (
+      !latestCollectionMints.find(
+        (latest) =>
+          latest.collection === existing.collection &&
+          latest.stage === existing.stage &&
+          latest.tokenId === existing.tokenId
+      )
+    ) {
+      await simulateAndUpsertCollectionMint({
+        ...existing,
+        status: "closed",
+      });
+    }
+  }
 };

@@ -16,7 +16,7 @@ import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import MetadataApi from "@/utils/metadata-api";
 import * as royalties from "@/utils/royalties";
-import { refreshMintsForCollection } from "@/orderbook/mints";
+import { refreshMintsForCollection } from "@/orderbook/mints/calldata";
 
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as refreshActivitiesCollectionMetadata from "@/jobs/elasticsearch/refresh-activities-collection-metadata";
