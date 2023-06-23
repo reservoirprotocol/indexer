@@ -8,7 +8,7 @@ import { baseProvider } from "@/common/provider";
 import { bn, now } from "@/common/utils";
 import { config } from "@/config/index";
 import { Transaction } from "@/models/transactions";
-import { CollectionMint } from "@/utils/mints/collection-mints";
+import { CollectionMint } from "@/orderbook/mints";
 
 export const tryParseCollectionMint = async (
   collection: string,
@@ -94,7 +94,7 @@ export const tryParseCollectionMint = async (
         if (
           claimCondition.merkleRoot === HashZero &&
           claimCondition.currency.toLowerCase() === Sdk.ZeroExV4.Addresses.Eth[config.chainId] &&
-          claimCondition.startTimestamp >= now()
+          claimCondition.startTimestamp <= now()
         ) {
           const price = claimCondition.pricePerToken.toString();
           const maxMintsPerWallet = claimCondition.quantityLimitPerWallet.toString();

@@ -75,6 +75,14 @@ export interface ActivityDocument extends BaseDocument {
   };
 }
 
+export interface CollectionAggregation {
+  id: string;
+  name: string;
+  image: string;
+  primaryAssetContract: string;
+  count: number;
+}
+
 export interface BuildActivityData extends BuildDocumentData {
   id: string;
   type: ActivityType;

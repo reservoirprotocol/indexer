@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { logger } from "@/common/logger";
-import { producer } from "..";
+// import { producer } from "..";
 import { base64ToHex, isBase64 } from "@/common/utils";
 import { getNetworkName } from "@/config/network";
 import { BigNumber } from "ethers";
@@ -51,17 +51,17 @@ export abstract class KafkaEventHandler {
         )}, retryCount=${payload.retryCount}`
       );
 
-      producer.send({
-        topic: topicToSendTo,
-        messages: [
-          {
-            value: JSON.stringify({
-              error: JSON.stringify(error),
-              payload,
-            }),
-          },
-        ],
-      });
+      // producer.send({
+      //   topic: topicToSendTo,
+      //   messages: [
+      //     {
+      //       value: JSON.stringify({
+      //         error: JSON.stringify(error),
+      //         payload,
+      //       }),
+      //     },
+      //   ],
+      // });
     }
   }
 

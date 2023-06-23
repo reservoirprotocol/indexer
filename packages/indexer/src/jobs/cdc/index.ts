@@ -21,18 +21,22 @@ export async function startKafkaProducer(): Promise<void> {
   logger.info(`kafka-producer`, "Starting Kafka producer");
   await producer.connect();
 
-  const connectPromise = new Promise((resolve, reject) => {
-    producer.on("producer.connect", async () => {
-      logger.info(`kafka-producer`, "Producer connected");
-      resolve(undefined);
+  try {
+    await new Promise((resolve, reject) => {
+      producer.on("producer.connect", async () => {
+        logger.info(`kafka-producer`, "Producer connected");
+        resolve(true);
+      });
+
+      setTimeout(() => {
+        reject("Producer connection timeout");
+      }, 60000);
     });
-
-    setTimeout(() => {
-      reject("Producer connection timeout");
-    }, 20000);
-  });
-
-  await connectPromise;
+  } catch (e) {
+    logger.error(`kafka-producer`, `Error connecting to producer, error=${e}`);
+    await startKafkaProducer();
+    return;
+  }
 
   producer.on("producer.disconnect", async (error) => {
     logger.error(`kafka-producer`, `Producer disconnected, error=${error}`);
@@ -97,15 +101,15 @@ export async function startKafkaConsumer(): Promise<void> {
               )}`
             );
 
-            const newMessage = {
-              error: JSON.stringify(error),
-              value: message.value,
-            };
+            // const newMessage = {
+            //   error: JSON.stringify(error),
+            //   value: message.value,
+            // };
 
-            await producer.send({
-              topic: `${batch.topic}-dead-letter`,
-              messages: [newMessage],
-            });
+            // await producer.send({
+            //   topic: `${batch.topic}-dead-letter`,
+            //   messages: [newMessage],
+            // });
           } catch (error) {
             logger.error(
               `kafka-consumer`,

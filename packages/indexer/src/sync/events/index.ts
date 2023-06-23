@@ -16,10 +16,10 @@ import * as blocksModel from "@/models/blocks";
 import getUuidByString from "uuid-by-string";
 
 import * as blockCheck from "@/jobs/events-sync/block-check-queue";
-import * as eventsSyncBackfillProcess from "@/jobs/events-sync/process/backfill";
 import * as eventsSyncRealtimeProcess from "@/jobs/events-sync/process/realtime";
 import { BlocksToCheck } from "@/jobs/events-sync/block-check-queue";
 import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
+import { eventsSyncProcessBackfillJob } from "@/jobs/events-sync/process/events-sync-process-backfill";
 
 export const extractEventsBatches = async (
   enhancedEvents: EnhancedEvent[],
@@ -405,7 +405,7 @@ export const syncEvents = async (
 
     const startTimeAddToProcessQueue = now();
     if (backfill) {
-      await eventsSyncBackfillProcess.addToQueue(eventsBatches);
+      await eventsSyncProcessBackfillJob.addToQueue(eventsBatches);
     } else {
       await eventsSyncRealtimeProcess.addToQueue(eventsBatches, true);
     }

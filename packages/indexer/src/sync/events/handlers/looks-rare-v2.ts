@@ -1,4 +1,5 @@
 import { Log } from "@ethersproject/abstract-provider";
+import { BigNumber } from "@ethersproject/bignumber";
 
 import { bn } from "@/common/utils";
 import { getEventData } from "@/events-sync/data";
@@ -191,7 +192,10 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const tokenId = parsedLog.args["itemIds"][0].toString();
         const amount = parsedLog.args["amounts"][0].toString();
 
-        let currencyPrice = parsedLog.args["feeAmounts"][0].toString();
+        let currencyPrice = (parsedLog.args["feeAmounts"] as BigNumber[])
+          .map((amount) => bn(amount))
+          .reduce((a, b) => a.add(b))
+          .toString();
 
         // Handle: attribution
 
@@ -298,7 +302,10 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const maker = parsedLog.args["feeRecipients"][0].toLowerCase();
         let taker = parsedLog.args["bidUser"].toLowerCase();
         const currency = parsedLog.args["currency"].toLowerCase();
-        let currencyPrice = parsedLog.args["feeAmounts"][0].toString();
+        let currencyPrice = (parsedLog.args["feeAmounts"] as BigNumber[])
+          .map((amount) => bn(amount))
+          .reduce((a, b) => a.add(b))
+          .toString();
         const contract = parsedLog.args["collection"].toLowerCase();
 
         // It's might be multiple

@@ -2,7 +2,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import _ from "lodash";
 
 import { logger } from "@/common/logger";
-import { BullMQBulkJob, getMemUsage, redis } from "@/common/redis";
+import { BullMQBulkJob, redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { EventSubKind } from "@/events-sync/data";
@@ -31,23 +31,10 @@ if (config.doBackgroundWork && config.doEventsSyncBackfill) {
     QUEUE_NAME,
     async (job: Job) => {
       const { fromBlock, toBlock, syncDetails } = job.data;
-      const { backfill } = job.data;
+      let { backfill } = job.data;
 
-      // Check if redis is reaching max memory usage
-      const maxMemUsage = 1024 * 1000 * 1000 * config.redisMaxMemoryGB;
-      const currentMemUsage = await getMemUsage();
-      if (currentMemUsage > maxMemUsage) {
-        const delay = _.random(1000 * 60 * 60, 1000 * 60 * 120);
-        logger.warn(
-          QUEUE_NAME,
-          `Max memory reached ${_.round(currentMemUsage / (1024 * 1000 * 1000), 2)} GB, delay job ${
-            job.id
-          } for ${_.round(delay / 1000)}s`
-        );
-
-        job.opts.attempts = _.toInteger(job.opts.attempts) + 1;
-        await addToQueue(fromBlock, toBlock, _.merge(job.opts, job.data, { delay }));
-        return;
+      if (config.chainId === 56) {
+        backfill = true;
       }
 
       try {
@@ -61,7 +48,7 @@ if (config.doBackgroundWork && config.doEventsSyncBackfill) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 5 }
+    { connection: redis.duplicate(), concurrency: 2 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);

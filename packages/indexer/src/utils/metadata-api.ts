@@ -75,13 +75,18 @@ export class MetadataApi {
         contract,
         tokenIdRange: null,
         tokenSetId: `contract:${contract}`,
+        paymentTokens: undefined,
       };
     } else {
       const indexingMethod = MetadataApi.getCollectionIndexingMethod(community);
 
-      const url = `${
-        config.metadataApiBaseUrl
-      }/v4/${getNetworkName()}/metadata/collection?method=${indexingMethod}&token=${contract}:${tokenId}`;
+      let networkName = getNetworkName();
+
+      if (networkName === "prod-goerli") {
+        networkName = "goerli";
+      }
+
+      const url = `${config.metadataApiBaseUrl}/v4/${networkName}/metadata/collection?method=${indexingMethod}&token=${contract}:${tokenId}`;
 
       const { data } = await axios.get(url);
 
@@ -98,6 +103,7 @@ export class MetadataApi {
         tokenIdRange: [string, string] | null;
         tokenSetId: string | null;
         isFallback?: boolean;
+        paymentTokens?: object | null;
       } = (data as any).collection;
 
       if (collection.isFallback && !options?.allowFallback) {

@@ -79,20 +79,22 @@ if (config.doBackgroundWork) {
         await idb.none(pgp.helpers.concat(queries));
 
         try {
-          await Promise.all(
-            allFillEvents.map(async (event) =>
-              WebsocketEventRouter({
-                eventInfo: {
-                  tx_hash: event.baseEventParams.txHash,
-                  log_index: event.baseEventParams.logIndex,
-                  batch_index: event.baseEventParams.batchIndex,
-                  trigger: "update",
-                  offset: "",
-                },
-                eventKind: WebsocketEventKind.SaleEvent,
-              })
-            )
-          );
+          if (config.doOldOrderWebsocketWork) {
+            await Promise.all(
+              allFillEvents.map(async (event) =>
+                WebsocketEventRouter({
+                  eventInfo: {
+                    tx_hash: event.baseEventParams.txHash,
+                    log_index: event.baseEventParams.logIndex,
+                    batch_index: event.baseEventParams.batchIndex,
+                    trigger: "update",
+                    offset: "",
+                  },
+                  eventKind: WebsocketEventKind.SaleEvent,
+                })
+              )
+            );
+          }
         } catch (error) {
           logger.error(
             QUEUE_NAME,
