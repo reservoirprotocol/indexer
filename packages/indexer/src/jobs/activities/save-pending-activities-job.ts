@@ -17,6 +17,7 @@ export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
   concurrency = 1;
   persistent = true;
   lazyMode = true;
+  singleActiveConsumer = true;
 
   protected async process() {
     const pendingActivitiesQueue = new PendingActivitiesQueue();

@@ -22,33 +22,35 @@ export class RarityQueueJob extends AbstractRabbitMqJobHandler {
   } as BackoffStrategy;
 
   protected async process(payload: RarityQueueJobPayload) {
-    const collection = await Collections.getById(payload.collectionId, true);
+    const { collectionId } = payload;
+    const collection = await Collections.getById(collectionId, true);
+    const whitelistedLargeContracts: string[] = [];
 
     // If no collection found
     if (_.isNull(collection)) {
-      logger.error(this.queueName, `Collection ${payload.collectionId} not fund`);
+      logger.error(this.queueName, `Collection ${collectionId} not fund`);
       return;
     }
 
     // If the collection is too big
-    if (collection.tokenCount > 30000) {
+    if (
+      _.indexOf(whitelistedLargeContracts, collectionId) === -1 &&
+      collection.tokenCount > 100000
+    ) {
       logger.warn(
         this.queueName,
-        `Collection ${payload.collectionId} has too many tokens (${collection.tokenCount})`
+        `Collection ${collectionId} has too many tokens (${collection.tokenCount})`
       );
       return;
     }
 
-    const keysCount = await AttributeKeys.getKeysCount(payload.collectionId);
+    const keysCount = await AttributeKeys.getKeysCount(collectionId);
     if (keysCount > 100) {
-      logger.warn(
-        this.queueName,
-        `Collection ${payload.collectionId} has too many keys (${keysCount})`
-      );
+      logger.warn(this.queueName, `Collection ${collectionId} has too many keys (${keysCount})`);
       return;
     }
 
-    const tokensRarity = await Rarity.getCollectionTokensRarity(payload.collectionId);
+    const tokensRarity = await Rarity.getCollectionTokensRarity(collectionId);
     const tokensRarityChunks = _.chunk(tokensRarity, 500);
 
     // Update the tokens rarity
