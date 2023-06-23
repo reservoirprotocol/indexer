@@ -106,8 +106,6 @@ export const config = {
   cipherSecret: String(process.env.CIPHER_SECRET),
 
   slackApiKeyWebhookUrl: String(process.env.SLACK_API_KEY_WEBHOOK_URL),
-  // Used to prevent redis from being overloaded in heavy process like backfilling
-  redisMaxMemoryGB: Number(process.env.REDIS_MAX_MEMORY_GB || 25),
 
   maxParallelTokenRefreshJobs: Number(process.env.MAX_PARALLEL_TOKEN_REFRESH_JOBS || 1),
   maxParallelTokenCollectionSlugRefreshJobs: Number(

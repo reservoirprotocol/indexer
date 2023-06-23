@@ -45,6 +45,7 @@ import * as backfillNftBalancesLastTokenAppraisalValue from "@/jobs/backfill/bac
 import * as backfillCancelEventsCreatedAt from "@/jobs/backfill/backfill-cancel-events-created-at";
 import * as backfillNftTransferEventsCreatedAt from "@/jobs/backfill/backfill-nft-transfer-events-created-at";
 import * as backfillCollectionsRoyalties from "@/jobs/backfill/backfill-collections-royalties";
+import * as backfillCollectionsPaymentTokens from "@/jobs/backfill/backfill-collections-payment-tokens";
 import * as backfillWrongNftBalances from "@/jobs/backfill/backfill-wrong-nft-balances";
 import * as backfillFoundationOrders from "@/jobs/backfill/backfill-foundation-orders";
 import * as backfillLooksrareFills from "@/jobs/backfill/backfill-looks-rare-fills";
@@ -60,8 +61,6 @@ import * as eventsSyncBackfillProcess from "@/jobs/events-sync/process/backfill"
 import * as eventsSyncRealtimeProcess from "@/jobs/events-sync/process/realtime";
 import * as eventsSyncRealtime from "@/jobs/events-sync/realtime-queue";
 import * as eventsSyncRealtimeV2 from "@/jobs/events-sync/realtime-queue-v2";
-import * as eventsSyncFtTransfersWriteBuffer from "@/jobs/events-sync/write-buffers/ft-transfers";
-import * as eventsSyncNftTransfersWriteBuffer from "@/jobs/events-sync/write-buffers/nft-transfers";
 
 import * as fillUpdates from "@/jobs/fill-updates/queue";
 import * as fillPostProcess from "@/jobs/fill-updates/fill-post-process";
@@ -182,6 +181,8 @@ import { exportDataJob } from "@/jobs/data-export/export-data-job";
 import { processActivityEventJob } from "@/jobs/activities/process-activity-event-job";
 import { savePendingActivitiesJob } from "@/jobs/activities/save-pending-activities-job";
 import { eventsSyncFtTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/ft-transfers-job";
+import { eventsSyncNftTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
+import { eventsSyncProcessBackfillJob } from "@/jobs/events-sync/process/events-sync-process-backfill";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -209,6 +210,7 @@ export const allJobQueues = [
   backfillCancelEventsCreatedAt.queue,
   backfillNftTransferEventsCreatedAt.queue,
   backfillCollectionsRoyalties.queue,
+  backfillCollectionsPaymentTokens.queue,
   backfillWrongNftBalances.queue,
   backfillInvalidateSeaportV14Orders.queue,
   backfillBlurSales.queue,
@@ -225,8 +227,6 @@ export const allJobQueues = [
   eventsSyncRealtimeProcess.queue,
   eventsSyncRealtime.queue,
   eventsSyncRealtimeV2.queue,
-  eventsSyncFtTransfersWriteBuffer.queue,
-  eventsSyncNftTransfersWriteBuffer.queue,
 
   fillUpdates.queue,
   fillPostProcess.queue,
@@ -355,6 +355,8 @@ export class RabbitMqJobsConsumer {
       processActivityEventJob,
       savePendingActivitiesJob,
       eventsSyncFtTransfersWriteBufferJob,
+      eventsSyncNftTransfersWriteBufferJob,
+      eventsSyncProcessBackfillJob,
     ];
   }
 

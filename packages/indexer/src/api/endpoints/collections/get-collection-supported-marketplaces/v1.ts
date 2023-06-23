@@ -12,6 +12,13 @@ import { getNetworkSettings } from "@/config/network";
 import { getOrUpdateBlurRoyalties } from "@/utils/blur";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 
+type PaymentToken = {
+  address: string;
+  decimals: number;
+  name: string;
+  symbol: string;
+};
+
 type Marketplace = {
   name: string;
   domain?: string;
@@ -31,6 +38,7 @@ type Marketplace = {
   minimumBidExpiry?: number;
   minimumPrecision?: string;
   supportedBidCurrencies: string[];
+  paymentTokens?: PaymentToken[];
 };
 
 const version = "v1";
@@ -79,6 +87,16 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           supportedBidCurrencies: Joi.array()
             .items(Joi.string())
             .description("erc20 contract addresses"),
+          paymentTokens: Joi.array()
+            .items(
+              Joi.object({
+                address: Joi.string(),
+                decimals: Joi.number(),
+                name: Joi.string(),
+                symbol: Joi.string(),
+              })
+            )
+            .allow(null),
         })
       ),
     }),
@@ -93,6 +111,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
             collections.royalties,
             collections.new_royalties,
             collections.marketplace_fees,
+            collections.payment_tokens,
             collections.contract,
             collections.token_count
           FROM collections
@@ -202,6 +221,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           customFeesSupported: false,
           minimumBidExpiry: 15 * 60,
           supportedBidCurrencies: Object.keys(ns.supportedBidCurrencies),
+          paymentTokens: collectionResult.payment_tokens?.opensea,
         });
       }
 

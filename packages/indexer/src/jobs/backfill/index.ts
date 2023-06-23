@@ -11,5 +11,6 @@ import "@/jobs/backfill/backfill-invalidated-orders";
 import "@/jobs/backfill/backfill-cancel-seaport-v11-orders";
 import "@/jobs/backfill/backfill-expired-orders-2";
 import "@/jobs/backfill/backfill-collections-royalties";
+import "@/jobs/backfill/backfill-collections-payment-tokens";
 import "@/jobs/backfill/backfill-wrong-nft-balances";
 import "@/jobs/backfill/backfill-looks-rare-fills";

@@ -26,8 +26,6 @@ import "@/jobs/events-sync/process/backfill";
 import "@/jobs/events-sync/process/realtime";
 import "@/jobs/events-sync/realtime-queue";
 import "@/jobs/events-sync/realtime-queue-v2";
-import "@/jobs/events-sync/write-buffers/ft-transfers";
-import "@/jobs/events-sync/write-buffers/nft-transfers";
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork && config.catchup) {

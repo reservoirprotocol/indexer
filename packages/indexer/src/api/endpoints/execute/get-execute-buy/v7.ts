@@ -28,8 +28,8 @@ import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import { ExecutionsBuffer } from "@/utils/executions";
 import * as onChainData from "@/utils/on-chain-data";
-import * as mints from "@/utils/mints/collection-mints";
-import { generateMintTxData } from "@/utils/mints/calldata/generator";
+import * as mints from "@/orderbook/mints";
+import { generateCollectionMintTxData } from "@/orderbook/mints/calldata";
 import { getUSDAndCurrencyPrices } from "@/utils/prices";
 
 const version = "v7";
@@ -710,16 +710,17 @@ export const getExecuteBuyV7Options: RouteOptions = {
                     ? Math.min(item.quantity, Number(mint.maxMintsPerWallet))
                     : item.quantity;
 
+                  const { txData, price } = await generateCollectionMintTxData(
+                    mint,
+                    payload.taker,
+                    fromBuffer(collectionData.contract),
+                    quantityToMint
+                  );
+
                   const orderId = `mint:${item.collection}`;
                   mintTxs.push({
                     orderId,
-                    txData: generateMintTxData(
-                      mint.details,
-                      payload.taker,
-                      fromBuffer(collectionData.contract),
-                      quantityToMint,
-                      mint.price
-                    ),
+                    txData,
                   });
 
                   await addToPath(
@@ -727,8 +728,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
                       id: orderId,
                       kind: "mint",
                       maker: fromBuffer(collectionData.contract),
-                      nativePrice: mint.price,
-                      price: mint.price,
+                      nativePrice: price,
+                      price: price,
                       sourceId: null,
                       currency: mint.currency,
                       rawData: {},

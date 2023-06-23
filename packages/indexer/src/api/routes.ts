@@ -132,36 +132,6 @@ export const setupRoutes = (server: Server) => {
     options: activitiesEndpoints.getUserActivityV6Options,
   });
 
-  server.route({
-    method: "GET",
-    path: "/activity/v1",
-    options: activitiesEndpoints.getActivityV1Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/activity/v2",
-    options: activitiesEndpoints.getActivityV2Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/activity/v3",
-    options: activitiesEndpoints.getActivityV3Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/activity/v4",
-    options: activitiesEndpoints.getActivityV4Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/activity/v5",
-    options: activitiesEndpoints.getActivityV5Options,
-  });
-
   // Admin
 
   server.route({
@@ -510,6 +480,13 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/collections/{collection}/top-bids/v1",
     options: collectionsEndpoints.getCollectionTopBidsV1Options,
+  });
+
+  server.route({
+    method: "GET",
+
+    path: "/collections/top-selling/v1",
+    options: collectionsEndpoints.getTopSellingCollectionsOptions,
   });
 
   server.route({

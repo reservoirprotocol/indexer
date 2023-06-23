@@ -65,7 +65,8 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
               "contract",
               "token_id_range",
               "token_set_id",
-              "minted_timestamp"
+              "minted_timestamp",
+              "payment_tokens"
             ) VALUES (
               $/id/,
               $/slug/,
@@ -75,7 +76,8 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
               $/contract/,
               ${tokenIdRangeParam},
               $/tokenSetId/,
-              $/mintedTimestamp/
+              $/mintedTimestamp/,
+              $/paymentTokens/
             ) ON CONFLICT DO NOTHING;
           `,
         values: {
@@ -88,6 +90,7 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
           tokenIdRange,
           tokenSetId: collection.tokenSetId,
           mintedTimestamp: mintedTimestamp ?? null,
+          paymentTokens: collection.paymentTokens ? { opensea: collection.paymentTokens } : {},
         },
       });
 

@@ -3,7 +3,7 @@ import { Queue, QueueScheduler, Worker } from "bullmq";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import { bn, fromBuffer } from "@/common/utils";
+import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
 const QUEUE_NAME = "mints-supply-check";
@@ -73,7 +73,11 @@ if (config.doBackgroundWork) {
                 WHERE nft_balances.contract = $/contract/
                   AND nft_balances.token_id = $/tokenId/
                   AND nft_balances.amount > 0
-              `
+              `,
+              {
+                contract: toBuffer(collectionMint.contract),
+                tokenId: collectionMint.tokenId,
+              }
             )
             .then((r) => r.token_count);
         } else {

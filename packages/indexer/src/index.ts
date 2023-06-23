@@ -18,8 +18,9 @@ import { RabbitMq } from "@/common/rabbit-mq";
 import { RabbitMqJobsConsumer } from "@/jobs/index";
 import { Sources } from "@/models/sources";
 
-process.on("unhandledRejection", (error) => {
-  logger.error("process", `Unhandled rejection: ${error}`);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+process.on("unhandledRejection", (error: any) => {
+  logger.error("process", `Unhandled rejection: ${error} (${error.stack})`);
 
   // For now, just skip any unhandled errors
   // process.exit(1);

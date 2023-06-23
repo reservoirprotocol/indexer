@@ -16,10 +16,7 @@ import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import MetadataApi from "@/utils/metadata-api";
 import * as royalties from "@/utils/royalties";
-import {
-  getOpenCollectionMints,
-  simulateAndUpdateCollectionMint,
-} from "@/utils/mints/collection-mints";
+import { getOpenCollectionMints, refreshCollectionMint } from "@/orderbook/mints";
 
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as refreshActivitiesCollectionMetadata from "@/jobs/elasticsearch/refresh-activities-collection-metadata";
@@ -177,6 +174,7 @@ export class Collections {
         name = $/name/,
         slug = $/slug/,
         token_count = $/tokenCount/,
+        payment_tokens = $/paymentTokens/,
         updated_at = now()
       WHERE id = $/id/
       RETURNING (
@@ -196,6 +194,7 @@ export class Collections {
       name: collection.name,
       slug: collection.slug,
       tokenCount,
+      paymentTokens: collection.paymentTokens ? { opensea: collection.paymentTokens } : {},
     };
 
     const result = await idb.oneOrNone(query, values);
@@ -243,7 +242,7 @@ export class Collections {
     // Simulate any open mints
     const collectionMints = await getOpenCollectionMints(collection.id);
     await Promise.all(
-      collectionMints.map((collectionMint) => simulateAndUpdateCollectionMint(collectionMint))
+      collectionMints.map((collectionMint) => refreshCollectionMint(collectionMint))
     );
   }
 
