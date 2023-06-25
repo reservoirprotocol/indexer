@@ -49,6 +49,7 @@ import * as backfillCollectionsPaymentTokens from "@/jobs/backfill/backfill-coll
 import * as backfillWrongNftBalances from "@/jobs/backfill/backfill-wrong-nft-balances";
 import * as backfillFoundationOrders from "@/jobs/backfill/backfill-foundation-orders";
 import * as backfillLooksrareFills from "@/jobs/backfill/backfill-looks-rare-fills";
+import * as backfillCollectionsIds from "@/jobs/backfill/backfill-collections-ids";
 
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
 
@@ -216,6 +217,7 @@ export const allJobQueues = [
   backfillInvalidateSeaportV14Orders.queue,
   backfillBlurSales.queue,
   backfillLooksrareFills.queue,
+  backfillCollectionsIds.queue,
 
   collectionUpdatesFloorAsk.queue,
 
@@ -489,7 +491,9 @@ export class RabbitMqJobsConsumer {
 
       for (const queue of RabbitMqJobsConsumer.getQueues()) {
         try {
-          await RabbitMqJobsConsumer.subscribe(queue);
+          if (!queue.isDisableConsuming()) {
+            await RabbitMqJobsConsumer.subscribe(queue);
+          }
         } catch (error) {
           logger.error(
             "rabbit-subscribe",

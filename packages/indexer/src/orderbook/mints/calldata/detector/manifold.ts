@@ -134,7 +134,7 @@ export const extractByTx = async (
             price,
             tokenId: claim.tokenId.toString(),
             maxMintsPerWallet: bn(claim.walletMax).eq(0) ? null : claim.walletMax.toString(),
-            maxSupply: claim.totalMax.toString(),
+            maxSupply: bn(claim.totalMax).eq(0) ? null : claim.totalMax.toString(),
             startTime: claim.startDate ? claim.startDate : null,
             endTime: claim.endDate ? claim.endDate : null,
           },

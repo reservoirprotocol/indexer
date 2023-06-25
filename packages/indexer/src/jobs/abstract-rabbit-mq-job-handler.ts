@@ -45,6 +45,7 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
   protected lazyMode = false;
   protected queueType: QueueType = "classic";
   protected consumerTimeout = 0;
+  protected disableConsuming = false;
 
   public async consume(channel: Channel, consumeMessage: ConsumeMessage): Promise<void> {
     const message = JSON.parse(consumeMessage.content.toString()) as RabbitMQMessage;
@@ -137,6 +138,10 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
 
   public isLazyMode(): boolean {
     return this.lazyMode;
+  }
+
+  public isDisableConsuming(): boolean {
+    return this.disableConsuming;
   }
 
   public getSingleActiveConsumer(): boolean | undefined {
