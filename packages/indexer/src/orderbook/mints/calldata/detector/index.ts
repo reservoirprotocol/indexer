@@ -134,11 +134,41 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
     }
   }
 
-  return [
-    ...(await manifold.extractByTx(collection, tx)),
-    ...(await zora.extractByTx(collection, tx)),
-    ...(await seadrop.extractByTx(collection, contract, tx)),
-    ...(await thirdweb.extractByTx(collection, tx)),
-    ...(await generic.extractByTx(collection, contract, tx, pricePerAmountMinted, amountMinted)),
-  ];
+  // Manifold
+  const manifoldResults = await manifold.extractByTx(collection, tx);
+  if (manifoldResults.length) {
+    return manifoldResults;
+  }
+
+  // Zora
+  const zoraResults = await zora.extractByTx(collection, tx);
+  if (zoraResults.length) {
+    return zoraResults;
+  }
+
+  // Seadrop
+  const seadropResults = await seadrop.extractByTx(collection, contract, tx);
+  if (seadropResults.length) {
+    return seadropResults;
+  }
+
+  // Thirdweb
+  const thirdwebResults = await thirdweb.extractByTx(collection, tx);
+  if (thirdwebResults.length) {
+    return thirdwebResults;
+  }
+
+  // Generic
+  const genericResults = await generic.extractByTx(
+    collection,
+    contract,
+    tx,
+    pricePerAmountMinted,
+    amountMinted
+  );
+  if (genericResults.length) {
+    return genericResults;
+  }
+
+  return [];
 };
