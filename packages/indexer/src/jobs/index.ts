@@ -169,9 +169,7 @@ import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-f
 import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
 import { setCommunityQueueJob } from "@/jobs/collection-updates/set-community-queue-job";
 import { topBidCollectionJob } from "@/jobs/collection-updates/top-bid-collection-job";
-import { updateCollectionActivityJob } from "@/jobs/collection-updates/update-collection-activity-job";
 import { updateCollectionDailyVolumeJob } from "@/jobs/collection-updates/update-collection-daily-volume-job";
-import { updateCollectionUserActivityJob } from "@/jobs/collection-updates/update-collection-user-activity-job";
 import { collectionRefreshJob } from "@/jobs/collections-refresh/collections-refresh-job";
 import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
 import { currenciesFetchJob } from "@/jobs/currencies/currencies-fetch-job";
@@ -344,9 +342,7 @@ export class RabbitMqJobsConsumer {
       refreshContractCollectionsMetadataQueueJob,
       setCommunityQueueJob,
       topBidCollectionJob,
-      updateCollectionActivityJob,
       updateCollectionDailyVolumeJob,
-      updateCollectionUserActivityJob,
       collectionRefreshJob,
       collectionRefreshCacheJob,
       currenciesFetchJob,
