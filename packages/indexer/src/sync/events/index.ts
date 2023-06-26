@@ -265,7 +265,7 @@ export const syncEvents = async (
   options?: {
     // When backfilling, certain processes will be disabled
     backfill?: boolean;
-    syncDetails:
+    syncDetails?:
       | {
           method: "events";
           events: string[];

@@ -20,7 +20,6 @@ import * as realtimeEventsSyncV2 from "@/jobs/events-sync/realtime-queue-v2";
 // concurrent upserts of the balances):
 // https://stackoverflow.com/questions/46366324/postgres-deadlocks-on-concurrent-upserts
 
-import "@/jobs/events-sync/backfill-queue";
 import "@/jobs/events-sync/block-check-queue";
 import "@/jobs/events-sync/process/backfill";
 import "@/jobs/events-sync/process/realtime";
