@@ -1,6 +1,6 @@
 -- Up Migration
 
-DROP TABLE "activities";
-DROP TABLE "user_activities";
+DROP TABLE IF EXISTS "activities";
+DROP TABLE IF EXISTS "user_activities";
 
 -- Down Migration
