@@ -78,12 +78,14 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
         delay = 0;
       }
 
-      // Lof the error
+      // Log the error
       logger.error(
         this.queueName,
-        `Error handling event: ${error}, queueName=${queueName}, payload=${JSON.stringify(
-          message
-        )}, retryCount=${message.retryCount}`
+        `Error handling event: ${JSON.stringify(
+          error
+        )}, queueName=${queueName}, payload=${JSON.stringify(message)}, retryCount=${
+          message.retryCount
+        }`
       );
 
       await channel.ack(consumeMessage); // Ack the message with rabbit

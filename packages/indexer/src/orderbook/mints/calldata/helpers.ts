@@ -1,14 +1,23 @@
 import { Interface } from "@ethersproject/abi";
 import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
+import axios from "axios";
 
 import { idb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
 import { bn, now, toBuffer } from "@/common/utils";
 import { CollectionMint, CollectionMintStatus } from "@/orderbook/mints";
 
-export const toSafeTime = (value: BigNumberish) =>
+export const toSafeTimestamp = (value: BigNumberish) =>
   bn(value).gte(9999999999) ? undefined : bn(value).toNumber();
+
+export const fetchMetadata = async (url: string) => {
+  if (url.startsWith("ipfs://")) {
+    url = `https://ipfs.io/ipfs/${url.slice(7)}`;
+  }
+
+  return axios.get(url).then((response) => response.data);
+};
 
 export const getMaxSupply = async (contract: string): Promise<string | undefined> => {
   let maxSupply: string | undefined;

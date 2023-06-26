@@ -32,6 +32,8 @@ import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handl
 import MetadataApi from "@/utils/metadata-api";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
 
+import { openseaBidsQueueJob } from "@/jobs/orderbook/opensea-bids-queue-job";
+
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
   const maxBidsSize = config.chainId === 1 ? 200 : 1;
@@ -104,7 +106,8 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 
               if (bidsEvents.length >= maxBidsSize) {
                 const orderInfoBatch = bidsEvents.splice(0, bidsEvents.length);
-                await orderbookOrders.addToQueue(orderInfoBatch);
+
+                await openseaBidsQueueJob.addToQueue(orderInfoBatch);
               }
             }
           }
