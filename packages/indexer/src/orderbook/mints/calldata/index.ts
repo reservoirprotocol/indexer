@@ -1,10 +1,10 @@
 import { defaultAbiCoder } from "@ethersproject/abi";
 import { TxData } from "@reservoir0x/sdk/src/utils";
-import axios from "axios";
 
 import { idb } from "@/common/db";
 import { bn, toBuffer } from "@/common/utils";
 import { CollectionMint } from "@/orderbook/mints";
+import { getAllowlist } from "@/orderbook/mints/allowlists";
 
 import * as Generic from "@/orderbook/mints/calldata/detector/generic";
 import * as Thirdweb from "@/orderbook/mints/calldata/detector/thirdweb";
@@ -117,12 +117,20 @@ export const generateCollectionMintTxData = async (
             } else if (allowlistItemIndex === 1) {
               abiValue = allowlistData.price;
             } else {
-              const info = collectionMint.details.info as Zora.Info;
-              abiValue = await axios
-                .get(`https://allowlist.zora.co/allowed?user=${minter}&root=${info.merkleRoot}`)
-                .then(({ data }: { data: { proof: string[] }[] }) =>
-                  data[0].proof.map((item) => `0x${item}`)
-                );
+              abiValue = await Zora.generateProofValue(collectionMint.allowlistId!, minter);
+            }
+
+            break;
+          }
+
+          case "thirdweb": {
+            if (allowlistItemIndex === 0) {
+              abiValue = allowlistData.price ?? collectionMint.price;
+            } else {
+              abiValue = Thirdweb.generateProofValue(
+                await getAllowlist(collectionMint.allowlistId!),
+                minter
+              );
             }
 
             break;

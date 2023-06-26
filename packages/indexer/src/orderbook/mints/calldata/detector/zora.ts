@@ -14,8 +14,8 @@ import {
   getCollectionMints,
   simulateAndUpsertCollectionMint,
 } from "@/orderbook/mints";
-import { AllowlistItem, createAllowlist } from "@/orderbook/mints/allowlists";
-import { getStatus, toSafeTime } from "@/orderbook/mints/calldata/helpers";
+import { AllowlistItem, allowlistExists, createAllowlist } from "@/orderbook/mints/allowlists";
+import { getStatus, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
 
 export type Info = {
   merkleRoot?: string;
@@ -83,32 +83,35 @@ export const extractByCollection = async (collection: string): Promise<Collectio
         price,
         maxMintsPerWallet: saleDetails.maxSalePurchasePerAddress.toString(),
         maxSupply: saleDetails.maxSupply.toString(),
-        startTime: toSafeTime(saleDetails.publicSaleStart),
-        endTime: toSafeTime(saleDetails.publicSaleEnd),
+        startTime: toSafeTimestamp(saleDetails.publicSaleStart),
+        endTime: toSafeTimestamp(saleDetails.publicSaleEnd),
       });
     }
 
     // Presale
     if (saleDetails.presaleActive) {
       const merkleRoot = saleDetails.presaleMerkleRoot;
-      const allowlistItems = await axios
-        .get(`https://allowlist.zora.co/allowlist/${merkleRoot}`)
-        .then(({ data }) => data)
-        .then(async (data: { entries: { user: string; price: string; maxCanMint: number }[] }) => {
-          return data.entries.map(
-            (e) =>
-              ({
-                address: e.user,
-                maxMints: String(e.maxCanMint),
-                // price = on-chain-price
-                price: e.price,
-                // actualPrice = on-chain-price + fee
-                actualPrice: bn(e.price).add(fee).toString(),
-              } as AllowlistItem)
-          );
-        });
-
-      await createAllowlist(merkleRoot, allowlistItems);
+      if (!(await allowlistExists(merkleRoot))) {
+        await axios
+          .get(`https://allowlist.zora.co/allowlist/${merkleRoot}`)
+          .then(({ data }) => data)
+          .then(
+            async (data: { entries: { user: string; price: string; maxCanMint: number }[] }) => {
+              return data.entries.map(
+                (e) =>
+                  ({
+                    address: e.user,
+                    maxMints: String(e.maxCanMint),
+                    // price = on-chain-price
+                    price: e.price,
+                    // actualPrice = on-chain-price + fee
+                    actualPrice: bn(e.price).add(fee).toString(),
+                  } as AllowlistItem)
+              );
+            }
+          )
+          .then((items) => createAllowlist(merkleRoot, items));
+      }
 
       results.push({
         collection,
@@ -149,8 +152,8 @@ export const extractByCollection = async (collection: string): Promise<Collectio
         },
         currency: Sdk.Common.Addresses.Eth[config.chainId],
         maxSupply: saleDetails.maxSupply.toString(),
-        startTime: toSafeTime(saleDetails.presaleStart),
-        endTime: toSafeTime(saleDetails.presaleEnd),
+        startTime: toSafeTimestamp(saleDetails.presaleStart),
+        endTime: toSafeTimestamp(saleDetails.presaleEnd),
         allowlistId: merkleRoot,
       });
     }
@@ -212,4 +215,10 @@ export const refreshByCollection = async (collection: string) => {
       });
     }
   }
+};
+
+export const generateProofValue = (allowlistId: string, address: string) => {
+  return axios
+    .get(`https://allowlist.zora.co/allowed?user=${address}&root=${allowlistId}`)
+    .then(({ data }: { data: { proof: string[] }[] }) => data[0].proof.map((item) => `0x${item}`));
 };
