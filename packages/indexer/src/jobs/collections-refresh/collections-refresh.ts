@@ -8,12 +8,15 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import { sub, set, getUnixTime, add } from "date-fns";
 import { Collections } from "@/models/collections";
 import { CollectionsEntity } from "@/models/collections/collections-entity";
-import { CollectionMetadataInfo } from "@/jobs/collection-updates/metadata-queue";
 import { redb } from "@/common/db";
+import { fromBuffer } from "@/common/utils";
+import {
+  collectionMetadataQueueJob,
+  CollectionMetadataInfo,
+} from "@/jobs/collection-updates/collection-metadata-queue-job";
 
 const QUEUE_NAME = "collections-refresh-queue";
 
@@ -87,9 +90,9 @@ if (config.doBackgroundWork) {
         results,
         (result) =>
           ({
-            contract: result.contract,
+            contract: fromBuffer(result.contract),
             community: result.community,
-            tokenId: result,
+            tokenId: result.token_id,
           } as CollectionMetadataInfo)
       );
 
@@ -102,7 +105,7 @@ if (config.doBackgroundWork) {
         })
       );
 
-      await collectionUpdatesMetadata.addToQueueBulk(infos);
+      await collectionMetadataQueueJob.addToQueueBulk(infos, 0, QUEUE_NAME);
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );

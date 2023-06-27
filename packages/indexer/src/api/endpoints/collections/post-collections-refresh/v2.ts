@@ -14,12 +14,13 @@ import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 
-import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections-refresh-cache";
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
 import * as orderFixes from "@/jobs/order-fixes/fixes";
 import * as blurBidsRefresh from "@/jobs/order-updates/misc/blur-bids-refresh";
+import * as blurListingsRefresh from "@/jobs/order-updates/misc/blur-listings-refresh";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
+import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
 
 const version = "v2";
 
@@ -101,12 +102,15 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionUpdatesMetadata.addToQueue(
-          collection.contract,
-          tokenId,
-          collection.community,
+        await collectionMetadataQueueJob.addToQueue(
+          {
+            contract: collection.contract,
+            tokenId,
+            community: collection.community,
+            forceRefresh: true,
+          },
           0,
-          true
+          "post-refresh-collection-v2"
         );
 
         if (collection.slug) {
@@ -123,8 +127,9 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
           ]);
         }
 
-        // Refresh Blur bids
+        // Refresh Blur bids and listings
         await blurBidsRefresh.addToQueue(collection.id, true);
+        await blurListingsRefresh.addToQueue(collection.id, true);
 
         // Refresh listings
         await OpenseaIndexerApi.fastContractSync(collection.contract);
@@ -174,12 +179,15 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionUpdatesMetadata.addToQueue(
-          collection.contract,
-          tokenId,
-          collection.community,
+        await collectionMetadataQueueJob.addToQueue(
+          {
+            contract: collection.contract,
+            tokenId,
+            community: collection.community,
+            forceRefresh: payload.overrideCoolDown,
+          },
           0,
-          payload.overrideCoolDown
+          "post-refresh-collection-v2"
         );
 
         if (collection.slug) {
@@ -205,7 +213,7 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         await OpenseaIndexerApi.fastContractSync(collection.contract);
 
         // Refresh the contract floor sell and top bid
-        await collectionsRefreshCache.addToQueue(collection.id);
+        await collectionRefreshCacheJob.addToQueue({ collection: collection.id });
 
         // Revalidate the contract orders
         await orderFixes.addToQueue([{ by: "contract", data: { contract: collection.contract } }]);

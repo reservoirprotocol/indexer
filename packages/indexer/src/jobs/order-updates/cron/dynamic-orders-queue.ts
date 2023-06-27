@@ -62,7 +62,10 @@ if (config.doBackgroundWork) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const values: any[] = [];
         for (const { id, kind, currency, raw_data } of dynamicOrders) {
-          if (!_.isNull(raw_data) && kind === "seaport") {
+          if (
+            !_.isNull(raw_data) &&
+            ["alienswap", "seaport", "seaport-v1.4", "seaport-v1.5"].includes(kind)
+          ) {
             const order = new Sdk.SeaportV11.Order(config.chainId, raw_data);
             const newCurrencyPrice = order.getMatchingPrice().toString();
 

@@ -12,10 +12,8 @@ import * as blocksModel from "@/models/blocks";
 import getUuidByString from "uuid-by-string";
 import { BlockWithTransactions } from "@ethersproject/abstract-provider";
 
-// import * as realtimeEventsSyncV2 from "@/jobs/events-sync/realtime-queue-v2";
-
-import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
 import { Block } from "@/models/blocks";
+import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
 
 export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBatch[] => {
   const txHashToEvents = new Map<string, EnhancedEvent[]>();
@@ -118,6 +116,10 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
       {
         kind: "sudoswap",
         data: kindToEvents.get("sudoswap") ?? [],
+      },
+      {
+        kind: "sudoswap-v2",
+        data: kindToEvents.get("sudoswap-v2") ?? [],
       },
       {
         kind: "wyvern",
@@ -267,6 +269,7 @@ const _saveBlockTransactions = async (blockData: BlockWithTransactions) => {
 export const syncEvents = async (block: number) => {
   try {
     logger.info("sync-events-v2", `Events realtime syncing block ${block}`);
+
     const startSyncTime = Date.now();
 
     const startGetBlockTime = Date.now();
@@ -397,6 +400,30 @@ export const unsyncEvents = async (block: number, blockHash: string) => {
     es.ftTransfers.removeEvents(block, blockHash),
     es.nftApprovals.removeEvents(block, blockHash),
     es.nftTransfers.removeEvents(block, blockHash),
-    removeUnsyncedEventsActivities.addToQueue(blockHash),
+    removeUnsyncedEventsActivitiesJob.addToQueue({ blockHash }),
   ]);
+};
+
+export const checkForOrphanedBlock = async (block: number) => {
+  // Check if block number / hash does not match up (orphaned block)
+  const upstreamBlockHash = (await baseProvider.getBlock(block)).hash.toLowerCase();
+
+  // get block from db that has number = block and hash != upstreamBlockHash
+  const orphanedBlock = await blocksModel.getBlockWithNumber(block, upstreamBlockHash);
+
+  if (!orphanedBlock) return;
+
+  logger.info(
+    "events-sync-catchup",
+    `Detected orphaned block ${block} with hash ${orphanedBlock.hash} (upstream hash ${upstreamBlockHash})`
+  );
+
+  // delete the orphaned block data
+  await unsyncEvents(block, orphanedBlock.hash);
+
+  // TODO: add block hash to transactions table and delete transactions associated to the orphaned block
+  // await deleteBlockTransactions(block);
+
+  // delete the block data
+  await blocksModel.deleteBlock(block, orphanedBlock.hash);
 };

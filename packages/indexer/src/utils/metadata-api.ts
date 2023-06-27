@@ -17,7 +17,17 @@ interface TokenMetadata {
   flagged: boolean;
   name?: string;
   description?: string;
+  originalMetadata?: JSON;
   imageUrl?: string;
+  imageOriginalUrl?: string;
+  imageProperties?: {
+    width?: number;
+    height?: number;
+    size?: number;
+    mime_type?: string;
+  };
+  animationOriginalUrl?: string;
+  metadataOriginalUrl?: string;
   mediaUrl?: string;
   attributes: {
     key: string;
@@ -65,13 +75,18 @@ export class MetadataApi {
         contract,
         tokenIdRange: null,
         tokenSetId: `contract:${contract}`,
+        paymentTokens: undefined,
       };
     } else {
       const indexingMethod = MetadataApi.getCollectionIndexingMethod(community);
 
-      const url = `${
-        config.metadataApiBaseUrlAlt
-      }/v4/${getNetworkName()}/metadata/collection?method=${indexingMethod}&token=${contract}:${tokenId}`;
+      let networkName = getNetworkName();
+
+      if (networkName === "prod-goerli") {
+        networkName = "goerli";
+      }
+
+      const url = `${config.metadataApiBaseUrl}/v4/${networkName}/metadata/collection?method=${indexingMethod}&token=${contract}:${tokenId}`;
 
       const { data } = await axios.get(url);
 
@@ -88,6 +103,7 @@ export class MetadataApi {
         tokenIdRange: [string, string] | null;
         tokenSetId: string | null;
         isFallback?: boolean;
+        paymentTokens?: object | null;
       } = (data as any).collection;
 
       if (collection.isFallback && !options?.allowFallback) {
@@ -110,9 +126,15 @@ export class MetadataApi {
 
     method = method === "" ? config.metadataIndexingMethod : method;
 
+    let networkName = getNetworkName();
+
+    if (networkName === "prod-goerli") {
+      networkName = "goerli";
+    }
+
     const url = `${
       config.metadataApiBaseUrl
-    }/v4/${getNetworkName()}/metadata/token?method=${method}&${queryParams.toString()}`;
+    }/v4/${networkName}/metadata/token?method=${method}&${queryParams.toString()}`;
 
     const { data } = await axios.get(url);
 
@@ -133,7 +155,7 @@ export class MetadataApi {
       animation_url?: string;
       traits: Array<{
         trait_type: string;
-        value: string | number;
+        value: string | number | null;
       }>;
     },
     method = ""
@@ -157,6 +179,7 @@ export class MetadataApi {
       return null;
     }
     const tokenMetadata: TokenMetadata = response.data;
+
     return tokenMetadata;
   }
 

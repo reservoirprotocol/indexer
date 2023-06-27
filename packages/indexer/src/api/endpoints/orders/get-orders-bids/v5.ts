@@ -50,7 +50,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
         .lowercase()
         .pattern(regex.address)
         .description(
-          "Filter to a particular user. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
+          "Filter to a particular user. Must set `source=blur.io` to reveal maker's blur bids. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
         ),
       community: Joi.string()
         .lowercase()
@@ -86,6 +86,13 @@ export const getOrdersBidsV5Options: RouteOptions = {
           )
       ),
       status: Joi.string()
+        .when("ids", {
+          is: Joi.exist(),
+          then: Joi.valid("active", "inactive", "expired", "cancelled", "filled", "any").default(
+            "any"
+          ),
+          otherwise: Joi.valid("active"),
+        })
         .when("maker", {
           is: Joi.exist(),
           then: Joi.valid("active", "inactive"),
@@ -96,13 +103,18 @@ export const getOrdersBidsV5Options: RouteOptions = {
           then: Joi.valid("active", "any"),
           otherwise: Joi.valid("active"),
         })
+        .when("sortBy", {
+          is: Joi.valid("updatedAt"),
+          then: Joi.valid("any", "active").default("any"),
+          otherwise: Joi.valid("active"),
+        })
         .description(
           "activeª^º = currently valid\ninactiveª^ = temporarily invalid\nexpiredª^, canceledª^, filledª^ = permanently invalid\nanyªº = any status\nª when an `id` is passed\n^ when a `maker` is passed\nº when a `contract` is passed"
         ),
       source: Joi.string()
         .pattern(regex.domain)
         .description(
-          "Filter to a source by domain. Only active listed will be returned. Example: `opensea.io`"
+          "Filter to a source by domain. Only active listed will be returned. Must set `rawData=true` to reveal individual bids when `source=blur.io`. Example: `opensea.io`"
         ),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
       includeCriteriaMetadata: Joi.boolean()
@@ -110,7 +122,9 @@ export const getOrdersBidsV5Options: RouteOptions = {
         .description("If true, criteria metadata is included in the response."),
       includeRawData: Joi.boolean()
         .default(false)
-        .description("If true, raw data is included in the response."),
+        .description(
+          "If true, raw data is included in the response. Set `source=blur.io` and make this `true` to reveal individual blur bids."
+        ),
       includeDepth: Joi.boolean()
         .default(false)
         .description("If true, the depth of each order is included in the response."),
@@ -129,9 +143,16 @@ export const getOrdersBidsV5Options: RouteOptions = {
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
       sortBy: Joi.string()
-        .valid("createdAt", "price")
+        .valid("createdAt", "price", "updatedAt")
         .default("createdAt")
         .description("Order the items are returned in the response."),
+      sortDirection: Joi.string()
+        .lowercase()
+        .when("sortBy", {
+          is: Joi.valid("updatedAt"),
+          then: Joi.valid("asc", "desc").default("desc"),
+          otherwise: Joi.valid("desc").default("desc"),
+        }),
       continuation: Joi.string()
         .pattern(regex.base64)
         .description("Use continuation token to request next offset of items."),
@@ -227,6 +248,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
                 isReservoir: false,
                 createdAt: now(),
                 updatedAt: now(),
+                originatedAt: now(),
                 includeRawData: false,
                 rawData: {} as any,
                 normalizeRoyalties: false,
@@ -291,6 +313,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
           orders.is_reservoir,
           extract(epoch from orders.created_at) AS created_at,
           extract(epoch from orders.updated_at) AS updated_at,
+          orders.originated_at,
           (${criteriaBuildQuery}) AS criteria
           ${query.includeRawData || query.includeDepth ? ", orders.raw_data" : ""}
         FROM orders
@@ -309,12 +332,19 @@ export const getOrdersBidsV5Options: RouteOptions = {
       // Filters
       const conditions: string[] =
         query.startTimestamp || query.endTimestamp
-          ? [
-              `orders.created_at >= to_timestamp($/startTimestamp/)`,
-              `orders.created_at <= to_timestamp($/endTimestamp/)`,
-              `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
-              `orders.side = 'buy'`,
-            ]
+          ? query.sortBy === "updatedAt"
+            ? [
+                `orders.updated_at >= to_timestamp($/startTimestamp/)`,
+                `orders.updated_at <= to_timestamp($/endTimestamp/)`,
+                `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
+                `orders.side = 'buy'`,
+              ]
+            : [
+                `orders.created_at >= to_timestamp($/startTimestamp/)`,
+                `orders.created_at <= to_timestamp($/endTimestamp/)`,
+                `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
+                `orders.side = 'buy'`,
+              ]
           : [
               `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
               `orders.side = 'buy'`,
@@ -322,7 +352,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
 
       let communityFilter = "";
       let collectionSetFilter = "";
-      let orderStatusFilter;
+      let orderStatusFilter = "";
 
       if (query.ids) {
         if (Array.isArray(query.ids)) {
@@ -330,8 +360,65 @@ export const getOrdersBidsV5Options: RouteOptions = {
         } else {
           conditions.push(`orders.id = $/ids/`);
         }
-      } else {
-        orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
+      }
+
+      /*
+      Since status = any is allowed when sorting by updatedAt, this if statement blocks 
+      requests which include expensive query params (token, tokenSetId, community, etc.) 
+      unless "maker" or "ids" are passed (as any status is already permitted when using these params)
+      */
+      if (
+        query.sortBy === "updatedAt" &&
+        !query.maker &&
+        !query.ids &&
+        query.status !== "active" &&
+        (query.token ||
+          query.tokenSetId ||
+          query.community ||
+          query.collectionsSetId ||
+          query.native)
+      ) {
+        throw Boom.badRequest(
+          `Cannot filter with additional query params when sortBy = updatedAt and status != 'active.`
+        );
+      }
+
+      // TODO Remove this restriction once an index is created for updatedAt and contracts
+      if (query.sortBy === "updatedAt" && query.contracts && query.status === "any") {
+        throw Boom.badRequest(
+          `Cannot filter by contracts while sortBy = "updatedAt" and status = "any"`
+        );
+      }
+
+      switch (query.status) {
+        case "active": {
+          orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
+          break;
+        }
+        case "inactive": {
+          // Potentially-valid orders
+          orderStatusFilter = `orders.fillability_status = 'no-balance' OR (orders.fillability_status = 'fillable' AND orders.approval_status != 'approved')`;
+          break;
+        }
+        case "expired": {
+          orderStatusFilter = `orders.fillability_status = 'expired'`;
+          break;
+        }
+        case "filled": {
+          orderStatusFilter = `orders.fillability_status = 'filled'`;
+          break;
+        }
+        case "cancelled": {
+          orderStatusFilter = `orders.fillability_status = 'cancelled'`;
+          break;
+        }
+        case "any": {
+          orderStatusFilter = "";
+          break;
+        }
+        default: {
+          orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
+        }
       }
 
       if (query.tokenSetId) {
@@ -393,33 +480,9 @@ export const getOrdersBidsV5Options: RouteOptions = {
 
         (query as any).contractsFilter = query.contracts.map(toBuffer);
         conditions.push(`orders.contract IN ($/contractsFilter:list/)`);
-
-        if (query.status === "any") {
-          orderStatusFilter = "";
-        }
       }
 
       if (query.maker) {
-        switch (query.status) {
-          case "inactive": {
-            // Potentially-valid orders
-            orderStatusFilter = `orders.fillability_status = 'no-balance' OR (orders.fillability_status = 'fillable' AND orders.approval_status != 'approved')`;
-            break;
-          }
-          case "expired": {
-            orderStatusFilter = `orders.fillability_status = 'expired'`;
-            break;
-          }
-          case "filled": {
-            orderStatusFilter = `orders.fillability_status = 'filled'`;
-            break;
-          }
-          case "cancelled": {
-            orderStatusFilter = `orders.fillability_status = 'cancelled'`;
-            break;
-          }
-        }
-
         (query as any).maker = toBuffer(query.maker);
         conditions.push(`orders.maker = $/maker/`);
 
@@ -479,18 +542,28 @@ export const getOrdersBidsV5Options: RouteOptions = {
       }
 
       if (query.continuation) {
-        const [priceOrCreatedAt, id] = splitContinuation(
+        const [priceOrCreatedAtOrUpdatedAt, id] = splitContinuation(
           query.continuation,
           /^\d+(.\d+)?_0x[a-f0-9]{64}$/
         );
-        (query as any).priceOrCreatedAt = priceOrCreatedAt;
+        (query as any).priceOrCreatedAtOrUpdatedAt = priceOrCreatedAtOrUpdatedAt;
         (query as any).id = id;
 
         if (query.sortBy === "price") {
-          conditions.push(`(orders.value, orders.id) < ($/priceOrCreatedAt/, $/id/)`);
+          conditions.push(`(orders.value, orders.id) < ($/priceOrCreatedAtOrUpdatedAt/, $/id/)`);
+        } else if (query.sortBy === "updatedAt") {
+          if (query.sortDirection === "asc") {
+            conditions.push(
+              `(orders.updated_at, orders.id) > (to_timestamp($/priceOrCreatedAtOrUpdatedAt/), $/id/)`
+            );
+          } else {
+            conditions.push(
+              `(orders.updated_at, orders.id) < (to_timestamp($/priceOrCreatedAtOrUpdatedAt/), $/id/)`
+            );
+          }
         } else {
           conditions.push(
-            `(orders.created_at, orders.id) < (to_timestamp($/priceOrCreatedAt/), $/id/)`
+            `(orders.created_at, orders.id) < (to_timestamp($/priceOrCreatedAtOrUpdatedAt/), $/id/)`
           );
         }
       }
@@ -505,6 +578,12 @@ export const getOrdersBidsV5Options: RouteOptions = {
       // Sorting
       if (query.sortBy === "price") {
         baseQuery += ` ORDER BY orders.value DESC, orders.id DESC`;
+      } else if (query.sortBy === "updatedAt") {
+        if (query.sortDirection === "asc") {
+          baseQuery += ` ORDER BY orders.updated_at ASC, orders.id ASC`;
+        } else {
+          baseQuery += ` ORDER BY orders.updated_at DESC, orders.id DESC`;
+        }
       } else {
         baseQuery += ` ORDER BY orders.created_at DESC, orders.id DESC`;
       }
@@ -519,6 +598,10 @@ export const getOrdersBidsV5Options: RouteOptions = {
         if (query.sortBy === "price") {
           continuation = buildContinuation(
             rawResult[rawResult.length - 1].price + "_" + rawResult[rawResult.length - 1].id
+          );
+        } else if (query.sortBy === "updatedAt") {
+          continuation = buildContinuation(
+            rawResult[rawResult.length - 1].updated_at + "_" + rawResult[rawResult.length - 1].id
           );
         } else {
           continuation = buildContinuation(
@@ -563,6 +646,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
           isReservoir: r.is_reservoir,
           createdAt: r.created_at,
           updatedAt: r.updated_at,
+          originatedAt: r.originated_at,
           includeRawData: query.includeRawData,
           rawData: r.raw_data,
           normalizeRoyalties: query.normalizeRoyalties,

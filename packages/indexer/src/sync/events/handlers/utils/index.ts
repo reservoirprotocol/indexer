@@ -1,3 +1,6 @@
+import { config } from "@/config/index";
+import { logger } from "@/common/logger";
+
 import { Log } from "@ethersproject/abstract-provider";
 
 import { concat } from "@/common/utils";
@@ -6,19 +9,26 @@ import { assignSourceToFillEvents } from "@/events-sync/handlers/utils/fills";
 import { BaseEventParams } from "@/events-sync/parser";
 import * as es from "@/events-sync/storage";
 
-import * as processActivityEvent from "@/jobs/activities/process-activity-event";
 import * as fillUpdates from "@/jobs/fill-updates/queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
-import * as tokenUpdatesMint from "@/jobs/token-updates/mint-queue";
 import * as mintsProcess from "@/jobs/mints/process";
 import * as fillPostProcess from "@/jobs/fill-updates/fill-post-process";
 import { AddressZero } from "@ethersproject/constants";
-import { NftTransferEventData } from "@/jobs/activities/transfer-activity";
-import { FillEventData } from "@/jobs/activities/sale-activity";
-import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
 import { RecalcCollectionOwnerCountInfo } from "@/jobs/collection-updates/recalc-owner-count-queue";
+import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
+import { mintQueueJob, MintQueueJobPayload } from "@/jobs/token-updates/mint-queue-job";
+import {
+  WebsocketEventKind,
+  WebsocketEventRouter,
+} from "@/jobs/websocket-events/websocket-event-router";
+
+import {
+  processActivityEventJob,
+  EventKind as ProcessActivityEventKind,
+  ProcessActivityEventJobPayload,
+} from "@/jobs/activities/process-activity-event-job";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -54,7 +64,7 @@ export type OnChainData = {
 
   // For keeping track of mints and last sales
   fillInfos: fillUpdates.FillInfo[];
-  mintInfos: tokenUpdatesMint.MintInfo[];
+  mintInfos: MintQueueJobPayload[];
   mints: mintsProcess.Mint[];
 
   // For properly keeping orders validated on the go
@@ -112,6 +122,13 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   ]);
   const endPersistEvents = Date.now();
 
+  // concat all fill events
+  const allFillEventsForWebsocket = concat(
+    data.fillEvents,
+    data.fillEventsPartial,
+    data.fillEventsOnChain
+  );
+
   // Persist other events
   const startPersistOtherEvents = Date.now();
   await Promise.all([
@@ -125,6 +142,73 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   ]);
 
   const endPersistOtherEvents = Date.now();
+
+  try {
+    if (config.doOldOrderWebsocketWork) {
+      await Promise.all([
+        ...allFillEventsForWebsocket.map((event) =>
+          WebsocketEventRouter({
+            eventInfo: {
+              tx_hash: event.baseEventParams.txHash,
+              log_index: event.baseEventParams.logIndex,
+              batch_index: event.baseEventParams.batchIndex,
+              trigger: "insert",
+              offset: "",
+            },
+            eventKind: WebsocketEventKind.SaleEvent,
+          })
+        ),
+        ...data.nftApprovalEvents.map((event) =>
+          WebsocketEventRouter({
+            eventInfo: {
+              address: event.baseEventParams.address,
+              block: event.baseEventParams.block.toString(),
+              block_hash: event.baseEventParams.blockHash,
+              timestamp: event.baseEventParams.timestamp.toString(),
+              owner: event.owner,
+              operator: event.operator,
+              approved: event.approved.toString(),
+              tx_hash: event.baseEventParams.txHash,
+              tx_index: event.baseEventParams.txIndex.toString(),
+              log_index: event.baseEventParams.logIndex.toString(),
+              batch_index: event.baseEventParams.batchIndex.toString(),
+              offset: "",
+              trigger: "insert",
+            },
+            eventKind: WebsocketEventKind.ApprovalEvent,
+          })
+        ),
+
+        ...data.nftTransferEvents.map((event) =>
+          WebsocketEventRouter({
+            eventInfo: {
+              address: event.baseEventParams.address,
+              block: event.baseEventParams.block.toString(),
+              block_hash: event.baseEventParams.blockHash,
+              timestamp: event.baseEventParams.timestamp.toString(),
+              tx_hash: event.baseEventParams.txHash,
+              tx_index: event.baseEventParams.txIndex.toString(),
+              log_index: event.baseEventParams.logIndex.toString(),
+              batch_index: event.baseEventParams.batchIndex.toString(),
+              to: event.to,
+              from: event.from,
+              amount: event.amount.toString(),
+              token_id: event.tokenId.toString(),
+              created_at: new Date(event.baseEventParams.timestamp).toISOString(),
+              offset: "",
+              trigger: "insert",
+            },
+            eventKind: WebsocketEventKind.TransferEvent,
+          })
+        ),
+      ]);
+    }
+  } catch (error) {
+    logger.error(
+      "processOnChainData",
+      `Error processing websocket event. error=${JSON.stringify(error)}`
+    );
+  }
 
   // Trigger further processes:
   // - revalidate potentially-affected orders
@@ -143,7 +227,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   }
 
   // Mints and last sales
-  await tokenUpdatesMint.addToQueue(data.mintInfos);
+  await mintQueueJob.addToQueue(data.mintInfos);
   await fillUpdates.addToQueue(data.fillInfos);
   if (!backfill) {
     await mintsProcess.addToQueue(data.mints);
@@ -168,88 +252,55 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     }));
 
   if (recalcCollectionOwnerCountInfo.length) {
-    await collectionRecalcOwnerCount.addToQueue(recalcCollectionOwnerCountInfo);
+    await recalcOwnerCountQueueJob.addToQueue(recalcCollectionOwnerCountInfo);
   }
 
   // Process fill activities
-  const fillActivityInfos: processActivityEvent.EventInfo[] = allFillEvents.map((event) => {
-    let fromAddress = event.maker;
-    let toAddress = event.taker;
-
-    if (event.orderSide === "buy") {
-      fromAddress = event.taker;
-      toAddress = event.maker;
-    }
-
+  const fillActivityInfos: ProcessActivityEventJobPayload[] = allFillEvents.map((event) => {
     return {
-      kind: processActivityEvent.EventKind.fillEvent,
+      kind: ProcessActivityEventKind.fillEvent,
       data: {
-        contract: event.contract,
-        tokenId: event.tokenId,
-        fromAddress,
-        toAddress,
-        price: Number(event.price),
-        amount: Number(event.amount),
         transactionHash: event.baseEventParams.txHash,
         logIndex: event.baseEventParams.logIndex,
         batchIndex: event.baseEventParams.batchIndex,
-        blockHash: event.baseEventParams.blockHash,
-        timestamp: event.baseEventParams.timestamp,
-        orderId: event.orderId || "",
-        orderSourceIdInt: Number(event.orderSourceId),
       },
     };
   });
 
   const startProcessActivityEvent = Date.now();
-  await processActivityEvent.addActivitiesToList(fillActivityInfos);
+  await processActivityEventJob.addToQueue(fillActivityInfos);
   const endProcessActivityEvent = Date.now();
 
-  // Process transfer activities
-  const transferActivityInfos: processActivityEvent.EventInfo[] = data.nftTransferEvents.map(
-    (event) => ({
-      context: [
-        processActivityEvent.EventKind.nftTransferEvent,
-        event.baseEventParams.txHash,
-        event.baseEventParams.logIndex,
-        event.baseEventParams.batchIndex,
-      ].join(":"),
-      kind: processActivityEvent.EventKind.nftTransferEvent,
-      data: {
-        contract: event.baseEventParams.address,
-        tokenId: event.tokenId,
-        fromAddress: event.from,
-        toAddress: event.to,
-        amount: Number(event.amount),
-        transactionHash: event.baseEventParams.txHash,
-        logIndex: event.baseEventParams.logIndex,
-        batchIndex: event.baseEventParams.batchIndex,
-        blockHash: event.baseEventParams.blockHash,
-        timestamp: event.baseEventParams.timestamp,
-      } as NftTransferEventData,
-    })
-  );
-
-  const filteredTransferActivityInfos = transferActivityInfos.filter((transferActivityInfo) => {
-    const transferActivityInfoData = transferActivityInfo.data as NftTransferEventData;
-
-    if (transferActivityInfoData.fromAddress !== AddressZero) {
+  const filteredNftTransferEvents = data.nftTransferEvents.filter((event) => {
+    if (event.from !== AddressZero) {
       return true;
     }
 
     return !fillActivityInfos.some((fillActivityInfo) => {
-      const fillActivityInfoData = fillActivityInfo.data as FillEventData;
+      const fillActivityInfoData = fillActivityInfo.data;
 
       return (
-        fillActivityInfoData.transactionHash === transferActivityInfoData.transactionHash &&
-        fillActivityInfoData.logIndex === transferActivityInfoData.logIndex &&
-        fillActivityInfoData.batchIndex === transferActivityInfoData.batchIndex
+        fillActivityInfoData.transactionHash === event.baseEventParams.txHash &&
+        fillActivityInfoData.logIndex === event.baseEventParams.logIndex &&
+        fillActivityInfoData.batchIndex === event.baseEventParams.batchIndex
       );
     });
   });
 
+  // Process transfer activities
+  const transferActivityInfos: ProcessActivityEventJobPayload[] = filteredNftTransferEvents.map(
+    (event) => ({
+      kind: ProcessActivityEventKind.nftTransferEvent,
+      data: {
+        transactionHash: event.baseEventParams.txHash,
+        logIndex: event.baseEventParams.logIndex,
+        batchIndex: event.baseEventParams.batchIndex,
+      },
+    })
+  );
+
   const startProcessTransferActivityEvent = Date.now();
-  await processActivityEvent.addActivitiesToList(filteredTransferActivityInfos);
+  await processActivityEventJob.addToQueue(transferActivityInfos);
   const endProcessTransferActivityEvent = Date.now();
 
   return {

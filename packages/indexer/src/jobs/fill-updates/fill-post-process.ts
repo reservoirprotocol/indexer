@@ -10,6 +10,10 @@ import * as es from "@/events-sync/storage";
 
 import { assignRoyaltiesToFillEvents } from "@/events-sync/handlers/royalties";
 import { assignWashTradingScoreToFillEvents } from "@/events-sync/handlers/utils/fills";
+import {
+  WebsocketEventKind,
+  WebsocketEventRouter,
+} from "../websocket-events/websocket-event-router";
 
 const QUEUE_NAME = "fill-post-process";
 
@@ -73,6 +77,30 @@ if (config.doBackgroundWork) {
         });
 
         await idb.none(pgp.helpers.concat(queries));
+
+        try {
+          if (config.doOldOrderWebsocketWork) {
+            await Promise.all(
+              allFillEvents.map(async (event) =>
+                WebsocketEventRouter({
+                  eventInfo: {
+                    tx_hash: event.baseEventParams.txHash,
+                    log_index: event.baseEventParams.logIndex,
+                    batch_index: event.baseEventParams.batchIndex,
+                    trigger: "update",
+                    offset: "",
+                  },
+                  eventKind: WebsocketEventKind.SaleEvent,
+                })
+              )
+            );
+          }
+        } catch (error) {
+          logger.error(
+            QUEUE_NAME,
+            `Failed to handle fill info for websocket event ${JSON.stringify(job.data)}: ${error}`
+          );
+        }
       } catch (error) {
         logger.error(
           QUEUE_NAME,

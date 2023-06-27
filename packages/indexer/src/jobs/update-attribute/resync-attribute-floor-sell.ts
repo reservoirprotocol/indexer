@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import _ from "lodash";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
@@ -9,8 +7,8 @@ import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 
 import { redb } from "@/common/db";
-import * as resyncAttributeCache from "@/jobs/update-attribute/resync-attribute-cache";
 import { fromBuffer } from "@/common/utils";
+import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
 
 const QUEUE_NAME = "resync-attribute-floor-value-queue";
 
@@ -63,7 +61,10 @@ if (config.doBackgroundWork) {
         const tokens = await redb.manyOrNone(tokensQuery, { collectionsIds });
 
         _.forEach(tokens, (token) => {
-          resyncAttributeCache.addToQueue(fromBuffer(token.contract), token.token_id, 0);
+          resyncAttributeCacheJob.addToQueue(
+            { contract: fromBuffer(token.contract), tokenId: token.token_id },
+            0
+          );
         });
 
         job.data.cursor = null;

@@ -32,14 +32,14 @@ export const queue = new Queue(QUEUE_NAME, {
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork && config.doWebsocketServerWork) {
+if (config.doBackgroundWork && config.doWebsocketServerWork && config.kafkaBrokers.length > 0) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
       const { data } = job.data as EventInfo;
 
       try {
-        const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
+        const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", true);
 
         const rawResult = await idb.oneOrNone(
           `
@@ -137,7 +137,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             undefined
           ),
           validFrom: Number(rawResult.valid_from),
-          validUntil: Number(rawResult.valid_until),
+          validUntil: Number(rawResult.valid_until) || 0,
           quantityFilled: Number(rawResult.quantity_filled),
           quantityRemaining: Number(rawResult.quantity_remaining),
           criteria: rawResult.criteria,
@@ -170,8 +170,11 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           tags: {
             contract: fromBuffer(rawResult.contract),
             source: result.source.domain || "unknown",
+            maker: fromBuffer(rawResult.maker),
+            taker: fromBuffer(rawResult.taker),
           },
           data: result,
+          offset: data.offset,
         });
       } catch (error) {
         logger.error(
@@ -199,6 +202,7 @@ export type AskWebsocketEventInfo = {
   orderId: string;
   kind: string;
   trigger: "insert" | "update";
+  offset: string;
 };
 
 export const addToQueue = async (events: EventInfo[]) => {

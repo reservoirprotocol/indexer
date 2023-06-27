@@ -7,10 +7,10 @@ import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { syncEvents } from "@/events-sync/index";
-import * as eventsSyncBackfill from "@/jobs/events-sync/backfill-queue";
 import tracer from "@/common/tracer";
 import _, { now } from "lodash";
 import cron from "node-cron";
+import { eventsSyncBackfillJob } from "@/jobs/events-sync/events-sync-backfill-job";
 
 const QUEUE_NAME = "events-sync-realtime";
 
@@ -74,7 +74,7 @@ if (
                 fromBlock - localBlock
               }`
             );
-            await eventsSyncBackfill.addToQueue(localBlock, fromBlock - 1);
+            await eventsSyncBackfillJob.addToQueue(localBlock, fromBlock - 1);
           }
 
           // To avoid missing any events, save the last synced block with a delay
@@ -113,25 +113,19 @@ if (
 
   // Monitor the job as bullmq has bugs and job might be stuck and needs to be manually removed
   cron.schedule(`*/${getNetworkSettings().realtimeSyncFrequencySeconds} * * * * *`, async () => {
-    if (_.includes([1, 137, 42161, 10], config.chainId)) {
-      const job = await queue.getJob(`${config.chainId}`);
+    const job = await queue.getJob(`${config.chainId}`);
 
-      if (job && (await job.isFailed())) {
-        logger.info(QUEUE_NAME, `removing failed job ${job.timestamp} now = ${now()}`);
-        await job.remove();
-      } else if (job && _.toInteger(job.timestamp) < now() - 45 * 1000) {
-        logger.info(QUEUE_NAME, `removing stale job ${job.timestamp} now = ${now()}`);
-        await job.remove();
-      }
+    if (job && (await job.isFailed())) {
+      logger.info(QUEUE_NAME, `removing failed job ${job.timestamp} now = ${now()}`);
+      await job.remove();
+    } else if (job && _.toInteger(job.timestamp) < now() - 45 * 1000) {
+      logger.info(QUEUE_NAME, `removing stale job ${job.timestamp} now = ${now()}`);
+      await job.remove();
     }
   });
 }
 
 export const addToQueue = async () => {
-  let jobId;
-  if (_.includes([1, 137, 42161, 10], config.chainId)) {
-    jobId = `${config.chainId}`;
-  }
-
+  const jobId = `${config.chainId}`;
   await queue.add(randomUUID(), {}, { jobId });
 };

@@ -136,13 +136,6 @@ export const assignWashTradingScoreToFillEvents = async (fillEvents: es.fills.Ev
         });
       }
 
-      if (washTradingDetected) {
-        logger.info(
-          "assign-wash-trading-score-to-fill-events",
-          `Wash trading detected on event: ${JSON.stringify(event)}`
-        );
-      }
-
       fillEvents[index].washTradingScore = Number(washTradingDetected);
     });
   } catch (error) {

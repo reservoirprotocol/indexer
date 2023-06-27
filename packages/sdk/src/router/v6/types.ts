@@ -143,6 +143,10 @@ export type GenericOrder =
   | {
       kind: "looks-rare-v2";
       order: Sdk.LooksRareV2.Order;
+    }
+  | {
+      kind: "sudoswap-v2";
+      order: Sdk.SudoswapV2.Order;
     };
 
 // Listings

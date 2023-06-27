@@ -3,7 +3,8 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
-import { detectMint } from "@/utils/mints/calldata/detector";
+import { simulateAndUpsertCollectionMint } from "@/orderbook/mints";
+import { extractByTx } from "@/orderbook/mints/calldata/detector";
 
 const QUEUE_NAME = "mints-process";
 
@@ -30,9 +31,17 @@ if (config.doBackgroundWork) {
       const { txHash } = job.data as Mint;
 
       try {
-        await detectMint(txHash);
-      } catch (error) {
-        logger.error(QUEUE_NAME, `Failed to process mint ${JSON.stringify(job.data)}: ${error}`);
+        const collectionMints = await extractByTx(txHash);
+        for (const collectionMint of collectionMints) {
+          const result = await simulateAndUpsertCollectionMint(collectionMint);
+          logger.info("mints-process", JSON.stringify({ success: result, collectionMint }));
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        logger.error(
+          QUEUE_NAME,
+          `Failed to process mint ${JSON.stringify(job.data)}: ${error} (${error.stack})`
+        );
         throw error;
       }
     },

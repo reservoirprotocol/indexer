@@ -54,6 +54,9 @@ export const getNetworkName = () => {
     case 999:
       return "zora-testnet";
 
+    case 7777777:
+      return "zora";
+
     default:
       return "unknown";
   }
@@ -122,6 +125,7 @@ type NetworkSettings = {
   nonSimulatableContracts: string[];
   mintsAsSalesBlacklist: string[];
   mintAddresses: string[];
+  burnAddresses: string[];
   multiCollectionContracts: string[];
   whitelistedCurrencies: Map<string, Currency>;
   supportedBidCurrencies: { [currency: string]: boolean };
@@ -135,6 +139,8 @@ type NetworkSettings = {
     numberOfShards?: number;
     indexes?: { [index: string]: ElasticsearchIndexSettings };
   };
+
+  copyrightInfringementContracts: string[];
 };
 
 type ElasticsearchIndexSettings = {
@@ -160,6 +166,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     multiCollectionContracts: [],
     mintsAsSalesBlacklist: [],
     mintAddresses: [AddressZero],
+    burnAddresses: [AddressZero, "0x000000000000000000000000000000000000dead"],
     reorgCheckFrequency: [1, 5, 10, 30, 60], // In minutes
     whitelistedCurrencies: new Map<string, Currency>(),
     supportedBidCurrencies: { [Sdk.Common.Addresses.Weth[config.chainId]?.toLowerCase()]: true },
@@ -167,6 +174,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     elasticsearch: {
       numberOfShards: 2,
     },
+    copyrightInfringementContracts: [],
   };
 
   switch (config.chainId) {
@@ -200,6 +208,7 @@ export const getNetworkSettings = (): NetworkSettings => {
           "0x81c6686fbe1594d599ac86a0d8e81d84a2f9bcf2",
           "0x06d51314d152ca4f88d691f87b40cf3bf453df7c",
           "0x39fdf1b13dd5b86eb8b7fdd50bce4607beae0722",
+          "0x63605e53d422c4f1ac0e01390ac59aaf84c44a51",
         ],
         multiCollectionContracts: [
           // ArtBlocks Contracts
@@ -313,6 +322,19 @@ export const getNetworkSettings = (): NetworkSettings => {
               },
             },
           ],
+          [
+            "0xd2d8d78087d0e43bc4804b6f946674b2ee406b80",
+            {
+              contract: "0xd2d8d78087d0e43bc4804b6f946674b2ee406b80",
+              name: "RugBank Token",
+              symbol: "RUG",
+              decimals: 18,
+              metadata: {
+                image:
+                  "https://raw.githubusercontent.com/dappradar/tokens/main/ethereum/0xd2d8d78087d0e43bc4804b6f946674b2ee406b80/logo.png",
+              },
+            },
+          ],
         ]),
         coingecko: {
           networkId: "ethereum",
@@ -324,6 +346,16 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           },
         },
+        copyrightInfringementContracts: [
+          "0x783a32eb03a1175160d210cc99c79e6370a48317",
+          "0xc80ee060c83895d6debb5eb37bf60d4d2f7eb271",
+          "0x45dcf807722e43ba152d8033252398001f438817",
+          "0x7219f3a405844a4173ac822ee18994823bec2b4f",
+          "0x182d9d5680c2c0f50b6d40169a3a27cb94b1f2fe",
+          "0xaf7416127f127f82b4ed7b0818fbd2b3e5c0e07a",
+          "0xb8f2de4905576c18633a7b4b1a5422fa8ae2a8b5",
+          "0xe2997a26fa424361eb6e7dc6a42ef7f72134d26e",
+        ],
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
@@ -387,6 +419,7 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           },
         },
+        copyrightInfringementContracts: ["0xad4f49887473c585d2364d29c3255bb5c00b8ee3"],
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
@@ -552,6 +585,10 @@ export const getNetworkSettings = (): NetworkSettings => {
           // CONE
           "0xba777ae3a3c91fcd83ef85bfe65410592bdd0f7c": true,
         },
+        copyrightInfringementContracts: [
+          "0xcf77e25cf1bfc57634bb7b95887b7120935a0d7f",
+          "0x27bde07c5d651856c483583899ed6823da3648b7",
+        ],
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
@@ -735,7 +772,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
-        headBlockDelay: 10,
         subDomain: "api-sepolia",
         onStartup: async () => {
           // Insert the native currency
@@ -769,7 +805,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
-        headBlockDelay: 10,
         subDomain: "api-mumbai",
         elasticsearch: {
           indexes: {
@@ -810,7 +845,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
-        headBlockDelay: 10,
         subDomain: "api-base-goerli",
         elasticsearch: {
           indexes: {
@@ -851,7 +885,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
-        headBlockDelay: 10,
         subDomain: "api-arbitrum-nova",
         elasticsearch: {
           indexes: {
@@ -892,8 +925,40 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
-        headBlockDelay: 10,
         subDomain: "api-zora-testnet",
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // Zora
+    case 7777777: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        subDomain: "api-zora",
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([

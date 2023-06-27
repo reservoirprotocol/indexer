@@ -299,6 +299,7 @@ export const JoiOrder = Joi.object({
   isDynamic: Joi.boolean(),
   createdAt: Joi.string().required().description("Time when added to indexer"),
   updatedAt: Joi.string().required().description("Time when updated in indexer"),
+  originatedAt: Joi.string().allow(null).description("Time when created by maker"),
   rawData: Joi.object().optional().allow(null),
   isNativeOffChainCancellable: Joi.boolean().optional(),
   depth: JoiOrderDepth,
@@ -332,7 +333,7 @@ export const getJoiDynamicPricingObject = async (
         .reduce((a, b) => a.add(b), bn(0))
     : bn(0);
 
-  if (dynamic && (kind === "seaport" || kind === "seaport-v1.4")) {
+  if (dynamic && (kind === "seaport" || kind === "seaport-v1.4" || kind === "seaport-v1.5")) {
     const order = new Sdk.SeaportV14.Order(
       config.chainId,
       raw_data as Sdk.SeaportBase.Types.OrderComponents
@@ -370,7 +371,7 @@ export const getJoiDynamicPricingObject = async (
         },
       },
     };
-  } else if (kind === "sudoswap") {
+  } else if (kind === "sudoswap" || kind === "sudoswap-v2") {
     // Pool orders
     return {
       kind: "pool",
@@ -452,7 +453,8 @@ export const getJoiOrderDepthObject = async (
   const scale = (value: number) => Number(value.toFixed(precisionDecimals));
 
   switch (kind) {
-    case "sudoswap": {
+    case "sudoswap":
+    case "sudoswap-v2": {
       const order = rawData as Sdk.Sudoswap.OrderParams;
       return Promise.all(
         order.extra.prices.map(async (price) => ({
@@ -568,6 +570,7 @@ export const getJoiOrderObject = async (order: {
   isReservoir: boolean;
   createdAt: number;
   updatedAt: number;
+  originatedAt: number | null;
   includeRawData: boolean;
   rawData:
     | Sdk.SeaportBase.Types.OrderComponents
@@ -682,9 +685,10 @@ export const getJoiOrderObject = async (order: {
       order.dynamic !== undefined ? Boolean(order.dynamic || order.kind === "sudoswap") : undefined,
     createdAt: new Date(order.createdAt * 1000).toISOString(),
     updatedAt: new Date(order.updatedAt * 1000).toISOString(),
+    originatedAt: order.originatedAt ? new Date(order.originatedAt).toISOString() : null,
     rawData: order.includeRawData ? order.rawData : undefined,
     isNativeOffChainCancellable: order.includeRawData
-      ? (order.rawData as any).zone ===
+      ? (order.rawData as any)?.zone ===
         Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
       : undefined,
     depth: order.includeDepth
