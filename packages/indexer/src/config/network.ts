@@ -586,6 +586,14 @@ export const getNetworkSettings = (): NetworkSettings => {
         lastBlockLatency: 5,
         headBlockDelay: 10,
         subDomain: "api-arbitrum",
+        washTradingExcludedContracts: [
+          // Prohibition Contracts - ArtBlocks Engine
+          "0x47A91457a3a1f700097199Fd63c039c4784384aB",
+        ],
+        multiCollectionContracts: [
+          // Prohibition Contracts - ArtBlocks Engine
+          "0x47A91457a3a1f700097199Fd63c039c4784384aB",
+        ],
         coingecko: {
           networkId: "arbitrum-one",
         },
