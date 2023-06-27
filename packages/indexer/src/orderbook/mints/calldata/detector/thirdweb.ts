@@ -17,7 +17,14 @@ import {
   simulateAndUpsertCollectionMint,
 } from "@/orderbook/mints";
 import { fetchMetadata, getStatus, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
-import { AllowlistItem, allowlistExists, createAllowlist } from "@/orderbook/mints/allowlists";
+import {
+  AllowlistItem,
+  allowlistExists,
+  createAllowlist,
+  getAllowlist,
+} from "@/orderbook/mints/allowlists";
+
+const STANDARD = "thirdweb";
 
 export const extractByCollection = async (
   collection: string,
@@ -91,7 +98,7 @@ export const extractByCollection = async (
           stage: `claim-${claimConditionId}`,
           kind: "public",
           status: "open",
-          standard: "thirdweb",
+          standard: STANDARD,
           details: {
             tx: {
               to: collection,
@@ -187,7 +194,7 @@ export const extractByCollection = async (
             stage: `claim-${claimConditionId}`,
             kind: "allowlist",
             status: "open",
-            standard: "thirdweb",
+            standard: STANDARD,
             details: {
               tx: {
                 to: collection,
@@ -243,7 +250,7 @@ export const extractByCollection = async (
       }
     }
   } catch (error) {
-    logger.error("mint-detector", JSON.stringify({ kind: "thirdweb", error }));
+    logger.error("mint-detector", JSON.stringify({ kind: STANDARD, error }));
   }
 
   // Update the status of each collection mint
@@ -297,7 +304,7 @@ export const extractByTx = async (
 };
 
 export const refreshByCollection = async (collection: string) => {
-  const existingCollectionMints = await getCollectionMints(collection, { standard: "thirdweb" });
+  const existingCollectionMints = await getCollectionMints(collection, { standard: STANDARD });
 
   const uniqueTokenIds = [...new Set(existingCollectionMints.map(({ tokenId }) => tokenId))];
   for (const tokenId of uniqueTokenIds) {
@@ -370,7 +377,14 @@ const generateMerkleTree = (
   };
 };
 
-export const generateProofValue = (items: AllowlistItem[], address: string) => {
+type ProofValue = [string[], string, string, string];
+
+export const generateProofValue = async (
+  collectionMint: CollectionMint,
+  address: string
+): Promise<ProofValue> => {
+  const items = await getAllowlist(collectionMint.allowlistId!);
+
   const { roots, shards, tree } = generateMerkleTree(items);
 
   const shardId = address.slice(2, 2 + SHARD_NYBBLES).toLowerCase();
@@ -383,5 +397,10 @@ export const generateProofValue = (items: AllowlistItem[], address: string) => {
 
   const item = items.find((i) => i.address === address)!;
   const itemProof = shardTree.getHexProof(hashFn(item));
-  return [itemProof.concat(shardProof), item.maxMints ?? 0, item.price ?? MaxUint256, AddressZero];
+  return [
+    itemProof.concat(shardProof),
+    item.maxMints ?? "0",
+    item.price ?? MaxUint256.toString(),
+    AddressZero,
+  ];
 };

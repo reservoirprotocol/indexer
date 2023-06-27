@@ -581,6 +581,7 @@ export const savePartialListings = async (
         "dynamic",
         "raw_data",
         { name: "expiration", mod: ":raw" },
+        "originated_at",
       ],
       {
         table: "orders",

@@ -299,6 +299,7 @@ export const JoiOrder = Joi.object({
   isDynamic: Joi.boolean(),
   createdAt: Joi.string().required().description("Time when added to indexer"),
   updatedAt: Joi.string().required().description("Time when updated in indexer"),
+  originatedAt: Joi.string().allow(null).description("Time when created by maker"),
   rawData: Joi.object().optional().allow(null),
   isNativeOffChainCancellable: Joi.boolean().optional(),
   depth: JoiOrderDepth,
@@ -569,6 +570,7 @@ export const getJoiOrderObject = async (order: {
   isReservoir: boolean;
   createdAt: number;
   updatedAt: number;
+  originatedAt: number | null;
   includeRawData: boolean;
   rawData:
     | Sdk.SeaportBase.Types.OrderComponents
@@ -683,6 +685,7 @@ export const getJoiOrderObject = async (order: {
       order.dynamic !== undefined ? Boolean(order.dynamic || order.kind === "sudoswap") : undefined,
     createdAt: new Date(order.createdAt * 1000).toISOString(),
     updatedAt: new Date(order.updatedAt * 1000).toISOString(),
+    originatedAt: order.originatedAt ? new Date(order.originatedAt).toISOString() : null,
     rawData: order.includeRawData ? order.rawData : undefined,
     isNativeOffChainCancellable: order.includeRawData
       ? (order.rawData as any)?.zone ===

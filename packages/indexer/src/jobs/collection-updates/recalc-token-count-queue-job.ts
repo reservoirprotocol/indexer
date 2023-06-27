@@ -31,11 +31,14 @@ export class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler {
     });
   }
 
-  public async addToQueue(collection: RecalcTokenCountQueueJobPayload) {
-    await this.send({
-      payload: collection,
-      jobId: collection.force ? undefined : collection.collection,
-    });
+  public async addToQueue(collection: RecalcTokenCountQueueJobPayload, delay = 5 * 60 * 1000) {
+    await this.send(
+      {
+        payload: collection,
+        jobId: collection.force ? undefined : collection.collection,
+      },
+      collection.force ? 0 : delay
+    );
   }
 }
 

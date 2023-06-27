@@ -60,6 +60,7 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
   }
 
   // Make sure that every mint in the transaction is associated to the same collection
+  const tokenIds = transfers.map((t) => t.tokenId);
   const collectionsResult = await idb.manyOrNone(
     `
       SELECT
@@ -70,7 +71,7 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
     `,
     {
       contract: toBuffer(contract),
-      tokenIds: transfers.map((t) => t.tokenId),
+      tokenIds,
     }
   );
   if (!collectionsResult.length) {
@@ -135,7 +136,7 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
   }
 
   // Manifold
-  const manifoldResults = await manifold.extractByTx(collection, tx);
+  const manifoldResults = await manifold.extractByTx(collection, tokenIds[0], tx);
   if (manifoldResults.length) {
     return manifoldResults;
   }
@@ -147,7 +148,7 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
   }
 
   // Seadrop
-  const seadropResults = await seadrop.extractByTx(collection, contract, tx);
+  const seadropResults = await seadrop.extractByTx(collection, tx);
   if (seadropResults.length) {
     return seadropResults;
   }
@@ -161,7 +162,6 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
   // Generic
   const genericResults = await generic.extractByTx(
     collection,
-    contract,
     tx,
     pricePerAmountMinted,
     amountMinted

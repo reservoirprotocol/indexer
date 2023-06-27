@@ -4,9 +4,10 @@ import { TxData } from "@reservoir0x/sdk/src/utils";
 import { idb } from "@/common/db";
 import { bn, toBuffer } from "@/common/utils";
 import { CollectionMint } from "@/orderbook/mints";
-import { getAllowlist } from "@/orderbook/mints/allowlists";
 
 import * as Generic from "@/orderbook/mints/calldata/detector/generic";
+import * as Manifold from "@/orderbook/mints/calldata/detector/manifold";
+import * as Seadrop from "@/orderbook/mints/calldata/detector/seadrop";
 import * as Thirdweb from "@/orderbook/mints/calldata/detector/thirdweb";
 import * as Zora from "@/orderbook/mints/calldata/detector/zora";
 
@@ -42,7 +43,7 @@ export type MintTxSchema = {
   };
 };
 
-export type CustomInfo = Zora.Info;
+export type CustomInfo = Manifold.Info;
 
 export const generateCollectionMintTxData = async (
   collectionMint: CollectionMint,
@@ -111,13 +112,11 @@ export const generateCollectionMintTxData = async (
         let abiValue: any;
 
         switch (collectionMint.standard) {
-          case "zora": {
+          case "manifold": {
             if (allowlistItemIndex === 0) {
-              abiValue = allowlistData.max_mints;
-            } else if (allowlistItemIndex === 1) {
-              abiValue = allowlistData.price;
+              abiValue = [(await Manifold.generateProofValue(collectionMint, minter)).value];
             } else {
-              abiValue = await Zora.generateProofValue(collectionMint.allowlistId!, minter);
+              abiValue = [(await Manifold.generateProofValue(collectionMint, minter)).merkleProof];
             }
 
             break;
@@ -127,10 +126,19 @@ export const generateCollectionMintTxData = async (
             if (allowlistItemIndex === 0) {
               abiValue = allowlistData.price ?? collectionMint.price;
             } else {
-              abiValue = Thirdweb.generateProofValue(
-                await getAllowlist(collectionMint.allowlistId!),
-                minter
-              );
+              abiValue = await Thirdweb.generateProofValue(collectionMint, minter);
+            }
+
+            break;
+          }
+
+          case "zora": {
+            if (allowlistItemIndex === 0) {
+              abiValue = allowlistData.max_mints;
+            } else if (allowlistItemIndex === 1) {
+              abiValue = allowlistData.price;
+            } else {
+              abiValue = await Zora.generateProofValue(collectionMint, minter);
             }
 
             break;
@@ -203,10 +211,14 @@ export const refreshMintsForCollection = async (collection: string) => {
   );
   if (standardResult) {
     switch (standardResult.standard) {
-      case "unknown":
-        return Generic.refreshByCollection(collection);
+      case "manifold":
+        return Manifold.refreshByCollection(collection);
+      case "seadrop-v1.0":
+        return Seadrop.refreshByCollection(collection);
       case "thirdweb":
         return Thirdweb.refreshByCollection(collection);
+      case "unknown":
+        return Generic.refreshByCollection(collection);
       case "zora":
         return Zora.refreshByCollection(collection);
     }

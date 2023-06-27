@@ -6,6 +6,7 @@ import axios from "axios";
 
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
+import { redis } from "@/common/redis";
 import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 import { Transaction } from "@/models/transactions";
@@ -17,9 +18,7 @@ import {
 import { AllowlistItem, allowlistExists, createAllowlist } from "@/orderbook/mints/allowlists";
 import { getStatus, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
 
-export type Info = {
-  merkleRoot?: string;
-};
+const STANDARD = "zora";
 
 export const extractByCollection = async (collection: string): Promise<CollectionMint[]> => {
   const c = new Contract(
@@ -63,7 +62,7 @@ export const extractByCollection = async (collection: string): Promise<Collectio
         stage: "public-sale",
         kind: "public",
         status: "open",
-        standard: "zora",
+        standard: STANDARD,
         details: {
           tx: {
             to: collection,
@@ -119,7 +118,7 @@ export const extractByCollection = async (collection: string): Promise<Collectio
         stage: "presale",
         kind: "allowlist",
         status: "open",
-        standard: "zora",
+        standard: STANDARD,
         details: {
           tx: {
             to: collection,
@@ -146,9 +145,6 @@ export const extractByCollection = async (collection: string): Promise<Collectio
               ],
             },
           },
-          info: {
-            merkleRoot,
-          },
         },
         currency: Sdk.Common.Addresses.Eth[config.chainId],
         maxSupply: saleDetails.maxSupply.toString(),
@@ -158,7 +154,7 @@ export const extractByCollection = async (collection: string): Promise<Collectio
       });
     }
   } catch (error) {
-    logger.error("mint-detector", JSON.stringify({ kind: "zora", error }));
+    logger.error("mint-detector", JSON.stringify({ kind: STANDARD, error }));
   }
 
   // Update the status of each collection mint
@@ -190,7 +186,7 @@ export const extractByTx = async (
 };
 
 export const refreshByCollection = async (collection: string) => {
-  const existingCollectionMints = await getCollectionMints(collection, { standard: "zora" });
+  const existingCollectionMints = await getCollectionMints(collection, { standard: STANDARD });
 
   // Fetch and save/update the currently available mints
   const latestCollectionMints = await extractByCollection(collection);
@@ -217,8 +213,28 @@ export const refreshByCollection = async (collection: string) => {
   }
 };
 
-export const generateProofValue = (allowlistId: string, address: string) => {
-  return axios
-    .get(`https://allowlist.zora.co/allowed?user=${address}&root=${allowlistId}`)
-    .then(({ data }: { data: { proof: string[] }[] }) => data[0].proof.map((item) => `0x${item}`));
+type ProofValue = string[];
+
+export const generateProofValue = async (
+  collectionMint: CollectionMint,
+  address: string
+): Promise<ProofValue> => {
+  const cacheKey = `${collectionMint.collection}-${collectionMint.stage}-${collectionMint.tokenId}`;
+
+  let result: ProofValue = await redis
+    .get(cacheKey)
+    .then((response) => (response ? JSON.parse(response) : undefined));
+  if (!result) {
+    result = await axios
+      .get(`https://allowlist.zora.co/allowed?user=${address}&root=${collectionMint.allowlistId}`)
+      .then(({ data }: { data: { proof: string[] }[] }) =>
+        data[0].proof.map((item) => `0x${item}`)
+      );
+
+    if (result) {
+      await redis.set(cacheKey, JSON.stringify(result), "EX", 3600);
+    }
+  }
+
+  return result;
 };

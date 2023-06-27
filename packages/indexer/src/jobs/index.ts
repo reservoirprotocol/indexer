@@ -50,8 +50,10 @@ import * as backfillWrongNftBalances from "@/jobs/backfill/backfill-wrong-nft-ba
 import * as backfillFoundationOrders from "@/jobs/backfill/backfill-foundation-orders";
 import * as backfillLooksrareFills from "@/jobs/backfill/backfill-looks-rare-fills";
 import * as backfillCollectionsIds from "@/jobs/backfill/backfill-collections-ids";
+import * as backfillNftTransferEventsUpdatedAt from "@/jobs/backfill/backfill-nft-transfer-events-updated-at";
 
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
+import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
 
 import * as tokenSetUpdatesTopBid from "@/jobs/token-set-updates/top-bid-queue";
 
@@ -183,6 +185,8 @@ import { eventsSyncProcessBackfillJob } from "@/jobs/events-sync/process/events-
 import { openseaBidsQueueJob } from "@/jobs/orderbook/opensea-bids-queue-job";
 import { processResyncRequestJob } from "@/jobs/events-sync/process-resync-request-queue-job";
 import { eventsSyncBackfillJob } from "@/jobs/events-sync/events-sync-backfill-job";
+import { blockCheckJob } from "@/jobs/events-sync/block-check-queue-job";
+import { collectionNormalizedJob } from "@/jobs/collection-updates/collection-normalized-floor-queue-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -216,8 +220,10 @@ export const allJobQueues = [
   backfillBlurSales.queue,
   backfillLooksrareFills.queue,
   backfillCollectionsIds.queue,
+  backfillNftTransferEventsUpdatedAt.queue,
 
   collectionUpdatesFloorAsk.queue,
+  collectionUpdatesNormalizedFloorAsk.queue,
 
   tokenSetUpdatesTopBid.queue,
 
@@ -357,6 +363,8 @@ export class RabbitMqJobsConsumer {
       openseaBidsQueueJob,
       processResyncRequestJob,
       eventsSyncBackfillJob,
+      blockCheckJob,
+      collectionNormalizedJob,
     ];
   }
 

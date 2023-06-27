@@ -20,13 +20,13 @@ import { Sources } from "@/models/sources";
 import { ContractSets } from "@/models/contract-sets";
 import { Orders } from "@/utils/orders";
 
-const version = "v5";
+const version = "v6";
 
-export const getOrdersBidsV5Options: RouteOptions = {
+export const getOrdersBidsV6Options: RouteOptions = {
   description: "Bids (offers)",
   notes:
     "Get a list of bids (offers), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing.\n\n There are a different kind of bids than can be returned:\n\n- Inputting a 'contract' will return token and attribute bids.\n\n- Inputting a 'collection-id' will return collection wide bids./n/n Please mark `excludeEOA` as `true` to exclude Blur orders.",
-  tags: ["api", "Orders", "x-deprecated"],
+  tags: ["api", "Orders"],
   plugins: {
     "hapi-swagger": {
       order: 5,
@@ -111,10 +111,13 @@ export const getOrdersBidsV5Options: RouteOptions = {
         .description(
           "activeª^º = currently valid\ninactiveª^ = temporarily invalid\nexpiredª^, canceledª^, filledª^ = permanently invalid\nanyªº = any status\nª when an `id` is passed\n^ when a `maker` is passed\nº when a `contract` is passed"
         ),
-      source: Joi.string()
-        .pattern(regex.domain)
+      sources: Joi.alternatives()
+        .try(
+          Joi.array().max(80).items(Joi.string().pattern(regex.domain)),
+          Joi.string().pattern(regex.domain)
+        )
         .description(
-          "Filter to a source by domain. Only active listed will be returned. Must set `rawData=true` to reveal individual bids when `source=blur.io`. Example: `opensea.io`"
+          "Filter to sources by domain. Only active listed will be returned. Must set `rawData=true` to reveal individual bids when `sources=blur.io`. Setting `sources=blur.io` does not support additional sources. Example: `opensea.io`"
         ),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
       includeCriteriaMetadata: Joi.boolean()
@@ -139,6 +142,12 @@ export const getOrdersBidsV5Options: RouteOptions = {
         .description(
           "Exclude orders that can only be filled by EOAs, to support filling with smart contracts."
         ),
+      excludeSources: Joi.alternatives()
+        .try(
+          Joi.array().max(80).items(Joi.string().pattern(regex.domain)),
+          Joi.string().pattern(regex.domain)
+        )
+        .description("Exclude orders from a list of sources. Example: `opensea.io`"),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
@@ -176,6 +185,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
         "collectionsSetId",
         "contractsSetId"
       )
+      .oxor("sources", "excludeSources")
       .with("community", "maker")
       .with("collectionsSetId", "maker")
       .with("attribute", "collection"),
@@ -198,7 +208,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
       // table to fetch all the bids of a particular maker. However, filtering
       // by `maker` and `source=blur.io` will result in making a call to Blur,
       // which will return the requested bids.
-      if (query.source === "blur.io" && query.maker) {
+      if (query.sources === "blur.io" && query.maker) {
         if (config.chainId !== 1) {
           return {
             orders: [],
@@ -211,7 +221,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
         }
 
         const sources = await Sources.getInstance();
-        const source = sources.getByDomain(query.source);
+        const source = sources.getByDomain(query.sources);
 
         const result: { contract: string; price: string; quantity: number }[] = await axios
           .get(`${config.orderFetcherBaseUrl}/api/blur-user-collection-bids?user=${query.maker}`)
@@ -517,16 +527,45 @@ export const getOrdersBidsV5Options: RouteOptions = {
         }
       }
 
-      if (query.source) {
+      if (query.sources && query.sources != "blur.io") {
         const sources = await Sources.getInstance();
-        const source = sources.getByDomain(query.source);
 
-        if (!source) {
+        if (!Array.isArray(query.sources)) {
+          query.sources = [query.sources];
+        } else if (query.sources.indexOf("blur.io") != -1) {
+          throw Boom.badRequest(`Cannot filter by additional sources with blur.io`);
+        }
+
+        (query as any).sourceIds = query.sources
+          .map((source: string) => sources.getByDomain(source)?.id ?? 0)
+          .filter((id: number) => id != 0);
+
+        if (_.isEmpty(query.sourceIds)) {
           return { orders: [] };
         }
 
-        (query as any).source = source.id;
-        conditions.push(`orders.source_id_int = $/source/`);
+        conditions.push(`orders.source_id_int IN ($/sourceIds:csv/)`);
+      }
+
+      if (query.excludeSources) {
+        const sources = await Sources.getInstance();
+
+        if (!Array.isArray(query.excludeSources)) {
+          query.excludeSources = [query.excludeSources];
+        }
+
+        (query as any).excludeSourceIds = query.excludeSources
+          .map((source: string) => sources.getByDomain(source)?.id ?? 0)
+          .filter((id: number) => id != 0);
+
+        if (!_.isEmpty(query.excludeSourceIds)) {
+          conditions.push(
+            `orders.source_id_int IN (
+                    SELECT id FROM sources_v2 sv
+                    WHERE id NOT IN ($/excludeSourceIds:csv/)
+                )`
+          );
+        }
       }
 
       if (query.native) {

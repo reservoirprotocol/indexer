@@ -72,6 +72,7 @@ export class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
     const tokenUrlArbitrum = this.getTokenUrl(html, url, "arbitrum");
     const tokenUrlOptimism = this.getTokenUrl(html, url, "optimism");
     const tokenUrlBsc = this.getTokenUrl(html, url, "bsc");
+    const tokenUrlZora = this.getTokenUrl(html, url, "zora");
 
     // Update the source data
     const sources = await Sources.getInstance();
@@ -85,6 +86,7 @@ export class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
       tokenUrlOptimism,
       tokenUrlBsc,
       tokenUrlGoerli,
+      tokenUrlZora,
     });
   }
 
