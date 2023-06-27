@@ -19,12 +19,11 @@ import * as royalties from "@/utils/royalties";
 import { refreshMintsForCollection } from "@/orderbook/mints/calldata";
 
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
-import * as refreshActivitiesCollectionMetadata from "@/jobs/elasticsearch/refresh-activities-collection-metadata";
 
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
+import { refreshActivitiesCollectionMetadataJob } from "@/jobs/activities/refresh-activities-collection-metadata-job";
 
-import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 
 export class Collections {
@@ -200,24 +199,16 @@ export class Collections {
     const result = await idb.oneOrNone(query, values);
 
     if (
-      config.doElasticsearchWork &&
-      (isCopyrightInfringementContract ||
-        result?.old_metadata.name != collection.name ||
-        result?.old_metadata.metadata.imageUrl != (collection.metadata as any)?.imageUrl)
+      isCopyrightInfringementContract ||
+      result?.old_metadata.name != collection.name ||
+      result?.old_metadata.metadata.imageUrl != (collection.metadata as any)?.imageUrl
     ) {
-      logger.info(
-        "updateCollectionCache",
-        JSON.stringify({
-          message: `Metadata refresh.`,
-          isCopyrightInfringementContract,
-          collection,
-          result,
-        })
-      );
-
-      await refreshActivitiesCollectionMetadata.addToQueue(collection.id, {
-        name: collection.name || null,
-        image: (collection.metadata as any)?.imageUrl || null,
+      await refreshActivitiesCollectionMetadataJob.addToQueue({
+        collectionId: collection.id,
+        collectionUpdateData: {
+          name: collection.name || null,
+          image: (collection.metadata as any)?.imageUrl || null,
+        },
       });
     }
 

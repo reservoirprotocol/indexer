@@ -9,12 +9,12 @@ import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { ridb } from "@/common/db";
 
-import * as backfillTransfers from "@/jobs/elasticsearch/backfill-transfer-activities-elasticsearch";
-import * as backfillSales from "@/jobs/elasticsearch/backfill-sale-activities-elasticsearch";
-import * as backfillAsks from "@/jobs/elasticsearch/backfill-ask-activities-elasticsearch";
-import * as backfillAskCancels from "@/jobs/elasticsearch/backfill-ask-cancel-activities-elasticsearch";
-import * as backfillBids from "@/jobs/elasticsearch/backfill-bid-activities-elasticsearch";
-import * as backfillBidCancels from "@/jobs/elasticsearch/backfill-bid-cancel-activities-elasticsearch";
+import * as backfillTransfers from "@/jobs/activities/backfill/backfill-transfer-activities-elasticsearch";
+import * as backfillSales from "@/jobs/activities/backfill/backfill-sale-activities-elasticsearch";
+import * as backfillAsks from "@/jobs/activities/backfill/backfill-ask-activities-elasticsearch";
+import * as backfillAskCancels from "@/jobs/activities/backfill/backfill-ask-cancel-activities-elasticsearch";
+import * as backfillBids from "@/jobs/activities/backfill/backfill-bid-activities-elasticsearch";
+import * as backfillBidCancels from "@/jobs/activities/backfill/backfill-bid-cancel-activities-elasticsearch";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
 const QUEUE_NAME = "backfill-activities-elasticsearch";

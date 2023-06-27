@@ -124,16 +124,13 @@ import * as countApiUsage from "@/jobs/metrics/count-api-usage";
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
 import * as openseaOrdersFetchQueue from "@/jobs/opensea-orders/fetch-queue";
 
-import * as backfillTransferActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-transfer-activities-elasticsearch";
-import * as backfillSaleActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-sale-activities-elasticsearch";
-import * as backfillAskActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-ask-activities-elasticsearch";
-import * as backfillBidActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-bid-activities-elasticsearch";
-import * as backfillAskCancelActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-ask-cancel-activities-elasticsearch";
-import * as backfillBidCancelActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-bid-cancel-activities-elasticsearch";
-import * as backfillActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-activities-elasticsearch";
-import * as updateActivitiesCollection from "@/jobs/elasticsearch/update-activities-collection";
-import * as refreshActivitiesTokenMetadata from "@/jobs/elasticsearch/refresh-activities-token-metadata";
-import * as refreshActivitiesCollectionMetadata from "@/jobs/elasticsearch/refresh-activities-collection-metadata";
+import * as backfillTransferActivitiesElasticsearch from "@/jobs/activities/backfill/backfill-transfer-activities-elasticsearch";
+import * as backfillSaleActivitiesElasticsearch from "@/jobs/activities/backfill/backfill-sale-activities-elasticsearch";
+import * as backfillAskActivitiesElasticsearch from "@/jobs/activities/backfill/backfill-ask-activities-elasticsearch";
+import * as backfillBidActivitiesElasticsearch from "@/jobs/activities/backfill/backfill-bid-activities-elasticsearch";
+import * as backfillAskCancelActivitiesElasticsearch from "@/jobs/activities/backfill/backfill-ask-cancel-activities-elasticsearch";
+import * as backfillBidCancelActivitiesElasticsearch from "@/jobs/activities/backfill/backfill-bid-cancel-activities-elasticsearch";
+import * as backfillActivitiesElasticsearch from "@/jobs/activities/backfill/backfill-activities-elasticsearch";
 
 import amqplib, { Channel, Connection } from "amqplib";
 import { config } from "@/config/index";
@@ -187,6 +184,9 @@ import { processResyncRequestJob } from "@/jobs/events-sync/process-resync-reque
 import { eventsSyncBackfillJob } from "@/jobs/events-sync/events-sync-backfill-job";
 import { blockCheckJob } from "@/jobs/events-sync/block-check-queue-job";
 import { collectionNormalizedJob } from "@/jobs/collection-updates/collection-normalized-floor-queue-job";
+import { replaceActivitiesCollectionJob } from "@/jobs/activities/replace-activities-collection-job";
+import { refreshActivitiesTokenMetadataJob } from "@/jobs/activities/refresh-activities-token-metadata-job";
+import { refreshActivitiesCollectionMetadataJob } from "@/jobs/activities/refresh-activities-collection-metadata-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -301,9 +301,6 @@ export const allJobQueues = [
   backfillAskCancelActivitiesElasticsearch.queue,
   backfillBidCancelActivitiesElasticsearch.queue,
   backfillActivitiesElasticsearch.queue,
-  updateActivitiesCollection.queue,
-  refreshActivitiesTokenMetadata.queue,
-  refreshActivitiesCollectionMetadata.queue,
 ];
 
 export class RabbitMqJobsConsumer {
@@ -365,6 +362,9 @@ export class RabbitMqJobsConsumer {
       eventsSyncBackfillJob,
       blockCheckJob,
       collectionNormalizedJob,
+      replaceActivitiesCollectionJob,
+      refreshActivitiesCollectionMetadataJob,
+      refreshActivitiesTokenMetadataJob,
     ];
   }
 
