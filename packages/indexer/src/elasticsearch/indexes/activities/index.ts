@@ -642,6 +642,7 @@ export const updateActivitiesMissingCollection = async (
           },
           query: JSON.stringify(query),
           response,
+          keepGoing,
         })
       );
     } else {
@@ -660,6 +661,7 @@ export const updateActivitiesMissingCollection = async (
           },
           query: JSON.stringify(query),
           response,
+          keepGoing,
         })
       );
     }
@@ -672,6 +674,7 @@ export const updateActivitiesMissingCollection = async (
           contract,
           tokenId,
           collection,
+          keepGoing,
         },
         error,
       })
@@ -742,6 +745,7 @@ export const updateActivitiesCollection = async (
           },
           query: JSON.stringify(query),
           response,
+          keepGoing,
         })
       );
     } else {
@@ -761,6 +765,7 @@ export const updateActivitiesCollection = async (
           },
           query: JSON.stringify(query),
           response,
+          keepGoing,
         })
       );
     }
@@ -777,6 +782,7 @@ export const updateActivitiesCollection = async (
         },
         query: JSON.stringify(query),
         error,
+        keepGoing,
       })
     );
 
@@ -914,6 +920,7 @@ export const updateActivitiesTokenMetadata = async (
           },
           query: JSON.stringify(query),
           response,
+          keepGoing,
         })
       );
     } else {
@@ -948,6 +955,7 @@ export const updateActivitiesTokenMetadata = async (
         },
         query: JSON.stringify(query),
         error,
+        keepGoing,
       })
     );
 
@@ -1056,6 +1064,7 @@ export const updateActivitiesCollectionMetadata = async (
           },
           query: JSON.stringify(query),
           response,
+          keepGoing,
         })
       );
     } else {
@@ -1088,6 +1097,7 @@ export const updateActivitiesCollectionMetadata = async (
         },
         query: JSON.stringify(query),
         error,
+        keepGoing,
       })
     );
 
