@@ -4,6 +4,7 @@ import _ from "lodash";
 import { idb } from "@/common/db";
 import { regex, toBuffer } from "@/common/utils";
 import * as registry from "@/utils/royalties/registry";
+import { logger } from "@/common/logger";
 
 export type Royalty = {
   recipient: string;
@@ -233,6 +234,18 @@ export const refreshDefaultRoyalties = async (collection: string) => {
   } else if (royaltiesResult.new_royalties["opensea"]) {
     defaultRoyalties = royaltiesResult.new_royalties["opensea"];
   }
+
+  logger.info(
+    "royalties",
+    JSON.stringify({
+      topic: "debugMissingRoyalties",
+      data: {
+        collection,
+        defaultRoyalties,
+        royaltiesResult,
+      },
+    })
+  );
 
   await idb.none(
     `
