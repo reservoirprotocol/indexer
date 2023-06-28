@@ -26,37 +26,66 @@ process.on("unhandledRejection", (error: any) => {
   // process.exit(1);
 });
 
+const log = (message: string) => {
+  // eslint-disable-next-line
+  console.log(
+    `[
+      ${new Date().toISOString()}
+    ] ${message}`
+  );
+};
+
 const setup = async () => {
   if (process.env.LOCAL_TESTING) {
     return;
   }
 
+  log("Starting setup");
+
+  log("Connecting to RabbitMQ");
   await RabbitMq.connect(); // Connect the rabbitmq
+  log("Connected to RabbitMQ");
+  log("Asserting queues and exchanges");
   await RabbitMq.assertQueuesAndExchanges(); // Assert queues and exchanges
+  log("Asserted queues and exchanges");
 
   // if ((config.doKafkaWork || config.doBackgroundWork) && config.kafkaBrokers.length > 0) {
   //   await startKafkaProducer();
   // }
 
   if (config.doBackgroundWork) {
+    log("Syncing sources");
     await Sources.syncSources();
+    log("Synced sources");
+    log("Starting RabbitMQ jobs consumer");
     await RabbitMqJobsConsumer.startRabbitJobsConsumer();
+    log("Started RabbitMQ jobs consumer");
 
     const networkSettings = getNetworkSettings();
     if (networkSettings.onStartup) {
+      log("Running network settings on startup");
       await networkSettings.onStartup();
+      log("Ran network settings on startup");
     }
   }
 
+  log("Getting sources instance");
   await Sources.getInstance();
+  log("Got sources instance");
+  log("Forcing data reload");
   await Sources.forceDataReload();
+  log("Forced data reload");
 
   if (config.doElasticsearchWork) {
+    log("Initializing indexes");
     await initIndexes();
+    log("Initialized indexes");
   }
 
   if (config.doKafkaWork) {
+    log("Starting Kafka consumer");
     await startKafkaConsumer();
+    log("Started Kafka consumer");
   }
 };
 
