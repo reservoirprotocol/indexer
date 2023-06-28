@@ -12,8 +12,8 @@ export type RefreshActivitiesCollectionMetadataJobPayload = {
 
 export class RefreshActivitiesCollectionMetadataJob extends AbstractRabbitMqJobHandler {
   queueName = "refresh-activities-collection-metadata-queue";
-  maxRetries = 5;
-  concurrency = 15;
+  maxRetries = 10;
+  concurrency = 1;
   persistent = true;
   lazyMode = true;
 

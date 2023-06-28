@@ -14,7 +14,7 @@ export type ReplaceActivitiesCollectionJobPayload = {
 export class ReplaceActivitiesCollectionJob extends AbstractRabbitMqJobHandler {
   queueName = "replace-activities-collection-queue";
   maxRetries = 10;
-  concurrency = 15;
+  concurrency = 1;
   persistent = true;
   lazyMode = true;
   useSharedChannel = true;
