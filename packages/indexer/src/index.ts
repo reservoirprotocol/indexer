@@ -34,10 +34,6 @@ const setup = async () => {
   await RabbitMq.connect(); // Connect the rabbitmq
   await RabbitMq.assertQueuesAndExchanges(); // Assert queues and exchanges
 
-  if (config.doKafkaWork) {
-    await startKafkaConsumer();
-  }
-
   // if ((config.doKafkaWork || config.doBackgroundWork) && config.kafkaBrokers.length > 0) {
   //   await startKafkaProducer();
   // }
@@ -57,6 +53,10 @@ const setup = async () => {
 
   if (config.doElasticsearchWork) {
     await initIndexes();
+  }
+
+  if (config.doKafkaWork) {
+    await startKafkaConsumer();
   }
 };
 

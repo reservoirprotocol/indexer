@@ -57,6 +57,7 @@ import ZeroExV4ModuleAbi from "./abis/ZeroExV4Module.json";
 import ZoraModuleAbi from "./abis/ZoraModule.json";
 import SudoswapV2ModuleAbi from "./abis/SudoswapV2Module.json";
 import CryptoPunksModuleAbi from "./abis/CryptoPunksModule.json";
+import PaymentProcessorModuleAbi from "./abis/PaymentProcessorModule.json";
 
 type SetupOptions = {
   x2y2ApiKey?: string;
@@ -181,6 +182,11 @@ export class Router {
       cryptoPunksModule: new Contract(
         Addresses.CryptoPunksModule[chainId] ?? AddressZero,
         CryptoPunksModuleAbi,
+        provider
+      ),
+      paymentProcessorModule: new Contract(
+        Addresses.PaymentProcessorModule[chainId] ?? AddressZero,
+        PaymentProcessorModuleAbi,
         provider
       ),
     };
@@ -811,6 +817,7 @@ export class Router {
     const raribleDetails: ListingDetails[] = [];
     const superRareDetails: ListingDetails[] = [];
     const cryptoPunksDetails: ListingDetails[] = [];
+    const paymentProcessorDetails: ListingDetails[] = [];
 
     for (const detail of details) {
       // Skip any listings handled in a previous step
@@ -909,6 +916,11 @@ export class Router {
 
         case "cryptopunks": {
           detailsRef = cryptoPunksDetails;
+          break;
+        }
+
+        case "payment-processor": {
+          detailsRef = paymentProcessorDetails;
           break;
         }
 
@@ -2536,6 +2548,7 @@ export class Router {
             revertIfIncomplete: Boolean(!options?.partial),
             amount: price,
           },
+          fees,
         ]),
         value: totalPrice,
       });
@@ -2553,6 +2566,57 @@ export class Router {
 
       // Mark the listings as successfully handled
       for (const { orderId } of cryptoPunksDetails) {
+        success[orderId] = true;
+        orderIds.push(orderId);
+      }
+    }
+
+    // Handle PaymentProcessor listings
+    if (paymentProcessorDetails.length) {
+      const orders = paymentProcessorDetails.map((d) => d.order as Sdk.PaymentProcessor.Order);
+      const module = this.contracts.paymentProcessorModule;
+      const fees = getFees(paymentProcessorDetails);
+
+      const price = orders.map((order) => bn(order.params.price)).reduce((a, b) => a.add(b), bn(0));
+      const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+      const totalPrice = price.add(feeAmount);
+
+      executions.push({
+        module: module.address,
+        data: module.interface.encodeFunctionData("acceptETHListings", [
+          orders.map((order) =>
+            order.getMatchedOrder(
+              order.buildMatching({
+                taker: module.address,
+                takerMasterNonce: "0",
+              })
+            )
+          ),
+          orders.map((order) => order.params),
+          {
+            fillTo: taker,
+            refundTo: relayer,
+            revertIfIncomplete: Boolean(!options?.partial),
+            amount: price,
+          },
+          fees,
+        ]),
+        value: totalPrice,
+      });
+
+      // Track any possibly required swap
+      swapDetails.push({
+        tokenIn: buyInCurrency,
+        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOutAmount: totalPrice,
+        recipient: module.address,
+        refundTo: relayer,
+        details: paymentProcessorDetails,
+        executionIndex: executions.length - 1,
+      });
+
+      // Mark the listings as successfully handled
+      for (const { orderId } of paymentProcessorDetails) {
         success[orderId] = true;
         orderIds.push(orderId);
       }

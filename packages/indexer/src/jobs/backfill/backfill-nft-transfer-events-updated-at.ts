@@ -30,7 +30,7 @@ if (config.doBackgroundWork) {
       let cursor = job.data.cursor as CursorInfo;
       let continuationFilter = "";
 
-      const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 5000;
+      const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 2500;
 
       if (!cursor) {
         const cursorJson = await redis.get(`${QUEUE_NAME}-next-cursor`);
@@ -58,7 +58,7 @@ if (config.doBackgroundWork) {
             LIMIT $/limit/
           )
           UPDATE nft_transfer_events SET
-              updated_at = x.created_at
+              updated_at = COALESCE(x.created_at, updated_at)
           FROM x
           WHERE nft_transfer_events.tx_hash = x.tx_hash
           AND nft_transfer_events.log_index = x.log_index
@@ -89,7 +89,9 @@ if (config.doBackgroundWork) {
 
       logger.info(
         QUEUE_NAME,
-        `Processed ${results.length} fill events.  limit=${limit}, cursor=${JSON.stringify(cursor)}`
+        `Processed ${results.length} nft transfer events. limit=${limit}, cursor=${JSON.stringify(
+          cursor
+        )}`
       );
     },
     { connection: redis.duplicate(), concurrency: 1 }

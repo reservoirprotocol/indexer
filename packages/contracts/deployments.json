@@ -226,5 +226,11 @@
     "v1": {
       "1": "0x8be240e8689547f1068a835d14f1d943958095dc"
     }
+  },
+  "PaymentProcessorModule": {
+    "v1": {
+      "1": "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc",
+      "5": "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc"
+    }
   }
 }

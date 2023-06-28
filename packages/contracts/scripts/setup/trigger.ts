@@ -267,6 +267,12 @@ export const trigger = {
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.CryptoPunks.Addresses.Exchange[chainId],
       ]),
+    PaymentProcessorModule: async (chainId: number) =>
+      dv("PaymentProcessorModule", "v1", [
+        DEPLOYER,
+        Sdk.RouterV6.Addresses.Router[chainId],
+        Sdk.PaymentProcessor.Addresses.Exchange[chainId],
+      ]),
   },
   // Utilities
   Utilities: {

@@ -162,3 +162,8 @@ export const SuperRareModule: ChainIdToAddress = {
 export const CryptoPunksModule: ChainIdToAddress = {
   [Network.Ethereum]: "0x8be240e8689547f1068a835d14f1d943958095dc",
 };
+
+export const PaymentProcessorModule: ChainIdToAddress = {
+  [Network.Ethereum]: "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc",
+  [Network.EthereumGoerli]: "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc",
+};
