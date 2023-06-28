@@ -21,7 +21,7 @@ import { allJobQueues, gracefulShutdownJobWorkers } from "@/jobs/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { RateLimitRules } from "@/models/rate-limit-rules";
 import { BlockedRouteError } from "@/models/rate-limit-rules/errors";
-import { log } from "index";
+import { log } from "../index";
 
 let server: Hapi.Server;
 
