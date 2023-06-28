@@ -1,7 +1,7 @@
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { hdb } from "@/common/db";
-import { log } from "index";
+import { log } from "../index";
 
 export class HealthCheck {
   static async check(): Promise<boolean> {
