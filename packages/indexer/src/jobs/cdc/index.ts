@@ -91,7 +91,8 @@ export async function startKafkaConsumer(): Promise<void> {
             }
           }
 
-          await resolveOffset(message.offset);
+          resolveOffset(message.offset);
+          await heartbeat();
         } catch (error) {
           try {
             logger.error(
@@ -120,7 +121,6 @@ export async function startKafkaConsumer(): Promise<void> {
       });
 
       await Promise.all(messagePromises);
-      await heartbeat();
     },
   });
 
