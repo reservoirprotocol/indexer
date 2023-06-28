@@ -26,13 +26,9 @@ process.on("unhandledRejection", (error: any) => {
   // process.exit(1);
 });
 
-const log = (message: string) => {
+export const log = (message: string) => {
   // eslint-disable-next-line
-  console.log(
-    `[
-      ${new Date().toISOString()}
-    ] ${message}`
-  );
+  console.log(`[${new Date().toISOString()}] ${message}`);
 };
 
 const setup = async () => {
@@ -87,6 +83,8 @@ const setup = async () => {
     await startKafkaConsumer();
     log("Started Kafka consumer");
   }
+
+  log("Finished setup");
 };
 
 setup().then(() => start());

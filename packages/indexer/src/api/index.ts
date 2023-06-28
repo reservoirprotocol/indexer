@@ -21,10 +21,12 @@ import { allJobQueues, gracefulShutdownJobWorkers } from "@/jobs/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { RateLimitRules } from "@/models/rate-limit-rules";
 import { BlockedRouteError } from "@/models/rate-limit-rules/errors";
+import { log } from "index";
 
 let server: Hapi.Server;
 
 export const start = async (): Promise<void> => {
+  log("Starting API server");
   server = Hapi.server({
     port: config.port,
     query: {
@@ -62,7 +64,9 @@ export const start = async (): Promise<void> => {
   });
 
   // Register an authentication strategy for the BullMQ monitoring UI
+  log("Registering BullMQ auth strategy");
   await server.register(Basic);
+  log("Registered BullMQ auth strategy");
   server.auth.strategy("simple", "basic", {
     validate: (_request: Hapi.Request, username: string, password: string) => {
       return {
@@ -79,6 +83,7 @@ export const start = async (): Promise<void> => {
     serverAdapter,
   });
   serverAdapter.setBasePath("/admin/bullmq");
+  log("Registering BullMQ monitoring UI");
   await server.register(
     {
       plugin: serverAdapter.registerPlugin(),
@@ -90,10 +95,13 @@ export const start = async (): Promise<void> => {
       routes: { prefix: "/admin/bullmq" },
     }
   );
+  log("Registered BullMQ monitoring UI");
 
   if (!process.env.LOCAL_TESTING) {
     // Getting rate limit instance will load rate limit rules into memory
+    log("Getting rate limit instance");
     await RateLimitRules.getInstance(true);
+    log("Got rate limit instance");
   }
 
   const apiDescription =
@@ -101,6 +109,7 @@ export const start = async (): Promise<void> => {
     \
     For a more complete overview with guides and examples, check out the <a href='https://reservoirprotocol.github.io'>Reservoir Protocol Docs</a>.";
 
+  log("Registering plugins");
   await server.register([
     {
       plugin: Inert,
@@ -149,6 +158,7 @@ export const start = async (): Promise<void> => {
       },
     },
   ]);
+  log("Registered plugins");
 
   if (!process.env.LOCAL_TESTING) {
     server.ext("onPostAuth", async (request, reply) => {
@@ -353,11 +363,15 @@ export const start = async (): Promise<void> => {
     });
   }
 
+  log("Setting up routes");
   setupRoutes(server);
+  log("Set up routes");
 
   server.listener.keepAliveTimeout = 61000;
 
+  log("Starting server");
   await server.start();
+  log("Started server");
   logger.info("process", `Started on port ${config.port}`);
 };
 
