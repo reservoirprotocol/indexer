@@ -7,5 +7,6 @@ RUN npm install -g bun
 WORKDIR /indexer
 ADD . /indexer
 RUN bun install
+RUN cd /packages/indexer && bun install
 RUN bun build
 CMD bun start
