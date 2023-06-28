@@ -30,7 +30,6 @@
   },
   "include": ["src/**/*.ts", "src/**/*.js", "src/**/*.json"],
   "exclude": ["src/tests/**/*.ts"],
-  "references": [{ "path": "../sdk" }],
   "ts-node": {
     "require": ["tsconfig-paths/register"]
   }
