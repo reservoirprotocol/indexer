@@ -4,7 +4,6 @@ import _ from "lodash";
 import { idb } from "@/common/db";
 import { regex, toBuffer } from "@/common/utils";
 import * as registry from "@/utils/royalties/registry";
-import { logger } from "@/common/logger";
 
 export type Royalty = {
   recipient: string;
@@ -217,16 +216,12 @@ export const refreshDefaultRoyalties = async (collection: string) => {
     return [];
   }
 
-  let defaultRoyaltiesType = "None";
-
   // Default royalties priority: custom, on-chain, opensea
   let defaultRoyalties: Royalty[] = [];
   if (royaltiesResult.new_royalties["custom"]) {
     defaultRoyalties = royaltiesResult.new_royalties["custom"];
-    defaultRoyaltiesType = "custom";
   } else if (royaltiesResult.new_royalties["onchain"]) {
     defaultRoyalties = royaltiesResult.new_royalties["onchain"];
-    defaultRoyaltiesType = "onchain";
   } else if (
     // TODO: Remove (for backwards-compatibility only)
     Object.keys(royaltiesResult.new_royalties).find((kind) => !["custom", "opensea"].includes(kind))
@@ -235,24 +230,9 @@ export const refreshDefaultRoyalties = async (collection: string) => {
       (kind) => !["custom", "opensea"].includes(kind)
     );
     defaultRoyalties = royaltiesResult.new_royalties[oldSpec!];
-    defaultRoyaltiesType = "oldSpec";
   } else if (royaltiesResult.new_royalties["opensea"]) {
     defaultRoyalties = royaltiesResult.new_royalties["opensea"];
-    defaultRoyaltiesType = "opensea";
   }
-
-  logger.info(
-    "royalties",
-    JSON.stringify({
-      topic: "debugMissingRoyalties",
-      data: {
-        collection,
-        defaultRoyalties,
-        defaultRoyaltiesType,
-        royaltiesResult,
-      },
-    })
-  );
 
   await idb.none(
     `
