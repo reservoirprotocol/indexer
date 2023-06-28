@@ -335,6 +335,19 @@ export const getNetworkSettings = (): NetworkSettings => {
               },
             },
           ],
+          [
+            "0xbb4f3ad7a2cf75d8effc4f6d7bd21d95f06165ca",
+            {
+              contract: "0xbb4f3ad7a2cf75d8effc4f6d7bd21d95f06165ca",
+              name: "Sheesh",
+              symbol: "SHS",
+              decimals: 18,
+              metadata: {
+                image:
+                  "https://www.dextools.io/resources/tokens/logos/ether/0xbb4f3ad7a2cf75d8effc4f6d7bd21d95f06165ca.png?1687668922646",
+              },
+            },
+          ],
         ]),
         coingecko: {
           networkId: "ethereum",
