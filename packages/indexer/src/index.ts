@@ -49,22 +49,6 @@ const setup = async () => {
   //   await startKafkaProducer();
   // }
 
-  if (config.doBackgroundWork) {
-    log("Syncing sources");
-    await Sources.syncSources();
-    log("Synced sources");
-    log("Starting RabbitMQ jobs consumer");
-    await RabbitMqJobsConsumer.startRabbitJobsConsumer();
-    log("Started RabbitMQ jobs consumer");
-
-    const networkSettings = getNetworkSettings();
-    if (networkSettings.onStartup) {
-      log("Running network settings on startup");
-      await networkSettings.onStartup();
-      log("Ran network settings on startup");
-    }
-  }
-
   if (config.doBackgroundWorkAlt) {
     log("Syncing sources");
     await Sources.syncSources();
