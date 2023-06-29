@@ -56,14 +56,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 
   client.onEvents(
     "*",
-    config.chainId === 1 ? [
-      EventType.ITEM_LISTED,
-      EventType.COLLECTION_OFFER,
-      // EventType.ITEM_RECEIVED_BID,
-      EventType.TRAIT_OFFER,
-      EventType.ITEM_CANCELLED,
-      EventType.ORDER_REVALIDATE,
-    ] : [
+    [
       EventType.ITEM_LISTED,
       EventType.COLLECTION_OFFER,
       EventType.ITEM_RECEIVED_BID,

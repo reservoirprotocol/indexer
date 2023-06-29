@@ -1,9 +1,9 @@
-// import * as Sdk from "@reservoir0x/sdk";
+import * as Sdk from "@reservoir0x/sdk";
 import { io } from "socket.io-client";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-// import * as blurBidsBuffer from "@/jobs/order-updates/misc/blur-bids-buffer";
+import * as blurBidsBuffer from "@/jobs/order-updates/misc/blur-bids-buffer";
 import * as blurListingsRefresh from "@/jobs/order-updates/misc/blur-listings-refresh";
 import * as orderbook from "@/jobs/orderbook/orders-queue";
 
@@ -25,20 +25,20 @@ if (config.doWebsocketWork && config.blurWsUrl && config.blurWsApiKey) {
     logger.error(COMPONENT, `Error from Blur websocket: ${error}`);
   });
 
-  // client.on("CollectionBidsPrice", async (message: string) => {
-  //   try {
-  //     const parsedMessage: {
-  //       contractAddress: string;
-  //       updates: Sdk.Blur.Types.BlurBidPricePoint[];
-  //     } = JSON.parse(message);
-  //
-  //     const collection = parsedMessage.contractAddress.toLowerCase();
-  //     const pricePoints = parsedMessage.updates;
-  //     await blurBidsBuffer.addToQueue(collection, pricePoints);
-  //   } catch (error) {
-  //     logger.error(COMPONENT, `Error handling bid: ${error} (message = ${message})`);
-  //   }
-  // });
+  client.on("CollectionBidsPrice", async (message: string) => {
+    try {
+      const parsedMessage: {
+        contractAddress: string;
+        updates: Sdk.Blur.Types.BlurBidPricePoint[];
+      } = JSON.parse(message);
+
+      const collection = parsedMessage.contractAddress.toLowerCase();
+      const pricePoints = parsedMessage.updates;
+      await blurBidsBuffer.addToQueue(collection, pricePoints);
+    } catch (error) {
+      logger.error(COMPONENT, `Error handling bid: ${error} (message = ${message})`);
+    }
+  });
 
   client.on("newTopsOfBooks", async (message: string) => {
     try {

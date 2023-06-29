@@ -1,6 +1,5 @@
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
-import { config } from "@/config/index";
 import { GenericOrderInfo } from "@/jobs/orderbook/orders-queue";
 import * as orders from "@/orderbook/orders";
 
@@ -14,8 +13,6 @@ export class OpenseaBidsQueueJob extends AbstractRabbitMqJobHandler {
   concurrency = 100;
   lazyMode = true;
   consumerTimeout = 30000;
-  disableConsuming = config.chainId === 1 ? true : false;
-
   protected async process(payload: OpenseaBidsQueueJobPayload) {
     const { kind, info, validateBidValue, ingestMethod, ingestDelay } = payload.orderInfo;
 
