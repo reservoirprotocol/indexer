@@ -19,6 +19,7 @@ export const Eth: ChainIdToAddress = {
   [Network.ArbitrumNova]: AddressZero,
   [Network.BaseGoerli]: AddressZero,
   [Network.Zora]: AddressZero,
+  [Network.Avalanche]: AddressZero,
 };
 
 export const Weth: ChainIdToAddress = {
@@ -40,6 +41,8 @@ export const Weth: ChainIdToAddress = {
   [Network.ZoraTestnet]: "0x4200000000000000000000000000000000000006",
   [Network.Zora]: "0x4200000000000000000000000000000000000006",
   [Network.BaseGoerli]: "0x4200000000000000000000000000000000000006",
+  // Avalanche: Wrapped AVAX
+  [Network.Avalanche]: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
 };
 
 // TODO: Include addresses across all supported chains

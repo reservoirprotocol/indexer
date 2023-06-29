@@ -108,6 +108,7 @@ export enum Network {
   Arbitrum = 42161,
   ArbitrumNova = 42170,
   Zora = 7777777,
+  Avalanche = 43114,
   // Testnets
   EthereumGoerli = 5,
   ZoraTestnet = 999,
