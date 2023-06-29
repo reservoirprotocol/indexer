@@ -11,7 +11,7 @@ export type OpenseaBidsQueueJobPayload = {
 export class OpenseaBidsQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "orderbook-opensea-bids-queue";
   maxRetries = 10;
-  concurrency = 100;
+  concurrency = 40;
   lazyMode = true;
   consumerTimeout = 30000;
   disableConsuming = config.chainId === 1 ? true : false;
