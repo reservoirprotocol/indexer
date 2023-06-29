@@ -49,7 +49,7 @@ const setup = async () => {
   //   await startKafkaProducer();
   // }
 
-  if (config.doBackgroundWork) {
+  if (config.doBackgroundWorkAlt) {
     log("Syncing sources");
     await Sources.syncSources();
     log("Synced sources");
