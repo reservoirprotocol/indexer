@@ -49,7 +49,7 @@ const setup = async () => {
   //   await startKafkaProducer();
   // }
 
-  if (config.doBackgroundWorkAlt) {
+  if (config.doBackgroundWork) {
     log("Syncing sources");
     await Sources.syncSources();
     log("Synced sources");
@@ -63,6 +63,12 @@ const setup = async () => {
       await networkSettings.onStartup();
       log("Ran network settings on startup");
     }
+  }
+
+  if (config.doBackgroundWorkAlt) {
+    log("Syncing sources");
+    await Sources.syncSources();
+    log("Synced sources");
   }
 
   log("Getting sources instance");
