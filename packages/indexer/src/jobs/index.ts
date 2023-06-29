@@ -165,7 +165,7 @@ import { fetchSourceInfoJob } from "@/jobs/sources/fetch-source-info-job";
 // import { dailyVolumeJob } from "@/jobs/daily-volumes/daily-volumes-job";
 // import { processArchiveDataJob } from "@/jobs/data-archive/process-archive-data-job";
 // import { exportDataJob } from "@/jobs/data-export/export-data-job";
-// import { processActivityEventJob } from "@/jobs/activities/process-activity-event-job";
+import { processActivityEventJob } from "@/jobs/activities/process-activity-event-job";
 // import { savePendingActivitiesJob } from "@/jobs/activities/save-pending-activities-job";
 // import { eventsSyncFtTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/ft-transfers-job";
 // import { eventsSyncNftTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
@@ -335,7 +335,7 @@ export class RabbitMqJobsConsumer {
       // dailyVolumeJob,
       // processArchiveDataJob,
       // exportDataJob,
-      // processActivityEventJob,
+      processActivityEventJob,
       // savePendingActivitiesJob,
       // eventsSyncFtTransfersWriteBufferJob,
       // eventsSyncNftTransfersWriteBufferJob,
