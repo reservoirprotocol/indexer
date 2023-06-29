@@ -122,6 +122,7 @@ import * as backfillBidActivitiesElasticsearch from "@/jobs/activities/backfill/
 import * as backfillAskCancelActivitiesElasticsearch from "@/jobs/activities/backfill/backfill-ask-cancel-activities-elasticsearch";
 import * as backfillBidCancelActivitiesElasticsearch from "@/jobs/activities/backfill/backfill-bid-cancel-activities-elasticsearch";
 import * as backfillActivitiesElasticsearch from "@/jobs/activities/backfill/backfill-activities-elasticsearch";
+import * as backfillDeleteExpiredBidsElasticsearch from "@/jobs/activities/backfill/backfill-delete-expired-bids-elasticsearch";
 
 import amqplib, { Channel, Connection } from "amqplib";
 import { config } from "@/config/index";
@@ -284,6 +285,7 @@ export const allJobQueues = [
   backfillAskCancelActivitiesElasticsearch.queue,
   backfillBidCancelActivitiesElasticsearch.queue,
   backfillActivitiesElasticsearch.queue,
+  backfillDeleteExpiredBidsElasticsearch.queue,
 ];
 
 export class RabbitMqJobsConsumer {

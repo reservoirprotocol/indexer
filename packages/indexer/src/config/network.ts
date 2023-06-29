@@ -620,7 +620,7 @@ export const getNetworkSettings = (): NetworkSettings => {
               symbol: "DGEN",
               decimals: 18,
             },
-          ]
+          ],
         ]),
         coingecko: {
           networkId: "polygon-pos",

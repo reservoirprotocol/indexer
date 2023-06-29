@@ -245,14 +245,50 @@ export const getTopSellingCollections = async (params: {
   return esResult?.aggregations?.collections?.buckets?.map(mapBucketToCollection);
 };
 
+export const deleteActivitiesById = async (ids: string[]): Promise<void> => {
+  try {
+    const response = await elasticsearch.bulk({
+      body: ids.flatMap((id) => ({ delete: { _index: INDEX_NAME, _id: id } })),
+    });
+
+    if (response.errors) {
+      logger.info(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "delete-by-id-conflicts",
+          data: {
+            ids: JSON.stringify(ids),
+          },
+          response,
+        })
+      );
+    }
+  } catch (error) {
+    logger.error(
+      "elasticsearch-activities",
+      JSON.stringify({
+        topic: "delete-by-id-error",
+        data: {
+          ids: JSON.stringify(ids),
+        },
+        error,
+      })
+    );
+
+    throw error;
+  }
+};
+
 export const search = async (
   params: {
-    types?: ActivityType;
+    types?: ActivityType[];
     tokens?: { contract: string; tokenId: string }[];
     contracts?: string[];
     collections?: string[];
     sources?: number[];
     users?: string[];
+    startTimestamp?: number;
+    endTimestamp?: number;
     sortBy?: "timestamp" | "createdAt";
     limit?: number;
     continuation?: string;
@@ -334,6 +370,18 @@ export const search = async (
     });
 
     (esQuery as any).bool.filter.push(usersFilter);
+  }
+
+  if (params.startTimestamp) {
+    (esQuery as any).bool.filter.push({
+      range: { timestamp: { gte: params.endTimestamp } },
+    });
+  }
+
+  if (params.endTimestamp) {
+    (esQuery as any).bool.filter.push({
+      range: { timestamp: { lt: params.endTimestamp } },
+    });
   }
 
   const esSort: any[] = [];
