@@ -132,4 +132,6 @@ export const config = {
   // RabbitMq
   rabbitMqUrl: `amqp://${String(process.env.RABBIT_URL)}:5672`,
   rabbitHttpUrl: `http://${String(process.env.RABBIT_URL)}:15672`,
+  rabbitMqUsername: String(process.env.RABBIT_USERNAME),
+  rabbitMqPassword: String(process.env.RABBIT_PASSWORD),
 };

@@ -155,14 +155,25 @@ export class RabbitMq {
     policy.vhost = policy.vhost ?? "/";
     const url = `${config.rabbitHttpUrl}/api/policies/%2F/${policy.name}`;
 
-    await axios.put(url, {
-      "apply-to": policy.applyTo,
-      definition: policy.definition,
-      name: policy.name,
-      pattern: policy.pattern,
-      priority: policy.priority,
-      vhost: policy.vhost,
-    });
+    await axios.put(
+      url,
+      {
+        "apply-to": policy.applyTo,
+        definition: policy.definition,
+        name: policy.name,
+        pattern: policy.pattern,
+        priority: policy.priority,
+        vhost: policy.vhost,
+      },
+      {
+        headers: {
+          "content-type": "application/json",
+          authorization: `Basic ${Buffer.from(
+            `${config.rabbitMqUsername}:${config.rabbitMqPassword}`
+          ).toString("base64")}`,
+        },
+      }
+    );
   }
 
   public static async deletePolicy(policy: DeletePolicyPayload) {
