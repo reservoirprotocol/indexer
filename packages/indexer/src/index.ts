@@ -11,7 +11,7 @@ import "@/websockets/index";
 import { start } from "@/api/index";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-// import { getNetworkSettings } from "@/config/network";
+import { getNetworkSettings } from "@/config/network";
 import { initIndexes } from "@/elasticsearch/indexes";
 import { startKafkaConsumer } from "@/jobs/cdc/index";
 import { RabbitMq } from "@/common/rabbit-mq";
@@ -57,13 +57,13 @@ const setup = async () => {
     // log("Starting RabbitMQ jobs consumer");
     // await RabbitMqJobsConsumer.startRabbitJobsConsumer();
     // log("Started RabbitMQ jobs consumer");
-    //
-    // const networkSettings = getNetworkSettings();
-    // if (networkSettings.onStartup) {
-    //   log("Running network settings on startup");
-    //   await networkSettings.onStartup();
-    //   log("Ran network settings on startup");
-    // }
+
+    const networkSettings = getNetworkSettings();
+    if (networkSettings.onStartup) {
+      log("Running network settings on startup");
+      await networkSettings.onStartup();
+      log("Ran network settings on startup");
+    }
   }
 
   log("Getting sources instance");
