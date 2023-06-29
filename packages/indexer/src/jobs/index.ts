@@ -157,14 +157,14 @@ import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-f
 import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
 import { setCommunityQueueJob } from "@/jobs/collection-updates/set-community-queue-job";
 import { topBidCollectionJob } from "@/jobs/collection-updates/top-bid-collection-job";
-// import { updateCollectionDailyVolumeJob } from "@/jobs/collection-updates/update-collection-daily-volume-job";
-// import { collectionRefreshJob } from "@/jobs/collections-refresh/collections-refresh-job";
-// import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
-// import { currenciesFetchJob } from "@/jobs/currencies/currencies-fetch-job";
-// import { oneDayVolumeJob } from "@/jobs/daily-volumes/1day-volumes-job";
-// import { dailyVolumeJob } from "@/jobs/daily-volumes/daily-volumes-job";
-// import { processArchiveDataJob } from "@/jobs/data-archive/process-archive-data-job";
-// import { exportDataJob } from "@/jobs/data-export/export-data-job";
+import { updateCollectionDailyVolumeJob } from "@/jobs/collection-updates/update-collection-daily-volume-job";
+import { collectionRefreshJob } from "@/jobs/collections-refresh/collections-refresh-job";
+import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
+import { currenciesFetchJob } from "@/jobs/currencies/currencies-fetch-job";
+import { oneDayVolumeJob } from "@/jobs/daily-volumes/1day-volumes-job";
+import { dailyVolumeJob } from "@/jobs/daily-volumes/daily-volumes-job";
+import { processArchiveDataJob } from "@/jobs/data-archive/process-archive-data-job";
+import { exportDataJob } from "@/jobs/data-export/export-data-job";
 import { processActivityEventJob } from "@/jobs/activities/process-activity-event-job";
 import { savePendingActivitiesJob } from "@/jobs/activities/save-pending-activities-job";
 // import { eventsSyncFtTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/ft-transfers-job";
@@ -327,14 +327,14 @@ export class RabbitMqJobsConsumer {
       refreshContractCollectionsMetadataQueueJob,
       setCommunityQueueJob,
       topBidCollectionJob,
-      // updateCollectionDailyVolumeJob,
-      // collectionRefreshJob,
-      // collectionRefreshCacheJob,
-      // currenciesFetchJob,
-      // oneDayVolumeJob,
-      // dailyVolumeJob,
-      // processArchiveDataJob,
-      // exportDataJob,
+      updateCollectionDailyVolumeJob,
+      collectionRefreshJob,
+      collectionRefreshCacheJob,
+      currenciesFetchJob,
+      oneDayVolumeJob,
+      dailyVolumeJob,
+      processArchiveDataJob,
+      exportDataJob,
       processActivityEventJob,
       savePendingActivitiesJob,
       // eventsSyncFtTransfersWriteBufferJob,
