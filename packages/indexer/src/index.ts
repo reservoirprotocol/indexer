@@ -69,6 +69,10 @@ const setup = async () => {
     log("Syncing sources");
     await Sources.syncSources();
     log("Synced sources");
+
+    log("Starting RabbitMQ jobs consumer");
+    await RabbitMqJobsConsumer.startRabbitJobsConsumer();
+    log("Started RabbitMQ jobs consumer");
   }
 
   log("Getting sources instance");
