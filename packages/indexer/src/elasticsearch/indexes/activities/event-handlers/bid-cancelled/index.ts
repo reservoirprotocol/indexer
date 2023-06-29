@@ -38,12 +38,12 @@ export class BidCancelledEventHandler extends BidCreatedEventHandler {
           orders.currency_value AS "pricing_currency_value",
           orders.normalized_value AS "pricing_normalized_value",
           orders.currency_normalized_value AS "pricing_currency_normalized_value",
-          (orders.quantity_filled + orders.quantity_remaining) AS amount,
+          (orders.quantity_filled + orders.quantity_remaining) AS "amount",
           orders.source_id_int AS "order_source_id_int",
           orders.fee_bps AS "pricing_fee_bps",
           (${orderCriteriaBuildQuery}) AS "order_criteria",
-          extract(epoch from orders.created_at) AS created_ts,
-          extract(epoch from orders.updated_at) AS updated_ts,
+          extract(epoch from orders.created_at) AS "created_ts",
+          extract(epoch from orders.updated_at) AS "updated_ts",
           orders.token_set_id,
           t.*,
           x.*
@@ -71,5 +71,13 @@ export class BidCancelledEventHandler extends BidCreatedEventHandler {
                     FROM cancel_events WHERE cancel_events.order_id = orders.id
                     LIMIT 1
                  ) x ON TRUE`;
+  }
+
+  parseEvent(data: any) {
+    if (!data?.token_set_id.startsWith("token:")) {
+      delete data.token_id;
+    }
+
+    data.timestamp = data.event_timestamp ?? Math.floor(data.updated_ts);
   }
 }
