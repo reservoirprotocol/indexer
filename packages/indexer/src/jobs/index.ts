@@ -166,7 +166,7 @@ import { fetchSourceInfoJob } from "@/jobs/sources/fetch-source-info-job";
 // import { processArchiveDataJob } from "@/jobs/data-archive/process-archive-data-job";
 // import { exportDataJob } from "@/jobs/data-export/export-data-job";
 import { processActivityEventJob } from "@/jobs/activities/process-activity-event-job";
-// import { savePendingActivitiesJob } from "@/jobs/activities/save-pending-activities-job";
+import { savePendingActivitiesJob } from "@/jobs/activities/save-pending-activities-job";
 // import { eventsSyncFtTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/ft-transfers-job";
 // import { eventsSyncNftTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
 // import { eventsSyncProcessBackfillJob } from "@/jobs/events-sync/process/events-sync-process-backfill";
@@ -336,7 +336,7 @@ export class RabbitMqJobsConsumer {
       // processArchiveDataJob,
       // exportDataJob,
       processActivityEventJob,
-      // savePendingActivitiesJob,
+      savePendingActivitiesJob,
       // eventsSyncFtTransfersWriteBufferJob,
       // eventsSyncNftTransfersWriteBufferJob,
       // eventsSyncProcessBackfillJob,
