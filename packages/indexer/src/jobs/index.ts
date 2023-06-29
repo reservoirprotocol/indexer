@@ -180,6 +180,8 @@ import { refreshActivitiesTokenMetadataJob } from "@/jobs/activities/refresh-act
 import { refreshActivitiesCollectionMetadataJob } from "@/jobs/activities/refresh-activities-collection-metadata-job";
 import { collectionFloorJob } from "@/jobs/collection-updates/collection-floor-queue-job";
 import { eventsSyncProcessRealtimeJob } from "@/jobs/events-sync/process/events-sync-process-realtime";
+import { fillUpdatesJob } from "@/jobs/fill-updates/fill-updates-job";
+import { fillPostProcessJob } from "@/jobs/fill-updates/fill-post-process-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -350,6 +352,8 @@ export class RabbitMqJobsConsumer {
       refreshActivitiesTokenMetadataJob,
       collectionFloorJob,
       eventsSyncProcessRealtimeJob,
+      fillUpdatesJob,
+      fillPostProcessJob,
     ];
   }
 
