@@ -149,14 +149,14 @@ import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribu
 import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";
 import { topBidSingleTokenQueueJob } from "@/jobs/token-set-updates/top-bid-single-token-queue-job";
 import { fetchSourceInfoJob } from "@/jobs/sources/fetch-source-info-job";
-// import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
-// import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
-// import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
-// import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
-// import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
-// import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
-// import { setCommunityQueueJob } from "@/jobs/collection-updates/set-community-queue-job";
-// import { topBidCollectionJob } from "@/jobs/collection-updates/top-bid-collection-job";
+import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
+import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
+import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
+import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
+import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
+import { setCommunityQueueJob } from "@/jobs/collection-updates/set-community-queue-job";
+import { topBidCollectionJob } from "@/jobs/collection-updates/top-bid-collection-job";
 // import { updateCollectionDailyVolumeJob } from "@/jobs/collection-updates/update-collection-daily-volume-job";
 // import { collectionRefreshJob } from "@/jobs/collections-refresh/collections-refresh-job";
 // import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
@@ -178,7 +178,7 @@ import { blockCheckJob } from "@/jobs/events-sync/block-check-queue-job";
 // import { replaceActivitiesCollectionJob } from "@/jobs/activities/replace-activities-collection-job";
 // import { refreshActivitiesTokenMetadataJob } from "@/jobs/activities/refresh-activities-token-metadata-job";
 // import { refreshActivitiesCollectionMetadataJob } from "@/jobs/activities/refresh-activities-collection-metadata-job";
-// import { collectionFloorJob } from "@/jobs/collection-updates/collection-floor-queue-job";
+import { collectionFloorJob } from "@/jobs/collection-updates/collection-floor-queue-job";
 import { eventsSyncProcessRealtimeJob } from "@/jobs/events-sync/process/events-sync-process-realtime";
 
 export const gracefulShutdownJobWorkers = [
@@ -319,14 +319,14 @@ export class RabbitMqJobsConsumer {
       topBidQueueJob,
       topBidSingleTokenQueueJob,
       fetchSourceInfoJob,
-      // removeUnsyncedEventsActivitiesJob,
-      // fixActivitiesMissingCollectionJob,
-      // collectionMetadataQueueJob,
-      // rarityQueueJob,
-      // nonFlaggedFloorQueueJob,
-      // refreshContractCollectionsMetadataQueueJob,
-      // setCommunityQueueJob,
-      // topBidCollectionJob,
+      removeUnsyncedEventsActivitiesJob,
+      fixActivitiesMissingCollectionJob,
+      collectionMetadataQueueJob,
+      rarityQueueJob,
+      nonFlaggedFloorQueueJob,
+      refreshContractCollectionsMetadataQueueJob,
+      setCommunityQueueJob,
+      topBidCollectionJob,
       // updateCollectionDailyVolumeJob,
       // collectionRefreshJob,
       // collectionRefreshCacheJob,
@@ -348,7 +348,7 @@ export class RabbitMqJobsConsumer {
       // replaceActivitiesCollectionJob,
       // refreshActivitiesCollectionMetadataJob,
       // refreshActivitiesTokenMetadataJob,
-      // collectionFloorJob,
+      collectionFloorJob,
       eventsSyncProcessRealtimeJob,
     ];
   }
