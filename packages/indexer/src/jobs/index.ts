@@ -52,14 +52,6 @@ import * as backfillLooksrareFills from "@/jobs/backfill/backfill-looks-rare-fil
 import * as backfillCollectionsIds from "@/jobs/backfill/backfill-collections-ids";
 import * as backfillNftTransferEventsUpdatedAt from "@/jobs/backfill/backfill-nft-transfer-events-updated-at";
 
-import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
-import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
-
-import * as tokenSetUpdatesTopBid from "@/jobs/token-set-updates/top-bid-queue";
-
-import * as eventsSyncBlockCheck from "@/jobs/events-sync/block-check-queue";
-import * as eventsSyncBackfillProcess from "@/jobs/events-sync/process/backfill";
-import * as eventsSyncRealtimeProcess from "@/jobs/events-sync/process/realtime";
 import * as eventsSyncRealtime from "@/jobs/events-sync/realtime-queue";
 import * as eventsSyncRealtimeV2 from "@/jobs/events-sync/realtime-queue-v2";
 
@@ -108,7 +100,6 @@ import * as orderbookTokenSets from "@/jobs/orderbook/token-sets-queue";
 import * as orderbookOpenseaListings from "@/jobs/orderbook/opensea-listings-queue";
 
 import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
-import * as tokenUpdatesNormalizedFloorAsk from "@/jobs/token-updates/normalized-floor-queue";
 
 import * as askWebsocketEventsTriggerQueue from "@/jobs/websocket-events/ask-websocket-events-trigger-queue";
 import * as bidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/bid-websocket-events-trigger-queue";
@@ -187,6 +178,8 @@ import { collectionNormalizedJob } from "@/jobs/collection-updates/collection-no
 import { replaceActivitiesCollectionJob } from "@/jobs/activities/replace-activities-collection-job";
 import { refreshActivitiesTokenMetadataJob } from "@/jobs/activities/refresh-activities-token-metadata-job";
 import { refreshActivitiesCollectionMetadataJob } from "@/jobs/activities/refresh-activities-collection-metadata-job";
+import { collectionFloorJob } from "@/jobs/collection-updates/collection-floor-queue-job";
+import { eventsSyncProcessRealtimeJob } from "@/jobs/events-sync/process/events-sync-process-realtime";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -196,7 +189,6 @@ export const gracefulShutdownJobWorkers = [
   expiredOrdersCron.worker,
   oracleOrdersCron.worker,
   tokenUpdatesFloorAsk.worker,
-  tokenUpdatesNormalizedFloorAsk.worker,
 ];
 
 export const allJobQueues = [
@@ -222,14 +214,6 @@ export const allJobQueues = [
   backfillCollectionsIds.queue,
   backfillNftTransferEventsUpdatedAt.queue,
 
-  collectionUpdatesFloorAsk.queue,
-  collectionUpdatesNormalizedFloorAsk.queue,
-
-  tokenSetUpdatesTopBid.queue,
-
-  eventsSyncBlockCheck.queue,
-  eventsSyncBackfillProcess.queue,
-  eventsSyncRealtimeProcess.queue,
   eventsSyncRealtime.queue,
   eventsSyncRealtimeV2.queue,
 
@@ -278,7 +262,6 @@ export const allJobQueues = [
   orderbookOpenseaListings.queue,
 
   tokenUpdatesFloorAsk.queue,
-  tokenUpdatesNormalizedFloorAsk.queue,
 
   askWebsocketEventsTriggerQueue.queue,
   bidWebsocketEventsTriggerQueue.queue,
@@ -365,6 +348,8 @@ export class RabbitMqJobsConsumer {
       replaceActivitiesCollectionJob,
       refreshActivitiesCollectionMetadataJob,
       refreshActivitiesTokenMetadataJob,
+      collectionFloorJob,
+      eventsSyncProcessRealtimeJob,
     ];
   }
 

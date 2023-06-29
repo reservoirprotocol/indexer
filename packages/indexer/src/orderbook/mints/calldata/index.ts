@@ -1,5 +1,5 @@
 import { defaultAbiCoder } from "@ethersproject/abi";
-import { TxData } from "@reservoir0x/sdk/src/utils";
+import { TxData } from "@reservoir0x/sdk/dist/utils";
 
 import { idb } from "@/common/db";
 import { bn, toBuffer } from "@/common/utils";

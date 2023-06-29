@@ -297,6 +297,15 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
+            "0x45f93404ae1e4f0411a7f42bc6a5dc395792738d",
+            {
+              contract: "0x45f93404AE1E4f0411a7F42BC6a5Dc395792738D",
+              name: "DEGEN",
+              symbol: "DGEN",
+              decimals: 18,
+            },
+          ],
+          [
             "0x4c7c1ec97279a6f3323eab9ab317202dee7ad922",
             {
               contract: "0x4c7c1ec97279a6f3323eab9ab317202dee7ad922",
@@ -332,6 +341,19 @@ export const getNetworkSettings = (): NetworkSettings => {
               metadata: {
                 image:
                   "https://raw.githubusercontent.com/dappradar/tokens/main/ethereum/0xd2d8d78087d0e43bc4804b6f946674b2ee406b80/logo.png",
+              },
+            },
+          ],
+          [
+            "0xbb4f3ad7a2cf75d8effc4f6d7bd21d95f06165ca",
+            {
+              contract: "0xbb4f3ad7a2cf75d8effc4f6d7bd21d95f06165ca",
+              name: "Sheesh",
+              symbol: "SHS",
+              decimals: 18,
+              metadata: {
+                image:
+                  "https://www.dextools.io/resources/tokens/logos/ether/0xbb4f3ad7a2cf75d8effc4f6d7bd21d95f06165ca.png?1687668922646",
               },
             },
           ],
@@ -590,6 +612,15 @@ export const getNetworkSettings = (): NetworkSettings => {
               decimals: 18,
             },
           ],
+          [
+            "0xdbb5da27ffcfebea8799a5832d4607714fc6aba8",
+            {
+              contract: "0xdBb5Da27FFcFeBea8799a5832D4607714fc6aBa8",
+              name: "DEGEN",
+              symbol: "DGEN",
+              decimals: 18,
+            },
+          ]
         ]),
         coingecko: {
           networkId: "polygon-pos",
@@ -647,6 +678,14 @@ export const getNetworkSettings = (): NetworkSettings => {
         lastBlockLatency: 5,
         headBlockDelay: 10,
         subDomain: "api-arbitrum",
+        washTradingExcludedContracts: [
+          // Prohibition Contracts - ArtBlocks Engine
+          "0x47a91457a3a1f700097199fd63c039c4784384ab",
+        ],
+        multiCollectionContracts: [
+          // Prohibition Contracts - ArtBlocks Engine
+          "0x47a91457a3a1f700097199fd63c039c4784384ab",
+        ],
         coingecko: {
           networkId: "arbitrum-one",
         },

@@ -97,6 +97,10 @@ jobs:
             ./dev/platform/indexer-websocket-goerli.yaml \
             ${{ github.sha }} \
             indexer-websocket-goerli
+          ./utils/version_update.sh \
+            ./dev/platform/indexer-kafka-worker-goerli.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-goerli
 
   deploy-prod:
     name: Deploy to Production

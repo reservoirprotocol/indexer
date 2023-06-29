@@ -41,6 +41,13 @@ export const ApprovalProxy: ChainIdToAddress = {
   [Network.Zora]: "0x224ecb4eae96d31372d1090c3b0233c8310dbbab",
 };
 
+// Permit proxy
+
+export const PermitProxy: ChainIdToAddress = {
+  [Network.Ethereum]: "0x104ff9a0e2a62aa531ef0cc9d19f948bde7062de",
+  [Network.EthereumGoerli]: "0x104ff9a0e2a62aa531ef0cc9d19f948bde7062de",
+};
+
 // Utility modules
 
 export const SwapModule: ChainIdToAddress = {

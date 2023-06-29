@@ -14,11 +14,11 @@ import MetadataApi from "@/utils/metadata-api";
 import * as royalties from "@/utils/royalties";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 
-import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
 import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
 import { collectionNormalizedJob } from "@/jobs/collection-updates/collection-normalized-floor-queue-job";
+import { collectionFloorJob } from "@/jobs/collection-updates/collection-floor-queue-job";
 
 const QUEUE_NAME = "token-updates-fetch-collection-metadata-queue";
 
@@ -162,7 +162,7 @@ if (config.doBackgroundWork) {
           };
 
           await Promise.all([
-            collectionUpdatesFloorAsk.addToQueue([floorAskInfo]),
+            collectionFloorJob.addToQueue([floorAskInfo]),
             nonFlaggedFloorQueueJob.addToQueue([floorAskInfo]),
             collectionNormalizedJob.addToQueue([floorAskInfo]),
           ]);

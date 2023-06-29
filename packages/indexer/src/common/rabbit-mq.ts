@@ -178,6 +178,12 @@ export class RabbitMq {
     });
   }
 
+  public static async getQueueSize(queueName: string) {
+    const url = `${config.rabbitHttpUrl}/api/queues/%2F/${queueName}`;
+    const queueData = await axios.get(url);
+    return Number(queueData.data.messages);
+  }
+
   public static async assertQueuesAndExchanges() {
     // Assert the exchange for delayed messages
     await this.rabbitMqPublisherChannels[0].assertExchange(
