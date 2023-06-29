@@ -1,11 +1,25 @@
-FROM node:18.14
+# Builder stage
+FROM node:18.14-alpine AS builder
 
-ARG PORT=80
-
-# EXPOSE ${PORT}
-RUN npm install -g bun
 WORKDIR /indexer
-ADD ./packages/indexer /indexer
+
+# Copy package.json and yarn.lock files
+COPY package*.json yarn.lock ./
+
+# Install dependencies
 RUN yarn install
-RUN bun run build
-CMD bun start
+
+# Copy other project files and build the project
+COPY . .
+RUN yarn build
+
+# Runner stage
+FROM node:18.14-alpine
+
+WORKDIR /indexer
+
+# Copy built files from builder stage
+COPY --from=builder /indexer/dist ./
+
+# Start the application
+CMD [ "yarn", "start" ]
