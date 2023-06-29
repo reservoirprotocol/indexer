@@ -15,7 +15,7 @@ import { getNetworkSettings } from "@/config/network";
 import { initIndexes } from "@/elasticsearch/indexes";
 import { startKafkaConsumer } from "@/jobs/cdc/index";
 import { RabbitMq } from "@/common/rabbit-mq";
-// import { RabbitMqJobsConsumer } from "@/jobs/index";
+import { RabbitMqJobsConsumer } from "@/jobs/index";
 import { Sources } from "@/models/sources";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -54,9 +54,9 @@ const setup = async () => {
     await Sources.syncSources();
     log("Synced sources");
 
-    // log("Starting RabbitMQ jobs consumer");
-    // await RabbitMqJobsConsumer.startRabbitJobsConsumer();
-    // log("Started RabbitMQ jobs consumer");
+    log("Starting RabbitMQ jobs consumer");
+    await RabbitMqJobsConsumer.startRabbitJobsConsumer();
+    log("Started RabbitMQ jobs consumer");
 
     const networkSettings = getNetworkSettings();
     if (networkSettings.onStartup) {
