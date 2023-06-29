@@ -232,5 +232,10 @@
       "1": "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc",
       "5": "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc"
     }
+  },
+  "PermitProxy": {
+    "v1": {
+      "5": "0x104ff9a0e2a62aa531ef0cc9d19f948bde7062de"
+    }
   }
 }
