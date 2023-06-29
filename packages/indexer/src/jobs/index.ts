@@ -175,11 +175,11 @@ import { processResyncRequestJob } from "@/jobs/events-sync/process-resync-reque
 import { eventsSyncBackfillJob } from "@/jobs/events-sync/events-sync-backfill-job";
 import { blockCheckJob } from "@/jobs/events-sync/block-check-queue-job";
 import { collectionNormalizedJob } from "@/jobs/collection-updates/collection-normalized-floor-queue-job";
-// import { replaceActivitiesCollectionJob } from "@/jobs/activities/replace-activities-collection-job";
-// import { refreshActivitiesTokenMetadataJob } from "@/jobs/activities/refresh-activities-token-metadata-job";
-// import { refreshActivitiesCollectionMetadataJob } from "@/jobs/activities/refresh-activities-collection-metadata-job";
-// import { collectionFloorJob } from "@/jobs/collection-updates/collection-floor-queue-job";
-// import { eventsSyncProcessRealtimeJob } from "@/jobs/events-sync/process/events-sync-process-realtime";
+import { replaceActivitiesCollectionJob } from "@/jobs/activities/replace-activities-collection-job";
+import { refreshActivitiesTokenMetadataJob } from "@/jobs/activities/refresh-activities-token-metadata-job";
+import { refreshActivitiesCollectionMetadataJob } from "@/jobs/activities/refresh-activities-collection-metadata-job";
+import { collectionFloorJob } from "@/jobs/collection-updates/collection-floor-queue-job";
+import { eventsSyncProcessRealtimeJob } from "@/jobs/events-sync/process/events-sync-process-realtime";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -345,11 +345,11 @@ export class RabbitMqJobsConsumer {
       eventsSyncBackfillJob,
       blockCheckJob,
       collectionNormalizedJob,
-      // replaceActivitiesCollectionJob,
-      // refreshActivitiesCollectionMetadataJob,
-      // refreshActivitiesTokenMetadataJob,
-      // collectionFloorJob,
-      // eventsSyncProcessRealtimeJob,
+      replaceActivitiesCollectionJob,
+      refreshActivitiesCollectionMetadataJob,
+      refreshActivitiesTokenMetadataJob,
+      collectionFloorJob,
+      eventsSyncProcessRealtimeJob,
     ];
   }
 
