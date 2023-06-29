@@ -1,9 +1,8 @@
-FROM node:18.14-alpine
+FROM node:18.14
 
 ARG PORT=80
 
 EXPOSE ${PORT}
-RUN apk add --no-cache git
 
 WORKDIR /indexer
 ADD . /indexer
