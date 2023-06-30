@@ -252,6 +252,9 @@ export const JoiOrderCriteria = Joi.alternatives(
   }),
   Joi.object({
     kind: "custom",
+    data: Joi.object({
+      collection: JoiOrderCriteriaCollection,
+    }),
   })
 );
 

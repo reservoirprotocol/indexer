@@ -57,6 +57,9 @@ export const getNetworkName = () => {
     case 7777777:
       return "zora";
 
+    case 43114:
+      return "avalanche";
+
     default:
       return "unknown";
   }
@@ -429,7 +432,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 5: {
       return {
         ...defaultNetworkSettings,
-        backfillBlockBatchSize: 128,
+        backfillBlockBatchSize: 32,
         subDomain: "api-goerli",
         mintsAsSalesBlacklist: [
           ...defaultNetworkSettings.mintsAsSalesBlacklist,
@@ -620,7 +623,7 @@ export const getNetworkSettings = (): NetworkSettings => {
               symbol: "DGEN",
               decimals: 18,
             },
-          ]
+          ],
         ]),
         coingecko: {
           networkId: "polygon-pos",
@@ -1031,6 +1034,39 @@ export const getNetworkSettings = (): NetworkSettings => {
                   'ETH',
                   18,
                   '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // Avalanche
+    case 43114: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        subDomain: "api-avalanche",
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Avalanche',
+                  'AVAX',
+                  18,
+                  '{"coingeckoCurrencyId": "avalanche-2", "image": "https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png"}'
                 ) ON CONFLICT DO NOTHING
               `
             ),
