@@ -232,6 +232,10 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
         kind: "payment-processor",
         data: kindToEvents.get("payment-processor") ?? [],
       },
+      {
+        kind: "thirdweb",
+        data: kindToEvents.get("thirdweb") ?? [],
+      },
     ];
 
     txHashToEventsBatch.set(txHash, {

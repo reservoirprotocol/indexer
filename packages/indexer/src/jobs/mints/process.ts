@@ -100,6 +100,14 @@ if (config.doBackgroundWork) {
           }
 
           switch (data.standard) {
+            case "thirdweb": {
+              collectionMints = await detector.thirdweb.extractByCollection(
+                data.collection,
+                data.tokenId
+              );
+              break;
+            }
+
             case "zora": {
               collectionMints = await detector.zora.extractByCollection(data.collection);
               break;
@@ -140,6 +148,7 @@ export type Mint =
       data: {
         standard: CollectionMintStandard;
         collection: string;
+        tokenId?: string;
       };
     };
 

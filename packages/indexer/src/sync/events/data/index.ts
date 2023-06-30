@@ -40,6 +40,7 @@ import * as looksRareV2 from "@/events-sync/data/looks-rare-v2";
 import * as blend from "@/events-sync/data/blend";
 import * as sudoswapV2 from "@/events-sync/data/sudoswap-v2";
 import * as paymentProcessor from "@/events-sync/data/payment-processor";
+import * as thirdweb from "@/events-sync/data/thirdweb";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -82,7 +83,8 @@ export type EventKind =
   | "looks-rare-v2"
   | "blend"
   | "sudoswap-v2"
-  | "payment-processor";
+  | "payment-processor"
+  | "thirdweb";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -261,7 +263,9 @@ export type EventSubKind =
   | "payment-processor-master-nonce-invalidated"
   | "payment-processor-nonce-invalidated"
   | "payment-processor-sweep-collection-erc1155"
-  | "payment-processor-sweep-collection-erc721";
+  | "payment-processor-sweep-collection-erc721"
+  | "thirdweb-claim-conditions-updated-erc721"
+  | "thirdweb-claim-conditions-updated-erc1155";
 
 export type EventData = {
   kind: EventKind;
@@ -447,6 +451,8 @@ const allEventData = [
   paymentProcessor.nonceInvalidated,
   paymentProcessor.sweepCollectionERC1155,
   paymentProcessor.sweepCollectionERC721,
+  thirdweb.claimConditionsUpdatedERC721,
+  thirdweb.claimConditionsUpdatedERC1155,
 ];
 
 export const getEventData = (events?: string[]) => {
