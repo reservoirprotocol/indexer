@@ -447,7 +447,7 @@ const _search = async (
     );
 
     const retryableError =
-      (error as any).meta?.aborted ||
+      (error as any).meta?.meta?.aborted ||
       (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
 
     if (retryableError) {
