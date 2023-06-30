@@ -663,6 +663,7 @@ export const updateActivitiesMissingCollection = async (
       conflicts: "proceed",
       refresh: true,
       max_docs: 1000,
+      scroll: "1m",
       // This is needed due to issue with elasticsearch DSL.
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
@@ -765,6 +766,7 @@ export const updateActivitiesCollection = async (
       conflicts: "proceed",
       refresh: true,
       max_docs: 1000,
+      scroll: "1m",
       // This is needed due to issue with elasticsearch DSL.
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
@@ -941,6 +943,7 @@ export const updateActivitiesTokenMetadata = async (
       conflicts: "proceed",
       refresh: true,
       max_docs: 1000,
+      scroll: "1m",
       // This is needed due to issue with elasticsearch DSL.
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
@@ -1087,6 +1090,7 @@ export const updateActivitiesCollectionMetadata = async (
       conflicts: "proceed",
       refresh: true,
       max_docs: 1000,
+      scroll: "1m",
       // This is needed due to issue with elasticsearch DSL.
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
