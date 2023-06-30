@@ -272,10 +272,14 @@ if (config.doBackgroundWork) {
               };
 
               if (order.side === "sell") {
-                eventInfo = {
-                  kind: ProcessActivityEventKind.newSellOrder,
-                  data: eventData,
-                };
+                if (order.kind === "blur" && order.raw_data?.expirationTime != null) {
+                  // TODO: Remove once we stop ingesting blur order in old format.
+                } else {
+                  eventInfo = {
+                    kind: ProcessActivityEventKind.newSellOrder,
+                    data: eventData,
+                  };
+                }
               } else if (order.side === "buy") {
                 eventInfo = {
                   kind: ProcessActivityEventKind.newBuyOrder,

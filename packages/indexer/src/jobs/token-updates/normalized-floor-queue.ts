@@ -6,7 +6,7 @@ import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
-import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
+import { collectionNormalizedJob } from "@/jobs/collection-updates/collection-normalized-floor-queue-job";
 
 const QUEUE_NAME = "token-updates-normalized-floor-ask-queue";
 
@@ -184,7 +184,7 @@ if (config.doBackgroundWork) {
           sellOrderResult.txHash = sellOrderResult.txHash
             ? fromBuffer(sellOrderResult.txHash)
             : null;
-          await collectionUpdatesNormalizedFloorAsk.addToQueue([sellOrderResult]);
+          await collectionNormalizedJob.addToQueue([sellOrderResult]);
 
           if (kind === "revalidation") {
             logger.error(QUEUE_NAME, `StaleCache: ${JSON.stringify(sellOrderResult)}`);

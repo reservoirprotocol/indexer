@@ -94,6 +94,11 @@ export const trigger = {
         Sdk.SeaportBase.Addresses.ConduitController[chainId],
         Sdk.RouterV6.Addresses.Router[chainId],
       ]),
+    PermitProxy: async (chainId: number) =>
+      dv("PermitProxy", "v1", [
+        Sdk.RouterV6.Addresses.Router[chainId],
+        Sdk.Common.Addresses.GelatoRelay1BalanceERC2771[chainId],
+      ]),
     SeaportConduit: async (chainId: number) => {
       const contractName = "SeaportConduit";
       const version = "v1";
@@ -266,6 +271,12 @@ export const trigger = {
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.CryptoPunks.Addresses.Exchange[chainId],
+      ]),
+    PaymentProcessorModule: async (chainId: number) =>
+      dv("PaymentProcessorModule", "v1", [
+        DEPLOYER,
+        Sdk.RouterV6.Addresses.Router[chainId],
+        Sdk.PaymentProcessor.Addresses.Exchange[chainId],
       ]),
   },
   // Utilities

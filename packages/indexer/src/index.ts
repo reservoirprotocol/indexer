@@ -18,8 +18,9 @@ import { RabbitMq } from "@/common/rabbit-mq";
 import { RabbitMqJobsConsumer } from "@/jobs/index";
 import { Sources } from "@/models/sources";
 
-process.on("unhandledRejection", (error) => {
-  logger.error("process", `Unhandled rejection: ${error}`);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+process.on("unhandledRejection", (error: any) => {
+  logger.error("process", `Unhandled rejection: ${error} (${error.stack})`);
 
   // For now, just skip any unhandled errors
   // process.exit(1);
@@ -32,10 +33,6 @@ const setup = async () => {
 
   await RabbitMq.connect(); // Connect the rabbitmq
   await RabbitMq.assertQueuesAndExchanges(); // Assert queues and exchanges
-
-  if (config.doKafkaWork) {
-    await startKafkaConsumer();
-  }
 
   // if ((config.doKafkaWork || config.doBackgroundWork) && config.kafkaBrokers.length > 0) {
   //   await startKafkaProducer();
@@ -56,6 +53,10 @@ const setup = async () => {
 
   if (config.doElasticsearchWork) {
     await initIndexes();
+  }
+
+  if (config.doKafkaWork) {
+    await startKafkaConsumer();
   }
 };
 

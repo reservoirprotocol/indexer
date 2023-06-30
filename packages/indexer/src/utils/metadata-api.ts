@@ -48,7 +48,11 @@ export class MetadataApi {
     contract: string,
     tokenId: string,
     community = "",
-    options?: { allowFallback?: boolean }
+    options?: {
+      allowFallback?: boolean;
+      indexingMethod?: string;
+      additionalQueryParams?: { [key: string]: string };
+    }
   ) {
     if (config.liquidityOnly) {
       // When running in liquidity-only mode:
@@ -75,13 +79,24 @@ export class MetadataApi {
         contract,
         tokenIdRange: null,
         tokenSetId: `contract:${contract}`,
+        paymentTokens: undefined,
       };
     } else {
-      const indexingMethod = MetadataApi.getCollectionIndexingMethod(community);
+      const indexingMethod =
+        options?.indexingMethod ?? MetadataApi.getCollectionIndexingMethod(community);
 
-      const url = `${
-        config.metadataApiBaseUrl
-      }/v4/${getNetworkName()}/metadata/collection?method=${indexingMethod}&token=${contract}:${tokenId}`;
+      let networkName = getNetworkName();
+
+      if (networkName === "prod-goerli") {
+        networkName = "goerli";
+      }
+
+      let url = `${config.metadataApiBaseUrl}/v4/${networkName}/metadata/collection?method=${indexingMethod}&token=${contract}:${tokenId}`;
+      if (options?.additionalQueryParams) {
+        for (const [key, value] of Object.entries(options.additionalQueryParams)) {
+          url += `&${key}=${value}`;
+        }
+      }
 
       const { data } = await axios.get(url);
 
@@ -98,6 +113,7 @@ export class MetadataApi {
         tokenIdRange: [string, string] | null;
         tokenSetId: string | null;
         isFallback?: boolean;
+        paymentTokens?: object | null;
       } = (data as any).collection;
 
       if (collection.isFallback && !options?.allowFallback) {

@@ -41,6 +41,13 @@ export const ApprovalProxy: ChainIdToAddress = {
   [Network.Zora]: "0x224ecb4eae96d31372d1090c3b0233c8310dbbab",
 };
 
+// Permit proxy
+
+export const PermitProxy: ChainIdToAddress = {
+  [Network.Ethereum]: "0x104ff9a0e2a62aa531ef0cc9d19f948bde7062de",
+  [Network.EthereumGoerli]: "0x104ff9a0e2a62aa531ef0cc9d19f948bde7062de",
+};
+
 // Utility modules
 
 export const SwapModule: ChainIdToAddress = {
@@ -161,4 +168,10 @@ export const SuperRareModule: ChainIdToAddress = {
 
 export const CryptoPunksModule: ChainIdToAddress = {
   [Network.Ethereum]: "0x8be240e8689547f1068a835d14f1d943958095dc",
+};
+
+export const PaymentProcessorModule: ChainIdToAddress = {
+  [Network.Ethereum]: "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc",
+  [Network.EthereumGoerli]: "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc",
+  [Network.EthereumSepolia]: "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc",
 };

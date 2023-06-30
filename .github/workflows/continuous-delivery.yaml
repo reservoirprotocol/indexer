@@ -97,6 +97,10 @@ jobs:
             ./dev/platform/indexer-websocket-goerli.yaml \
             ${{ github.sha }} \
             indexer-websocket-goerli
+          ./utils/version_update.sh \
+            ./dev/platform/indexer-kafka-worker-goerli.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-goerli
 
   deploy-prod:
     name: Deploy to Production
@@ -170,6 +174,10 @@ jobs:
             ${{ github.sha }} \
             indexer-api-zora
           ./utils/version_update.sh \
+            ./prod/platform/indexer-api-avalanche.yaml \
+            ${{ github.sha }} \
+            indexer-api-avalanche
+          ./utils/version_update.sh \
             ./prod/platform/indexer-worker.yaml \
             ${{ github.sha }} \
             indexer-worker
@@ -238,6 +246,10 @@ jobs:
             ${{ github.sha }} \
             indexer-worker-zora
           ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-avalanche.yaml \
+            ${{ github.sha }} \
+            indexer-worker-avalanche
+          ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-ethereum.yaml \
             ${{ github.sha }} \
             indexer-websocket-ethereum
@@ -257,3 +269,7 @@ jobs:
             ./prod/platform/indexer-worker-polygon-master.yaml \
             ${{ github.sha }} \
             indexer-worker-polygon-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-polygon.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-polygon

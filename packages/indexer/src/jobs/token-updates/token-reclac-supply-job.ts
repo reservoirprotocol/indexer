@@ -3,10 +3,10 @@
 import { Tokens } from "@/models/tokens";
 import { redb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
-import { AddressZero } from "@ethersproject/constants";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import _ from "lodash";
 import { acquireLock } from "@/common/redis";
+import { getNetworkSettings } from "@/config/network";
 
 export type TokenRecalcSupplyPayload = {
   contract: string;
@@ -52,7 +52,7 @@ export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
     const values: {
       contract: Buffer;
       tokenId: string;
-      addressZero: Buffer;
+      burnAddresses: Buffer[];
       limit: number;
       lastContract?: Buffer;
       lastTokenId?: string;
@@ -60,7 +60,7 @@ export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
     } = {
       contract: toBuffer(contract),
       tokenId: tokenId,
-      addressZero: toBuffer(AddressZero),
+      burnAddresses: getNetworkSettings().burnAddresses.map((address) => toBuffer(address)),
       limit,
     };
 
@@ -70,7 +70,7 @@ export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
         FROM nft_balances
         WHERE contract = $/contract/
         AND token_id = $/tokenId/
-        AND owner != $/addressZero/
+        AND owner NOT IN ($/burnAddresses:list/)
         AND amount > 0
         ${continuation}
         ORDER BY contract, token_id, owner
@@ -102,7 +102,7 @@ export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
     const values: {
       contract: Buffer;
       tokenId: string;
-      addressZero: Buffer;
+      mintAddresses: Buffer[];
       limit: number;
       lastTimestamp?: string;
       lastTxHash?: Buffer;
@@ -111,7 +111,7 @@ export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
     } = {
       contract: toBuffer(contract),
       tokenId: tokenId,
-      addressZero: toBuffer(AddressZero),
+      mintAddresses: getNetworkSettings().mintAddresses.map((address) => toBuffer(address)),
       limit,
     };
 
@@ -121,7 +121,7 @@ export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
         FROM nft_transfer_events
         WHERE address = $/contract/
         AND token_id = $/tokenId/
-        AND nft_transfer_events.from = $/addressZero/
+        AND nft_transfer_events.from IN ($/mintAddresses:list/)
         ${continuation}
         ORDER BY "timestamp", tx_hash, log_index, batch_index
         LIMIT $/limit/

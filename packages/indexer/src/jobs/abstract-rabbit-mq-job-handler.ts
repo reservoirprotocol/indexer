@@ -45,6 +45,7 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
   protected lazyMode = false;
   protected queueType: QueueType = "classic";
   protected consumerTimeout = 0;
+  protected disableConsuming = false;
 
   public async consume(channel: Channel, consumeMessage: ConsumeMessage): Promise<void> {
     const message = JSON.parse(consumeMessage.content.toString()) as RabbitMQMessage;
@@ -77,12 +78,14 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
         delay = 0;
       }
 
-      // Lof the error
+      // Log the error
       logger.error(
         this.queueName,
-        `Error handling event: ${error}, queueName=${queueName}, payload=${JSON.stringify(
-          message
-        )}, retryCount=${message.retryCount}`
+        `Error handling event: ${JSON.stringify(
+          error
+        )}, queueName=${queueName}, payload=${JSON.stringify(message)}, retryCount=${
+          message.retryCount
+        }`
       );
 
       await channel.ack(consumeMessage); // Ack the message with rabbit
@@ -137,6 +140,10 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
 
   public isLazyMode(): boolean {
     return this.lazyMode;
+  }
+
+  public isDisableConsuming(): boolean {
+    return this.disableConsuming;
   }
 
   public getSingleActiveConsumer(): boolean | undefined {

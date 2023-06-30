@@ -21,7 +21,7 @@ export class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler {
 
     const query = `
           UPDATE "collections"
-          SET "token_count" = (SELECT COUNT(*) FROM "tokens" WHERE "collection_id" = $/collection/),
+          SET "token_count" = (SELECT COUNT(*) FROM "tokens" WHERE "collection_id" = $/collection/ AND (remaining_supply > 0 OR remaining_supply IS NULL)),
               "updated_at" = now()
           WHERE "id" = $/collection/;
       `;
@@ -31,11 +31,14 @@ export class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler {
     });
   }
 
-  public async addToQueue(collection: RecalcTokenCountQueueJobPayload) {
-    await this.send({
-      payload: collection,
-      jobId: collection.force ? undefined : collection.collection,
-    });
+  public async addToQueue(collection: RecalcTokenCountQueueJobPayload, delay = 5 * 60 * 1000) {
+    await this.send(
+      {
+        payload: collection,
+        jobId: collection.force ? undefined : collection.collection,
+      },
+      collection.force ? 0 : delay
+    );
   }
 }
 

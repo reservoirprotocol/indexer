@@ -10,7 +10,7 @@ export type EventsSyncFtTransfersWriteBufferPayload = {
 export class EventsSyncFtTransfersWriteBufferJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-ft-transfers-write";
   maxRetries = 10;
-  concurrency = 10;
+  concurrency = 15;
   lazyMode = true;
 
   protected async process(payload: EventsSyncFtTransfersWriteBufferPayload) {
@@ -24,8 +24,8 @@ export class EventsSyncFtTransfersWriteBufferJob extends AbstractRabbitMqJobHand
     }
   }
 
-  public async addToQueue(query: EventsSyncFtTransfersWriteBufferPayload) {
-    await this.send({ payload: query });
+  public async addToQueue(params: EventsSyncFtTransfersWriteBufferPayload) {
+    await this.send({ payload: params });
   }
 }
 

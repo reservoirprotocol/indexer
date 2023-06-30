@@ -43,6 +43,8 @@ import * as Zora from "./zora";
 import * as LooksRareV2 from "./looks-rare-v2";
 import * as Blend from "./blend";
 import * as SudoswapV2 from "./sudoswap-v2";
+import * as PaymentProcessor from "./payment-processor";
+import * as Seadrop from "./seadrop";
 
 // Overrides (shouldn't belong here)
 if (process.env.SEAPORT_V15_OVERRIDE) {
@@ -113,4 +115,6 @@ export {
   LooksRareV2,
   Blend,
   SudoswapV2,
+  PaymentProcessor,
+  Seadrop,
 };

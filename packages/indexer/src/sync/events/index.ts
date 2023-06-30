@@ -15,11 +15,10 @@ import * as syncEventsUtils from "@/events-sync/utils";
 import * as blocksModel from "@/models/blocks";
 import getUuidByString from "uuid-by-string";
 
-import * as blockCheck from "@/jobs/events-sync/block-check-queue";
-import * as eventsSyncBackfillProcess from "@/jobs/events-sync/process/backfill";
-import * as eventsSyncRealtimeProcess from "@/jobs/events-sync/process/realtime";
-import { BlocksToCheck } from "@/jobs/events-sync/block-check-queue";
 import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
+import { eventsSyncProcessBackfillJob } from "@/jobs/events-sync/process/events-sync-process-backfill";
+import { blockCheckJob, BlockCheckJobPayload } from "@/jobs/events-sync/block-check-queue-job";
+import { eventsSyncProcessRealtimeJob } from "@/jobs/events-sync/process/events-sync-process-realtime";
 
 export const extractEventsBatches = async (
   enhancedEvents: EnhancedEvent[],
@@ -245,6 +244,18 @@ export const extractEventsBatches = async (
             kind: "collectionxyz",
             data: kindToEvents.get("collectionxyz") ?? [],
           },
+          {
+            kind: "payment-processor",
+            data: kindToEvents.get("payment-processor") ?? [],
+          },
+          {
+            kind: "thirdweb",
+            data: kindToEvents.get("thirdweb") ?? [],
+          },
+          {
+            kind: "seadrop",
+            data: kindToEvents.get("seadrop") ?? [],
+          },
         ];
 
         txHashToEventsBatch.set(txHash, {
@@ -265,7 +276,7 @@ export const syncEvents = async (
   options?: {
     // When backfilling, certain processes will be disabled
     backfill?: boolean;
-    syncDetails:
+    syncDetails?:
       | {
           method: "events";
           events: string[];
@@ -405,9 +416,9 @@ export const syncEvents = async (
 
     const startTimeAddToProcessQueue = now();
     if (backfill) {
-      await eventsSyncBackfillProcess.addToQueue(eventsBatches);
+      await eventsSyncProcessBackfillJob.addToQueue(eventsBatches);
     } else {
-      await eventsSyncRealtimeProcess.addToQueue(eventsBatches, true);
+      await eventsSyncProcessRealtimeJob.addToQueue(eventsBatches, true);
     }
     const endTimeAddToProcessQueue = now();
 
@@ -420,12 +431,12 @@ export const syncEvents = async (
 
         // Act right away if the current block is a duplicate
         if ((await blocksModel.getBlocks(block)).length > 1) {
-          await blockCheck.addToQueue(block, blockHash, 10);
-          await blockCheck.addToQueue(block, blockHash, 30);
+          await blockCheckJob.addToQueue({ block, blockHash, delay: 10 });
+          await blockCheckJob.addToQueue({ block, blockHash, delay: 30 });
         }
       }
 
-      const blocksToCheck: BlocksToCheck[] = [];
+      const blocksToCheck: BlockCheckJobPayload[] = [];
       let blockNumbersArray = _.range(fromBlock, toBlock + 1);
 
       // Put all fetched blocks on a delayed queue
@@ -451,7 +462,7 @@ export const syncEvents = async (
         );
       }
 
-      await blockCheck.addBulk(blocksToCheck);
+      await blockCheckJob.addBulk(blocksToCheck);
     }
 
     const endTimeProcessingEvents = now();

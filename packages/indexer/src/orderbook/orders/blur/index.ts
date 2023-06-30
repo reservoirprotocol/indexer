@@ -332,8 +332,6 @@ export const savePartialListings = async (
 
   const handleOrder = async ({ orderParams }: PartialListingOrderInfo) => {
     try {
-      logger.debug("blur-debug", JSON.stringify(orderParams));
-
       // Fetch current owner
       const owner = await idb
         .oneOrNone(
@@ -353,7 +351,12 @@ export const savePartialListings = async (
         )
         .then((r) => fromBuffer(r.owner));
 
-      if (orderParams.owner && orderParams.owner.toLowerCase() !== owner) {
+      if (
+        orderParams.owner &&
+        orderParams.owner.toLowerCase() !== owner &&
+        // Blend sell offers will have the original owner instead of the Blend contract
+        owner !== Sdk.Blend.Addresses.Blend[config.chainId]
+      ) {
         return results.push({
           id: "unknown",
           status: "redundant",
@@ -373,8 +376,8 @@ export const savePartialListings = async (
             expiration = now(),
             updated_at = now()
           WHERE orders.token_set_id = $/tokenSetId/
-            AND orders.source_id_int = $/sourceId/
             AND orders.fillability_status = 'fillable'
+            AND orders.approval_status = 'approved'
             AND orders.raw_data->>'createdAt' IS NOT NULL
             AND orders.id != $/excludeOrderId/
             ${
@@ -578,6 +581,7 @@ export const savePartialListings = async (
         "dynamic",
         "raw_data",
         { name: "expiration", mod: ":raw" },
+        "originated_at",
       ],
       {
         table: "orders",

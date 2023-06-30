@@ -22,3 +22,4 @@ export * from "@/api/endpoints/execute/get-execute-sell/v7";
 export * from "@/api/endpoints/execute/post-auth-signature/v1";
 export * from "@/api/endpoints/execute/post-cancel-signature/v1";
 export * from "@/api/endpoints/execute/post-execute-results/v1";
+export * from "@/api/endpoints/execute/post-permit-signature/v1";

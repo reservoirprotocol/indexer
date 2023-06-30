@@ -48,7 +48,8 @@ export const postOrderV4Options: RouteOptions = {
                   "x2y2",
                   "universe",
                   "flow",
-                  "alienswap"
+                  "alienswap",
+                  "payment-processor"
                 )
                 .required(),
               data: Joi.object().required(),
@@ -624,6 +625,27 @@ export const postOrderV4Options: RouteOptions = {
                 crossPostingOrderId: crossPostingOrder.id,
                 crossPostingOrderStatus: crossPostingOrder.status,
               });
+            }
+
+            case "payment-processor": {
+              if (orderbook !== "reservoir") {
+                return results.push({ message: "unsupported-orderbook", orderIndex: i });
+              }
+
+              const orderInfo: orders.paymentProcessor.OrderInfo = {
+                orderParams: order.data,
+                metadata: {
+                  schema,
+                  source,
+                },
+              };
+
+              const [result] = await orders.paymentProcessor.save([orderInfo]);
+              if (["already-exists", "success"].includes(result.status)) {
+                return results.push({ message: "success", orderIndex: i, orderId: result.id });
+              } else {
+                return results.push({ message: result.status, orderIndex: i, orderId: result.id });
+              }
             }
           }
         })

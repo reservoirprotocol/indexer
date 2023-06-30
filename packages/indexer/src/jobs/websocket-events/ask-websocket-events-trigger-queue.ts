@@ -39,7 +39,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork && config.kafkaBroke
       const { data } = job.data as EventInfo;
 
       try {
-        const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
+        const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", true);
 
         const rawResult = await idb.oneOrNone(
           `
