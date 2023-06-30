@@ -45,7 +45,7 @@ if (config.doBackgroundWork) {
         }
 
         if (by === "collection") {
-          const collectionExists = await idb.one(
+          const collectionExists = await idb.oneOrNone(
             "SELECT 1 FROM collections WHERE collections.id = $/collection/",
             {
               collection: data.collection,
@@ -53,7 +53,12 @@ if (config.doBackgroundWork) {
           );
           if (!collectionExists) {
             const collection = await MetadataApi.getCollectionMetadata(data.collection, "0", "", {
-              indexingMethod: data.standard === "manifold" ? "manifold" : "onchain",
+              indexingMethod:
+                data.standard === "manifold"
+                  ? "manifold"
+                  : data.standard === "seadrop-v1.0"
+                  ? "opensea"
+                  : "onchain",
               additionalQueryParams:
                 data.standard === "manifold"
                   ? { instanceId: data.additionalInfo.instanceId }
@@ -136,6 +141,12 @@ if (config.doBackgroundWork) {
                 ).tokenId.toString(),
                 data.additionalInfo.extension
               );
+
+              break;
+            }
+
+            case "seadrop-v1.0": {
+              collectionMints = await detector.seadrop.extractByCollection(data.collection);
 
               break;
             }

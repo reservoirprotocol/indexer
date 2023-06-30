@@ -252,6 +252,10 @@ export const extractEventsBatches = async (
             kind: "thirdweb",
             data: kindToEvents.get("thirdweb") ?? [],
           },
+          {
+            kind: "seadrop",
+            data: kindToEvents.get("seadrop") ?? [],
+          },
         ];
 
         txHashToEventsBatch.set(txHash, {

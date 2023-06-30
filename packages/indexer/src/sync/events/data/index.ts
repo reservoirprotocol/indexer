@@ -84,7 +84,8 @@ export type EventKind =
   | "blend"
   | "sudoswap-v2"
   | "payment-processor"
-  | "thirdweb";
+  | "thirdweb"
+  | "seadrop";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -267,7 +268,8 @@ export type EventSubKind =
   | "payment-processor-sweep-collection-erc1155"
   | "payment-processor-sweep-collection-erc721"
   | "thirdweb-claim-conditions-updated-erc721"
-  | "thirdweb-claim-conditions-updated-erc1155";
+  | "thirdweb-claim-conditions-updated-erc1155"
+  | "seadrop-public-drop-updated";
 
 export type EventData = {
   kind: EventKind;

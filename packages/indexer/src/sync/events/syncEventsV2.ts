@@ -236,6 +236,10 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
         kind: "thirdweb",
         data: kindToEvents.get("thirdweb") ?? [],
       },
+      {
+        kind: "seadrop",
+        data: kindToEvents.get("seadrop") ?? [],
+      },
     ];
 
     txHashToEventsBatch.set(txHash, {
