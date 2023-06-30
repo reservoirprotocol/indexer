@@ -173,4 +173,5 @@ export const CryptoPunksModule: ChainIdToAddress = {
 export const PaymentProcessorModule: ChainIdToAddress = {
   [Network.Ethereum]: "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc",
   [Network.EthereumGoerli]: "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc",
+  [Network.EthereumSepolia]: "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc",
 };
