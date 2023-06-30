@@ -5,6 +5,7 @@ import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import * as utils from "@/events-sync/utils";
 import { getOrderId } from "@/orderbook/orders/zora";
+import * as mintsProcess from "@/jobs/mints/process";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
 const getOrderParams = (args: Result) => {
@@ -242,6 +243,20 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           taker,
           maker: tokenOwner,
         });
+
+        break;
+      }
+
+      case "zora-sales-config-changed": {
+        await mintsProcess.addToQueue([
+          {
+            by: "collection",
+            data: {
+              standard: "zora",
+              collection: baseEventParams.address,
+            },
+          },
+        ]);
 
         break;
       }

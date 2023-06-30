@@ -48,7 +48,10 @@ export class MetadataApi {
     contract: string,
     tokenId: string,
     community = "",
-    options?: { allowFallback?: boolean }
+    options?: {
+      allowFallback?: boolean;
+      indexingMethod?: string;
+    }
   ) {
     if (config.liquidityOnly) {
       // When running in liquidity-only mode:
@@ -78,7 +81,8 @@ export class MetadataApi {
         paymentTokens: undefined,
       };
     } else {
-      const indexingMethod = MetadataApi.getCollectionIndexingMethod(community);
+      const indexingMethod =
+        options?.indexingMethod ?? MetadataApi.getCollectionIndexingMethod(community);
 
       let networkName = getNetworkName();
 

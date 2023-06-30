@@ -1,10 +1,18 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
+import { randomUUID } from "crypto";
 
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
+import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { simulateAndUpsertCollectionMint } from "@/orderbook/mints";
-import { extractByTx } from "@/orderbook/mints/calldata/detector";
+import {
+  CollectionMint,
+  CollectionMintStandard,
+  simulateAndUpsertCollectionMint,
+} from "@/orderbook/mints";
+import * as detector from "@/orderbook/mints/calldata/detector";
+import MetadataApi from "@/utils/metadata-api";
 
 const QUEUE_NAME = "mints-process";
 
@@ -28,14 +36,82 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { txHash } = job.data as Mint;
+      const { by, data } = job.data as Mint;
 
       try {
-        const collectionMints = await extractByTx(txHash);
+        let collectionMints: CollectionMint[] = [];
+
+        if (by === "tx") {
+          collectionMints = await detector.extractByTx(data.txHash);
+        }
+
+        if (by === "collection") {
+          const collectionExists = await idb.one(
+            "SELECT 1 FROM collections WHERE collections.id = $/collection/",
+            {
+              collection: data.collection,
+            }
+          );
+          if (!collectionExists) {
+            const collection = await MetadataApi.getCollectionMetadata(data.collection, "0", "", {
+              indexingMethod: "onchain",
+            });
+
+            let tokenIdRange: string | null = null;
+            if (collection.tokenIdRange) {
+              tokenIdRange = `numrange(${collection.tokenIdRange[0]}, ${collection.tokenIdRange[1]}, '[]')`;
+            } else if (collection.id === data.collection) {
+              tokenIdRange = `'(,)'::numrange`;
+            }
+
+            // For covering the case where the token id range is null
+            const tokenIdRangeParam = tokenIdRange ? "$/tokenIdRange:raw/" : "$/tokenIdRange/";
+
+            await idb.none(
+              `
+                INSERT INTO collections (
+                  id,
+                  slug,
+                  name,
+                  metadata,
+                  contract,
+                  token_id_range,
+                  token_set_id
+                ) VALUES (
+                  $/id/,
+                  $/slug/,
+                  $/name/,
+                  $/metadata:json/,
+                  $/contract/,
+                  ${tokenIdRangeParam},
+                  $/tokenSetId/
+                ) ON CONFLICT DO NOTHING
+              `,
+              {
+                id: collection.id,
+                slug: collection.slug,
+                name: collection.name,
+                metadata: collection.metadata,
+                contract: toBuffer(collection.contract),
+                tokenIdRange,
+                tokenSetId: collection.tokenSetId,
+              }
+            );
+          }
+
+          switch (data.standard) {
+            case "zora": {
+              collectionMints = await detector.zora.extractByCollection(data.collection);
+              break;
+            }
+          }
+        }
+
         for (const collectionMint of collectionMints) {
           const result = await simulateAndUpsertCollectionMint(collectionMint);
           logger.info("mints-process", JSON.stringify({ success: result, collectionMint }));
         }
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         logger.error(
@@ -52,18 +128,29 @@ if (config.doBackgroundWork) {
   });
 }
 
-export type Mint = {
-  txHash: string;
-};
+export type Mint =
+  | {
+      by: "tx";
+      data: {
+        txHash: string;
+      };
+    }
+  | {
+      by: "collection";
+      data: {
+        standard: CollectionMintStandard;
+        collection: string;
+      };
+    };
 
 export const addToQueue = async (mints: Mint[]) =>
   queue.addBulk(
     mints.map((mint) => ({
-      name: mint.txHash,
+      name: randomUUID(),
       data: mint,
       opts: {
         // Deterministic job id so that we don't perform duplicated work
-        jobId: mint.txHash,
+        jobId: mint.by === "tx" ? mint.data.txHash : undefined,
       },
     }))
   );
