@@ -230,7 +230,8 @@
   "PaymentProcessorModule": {
     "v1": {
       "1": "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc",
-      "5": "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc"
+      "5": "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc",
+      "11155111": "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc"
     }
   },
   "PermitProxy": {

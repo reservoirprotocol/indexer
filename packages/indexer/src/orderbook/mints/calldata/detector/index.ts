@@ -6,7 +6,7 @@ import { redis } from "@/common/redis";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { getNetworkSettings } from "@/config/network";
 import { fetchTransaction } from "@/events-sync/utils";
-import * as mintsSupplyCheck from "@/jobs/mints/supply-check";
+import * as mintsCheck from "@/jobs/mints/check";
 import { Sources } from "@/models/sources";
 
 import * as generic from "@/orderbook/mints/calldata/detector/generic";
@@ -14,6 +14,8 @@ import * as manifold from "@/orderbook/mints/calldata/detector/manifold";
 import * as seadrop from "@/orderbook/mints/calldata/detector/seadrop";
 import * as thirdweb from "@/orderbook/mints/calldata/detector/thirdweb";
 import * as zora from "@/orderbook/mints/calldata/detector/zora";
+
+export { generic, manifold, seadrop, thirdweb, zora };
 
 export const extractByTx = async (txHash: string, skipCache = false) => {
   // Fetch all transfers associated to the transaction
@@ -82,7 +84,7 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
     return [];
   }
 
-  await mintsSupplyCheck.addToQueue(collection);
+  await mintsCheck.addToQueue(collection);
 
   // For performance reasons, do at most one attempt per collection per 5 minutes
   if (!skipCache) {

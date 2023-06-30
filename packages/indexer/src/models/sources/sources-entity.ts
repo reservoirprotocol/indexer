@@ -23,6 +23,7 @@ export type SourcesMetadata = {
   tokenUrlOptimism?: string;
   tokenUrlBsc?: string;
   tokenUrlZora?: string;
+  tokenUrlAvalanche?: string;
 };
 
 export class SourcesEntity {

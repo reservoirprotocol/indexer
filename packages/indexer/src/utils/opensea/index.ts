@@ -1,7 +1,7 @@
 import axios from "axios";
 
 import { config } from "@/config/index";
-import * as flagStatusUpdate from "@/jobs/flag-status/update";
+import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
 
 export const tryGetTokensSuspiciousStatus = async (tokens: string[], timeout = 5000) => {
   const tokenToSuspicious = new Map<string, boolean>();
@@ -37,7 +37,7 @@ export const tryGetTokensSuspiciousStatus = async (tokens: string[], timeout = 5
             }
 
             // Asynchronously trigger a flag status refresh
-            await flagStatusUpdate.addToQueue(
+            await flagStatusUpdateJob.addToQueue(
               [...tokenToSuspicious.entries()].map(([token, isFlagged]) => ({
                 contract: token.split(":")[0],
                 tokenId: token.split(":")[1],

@@ -16,10 +16,8 @@ import { getMaxSupply, getStatus, toSafeTimestamp } from "@/orderbook/mints/call
 const STANDARD = "seadrop-v1.0";
 
 export const extractByCollection = async (collection: string): Promise<CollectionMint[]> => {
-  const SEADROP = "0x00005ea00ac477b1030ce78506496e8c2de24bf5";
-
   const c = new Contract(
-    SEADROP,
+    Sdk.Seadrop.Addresses.Seadrop[config.chainId],
     new Interface([
       `
         function mintPublic(
@@ -60,7 +58,7 @@ export const extractByCollection = async (collection: string): Promise<Collectio
           standard: STANDARD,
           details: {
             tx: {
-              to: SEADROP,
+              to: Sdk.Seadrop.Addresses.Seadrop[config.chainId],
               data: {
                 // `mintPublic`
                 signature: "0x161ac21f",

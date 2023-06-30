@@ -473,6 +473,25 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         break;
       }
+
+      case "manifold-claim-initialized":
+      case "manifold-claim-updated": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const collection = parsedLog.args["creatorContract"].toLowerCase();
+        const instanceId = parsedLog.args["claimIndex"].toString();
+
+        onChainData.mints.push({
+          by: "collection",
+          data: {
+            standard: "manifold",
+            collection,
+            additionalInfo: {
+              extension: baseEventParams.address,
+              instanceId,
+            },
+          },
+        });
+      }
     }
   }
 };
