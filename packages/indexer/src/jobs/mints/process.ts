@@ -1,8 +1,11 @@
+import { Interface } from "@ethersproject/abi";
+import { Contract } from "@ethersproject/contracts";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { baseProvider } from "@/common/provider";
 import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
@@ -19,11 +22,7 @@ const QUEUE_NAME = "mints-process";
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
   defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: "exponential",
-      delay: 20000,
-    },
+    attempts: 1,
     removeOnComplete: 1000,
     removeOnFail: 10000,
     timeout: 60000,
@@ -54,7 +53,11 @@ if (config.doBackgroundWork) {
           );
           if (!collectionExists) {
             const collection = await MetadataApi.getCollectionMetadata(data.collection, "0", "", {
-              indexingMethod: "onchain",
+              indexingMethod: data.standard === "manifold" ? "manifold" : "onchain",
+              additionalQueryParams:
+                data.standard === "manifold"
+                  ? { instanceId: data.additionalInfo.instanceId }
+                  : undefined,
             });
 
             let tokenIdRange: string | null = null;
@@ -100,16 +103,55 @@ if (config.doBackgroundWork) {
           }
 
           switch (data.standard) {
+            case "manifold": {
+              const c = new Contract(
+                data.additionalInfo.extension,
+                new Interface([
+                  `
+                    function getClaim(address creatorContractAddress, uint256 instanceId) external view returns (
+                      (
+                        uint32 total,
+                        uint32 totalMax,
+                        uint32 walletMax,
+                        uint48 startDate,
+                        uint48 endDate,
+                        uint8 storageProtocol,
+                        bytes32 merkleRoot,
+                        string location,
+                        uint256 tokenId,
+                        uint256 cost,
+                        address payable paymentReceiver,
+                        address erc20
+                      )
+                    )
+                  `,
+                ]),
+                baseProvider
+              );
+
+              collectionMints = await detector.manifold.extractByCollection(
+                data.collection,
+                (
+                  await c.getClaim(data.collection, data.additionalInfo.instanceId)
+                ).tokenId.toString(),
+                data.additionalInfo.extension
+              );
+
+              break;
+            }
+
             case "thirdweb": {
               collectionMints = await detector.thirdweb.extractByCollection(
                 data.collection,
                 data.tokenId
               );
+
               break;
             }
 
             case "zora": {
               collectionMints = await detector.zora.extractByCollection(data.collection);
+
               break;
             }
           }
@@ -149,6 +191,8 @@ export type Mint =
         standard: CollectionMintStandard;
         collection: string;
         tokenId?: string;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        additionalInfo?: any;
       };
     };
 
