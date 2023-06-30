@@ -54,12 +54,6 @@ import * as backfillNftTransferEventsUpdatedAt from "@/jobs/backfill/backfill-nf
 import * as eventsSyncRealtime from "@/jobs/events-sync/realtime-queue";
 import * as eventsSyncRealtimeV2 from "@/jobs/events-sync/realtime-queue-v2";
 
-import * as flagStatusProcessJob from "@/jobs/flag-status/process-queue";
-import * as flagStatusSyncJob from "@/jobs/flag-status/sync-queue";
-import * as flagStatusGenerateAttributeTokenSet from "@/jobs/flag-status/generate-attribute-token-set";
-import * as flagStatusGenerateCollectionTokenSet from "@/jobs/flag-status/generate-collection-token-set";
-import * as flagStatusUpdate from "@/jobs/flag-status/update";
-
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as metadataIndexProcessBySlug from "@/jobs/metadata-index/process-queue-by-slug";
 import * as metadataIndexProcess from "@/jobs/metadata-index/process-queue";
@@ -179,6 +173,9 @@ import { collectionFloorJob } from "@/jobs/collection-updates/collection-floor-q
 import { eventsSyncProcessRealtimeJob } from "@/jobs/events-sync/process/events-sync-process-realtime";
 import { fillUpdatesJob } from "@/jobs/fill-updates/fill-updates-job";
 import { fillPostProcessJob } from "@/jobs/fill-updates/fill-post-process-job";
+import { generateCollectionTokenSetJob } from "@/jobs/flag-status/generate-collection-token-set-job";
+import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
+import { flagStatusProcessJob } from "@/jobs/flag-status/flag-status-process-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -215,12 +212,6 @@ export const allJobQueues = [
 
   eventsSyncRealtime.queue,
   eventsSyncRealtimeV2.queue,
-
-  flagStatusProcessJob.queue,
-  flagStatusSyncJob.queue,
-  flagStatusGenerateAttributeTokenSet.queue,
-  flagStatusGenerateCollectionTokenSet.queue,
-  flagStatusUpdate.queue,
 
   metadataIndexFetch.queue,
   metadataIndexProcessBySlug.queue,
@@ -349,6 +340,9 @@ export class RabbitMqJobsConsumer {
       eventsSyncProcessRealtimeJob,
       fillUpdatesJob,
       fillPostProcessJob,
+      generateCollectionTokenSetJob,
+      flagStatusUpdateJob,
+      flagStatusProcessJob,
     ];
   }
 
@@ -414,7 +408,8 @@ export class RabbitMqJobsConsumer {
       ? RabbitMqJobsConsumer.channelsToJobs.get(channel)?.push(job)
       : RabbitMqJobsConsumer.channelsToJobs.set(channel, [job]);
 
-    await channel.prefetch(job.getConcurrency()); // Set the number of messages to consume simultaneously
+    // Set the number of messages to consume simultaneously
+    await channel.prefetch(job.getConcurrency());
 
     // Subscribe to the queue
     await channel.consume(
@@ -428,6 +423,9 @@ export class RabbitMqJobsConsumer {
         consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getQueue()),
       }
     );
+
+    // Set the number of messages to consume simultaneously for the retry queue
+    await channel.prefetch(_.max([_.toInteger(job.getConcurrency() / 4), 1]) ?? 1);
 
     // Subscribe to the retry queue
     await channel.consume(
