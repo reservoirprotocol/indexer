@@ -5,6 +5,7 @@ import { idb } from "@/common/db";
 import { bn, toBuffer } from "@/common/utils";
 import { CollectionMint } from "@/orderbook/mints";
 
+import * as Decent from "@/orderbook/mints/calldata/detector/decent";
 import * as Generic from "@/orderbook/mints/calldata/detector/generic";
 import * as Manifold from "@/orderbook/mints/calldata/detector/manifold";
 import * as Seadrop from "@/orderbook/mints/calldata/detector/seadrop";
@@ -112,6 +113,18 @@ export const generateCollectionMintTxData = async (
         let abiValue: any;
 
         switch (collectionMint.standard) {
+          case "decent": {
+            if (allowlistItemIndex === 0) {
+              abiValue = allowlistData.max_mints;
+            } else if (allowlistItemIndex === 1) {
+              abiValue = allowlistData.price;
+            } else {
+              abiValue = await Decent.generateProofValue(collectionMint, minter);
+            }
+
+            break;
+          }
+
           case "manifold": {
             if (allowlistItemIndex === 0) {
               abiValue = [(await Manifold.generateProofValue(collectionMint, minter)).value];
@@ -211,6 +224,8 @@ export const refreshMintsForCollection = async (collection: string) => {
   );
   if (standardResult) {
     switch (standardResult.standard) {
+      case "decent":
+        return Decent.refreshByCollection(collection);
       case "manifold":
         return Manifold.refreshByCollection(collection);
       case "seadrop-v1.0":
