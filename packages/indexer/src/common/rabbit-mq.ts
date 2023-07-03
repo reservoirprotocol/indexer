@@ -20,6 +20,7 @@ export type RabbitMQMessage = {
   completeTime?: number;
   retryCount?: number;
   persistent?: boolean;
+  prioritized?: boolean;
 };
 
 export type CreatePolicyPayload = {
@@ -79,6 +80,7 @@ export class RabbitMq {
 
       const channelIndex = _.random(0, RabbitMq.maxPublisherChannelsCount - 1);
       content.publishTime = content.publishTime ?? _.now();
+      content.prioritized = Boolean(priority);
 
       await new Promise<void>((resolve, reject) => {
         if (delay) {

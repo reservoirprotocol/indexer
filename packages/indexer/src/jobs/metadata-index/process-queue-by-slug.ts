@@ -8,7 +8,6 @@ import { redis, extendLock, releaseLock } from "@/common/redis";
 import { config } from "@/config/index";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
 import MetadataApi from "@/utils/metadata-api";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import _ from "lodash";
 import {
   PendingRefreshTokensBySlug,
@@ -17,6 +16,7 @@ import {
 import { Tokens } from "@/models/tokens";
 import { Collections } from "@/models/collections";
 import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 
 const QUEUE_NAME = "metadata-index-process-queue-by-slug";
 
@@ -44,10 +44,10 @@ async function addToTokenRefreshQueueAndUpdateCollectionMetadata(
   const collection = await Collections.getById(refreshTokenBySlug.collection);
 
   if (collection) {
-    const method = metadataIndexFetch.getIndexingMethod(collection.community);
+    const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
 
     await Promise.all([
-      metadataIndexFetch.addToQueue(
+      metadataIndexFetchJob.addToQueue(
         [
           {
             kind: "full-collection",
@@ -143,7 +143,7 @@ if (config.doBackgroundWork) {
                 refreshTokenBySlug
               )}, error=${JSON.stringify(error.response.data)}`
             );
-            await metadataIndexFetch.addToQueue(
+            await metadataIndexFetchJob.addToQueue(
               [
                 {
                   kind: "full-collection",

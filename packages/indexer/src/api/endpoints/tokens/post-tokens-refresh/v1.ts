@@ -10,7 +10,6 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { regex } from "@/common/utils";
 import { config } from "@/config/index";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as orderFixes from "@/jobs/order-fixes/fixes";
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
@@ -18,6 +17,7 @@ import { ApiKeyManager } from "@/models/api-keys";
 import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 
 const version = "v1";
 
@@ -130,12 +130,20 @@ export const postTokensRefreshV1Options: RouteOptions = {
 
       // Refresh metadata
       const collection = await Collections.getByContractAndTokenId(contract, tokenId);
-      await metadataIndexFetch.addToQueue(
+
+      if (!collection) {
+        logger.warn(
+          `post-tokens-refresh-${version}-handler`,
+          `Collection does not exist. contract=${contract}, tokenId=${tokenId}`
+        );
+      }
+
+      await metadataIndexFetchJob.addToQueue(
         [
           {
             kind: "single-token",
             data: {
-              method: metadataIndexFetch.getIndexingMethod(collection?.community || null),
+              method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
               contract,
               tokenId,
               collection: collection?.id || contract,

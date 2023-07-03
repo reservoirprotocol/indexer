@@ -6,11 +6,11 @@ import { acquireLock, redis, releaseLock } from "@/common/redis";
 import { config } from "@/config/index";
 import { redb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import {
   collectionMetadataQueueJob,
   CollectionMetadataInfo,
 } from "@/jobs/collection-updates/collection-metadata-queue-job";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 
 const QUEUE_NAME = "refresh-contract-collections-metadata-queue";
 
@@ -75,7 +75,7 @@ if (config.doBackgroundWork) {
           );
 
           if (contractToken) {
-            await metadataIndexFetch.addToQueue([
+            await metadataIndexFetchJob.addToQueue([
               {
                 kind: "single-token",
                 data: {
