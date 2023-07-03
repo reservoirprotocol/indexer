@@ -18,7 +18,6 @@ import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attr
 import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-attribute-value-counts-job";
 import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
 import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
-import { TokenMetadataInfo } from "@/jobs/metadata-index/write-queue";
 
 export type MetadataIndexWriteJobPayload = {
   collection: string;
@@ -520,7 +519,7 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
     return true;
   }
 
-  public async addToQueue(tokenMetadataInfos: TokenMetadataInfo[]) {
+  public async addToQueue(tokenMetadataInfos: MetadataIndexWriteJobPayload[]) {
     await this.sendBatch(
       tokenMetadataInfos
         .map((tokenMetadataInfo) => ({
