@@ -2,11 +2,12 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 
 import { logger } from "@/common/logger";
 import { EventsBatch, processEventsBatch } from "@/events-sync/handlers";
+import { config } from "@/config/index";
 
 export class EventsSyncProcessRealtimeJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-process-realtime";
   maxRetries = 10;
-  concurrency = 20;
+  concurrency = config.chainId === 137 ? 5 : 20;
   lazyMode = true;
   backoff = {
     type: "exponential",

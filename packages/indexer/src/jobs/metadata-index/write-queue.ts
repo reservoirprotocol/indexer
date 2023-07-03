@@ -12,8 +12,6 @@ import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 
-import * as flagStatusUpdate from "@/jobs/flag-status/update";
-
 import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
 import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attribute-key-counts-job";
 import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-attribute-value-counts-job";
@@ -22,6 +20,7 @@ import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
 import { updateCollectionDailyVolumeJob } from "@/jobs/collection-updates/update-collection-daily-volume-job";
 import { replaceActivitiesCollectionJob } from "@/jobs/activities/replace-activities-collection-job";
 import { refreshActivitiesTokenMetadataJob } from "@/jobs/activities/refresh-activities-token-metadata-job";
+import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
 
 const QUEUE_NAME = "metadata-index-write-queue";
 
@@ -202,7 +201,7 @@ if (config.doBackgroundWork) {
         }
 
         if (flagged != null) {
-          await flagStatusUpdate.addToQueue([
+          await flagStatusUpdateJob.addToQueue([
             {
               contract,
               tokenId,

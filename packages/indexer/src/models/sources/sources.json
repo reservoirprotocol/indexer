@@ -13,7 +13,8 @@
       "tokenUrlArbitrum": "https://opensea.io/assets/arbitrum/${contract}/${tokenId}",
       "tokenUrlOptimism": "https://opensea.io/assets/optimism/${contract}/${tokenId}",
       "tokenUrlBsc": "https://opensea.io/assets/bsc/${contract}/${tokenId}",
-      "tokenUrlZora": "https://opensea.io/assets/zora/${contract}/${tokenId}"
+      "tokenUrlZora": "https://opensea.io/assets/zora/${contract}/${tokenId}",
+      "tokenUrlAvalanche": "https://opensea.io/assets/avalanche/${contract}/${tokenId}"
     }
   },
   "2": {

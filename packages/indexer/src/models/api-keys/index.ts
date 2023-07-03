@@ -214,6 +214,10 @@ export class ApiKeyManager {
       log.params = request.params;
     }
 
+    if (request.pre.queryString) {
+      log.queryString = request.pre.queryString;
+    }
+
     if (request.query) {
       log.query = request.query;
     }

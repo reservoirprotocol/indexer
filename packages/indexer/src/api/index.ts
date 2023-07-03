@@ -152,6 +152,10 @@ export const start = async (): Promise<void> => {
 
   if (!process.env.LOCAL_TESTING) {
     server.ext("onPostAuth", async (request, reply) => {
+      // Set the request URL query string
+      const searchParams = new URLSearchParams(request.query);
+      request.pre.queryString = searchParams.toString();
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const isInjected = (request as any).isInjected;
       if (isInjected) {
