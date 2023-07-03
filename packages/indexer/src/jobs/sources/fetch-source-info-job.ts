@@ -20,7 +20,10 @@ export class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
     const { sourceDomain } = payload;
 
     let url = sourceDomain;
-    let iconUrl;
+    let iconUrl: string | undefined;
+    let description: string | undefined;
+    let socialImage: string | undefined;
+    let twitterUsername: string | undefined;
 
     if (!_.startsWith(url, "http")) {
       url = `https://${url}`;
@@ -41,6 +44,33 @@ export class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
     let titleText = sourceDomain; // Default name for source is the domain
     if (reservoirTitle) {
       titleText = reservoirTitle.getAttribute("content") ?? "";
+    }
+
+    const descriptionEl = html.querySelector("meta[name='description']");
+    const ogDescriptionEl = html.querySelector("meta[property='og:description']");
+    const twitterDescriptionEl = html.querySelector("meta[name='twitter:description']");
+
+    if (descriptionEl) {
+      description = descriptionEl.getAttribute("content");
+    } else if (twitterDescriptionEl) {
+      description = twitterDescriptionEl.getAttribute("content");
+    } else if (ogDescriptionEl) {
+      description = ogDescriptionEl.getAttribute("content");
+    }
+
+    const ogImageEl = html.querySelector("meta[property='og:image']");
+    const twitterImageEl = html.querySelector("meta[name='twitter:image']");
+
+    if (twitterImageEl) {
+      socialImage = twitterImageEl.getAttribute("content");
+    } else if (ogImageEl) {
+      socialImage = ogImageEl.getAttribute("content");
+    }
+
+    const twitterSiteEl = html.querySelector("meta[name='twitter:site']");
+
+    if (twitterSiteEl) {
+      twitterUsername = twitterSiteEl.getAttribute("content");
     }
 
     // First get the custom reservoir icon tag
@@ -80,6 +110,9 @@ export class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
     await sources.update(sourceDomain, {
       title: titleText,
       icon: iconUrl,
+      description,
+      socialImage,
+      twitterUsername,
       tokenUrlMainnet,
       tokenUrlRinkeby,
       tokenUrlPolygon,

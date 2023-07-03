@@ -19,8 +19,8 @@ export const getTopSellingCollectionsOptions: RouteOptions = {
     privacy: "public",
     expiresIn: 10000,
   },
-  description: "Collections",
-  notes: "Get top selling collections for a particular time range.",
+  description: "Top Selling Collections",
+  notes: "Get top selling and minting collections",
   tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
@@ -48,6 +48,10 @@ export const getTopSellingCollectionsOptions: RouteOptions = {
         .max(50)
         .default(25)
         .description("Amount of items returned in response. Default is 25 and max is 50"),
+
+      includeRecentSales: Joi.boolean()
+        .default(false)
+        .description("If true, 8 recent sales will be included in the response"),
     }),
   },
   response: {
@@ -59,6 +63,24 @@ export const getTopSellingCollectionsOptions: RouteOptions = {
           image: Joi.string().allow("", null),
           primaryContract: Joi.string().lowercase().pattern(regex.address),
           count: Joi.number().integer(),
+          recentSales: Joi.array().items(
+            Joi.object({
+              contract: Joi.string(),
+              type: Joi.string(),
+              timestamp: Joi.number(),
+              toAddress: Joi.string(),
+              collection: Joi.object({
+                name: Joi.string().allow("", null),
+                image: Joi.string().allow("", null),
+                id: Joi.string(),
+              }),
+              token: Joi.object({
+                name: Joi.string().allow("", null),
+                image: Joi.string().allow("", null),
+                id: Joi.string(),
+              }),
+            })
+          ),
         })
       ),
     }).label(`getTopSellingCollections${version.toUpperCase()}Response`),
@@ -71,7 +93,7 @@ export const getTopSellingCollectionsOptions: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
-    const { startTime, endTime, fillType, limit } = request.query;
+    const { startTime, endTime, fillType, limit, includeRecentSales } = request.query;
 
     try {
       const collections = await getTopSellingCollections({
@@ -79,6 +101,7 @@ export const getTopSellingCollectionsOptions: RouteOptions = {
         endTime,
         fillType,
         limit,
+        includeRecentSales,
       });
 
       return {

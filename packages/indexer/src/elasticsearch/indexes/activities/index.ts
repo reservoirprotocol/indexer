@@ -165,8 +165,21 @@ export enum TopSellingFillOptions {
   any = "any",
 }
 
-const mapBucketToCollection = (bucket: any) => {
+const mapBucketToCollection = (bucket: any, includeRecentSales: boolean) => {
   const collectionData = bucket?.top_collection_hits?.hits?.hits[0]?._source.collection;
+
+  const recentSales = bucket?.top_collection_hits?.hits?.hits.map((hit: any) => {
+    const sale = hit._source;
+
+    return {
+      contract: sale.contract,
+      token: sale.token,
+      collection: sale.collection,
+      toAddress: sale.toAddress,
+      type: sale.type,
+      timestamp: sale.timestamp,
+    };
+  });
 
   return {
     // can add back when we have a value to aggregate on
@@ -176,6 +189,7 @@ const mapBucketToCollection = (bucket: any) => {
     name: collectionData?.name,
     image: collectionData?.image,
     primaryContract: collectionData?.contract,
+    recentSales: includeRecentSales ? recentSales : [],
   };
 };
 
@@ -184,6 +198,7 @@ export const getTopSellingCollections = async (params: {
   endTime?: number;
   fillType: TopSellingFillOptions;
   limit: number;
+  includeRecentSales: boolean;
 }): Promise<CollectionAggregation[]> => {
   const { startTime, endTime, fillType, limit } = params;
 
@@ -224,9 +239,31 @@ export const getTopSellingCollections = async (params: {
         top_collection_hits: {
           top_hits: {
             _source: {
-              includes: ["contract", "collection.name", "collection.image", "collection.id"],
+              includes: [
+                "contract",
+                "collection.name",
+                "collection.image",
+                "collection.id",
+                "name",
+                "toAddress",
+                "token.id",
+                "token.name",
+                "token.image",
+                "type",
+                "timestamp",
+              ],
             },
-            size: 1,
+            size: params.includeRecentSales ? 8 : 1,
+
+            ...(params.includeRecentSales && {
+              sort: [
+                {
+                  timestamp: {
+                    order: "desc", // Sorting order (desc for descending, asc for ascending)
+                  },
+                },
+              ],
+            }),
           },
         },
       },
@@ -242,7 +279,9 @@ export const getTopSellingCollections = async (params: {
     },
   })) as any;
 
-  return esResult?.aggregations?.collections?.buckets?.map(mapBucketToCollection);
+  return esResult?.aggregations?.collections?.buckets?.map((bucket: any) =>
+    mapBucketToCollection(bucket, params.includeRecentSales)
+  );
 };
 
 export const deleteActivitiesById = async (ids: string[]): Promise<void> => {

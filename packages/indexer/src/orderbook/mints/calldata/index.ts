@@ -2,7 +2,7 @@ import { defaultAbiCoder } from "@ethersproject/abi";
 import { AddressZero } from "@ethersproject/constants";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
 
-import { idb, redb } from "@/common/db";
+import { idb } from "@/common/db";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { CollectionMint } from "@/orderbook/mints";
 import { addToQueue } from "@/jobs/mints/process";
@@ -240,7 +240,7 @@ export const refreshMintsForCollection = async (collection: string) => {
         return Zora.refreshByCollection(collection);
     }
   } else {
-    const lastMintResult = await redb.oneOrNone(
+    const lastMintResult = await idb.oneOrNone(
       `
         SELECT
           nft_transfer_events.tx_hash
@@ -257,14 +257,17 @@ export const refreshMintsForCollection = async (collection: string) => {
       }
     );
     if (lastMintResult) {
-      await addToQueue([
-        {
-          by: "tx",
-          data: {
-            txHash: fromBuffer(lastMintResult.tx_hash),
+      await addToQueue(
+        [
+          {
+            by: "tx",
+            data: {
+              txHash: fromBuffer(lastMintResult.tx_hash),
+            },
           },
-        },
-      ]);
+        ],
+        true
+      );
     }
   }
 };

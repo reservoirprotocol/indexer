@@ -207,14 +207,14 @@ export type Mint =
       };
     };
 
-export const addToQueue = async (mints: Mint[]) =>
+export const addToQueue = async (mints: Mint[], force = false) =>
   queue.addBulk(
     mints.map((mint) => ({
       name: randomUUID(),
       data: mint,
       opts: {
         // Deterministic job id so that we don't perform duplicated work
-        jobId: mint.by === "tx" ? mint.data.txHash : undefined,
+        jobId: force ? undefined : mint.by === "tx" ? mint.data.txHash : undefined,
       },
     }))
   );
