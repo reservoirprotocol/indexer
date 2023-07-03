@@ -29,8 +29,6 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      logger.info(QUEUE_NAME, `Worker started. jobData=${JSON.stringify(job.data)}`);
-
       const { endTimestamp, cursor, dryRun } = job.data;
 
       const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 1000;
@@ -87,13 +85,6 @@ if (config.doBackgroundWork) {
 
         if (toBeDeletedActivityIds.length && dryRun === 0) {
           await ActivitiesIndex.deleteActivitiesById(toBeDeletedActivityIds);
-
-          logger.info(
-            QUEUE_NAME,
-            `Deleted. jobData=${JSON.stringify(job.data)}, activitiesCount=${
-              activities.length
-            }, activitiesToBeDeletedCount=${toBeDeletedActivityIds.length}`
-          );
         }
 
         if (continuation) {
@@ -109,6 +100,11 @@ if (config.doBackgroundWork) {
   });
 }
 
-export const addToQueue = async (endTimestamp: number, cursor?: string | null, dryRun = 1) => {
-  await queue.add(randomUUID(), { endTimestamp, cursor, dryRun });
+export const addToQueue = async (
+  endTimestamp: number,
+  cursor?: string | null,
+  dryRun = 1,
+  delay = 5000
+) => {
+  await queue.add(randomUUID(), { endTimestamp, cursor, dryRun }, { delay });
 };
