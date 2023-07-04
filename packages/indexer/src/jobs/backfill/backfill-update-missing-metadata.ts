@@ -5,17 +5,17 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { logger } from "@/common/logger";
-import { acquireLock, redis, redlock, releaseLock } from "@/common/redis";
+import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import { PendingRefreshTokens, RefreshTokens } from "@/models/pending-refresh-tokens";
 import { ridb } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
-import * as metadataIndexProcessBySlug from "@/jobs/metadata-index/process-queue-by-slug";
-import * as metadataIndexProcess from "@/jobs/metadata-index/process-queue";
-import { getIndexingMethod } from "@/jobs/metadata-index/fetch-queue";
 import { PendingRefreshTokensBySlug } from "@/models/pending-refresh-tokens-by-slug";
 import { Tokens } from "@/models/tokens";
 import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { metadataIndexProcessJob } from "@/jobs/metadata-index/metadata-process-job";
+import { metadataIndexProcessBySlugJob } from "@/jobs/metadata-index/metadata-process-by-slug-job";
 
 const QUEUE_NAME = "backfill-update-missing-metadata-queue";
 
@@ -71,14 +71,8 @@ if (config.doBackgroundWork) {
       );
 
       // push queue messages
-      if (await acquireLock(metadataIndexProcessBySlug.getLockName("opensea"), 60 * 5)) {
-        await metadataIndexProcessBySlug.addToQueue();
-        await releaseLock(metadataIndexProcessBySlug.getLockName("opensea"));
-      }
-      if (await acquireLock(metadataIndexProcess.getLockName("opensea"), 60 * 5)) {
-        await metadataIndexProcess.addToQueue("opensea");
-        await releaseLock(metadataIndexProcess.getLockName("opensea"));
-      }
+      await metadataIndexProcessBySlugJob.addToQueue();
+      await metadataIndexProcessJob.addToQueue({ method: "opensea" });
 
       if (_.size(collections) === limit) {
         const lastId = _.last(collections).id;
@@ -170,7 +164,7 @@ async function processCollection(collection: {
     );
     return;
   }
-  const indexingMethod = getIndexingMethod(collection.community);
+  const indexingMethod = metadataIndexFetchJob.getIndexingMethod(collection.community);
   const limit = Number(await redis.get(`${QUEUE_NAME}-tokens-limit`)) || 1000;
   if (!collection.slug) {
     const tokenId = await Tokens.getSingleToken(collection.id);

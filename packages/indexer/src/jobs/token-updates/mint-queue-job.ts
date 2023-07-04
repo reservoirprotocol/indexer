@@ -7,10 +7,10 @@ import { redis } from "@/common/redis";
 import * as tokenSets from "@/orderbook/token-sets";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 import _ from "lodash";
 import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 
 export type MintQueueJobPayload = {
   contract: string;
@@ -140,9 +140,9 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
         // Refresh the metadata for the new token
         if (!config.disableRealtimeMetadataRefresh) {
           const delay = getNetworkSettings().metadataMintDelay;
-          const method = metadataIndexFetch.getIndexingMethod(collection.community);
+          const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
 
-          await metadataIndexFetch.addToQueue(
+          await metadataIndexFetchJob.addToQueue(
             [
               {
                 kind: "single-token",

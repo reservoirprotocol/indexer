@@ -9,7 +9,6 @@ import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import MetadataApi from "@/utils/metadata-api";
 import * as royalties from "@/utils/royalties";
 import * as marketplaceFees from "@/utils/marketplace-fees";
@@ -19,6 +18,7 @@ import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token
 import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
 import { collectionNormalizedJob } from "@/jobs/collection-updates/collection-normalized-floor-queue-job";
 import { collectionFloorJob } from "@/jobs/collection-updates/collection-floor-queue-job";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 
 const QUEUE_NAME = "token-updates-fetch-collection-metadata-queue";
 
@@ -169,12 +169,12 @@ if (config.doBackgroundWork) {
         }
 
         if (collection?.id && !config.disableRealtimeMetadataRefresh) {
-          await metadataIndexFetch.addToQueue(
+          await metadataIndexFetchJob.addToQueue(
             [
               {
                 kind: "single-token",
                 data: {
-                  method: metadataIndexFetch.getIndexingMethod(collection.community),
+                  method: metadataIndexFetchJob.getIndexingMethod(collection.community),
                   contract,
                   tokenId,
                   collection: collection.id,

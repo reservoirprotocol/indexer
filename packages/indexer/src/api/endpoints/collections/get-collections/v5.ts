@@ -260,6 +260,7 @@ export const getCollectionsV5Options: RouteOptions = {
           mintStages: Joi.array().items(
             Joi.object({
               stage: Joi.string().required(),
+              tokenId: Joi.string().pattern(regex.number).allow(null),
               kind: Joi.string().required(),
               price: JoiPrice.required(),
               startTime: Joi.number().allow(null),
@@ -345,11 +346,12 @@ export const getCollectionsV5Options: RouteOptions = {
               array_agg(
                 json_build_object(
                   'stage', collection_mints.stage,
+                  'tokenId', collection_mints.token_id,
                   'kind', collection_mints.kind,
                   'currency', concat('0x', encode(collection_mints.currency, 'hex')),
                   'price', collection_mints.price::TEXT,
-                  'startTime', collection_mints.start_time,
-                  'endTime', collection_mints.end_time,
+                  'startTime', floor(extract(epoch from collection_mints.start_time)),
+                  'endTime', floor(extract(epoch from collection_mints.end_time)),
                   'maxMintsPerWallet', collection_mints.max_mints_per_wallet
                 )
               ) AS mint_stages
@@ -809,6 +811,7 @@ export const getCollectionsV5Options: RouteOptions = {
               ? await Promise.all(
                   r.mint_stages.map(async (m: any) => ({
                     stage: m.stage,
+                    tokenId: m.tokenId,
                     kind: m.kind,
                     price: await getJoiPriceObject({ gross: { amount: m.price } }, m.currency),
                     startTime: m.startTime,
