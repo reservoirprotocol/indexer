@@ -32,6 +32,7 @@
     "@opensea/stream-js": "^0.1.1",
     "@poprank/rankings": "1.1.20",
     "@reservoir0x/sdk": "*",
+    "@types/amqp-connection-manager": "^3.4.1",
     "@types/amqplib": "^0.10.1",
     "@types/date-fns": "^2.6.0",
     "@types/flat": "^5.0.1",

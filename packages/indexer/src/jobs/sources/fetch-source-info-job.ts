@@ -103,7 +103,13 @@ export class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
     const tokenUrlOptimism = this.getTokenUrl(html, url, "optimism");
     const tokenUrlBsc = this.getTokenUrl(html, url, "bsc");
     const tokenUrlZora = this.getTokenUrl(html, url, "zora");
+    const tokenUrlSepolia = this.getTokenUrl(html, url, "sepolia");
+    const tokenUrlMumbai = this.getTokenUrl(html, url, "mumbai");
+    const tokenUrlBaseGoerli = this.getTokenUrl(html, url, "base-goerli");
+    const tokenUrlArbitrumNova = this.getTokenUrl(html, url, "arbitrum-nova");
     const tokenUrlAvalanche = this.getTokenUrl(html, url, "avalanche");
+    const tokenUrlScrollAlpha = this.getTokenUrl(html, url, "scroll-alpha");
+    const tokenUrlZoraTestnet = this.getTokenUrl(html, url, "zora-testnet");
 
     // Update the source data
     const sources = await Sources.getInstance();
@@ -121,7 +127,13 @@ export class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
       tokenUrlBsc,
       tokenUrlGoerli,
       tokenUrlZora,
+      tokenUrlSepolia,
+      tokenUrlMumbai,
+      tokenUrlBaseGoerli,
+      tokenUrlArbitrumNova,
       tokenUrlAvalanche,
+      tokenUrlScrollAlpha,
+      tokenUrlZoraTestnet,
     });
   }
 

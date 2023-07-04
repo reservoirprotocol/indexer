@@ -26,7 +26,13 @@ export type SourcesMetadata = {
   tokenUrlOptimism?: string;
   tokenUrlBsc?: string;
   tokenUrlZora?: string;
+  tokenUrlSepolia?: string;
+  tokenUrlMumbai?: string;
+  tokenUrlBaseGoerli?: string;
+  tokenUrlArbitrumNova?: string;
   tokenUrlAvalanche?: string;
+  tokenUrlScrollAlpha?: string;
+  tokenUrlZoraTestnet?: string;
 };
 
 export class SourcesEntity {

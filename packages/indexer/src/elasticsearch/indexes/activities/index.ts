@@ -159,6 +159,111 @@ export const save = async (activities: ActivityDocument[], upsert = true): Promi
   }
 };
 
+export const getChainStatsFromActivity = async () => {
+  const now = Date.now();
+
+  // rounds to 5 minute intervals to take advantage of caching
+  const oneDayAgo =
+    (Math.floor((now - 24 * 60 * 60 * 1000) / (5 * 60 * 1000)) * (5 * 60 * 1000)) / 1000;
+  const sevenDaysAgo =
+    (Math.floor((now - 7 * 24 * 60 * 60 * 1000) / (5 * 60 * 1000)) * (5 * 60 * 1000)) / 1000;
+
+  const periods = [
+    {
+      name: "1day",
+      startTime: oneDayAgo,
+    },
+    {
+      name: "7day",
+      startTime: sevenDaysAgo,
+    },
+  ];
+
+  const queries = periods.map(
+    (period) =>
+      ({
+        name: period.name,
+        body: {
+          query: {
+            bool: {
+              filter: [
+                {
+                  terms: {
+                    type: ["sale", "mint"],
+                  },
+                },
+                {
+                  range: {
+                    timestamp: {
+                      gte: period.startTime,
+                    },
+                  },
+                },
+              ],
+            },
+          },
+          aggs: {
+            sales_by_type: {
+              terms: {
+                field: "type",
+              },
+              aggs: {
+                sales_count: {
+                  value_count: { field: "id" },
+                },
+                total_volume: {
+                  sum: {
+                    // should be replaced when we reindex activities to include decimal fields
+                    script: {
+                      source:
+                        "doc['pricing.price'].size() == 0 ? 0 : Double.parseDouble(doc['pricing.price'].value) / Math.pow(10, 18)",
+                    },
+                  },
+                },
+              },
+            },
+          },
+          size: 0,
+        },
+      } as any)
+  );
+
+  // fetch time periods in parallel
+  const results = (await Promise.all(
+    queries.map((query) => {
+      return elasticsearch
+        .search({
+          index: INDEX_NAME,
+          body: query.body,
+        })
+        .then((result) => ({ name: query.name, result }));
+    })
+  )) as any;
+
+  return results.reduce((stats: any, result: any) => {
+    const buckets = result?.result?.aggregations?.sales_by_type?.buckets as any;
+    const mints = buckets.find((bucket: any) => bucket.key == "mint");
+    const sales = buckets.find((bucket: any) => bucket.key == "sale");
+
+    const mintCount = mints?.sales_count?.value || 0;
+    const saleCount = sales?.sales_count?.value || 0;
+    const mintVolume = mints?.total_volume?.value || 0;
+    const saleVolume = sales?.total_volume?.value || 0;
+
+    return {
+      ...stats,
+      [result.name]: {
+        mintCount,
+        saleCount,
+        totalCount: mintCount + saleCount,
+        mintVolume: _.round(mintVolume, 2),
+        saleVolume: _.round(saleVolume, 2),
+        totalVolume: _.round(mintVolume + saleVolume, 2),
+      },
+    };
+  }, {});
+};
+
 export enum TopSellingFillOptions {
   sale = "sale",
   mint = "mint",
@@ -259,7 +364,7 @@ export const getTopSellingCollections = async (params: {
               sort: [
                 {
                   timestamp: {
-                    order: "desc", // Sorting order (desc for descending, asc for ascending)
+                    order: "desc",
                   },
                 },
               ],

@@ -593,7 +593,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncFrequencySeconds: 2,
         lastBlockLatency: 8,
         headBlockDelay: 0,
-        backfillBlockBatchSize: 60,
+        backfillBlockBatchSize: 32,
         reorgCheckFrequency: [30],
         subDomain: "api-polygon",
         whitelistedCurrencies: new Map([
