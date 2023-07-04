@@ -6,7 +6,7 @@ import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Collections } from "@/models/collections";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 
 const QUEUE_NAME = "collection-updates-non-flagged-floor-ask-queue";
 
@@ -161,12 +161,12 @@ if (config.doBackgroundWork) {
         if (nonFlaggedCollectionFloorAsk?.token_id) {
           const collection = await Collections.getById(collectionResult.collection_id);
 
-          await metadataIndexFetch.addToQueue(
+          await metadataIndexFetchJob.addToQueue(
             [
               {
                 kind: "single-token",
                 data: {
-                  method: metadataIndexFetch.getIndexingMethod(collection?.community || null),
+                  method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
                   contract,
                   tokenId,
                   collection: collectionResult.collection_id,

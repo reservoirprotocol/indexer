@@ -7,16 +7,17 @@ import _ from "lodash";
 import Joi from "joi";
 
 import { logger } from "@/common/logger";
+import { redis } from "@/common/redis";
 import { regex } from "@/common/utils";
 import { config } from "@/config/index";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as orderFixes from "@/jobs/order-fixes/fixes";
+import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
+import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
 import { ApiKeyManager } from "@/models/api-keys";
 import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
-import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
-import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 
 const version = "v1";
 
@@ -39,6 +40,9 @@ export const postTokensRefreshV1Options: RouteOptions = {
           "Refresh the given token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
         )
         .required(),
+      liquidityOnly: Joi.boolean()
+        .default(false)
+        .description("If true, only liquidity data will be refreshed."),
       overrideCoolDown: Joi.boolean()
         .default(false)
         .description(
@@ -65,16 +69,34 @@ export const postTokensRefreshV1Options: RouteOptions = {
     try {
       const [contract, tokenId] = payload.token.split(":");
 
+      // Error if no token was found
       const token = await Tokens.getByContractAndTokenId(contract, tokenId, true);
-
-      // If no token was found found
       if (_.isNull(token)) {
         throw Boom.badRequest(`Token ${payload.token} not found`);
       }
 
+      // Liquidity checks (cheap)
+
+      const lockKey = `post-tokens-refresh-${version}-liquidity-lock`;
+      if (!(await redis.get(lockKey))) {
+        // Revalidate the token orders
+        await orderFixes.addToQueue([{ by: "token", data: { token: payload.token } }]);
+
+        // Refresh the token floor sell and top bid
+        await tokenRefreshCacheJob.addToQueue({ contract, tokenId, checkTopBid: true });
+
+        // Lock for 10 seconds
+        await redis.set(lockKey, "locked", "EX", 10);
+      }
+
+      if (payload.liquidityOnly) {
+        return { message: "Request accepted" };
+      }
+
+      // Non-liquidity checks (not cheap)
+
       if (payload.overrideCoolDown) {
         const apiKey = await ApiKeyManager.getApiKey(request.headers["x-api-key"]);
-
         if (_.isNull(apiKey)) {
           throw Boom.unauthorized("Invalid API key");
         }
@@ -101,8 +123,8 @@ export const postTokensRefreshV1Options: RouteOptions = {
       const currentUtcTime = new Date().toISOString();
       await Tokens.update(contract, tokenId, { lastMetadataSync: currentUtcTime });
 
+      // Refresh orders from OpenSea
       if (_.indexOf([1, 5, 10, 56, 137, 42161], config.chainId) !== -1) {
-        // Refresh orders from OpenSea
         await OpenseaIndexerApi.fastTokenSync(payload.token);
       }
 
@@ -116,14 +138,12 @@ export const postTokensRefreshV1Options: RouteOptions = {
         );
       }
 
-      const method = metadataIndexFetch.getIndexingMethod(collection?.community || null);
-
-      await metadataIndexFetch.addToQueue(
+      await metadataIndexFetchJob.addToQueue(
         [
           {
             kind: "single-token",
             data: {
-              method,
+              method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
               contract,
               tokenId,
               collection: collection?.id || contract,
@@ -133,14 +153,8 @@ export const postTokensRefreshV1Options: RouteOptions = {
         true
       );
 
-      // Revalidate the token orders
-      await orderFixes.addToQueue([{ by: "token", data: { token: payload.token } }]);
-
       // Revalidate the token attribute cache
       await resyncAttributeCacheJob.addToQueue({ contract, tokenId }, 0, overrideCoolDown);
-
-      // Refresh the token floor sell and top bid
-      await tokenRefreshCacheJob.addToQueue({ contract, tokenId, checkTopBid: true });
 
       logger.info(
         `post-tokens-refresh-${version}-handler`,

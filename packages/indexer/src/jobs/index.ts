@@ -11,8 +11,6 @@ import "@/jobs/daily-volumes";
 import "@/jobs/data-archive";
 import "@/jobs/data-export";
 import "@/jobs/events-sync";
-import "@/jobs/fill-updates";
-import "@/jobs/metadata-index";
 import "@/jobs/nft-balance-updates";
 import "@/jobs/oracle";
 import "@/jobs/order-fixes";
@@ -28,6 +26,7 @@ import "@/jobs/monitoring";
 import "@/jobs/token-set-updates";
 
 // Export all job queues for monitoring through the BullMQ UI
+
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
 import * as backfillBlockTimestamps from "@/jobs/backfill/backfill-block-timestamps";
@@ -52,34 +51,12 @@ import * as backfillLooksrareFills from "@/jobs/backfill/backfill-looks-rare-fil
 import * as backfillCollectionsIds from "@/jobs/backfill/backfill-collections-ids";
 import * as backfillNftTransferEventsUpdatedAt from "@/jobs/backfill/backfill-nft-transfer-events-updated-at";
 
-import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
-import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
-
-import * as tokenSetUpdatesTopBid from "@/jobs/token-set-updates/top-bid-queue";
-
-import * as eventsSyncBlockCheck from "@/jobs/events-sync/block-check-queue";
-import * as eventsSyncBackfillProcess from "@/jobs/events-sync/process/backfill";
-import * as eventsSyncRealtimeProcess from "@/jobs/events-sync/process/realtime";
 import * as eventsSyncRealtime from "@/jobs/events-sync/realtime-queue";
 import * as eventsSyncRealtimeV2 from "@/jobs/events-sync/realtime-queue-v2";
 
-import * as fillUpdates from "@/jobs/fill-updates/queue";
-import * as fillPostProcess from "@/jobs/fill-updates/fill-post-process";
-
-import * as flagStatusProcessJob from "@/jobs/flag-status/process-queue";
-import * as flagStatusSyncJob from "@/jobs/flag-status/sync-queue";
-import * as flagStatusGenerateAttributeTokenSet from "@/jobs/flag-status/generate-attribute-token-set";
-import * as flagStatusGenerateCollectionTokenSet from "@/jobs/flag-status/generate-collection-token-set";
-import * as flagStatusUpdate from "@/jobs/flag-status/update";
-
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
-import * as metadataIndexProcessBySlug from "@/jobs/metadata-index/process-queue-by-slug";
-import * as metadataIndexProcess from "@/jobs/metadata-index/process-queue";
-import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
-
 import * as expiredMintsCron from "@/jobs/mints/cron/expired-mints";
+import * as mintsCheck from "@/jobs/mints/check";
 import * as mintsProcess from "@/jobs/mints/process";
-import * as mintsSupplyCheck from "@/jobs/mints/supply-check";
 
 import * as updateNftBalanceFloorAskPrice from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
 import * as updateNftBalanceTopBid from "@/jobs/nft-balance-updates/update-top-bid-queue";
@@ -108,7 +85,6 @@ import * as orderbookTokenSets from "@/jobs/orderbook/token-sets-queue";
 import * as orderbookOpenseaListings from "@/jobs/orderbook/opensea-listings-queue";
 
 import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
-import * as tokenUpdatesNormalizedFloorAsk from "@/jobs/token-updates/normalized-floor-queue";
 
 import * as askWebsocketEventsTriggerQueue from "@/jobs/websocket-events/ask-websocket-events-trigger-queue";
 import * as bidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/bid-websocket-events-trigger-queue";
@@ -131,6 +107,7 @@ import * as backfillBidActivitiesElasticsearch from "@/jobs/activities/backfill/
 import * as backfillAskCancelActivitiesElasticsearch from "@/jobs/activities/backfill/backfill-ask-cancel-activities-elasticsearch";
 import * as backfillBidCancelActivitiesElasticsearch from "@/jobs/activities/backfill/backfill-bid-cancel-activities-elasticsearch";
 import * as backfillActivitiesElasticsearch from "@/jobs/activities/backfill/backfill-activities-elasticsearch";
+import * as backfillDeleteExpiredBidsElasticsearch from "@/jobs/activities/backfill/backfill-delete-expired-bids-elasticsearch";
 
 import amqplib, { Channel, Connection } from "amqplib";
 import { config } from "@/config/index";
@@ -187,6 +164,17 @@ import { collectionNormalizedJob } from "@/jobs/collection-updates/collection-no
 import { replaceActivitiesCollectionJob } from "@/jobs/activities/replace-activities-collection-job";
 import { refreshActivitiesTokenMetadataJob } from "@/jobs/activities/refresh-activities-token-metadata-job";
 import { refreshActivitiesCollectionMetadataJob } from "@/jobs/activities/refresh-activities-collection-metadata-job";
+import { collectionFloorJob } from "@/jobs/collection-updates/collection-floor-queue-job";
+import { eventsSyncProcessRealtimeJob } from "@/jobs/events-sync/process/events-sync-process-realtime";
+import { fillUpdatesJob } from "@/jobs/fill-updates/fill-updates-job";
+import { fillPostProcessJob } from "@/jobs/fill-updates/fill-post-process-job";
+import { generateCollectionTokenSetJob } from "@/jobs/flag-status/generate-collection-token-set-job";
+import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
+import { flagStatusProcessJob } from "@/jobs/flag-status/flag-status-process-job";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { metadataIndexProcessJob } from "@/jobs/metadata-index/metadata-process-job";
+import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
+import { metadataIndexProcessBySlugJob } from "@/jobs/metadata-index/metadata-process-by-slug-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -196,7 +184,6 @@ export const gracefulShutdownJobWorkers = [
   expiredOrdersCron.worker,
   oracleOrdersCron.worker,
   tokenUpdatesFloorAsk.worker,
-  tokenUpdatesNormalizedFloorAsk.worker,
 ];
 
 export const allJobQueues = [
@@ -222,34 +209,12 @@ export const allJobQueues = [
   backfillCollectionsIds.queue,
   backfillNftTransferEventsUpdatedAt.queue,
 
-  collectionUpdatesFloorAsk.queue,
-  collectionUpdatesNormalizedFloorAsk.queue,
-
-  tokenSetUpdatesTopBid.queue,
-
-  eventsSyncBlockCheck.queue,
-  eventsSyncBackfillProcess.queue,
-  eventsSyncRealtimeProcess.queue,
   eventsSyncRealtime.queue,
   eventsSyncRealtimeV2.queue,
 
-  fillUpdates.queue,
-  fillPostProcess.queue,
-
-  flagStatusProcessJob.queue,
-  flagStatusSyncJob.queue,
-  flagStatusGenerateAttributeTokenSet.queue,
-  flagStatusGenerateCollectionTokenSet.queue,
-  flagStatusUpdate.queue,
-
-  metadataIndexFetch.queue,
-  metadataIndexProcessBySlug.queue,
-  metadataIndexProcess.queue,
-  metadataIndexWrite.queue,
-
   expiredMintsCron.queue,
+  mintsCheck.queue,
   mintsProcess.queue,
-  mintsSupplyCheck.queue,
 
   updateNftBalanceFloorAskPrice.queue,
   updateNftBalanceTopBid.queue,
@@ -278,7 +243,6 @@ export const allJobQueues = [
   orderbookOpenseaListings.queue,
 
   tokenUpdatesFloorAsk.queue,
-  tokenUpdatesNormalizedFloorAsk.queue,
 
   askWebsocketEventsTriggerQueue.queue,
   bidWebsocketEventsTriggerQueue.queue,
@@ -301,6 +265,7 @@ export const allJobQueues = [
   backfillAskCancelActivitiesElasticsearch.queue,
   backfillBidCancelActivitiesElasticsearch.queue,
   backfillActivitiesElasticsearch.queue,
+  backfillDeleteExpiredBidsElasticsearch.queue,
 ];
 
 export class RabbitMqJobsConsumer {
@@ -365,6 +330,17 @@ export class RabbitMqJobsConsumer {
       replaceActivitiesCollectionJob,
       refreshActivitiesCollectionMetadataJob,
       refreshActivitiesTokenMetadataJob,
+      collectionFloorJob,
+      eventsSyncProcessRealtimeJob,
+      fillUpdatesJob,
+      fillPostProcessJob,
+      generateCollectionTokenSetJob,
+      flagStatusUpdateJob,
+      flagStatusProcessJob,
+      metadataIndexFetchJob,
+      metadataIndexProcessJob,
+      metadataIndexWriteJob,
+      metadataIndexProcessBySlugJob,
     ];
   }
 
@@ -430,7 +406,8 @@ export class RabbitMqJobsConsumer {
       ? RabbitMqJobsConsumer.channelsToJobs.get(channel)?.push(job)
       : RabbitMqJobsConsumer.channelsToJobs.set(channel, [job]);
 
-    await channel.prefetch(job.getConcurrency()); // Set the number of messages to consume simultaneously
+    // Set the number of messages to consume simultaneously
+    await channel.prefetch(job.getConcurrency());
 
     // Subscribe to the queue
     await channel.consume(
@@ -444,6 +421,9 @@ export class RabbitMqJobsConsumer {
         consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getQueue()),
       }
     );
+
+    // Set the number of messages to consume simultaneously for the retry queue
+    await channel.prefetch(_.max([_.toInteger(job.getConcurrency() / 4), 1]) ?? 1);
 
     // Subscribe to the retry queue
     await channel.consume(

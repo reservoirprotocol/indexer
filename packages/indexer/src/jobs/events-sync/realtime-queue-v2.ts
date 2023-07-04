@@ -26,7 +26,7 @@ export const queue = new Queue(QUEUE_NAME, {
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork && config.enableRealtimeProcessing) {
+if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job) => {
@@ -58,7 +58,7 @@ if (config.doBackgroundWork && config.enableRealtimeProcessing) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 15 }
+    { connection: redis.duplicate(), concurrency: 5 }
   );
 
   worker.on("error", (error) => {

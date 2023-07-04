@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import amqplib, { ConfirmChannel, Connection } from "amqplib";
+import amqplib, { AmqpConnectionManager, ChannelWrapper } from "amqp-connection-manager";
 import { config } from "@/config/index";
 import _ from "lodash";
 import { RabbitMqJobsConsumer } from "@/jobs/index";
@@ -20,6 +20,7 @@ export type RabbitMQMessage = {
   completeTime?: number;
   retryCount?: number;
   persistent?: boolean;
+  prioritized?: boolean;
 };
 
 export type CreatePolicyPayload = {
@@ -47,20 +48,24 @@ export type DeletePolicyPayload = {
 export class RabbitMq {
   public static delayedExchangeName = `${getNetworkName()}.delayed`;
 
-  private static rabbitMqPublisherConnection: Connection;
+  private static rabbitMqPublisherConnection: AmqpConnectionManager;
 
   private static maxPublisherChannelsCount = 10;
-  private static rabbitMqPublisherChannels: ConfirmChannel[] = [];
+  private static rabbitMqPublisherChannels: ChannelWrapper[] = [];
 
   public static async connect() {
     RabbitMq.rabbitMqPublisherConnection = await amqplib.connect(config.rabbitMqUrl);
 
     for (let i = 0; i < RabbitMq.maxPublisherChannelsCount; ++i) {
-      const channel = await this.rabbitMqPublisherConnection.createConfirmChannel();
+      const channel = await this.rabbitMqPublisherConnection.createChannel();
       RabbitMq.rabbitMqPublisherChannels.push(channel);
 
       channel.once("error", (error) => {
         logger.error("rabbit-error", `Publisher channel error ${error}`);
+      });
+
+      channel.once("close", async () => {
+        logger.warn("rabbit-publisher-channel", `Rabbit publisher channel ${i} closed`);
       });
     }
 
@@ -79,6 +84,7 @@ export class RabbitMq {
 
       const channelIndex = _.random(0, RabbitMq.maxPublisherChannelsCount - 1);
       content.publishTime = content.publishTime ?? _.now();
+      content.prioritized = Boolean(priority);
 
       await new Promise<void>((resolve, reject) => {
         if (delay) {
@@ -124,9 +130,9 @@ export class RabbitMq {
         }
       });
     } catch (error) {
-      logger.debug(
-        `rabbitmq-publish-${queueName}`,
-        `failed to publish ${error} content=${JSON.stringify(content)}`
+      logger.error(
+        `rabbit-publish-error`,
+        `failed to publish to ${queueName} error ${error} content=${JSON.stringify(content)}`
       );
     }
   }
@@ -176,6 +182,12 @@ export class RabbitMq {
         vhost: policy.vhost,
       },
     });
+  }
+
+  public static async getQueueSize(queueName: string) {
+    const url = `${config.rabbitHttpUrl}/api/queues/%2F/${queueName}`;
+    const queueData = await axios.get(url);
+    return Number(queueData.data.messages);
   }
 
   public static async assertQueuesAndExchanges() {

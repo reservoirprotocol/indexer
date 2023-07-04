@@ -68,7 +68,7 @@ export const getStatus = async (collectionMint: CollectionMint): Promise<Collect
         .one(
           `
             SELECT
-              sum(nft_balances.amount) AS token_count
+              coalesce(sum(nft_balances.amount), 0) AS token_count
             FROM nft_balances
             WHERE nft_balances.contract = $/contract/
               AND nft_balances.token_id = $/tokenId/

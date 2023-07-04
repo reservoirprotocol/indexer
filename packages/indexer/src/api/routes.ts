@@ -25,6 +25,7 @@ import * as transfersEndpoints from "@/api/endpoints/transfers";
 import * as syncEndpoints from "@/api/endpoints/sync";
 import * as assetsEndpoints from "@/api/endpoints/assets";
 import * as sourcesEndpoints from "@/api/endpoints/sources";
+import * as chainEndpoints from "@/api/endpoints/chain";
 import * as debugEndpoints from "@/api/endpoints/debug";
 
 export const setupRoutes = (server: Server) => {
@@ -549,6 +550,14 @@ export const setupRoutes = (server: Server) => {
     options: collectionsEndpoints.getCollectionSupportedMarketplacesV1Options,
   });
 
+  // Chain
+
+  server.route({
+    method: "GET",
+    path: "/chain/stats/v1",
+    options: chainEndpoints.getChainStats,
+  });
+
   // Collections Sets
 
   server.route({
@@ -789,6 +798,12 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/execute/results/v1",
     options: executeEndpoints.postExecuteResultsV1,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/execute/permit-signature/v1",
+    options: executeEndpoints.postPermitSignatureV1Options,
   });
 
   // Health

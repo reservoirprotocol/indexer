@@ -376,8 +376,8 @@ export const savePartialListings = async (
             expiration = now(),
             updated_at = now()
           WHERE orders.token_set_id = $/tokenSetId/
-            AND orders.source_id_int = $/sourceId/
             AND orders.fillability_status = 'fillable'
+            AND orders.approval_status = 'approved'
             AND orders.raw_data->>'createdAt' IS NOT NULL
             AND orders.id != $/excludeOrderId/
             ${

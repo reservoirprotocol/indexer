@@ -30,10 +30,12 @@ export type Order = {
   type: string;
   currency: string;
   price: string;
+  amount: number;
   maker: string;
   taker: string;
   deadline: number;
   itemHash: string;
+  delegateType: number;
   nft: {
     token: string;
     tokenId?: string;
@@ -50,6 +52,7 @@ export type LocalOrder = {
   deadline: number;
   currency: string;
   dataMask: string;
+  amount: number;
   items: { price: string; data: string }[];
   v?: number;
   r?: string;
