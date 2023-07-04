@@ -29,6 +29,8 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
+      job.data.addToQueue = false;
+
       const { endTimestamp, cursor, dryRun } = job.data;
 
       const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 1000;
@@ -88,12 +90,19 @@ if (config.doBackgroundWork) {
         }
 
         if (continuation) {
-          await addToQueue(endTimestamp, continuation, dryRun);
+          job.data.addToQueue = true;
+          job.data.addToQueueCursor = continuation;
         }
       }
     },
-    { connection: redis.duplicate(), concurrency: 15 }
+    { connection: redis.duplicate(), concurrency: 1 }
   );
+
+  worker.on("completed", async (job) => {
+    if (job.data.addToQueue) {
+      await addToQueue(job.data.endTimestamp, job.data.addToQueueCursor, job.data.dryRun);
+    }
+  });
 
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
