@@ -13,7 +13,6 @@ export const queue = new Queue(QUEUE_NAME, {
   defaultJobOptions: {
     // In order to be as lean as possible, leave retrying
     // any failed processes to be done by subsequent jobs
-
     attempts: 30,
     backoff: {
       type: "fixed",
@@ -23,7 +22,7 @@ export const queue = new Queue(QUEUE_NAME, {
     removeOnFail: 1000,
   },
 });
-new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
+new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate(), maxStalledCount: 20 });
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
@@ -58,7 +57,7 @@ if (config.doBackgroundWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 5 }
+    { connection: redis.duplicate(), concurrency: 50 }
   );
 
   worker.on("error", (error) => {

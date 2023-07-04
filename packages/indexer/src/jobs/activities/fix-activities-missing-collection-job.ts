@@ -13,10 +13,9 @@ export type FixActivitiesMissingCollectionJobPayload = {
 export class FixActivitiesMissingCollectionJob extends AbstractRabbitMqJobHandler {
   queueName = "fix-activities-missing-collection-queue";
   maxRetries = 10;
-  concurrency = 1;
+  concurrency = 3;
   persistent = true;
   lazyMode = true;
-  useSharedChannel = true;
 
   protected async process(payload: FixActivitiesMissingCollectionJobPayload) {
     logger.info(this.queueName, `Worker started. payload=${JSON.stringify(payload)}`);

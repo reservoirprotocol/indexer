@@ -8,6 +8,8 @@ import axios from "axios";
 import { TokenIDs } from "fummpel";
 // Needed for `rarible`
 import { encodeForMatchOrders } from "../../rarible/utils";
+// Needed for `seaport`
+import { constructOfferCounterOrderAndFulfillments } from "../../seaport-base/helpers";
 
 import * as Sdk from "../../index";
 import { TxData, bn, generateSourceBytes, getErrorMessage, uniqBy } from "../../utils";
@@ -59,6 +61,8 @@ import PermitProxyAbi from "./abis/PermitProxy.json";
 import SudoswapV2ModuleAbi from "./abis/SudoswapV2Module.json";
 import CryptoPunksModuleAbi from "./abis/CryptoPunksModule.json";
 import PaymentProcessorModuleAbi from "./abis/PaymentProcessorModule.json";
+// Exchanges
+import SeaportV15Abi from "../../seaport-v1.5/abis/Exchange.json";
 
 type SetupOptions = {
   x2y2ApiKey?: string;
@@ -3140,9 +3144,7 @@ export class Router {
     // Step 2
     // Handle calldata generation
 
-    const numDetailsToConsider = details.filter(
-      (d) => !success[d.orderId] && !d.isProtected
-    ).length;
+    const numDetailsToConsider = details.filter((d) => !success[d.orderId]).length;
     const getFees = (ownDetail: BidDetails) =>
       [
         // Global fees
@@ -3349,12 +3351,6 @@ export class Router {
           const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
           const module = this.contracts.seaportV15Module;
 
-          if (detail.isProtected) {
-            if (detail.fees?.length || options?.globalFees?.length) {
-              throw new Error("Fees not supported for protected OpenSea orders");
-            }
-          }
-
           try {
             const result = await axios.post(`${this.options?.orderFetcherBaseUrl}/api/offer`, {
               orderHash: order.id,
@@ -3369,11 +3365,51 @@ export class Router {
               metadata: this.options?.orderFetcherMetadata,
             });
 
-            if (result.data.calldata) {
+            const fullOrder = new Sdk.SeaportV15.Order(this.chainId, result.data.order);
+            if (detail.isProtected) {
               const contract = detail.contract;
               const owner = taker;
               const operator = new Sdk.SeaportBase.ConduitController(this.chainId).deriveConduit(
                 Sdk.SeaportBase.Addresses.OpenseaConduitKey[this.chainId]
+              );
+
+              const { order: counterOrder, fulfillments } =
+                constructOfferCounterOrderAndFulfillments(fullOrder.params, taker, {
+                  counter: await new Sdk.SeaportV15.Exchange(this.chainId).getCounter(
+                    this.provider,
+                    taker
+                  ),
+                  tips: fees,
+                  amount: detail.amount,
+                  tokenId: result.data.criteriaResolvers[0]?.identifier,
+                });
+
+              const calldata = new Interface(SeaportV15Abi).encodeFunctionData(
+                "matchAdvancedOrders",
+                [
+                  [
+                    {
+                      parameters: {
+                        ...fullOrder.params,
+                        totalOriginalConsiderationItems: fullOrder.params.consideration.length,
+                      },
+                      signature: fullOrder.params.signature!,
+                      extraData: result.data.extraData,
+                      numerator: detail.amount ?? 1,
+                      denominator: fullOrder.params.consideration[0].startAmount,
+                    },
+                    {
+                      parameters: counterOrder.parameters,
+                      signature: counterOrder.signature,
+                      extraData: "0x",
+                      numerator: detail.amount ?? 1,
+                      denominator: fullOrder.params.consideration[0].startAmount,
+                    },
+                  ],
+                  result.data.criteriaResolvers ?? [],
+                  fulfillments,
+                  taker,
+                ]
               );
 
               // Fill directly
@@ -3381,7 +3417,7 @@ export class Router {
                 txData: {
                   from: taker,
                   to: Sdk.SeaportV15.Addresses.Exchange[this.chainId],
-                  data: result.data.calldata + generateSourceBytes(options?.source),
+                  data: calldata + generateSourceBytes(options?.source),
                 },
                 approvals: [
                   {
@@ -3395,7 +3431,6 @@ export class Router {
                 orderIds: [detail.orderId],
               });
             } else {
-              const fullOrder = new Sdk.SeaportV15.Order(this.chainId, result.data.order);
               executionsWithDetails.push({
                 detail,
                 execution: {
