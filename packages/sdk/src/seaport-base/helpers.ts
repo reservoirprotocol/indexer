@@ -186,8 +186,8 @@ export const constructOfferCounterOrderAndFulfillments = (
         token: params.consideration[0].token,
         identifierOrCriteria:
           details.tokenId?.toString() ?? params.consideration[0].identifierOrCriteria,
-        startAmount: (details.amount ?? 1).toString(),
-        endAmount: (details.amount ?? 1).toString(),
+        startAmount: params.consideration[0].startAmount,
+        endAmount: params.consideration[0].endAmount,
       },
     ],
     consideration: [
