@@ -53,7 +53,7 @@ new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 // };
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork && config.doWebsocketServerWork && config.kafkaBrokers.length > 0) {
+if (config.doBackgroundWork && config.doWebsocketServerWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
