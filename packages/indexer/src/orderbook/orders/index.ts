@@ -345,14 +345,6 @@ export const generateListingDetailsV6 = (
       };
     }
 
-    case "universe": {
-      return {
-        kind: "universe",
-        ...common,
-        order: new Sdk.Universe.Order(config.chainId, order.rawData),
-      };
-    }
-
     case "flow": {
       const sdkOrder = new Sdk.Flow.Order(config.chainId, order.rawData);
       return {
@@ -673,15 +665,6 @@ export const generateBidDetailsV6 = async (
       const sdkOrder = new Sdk.Nftx.Order(config.chainId, order.rawData);
       return {
         kind: "nftx",
-        ...common,
-        order: sdkOrder,
-      };
-    }
-
-    case "universe": {
-      const sdkOrder = new Sdk.Universe.Order(config.chainId, order.rawData);
-      return {
-        kind: "universe",
         ...common,
         order: sdkOrder,
       };

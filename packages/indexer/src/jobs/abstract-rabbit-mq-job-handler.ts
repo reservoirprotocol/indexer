@@ -103,7 +103,7 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
           break;
 
         case "exponential":
-          delay = 2 ^ ((Number(message.retryCount) - 1) * this.backoff.delay);
+          delay = (2 ^ (Number(message.retryCount) - 1)) * this.backoff.delay;
           break;
       }
     }

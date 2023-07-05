@@ -5,7 +5,6 @@ import { TxData } from "@reservoir0x/sdk/dist/utils";
 import { idb } from "@/common/db";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { CollectionMint } from "@/orderbook/mints";
-import { addToQueue } from "@/jobs/mints/process";
 
 import * as Decent from "@/orderbook/mints/calldata/detector/decent";
 import * as Generic from "@/orderbook/mints/calldata/detector/generic";
@@ -13,6 +12,7 @@ import * as Manifold from "@/orderbook/mints/calldata/detector/manifold";
 import * as Seadrop from "@/orderbook/mints/calldata/detector/seadrop";
 import * as Thirdweb from "@/orderbook/mints/calldata/detector/thirdweb";
 import * as Zora from "@/orderbook/mints/calldata/detector/zora";
+import { mintsProcessJob } from "@/jobs/mints/mints-process-job";
 
 export type AbiParam =
   | {
@@ -257,7 +257,7 @@ export const refreshMintsForCollection = async (collection: string) => {
       }
     );
     if (lastMintResult) {
-      await addToQueue(
+      await mintsProcessJob.addToQueue(
         [
           {
             by: "tx",

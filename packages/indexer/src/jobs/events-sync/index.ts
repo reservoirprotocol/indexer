@@ -38,6 +38,9 @@ if (config.doBackgroundWork && config.catchup) {
         )
         .then(async () => {
           try {
+            if (config.chainId === 137) {
+              return;
+            }
             // await realtimeEventsSync.addToQueue();
             const latestBlock = await baseProvider.getBlockNumber();
             await realtimeEventsSyncV2.addToQueue({ block: latestBlock });

@@ -10,7 +10,6 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { regex } from "@/common/utils";
 import { config } from "@/config/index";
-import * as orderFixes from "@/jobs/order-fixes/fixes";
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
 import { ApiKeyManager } from "@/models/api-keys";
@@ -18,6 +17,7 @@ import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
 
 const version = "v1";
 
@@ -80,7 +80,7 @@ export const postTokensRefreshV1Options: RouteOptions = {
       const lockKey = `post-tokens-refresh-${version}-liquidity-lock`;
       if (!(await redis.get(lockKey))) {
         // Revalidate the token orders
-        await orderFixes.addToQueue([{ by: "token", data: { token: payload.token } }]);
+        await orderFixesJob.addToQueue([{ by: "token", data: { token: payload.token } }]);
 
         // Refresh the token floor sell and top bid
         await tokenRefreshCacheJob.addToQueue({ contract, tokenId, checkTopBid: true });

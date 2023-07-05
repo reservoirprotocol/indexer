@@ -7,7 +7,6 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-import * as orderFixes from "@/jobs/order-fixes/fixes";
 import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
@@ -15,6 +14,7 @@ import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-j
 import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
 import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
 
 export const postRefreshTokenOptions: RouteOptions = {
   description: "Refresh a token's orders and metadata",
@@ -77,7 +77,7 @@ export const postRefreshTokenOptions: RouteOptions = {
       );
 
       // Revalidate the token orders
-      await orderFixes.addToQueue([{ by: "token", data: { token: payload.token } }]);
+      await orderFixesJob.addToQueue([{ by: "token", data: { token: payload.token } }]);
 
       // Revalidate the token attribute cache
       await resyncAttributeCacheJob.addToQueue({ contract, tokenId }, 0);

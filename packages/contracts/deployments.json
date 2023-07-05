@@ -240,5 +240,10 @@
       "1": "0x104ff9a0e2a62aa531ef0cc9d19f948bde7062de",
       "5": "0x104ff9a0e2a62aa531ef0cc9d19f948bde7062de"
     }
+  },
+  "BlurTransferHelper": {
+    "v1": {
+      "1": "0x7f3bbe33848a67792dd8318964fa9908a24d2bf1"
+    }
   }
 }

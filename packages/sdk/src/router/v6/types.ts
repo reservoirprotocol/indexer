@@ -111,10 +111,6 @@ export type GenericOrder =
       order: Sdk.Zora.Order;
     }
   | {
-      kind: "universe";
-      order: Sdk.Universe.Order;
-    }
-  | {
       kind: "element";
       order: Sdk.Element.Order;
     }
