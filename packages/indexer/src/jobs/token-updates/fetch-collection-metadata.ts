@@ -51,21 +51,6 @@ if (config.doBackgroundWork) {
           allowFallback: !newCollection,
         });
 
-        if (getNetworkSettings().copyrightInfringementContracts.includes(contract.toLowerCase())) {
-          collection.name = collection.id;
-          collection.metadata = null;
-
-          logger.info(
-            QUEUE_NAME,
-            JSON.stringify({
-              topic: "debugCopyrightInfringementContracts",
-              message: "Collection is a copyright infringement",
-              contract,
-              collection,
-            })
-          );
-        }
-
         let tokenIdRange: string | null = null;
         if (collection.tokenIdRange) {
           tokenIdRange = `numrange(${collection.tokenIdRange[0]}, ${collection.tokenIdRange[1]}, '[]')`;

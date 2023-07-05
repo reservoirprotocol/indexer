@@ -145,8 +145,6 @@ type NetworkSettings = {
     numberOfShards?: number;
     indexes?: { [index: string]: ElasticsearchIndexSettings };
   };
-
-  copyrightInfringementContracts: string[];
 };
 
 type ElasticsearchIndexSettings = {
@@ -180,7 +178,6 @@ export const getNetworkSettings = (): NetworkSettings => {
     elasticsearch: {
       numberOfShards: 2,
     },
-    copyrightInfringementContracts: [],
   };
 
   switch (config.chainId) {
@@ -374,40 +371,6 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           },
         },
-        copyrightInfringementContracts: [
-          "0x783a32eb03a1175160d210cc99c79e6370a48317",
-          "0xc80ee060c83895d6debb5eb37bf60d4d2f7eb271",
-          "0x45dcf807722e43ba152d8033252398001f438817",
-          "0x7219f3a405844a4173ac822ee18994823bec2b4f",
-          "0x182d9d5680c2c0f50b6d40169a3a27cb94b1f2fe",
-          "0xaf7416127f127f82b4ed7b0818fbd2b3e5c0e07a",
-          "0xb8f2de4905576c18633a7b4b1a5422fa8ae2a8b5",
-          "0xe2997a26fa424361eb6e7dc6a42ef7f72134d26e",
-          "0xfd6b19ed681d621277d372fe9585dfe9b8a95510",
-          "0xb795cc2d42c7921e8d6c38b4a4c05d401ad4900d",
-          "0x6c09a8fe4932113c487f374833944ceecc1f42d4",
-          "0xb5ce1a41a79f58f795b3a6ad8ed7eb08992931d1",
-          "0x5919fc8d26cf5869cd892a752b67e31c35357bfb",
-          "0x452f032761efe3d10de4abb43e302774c7aabb12",
-          "0xca75456ceb3a3158022b6e22816995ae458ba05a",
-          "0xca45359bea0987ac0a0e35d8bdde2724415ec69e",
-          "0xd269f864b5a7af16f0482e6a5ec4d92b542bfc5a",
-          "0x7c15f5a57a8eb8c0a3e8a68e49a1a25650d612df",
-          "0x94ab8e298b32c90b6add98744ef7b51462a6bdb1",
-          "0xe7182a5e91e18ce756bb237480703b5797434d0f",
-          "0x28320317733e593e515a49191f64d362a2ad45aa",
-          "0xc87ec359faf0e72c37195563e89a29a6b149e7aa",
-          "0xdf1782703343397799d780b6f178daa83e756ef6",
-          "0xe6b451d2ae69db47f77df873828e919f02edfd2a",
-          "0xef90ba651d58ed5f519ca6c5e9e333cd91f2f8db",
-          "0x43a1da6b942a653d65b0eb4f476bceff05bb9d77",
-          "0x6dc8a052949bdd2bfa857c50721e7ecdc4c0185f",
-          "0xd4f7466b52eddb4bf20c520fbe308b0961659b03",
-          "0x6c4a0c95d02366a8be460108e222ddf58451d1c0",
-          "0x32d753b840b475832950f6ad140b403f4a467f2c",
-          "0xa6edad01bf197b0ff7c1a8a456731bd2081d6940",
-          "0x254f0ed9a40b81402c86dcb5bc064dc036a5b7cc",
-        ],
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
@@ -471,7 +434,6 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           },
         },
-        copyrightInfringementContracts: ["0xad4f49887473c585d2364d29c3255bb5c00b8ee3"],
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
@@ -646,10 +608,6 @@ export const getNetworkSettings = (): NetworkSettings => {
           // CONE
           "0xba777ae3a3c91fcd83ef85bfe65410592bdd0f7c": true,
         },
-        copyrightInfringementContracts: [
-          "0xcf77e25cf1bfc57634bb7b95887b7120935a0d7f",
-          "0x27bde07c5d651856c483583899ed6823da3648b7",
-        ],
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
