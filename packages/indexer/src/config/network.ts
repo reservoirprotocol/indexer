@@ -57,6 +57,12 @@ export const getNetworkName = () => {
     case 7777777:
       return "zora";
 
+    case 43114:
+      return "avalanche";
+
+    case 8453:
+      return "base";
+
     default:
       return "unknown";
   }
@@ -139,8 +145,6 @@ type NetworkSettings = {
     numberOfShards?: number;
     indexes?: { [index: string]: ElasticsearchIndexSettings };
   };
-
-  copyrightInfringementContracts: string[];
 };
 
 type ElasticsearchIndexSettings = {
@@ -174,7 +178,6 @@ export const getNetworkSettings = (): NetworkSettings => {
     elasticsearch: {
       numberOfShards: 2,
     },
-    copyrightInfringementContracts: [],
   };
 
   switch (config.chainId) {
@@ -297,6 +300,15 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
+            "0x45f93404ae1e4f0411a7f42bc6a5dc395792738d",
+            {
+              contract: "0x45f93404AE1E4f0411a7F42BC6a5Dc395792738D",
+              name: "DEGEN",
+              symbol: "DGEN",
+              decimals: 18,
+            },
+          ],
+          [
             "0x4c7c1ec97279a6f3323eab9ab317202dee7ad922",
             {
               contract: "0x4c7c1ec97279a6f3323eab9ab317202dee7ad922",
@@ -335,6 +347,19 @@ export const getNetworkSettings = (): NetworkSettings => {
               },
             },
           ],
+          [
+            "0xbb4f3ad7a2cf75d8effc4f6d7bd21d95f06165ca",
+            {
+              contract: "0xbb4f3ad7a2cf75d8effc4f6d7bd21d95f06165ca",
+              name: "Sheesh",
+              symbol: "SHS",
+              decimals: 18,
+              metadata: {
+                image:
+                  "https://www.dextools.io/resources/tokens/logos/ether/0xbb4f3ad7a2cf75d8effc4f6d7bd21d95f06165ca.png?1687668922646",
+              },
+            },
+          ],
         ]),
         coingecko: {
           networkId: "ethereum",
@@ -346,16 +371,6 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           },
         },
-        copyrightInfringementContracts: [
-          "0x783a32eb03a1175160d210cc99c79e6370a48317",
-          "0xc80ee060c83895d6debb5eb37bf60d4d2f7eb271",
-          "0x45dcf807722e43ba152d8033252398001f438817",
-          "0x7219f3a405844a4173ac822ee18994823bec2b4f",
-          "0x182d9d5680c2c0f50b6d40169a3a27cb94b1f2fe",
-          "0xaf7416127f127f82b4ed7b0818fbd2b3e5c0e07a",
-          "0xb8f2de4905576c18633a7b4b1a5422fa8ae2a8b5",
-          "0xe2997a26fa424361eb6e7dc6a42ef7f72134d26e",
-        ],
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
@@ -383,7 +398,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 5: {
       return {
         ...defaultNetworkSettings,
-        backfillBlockBatchSize: 128,
+        backfillBlockBatchSize: 32,
         subDomain: "api-goerli",
         mintsAsSalesBlacklist: [
           ...defaultNetworkSettings.mintsAsSalesBlacklist,
@@ -419,7 +434,6 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           },
         },
-        copyrightInfringementContracts: ["0xad4f49887473c585d2364d29c3255bb5c00b8ee3"],
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
@@ -544,7 +558,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncFrequencySeconds: 2,
         lastBlockLatency: 8,
         headBlockDelay: 0,
-        backfillBlockBatchSize: 60,
+        backfillBlockBatchSize: 32,
         reorgCheckFrequency: [30],
         subDomain: "api-polygon",
         whitelistedCurrencies: new Map([
@@ -563,6 +577,15 @@ export const getNetworkSettings = (): NetworkSettings => {
               contract: "0x3b45a986621f91eb51be84547fbd9c26d0d46d02",
               name: "Gold Bar Currency",
               symbol: "GXB",
+              decimals: 18,
+            },
+          ],
+          [
+            "0xdbb5da27ffcfebea8799a5832d4607714fc6aba8",
+            {
+              contract: "0xdBb5Da27FFcFeBea8799a5832D4607714fc6aBa8",
+              name: "DEGEN",
+              symbol: "DGEN",
               decimals: 18,
             },
           ],
@@ -585,10 +608,6 @@ export const getNetworkSettings = (): NetworkSettings => {
           // CONE
           "0xba777ae3a3c91fcd83ef85bfe65410592bdd0f7c": true,
         },
-        copyrightInfringementContracts: [
-          "0xcf77e25cf1bfc57634bb7b95887b7120935a0d7f",
-          "0x27bde07c5d651856c483583899ed6823da3648b7",
-        ],
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
@@ -623,6 +642,14 @@ export const getNetworkSettings = (): NetworkSettings => {
         lastBlockLatency: 5,
         headBlockDelay: 10,
         subDomain: "api-arbitrum",
+        washTradingExcludedContracts: [
+          // Prohibition Contracts - ArtBlocks Engine
+          "0x47a91457a3a1f700097199fd63c039c4784384ab",
+        ],
+        multiCollectionContracts: [
+          // Prohibition Contracts - ArtBlocks Engine
+          "0x47a91457a3a1f700097199fd63c039c4784384ab",
+        ],
         coingecko: {
           networkId: "arbitrum-one",
         },
@@ -951,6 +978,79 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
         subDomain: "api-zora",
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // Avalanche
+    case 43114: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        subDomain: "api-avalanche",
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Avalanche',
+                  'AVAX',
+                  18,
+                  '{"coingeckoCurrencyId": "avalanche-2", "image": "https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // Base
+    case 8453: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        subDomain: "api-base",
+        elasticsearch: {
+          indexes: {
+            activities: {
+              numberOfShards: 5,
+            },
+          },
+        },
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([

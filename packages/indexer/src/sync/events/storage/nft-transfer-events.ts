@@ -289,7 +289,8 @@ export const removeEvents = async (block: number, blockHash: string) => {
   await idb.any(
     `
       WITH "x" AS (
-        DELETE FROM "nft_transfer_events"
+        UPDATE "nft_transfer_events"
+        SET is_deleted = 1
         WHERE "block" = $/block/ AND "block_hash" = $/blockHash/
         RETURNING
           "address",

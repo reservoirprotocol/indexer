@@ -41,6 +41,9 @@ import * as looksRareV2 from "@/events-sync/handlers/looks-rare-v2";
 import * as blend from "@/events-sync/handlers/blend";
 import * as collectionxyz from "@/events-sync/handlers/collectionxyz";
 import * as sudoswapV2 from "@/events-sync/handlers/sudoswap-v2";
+import * as paymentProcessor from "@/events-sync/handlers/payment-processor";
+import * as thirdweb from "@/events-sync/handlers/thirdweb";
+import * as seadrop from "@/events-sync/handlers/seadrop";
 
 // A list of events having the same high-level kind
 export type EventsByKind = {
@@ -94,6 +97,9 @@ export const eventKindToHandler = new Map<
   ["looks-rare-v2", (e, d) => looksRareV2.handleEvents(e, d)],
   ["sudoswap-v2", (e, d) => sudoswapV2.handleEvents(e, d)],
   ["blend", (e, d) => blend.handleEvents(e, d)],
+  ["payment-processor", (e, d) => paymentProcessor.handleEvents(e, d)],
+  ["thirdweb", (e, d) => thirdweb.handleEvents(e, d)],
+  ["seadrop", (e, d) => seadrop.handleEvents(e, d)],
 ]);
 
 export const processEventsBatch = async (batch: EventsBatch, skipProcessing?: boolean) => {

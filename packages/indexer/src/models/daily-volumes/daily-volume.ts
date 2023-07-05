@@ -5,6 +5,7 @@
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { PgPromiseQuery, idb, pgp, redb, ridb } from "@/common/db";
+import _ from "lodash";
 
 export class DailyVolume {
   private static lockKey = "daily-volumes-running";
@@ -312,7 +313,7 @@ export class DailyVolume {
         await idb.none(concat);
       } catch (error: any) {
         logger.error(
-          "daily-volumes",
+          "day-1-volumes",
           `Error while inserting/updating daily volumes. collectionId=${collectionId}`
         );
 
@@ -346,7 +347,7 @@ export class DailyVolume {
         await idb.none(concat);
       } catch (error: any) {
         logger.error(
-          "daily-volumes",
+          "day-1-volumes",
           `Error while setting 1day values to null. collectionId=${collectionId}`
         );
 
@@ -513,6 +514,11 @@ export class DailyVolume {
     );
 
     if (!mergedArr.length) {
+      // For specific collection it could be there's no volume
+      if (collectionId) {
+        return true;
+      }
+
       logger.error(
         "daily-volumes",
         `No daily volumes found for 1, 7 and 30 days. Should be impossible. dateTimestamp=${dateTimestamp}`
@@ -522,7 +528,7 @@ export class DailyVolume {
     }
 
     try {
-      const queries: any = [];
+      const queries: { query: string; values: any }[] = [];
       mergedArr.forEach((row: any) => {
         // When updating single collection don't update the rank
         queries.push({
@@ -542,7 +548,9 @@ export class DailyVolume {
         });
       });
 
-      await idb.none(pgp.helpers.concat(queries));
+      for (const query of _.chunk(queries, 100)) {
+        await idb.none(pgp.helpers.concat(query));
+      }
     } catch (error: any) {
       logger.error(
         "daily-volumes",
@@ -579,22 +587,6 @@ export class DailyVolume {
       );
 
       return false;
-    }
-
-    try {
-      for (const row of mergedArr) {
-        await redis
-          .multi()
-          .zadd("collections_day7_rank", row.day7_rank, row.collection_id)
-          .zadd("collections_day30_rank", row.day30_rank, row.collection_id)
-          .zadd("collections_all_time_rank", row.all_time_rank, row.collection_id)
-          .exec();
-      }
-    } catch (error: any) {
-      logger.error(
-        "daily-volumes",
-        `Error while caching day30_rank on redis. dateTimestamp=${dateTimestamp}, error=${error}`
-      );
     }
 
     return true;

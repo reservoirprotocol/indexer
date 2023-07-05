@@ -108,6 +108,7 @@ export enum Network {
   Arbitrum = 42161,
   ArbitrumNova = 42170,
   Zora = 7777777,
+  Avalanche = 43114,
   // Testnets
   EthereumGoerli = 5,
   ZoraTestnet = 999,
@@ -117,6 +118,7 @@ export enum Network {
   BaseGoerli = 84531,
   ScrollAlpha = 534353,
   EthereumSepolia = 11155111,
+  Base = 8453,
 }
 
 export type ChainIdToAddress = { [chainId: number]: string };

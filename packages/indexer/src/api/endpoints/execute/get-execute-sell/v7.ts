@@ -6,7 +6,7 @@ import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { BidDetails, FillBidsResult } from "@reservoir0x/sdk/dist/router/v6/types";
-import { TxData } from "@reservoir0x/sdk/src/utils";
+import { TxData } from "@reservoir0x/sdk/dist/utils";
 import axios from "axios";
 import Joi from "joi";
 
@@ -856,13 +856,9 @@ export const getExecuteSellV7Options: RouteOptions = {
         return { recipient, amount };
       });
 
-      const ordersEligibleForGlobalFees = bidDetails
-        .filter((b) => !b.isProtected && b.source !== "blur.io")
-        .map((b) => b.orderId);
-
       const addGlobalFee = async (item: (typeof path)[0], fee: Sdk.RouterV6.Types.Fee) => {
-        // Global fees get split across all eligible orders
-        const adjustedFeeAmount = bn(fee.amount).div(ordersEligibleForGlobalFees.length).toString();
+        // Global fees get split across all orders
+        const adjustedFeeAmount = bn(fee.amount).div(bidDetails.length).toString();
 
         const itemGrossPrice = bn(item.rawQuote)
           .add(item.builtInFees.map((f) => bn(f.rawAmount)).reduce((a, b) => a.add(b), bn(0)))
@@ -887,7 +883,7 @@ export const getExecuteSellV7Options: RouteOptions = {
       };
 
       for (const item of path) {
-        if (globalFees.length && ordersEligibleForGlobalFees.includes(item.orderId)) {
+        if (globalFees.length) {
           for (const f of globalFees) {
             await addGlobalFee(item, f);
           }

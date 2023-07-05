@@ -5,6 +5,7 @@ import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
+import { PermitHandler, PermitWithTransfers } from "@reservoir0x/sdk/dist/router/v6/permit";
 import { FillListingsResult, ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
 import axios from "axios";
 import _ from "lodash";
@@ -30,6 +31,7 @@ import { ExecutionsBuffer } from "@/utils/executions";
 import * as onChainData from "@/utils/on-chain-data";
 import * as mints from "@/orderbook/mints";
 import { generateCollectionMintTxData } from "@/orderbook/mints/calldata";
+import { getPermitId, getPermit, savePermit } from "@/utils/permits";
 import { getUSDAndCurrencyPrices } from "@/utils/prices";
 
 const version = "v7";
@@ -168,6 +170,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       maxPriorityFeePerGas: Joi.string()
         .pattern(regex.number)
         .description("Optional custom gas settings."),
+      usePermit: Joi.boolean().description("When true, will use permit to avoid approvals."),
       // Various authorization keys
       x2y2ApiKey: Joi.string().description("Optional X2Y2 API key used for filling."),
       openseaApiKey: Joi.string().description(
@@ -1117,6 +1120,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
           items: [],
         },
         {
+          id: "currency-permit",
+          action: "Sign permits",
+          description: "Sign permits for accessing the tokens in your wallet",
+          kind: "signature",
+          items: [],
+        },
+        {
           id: "sale",
           action: "Confirm transaction in your wallet",
           description: "To purchase this item you must confirm the transaction and pay the gas fee",
@@ -1175,7 +1185,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
             });
 
-            // Return an early since any next steps are dependent on the Blur auth
+            // Return early since any next steps are dependent on the Blur auth
             return {
               steps,
               path,
@@ -1207,6 +1217,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           partial: payload.partial,
           forceRouter: payload.forceRouter,
           relayer: payload.relayer,
+          usePermit: payload.usePermit,
           globalFees,
           blurAuth,
           onError: async (kind, error, data) => {
@@ -1228,6 +1239,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       for (const { orderId, txData } of mintTxs) {
         txs.push({
           approvals: [],
+          permits: [],
           txData,
           orderIds: [orderId],
         });
@@ -1249,7 +1261,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         ? bn(payload.maxPriorityFeePerGas).toHexString()
         : undefined;
 
-      for (const { txData, approvals, orderIds } of txs) {
+      for (const { txData, approvals, permits, orderIds } of txs) {
         // Handle approvals
         for (const approval of approvals) {
           const approvedAmount = await onChainData
@@ -1267,6 +1279,44 @@ export const getExecuteBuyV7Options: RouteOptions = {
               },
             });
           }
+        }
+
+        // Handle permits
+        const permitHandler = new PermitHandler(config.chainId, baseProvider);
+        for (const permit of permits) {
+          const id = getPermitId(request.payload as object, {
+            token: permit.data.token,
+            amount: permit.data.amount,
+          });
+
+          const cachedPermit = await getPermit(id);
+          if (cachedPermit) {
+            // Override with the cached permit data
+            permit.data = cachedPermit.data;
+          } else {
+            // Cache the permit if it's the first time we encounter it
+            await savePermit(id, permit);
+          }
+
+          // If the permit has a signature attached to it, we can skip it
+          const hasSignature = (permit.data as PermitWithTransfers).signature;
+          if (hasSignature) {
+            continue;
+          }
+
+          steps[2].items.push({
+            status: "incomplete",
+            data: {
+              sign: await permitHandler.getSignatureData(permit.data),
+              post: {
+                endpoint: "/execute/permit-signature/v1",
+                method: "POST",
+                body: {
+                  id,
+                },
+              },
+            },
+          });
         }
 
         // Cannot skip balance checking when filling Blur orders
@@ -1297,15 +1347,29 @@ export const getExecuteBuyV7Options: RouteOptions = {
           }
         }
 
-        steps[2].items.push({
+        steps[3].items.push({
           status: "incomplete",
           orderIds,
-          data: {
-            ...txData,
-            maxFeePerGas,
-            maxPriorityFeePerGas,
-          },
+          // Do not return the final step unless all permits have a signature attached
+          data: !steps[2].items.length
+            ? {
+                ...permitHandler.attachToRouterExecution(
+                  txData,
+                  permits.map((p) => p.data)
+                ),
+                maxFeePerGas,
+                maxPriorityFeePerGas,
+              }
+            : undefined,
         });
+      }
+
+      if (steps[2].items.length) {
+        // Return early since any next steps are dependent on the permits
+        return {
+          steps,
+          path,
+        };
       }
 
       // Warning! When filtering the steps, we should ensure that it

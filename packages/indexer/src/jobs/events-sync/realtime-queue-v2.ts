@@ -13,7 +13,6 @@ export const queue = new Queue(QUEUE_NAME, {
   defaultJobOptions: {
     // In order to be as lean as possible, leave retrying
     // any failed processes to be done by subsequent jobs
-
     attempts: 30,
     backoff: {
       type: "fixed",
@@ -23,10 +22,10 @@ export const queue = new Queue(QUEUE_NAME, {
     removeOnFail: 1000,
   },
 });
-new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
+new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate(), maxStalledCount: 20 });
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork && config.enableRealtimeProcessing) {
+if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job) => {
@@ -34,21 +33,24 @@ if (config.doBackgroundWork && config.enableRealtimeProcessing) {
         const { block } = job.data as { block: number };
         // lets set the latest block to the block we are syncing if it is higher than the current latest block by 1. If it is higher than 1, we create a job to sync the missing blocks
         // if its lower than the current latest block, we dont update the latest block in redis, but we still sync the block (this is for when we are catching up on missed blocks, or when we are syncing a block that is older than the current latest block)
-        const latestBlock = await redis.get("latest-block-realtime");
-        if (latestBlock) {
-          const latestBlockNumber = Number(latestBlock);
-          if (block > latestBlockNumber) {
-            await redis.set("latest-block-realtime", block);
-            if (block - latestBlockNumber > 1) {
-              // if we are missing more than 1 block, we need to sync the missing blocks
-              for (let i = latestBlockNumber + 1; i < block; i++) {
-                logger.info("sync-events-v2", `Found missing block: ${i}`);
-                await addToQueue({ block: i });
+        // dont do this on polygon
+        if (config.chainId !== 137) {
+          const latestBlock = await redis.get("latest-block-realtime");
+          if (latestBlock) {
+            const latestBlockNumber = Number(latestBlock);
+            if (block > latestBlockNumber) {
+              await redis.set("latest-block-realtime", block);
+              if (block - latestBlockNumber > 1) {
+                // if we are missing more than 1 block, we need to sync the missing blocks
+                for (let i = latestBlockNumber + 1; i < block; i++) {
+                  logger.info("sync-events-v2", `Found missing block: ${i}`);
+                  await addToQueue({ block: i });
+                }
               }
             }
+          } else {
+            await redis.set("latest-block-realtime", block);
           }
-        } else {
-          await redis.set("latest-block-realtime", block);
         }
 
         await syncEvents(block);
@@ -58,7 +60,7 @@ if (config.doBackgroundWork && config.enableRealtimeProcessing) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 15 }
+    { connection: redis.duplicate(), concurrency: 50 }
   );
 
   worker.on("error", (error) => {

@@ -30,7 +30,7 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { orderId } = job.data as { orderId: string };
 
-      logger.info(QUEUE_NAME, JSON.stringify({ orderId }));
+      logger.debug(QUEUE_NAME, JSON.stringify({ orderId }));
 
       try {
         const result = await idb.oneOrNone(
@@ -64,8 +64,6 @@ if (config.doBackgroundWork) {
         );
         throw error;
       }
-
-      logger.info(QUEUE_NAME, JSON.stringify({ orderId }));
     },
     { connection: redis.duplicate(), concurrency: 30 }
   );

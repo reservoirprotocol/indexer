@@ -14,20 +14,21 @@ import { AbiParam } from "@/orderbook/mints/calldata";
 import { getMaxSupply } from "@/orderbook/mints/calldata/helpers";
 import { getMethodSignature } from "@/orderbook/mints/method-signatures";
 
+const STANDARD = "unknown";
+
 export const extractByTx = async (
   collection: string,
-  contract: string,
   tx: Transaction,
   pricePerAmountMinted: BigNumber,
   amountMinted: BigNumber
 ): Promise<CollectionMint[]> => {
-  const maxSupply = await getMaxSupply(contract);
+  const maxSupply = await getMaxSupply(collection);
 
   if (tx.data.length === 10) {
     return [
       {
         collection,
-        contract,
+        contract: collection,
         stage: "public-sale",
         kind: "public",
         status: "open",
@@ -70,7 +71,7 @@ export const extractByTx = async (
           kind: "quantity",
           abiType,
         });
-      } else if (abiType.includes("address") && decodedValue.toLowerCase() === contract) {
+      } else if (abiType.includes("address") && decodedValue.toLowerCase() === collection) {
         params.push({
           kind: "contract",
           abiType,
@@ -89,17 +90,17 @@ export const extractByTx = async (
       }
     });
   } catch (error) {
-    logger.error("mint-detector", JSON.stringify({ kind: "generic", error }));
+    logger.error("mint-detector", JSON.stringify({ kind: STANDARD, error }));
   }
 
   return [
     {
       collection,
-      contract,
+      contract: collection,
       stage: "public-sale",
       kind: "public",
       status: "open",
-      standard: "unknown",
+      standard: STANDARD,
       details: {
         tx: {
           to: tx.to,
@@ -117,7 +118,7 @@ export const extractByTx = async (
 };
 
 export const refreshByCollection = async (collection: string) => {
-  const existingCollectionMints = await getCollectionMints(collection, { standard: "unknown" });
+  const existingCollectionMints = await getCollectionMints(collection, { standard: STANDARD });
 
   // TODO: We should look into re-detecting and updating any fields that
   // could have changed on the mint since the initial detection

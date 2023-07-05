@@ -1,12 +1,15 @@
 import { Result } from "@ethersproject/abi";
 import { Provider } from "@ethersproject/abstract-provider";
 import { Signer } from "@ethersproject/abstract-signer";
-import { BigNumber } from "@ethersproject/bignumber";
+import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
+import { HashZero } from "@ethersproject/constants";
 import { Contract, ContractTransaction } from "@ethersproject/contracts";
 
+import * as CommonAddresses from "../common/addresses";
+import { TxData, getCurrentTimestamp } from "../utils";
 import * as Addresses from "./addresses";
 import { Order } from "./order";
-import { TxData } from "../utils";
+import * as Types from "./types";
 
 import ExchangeAbi from "./abis/Exchange.json";
 
@@ -54,6 +57,83 @@ export class Exchange {
       from: maker,
       to: this.contract.address,
       data,
+    };
+  }
+
+  // --- Generate fee order ---
+
+  public async generateFeeExecutionInputs(
+    provider: Provider,
+    taker: string,
+    makerSide: Types.TradeDirection,
+    amount: BigNumberish,
+    recipient: string
+  ) {
+    const sellOrder = new Order(this.chainId, {
+      trader: taker,
+      side: Types.TradeDirection.SELL,
+      matchingPolicy: Addresses.StandardPolicyERC721[this.chainId],
+      collection: Addresses.BlurTransferHelper[this.chainId],
+      tokenId: "0",
+      amount: "1",
+      paymentToken: Addresses.Beth[this.chainId],
+      price: amount.toString(),
+      nonce: (await this.getNonce(provider, taker)).toString(),
+      listingTime: String(getCurrentTimestamp() - 60),
+      expirationTime: String(getCurrentTimestamp() + 10 * 60),
+      fees: [
+        {
+          rate: 10000,
+          recipient,
+        },
+      ],
+      salt: "0",
+      extraParams: "0x",
+      extraSignature: "0x",
+      signatureVersion: Types.SignatureVersion.SINGLE,
+    });
+
+    const buyOrder = new Order(this.chainId, {
+      trader: taker,
+      side: Types.TradeDirection.BUY,
+      matchingPolicy: Addresses.StandardPolicyERC721[this.chainId],
+      collection: Addresses.BlurTransferHelper[this.chainId],
+      tokenId: "0",
+      amount: "1",
+      paymentToken:
+        makerSide === Types.TradeDirection.SELL
+          ? CommonAddresses.Eth[this.chainId]
+          : Addresses.Beth[this.chainId],
+      price: amount.toString(),
+      nonce: (await this.getNonce(provider, taker)).toString(),
+      listingTime: String(getCurrentTimestamp() - 60),
+      expirationTime: String(getCurrentTimestamp() + 10 * 60),
+      fees: [],
+      salt: "0",
+      extraParams: "0x",
+      extraSignature: "0x",
+      signatureVersion: Types.SignatureVersion.SINGLE,
+    });
+
+    return {
+      sell: {
+        order: sellOrder.params,
+        v: 0,
+        r: HashZero,
+        s: HashZero,
+        extraSignature: "0x",
+        signatureVersion: sellOrder.params.signatureVersion,
+        blockNumber: 0,
+      },
+      buy: {
+        order: buyOrder.params,
+        v: 0,
+        r: HashZero,
+        s: HashZero,
+        extraSignature: "0x",
+        signatureVersion: sellOrder.params.signatureVersion,
+        blockNumber: 0,
+      },
     };
   }
 

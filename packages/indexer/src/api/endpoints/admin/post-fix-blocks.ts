@@ -6,7 +6,7 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-import * as blockCheck from "@/jobs/events-sync/block-check-queue";
+import { blockCheckJob } from "@/jobs/events-sync/block-check-queue-job";
 
 export const postFixBlocksOptions: RouteOptions = {
   description: "Trigger fixing any orphaned block.",
@@ -35,7 +35,7 @@ export const postFixBlocksOptions: RouteOptions = {
       const toBlock = payload.toBlock;
 
       for (let block = fromBlock; block <= toBlock; block++) {
-        await blockCheck.addToQueue(block);
+        await blockCheckJob.addToQueue({ block });
       }
 
       return { message: "Request triggered" };

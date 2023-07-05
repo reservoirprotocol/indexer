@@ -9,6 +9,7 @@ export interface BaseOrderBuildOptions {
   maker: string;
   contract?: string;
   weiPrice: string;
+  quantity?: number;
   orderbook: "x2y2";
   expirationTime?: number;
   salt?: string;
@@ -39,9 +40,6 @@ export const getBuildInfo = async (
   if (!collectionResult) {
     throw new Error("Could not fetch collection");
   }
-  if (collectionResult.kind !== "erc721") {
-    throw new Error("X2Y2 only supports ERC721 orders");
-  }
 
   const buildParams: BaseBuildParams = {
     user: options.maker,
@@ -49,6 +47,11 @@ export const getBuildInfo = async (
     side,
     contract: fromBuffer(collectionResult.address),
     price: options.weiPrice,
+    amount: options.quantity,
+    delegateType:
+      collectionResult.kind === "erc721"
+        ? Sdk.X2Y2.Types.DelegationType.ERC721
+        : Sdk.X2Y2.Types.DelegationType.ERC1155,
     currency:
       side === "buy"
         ? Sdk.Common.Addresses.Weth[config.chainId]

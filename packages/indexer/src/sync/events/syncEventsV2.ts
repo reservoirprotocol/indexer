@@ -228,6 +228,18 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
         kind: "collectionxyz",
         data: kindToEvents.get("collectionxyz") ?? [],
       },
+      {
+        kind: "payment-processor",
+        data: kindToEvents.get("payment-processor") ?? [],
+      },
+      {
+        kind: "thirdweb",
+        data: kindToEvents.get("thirdweb") ?? [],
+      },
+      {
+        kind: "seadrop",
+        data: kindToEvents.get("seadrop") ?? [],
+      },
     ];
 
     txHashToEventsBatch.set(txHash, {
@@ -349,7 +361,12 @@ export const syncEvents = async (block: number) => {
 
     const startProcessLogs = Date.now();
 
-    const processEventsLatencies = await processEventsBatchV2(eventsBatches);
+    const processEventsLatencies = await Promise.all(
+      eventsBatches.map(async (eventsBatch) => {
+        await processEventsBatchV2([eventsBatch]);
+      })
+    );
+    // const processEventsLatencies = await processEventsBatchV2(eventsBatches);
 
     const endProcessLogs = Date.now();
 
