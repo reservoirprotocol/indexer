@@ -30,6 +30,13 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         let maker = args.maker.toLowerCase();
         let taker = args.taker.toLowerCase();
 
+        // Skip transfer helper sales
+        if (
+          sell.collection.toLowerCase() === Sdk.Blur.Addresses.BlurTransferHelper[config.chainId]
+        ) {
+          break;
+        }
+
         const txHash = baseEventParams.txHash;
 
         const txTrace = await utils.fetchTransactionTrace(txHash);

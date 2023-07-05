@@ -17,12 +17,14 @@ describe("Blur fees", () => {
   let alice: SignerWithAddress;
   let bob: SignerWithAddress;
 
-  let fakeERC721: Contract;
+  let blurTransferHelper: Contract;
 
   beforeEach(async () => {
     [alice, bob] = await ethers.getSigners();
 
-    fakeERC721 = await ethers.getContractFactory("FakeERC721").then((factory) => factory.deploy());
+    blurTransferHelper = await ethers
+      .getContractFactory("BlurTransferHelper")
+      .then((factory) => factory.deploy());
   });
 
   afterEach(reset);
@@ -33,7 +35,7 @@ describe("Blur fees", () => {
       trader: alice.address,
       side: Sdk.Blur.Types.TradeDirection.SELL,
       matchingPolicy: Sdk.Blur.Addresses.StandardPolicyERC721[chainId],
-      collection: fakeERC721.address,
+      collection: blurTransferHelper.address,
       tokenId: "0",
       amount: "1",
       paymentToken: AddressZero,
@@ -56,7 +58,7 @@ describe("Blur fees", () => {
       trader: alice.address,
       side: Sdk.Blur.Types.TradeDirection.BUY,
       matchingPolicy: Sdk.Blur.Addresses.StandardPolicyERC721[chainId],
-      collection: fakeERC721.address,
+      collection: blurTransferHelper.address,
       tokenId: "0",
       amount: "1",
       paymentToken: AddressZero,
@@ -122,7 +124,7 @@ describe("Blur fees", () => {
       trader: alice.address,
       side: Sdk.Blur.Types.TradeDirection.BUY,
       matchingPolicy: Sdk.Blur.Addresses.StandardPolicyERC721[chainId],
-      collection: fakeERC721.address,
+      collection: blurTransferHelper.address,
       tokenId: "0",
       amount: "1",
       paymentToken: Sdk.Blur.Addresses.Beth[chainId],
@@ -140,7 +142,7 @@ describe("Blur fees", () => {
       trader: alice.address,
       side: Sdk.Blur.Types.TradeDirection.SELL,
       matchingPolicy: Sdk.Blur.Addresses.StandardPolicyERC721[chainId],
-      collection: fakeERC721.address,
+      collection: blurTransferHelper.address,
       tokenId: "0",
       amount: "1",
       paymentToken: Sdk.Blur.Addresses.Beth[chainId],
@@ -189,8 +191,7 @@ describe("Blur fees", () => {
         extraSignature: "0x",
         signatureVersion: sellOrder.params.signatureVersion,
         blockNumber: 0,
-      },
-      { gasLimit: 1000000 }
+      }
     );
 
     const bobBalanceAfter = await new Sdk.Common.Helpers.Erc20(

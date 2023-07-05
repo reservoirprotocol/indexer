@@ -23,3 +23,7 @@ export const Beth: ChainIdToAddress = {
 export const OperatorFilterRegistry: ChainIdToAddress = {
   [Network.Ethereum]: "0x000000000000aaeb6d7670e522a718067333cd4e",
 };
+
+export const BlurTransferHelper: ChainIdToAddress = {
+  [Network.Ethereum]: "0x7f3bbe33848a67792dd8318964fa9908a24d2bf1",
+};

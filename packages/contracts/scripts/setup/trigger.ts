@@ -282,6 +282,8 @@ export const trigger = {
   // Utilities
   Utilities: {
     LiteRoyaltyEngine: async () => dv("LiteRoyaltyEngine", "v1", []),
+    BlurTransferHelper: async (chainId: number) =>
+      chainId === 1 ? dv("BlurTransferHelper", "v1", []) : undefined,
   },
   // Test NFTs
   TestNFTs: {

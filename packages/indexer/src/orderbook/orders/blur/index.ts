@@ -2,6 +2,7 @@ import { AddressZero, HashZero } from "@ethersproject/constants";
 import { keccak256 } from "@ethersproject/solidity";
 import { parseEther } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk";
+import _ from "lodash";
 import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
@@ -16,6 +17,7 @@ import { offChainCheck } from "@/orderbook/orders/blur/check";
 import * as tokenSet from "@/orderbook/token-sets";
 import { getBlurRoyalties } from "@/utils/blur";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
+import { getRoyaltiesByTokenSet } from "@/utils/royalties";
 
 type SaveResult = {
   id: string;
@@ -645,7 +647,8 @@ export const savePartialBids = async (
         `
           SELECT
             orders.raw_data,
-            orders.fillability_status
+            orders.fillability_status,
+            orders.token_set_id
           FROM orders
           WHERE orders.id = $/id/
         `,
@@ -705,6 +708,41 @@ export const savePartialBids = async (
         const price = parseEther(orderParams.pricePoints[0].price).toString();
         const value = bn(price).sub(bn(price).mul(feeBps).div(10000)).toString();
 
+        // Handle: royalties on top
+        const defaultRoyalties = await getRoyaltiesByTokenSet(tokenSetId, "default");
+
+        const totalBuiltInBps = feeBreakdown
+          .map(({ bps, kind }) => (kind === "royalty" ? bps : 0))
+          .reduce((a, b) => a + b, 0);
+        const totalDefaultBps = defaultRoyalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
+
+        const missingRoyalties = [];
+        let missingRoyaltyAmount = bn(0);
+        if (totalBuiltInBps < totalDefaultBps) {
+          const validRecipients = defaultRoyalties.filter(
+            ({ bps, recipient }) => bps && recipient !== AddressZero
+          );
+          if (validRecipients.length) {
+            const bpsDiff = totalDefaultBps - totalBuiltInBps;
+            const amount = bn(price).mul(bpsDiff).div(10000);
+            missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
+
+            // Split the missing royalties pro-rata across all royalty recipients
+            const totalBps = _.sumBy(validRecipients, ({ bps }) => bps);
+            for (const { bps, recipient } of validRecipients) {
+              // TODO: Handle lost precision (by paying it to the last or first recipient)
+              missingRoyalties.push({
+                bps: Math.floor((bpsDiff * bps) / totalBps),
+                amount: amount.mul(bps).div(totalBps).toString(),
+                recipient,
+              });
+            }
+          }
+        }
+
+        // Handle: normalized value
+        const normalizedValue = bn(value).sub(missingRoyaltyAmount).toString();
+
         const totalQuantity = orderParams.pricePoints
           .map((p) => p.executableSize)
           .reduce((a, b) => a + b, 0);
@@ -739,9 +777,9 @@ export const savePartialBids = async (
           dynamic: null,
           raw_data: orderParams,
           expiration: validTo,
-          missing_royalties: null,
-          normalized_value: null,
-          currency_normalized_value: null,
+          missing_royalties: missingRoyalties,
+          normalized_value: normalizedValue,
+          currency_normalized_value: normalizedValue,
           block_number: null,
           log_index: null,
         });
@@ -852,6 +890,44 @@ export const savePartialBids = async (
           const price = parseEther(currentBid.pricePoints[0].price).toString();
           const value = bn(price).sub(bn(price).mul(feeBps).div(10000)).toString();
 
+          // Handle: royalties on top
+          const defaultRoyalties = await getRoyaltiesByTokenSet(
+            orderResult.token_set_id,
+            "default"
+          );
+
+          const totalBuiltInBps = feeBreakdown
+            .map(({ bps, kind }) => (kind === "royalty" ? bps : 0))
+            .reduce((a, b) => a + b, 0);
+          const totalDefaultBps = defaultRoyalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
+
+          const missingRoyalties = [];
+          let missingRoyaltyAmount = bn(0);
+          if (totalBuiltInBps < totalDefaultBps) {
+            const validRecipients = defaultRoyalties.filter(
+              ({ bps, recipient }) => bps && recipient !== AddressZero
+            );
+            if (validRecipients.length) {
+              const bpsDiff = totalDefaultBps - totalBuiltInBps;
+              const amount = bn(price).mul(bpsDiff).div(10000);
+              missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
+
+              // Split the missing royalties pro-rata across all royalty recipients
+              const totalBps = _.sumBy(validRecipients, ({ bps }) => bps);
+              for (const { bps, recipient } of validRecipients) {
+                // TODO: Handle lost precision (by paying it to the last or first recipient)
+                missingRoyalties.push({
+                  bps: Math.floor((bpsDiff * bps) / totalBps),
+                  amount: amount.mul(bps).div(totalBps).toString(),
+                  recipient,
+                });
+              }
+            }
+          }
+
+          // Handle: normalized value
+          const normalizedValue = bn(value).sub(missingRoyaltyAmount).toString();
+
           const totalQuantity = currentBid.pricePoints
             .map((p) => p.executableSize)
             .reduce((a, b) => a + b, 0);
@@ -864,6 +940,9 @@ export const savePartialBids = async (
                 currency_price = $/price/,
                 value = $/value/,
                 currency_value = $/value/,
+                normalized_value = $/normalizedValue/,
+                currency_normalized_value = $/normalizedValue/,
+                missing_royalties = $/missingRoyalties:json/,
                 quantity_remaining = $/totalQuantity/,
                 valid_between = tstzrange(date_trunc('seconds', now()), 'Infinity', '[]'),
                 expiration = 'Infinity',
@@ -875,6 +954,8 @@ export const savePartialBids = async (
               id,
               price,
               value,
+              normalizedValue,
+              missingRoyalties,
               totalQuantity,
               rawData: currentBid,
             }

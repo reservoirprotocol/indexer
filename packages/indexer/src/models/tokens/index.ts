@@ -231,7 +231,7 @@ export class Tokens {
         ${contractFilter}
         ${flagFilter}
         ${continuation}
-        ORDER BY contract, token_id ASC
+        ORDER BY token_id ASC
         LIMIT ${limit}
       `;
 

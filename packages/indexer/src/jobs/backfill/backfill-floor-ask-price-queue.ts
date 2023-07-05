@@ -9,7 +9,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as updateNftBalanceFloorAskPriceQueue from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
+import { nftBalanceUpdateFloorAskJob } from "@/jobs/nft-balance-updates/update-floor-ask-price-job";
 
 const QUEUE_NAME = "nft-balance-updates-backfill-floor-ask-price-queue";
 
@@ -80,7 +80,7 @@ if (config.doBackgroundWork) {
           });
         }
 
-        await updateNftBalanceFloorAskPriceQueue.addToQueue(updateFloorAskPriceInfos);
+        await nftBalanceUpdateFloorAskJob.addToQueue(updateFloorAskPriceInfos);
 
         if (sellOrders.length == limit) {
           const lastSellOrder = _.last(sellOrders);

@@ -54,12 +54,10 @@ import * as backfillNftTransferEventsUpdatedAt from "@/jobs/backfill/backfill-nf
 import * as eventsSyncRealtime from "@/jobs/events-sync/realtime-queue";
 import * as eventsSyncRealtimeV2 from "@/jobs/events-sync/realtime-queue-v2";
 
-import * as expiredMintsCron from "@/jobs/mints/cron/expired-mints";
 import * as mintsCheck from "@/jobs/mints/check";
 import * as mintsProcess from "@/jobs/mints/process";
 
 import * as updateNftBalanceFloorAskPrice from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
-import * as updateNftBalanceTopBid from "@/jobs/nft-balance-updates/update-top-bid-queue";
 
 import * as orderFixes from "@/jobs/order-fixes/fixes";
 import * as orderRevalidations from "@/jobs/order-fixes/revalidations";
@@ -175,6 +173,10 @@ import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job"
 import { metadataIndexProcessJob } from "@/jobs/metadata-index/metadata-process-job";
 import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
 import { metadataIndexProcessBySlugJob } from "@/jobs/metadata-index/metadata-process-by-slug-job";
+import { mintsProcessJob } from "@/jobs/mints/mints-process-job";
+import { mintsCheckJob } from "@/jobs/mints/mints-check-job";
+import { mintsExpiredJob } from "@/jobs/mints/cron/mints-expired-job";
+import { nftBalanceUpdateFloorAskJob } from "@/jobs/nft-balance-updates/update-floor-ask-price-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -212,12 +214,10 @@ export const allJobQueues = [
   eventsSyncRealtime.queue,
   eventsSyncRealtimeV2.queue,
 
-  expiredMintsCron.queue,
   mintsCheck.queue,
   mintsProcess.queue,
 
   updateNftBalanceFloorAskPrice.queue,
-  updateNftBalanceTopBid.queue,
 
   orderFixes.queue,
   orderRevalidations.queue,
@@ -341,6 +341,10 @@ export class RabbitMqJobsConsumer {
       metadataIndexProcessJob,
       metadataIndexWriteJob,
       metadataIndexProcessBySlugJob,
+      mintsProcessJob,
+      mintsCheckJob,
+      mintsExpiredJob,
+      nftBalanceUpdateFloorAskJob,
     ];
   }
 
