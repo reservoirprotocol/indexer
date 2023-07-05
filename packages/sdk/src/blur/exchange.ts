@@ -5,8 +5,8 @@ import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
 import { AddressZero, HashZero } from "@ethersproject/constants";
 import { Contract, ContractTransaction } from "@ethersproject/contracts";
 
-import * as PaymentProcessorAddresses from "../router/v6/addresses";
 import * as CommonAddresses from "../common/addresses";
+import * as RouterAddresses from "../router/v6/addresses";
 import * as SeaportBase from "../seaport-base";
 import * as SeaportV15 from "../seaport-v1.5";
 import { TxData, getCurrentTimestamp, getRandomBytes } from "../utils";
@@ -70,8 +70,8 @@ export class Exchange {
     const order = new SeaportV15.Order(this.chainId, {
       // To avoid format checking
       kind: "single-token",
-      // We need an EIP1271-compliant contract
-      offerer: PaymentProcessorAddresses.PaymentProcessorModule[this.chainId],
+      // We need an EIP1271-compliant contract that always returns success
+      offerer: RouterAddresses.PaymentProcessorModule[this.chainId],
       zone: AddressZero,
       offer: [],
       consideration: [
