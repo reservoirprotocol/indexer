@@ -8,6 +8,7 @@ export class MintsExpiredJob extends AbstractRabbitMqJobHandler {
   queueName = "expired-mints";
   maxRetries = 1;
   concurrency = 1;
+  lazyMode = true;
   backoff = {
     type: "exponential",
     delay: 10000,

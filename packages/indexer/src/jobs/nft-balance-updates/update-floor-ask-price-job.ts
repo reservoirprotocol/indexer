@@ -13,6 +13,7 @@ export class NftBalanceUpdateFloorAskJob extends AbstractRabbitMqJobHandler {
   queueName = "nft-balance-updates-update-floor-ask-price-queue";
   maxRetries = 10;
   concurrency = 15;
+  lazyMode = true;
   backoff = {
     type: "exponential",
     delay: 20000,

@@ -22,6 +22,8 @@ export const getSupportedChainName = () => {
       return "sepolia";
     case 80001:
       return "mumbai";
+    case 8453:
+      return "base";
     default:
       return "unknown";
   }

@@ -110,6 +110,7 @@ export class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
     const tokenUrlAvalanche = this.getTokenUrl(html, url, "avalanche");
     const tokenUrlScrollAlpha = this.getTokenUrl(html, url, "scroll-alpha");
     const tokenUrlZoraTestnet = this.getTokenUrl(html, url, "zora-testnet");
+    const tokenUrlBase = this.getTokenUrl(html, url, "base");
 
     // Update the source data
     const sources = await Sources.getInstance();
@@ -134,6 +135,7 @@ export class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
       tokenUrlAvalanche,
       tokenUrlScrollAlpha,
       tokenUrlZoraTestnet,
+      tokenUrlBase,
     });
   }
 

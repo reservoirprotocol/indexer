@@ -53,7 +53,6 @@ import * as backfillNftTransferEventsUpdatedAt from "@/jobs/backfill/backfill-nf
 import * as eventsSyncRealtime from "@/jobs/events-sync/realtime-queue";
 import * as eventsSyncRealtimeV2 from "@/jobs/events-sync/realtime-queue-v2";
 
-import * as orderFixes from "@/jobs/order-fixes/fixes";
 import * as orderRevalidations from "@/jobs/order-fixes/revalidations";
 
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
@@ -209,7 +208,6 @@ export const allJobQueues = [
   eventsSyncRealtime.queue,
   eventsSyncRealtimeV2.queue,
 
-  orderFixes.queue,
   orderRevalidations.queue,
 
   orderUpdatesById.queue,

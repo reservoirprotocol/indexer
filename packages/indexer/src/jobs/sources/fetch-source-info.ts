@@ -86,6 +86,7 @@ if (config.doBackgroundWork) {
       const tokenUrlAvalanche = getTokenUrl(html, url, "avalanche");
       const tokenUrlScrollAlpha = getTokenUrl(html, url, "scroll-alpha");
       const tokenUrlZoraTestnet = getTokenUrl(html, url, "zora-testnet");
+      const tokenUrlBase = getTokenUrl(html, url, "base");
 
       // Update the source data
       const sources = await Sources.getInstance();
@@ -107,6 +108,7 @@ if (config.doBackgroundWork) {
         tokenUrlAvalanche,
         tokenUrlScrollAlpha,
         tokenUrlZoraTestnet,
+        tokenUrlBase,
       });
     },
     {
