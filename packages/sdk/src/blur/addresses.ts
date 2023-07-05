@@ -4,6 +4,10 @@ export const Exchange: ChainIdToAddress = {
   [Network.Ethereum]: "0x000000000000ad05ccc4f10045630fb830b95127",
 };
 
+export const Swap: ChainIdToAddress = {
+  [Network.Ethereum]: "0x39da41747a83aee658334415666f3ef92dd0d541",
+};
+
 export const StandardPolicyERC721: ChainIdToAddress = {
   [Network.Ethereum]: "0x00000000006411739da1c40b106f8511de5d1fac",
 };

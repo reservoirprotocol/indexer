@@ -62,7 +62,8 @@ import SudoswapV2ModuleAbi from "./abis/SudoswapV2Module.json";
 import CryptoPunksModuleAbi from "./abis/CryptoPunksModule.json";
 import PaymentProcessorModuleAbi from "./abis/PaymentProcessorModule.json";
 // Exchanges
-import BlurAbi from "../../blur/abis/Exchange.json";
+import BlurExchangeAbi from "../../blur/abis/Exchange.json";
+import BlurSwapAbi from "../../blur/abis/Swap.json";
 import SeaportV15Abi from "../../seaport-v1.5/abis/Exchange.json";
 
 type SetupOptions = {
@@ -276,14 +277,17 @@ export class Router {
             ),
           };
         }
+
         const order = detail.order as Sdk.Flow.Order;
         const exchange = new Sdk.Flow.Exchange(this.chainId);
+
         txs.push({
           approvals: approval ? [approval] : [],
           permits: [],
           txData: exchange.takeMultipleOneOrdersTx(taker, [order]),
           orderIds: [detail.orderId],
         });
+
         success[detail.orderId] = true;
       }
     }
@@ -320,6 +324,25 @@ export class Router {
         success[detail.orderId] = true;
       }
     }
+
+    const numDetailsToConsider = details.filter((d) => !success[d.orderId]).length;
+    const getFees = (ownDetails: ListingDetails[]) =>
+      [
+        // Global fees
+        ...(options?.globalFees ?? []).map(({ recipient, amount }) => ({
+          recipient,
+          // The global fees are averaged over the number of listings to fill
+          // TODO: Also take into account the quantity filled for ERC1155
+          amount: bn(amount).mul(ownDetails.length).div(numDetailsToConsider),
+        })),
+        // Local fees
+        // TODO: Should not split the local fees among all executions
+        ...ownDetails.flatMap(({ fees }) => fees ?? []),
+      ].filter(
+        ({ amount, recipient }) =>
+          // Skip zero amounts and/or recipients
+          bn(amount).gt(0) && recipient !== AddressZero
+      );
 
     // Filling Blur listings is extremely tricky since they explicitly designed
     // their contracts so that it is not possible to fill indirectly (eg. via a
@@ -409,11 +432,284 @@ export class Router {
 
           // If we have at least one Blur listing, we should go ahead with the calldata returned by Blur
           if (successfulBlurCompatibleListings.find((d) => d.source === "blur.io")) {
+            const fees = [];
+
             // Mark the orders handled by Blur as successful
             const orderIds: string[] = [];
             for (const d of successfulBlurCompatibleListings) {
               success[d.orderId] = true;
               orderIds.push(d.orderId);
+              fees.push(...getFees([d]));
+            }
+
+            const totalFees = fees.map((f) => bn(f.amount)).reduce((a, b) => a.add(b), bn(0));
+
+            let calldata = data.data;
+            if (fees.length) {
+              const blurExchangeIface = new Interface(BlurExchangeAbi);
+              const blurSwapIface = new Interface(BlurSwapAbi);
+              const seaportIface = new Interface(SeaportV15Abi);
+
+              switch (true) {
+                case calldata.startsWith(blurExchangeIface.getSighash("execute")): {
+                  const decodedCalldata = blurExchangeIface.decodeFunctionData("execute", calldata);
+                  calldata = blurExchangeIface.encodeFunctionData("bulkExecute", [
+                    [
+                      // Original execution
+                      { sell: decodedCalldata.sell, buy: decodedCalldata.buy },
+                      // Fee executions
+                      ...(await Promise.all(
+                        fees.map((f) =>
+                          new Sdk.Blur.Exchange(this.chainId).generateBlurFeeExecutionInputs(
+                            this.provider,
+                            taker,
+                            Sdk.Blur.Types.TradeDirection.SELL,
+                            f.amount,
+                            f.recipient
+                          )
+                        )
+                      )),
+                    ],
+                  ]);
+
+                  break;
+                }
+
+                case calldata.startsWith(blurExchangeIface.getSighash("bulkExecute")): {
+                  const decodedCalldata = blurExchangeIface.decodeFunctionData(
+                    "bulkExecute",
+                    calldata
+                  );
+                  calldata = blurExchangeIface.encodeFunctionData("bulkExecute", [
+                    [
+                      // Original executions
+                      ...decodedCalldata.executions,
+                      // Fee executions
+                      ...(await Promise.all(
+                        fees.map((f) =>
+                          new Sdk.Blur.Exchange(this.chainId).generateBlurFeeExecutionInputs(
+                            this.provider,
+                            taker,
+                            Sdk.Blur.Types.TradeDirection.SELL,
+                            f.amount,
+                            f.recipient
+                          )
+                        )
+                      )),
+                    ],
+                  ]);
+
+                  break;
+                }
+
+                case calldata.startsWith(blurSwapIface.getSighash("batchBuyWithETH")): {
+                  const decodedCalldata = blurSwapIface.decodeFunctionData(
+                    "batchBuyWithETH",
+                    calldata
+                  );
+
+                  const encodedFeeTradeDetails = await Promise.all(
+                    fees.map((f) =>
+                      new Sdk.Blur.Exchange(this.chainId).generateBlurFeeTradeDetails(
+                        taker,
+                        f.amount,
+                        f.recipient
+                      )
+                    )
+                  );
+
+                  const hasSeaportTradeDetail = decodedCalldata.tradeDetails.find(
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (d: any) => d.marketId.toString() === "10"
+                  );
+                  if (hasSeaportTradeDetail) {
+                    const newTradeDetails = [];
+                    for (const td of decodedCalldata.tradeDetails) {
+                      if (td.marketId.toString() === "10") {
+                        // Append the fee orders to the existing Seaport trade detail
+                        const seaportTradeData = seaportIface.decodeFunctionData(
+                          "fulfillAvailableAdvancedOrders",
+                          new Interface(["function execute(bytes data)"]).decodeFunctionData(
+                            "execute",
+                            td.tradeData
+                          ).data
+                        );
+
+                        const advancedOrders = [...seaportTradeData.advancedOrders];
+                        const criteriaResolvers = seaportTradeData.criteriaResolvers;
+                        const offerFulfillments = seaportTradeData.offerFulfillments;
+                        const considerationFulfillments = [
+                          ...seaportTradeData.considerationFulfillments,
+                        ];
+                        const fulfillerConduitKey = seaportTradeData.fulfillerConduitKey;
+                        const recipient = seaportTradeData.recipient;
+
+                        const ordersCount = advancedOrders.length;
+                        for (let i = 0; i < encodedFeeTradeDetails.length; i++) {
+                          const decodedFeeTradeData = seaportIface.decodeFunctionData(
+                            "fulfillAvailableAdvancedOrders",
+                            new Interface(["function execute(bytes data)"]).decodeFunctionData(
+                              "execute",
+                              encodedFeeTradeDetails[i].tradeData
+                            ).data
+                          );
+
+                          advancedOrders.push(...decodedFeeTradeData.advancedOrders);
+                          considerationFulfillments.push([
+                            {
+                              orderIndex: ordersCount + i,
+                              itemIndex: 0,
+                            },
+                          ]);
+                        }
+
+                        newTradeDetails.push({
+                          marketId: "10",
+                          value: bn(td.value).add(totalFees),
+                          tradeData: new Interface([
+                            "function execute(bytes data)",
+                          ]).encodeFunctionData("execute", [
+                            seaportIface.encodeFunctionData("fulfillAvailableAdvancedOrders", [
+                              advancedOrders,
+                              criteriaResolvers,
+                              offerFulfillments,
+                              considerationFulfillments,
+                              fulfillerConduitKey,
+                              recipient,
+                              bn(td.value).add(totalFees),
+                            ]),
+                          ]),
+                        });
+                      } else {
+                        newTradeDetails.push(td);
+                      }
+                    }
+
+                    calldata = blurSwapIface.encodeFunctionData("batchBuyWithETH", [
+                      newTradeDetails,
+                    ]);
+                  } else {
+                    // Create a new trade detail
+                    calldata = blurSwapIface.encodeFunctionData("batchBuyWithETH", [
+                      [
+                        // Original trade details
+                        ...decodedCalldata.tradeDetails,
+                        // Fee trade details
+                        ...encodedFeeTradeDetails,
+                      ],
+                    ]);
+                  }
+
+                  break;
+                }
+
+                case calldata.startsWith(blurSwapIface.getSighash("batchBuyWithERC20s")): {
+                  const decodedCalldata = blurSwapIface.decodeFunctionData(
+                    "batchBuyWithERC20s",
+                    calldata
+                  );
+
+                  const encodedFeeTradeDetails = await Promise.all(
+                    fees.map((f) =>
+                      new Sdk.Blur.Exchange(this.chainId).generateBlurFeeTradeDetails(
+                        taker,
+                        f.amount,
+                        f.recipient
+                      )
+                    )
+                  );
+
+                  const hasSeaportTradeDetail = decodedCalldata.tradeDetails.find(
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (d: any) => d.marketId.toString() === "10"
+                  );
+                  if (hasSeaportTradeDetail) {
+                    const newTradeDetails = [];
+                    for (const td of decodedCalldata.tradeDetails) {
+                      if (td.marketId.toString() === "10") {
+                        // Append the fee orders to the existing Seaport trade detail
+                        const seaportTradeData = seaportIface.decodeFunctionData(
+                          "fulfillAvailableAdvancedOrders",
+                          new Interface(["function execute(bytes data)"]).decodeFunctionData(
+                            "execute",
+                            td.tradeData
+                          ).data
+                        );
+
+                        const advancedOrders = [...seaportTradeData.advancedOrders];
+                        const criteriaResolvers = seaportTradeData.criteriaResolvers;
+                        const offerFulfillments = seaportTradeData.offerFulfillments;
+                        const considerationFulfillments = [
+                          ...seaportTradeData.considerationFulfillments,
+                        ];
+                        const fulfillerConduitKey = seaportTradeData.fulfillerConduitKey;
+                        const recipient = seaportTradeData.recipient;
+
+                        const ordersCount = advancedOrders.length;
+                        for (let i = 0; i < encodedFeeTradeDetails.length; i++) {
+                          const decodedFeeTradeData = seaportIface.decodeFunctionData(
+                            "fulfillAvailableAdvancedOrders",
+                            new Interface(["function execute(bytes data)"]).decodeFunctionData(
+                              "execute",
+                              encodedFeeTradeDetails[i].tradeData
+                            ).data
+                          );
+
+                          advancedOrders.push(...decodedFeeTradeData.advancedOrders);
+                          considerationFulfillments.push([
+                            {
+                              orderIndex: ordersCount + i,
+                              itemIndex: 0,
+                            },
+                          ]);
+                        }
+
+                        newTradeDetails.push({
+                          marketId: "10",
+                          value: bn(td.value).add(totalFees),
+                          tradeData: new Interface([
+                            "function execute(bytes data)",
+                          ]).encodeFunctionData("execute", [
+                            seaportIface.encodeFunctionData("fulfillAvailableAdvancedOrders", [
+                              advancedOrders,
+                              criteriaResolvers,
+                              offerFulfillments,
+                              considerationFulfillments,
+                              fulfillerConduitKey,
+                              recipient,
+                              bn(td.value).add(totalFees),
+                            ]),
+                          ]),
+                        });
+                      } else {
+                        newTradeDetails.push(td);
+                      }
+                    }
+
+                    calldata = blurSwapIface.encodeFunctionData("batchBuyWithERC20s", [
+                      decodedCalldata.erc20Details,
+                      newTradeDetails,
+                      decodedCalldata.converstionDetails,
+                      decodedCalldata.dustTokens,
+                    ]);
+                  } else {
+                    // Create a new trade detail
+                    calldata = blurSwapIface.encodeFunctionData("batchBuyWithERC20s", [
+                      decodedCalldata.erc20Details,
+                      [
+                        // Original trade details
+                        ...decodedCalldata.tradeDetails,
+                        // Fee trade details
+                        ...encodedFeeTradeDetails,
+                      ],
+                      decodedCalldata.converstionDetails,
+                      decodedCalldata.dustTokens,
+                    ]);
+                  }
+
+                  break;
+                }
+              }
             }
 
             txs.push({
@@ -422,8 +718,8 @@ export class Router {
               txData: {
                 from: data.from,
                 to: data.to,
-                data: data.data + generateSourceBytes(options?.source),
-                value: data.value,
+                data: calldata + generateSourceBytes(options?.source),
+                value: bn(data.value).add(totalFees).toHexString(),
               },
               orderIds,
             });
@@ -468,8 +764,8 @@ export class Router {
 
     await Promise.all(
       details.map(async (detail, i) => {
-        if (["seaport-v1.4-partial", "seaport-v1.5-partial"].includes(detail.kind)) {
-          const protocolVersion = detail.kind === "seaport-v1.4-partial" ? "v1.4" : "v1.5";
+        if (["seaport-v1.5-partial"].includes(detail.kind)) {
+          const protocolVersion = "v1.5";
           const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
 
           try {
@@ -488,15 +784,8 @@ export class Router {
             // Override the details
             details[i] = {
               ...detail,
-              ...(protocolVersion === "v1.4"
-                ? {
-                    kind: "seaport-v1.4",
-                    order: new Sdk.SeaportV14.Order(this.chainId, result.data.order),
-                  }
-                : {
-                    kind: "seaport-v1.5",
-                    order: new Sdk.SeaportV15.Order(this.chainId, result.data.order),
-                  }),
+              kind: "seaport-v1.5",
+              order: new Sdk.SeaportV15.Order(this.chainId, result.data.order),
             };
           } catch (error) {
             if (options?.onError) {
@@ -677,25 +966,6 @@ export class Router {
         };
       }
     }
-
-    const numDetailsToConsider = details.filter((d) => !success[d.orderId]).length;
-    const getFees = (ownDetails: ListingDetails[]) =>
-      [
-        // Global fees
-        ...(options?.globalFees ?? []).map(({ recipient, amount }) => ({
-          recipient,
-          // The global fees are averaged over the number of listings to fill
-          // TODO: Also take into account the quantity filled for ERC1155
-          amount: bn(amount).mul(ownDetails.length).div(numDetailsToConsider),
-        })),
-        // Local fees
-        // TODO: Should not split the local fees among all executions
-        ...ownDetails.flatMap(({ fees }) => fees ?? []),
-      ].filter(
-        ({ amount, recipient }) =>
-          // Skip zero amounts and/or recipients
-          bn(amount).gt(0) && recipient !== AddressZero
-      );
 
     // Keep track of any approvals that might be needed
     const approvals: FTApproval[] = [];
@@ -3028,18 +3298,18 @@ export class Router {
             } else {
               let calldata = result[detail.contract].data;
               if (fees.length) {
-                const blurIface = new Interface(BlurAbi);
+                const blurExchangeIface = new Interface(BlurExchangeAbi);
 
                 // We only fill one token at once, so we can be sure we'll only have to deal with `execute`
-                const decodedCalldata = blurIface.decodeFunctionData("execute", calldata);
-                calldata = blurIface.encodeFunctionData("bulkExecute", [
+                const decodedCalldata = blurExchangeIface.decodeFunctionData("execute", calldata);
+                calldata = blurExchangeIface.encodeFunctionData("bulkExecute", [
                   [
                     // Original execution
                     { sell: decodedCalldata.sell, buy: decodedCalldata.buy },
                     // Fee executions
                     ...(await Promise.all(
                       fees.map((f) =>
-                        new Sdk.Blur.Exchange(this.chainId).generateFeeExecutionInputs(
+                        new Sdk.Blur.Exchange(this.chainId).generateBlurFeeExecutionInputs(
                           this.provider,
                           taker,
                           Sdk.Blur.Types.TradeDirection.BUY,

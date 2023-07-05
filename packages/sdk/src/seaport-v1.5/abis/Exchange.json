@@ -843,7 +843,7 @@
           { "internalType": "bytes", "name": "extraData", "type": "bytes" }
         ],
         "internalType": "struct AdvancedOrder[]",
-        "name": "",
+        "name": "advancedOrders",
         "type": "tuple[]"
       },
       {
@@ -867,7 +867,7 @@
           }
         ],
         "internalType": "struct CriteriaResolver[]",
-        "name": "",
+        "name": "criteriaResolvers",
         "type": "tuple[]"
       },
       {
@@ -880,7 +880,7 @@
           { "internalType": "uint256", "name": "itemIndex", "type": "uint256" }
         ],
         "internalType": "struct FulfillmentComponent[][]",
-        "name": "",
+        "name": "offerFulfillments",
         "type": "tuple[][]"
       },
       {
@@ -893,7 +893,7 @@
           { "internalType": "uint256", "name": "itemIndex", "type": "uint256" }
         ],
         "internalType": "struct FulfillmentComponent[][]",
-        "name": "",
+        "name": "considerationFulfillments",
         "type": "tuple[][]"
       },
       {

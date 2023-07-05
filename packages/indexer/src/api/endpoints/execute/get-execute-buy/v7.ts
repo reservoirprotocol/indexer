@@ -1035,20 +1035,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
         return { recipient, amount };
       });
 
-      const hasBlurListings = listingDetails.some((b) => b.source === "blur.io");
-      const ordersEligibleForGlobalFees = listingDetails
-        .filter(
-          (b) =>
-            b.source !== "blur.io" &&
-            (hasBlurListings
-              ? !["opensea.io", "looksrare.org", "x2y2.io"].includes(b.source!)
-              : true)
-        )
-        .map((b) => b.orderId);
-
       const addGlobalFee = async (item: (typeof path)[0], fee: Sdk.RouterV6.Types.Fee) => {
         // Global fees get split across all eligible orders
-        const adjustedFeeAmount = bn(fee.amount).div(ordersEligibleForGlobalFees.length).toString();
+        const adjustedFeeAmount = bn(fee.amount).div(listingDetails.length).toString();
 
         const itemNetPrice = bn(item.rawQuote).sub(
           item.feesOnTop.map((f) => bn(f.rawAmount)).reduce((a, b) => a.add(b), bn(0))
@@ -1078,7 +1067,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       };
 
       for (const item of path) {
-        if (globalFees.length && ordersEligibleForGlobalFees.includes(item.orderId)) {
+        if (globalFees.length) {
           for (const f of globalFees) {
             await addGlobalFee(item, f);
           }
