@@ -953,7 +953,8 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
 
         for (const [contract, orderIds] of Object.entries(contractsAndOrderIds)) {
-          const operator = Sdk.Blur.Addresses.ExecutionDelegate[config.chainId];
+          // const operator = Sdk.Blur.Addresses.ExecutionDelegate[config.chainId];
+          const operator = "0x2f18f339620a63e43f0839eeb18d7de1e1be4dfb";
           const isApproved = await commonHelpers.getNftApproval(contract, payload.taker, operator);
           if (!isApproved) {
             missingApprovals.push({
