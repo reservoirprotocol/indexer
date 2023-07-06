@@ -7,6 +7,7 @@ import fs from "fs";
 import { EOL } from "os";
 import { ArchiveInterface } from "@/jobs/data-archive/archive-classes/archive-interface";
 import { PendingExpiredBidActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-expired-bid-activities-queue";
+import { logger } from "@/common/logger";
 
 export class ArchiveBidOrders implements ArchiveInterface {
   static tableName = "orders";
@@ -136,6 +137,11 @@ export class ArchiveBidOrders implements ArchiveInterface {
           `;
 
       deletedOrdersResult = await idb.manyOrNone(deleteQuery);
+
+      logger.info(
+        "archive-bid-orders",
+        `Worker started. deletedOrdersCount=${JSON.stringify(deletedOrdersResult?.length)}`
+      );
 
       if (deletedOrdersResult.length) {
         const pendingExpiredBidActivitiesQueue = new PendingExpiredBidActivitiesQueue();
