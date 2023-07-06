@@ -313,6 +313,8 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
               eventInfo: {
                 kind: trigger.kind,
                 orderId: order.id,
+                trigger: "insert",
+                offset: "",
               },
               eventKind:
                 order.side === "sell" ? WebsocketEventKind.SellOrder : WebsocketEventKind.BuyOrder,
