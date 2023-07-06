@@ -1,10 +1,9 @@
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 import _ from "lodash";
-import cron from "node-cron";
 
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { EventsBatch, processEventsBatch } from "@/events-sync/handlers";
 
@@ -61,28 +60,6 @@ if (
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
-
-  // Every minute we check the size of the queue. This will
-  // ensure we get notified when it's buffering up and potentially
-  // blocking the real-time flow of orders.
-  cron.schedule(
-    "*/1 * * * *",
-    async () =>
-      await redlock
-        .acquire(["realtime-process-size-check-lock"], (60 - 5) * 1000)
-        .then(async () => {
-          const size = await queue.count();
-          if (size >= 20000) {
-            logger.error(
-              "realtime-process-size-check",
-              `Realtime process buffering up: size=${size}`
-            );
-          }
-        })
-        .catch(() => {
-          // Skip on any errors
-        })
-  );
 }
 
 export const addToQueue = async (batches: EventsBatch[], prioritized?: boolean) =>

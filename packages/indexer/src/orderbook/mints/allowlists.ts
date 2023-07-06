@@ -1,5 +1,5 @@
 import { idb, pgp } from "@/common/db";
-import { toBuffer } from "@/common/utils";
+import { fromBuffer, toBuffer } from "@/common/utils";
 
 export type AllowlistItem = {
   address: string;
@@ -71,4 +71,44 @@ export const createAllowlist = async (id: string, allowlist: AllowlistItem[]) =>
       pgp.helpers.insert(values, columns, "allowlists_items") + " ON CONFLICT DO NOTHING"
     );
   }
+};
+
+export const getAllowlist = async (id: string): Promise<AllowlistItem[]> => {
+  return idb
+    .manyOrNone(
+      `
+        SELECT
+          allowlists_items.address,
+          allowlists_items.max_mints,
+          allowlists_items.price
+        FROM allowlists_items
+        WHERE allowlists_items.allowlist_id = $/id/
+        ORDER BY allowlists_items.index
+      `,
+      { id }
+    )
+    .then((results) =>
+      results.map(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (r: any) =>
+          ({
+            address: fromBuffer(r.address),
+            maxMints: r.max_mints ?? undefined,
+            price: r.price ?? undefined,
+          } as AllowlistItem)
+      )
+    );
+};
+
+export const allowlistExists = async (id: string) => {
+  const result = await idb.oneOrNone(
+    `
+      SELECT
+        1
+      FROM allowlists
+      WHERE allowlists.id = $/id/
+    `,
+    { id }
+  );
+  return Boolean(result);
 };

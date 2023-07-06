@@ -9,8 +9,8 @@ import { redis } from "@/common/redis";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { unsyncEvents } from "@/events-sync/index";
-import * as backfillEventsSync from "@/jobs/events-sync/backfill-queue";
 import * as blocksModel from "@/models/blocks";
+import { eventsSyncBackfillJob } from "@/jobs/events-sync/events-sync-backfill-job";
 
 const QUEUE_NAME = "events-sync-block-check";
 
@@ -40,7 +40,7 @@ if (config.doBackgroundWork) {
         // Generic method for handling an orphan block
         const handleOrphanBlock = async (block: { number: number; hash: string }) => {
           // Resync the detected orphaned block
-          await backfillEventsSync.addToQueue(block.number, block.number, {
+          await eventsSyncBackfillJob.addToQueue(block.number, block.number, {
             prioritized: true,
           });
           await unsyncEvents(block.number, block.hash);

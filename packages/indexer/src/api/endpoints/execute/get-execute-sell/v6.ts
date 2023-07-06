@@ -3,8 +3,8 @@
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
-import { FillBidsResult } from "@reservoir0x/sdk/src/router/v6/types";
-import { TxData } from "@reservoir0x/sdk/src/utils";
+import { FillBidsResult } from "@reservoir0x/sdk/dist/router/v6/types";
+import { TxData } from "@reservoir0x/sdk/dist/utils";
 import axios from "axios";
 import _ from "lodash";
 import Joi from "joi";

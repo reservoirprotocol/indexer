@@ -57,6 +57,11 @@ export const getTransfersBulkV1Options: RouteOptions = {
         .max(1000)
         .default(100)
         .description("Amount of items returned in response. Max limit is 1000."),
+      orderBy: Joi.string()
+        .valid("timestamp", "updated_at")
+        .description(
+          "Order the items are returned in the response. Options are `timestamp`, and `updated_at`. Default is `timestamp`."
+        ),
       continuation: Joi.string()
         .pattern(regex.base64)
         .description("Use continuation token to request next offset of items."),
@@ -79,6 +84,8 @@ export const getTransfersBulkV1Options: RouteOptions = {
           logIndex: Joi.number(),
           batchIndex: Joi.number(),
           timestamp: Joi.number(),
+          isDeleted: Joi.boolean().optional(),
+          updatedAt: Joi.string().optional().description("Time when updated in indexer"),
         })
       ),
       continuation: Joi.string().pattern(regex.base64).allow(null),
@@ -90,6 +97,7 @@ export const getTransfersBulkV1Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+    query.orderBy = query.orderBy ?? "timestamp"; // Default order by is by timestamp
 
     try {
       let baseQuery = `
@@ -103,12 +111,16 @@ export const getTransfersBulkV1Options: RouteOptions = {
           nft_transfer_events.timestamp,
           nft_transfer_events.block,
           nft_transfer_events.log_index,
-          nft_transfer_events.batch_index
+          nft_transfer_events.batch_index,
+          nft_transfer_events.is_deleted,
+          extract(epoch from nft_transfer_events.updated_at) updated_ts
         FROM nft_transfer_events
       `;
 
       // Filters
       const conditions: string[] = [];
+      conditions.push(`nft_transfer_events.is_deleted = 0`);
+
       if (query.contract) {
         (query as any).contract = toBuffer(query.contract);
         conditions.push(`nft_transfer_events.address = $/contract/`);
@@ -127,42 +139,75 @@ export const getTransfersBulkV1Options: RouteOptions = {
       }
 
       if (query.continuation) {
-        const [timestamp, logIndex, batchIndex] = splitContinuation(
-          query.continuation,
-          /^(\d+)_(\d+)_(\d+)$/
-        );
-        (query as any).timestamp = _.toInteger(timestamp);
-        (query as any).logIndex = logIndex;
-        (query as any).batchIndex = batchIndex;
+        if (query.orderBy === "timestamp") {
+          const [timestamp, logIndex, batchIndex] = splitContinuation(
+            query.continuation,
+            /^(\d+)_(\d+)_(\d+)$/
+          );
+          (query as any).timestamp = _.toInteger(timestamp);
+          (query as any).logIndex = logIndex;
+          (query as any).batchIndex = batchIndex;
 
-        conditions.push(
-          `(nft_transfer_events.timestamp, nft_transfer_events.log_index, nft_transfer_events.batch_index) < ($/timestamp/, $/logIndex/, $/batchIndex/)`
-        );
+          conditions.push(
+            `(nft_transfer_events.timestamp, nft_transfer_events.log_index, nft_transfer_events.batch_index) < ($/timestamp/, $/logIndex/, $/batchIndex/)`
+          );
+        } else if (query.orderBy == "updated_at") {
+          const [updateAt, address, tokenId] = splitContinuation(
+            query.continuation,
+            /^(.+)_0x[a-fA-F0-9]{40}_(\d+)$/
+          );
+
+          (query as any).updatedAt = updateAt;
+          (query as any).address = toBuffer(address);
+          (query as any).tokenId = tokenId;
+
+          conditions.push(
+            `(extract(epoch from nft_transfer_events.updated_at), nft_transfer_events.address, nft_transfer_events.token_id) < ($/updatedAt/, $/address/, $/tokenId/)`
+          );
+        }
       }
 
       // We default in the code so that these values don't appear in the docs
       if (!query.startTimestamp) {
         query.startTimestamp = 0;
       }
+
       if (!query.endTimestamp) {
         query.endTimestamp = 9999999999;
       }
-      conditions.push(`
-        (nft_transfer_events.timestamp >= $/startTimestamp/ AND
-        nft_transfer_events.timestamp <= $/endTimestamp/)
-      `);
+
+      if (query.orderBy === "timestamp") {
+        conditions.push(`
+          (nft_transfer_events.timestamp >= $/startTimestamp/ AND
+          nft_transfer_events.timestamp <= $/endTimestamp/)
+        `);
+      } else if (query.orderBy == "updated_at") {
+        conditions.push(`
+          (nft_transfer_events.updated_at >= to_timestamp($/startTimestamp/) AND
+          nft_transfer_events.updated_at <= to_timestamp($/endTimestamp/))
+        `);
+      }
 
       if (conditions.length) {
         baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
       }
 
       // Sorting
-      baseQuery += `
-        ORDER BY
-          nft_transfer_events.timestamp DESC,
-          nft_transfer_events.log_index DESC,
-          nft_transfer_events.batch_index DESC
-      `;
+      if (query.orderBy === "timestamp") {
+        baseQuery += `
+          ORDER BY
+            nft_transfer_events.timestamp DESC,
+            nft_transfer_events.log_index DESC,
+            nft_transfer_events.batch_index DESC
+        `;
+      } else if (query.orderBy == "updated_at") {
+        baseQuery += `
+          ORDER BY
+            nft_transfer_events.updated_at DESC,
+            nft_transfer_events.address DESC,
+            nft_transfer_events.token_id DESC
+        `;
+      }
 
       // Pagination
       baseQuery += ` LIMIT $/limit/`;
@@ -171,13 +216,23 @@ export const getTransfersBulkV1Options: RouteOptions = {
 
       let continuation = null;
       if (rawResult.length === query.limit) {
-        continuation = buildContinuation(
-          rawResult[rawResult.length - 1].timestamp +
-            "_" +
-            rawResult[rawResult.length - 1].log_index +
-            "_" +
-            rawResult[rawResult.length - 1].batch_index
-        );
+        if (query.orderBy === "timestamp") {
+          continuation = buildContinuation(
+            rawResult[rawResult.length - 1].timestamp +
+              "_" +
+              rawResult[rawResult.length - 1].log_index +
+              "_" +
+              rawResult[rawResult.length - 1].batch_index
+          );
+        } else if (query.orderBy == "updated_at") {
+          continuation = buildContinuation(
+            rawResult[rawResult.length - 1].updated_ts +
+              "_" +
+              fromBuffer(rawResult[rawResult.length - 1].address) +
+              "_" +
+              rawResult[rawResult.length - 1].token_id
+          );
+        }
       }
 
       const result = rawResult.map((r) => ({
@@ -197,6 +252,8 @@ export const getTransfersBulkV1Options: RouteOptions = {
         logIndex: r.log_index,
         batchIndex: r.batch_index,
         timestamp: r.timestamp,
+        isDeleted: Boolean(r.is_deleted),
+        updatedAt: new Date(r.updated_ts * 1000).toISOString(),
       }));
 
       return {

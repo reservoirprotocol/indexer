@@ -124,7 +124,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           currencyPrice,
           baseEventParams.timestamp
         );
-
         if (!priceData.nativePrice) {
           // We must always have the native price
           break;

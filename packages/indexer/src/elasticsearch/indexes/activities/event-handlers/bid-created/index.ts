@@ -65,12 +65,14 @@ export class BidCreatedEventHandler extends BaseActivityEventHandler {
           orders.currency_value AS "pricing_currency_value",
           orders.normalized_value AS "pricing_normalized_value",
           orders.currency_normalized_value AS "pricing_currency_normalized_value",
-          (orders.quantity_filled + orders.quantity_remaining) AS amount,
+          (orders.quantity_filled + orders.quantity_remaining) AS "amount",
           orders.source_id_int AS "order_source_id_int",
           orders.fee_bps AS "pricing_fee_bps",
           (${orderCriteriaBuildQuery}) AS "order_criteria",
-          extract(epoch from orders.created_at) AS created_ts,
-          extract(epoch from orders.updated_at) AS updated_ts,
+          extract(epoch from orders.created_at) AS "created_ts",
+          extract(epoch from orders.updated_at) AS "updated_ts",
+          extract(epoch from orders.originated_at) AS "originated_ts",
+          DATE_PART('epoch', LOWER(orders.valid_between)) AS "valid_from",
           orders.token_set_id,
           t.*
         FROM orders
@@ -96,6 +98,8 @@ export class BidCreatedEventHandler extends BaseActivityEventHandler {
       delete data.token_id;
     }
 
-    data.timestamp = Math.floor(data.created_ts);
+    data.timestamp = data.originated_ts
+      ? Math.floor(data.originated_ts)
+      : data.valid_from || Math.floor(data.created_ts);
   }
 }

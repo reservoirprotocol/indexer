@@ -55,6 +55,9 @@ export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue() {
+    if (!config.doElasticsearchWork) {
+      return;
+    }
     await this.send();
   }
 }
@@ -65,7 +68,7 @@ export const getLockName = () => {
 
 export const savePendingActivitiesJob = new SavePendingActivitiesJob();
 
-if (config.doBackgroundWork) {
+if (config.doBackgroundWork && config.doElasticsearchWork) {
   cron.schedule(
     "*/5 * * * * *",
     async () =>

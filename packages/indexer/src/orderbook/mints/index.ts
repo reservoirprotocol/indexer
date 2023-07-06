@@ -5,7 +5,13 @@ import { simulateCollectionMint } from "@/orderbook/mints/simulation";
 
 export type CollectionMintKind = "public" | "allowlist";
 export type CollectionMintStatus = "open" | "closed";
-export type CollectionMintStandard = "unknown" | "manifold" | "seadrop-v1.0" | "thirdweb" | "zora";
+export type CollectionMintStandard =
+  | "unknown"
+  | "manifold"
+  | "seadrop-v1.0"
+  | "thirdweb"
+  | "zora"
+  | "decent";
 
 export type CollectionMintDetails = {
   tx: MintTxSchema;
