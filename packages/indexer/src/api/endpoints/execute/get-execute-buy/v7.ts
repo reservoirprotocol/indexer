@@ -690,7 +690,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 const collectionData = await idb.one(
                   `
                     SELECT
-                      collections.contract,
                       contracts.kind AS token_kind,
                       (
                         SELECT
@@ -709,14 +708,15 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   }
                 );
                 if (collectionData) {
-                  const quantityToMint = mint.maxMintsPerWallet
-                    ? Math.min(item.quantity, Number(mint.maxMintsPerWallet))
+                  const amountMintable = await mints.getAmountMintableByWallet(mint, payload.taker);
+                  const quantityAvailable = amountMintable
+                    ? Math.min(amountMintable.toNumber(), item.quantity)
                     : item.quantity;
 
                   const { txData, price } = await generateCollectionMintTxData(
                     mint,
                     payload.taker,
-                    quantityToMint
+                    quantityAvailable
                   );
 
                   const orderId = `mint:${item.collection}`;
@@ -729,7 +729,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                     {
                       id: orderId,
                       kind: "mint",
-                      maker: fromBuffer(collectionData.contract),
+                      maker: mint.contract,
                       nativePrice: price,
                       price: price,
                       sourceId: null,
@@ -740,73 +740,85 @@ export const getExecuteBuyV7Options: RouteOptions = {
                     },
                     {
                       kind: collectionData.token_kind,
-                      contract: fromBuffer(collectionData.contract),
+                      contract: mint.contract,
                       tokenId: collectionData.next_token_id,
-                      quantity: quantityToMint,
+                      quantity: quantityAvailable,
                     },
                     itemIndex
                   );
 
-                  item.quantity -= quantityToMint;
+                  item.quantity -= quantityAvailable;
                 }
               }
             }
           }
 
-          if (item.quantity > 0 && (!item.fillType || item.fillType === "trade")) {
-            // Filtering by collection on the `orders` table is inefficient, so what we
-            // do here is select the cheapest tokens from the `tokens` table and filter
-            // out the ones that aren't fillable. For this to work we fetch more tokens
-            // than we need, so we can filter out the ones that aren't fillable and not
-            // end up with too few tokens.
+          if (item.quantity > 0) {
+            if (!item.fillType || item.fillType === "trade") {
+              // Filtering by collection on the `orders` table is inefficient, so what we
+              // do here is select the cheapest tokens from the `tokens` table and filter
+              // out the ones that aren't fillable. For this to work we fetch more tokens
+              // than we need, so we can filter out the ones that aren't fillable and not
+              // end up with too few tokens.
 
-            const redundancyFactor = 5;
-            const tokenResults = await idb.manyOrNone(
-              `
-                WITH x AS (
-                  SELECT
-                    tokens.contract,
-                    tokens.token_id,
-                    ${
+              const redundancyFactor = 5;
+              const tokenResults = await idb.manyOrNone(
+                `
+                  WITH x AS (
+                    SELECT
+                      tokens.contract,
+                      tokens.token_id,
+                      ${
+                        payload.normalizeRoyalties
+                          ? "tokens.normalized_floor_sell_id"
+                          : "tokens.floor_sell_id"
+                      } AS order_id
+                    FROM tokens
+                    WHERE tokens.collection_id = $/collection/
+                    ORDER BY ${
                       payload.normalizeRoyalties
-                        ? "tokens.normalized_floor_sell_id"
-                        : "tokens.floor_sell_id"
-                    } AS order_id
-                  FROM tokens
-                  WHERE tokens.collection_id = $/collection/
-                  ORDER BY ${
-                    payload.normalizeRoyalties
-                      ? "tokens.normalized_floor_sell_value"
-                      : "tokens.floor_sell_value"
-                  }
-                  LIMIT $/quantity/ * ${redundancyFactor}
-                )
-                SELECT
-                  x.contract,
-                  x.token_id
-                FROM x
-                JOIN orders
-                  ON x.order_id = orders.id
-                WHERE orders.fillability_status = 'fillable'
-                  AND orders.approval_status = 'approved'
-                LIMIT $/quantity/
-              `,
-              {
-                collection: item.collection,
-                quantity: item.quantity,
+                        ? "tokens.normalized_floor_sell_value"
+                        : "tokens.floor_sell_value"
+                    }
+                    LIMIT $/quantity/ * ${redundancyFactor}
+                  )
+                  SELECT
+                    x.contract,
+                    x.token_id
+                  FROM x
+                  JOIN orders
+                    ON x.order_id = orders.id
+                  WHERE orders.fillability_status = 'fillable'
+                    AND orders.approval_status = 'approved'
+                  LIMIT $/quantity/
+                `,
+                {
+                  collection: item.collection,
+                  quantity: item.quantity,
+                }
+              );
+
+              // Add each retrieved token as a new item so that it will get
+              // processed by the next pipeline of the same API rather than
+              // building something custom for it.
+
+              for (const t of tokenResults) {
+                items.push({
+                  token: `${fromBuffer(t.contract)}:${t.token_id}`,
+                  quantity: 1,
+                  originalItemIndex: itemIndex,
+                });
               }
-            );
 
-            // Add each retrieved token as a new item so that it will get
-            // processed by the next pipeline of the same API rather than
-            // building something custom for it.
-
-            for (const t of tokenResults) {
-              items.push({
-                token: `${fromBuffer(t.contract)}:${t.token_id}`,
-                quantity: 1,
-                originalItemIndex: itemIndex,
-              });
+              if (tokenResults.length < item.quantity) {
+                if (!payload.partial) {
+                  throw getExecuteError("Unable to fill requested quantity");
+                }
+              }
+            } else {
+              if (!payload.partial) {
+                throw getExecuteError("Unable to fill requested quantity");
+              }
             }
           }
         }
