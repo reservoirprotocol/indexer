@@ -1,7 +1,7 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 
 import { logger } from "@/common/logger";
-import { redis } from "@/common/redis";
+import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { ActivityType } from "@/elasticsearch/indexes/activities/base";
@@ -82,7 +82,9 @@ if (config.doBackgroundWork) {
           QUEUE_NAME,
           `Delete. jobData=${JSON.stringify(job.data)}, activitiesCount=${
             activities.length
-          }, activitiesToBeDeletedCount=${toBeDeletedActivityIds.length}`
+          }, activitiesToBeDeletedCount=${
+            toBeDeletedActivityIds.length
+          }, lastActivityTimestamp=${new Date(activities[0].timestamp).toISOString()} `
         );
 
         if (toBeDeletedActivityIds.length && dryRun === 0) {
@@ -107,6 +109,15 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
+
+  redlock
+    .acquire([`${QUEUE_NAME}-lock-v2`], 60 * 60 * 24 * 30 * 1000)
+    .then(async () => {
+      await addToQueue(Math.floor(Date.now() / 1000), null, 0);
+    })
+    .catch(() => {
+      // Skip on any errors
+    });
 }
 
 export const addToQueue = async (
