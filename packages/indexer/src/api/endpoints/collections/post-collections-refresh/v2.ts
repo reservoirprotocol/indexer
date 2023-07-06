@@ -8,7 +8,6 @@ import _ from "lodash";
 
 import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { regex } from "@/common/utils";
 import { ApiKeyManager } from "@/models/api-keys";
 import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
@@ -24,6 +23,7 @@ import {
   MetadataIndexFetchJobPayload,
 } from "@/jobs/metadata-index/metadata-fetch-job";
 import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
+import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
 
 const version = "v2";
 
@@ -99,8 +99,14 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         throw Boom.badRequest(`Collection ${payload.collection} not found`);
       }
 
-      const currentUtcTime = new Date().toISOString();
+      // Refresh Blur bids and listings
+      await blurBidsRefresh.addToQueue(collection.id, true);
+      await blurListingsRefresh.addToQueue(collection.id, true);
 
+      // Refresh collection mints
+      await mintsRefreshJob.addToQueue({ collection: collection.id });
+
+      const currentUtcTime = new Date().toISOString();
       if (!payload.refreshTokens) {
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
@@ -129,10 +135,6 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
             },
           ]);
         }
-
-        // Refresh Blur bids and listings
-        await blurBidsRefresh.addToQueue(collection.id, true);
-        await blurListingsRefresh.addToQueue(collection.id, true);
 
         // Refresh listings
         await OpenseaIndexerApi.fastContractSync(collection.contract);
@@ -205,11 +207,6 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
               },
             },
           ]);
-        }
-
-        // Refresh Blur bids
-        if (collection.id.match(regex.address)) {
-          await blurBidsRefresh.addToQueue(collection.id, true);
         }
 
         // Refresh listings

@@ -167,10 +167,12 @@ import { metadataIndexProcessJob } from "@/jobs/metadata-index/metadata-process-
 import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
 import { metadataIndexProcessBySlugJob } from "@/jobs/metadata-index/metadata-process-by-slug-job";
 import { mintsProcessJob } from "@/jobs/mints/mints-process-job";
+import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
 import { mintsCheckJob } from "@/jobs/mints/mints-check-job";
 import { mintsExpiredJob } from "@/jobs/mints/cron/mints-expired-job";
 import { nftBalanceUpdateFloorAskJob } from "@/jobs/nft-balance-updates/update-floor-ask-price-job";
 import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
+import { RabbitMq, RabbitMQMessage } from "@/common/rabbit-mq";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -330,6 +332,7 @@ export class RabbitMqJobsConsumer {
       metadataIndexWriteJob,
       metadataIndexProcessBySlugJob,
       mintsProcessJob,
+      mintsRefreshJob,
       mintsCheckJob,
       mintsExpiredJob,
       nftBalanceUpdateFloorAskJob,
@@ -480,6 +483,46 @@ export class RabbitMqJobsConsumer {
       }
     } catch (error) {
       logger.error("rabbit-subscribe-connection", `failed to open connections to consume ${error}`);
+    }
+  }
+
+  static async retryQueue(queueName: string) {
+    const job = _.find(RabbitMqJobsConsumer.getQueues(), (queue) => queue.getQueue() === queueName);
+
+    if (job) {
+      const deadLetterQueueSize = await RabbitMq.getQueueSize(job.getDeadLetterQueue());
+      const connection = await amqplib.connect(config.rabbitMqUrl);
+      const channel = await connection.createChannel();
+      let counter = 0;
+
+      await channel.prefetch(200);
+
+      // Subscribe to the dead letter queue
+      await new Promise<void>((resolve) =>
+        channel.consume(
+          job.getDeadLetterQueue(),
+          async (msg) => {
+            if (!_.isNull(msg)) {
+              await RabbitMq.send(
+                job.getRetryQueue(),
+                JSON.parse(msg.content.toString()) as RabbitMQMessage
+              );
+            }
+
+            ++counter;
+            if (counter >= deadLetterQueueSize) {
+              resolve();
+            }
+          },
+          {
+            noAck: true,
+            exclusive: true,
+          }
+        )
+      );
+
+      await channel.close();
+      await connection.close();
     }
   }
 }

@@ -26,13 +26,13 @@ export class MintsCheckJob extends AbstractRabbitMqJobHandler {
       if (status === "closed") {
         await idb.none(
           `
-              UPDATE collection_mints SET
-                status = 'closed',
-                updated_at = now()
-              WHERE collection_mints.collection_id = $/collection/
-                AND collection_mints.stage = $/stage/
-                AND collection_mints.token_id = $/tokenId/
-            `,
+            UPDATE collection_mints SET
+              status = 'closed',
+              updated_at = now()
+            WHERE collection_mints.collection_id = $/collection/
+              AND collection_mints.stage = $/stage/
+              AND collection_mints.token_id = $/tokenId/
+          `,
           {
             collection: collectionMint.collection,
             stage: collectionMint.stage,

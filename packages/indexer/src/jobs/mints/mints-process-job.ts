@@ -80,24 +80,24 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
 
           await idb.none(
             `
-                INSERT INTO collections (
-                  id,
-                  slug,
-                  name,
-                  metadata,
-                  contract,
-                  token_id_range,
-                  token_set_id
-                ) VALUES (
-                  $/id/,
-                  $/slug/,
-                  $/name/,
-                  $/metadata:json/,
-                  $/contract/,
-                  ${tokenIdRangeParam},
-                  $/tokenSetId/
-                ) ON CONFLICT DO NOTHING
-              `,
+              INSERT INTO collections (
+                id,
+                slug,
+                name,
+                metadata,
+                contract,
+                token_id_range,
+                token_set_id
+              ) VALUES (
+                $/id/,
+                $/slug/,
+                $/name/,
+                $/metadata:json/,
+                $/contract/,
+                ${tokenIdRangeParam},
+                $/tokenSetId/
+              ) ON CONFLICT DO NOTHING
+            `,
             {
               id: collection.id,
               slug: collection.slug,
@@ -116,23 +116,23 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
               data.additionalInfo.extension,
               new Interface([
                 `
-                    function getClaim(address creatorContractAddress, uint256 instanceId) external view returns (
-                      (
-                        uint32 total,
-                        uint32 totalMax,
-                        uint32 walletMax,
-                        uint48 startDate,
-                        uint48 endDate,
-                        uint8 storageProtocol,
-                        bytes32 merkleRoot,
-                        string location,
-                        uint256 tokenId,
-                        uint256 cost,
-                        address payable paymentReceiver,
-                        address erc20
-                      )
+                  function getClaim(address creatorContractAddress, uint256 instanceId) external view returns (
+                    (
+                      uint32 total,
+                      uint32 totalMax,
+                      uint32 walletMax,
+                      uint48 startDate,
+                      uint48 endDate,
+                      uint8 storageProtocol,
+                      bytes32 merkleRoot,
+                      string location,
+                      uint256 tokenId,
+                      uint256 cost,
+                      address payable paymentReceiver,
+                      address erc20
                     )
-                  `,
+                  )
+                `,
               ]),
               baseProvider
             );

@@ -137,6 +137,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/retry-rabbit-queue",
+    options: adminEndpoints.postRetryRabbitQueue,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/pause-rabbit-queue",
     options: adminEndpoints.postPauseRabbitQueueOptions,
   });

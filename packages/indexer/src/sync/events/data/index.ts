@@ -42,6 +42,7 @@ import * as sudoswapV2 from "@/events-sync/data/sudoswap-v2";
 import * as paymentProcessor from "@/events-sync/data/payment-processor";
 import * as thirdweb from "@/events-sync/data/thirdweb";
 import * as blurV2 from "@/events-sync/data/blur-v2";
+import * as seadrop from "@/events-sync/data/seadrop";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -469,6 +470,7 @@ const allEventData = [
   blurV2.execution721MakerFeePacked,
   blurV2.execution721Packed,
   blurV2.execution721TakerFeePacked,
+  seadrop.publicDropUpdated,
 ];
 
 export const getEventData = (events?: string[]) => {
