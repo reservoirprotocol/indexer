@@ -432,12 +432,12 @@ export class RabbitMqJobsConsumer {
     );
 
     channel.once("error", (error) => {
-      logger.error("rabbit-error", `Consumer channel error ${error}`);
+      logger.error("rabbit-channel", `Consumer channel error ${error}`);
 
       const jobs = RabbitMqJobsConsumer.channelsToJobs.get(channel);
       if (jobs) {
         logger.error(
-          "rabbit-error",
+          "rabbit-jobs",
           `Jobs stopped consume ${JSON.stringify(
             jobs.map((job: AbstractRabbitMqJobHandler) => job.queueName)
           )}`
