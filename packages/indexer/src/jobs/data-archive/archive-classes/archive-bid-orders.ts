@@ -6,6 +6,7 @@ import _ from "lodash";
 import fs from "fs";
 import { EOL } from "os";
 import { ArchiveInterface } from "@/jobs/data-archive/archive-classes/archive-interface";
+import { PendingExpiredBidActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-expired-bid-activities-queue";
 
 export class ArchiveBidOrders implements ArchiveInterface {
   static tableName = "orders";
@@ -118,7 +119,7 @@ export class ArchiveBidOrders implements ArchiveInterface {
 
   async deleteFromTable(startTime: string, endTime: string) {
     const limit = 5000;
-    let deletedRowsResult;
+    let deletedOrdersResult;
 
     do {
       const deleteQuery = `
@@ -131,10 +132,18 @@ export class ArchiveBidOrders implements ArchiveInterface {
               AND side = 'buy'
               AND fillability_status = 'expired'
               LIMIT ${limit}
-            )
+            ) RETURNING id
           `;
 
-      deletedRowsResult = await idb.result(deleteQuery);
-    } while (deletedRowsResult.rowCount === limit);
+      deletedOrdersResult = await idb.manyOrNone(deleteQuery);
+
+      if (deletedOrdersResult.length) {
+        const pendingExpiredBidActivitiesQueue = new PendingExpiredBidActivitiesQueue();
+
+        await pendingExpiredBidActivitiesQueue.add(
+          deletedOrdersResult.map((deletedOrder) => deletedOrder.id)
+        );
+      }
+    } while (deletedOrdersResult.length === limit);
   }
 }
