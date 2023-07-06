@@ -7,10 +7,10 @@ import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { syncEvents } from "@/events-sync/index";
-import * as eventsSyncBackfill from "@/jobs/events-sync/backfill-queue";
 import tracer from "@/common/tracer";
 import _, { now } from "lodash";
 import cron from "node-cron";
+import { eventsSyncBackfillJob } from "@/jobs/events-sync/events-sync-backfill-job";
 
 const QUEUE_NAME = "events-sync-realtime";
 
@@ -74,7 +74,7 @@ if (
                 fromBlock - localBlock
               }`
             );
-            await eventsSyncBackfill.addToQueue(localBlock, fromBlock - 1);
+            await eventsSyncBackfillJob.addToQueue(localBlock, fromBlock - 1);
           }
 
           // To avoid missing any events, save the last synced block with a delay

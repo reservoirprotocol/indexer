@@ -5,7 +5,7 @@ import { safeWebSocketSubscription } from "@/common/provider";
 import { redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
-import * as realtimeEventsSync from "@/jobs/events-sync/realtime-queue";
+// import * as realtimeEventsSync from "@/jobs/events-sync/realtime-queue";
 import * as realtimeEventsSyncV2 from "@/jobs/events-sync/realtime-queue-v2";
 
 // For syncing events we have two separate job queues. One is for
@@ -20,10 +20,6 @@ import * as realtimeEventsSyncV2 from "@/jobs/events-sync/realtime-queue-v2";
 // concurrent upserts of the balances):
 // https://stackoverflow.com/questions/46366324/postgres-deadlocks-on-concurrent-upserts
 
-import "@/jobs/events-sync/backfill-queue";
-import "@/jobs/events-sync/block-check-queue";
-import "@/jobs/events-sync/process/backfill";
-import "@/jobs/events-sync/process/realtime";
 import "@/jobs/events-sync/realtime-queue";
 import "@/jobs/events-sync/realtime-queue-v2";
 
@@ -42,7 +38,7 @@ if (config.doBackgroundWork && config.catchup) {
         )
         .then(async () => {
           try {
-            await realtimeEventsSync.addToQueue();
+            return;
             logger.info("events-sync-catchup", "Catching up events");
           } catch (error) {
             logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);
@@ -65,10 +61,7 @@ if (config.doBackgroundWork && config.catchup) {
         logger.info("events-sync-catchup", `Detected new block ${block}`);
 
         try {
-          await realtimeEventsSync.addToQueue();
-          if (config.enableRealtimeV2BlockQueue) {
-            await realtimeEventsSyncV2.addToQueue({ block });
-          }
+          await realtimeEventsSyncV2.addToQueue({ block });
         } catch (error) {
           logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);
         }

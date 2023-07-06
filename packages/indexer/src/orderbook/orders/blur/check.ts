@@ -46,10 +46,10 @@ export const offChainCheck = async (
     if (order.params.side === Sdk.Blur.Types.TradeDirection.SELL && originatedAt) {
       // Check: order is not off-chain cancelled
       const offChainCancelled = await commonHelpers.isListingOffChainCancelled(
-        "blur",
         order.params.trader,
         order.params.collection,
         order.params.tokenId,
+        Sdk.Blur.Addresses.ExecutionDelegate[config.chainId],
         originatedAt
       );
       if (offChainCancelled) {

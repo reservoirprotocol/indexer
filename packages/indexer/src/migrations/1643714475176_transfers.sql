@@ -12,7 +12,9 @@ CREATE TABLE "nft_transfer_events" (
   "from" BYTEA NOT NULL,
   "to" BYTEA NOT NULL,
   "token_id" NUMERIC(78, 0) NOT NULL,
-  "amount" NUMERIC(78, 0) NOT NULL
+  "amount" NUMERIC(78, 0) NOT NULL,
+  "is_deleted" INT NOT NULL DEFAULT 0,
+  "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 ALTER TABLE "nft_transfer_events"
@@ -25,11 +27,14 @@ CREATE INDEX "nft_transfer_events_block_block_hash_index"
 CREATE INDEX "nft_transfer_events_timestamp_index"
   ON "nft_transfer_events" ("timestamp" DESC);
 
-CREATE INDEX "nft_transfer_events_address_timestamp_index"
-  ON "nft_transfer_events" ("address", "timestamp" DESC);
+CREATE INDEX "nft_transfer_events_address_is_deleted_timestamp_index"
+  ON "nft_transfer_events" ("address", "is_deleted", "timestamp" DESC);
 
 CREATE INDEX "nft_transfer_events_address_token_id_timestamp_index"
   ON "nft_transfer_events" ("address", "token_id", "timestamp" DESC);
+
+CREATE INDEX "nft_transfer_events_updated_at_address_token_id_index"
+  ON "nft_transfer_events" ("updated_at", "address", "token_id");
 
 CREATE TABLE "ft_transfer_events" (
   "address" BYTEA NOT NULL,

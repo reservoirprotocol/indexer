@@ -12,19 +12,15 @@ import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 
-import * as flagStatusUpdate from "@/jobs/flag-status/update";
-import * as updateActivitiesCollection from "@/jobs/elasticsearch/update-activities-collection";
-import * as refreshActivitiesTokenMetadata from "@/jobs/elasticsearch/refresh-activities-token-metadata";
-
-import { updateActivities } from "@/jobs/activities/utils";
 import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
 import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attribute-key-counts-job";
 import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-attribute-value-counts-job";
 import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
 import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
-import { updateCollectionActivityJob } from "@/jobs/collection-updates/update-collection-activity-job";
 import { updateCollectionDailyVolumeJob } from "@/jobs/collection-updates/update-collection-daily-volume-job";
-import { updateCollectionUserActivityJob } from "@/jobs/collection-updates/update-collection-user-activity-job";
+import { replaceActivitiesCollectionJob } from "@/jobs/activities/replace-activities-collection-job";
+import { refreshActivitiesTokenMetadataJob } from "@/jobs/activities/refresh-activities-token-metadata-job";
+import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
 
 const QUEUE_NAME = "metadata-index-write-queue";
 
@@ -141,23 +137,22 @@ if (config.doBackgroundWork) {
         }
 
         if (
-          config.doElasticsearchWork &&
-          (isCopyrightInfringementContract ||
-            result.old_metadata.name != name ||
-            result.old_metadata.image != imageUrl ||
-            result.old_metadata.media != mediaUrl)
+          isCopyrightInfringementContract ||
+          result.old_metadata.name != name ||
+          result.old_metadata.image != imageUrl ||
+          result.old_metadata.media != mediaUrl
         ) {
-          await refreshActivitiesTokenMetadata.addToQueue(
+          await refreshActivitiesTokenMetadataJob.addToQueue({
             contract,
             tokenId,
-            collection,
-            {
+            collectionId: collection,
+            tokenUpdateData: {
               name: name || null,
               image: imageUrl || null,
               media: mediaUrl || null,
             },
-            isCopyrightInfringementContract
-          );
+            force: isCopyrightInfringementContract,
+          });
         }
 
         // If the new collection ID is different from the collection ID currently stored
@@ -172,35 +167,19 @@ if (config.doBackgroundWork) {
           );
 
           if (updateActivities(contract)) {
-            // Update the activities to the new collection
-            await updateCollectionActivityJob.addToQueue({
-              newCollectionId: collection,
-              oldCollectionId: result.collection_id,
-              contract,
-              tokenId,
-            });
-
-            await updateCollectionUserActivityJob.addToQueue({
-              newCollectionId: collection,
-              oldCollectionId: result.collection_id,
-              contract,
-              tokenId,
-            });
-
             // Trigger a delayed job to recalc the daily volumes
             await updateCollectionDailyVolumeJob.addToQueue({
               newCollectionId: collection,
               contract,
             });
 
-            if (config.doElasticsearchWork) {
-              await updateActivitiesCollection.addToQueue(
-                contract,
-                tokenId,
-                collection,
-                result.collection_id
-              );
-            }
+            // Update the activities to the new collection
+            await replaceActivitiesCollectionJob.addToQueue({
+              contract,
+              tokenId,
+              newCollectionId: collection,
+              oldCollectionId: result.collection_id,
+            });
           }
 
           // Set the new collection and update the token association
@@ -222,7 +201,7 @@ if (config.doBackgroundWork) {
         }
 
         if (flagged != null) {
-          await flagStatusUpdate.addToQueue([
+          await flagStatusUpdateJob.addToQueue([
             {
               contract,
               tokenId,
@@ -553,6 +532,14 @@ export type TokenMetadataInfo = {
     rank?: number;
   }[];
 };
+
+function updateActivities(contract: string) {
+  if (config.chainId === 1) {
+    return _.indexOf(["0x82c7a8f707110f5fbb16184a5933e9f78a34c6ab"], contract) === -1;
+  }
+
+  return true;
+}
 
 export const addToQueue = async (tokenMetadataInfos: TokenMetadataInfo[]) => {
   await queue.addBulk(

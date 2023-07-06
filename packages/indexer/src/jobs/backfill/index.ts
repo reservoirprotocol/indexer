@@ -15,3 +15,4 @@ import "@/jobs/backfill/backfill-collections-payment-tokens";
 import "@/jobs/backfill/backfill-wrong-nft-balances";
 import "@/jobs/backfill/backfill-looks-rare-fills";
 import "@/jobs/backfill/backfill-collections-ids";
+import "@/jobs/backfill/backfill-nft-transfer-events-updated-at";

@@ -30,14 +30,14 @@ export const queue = new Queue(QUEUE_NAME, {
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork && config.doWebsocketServerWork && config.kafkaBrokers.length > 0) {
+if (config.doBackgroundWork && config.doWebsocketServerWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
       const { data } = job.data as EventInfo;
 
       try {
-        let baseQuery = `
+        const baseQuery = `
             SELECT
             "c"."id",
             "c"."slug",
@@ -63,54 +63,36 @@ if (config.doBackgroundWork && config.doWebsocketServerWork && config.kafkaBroke
             "c"."day30_floor_sell_value",
             "c"."floor_sell_value",
             "c"."token_count",
+            "c"."owner_count",
+            "c"."floor_sell_id",
+            "c"."floor_sell_value",
+            "c"."floor_sell_maker",
+            least(2147483647::NUMERIC, date_part('epoch', lower("c"."floor_sell_valid_between")))::INT AS "floor_sell_valid_from",
+            least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper("c"."floor_sell_valid_between")), 'Infinity'),0))::INT AS "floor_sell_valid_until",
+            "c"."normalized_floor_sell_id",
+            "c"."normalized_floor_sell_value",
+            "c"."normalized_floor_sell_maker",
+            least(2147483647::NUMERIC, date_part('epoch', lower("c"."normalized_floor_sell_valid_between")))::INT AS "normalized_floor_sell_valid_from",
+            least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper("c"."normalized_floor_sell_valid_between")), 'Infinity'),0))::INT AS "normalized_floor_sell_valid_until",
+            "c"."non_flagged_floor_sell_id",
+            "c"."non_flagged_floor_sell_value",
+            "c"."non_flagged_floor_sell_maker",
+            least(2147483647::NUMERIC, date_part('epoch', lower("c"."non_flagged_floor_sell_valid_between")))::INT AS "non_flagged_floor_sell_valid_from",
+            least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper("c"."non_flagged_floor_sell_valid_between")), 'Infinity'),0))::INT AS "non_flagged_floor_sell_valid_until",
             "c"."top_buy_id",
             "c"."top_buy_value",
             "c"."top_buy_maker",
-            "ow".*,
-            "attr_key".*,
             DATE_PART('epoch', LOWER("c"."top_buy_valid_between")) AS "top_buy_valid_from",
             COALESCE(
                 NULLIF(DATE_PART('epoch', UPPER("c"."top_buy_valid_between")), 'Infinity'),
                 0
-            ) AS "top_buy_valid_until",                        
-            (
-                SELECT COUNT(*) FROM "tokens" "t"
-                WHERE "t"."collection_id" = "c"."id"
-                AND "t"."floor_sell_value" IS NOT NULL
-            ) AS "on_sale_count",
-            ARRAY(
-                SELECT "t"."image" FROM "tokens" "t"
-                WHERE "t"."collection_id" = "c"."id"
-                AND "t"."image" IS NOT NULL
-                LIMIT 4
-            ) AS "sample_images"          
+            ) AS "top_buy_valid_until"        
             FROM "collections" "c"
-            LEFT JOIN LATERAL (
-                SELECT COUNT(DISTINCT owner) AS "ownerCount"
-                FROM nft_balances
-                WHERE nft_balances.contract = c.contract
-                AND nft_balances.token_id <@ c.token_id_range
-                AND amount > 0
-            ) "ow" ON TRUE
-            LEFT JOIN LATERAL (
-                SELECT array_agg(json_build_object('key', key, 'kind', kind, 'count', attribute_count, 'rank', rank)) AS "attributes"
-                FROM attribute_keys
-                WHERE attribute_keys.collection_id = c.id
-                GROUP BY attribute_keys.collection_id
-            ) "attr_key" ON TRUE
+            WHERE "c"."id" = $/id/
+            LIMIT 1
       `;
 
         // Filters
-
-        const conditions: string[] = [];
-        conditions.push(`c.id = $/id/`);
-
-        if (conditions.length) {
-          baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
-        }
-
-        baseQuery += ` LIMIT 1`;
-
         const result = await redb.oneOrNone(baseQuery, { id: data.after.id }).then((r) =>
           !r
             ? null
@@ -120,22 +102,12 @@ if (config.doBackgroundWork && config.doWebsocketServerWork && config.kafkaBroke
                 name: r.name,
                 metadata: {
                   ...r.metadata,
-                  imageUrl:
-                    Assets.getLocalAssetsLink(r.metadata?.imageUrl) ||
-                    (r.sample_images?.length
-                      ? Assets.getLocalAssetsLink(r.sample_images[0])
-                      : null),
+                  imageUrl: Assets.getLocalAssetsLink(r.metadata?.imageUrl),
                 },
-                sampleImages: Assets.getLocalAssetsLink(r.sample_images) || [],
                 tokenCount: String(r.token_count),
-                onSaleCount: String(r.on_sale_count),
                 primaryContract: fromBuffer(r.contract),
                 tokenSetId: r.token_set_id,
                 royalties: r.royalties ? r.royalties[0] : null,
-                lastBuy: {
-                  value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
-                  timestamp: r.last_buy_timestamp,
-                },
                 topBid: {
                   id: r.top_buy_id,
                   value: r.top_buy_value ? formatEth(r.top_buy_value) : null,
@@ -176,13 +148,40 @@ if (config.doBackgroundWork && config.doWebsocketServerWork && config.kafkaBroke
                     ? Number(r.floor_sell_value) / Number(r.day30_floor_sell_value)
                     : null,
                 },
-                collectionBidSupported: Number(r.token_count) <= config.maxTokenSetSize,
-                ownerCount: Number(r.ownerCount),
-                attributes: _.map(_.sortBy(r.attributes, ["rank", "key"]), (attribute) => ({
-                  key: attribute.key,
-                  kind: attribute.kind,
-                  count: Number(attribute.count),
-                })),
+                ownerCount: Number(r.owner_count),
+                floorAsk: {
+                  id: r.floor_sell_id,
+                  price: r.floor_sell_id ? formatEth(r.floor_sell_value) : null,
+                  maker: r.floor_sell_id ? fromBuffer(r.floor_sell_maker) : null,
+                  validFrom: r.floor_sell_valid_from,
+                  validUntil: r.floor_sell_id ? r.floor_sell_valid_until : null,
+                },
+                floorAskNormalized: {
+                  id: r.normalized_floor_sell_id,
+                  price: r.normalized_floor_sell_id
+                    ? formatEth(r.normalized_floor_sell_value)
+                    : null,
+                  maker: r.normalized_floor_sell_id
+                    ? fromBuffer(r.normalized_floor_sell_maker)
+                    : null,
+                  validFrom: r.normalized_floor_sell_valid_from,
+                  validUntil: r.normalized_floor_sell_id
+                    ? r.normalized_floor_sell_valid_until
+                    : null,
+                },
+                floorAskNonFlagged: {
+                  id: r.non_flagged_floor_sell_id,
+                  price: r.non_flagged_floor_sell_id
+                    ? formatEth(r.non_flagged_floor_sell_value)
+                    : null,
+                  maker: r.non_flagged_floor_sell_id
+                    ? fromBuffer(r.non_flagged_floor_sell_maker)
+                    : null,
+                  validFrom: r.non_flagged_floor_sell_valid_from,
+                  validUntil: r.non_flagged_floor_sell_id
+                    ? r.non_flagged_floor_sell_valid_until
+                    : null,
+                },
               }
         );
 
@@ -237,8 +236,6 @@ export type EventInfo = {
 };
 
 export const addToQueue = async (events: EventInfo[]) => {
-  return;
-
   if (!config.doWebsocketServerWork) {
     return;
   }
@@ -256,22 +253,17 @@ interface CollectionInfo {
   slug: string;
   name?: string;
   metadata?: object;
-  sampleImages?: string[];
   tokenCount?: string;
-  onSaleCount?: string;
   primaryContract?: string;
   tokenSetId?: string;
   royalties?: object;
-  lastBuy?: object;
   topBid?: object;
   rank?: object;
   volume?: object;
   volumeChange?: object;
   floorSale?: object;
   floorSaleChange?: object;
-  collectionBidSupported?: boolean;
   ownerCount?: number;
-  attributes?: object;
 }
 
 export type CollectionWebsocketEventInfo = {

@@ -5,6 +5,7 @@ import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
+import { PermitHandler, PermitWithTransfers } from "@reservoir0x/sdk/dist/router/v6/permit";
 import { FillListingsResult, ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
 import axios from "axios";
 import _ from "lodash";
@@ -30,6 +31,7 @@ import { ExecutionsBuffer } from "@/utils/executions";
 import * as onChainData from "@/utils/on-chain-data";
 import * as mints from "@/orderbook/mints";
 import { generateCollectionMintTxData } from "@/orderbook/mints/calldata";
+import { getPermitId, getPermit, savePermit } from "@/utils/permits";
 import { getUSDAndCurrencyPrices } from "@/utils/prices";
 
 const version = "v7";
@@ -168,6 +170,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       maxPriorityFeePerGas: Joi.string()
         .pattern(regex.number)
         .description("Optional custom gas settings."),
+      usePermit: Joi.boolean().description("When true, will use permit to avoid approvals."),
       // Various authorization keys
       x2y2ApiKey: Joi.string().description("Optional X2Y2 API key used for filling."),
       openseaApiKey: Joi.string().description(
@@ -687,7 +690,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 const collectionData = await idb.one(
                   `
                     SELECT
-                      collections.contract,
                       contracts.kind AS token_kind,
                       (
                         SELECT
@@ -706,14 +708,15 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   }
                 );
                 if (collectionData) {
-                  const quantityToMint = mint.maxMintsPerWallet
-                    ? Math.min(item.quantity, Number(mint.maxMintsPerWallet))
+                  const amountMintable = await mints.getAmountMintableByWallet(mint, payload.taker);
+                  const quantityAvailable = amountMintable
+                    ? Math.min(amountMintable.toNumber(), item.quantity)
                     : item.quantity;
 
                   const { txData, price } = await generateCollectionMintTxData(
                     mint,
                     payload.taker,
-                    quantityToMint
+                    quantityAvailable
                   );
 
                   const orderId = `mint:${item.collection}`;
@@ -726,7 +729,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                     {
                       id: orderId,
                       kind: "mint",
-                      maker: fromBuffer(collectionData.contract),
+                      maker: mint.contract,
                       nativePrice: price,
                       price: price,
                       sourceId: null,
@@ -737,73 +740,85 @@ export const getExecuteBuyV7Options: RouteOptions = {
                     },
                     {
                       kind: collectionData.token_kind,
-                      contract: fromBuffer(collectionData.contract),
+                      contract: mint.contract,
                       tokenId: collectionData.next_token_id,
-                      quantity: quantityToMint,
+                      quantity: quantityAvailable,
                     },
                     itemIndex
                   );
 
-                  item.quantity -= quantityToMint;
+                  item.quantity -= quantityAvailable;
                 }
               }
             }
           }
 
-          if (item.quantity > 0 && (!item.fillType || item.fillType === "trade")) {
-            // Filtering by collection on the `orders` table is inefficient, so what we
-            // do here is select the cheapest tokens from the `tokens` table and filter
-            // out the ones that aren't fillable. For this to work we fetch more tokens
-            // than we need, so we can filter out the ones that aren't fillable and not
-            // end up with too few tokens.
+          if (item.quantity > 0) {
+            if (!item.fillType || item.fillType === "trade") {
+              // Filtering by collection on the `orders` table is inefficient, so what we
+              // do here is select the cheapest tokens from the `tokens` table and filter
+              // out the ones that aren't fillable. For this to work we fetch more tokens
+              // than we need, so we can filter out the ones that aren't fillable and not
+              // end up with too few tokens.
 
-            const redundancyFactor = 5;
-            const tokenResults = await idb.manyOrNone(
-              `
-                WITH x AS (
-                  SELECT
-                    tokens.contract,
-                    tokens.token_id,
-                    ${
+              const redundancyFactor = 5;
+              const tokenResults = await idb.manyOrNone(
+                `
+                  WITH x AS (
+                    SELECT
+                      tokens.contract,
+                      tokens.token_id,
+                      ${
+                        payload.normalizeRoyalties
+                          ? "tokens.normalized_floor_sell_id"
+                          : "tokens.floor_sell_id"
+                      } AS order_id
+                    FROM tokens
+                    WHERE tokens.collection_id = $/collection/
+                    ORDER BY ${
                       payload.normalizeRoyalties
-                        ? "tokens.normalized_floor_sell_id"
-                        : "tokens.floor_sell_id"
-                    } AS order_id
-                  FROM tokens
-                  WHERE tokens.collection_id = $/collection/
-                  ORDER BY ${
-                    payload.normalizeRoyalties
-                      ? "tokens.normalized_floor_sell_value"
-                      : "tokens.floor_sell_value"
-                  }
-                  LIMIT $/quantity/ * ${redundancyFactor}
-                )
-                SELECT
-                  x.contract,
-                  x.token_id
-                FROM x
-                JOIN orders
-                  ON x.order_id = orders.id
-                WHERE orders.fillability_status = 'fillable'
-                  AND orders.approval_status = 'approved'
-                LIMIT $/quantity/
-              `,
-              {
-                collection: item.collection,
-                quantity: item.quantity,
+                        ? "tokens.normalized_floor_sell_value"
+                        : "tokens.floor_sell_value"
+                    }
+                    LIMIT $/quantity/ * ${redundancyFactor}
+                  )
+                  SELECT
+                    x.contract,
+                    x.token_id
+                  FROM x
+                  JOIN orders
+                    ON x.order_id = orders.id
+                  WHERE orders.fillability_status = 'fillable'
+                    AND orders.approval_status = 'approved'
+                  LIMIT $/quantity/
+                `,
+                {
+                  collection: item.collection,
+                  quantity: item.quantity,
+                }
+              );
+
+              // Add each retrieved token as a new item so that it will get
+              // processed by the next pipeline of the same API rather than
+              // building something custom for it.
+
+              for (const t of tokenResults) {
+                items.push({
+                  token: `${fromBuffer(t.contract)}:${t.token_id}`,
+                  quantity: 1,
+                  originalItemIndex: itemIndex,
+                });
               }
-            );
 
-            // Add each retrieved token as a new item so that it will get
-            // processed by the next pipeline of the same API rather than
-            // building something custom for it.
-
-            for (const t of tokenResults) {
-              items.push({
-                token: `${fromBuffer(t.contract)}:${t.token_id}`,
-                quantity: 1,
-                originalItemIndex: itemIndex,
-              });
+              if (tokenResults.length < item.quantity) {
+                if (!payload.partial) {
+                  throw getExecuteError("Unable to fill requested quantity");
+                }
+              }
+            } else {
+              if (!payload.partial) {
+                throw getExecuteError("Unable to fill requested quantity");
+              }
             }
           }
         }
@@ -1117,6 +1132,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
           items: [],
         },
         {
+          id: "currency-permit",
+          action: "Sign permits",
+          description: "Sign permits for accessing the tokens in your wallet",
+          kind: "signature",
+          items: [],
+        },
+        {
           id: "sale",
           action: "Confirm transaction in your wallet",
           description: "To purchase this item you must confirm the transaction and pay the gas fee",
@@ -1175,7 +1197,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
             });
 
-            // Return an early since any next steps are dependent on the Blur auth
+            // Return early since any next steps are dependent on the Blur auth
             return {
               steps,
               path,
@@ -1207,6 +1229,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           partial: payload.partial,
           forceRouter: payload.forceRouter,
           relayer: payload.relayer,
+          usePermit: payload.usePermit,
           globalFees,
           blurAuth,
           onError: async (kind, error, data) => {
@@ -1228,6 +1251,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       for (const { orderId, txData } of mintTxs) {
         txs.push({
           approvals: [],
+          permits: [],
           txData,
           orderIds: [orderId],
         });
@@ -1249,7 +1273,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         ? bn(payload.maxPriorityFeePerGas).toHexString()
         : undefined;
 
-      for (const { txData, approvals, orderIds } of txs) {
+      for (const { txData, approvals, permits, orderIds } of txs) {
         // Handle approvals
         for (const approval of approvals) {
           const approvedAmount = await onChainData
@@ -1267,6 +1291,44 @@ export const getExecuteBuyV7Options: RouteOptions = {
               },
             });
           }
+        }
+
+        // Handle permits
+        const permitHandler = new PermitHandler(config.chainId, baseProvider);
+        for (const permit of permits) {
+          const id = getPermitId(request.payload as object, {
+            token: permit.data.token,
+            amount: permit.data.amount,
+          });
+
+          const cachedPermit = await getPermit(id);
+          if (cachedPermit) {
+            // Override with the cached permit data
+            permit.data = cachedPermit.data;
+          } else {
+            // Cache the permit if it's the first time we encounter it
+            await savePermit(id, permit);
+          }
+
+          // If the permit has a signature attached to it, we can skip it
+          const hasSignature = (permit.data as PermitWithTransfers).signature;
+          if (hasSignature) {
+            continue;
+          }
+
+          steps[2].items.push({
+            status: "incomplete",
+            data: {
+              sign: await permitHandler.getSignatureData(permit.data),
+              post: {
+                endpoint: "/execute/permit-signature/v1",
+                method: "POST",
+                body: {
+                  id,
+                },
+              },
+            },
+          });
         }
 
         // Cannot skip balance checking when filling Blur orders
@@ -1297,15 +1359,29 @@ export const getExecuteBuyV7Options: RouteOptions = {
           }
         }
 
-        steps[2].items.push({
+        steps[3].items.push({
           status: "incomplete",
           orderIds,
-          data: {
-            ...txData,
-            maxFeePerGas,
-            maxPriorityFeePerGas,
-          },
+          // Do not return the final step unless all permits have a signature attached
+          data: !steps[2].items.length
+            ? {
+                ...permitHandler.attachToRouterExecution(
+                  txData,
+                  permits.map((p) => p.data)
+                ),
+                maxFeePerGas,
+                maxPriorityFeePerGas,
+              }
+            : undefined,
         });
+      }
+
+      if (steps[2].items.length) {
+        // Return early since any next steps are dependent on the permits
+        return {
+          steps,
+          path,
+        };
       }
 
       // Warning! When filtering the steps, we should ensure that it

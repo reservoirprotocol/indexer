@@ -4,7 +4,10 @@ import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 const QUEUE_NAME = "opensea-off-chain-cancellations";
 
@@ -30,7 +33,7 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { orderId } = job.data as { orderId: string };
 
-      logger.info(QUEUE_NAME, JSON.stringify({ orderId }));
+      logger.debug(QUEUE_NAME, JSON.stringify({ orderId }));
 
       try {
         const result = await idb.oneOrNone(
@@ -47,14 +50,14 @@ if (config.doBackgroundWork) {
         );
 
         if (result) {
-          await orderUpdatesById.addToQueue([
+          await orderUpdatesByIdJob.addToQueue([
             {
               context: `cancel-${orderId}`,
               id: orderId,
               trigger: {
                 kind: "cancel",
               },
-            } as orderUpdatesById.OrderInfo,
+            } as OrderUpdatesByIdJobPayload,
           ]);
         }
       } catch (error) {
@@ -64,8 +67,6 @@ if (config.doBackgroundWork) {
         );
         throw error;
       }
-
-      logger.info(QUEUE_NAME, JSON.stringify({ orderId }));
     },
     { connection: redis.duplicate(), concurrency: 30 }
   );

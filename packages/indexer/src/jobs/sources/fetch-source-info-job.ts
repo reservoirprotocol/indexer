@@ -20,7 +20,10 @@ export class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
     const { sourceDomain } = payload;
 
     let url = sourceDomain;
-    let iconUrl;
+    let iconUrl: string | undefined;
+    let description: string | undefined;
+    let socialImage: string | undefined;
+    let twitterUsername: string | undefined;
 
     if (!_.startsWith(url, "http")) {
       url = `https://${url}`;
@@ -41,6 +44,33 @@ export class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
     let titleText = sourceDomain; // Default name for source is the domain
     if (reservoirTitle) {
       titleText = reservoirTitle.getAttribute("content") ?? "";
+    }
+
+    const descriptionEl = html.querySelector("meta[name='description']");
+    const ogDescriptionEl = html.querySelector("meta[property='og:description']");
+    const twitterDescriptionEl = html.querySelector("meta[name='twitter:description']");
+
+    if (descriptionEl) {
+      description = descriptionEl.getAttribute("content");
+    } else if (twitterDescriptionEl) {
+      description = twitterDescriptionEl.getAttribute("content");
+    } else if (ogDescriptionEl) {
+      description = ogDescriptionEl.getAttribute("content");
+    }
+
+    const ogImageEl = html.querySelector("meta[property='og:image']");
+    const twitterImageEl = html.querySelector("meta[name='twitter:image']");
+
+    if (twitterImageEl) {
+      socialImage = twitterImageEl.getAttribute("content");
+    } else if (ogImageEl) {
+      socialImage = ogImageEl.getAttribute("content");
+    }
+
+    const twitterSiteEl = html.querySelector("meta[name='twitter:site']");
+
+    if (twitterSiteEl) {
+      twitterUsername = twitterSiteEl.getAttribute("content");
     }
 
     // First get the custom reservoir icon tag
@@ -72,12 +102,24 @@ export class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
     const tokenUrlArbitrum = this.getTokenUrl(html, url, "arbitrum");
     const tokenUrlOptimism = this.getTokenUrl(html, url, "optimism");
     const tokenUrlBsc = this.getTokenUrl(html, url, "bsc");
+    const tokenUrlZora = this.getTokenUrl(html, url, "zora");
+    const tokenUrlSepolia = this.getTokenUrl(html, url, "sepolia");
+    const tokenUrlMumbai = this.getTokenUrl(html, url, "mumbai");
+    const tokenUrlBaseGoerli = this.getTokenUrl(html, url, "base-goerli");
+    const tokenUrlArbitrumNova = this.getTokenUrl(html, url, "arbitrum-nova");
+    const tokenUrlAvalanche = this.getTokenUrl(html, url, "avalanche");
+    const tokenUrlScrollAlpha = this.getTokenUrl(html, url, "scroll-alpha");
+    const tokenUrlZoraTestnet = this.getTokenUrl(html, url, "zora-testnet");
+    const tokenUrlBase = this.getTokenUrl(html, url, "base");
 
     // Update the source data
     const sources = await Sources.getInstance();
     await sources.update(sourceDomain, {
       title: titleText,
       icon: iconUrl,
+      description,
+      socialImage,
+      twitterUsername,
       tokenUrlMainnet,
       tokenUrlRinkeby,
       tokenUrlPolygon,
@@ -85,6 +127,15 @@ export class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
       tokenUrlOptimism,
       tokenUrlBsc,
       tokenUrlGoerli,
+      tokenUrlZora,
+      tokenUrlSepolia,
+      tokenUrlMumbai,
+      tokenUrlBaseGoerli,
+      tokenUrlArbitrumNova,
+      tokenUrlAvalanche,
+      tokenUrlScrollAlpha,
+      tokenUrlZoraTestnet,
+      tokenUrlBase,
     });
   }
 

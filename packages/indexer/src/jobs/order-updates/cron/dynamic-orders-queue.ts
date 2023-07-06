@@ -8,8 +8,11 @@ import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
 import { fromBuffer, now } from "@/common/utils";
 import { config } from "@/config/index";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import { getUSDAndNativePrices } from "@/utils/prices";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 const QUEUE_NAME = "dynamic-orders";
 
@@ -105,14 +108,14 @@ if (config.doBackgroundWork) {
         }
 
         const currentTime = now();
-        await orderUpdatesById.addToQueue(
+        await orderUpdatesByIdJob.addToQueue(
           dynamicOrders.map(
             ({ id }) =>
               ({
                 context: `dynamic-orders-update-${currentTime}-${id}`,
                 id,
                 trigger: { kind: "reprice" },
-              } as orderUpdatesById.OrderInfo)
+              } as OrderUpdatesByIdJobPayload)
           )
         );
 

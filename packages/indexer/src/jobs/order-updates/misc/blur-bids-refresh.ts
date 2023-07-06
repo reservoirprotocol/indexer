@@ -13,7 +13,7 @@ const QUEUE_NAME = "blur-bids-refresh";
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
   defaultJobOptions: {
-    attempts: 20,
+    attempts: 3,
     backoff: {
       type: "fixed",
       delay: 30000,

@@ -23,13 +23,13 @@ export const queue = new Queue(QUEUE_NAME, {
   },
 });
 
-new QueueScheduler(QUEUE_NAME, { connection: orderbookRedis.duplicate() });
+new QueueScheduler(QUEUE_NAME, { connection: orderbookRedis.duplicate(), maxStalledCount: 20 });
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
   const worker = new Worker(QUEUE_NAME, async (job: Job) => jobProcessor(job), {
     connection: orderbookRedis.duplicate(),
-    concurrency: 100,
+    concurrency: 40,
   });
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);

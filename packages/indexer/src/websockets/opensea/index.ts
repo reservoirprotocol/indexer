@@ -30,7 +30,9 @@ import { handleEvent as handleItemCancelled } from "@/websockets/opensea/handler
 import { handleEvent as handleOrderRevalidate } from "@/websockets/opensea/handlers/order_revalidate";
 import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handlers/trait_offer";
 import MetadataApi from "@/utils/metadata-api";
-import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
+
+import { openseaBidsQueueJob } from "@/jobs/orderbook/opensea-bids-queue-job";
+import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
@@ -104,7 +106,8 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 
               if (bidsEvents.length >= maxBidsSize) {
                 const orderInfoBatch = bidsEvents.splice(0, bidsEvents.length);
-                await orderbookOrders.addToQueue(orderInfoBatch);
+
+                await openseaBidsQueueJob.addToQueue(orderInfoBatch);
               }
             }
           }
@@ -148,7 +151,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       const parsedMetadata = await MetadataApi.parseTokenMetadata(metadata, "opensea");
 
       if (parsedMetadata) {
-        await metadataIndexWrite.addToQueue([parsedMetadata]);
+        await metadataIndexWriteJob.addToQueue([parsedMetadata]);
       }
     } catch (error) {
       logger.error(

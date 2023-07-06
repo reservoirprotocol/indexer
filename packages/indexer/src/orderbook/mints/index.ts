@@ -1,11 +1,20 @@
+import { BigNumber } from "@ethersproject/bignumber";
+
 import { idb } from "@/common/db";
-import { fromBuffer, toBuffer } from "@/common/utils";
+import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { MintTxSchema, CustomInfo } from "@/orderbook/mints/calldata";
+import { getAmountMinted, getCurrentSupply } from "@/orderbook/mints/calldata/helpers";
 import { simulateCollectionMint } from "@/orderbook/mints/simulation";
 
 export type CollectionMintKind = "public" | "allowlist";
 export type CollectionMintStatus = "open" | "closed";
-export type CollectionMintStandard = "unknown" | "manifold" | "seadrop-v1.0" | "thirdweb" | "zora";
+export type CollectionMintStandard =
+  | "unknown"
+  | "manifold"
+  | "seadrop-v1.0"
+  | "thirdweb"
+  | "zora"
+  | "decent";
 
 export type CollectionMintDetails = {
   tx: MintTxSchema;
@@ -292,4 +301,33 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
   }
 
   return false;
+};
+
+export const getAmountMintableByWallet = async (
+  collectionMint: CollectionMint,
+  user: string
+): Promise<BigNumber | undefined> => {
+  let amountMintable: BigNumber | undefined;
+
+  // Handle remaining supply
+  if (collectionMint.maxSupply) {
+    const currentSupply = await getCurrentSupply(collectionMint);
+    const remainingSupply = bn(collectionMint.maxSupply).sub(currentSupply);
+    if (remainingSupply.gt(0)) {
+      amountMintable = remainingSupply;
+    }
+  }
+
+  // Handle maximum amount mintable per wallet
+  if (collectionMint.maxMintsPerWallet) {
+    const mintedAmount = await getAmountMinted(collectionMint, user);
+    const remainingAmount = bn(collectionMint.maxMintsPerWallet).sub(mintedAmount);
+    if (!amountMintable) {
+      amountMintable = remainingAmount;
+    } else {
+      amountMintable = remainingAmount.lt(amountMintable) ? remainingAmount : amountMintable;
+    }
+  }
+
+  return amountMintable;
 };
