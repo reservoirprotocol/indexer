@@ -79,7 +79,8 @@ export type OrderKind =
   | "blend"
   | "collectionxyz"
   | "sudoswap-v2"
-  | "payment-processor";
+  | "payment-processor"
+  | "blur-v2";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
@@ -163,6 +164,7 @@ export const getOrderSourceByOrderKind = async (
       case "nftx":
         return sources.getOrInsert("nftx.io");
       case "blur":
+      case "blur-v2":
       case "blend":
         return sources.getOrInsert("blur.io");
       case "flow":
@@ -342,6 +344,14 @@ export const generateListingDetailsV6 = (
         kind: "zora",
         ...common,
         order: new Sdk.Zora.Order(config.chainId, order.rawData),
+      };
+    }
+
+    case "universe": {
+      return {
+        kind: "universe",
+        ...common,
+        order: new Sdk.Universe.Order(config.chainId, order.rawData),
       };
     }
 
@@ -665,6 +675,15 @@ export const generateBidDetailsV6 = async (
       const sdkOrder = new Sdk.Nftx.Order(config.chainId, order.rawData);
       return {
         kind: "nftx",
+        ...common,
+        order: sdkOrder,
+      };
+    }
+
+    case "universe": {
+      const sdkOrder = new Sdk.Universe.Order(config.chainId, order.rawData);
+      return {
+        kind: "universe",
         ...common,
         order: sdkOrder,
       };

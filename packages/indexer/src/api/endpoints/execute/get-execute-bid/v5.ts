@@ -564,6 +564,11 @@ export const getExecuteBidV5Options: RouteOptions = {
                     authToken: blurAuth!.accessToken,
                   });
 
+                  const id = new Sdk.BlurV2.Order(config.chainId, {
+                    ...signData.value,
+                    nonce: signData.value.nonce.hex ?? signData.value.nonce,
+                  }).hash();
+
                   steps[3].items.push({
                     status: "incomplete",
                     data: {
@@ -583,6 +588,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                               order: {
                                 kind: "blur",
                                 data: {
+                                  id,
                                   maker,
                                   marketplaceData,
                                   authToken: blurAuth!.accessToken,
@@ -601,10 +607,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                     orderIndexes: [i],
                   });
 
-                  addExecution(
-                    new Sdk.Blur.Order(config.chainId, signData.value).hash(),
-                    params.quantity
-                  );
+                  addExecution(id, params.quantity);
                 }
 
                 break;

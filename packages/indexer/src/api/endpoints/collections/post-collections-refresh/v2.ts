@@ -15,7 +15,6 @@ import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
-import * as orderFixes from "@/jobs/order-fixes/fixes";
 import * as blurBidsRefresh from "@/jobs/order-updates/misc/blur-bids-refresh";
 import * as blurListingsRefresh from "@/jobs/order-updates/misc/blur-listings-refresh";
 import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
@@ -24,6 +23,7 @@ import {
   metadataIndexFetchJob,
   MetadataIndexFetchJobPayload,
 } from "@/jobs/metadata-index/metadata-fetch-job";
+import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
 
 const version = "v2";
 
@@ -219,7 +219,9 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         await collectionRefreshCacheJob.addToQueue({ collection: collection.id });
 
         // Revalidate the contract orders
-        await orderFixes.addToQueue([{ by: "contract", data: { contract: collection.contract } }]);
+        await orderFixesJob.addToQueue([
+          { by: "contract", data: { contract: collection.contract } },
+        ]);
 
         // Do these refresh operation only for small collections
         if (!isLargeCollection) {

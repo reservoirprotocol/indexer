@@ -11,7 +11,6 @@ import { config } from "@/config/index";
 import { TriggerKind } from "@/jobs/order-updates/types";
 import { Sources } from "@/models/sources";
 
-import * as updateNftBalanceFloorAskPriceQueue from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
 import {
   WebsocketEventKind,
   WebsocketEventRouter,
@@ -27,6 +26,7 @@ import {
   EventKind as ProcessActivityEventKind,
   ProcessActivityEventJobPayload,
 } from "@/jobs/activities/process-activity-event-job";
+import { nftBalanceUpdateFloorAskJob } from "@/jobs/nft-balance-updates/update-floor-ask-price-job";
 
 const QUEUE_NAME = "order-updates-by-id";
 
@@ -223,7 +223,7 @@ if (config.doBackgroundWork) {
                 owner: fromBuffer(order.maker),
               };
 
-              await updateNftBalanceFloorAskPriceQueue.addToQueue([updateFloorAskPriceInfo]);
+              await nftBalanceUpdateFloorAskJob.addToQueue([updateFloorAskPriceInfo]);
             } else if (order.side === "buy") {
               const bidEventsList = new BidEventsList();
               await bidEventsList.add([

@@ -262,7 +262,7 @@ export const postOrderV4Options: RouteOptions = {
               let orderId: string;
 
               if (orderbook === "blur") {
-                orderId = order.data.id;
+                orderId = order.data.id ?? null;
 
                 crossPostingOrder = await crossPostingOrdersModel.saveOrder({
                   orderId,

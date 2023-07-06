@@ -178,6 +178,10 @@ jobs:
             ${{ github.sha }} \
             indexer-api-avalanche
           ./utils/version_update.sh \
+            ./prod/platform/indexer-api-base.yaml \
+            ${{ github.sha }} \
+            indexer-api-base
+          ./utils/version_update.sh \
             ./prod/platform/indexer-worker.yaml \
             ${{ github.sha }} \
             indexer-worker
@@ -249,6 +253,10 @@ jobs:
             ./prod/platform/indexer-worker-avalanche.yaml \
             ${{ github.sha }} \
             indexer-worker-avalanche
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-base.yaml \
+            ${{ github.sha }} \
+            indexer-worker-base
           ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-ethereum.yaml \
             ${{ github.sha }} \

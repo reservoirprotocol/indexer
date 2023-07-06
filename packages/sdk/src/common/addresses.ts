@@ -20,6 +20,7 @@ export const Eth: ChainIdToAddress = {
   [Network.BaseGoerli]: AddressZero,
   [Network.Zora]: AddressZero,
   [Network.Avalanche]: AddressZero,
+  [Network.Base]: AddressZero,
 };
 
 export const Weth: ChainIdToAddress = {
@@ -43,6 +44,7 @@ export const Weth: ChainIdToAddress = {
   [Network.BaseGoerli]: "0x4200000000000000000000000000000000000006",
   // Avalanche: Wrapped AVAX
   [Network.Avalanche]: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+  [Network.Base]: "0x4200000000000000000000000000000000000006",
 };
 
 // TODO: Include addresses across all supported chains
