@@ -105,6 +105,9 @@ export async function processTopBid(payload: topBidPayload, queueName: string) {
           eventKind: WebsocketEventKind.NewTopBid,
           eventInfo: {
             orderId: tokenSetTopBid[0].topBuyId,
+            orderValue: tokenSetTopBid[0].topBuyValue,
+            collectionId: tokenSetTopBid[0].collectionId,
+            skipCollectionTopBidCheck: false,
           },
         });
       }

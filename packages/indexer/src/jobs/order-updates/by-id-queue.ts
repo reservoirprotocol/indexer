@@ -299,6 +299,8 @@ if (config.doBackgroundWork) {
                 eventInfo: {
                   kind: trigger.kind,
                   orderId: order.id,
+                  trigger: "insert",
+                  offset: "",
                 },
                 eventKind:
                   order.side === "sell"
