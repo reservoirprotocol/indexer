@@ -240,6 +240,10 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
         kind: "seadrop",
         data: kindToEvents.get("seadrop") ?? [],
       },
+      {
+        kind: "blur-v2",
+        data: kindToEvents.get("blur-v2") ?? [],
+      },
     ];
 
     txHashToEventsBatch.set(txHash, {
