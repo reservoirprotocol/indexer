@@ -19,7 +19,10 @@ import { Interface } from "@ethersproject/abi";
 import { baseProvider } from "@/common/provider";
 import { BigNumber } from "@ethersproject/bignumber";
 import * as raribleCheck from "@/orderbook/orders/rarible/check";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 export type OrderFixesJobPayload =
   | {
@@ -496,14 +499,14 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
 
             if (fixResult) {
               // Update any wrong caches
-              await orderUpdatesById.addToQueue([
+              await orderUpdatesByIdJob.addToQueue([
                 {
                   context: `revalidation-${Date.now()}-${fixResult.id}`,
                   id: fixResult.id,
                   trigger: {
                     kind: "revalidation",
                   },
-                } as orderUpdatesById.OrderInfo,
+                } as OrderUpdatesByIdJobPayload,
               ]);
             }
           }

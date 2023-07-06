@@ -1,6 +1,8 @@
 import { config as dotEnvConfig } from "dotenv";
 dotEnvConfig();
 
+import "@/common/tracer";
+
 import { RabbitMq } from "@/common/rabbit-mq";
 
 if (process.env.LOCAL_TESTING) {

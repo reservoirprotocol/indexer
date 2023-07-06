@@ -12,7 +12,6 @@ import "@/jobs/data-archive";
 import "@/jobs/data-export";
 import "@/jobs/events-sync";
 import "@/jobs/oracle";
-import "@/jobs/order-fixes";
 import "@/jobs/order-updates";
 import "@/jobs/orderbook";
 import "@/jobs/sources";
@@ -52,8 +51,6 @@ import * as backfillNftTransferEventsUpdatedAt from "@/jobs/backfill/backfill-nf
 
 import * as eventsSyncRealtime from "@/jobs/events-sync/realtime-queue";
 import * as eventsSyncRealtimeV2 from "@/jobs/events-sync/realtime-queue-v2";
-
-import * as orderRevalidations from "@/jobs/order-fixes/revalidations";
 
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
@@ -173,6 +170,8 @@ import { mintsExpiredJob } from "@/jobs/mints/cron/mints-expired-job";
 import { nftBalanceUpdateFloorAskJob } from "@/jobs/nft-balance-updates/update-floor-ask-price-job";
 import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
 import { RabbitMq, RabbitMQMessage } from "@/common/rabbit-mq";
+import { orderRevalidationsJob } from "@/jobs/order-fixes/order-revalidations-job";
+import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -209,8 +208,6 @@ export const allJobQueues = [
 
   eventsSyncRealtime.queue,
   eventsSyncRealtimeV2.queue,
-
-  orderRevalidations.queue,
 
   orderUpdatesById.queue,
   orderUpdatesByMaker.queue,
@@ -337,6 +334,8 @@ export class RabbitMqJobsConsumer {
       mintsExpiredJob,
       nftBalanceUpdateFloorAskJob,
       orderFixesJob,
+      orderRevalidationsJob,
+      orderUpdatesByIdJob,
     ];
   }
 

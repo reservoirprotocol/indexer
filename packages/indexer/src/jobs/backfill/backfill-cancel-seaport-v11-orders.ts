@@ -9,7 +9,10 @@ import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 const QUEUE_NAME = "backfill-cancel-seaport-v11-orders";
 
@@ -84,7 +87,7 @@ if (config.doBackgroundWork) {
           `
         );
 
-        await orderUpdatesById.addToQueue(
+        await orderUpdatesByIdJob.addToQueue(
           values.map(
             ({ id }) =>
               ({
@@ -93,7 +96,7 @@ if (config.doBackgroundWork) {
                 trigger: {
                   kind: "cancel",
                 },
-              } as orderUpdatesById.OrderInfo)
+              } as OrderUpdatesByIdJobPayload)
           )
         );
       }

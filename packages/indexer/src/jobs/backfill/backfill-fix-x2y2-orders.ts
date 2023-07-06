@@ -5,7 +5,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
+import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
 
 const QUEUE_NAME = "fix-x2y2-orders-backfill";
 
@@ -78,7 +78,7 @@ if (config.doBackgroundWork) {
               }
             );
 
-            await orderUpdatesById.addToQueue(
+            await orderUpdatesByIdJob.addToQueue(
               result.map(({ id }) => ({
                 context: `x2y2-order-fix-${id}`,
                 id,

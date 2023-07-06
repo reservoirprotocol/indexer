@@ -6,8 +6,11 @@ import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
 import { fromBuffer, now } from "@/common/utils";
 import { config } from "@/config/index";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import { USDAndNativePrices, getUSDAndNativePrices } from "@/utils/prices";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 const QUEUE_NAME = "erc20-orders";
 
@@ -122,14 +125,14 @@ if (config.doBackgroundWork) {
           await idb.none(pgp.helpers.update(values, columns) + " WHERE t.id = v.id");
         }
 
-        await orderUpdatesById.addToQueue(
+        await orderUpdatesByIdJob.addToQueue(
           erc20Orders.map(
             ({ id }) =>
               ({
                 context: `erc20-orders-update-${now}-${id}`,
                 id,
                 trigger: { kind: "reprice" },
-              } as orderUpdatesById.OrderInfo)
+              } as OrderUpdatesByIdJobPayload)
           )
         );
 

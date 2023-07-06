@@ -5,7 +5,10 @@ import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 const QUEUE_NAME = "order-revalidations";
 
@@ -44,14 +47,14 @@ if (config.doBackgroundWork) {
         );
 
         // Recheck the order
-        await orderUpdatesById.addToQueue([
+        await orderUpdatesByIdJob.addToQueue([
           {
             context: `revalidation-${Date.now()}-${id}`,
             id,
             trigger: {
               kind: "revalidation",
             },
-          } as orderUpdatesById.OrderInfo,
+          } as OrderUpdatesByIdJobPayload,
         ]);
       } catch (error) {
         logger.error(

@@ -13,7 +13,6 @@ import { redis } from "@/common/redis";
 import { now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as orderbook from "@/jobs/orderbook/orders-queue";
 
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
@@ -24,6 +23,10 @@ import * as zeroExV4Check from "@/orderbook/orders/zeroex-v4/check";
 import * as blurCheck from "@/orderbook/orders/blur/check";
 import * as nftxCheck from "@/orderbook/orders/nftx/check";
 import * as looksRareV2Check from "@/orderbook/orders/looks-rare-v2/check";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 const QUEUE_NAME = "order-fixes";
 
@@ -485,14 +488,14 @@ if (config.doBackgroundWork) {
 
               if (fixResult) {
                 // Update any wrong caches
-                await orderUpdatesById.addToQueue([
+                await orderUpdatesByIdJob.addToQueue([
                   {
                     context: `revalidation-${Date.now()}-${fixResult.id}`,
                     id: fixResult.id,
                     trigger: {
                       kind: "revalidation",
                     },
-                  } as orderUpdatesById.OrderInfo,
+                  } as OrderUpdatesByIdJobPayload,
                 ]);
               }
             }

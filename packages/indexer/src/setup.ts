@@ -1,6 +1,5 @@
 import "@/jobs/index";
 import "@/jobs/cdc/index";
-import "@/common/tracer";
 import "@/config/polyfills";
 import "@/pubsub/index";
 import "@/websockets/index";
