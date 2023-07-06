@@ -7,5 +7,4 @@ import "@/jobs/token-updates/mint-queue";
 import "@/jobs/token-updates/token-refresh-cache";
 import "@/jobs/token-updates/fetch-collection-metadata";
 import "@/jobs/token-updates/floor-queue";
-import "@/jobs/token-updates/normalized-floor-queue";
 import "@/jobs/token-updates/token-reclac-supply";

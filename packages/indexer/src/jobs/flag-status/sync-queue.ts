@@ -6,7 +6,6 @@ import { redis, releaseLock } from "@/common/redis";
 import { config } from "@/config/index";
 
 import { Tokens } from "@/models/tokens";
-import * as flagStatusGenerateCollectionTokenSet from "@/jobs/flag-status/generate-collection-token-set";
 import MetadataApi from "@/utils/metadata-api";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
@@ -14,6 +13,7 @@ import { randomUUID } from "crypto";
 import _ from "lodash";
 import { TokensEntityUpdateParams } from "@/models/tokens/tokens-entity";
 import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
+import { generateCollectionTokenSetJob } from "@/jobs/flag-status/generate-collection-token-set-job";
 
 const QUEUE_NAME = "flag-status-sync-queue";
 const LIMIT = 40;
@@ -50,7 +50,7 @@ if (config.doBackgroundWork) {
         await releaseLock(getLockName());
 
         await flagStatusProcessQueue.addToQueue();
-        await flagStatusGenerateCollectionTokenSet.addToQueue(contract, collectionId);
+        await generateCollectionTokenSetJob.addToQueue({ contract, collectionId });
 
         return;
       }

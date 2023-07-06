@@ -102,7 +102,8 @@ export const postSimulateOrderV1Options: RouteOptions = {
             orders.contract,
             orders.token_set_id,
             orders.fillability_status,
-            orders.approval_status
+            orders.approval_status,
+            orders.conduit
           FROM orders
           WHERE orders.id = $/id/
         `,
@@ -254,10 +255,22 @@ export const postSimulateOrderV1Options: RouteOptions = {
               AND (tokens.is_flagged IS NULL OR tokens.is_flagged = 0)
               AND nft_balances.amount > 0
               AND nft_balances.acquired_at < now() - interval '3 hours'
+              AND (
+                SELECT
+                  approved
+                FROM nft_approval_events
+                WHERE nft_approval_events.address = $/contract/
+                  AND nft_approval_events.owner = nft_balances.owner
+                  AND nft_approval_events.operator = $/conduit/
+                ORDER BY nft_approval_events.block DESC
+                LIMIT 1
+              )
             LIMIT 1
           `,
           {
             tokenSetId: orderResult.token_set_id,
+            contract: orderResult.contract,
+            conduit: orderResult.conduit,
           }
         );
         if (!tokenResult) {

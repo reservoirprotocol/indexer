@@ -25,6 +25,7 @@ import * as transfersEndpoints from "@/api/endpoints/transfers";
 import * as syncEndpoints from "@/api/endpoints/sync";
 import * as assetsEndpoints from "@/api/endpoints/assets";
 import * as sourcesEndpoints from "@/api/endpoints/sources";
+import * as chainEndpoints from "@/api/endpoints/chain";
 import * as debugEndpoints from "@/api/endpoints/debug";
 
 export const setupRoutes = (server: Server) => {
@@ -549,6 +550,14 @@ export const setupRoutes = (server: Server) => {
     options: collectionsEndpoints.getCollectionSupportedMarketplacesV1Options,
   });
 
+  // Chain
+
+  server.route({
+    method: "GET",
+    path: "/chain/stats/v1",
+    options: chainEndpoints.getChainStats,
+  });
+
   // Collections Sets
 
   server.route({
@@ -791,6 +800,12 @@ export const setupRoutes = (server: Server) => {
     options: executeEndpoints.postExecuteResultsV1,
   });
 
+  server.route({
+    method: "POST",
+    path: "/execute/permit-signature/v1",
+    options: executeEndpoints.postPermitSignatureV1Options,
+  });
+
   // Health
 
   // Both `/readyz` and `/livez` point to the same handler,
@@ -914,6 +929,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/orders/asks/v5",
+    options: ordersEndpoints.getOrdersAsksV5Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/orders/bids/v1",
     options: ordersEndpoints.getOrdersBidsV1Options,
   });
@@ -940,6 +961,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/orders/bids/v5",
     options: ordersEndpoints.getOrdersBidsV5Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/orders/bids/v6",
+    options: ordersEndpoints.getOrdersBidsV6Options,
   });
 
   server.route({

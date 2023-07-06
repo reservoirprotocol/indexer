@@ -1,5 +1,3 @@
-import "@/jobs/metadata-index/fetch-queue";
-import "@/jobs/metadata-index/process-queue";
 import { config } from "@/config/index";
 import cron from "node-cron";
 import { redis, redlock } from "@/common/redis";

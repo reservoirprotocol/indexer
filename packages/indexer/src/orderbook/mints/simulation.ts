@@ -1,7 +1,7 @@
 import { JsonRpcProvider } from "@ethersproject/providers";
 import { getCallTraceLogs } from "@georgeroman/evm-tx-simulator";
 import { Log } from "@georgeroman/evm-tx-simulator/dist/types";
-import { TxData } from "@reservoir0x/sdk/src/utils";
+import { Network, TxData } from "@reservoir0x/sdk/dist/utils";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
@@ -32,7 +32,18 @@ const getEmittedEvents = async (txData: TxData) => {
     },
     provider,
     {
-      method: "withLog",
+      method: [
+        Network.Ethereum,
+        Network.EthereumGoerli,
+        Network.EthereumSepolia,
+        Network.Optimism,
+        Network.Bsc,
+        Network.Zora,
+        Network.ZoraTestnet,
+        Network.BaseGoerli,
+      ].includes(config.chainId)
+        ? "withLog"
+        : "customTrace",
     }
   );
 };

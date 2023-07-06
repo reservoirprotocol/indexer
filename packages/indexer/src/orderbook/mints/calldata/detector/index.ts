@@ -6,7 +6,6 @@ import { redis } from "@/common/redis";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { getNetworkSettings } from "@/config/network";
 import { fetchTransaction } from "@/events-sync/utils";
-import * as mintsSupplyCheck from "@/jobs/mints/supply-check";
 import { Sources } from "@/models/sources";
 
 import * as generic from "@/orderbook/mints/calldata/detector/generic";
@@ -14,6 +13,10 @@ import * as manifold from "@/orderbook/mints/calldata/detector/manifold";
 import * as seadrop from "@/orderbook/mints/calldata/detector/seadrop";
 import * as thirdweb from "@/orderbook/mints/calldata/detector/thirdweb";
 import * as zora from "@/orderbook/mints/calldata/detector/zora";
+import * as decent from "@/orderbook/mints/calldata/detector/decent";
+import { mintsCheckJob } from "@/jobs/mints/mints-check-job";
+
+export { generic, manifold, seadrop, thirdweb, zora };
 
 export const extractByTx = async (txHash: string, skipCache = false) => {
   // Fetch all transfers associated to the transaction
@@ -60,6 +63,7 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
   }
 
   // Make sure that every mint in the transaction is associated to the same collection
+  const tokenIds = transfers.map((t) => t.tokenId);
   const collectionsResult = await idb.manyOrNone(
     `
       SELECT
@@ -70,7 +74,7 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
     `,
     {
       contract: toBuffer(contract),
-      tokenIds: transfers.map((t) => t.tokenId),
+      tokenIds,
     }
   );
   if (!collectionsResult.length) {
@@ -81,7 +85,7 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
     return [];
   }
 
-  await mintsSupplyCheck.addToQueue(collection);
+  await mintsCheckJob.addToQueue({ collection });
 
   // For performance reasons, do at most one attempt per collection per 5 minutes
   if (!skipCache) {
@@ -134,11 +138,46 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
     }
   }
 
-  return [
-    ...(await manifold.extractByTx(collection, tx)),
-    ...(await zora.extractByTx(collection, tx)),
-    ...(await seadrop.extractByTx(collection, contract, tx)),
-    ...(await thirdweb.extractByTx(collection, tx)),
-    ...(await generic.extractByTx(collection, contract, tx, pricePerAmountMinted, amountMinted)),
-  ];
+  // Decent
+  const decentResults = await decent.extractByTx(collection, tx);
+  if (decentResults.length) {
+    return decentResults;
+  }
+
+  // Manifold
+  const manifoldResults = await manifold.extractByTx(collection, tokenIds[0], tx);
+  if (manifoldResults.length) {
+    return manifoldResults;
+  }
+
+  // Zora
+  const zoraResults = await zora.extractByTx(collection, tx);
+  if (zoraResults.length) {
+    return zoraResults;
+  }
+
+  // Seadrop
+  const seadropResults = await seadrop.extractByTx(collection, tx);
+  if (seadropResults.length) {
+    return seadropResults;
+  }
+
+  // Thirdweb
+  const thirdwebResults = await thirdweb.extractByTx(collection, tx);
+  if (thirdwebResults.length) {
+    return thirdwebResults;
+  }
+
+  // Generic
+  const genericResults = await generic.extractByTx(
+    collection,
+    tx,
+    pricePerAmountMinted,
+    amountMinted
+  );
+  if (genericResults.length) {
+    return genericResults;
+  }
+
+  return [];
 };

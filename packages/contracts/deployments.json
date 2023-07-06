@@ -94,7 +94,8 @@
   },
   "RaribleModule": {
     "v1": {
-      "1": "0x428a6be88fc0d25778e3c3f6e09fcfdc9a526fad"
+      "1": "0x428a6be88fc0d25778e3c3f6e09fcfdc9a526fad",
+      "5": "0x428a6be88fc0d25778e3c3f6e09fcfdc9a526fad"
     }
   },
   "ReservoirApprovalProxy": {
@@ -225,6 +226,19 @@
   "CryptoPunksModule": {
     "v1": {
       "1": "0x8be240e8689547f1068a835d14f1d943958095dc"
+    }
+  },
+  "PaymentProcessorModule": {
+    "v1": {
+      "1": "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc",
+      "5": "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc",
+      "11155111": "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc"
+    }
+  },
+  "PermitProxy": {
+    "v1": {
+      "1": "0x104ff9a0e2a62aa531ef0cc9d19f948bde7062de",
+      "5": "0x104ff9a0e2a62aa531ef0cc9d19f948bde7062de"
     }
   }
 }

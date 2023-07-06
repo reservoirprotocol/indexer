@@ -12,7 +12,7 @@ import { config } from "@/config/index";
 import { assignRoyaltiesToFillEvents } from "@/events-sync/handlers/royalties";
 import * as es from "@/events-sync/storage";
 import { fetchTransactionTraces } from "@/events-sync/utils";
-import * as blockCheckQueue from "@/jobs/events-sync/block-check-queue";
+import { blockCheckJob } from "@/jobs/events-sync/block-check-queue-job";
 
 const QUEUE_NAME = "backfill-sale-royalties";
 
@@ -198,7 +198,7 @@ if (config.doBackgroundWork) {
       // Fix any orhpaned blocks along the way
       for (const [block, blockHashes] of Object.entries(blockToBlockHash)) {
         if (blockHashes.size > 1) {
-          await blockCheckQueue.addBulk(
+          await blockCheckJob.addBulk(
             [...blockHashes.values()].map((blockHash) => ({
               block: Number(block),
               blockHash,

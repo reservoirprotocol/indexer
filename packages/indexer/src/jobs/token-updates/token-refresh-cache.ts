@@ -8,7 +8,7 @@ import { redis } from "@/common/redis";
 import { now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Tokens } from "@/models/tokens";
-import * as orderFixes from "@/jobs/order-fixes/fixes";
+import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
 
 const QUEUE_NAME = "token-refresh-cache";
 
@@ -54,7 +54,7 @@ if (config.doBackgroundWork) {
       );
       if (floorAsk) {
         // Revalidate
-        await orderFixes.addToQueue([{ by: "id", data: { id: floorAsk.id } }]);
+        await orderFixesJob.addToQueue([{ by: "id", data: { id: floorAsk.id } }]);
 
         // Simulate
         await inject({
@@ -101,7 +101,7 @@ if (config.doBackgroundWork) {
         );
         if (topBid) {
           // Revalidate
-          await orderFixes.addToQueue([{ by: "id", data: { id: topBid.id } }]);
+          await orderFixesJob.addToQueue([{ by: "id", data: { id: topBid.id } }]);
 
           // Simulate
           if (config.chainId === 1) {

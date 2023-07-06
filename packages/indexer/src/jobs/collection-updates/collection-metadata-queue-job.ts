@@ -43,7 +43,7 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
           logger.error(
             this.queueName,
             JSON.stringify({
-              message: "updateCollectionCache error",
+              message: `updateCollectionCache error ${JSON.stringify(error)}`,
               jobData: payload,
               error,
             })

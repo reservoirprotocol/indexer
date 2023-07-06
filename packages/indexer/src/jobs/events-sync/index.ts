@@ -20,10 +20,6 @@ import * as realtimeEventsSyncV2 from "@/jobs/events-sync/realtime-queue-v2";
 // concurrent upserts of the balances):
 // https://stackoverflow.com/questions/46366324/postgres-deadlocks-on-concurrent-upserts
 
-import "@/jobs/events-sync/backfill-queue";
-import "@/jobs/events-sync/block-check-queue";
-import "@/jobs/events-sync/process/backfill";
-import "@/jobs/events-sync/process/realtime";
 import "@/jobs/events-sync/realtime-queue";
 import "@/jobs/events-sync/realtime-queue-v2";
 
@@ -42,7 +38,13 @@ if (config.doBackgroundWork && config.catchup) {
         )
         .then(async () => {
           try {
-            await realtimeEventsSync.addToQueue();
+            if (config.chainId === 137) {
+              await realtimeEventsSync.addToQueue();
+              return;
+            }
+
+            // const latestBlock = await baseProvider.getBlockNumber();
+            // await realtimeEventsSyncV2.addToQueue({ block: latestBlock });
             logger.info("events-sync-catchup", "Catching up events");
           } catch (error) {
             logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);
@@ -65,10 +67,14 @@ if (config.doBackgroundWork && config.catchup) {
         logger.info("events-sync-catchup", `Detected new block ${block}`);
 
         try {
-          await realtimeEventsSync.addToQueue();
-          if (config.enableRealtimeV2BlockQueue) {
+          // await realtimeEventsSync.addToQueue();
+          // if (config.enableRealtimeV2BlockQueue) {
+          if (config.chainId === 137) {
+            await realtimeEventsSync.addToQueue();
+          } else {
             await realtimeEventsSyncV2.addToQueue({ block });
           }
+          // }
         } catch (error) {
           logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);
         }

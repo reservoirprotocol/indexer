@@ -1934,10 +1934,10 @@
   resolved "https://registry.yarnpkg.com/@gar/promisify/-/promisify-1.1.3.tgz#555193ab2e3bb3b6adc3d551c9c030d9e860daf6"
   integrity sha512-k2Ty1JcVojjJFwrg/ThKi2ujJ7XNLYaFGNB/bWT9wGR+oSMJHMa5w+CUq6p/pVrKeNNgA7pCqEcjSnHVoqJQFw==
 
-"@georgeroman/evm-tx-simulator@^0.0.22":
-  version "0.0.22"
-  resolved "https://registry.yarnpkg.com/@georgeroman/evm-tx-simulator/-/evm-tx-simulator-0.0.22.tgz#9f9c5dedef774f1ce6d1a8532774e7b002977716"
-  integrity sha512-VQeygJThQmgjP/WzYcaMSZZgYIulR27I0PH6uoSv3cbikp3Ej9xqkGg08jzb2mFZD86QEoUEEItfnG7Ean+O+A==
+"@georgeroman/evm-tx-simulator@^0.0.23":
+  version "0.0.23"
+  resolved "https://registry.yarnpkg.com/@georgeroman/evm-tx-simulator/-/evm-tx-simulator-0.0.23.tgz#09056ab7ec130a392382285d7220eed42734067b"
+  integrity sha512-k05G9ORJPx7eoD3TxRsoAx+8ZyfeoQxb7CXwj7JbmfLup5XyuRud8Ieg5bDPA4eGIMCJ4bdghKX3kbBX53pCdg==
   dependencies:
     axios "^1.3.4"
     ethers "^5.6.9"
@@ -3383,9 +3383,9 @@
     phoenix "^1.6.15"
 
 "@openzeppelin/contracts@3.4.1-solc-0.7-2", "@openzeppelin/contracts@3.4.2-solc-0.7", "@openzeppelin/contracts@4.7.0", "@openzeppelin/contracts@^4.4.0", "@openzeppelin/contracts@^4.7.3":
-  version "4.8.3"
-  resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-4.8.3.tgz#cbef3146bfc570849405f59cba18235da95a252a"
-  integrity sha512-bQHV8R9Me8IaJoJ2vPG4rXcL7seB7YVuskr4f+f5RyOStSZetwzkWtoqDMl5erkBJy0lDRUnIR2WIkPiC0GJlg==
+  version "4.9.2"
+  resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-4.9.2.tgz#1cb2d5e4d3360141a17dbc45094a8cad6aac16c1"
+  integrity sha512-mO+y6JaqXjWeMh9glYVzVu8HYPGknAAnWyxTRhGeckOruyXQMNnlcW6w/Dx9ftLeIQk6N+ZJFuVmTwF7lEIFrg==
 
 "@pnpm/config.env-replace@^1.1.0":
   version "1.1.0"
@@ -3813,6 +3813,13 @@
   integrity sha512-0xdCkyGOzdqh4h5JSf+zoWx85IusEjDcPIwNEHP8mrWSnCae4rvrqB+/gtpdNfX7zjlFlZiMeePn2r63EI3Lrw==
   dependencies:
     ethers "^5.0.2"
+
+"@types/amqp-connection-manager@^3.4.1":
+  version "3.4.1"
+  resolved "https://registry.yarnpkg.com/@types/amqp-connection-manager/-/amqp-connection-manager-3.4.1.tgz#f0f22aeaddbd5e0da5651748e7c9d34643685e10"
+  integrity sha512-IUKZjnE7V+aUbuHvNZAZiAo4ew7Zzgz1aDiZiN2QEms1EzCYegsT7/Kondgc3UuC2j+Xjz8Gj7jIxnnQ5dWtGQ==
+  dependencies:
+    amqp-connection-manager "*"
 
 "@types/amqplib@^0.10.1":
   version "0.10.1"
@@ -4657,6 +4664,13 @@ ajv@^8.0.1, ajv@^8.11.0:
     json-schema-traverse "^1.0.0"
     require-from-string "^2.0.2"
     uri-js "^4.2.2"
+
+amqp-connection-manager@*:
+  version "4.1.13"
+  resolved "https://registry.yarnpkg.com/amqp-connection-manager/-/amqp-connection-manager-4.1.13.tgz#639a5e039a4ac0f1f739f3024289ef2fa35053c0"
+  integrity sha512-riL5EOlXDlBY4VTTfi6lgy4lwrDbtncQQ9C4SdgxGV6PZ8vgBsNmiKnkxGLvbppDRZ70522glxIc1ep+9Xd/Xw==
+  dependencies:
+    promise-breaker "^6.0.0"
 
 amqplib@^0.10.3:
   version "0.10.3"
@@ -14140,6 +14154,11 @@ promise-all-reject-late@^1.0.0:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/promise-all-reject-late/-/promise-all-reject-late-1.0.1.tgz#f8ebf13483e5ca91ad809ccc2fcf25f26f8643c2"
   integrity sha512-vuf0Lf0lOxyQREH7GDIOUMLS7kz+gs8i6B+Yi8dC68a2sychGrHTJYghMBD6k7eUcH0H5P73EckCA48xijWqXw==
+
+promise-breaker@^6.0.0:
+  version "6.0.0"
+  resolved "https://registry.yarnpkg.com/promise-breaker/-/promise-breaker-6.0.0.tgz#107d2b70f161236abdb4ac5a736c7eb8df489d0f"
+  integrity sha512-BthzO9yTPswGf7etOBiHCVuugs2N01/Q/94dIPls48z2zCmrnDptUUZzfIb+41xq0MnYZ/BzmOd6ikDR4ibNZA==
 
 promise-call-limit@^1.0.1:
   version "1.0.2"
