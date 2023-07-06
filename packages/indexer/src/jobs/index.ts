@@ -491,6 +491,12 @@ export class RabbitMqJobsConsumer {
 
     if (job) {
       const deadLetterQueueSize = await RabbitMq.getQueueSize(job.getDeadLetterQueue());
+
+      // No messages in the dead letter queue
+      if (deadLetterQueueSize === 0) {
+        return 0;
+      }
+
       const connection = await amqplib.connect(config.rabbitMqUrl);
       const channel = await connection.createChannel();
       let counter = 0;
@@ -523,6 +529,10 @@ export class RabbitMqJobsConsumer {
 
       await channel.close();
       await connection.close();
+
+      return counter;
     }
+
+    return 0;
   }
 }

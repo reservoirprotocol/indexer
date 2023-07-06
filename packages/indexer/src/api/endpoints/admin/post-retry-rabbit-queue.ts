@@ -35,8 +35,8 @@ export const postRetryRabbitQueue: RouteOptions = {
     }
 
     try {
-      await RabbitMqJobsConsumer.retryQueue(payload.queueName);
-      return { message: `messages in ${payload.queueName} sent to retry` };
+      const retriedMessagesCount = await RabbitMqJobsConsumer.retryQueue(payload.queueName);
+      return { message: `${retriedMessagesCount} messages in ${payload.queueName} sent to retry` };
     } catch (error) {
       logger.error("post-set-community-handler", `Handler failure: ${error}`);
       throw error;
