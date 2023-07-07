@@ -4,6 +4,7 @@ import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redlock } from "@/common/redis";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { config } from "@/config/index";
 
 export class MintsExpiredJob extends AbstractRabbitMqJobHandler {
   queueName = "expired-mints";
@@ -36,16 +37,18 @@ export class MintsExpiredJob extends AbstractRabbitMqJobHandler {
 
 export const mintsExpiredJob = new MintsExpiredJob();
 
-cron.schedule(
-  `*/${mintsExpiredJob.intervalInSeconds} * * * * *`,
-  async () =>
-    await redlock
-      .acquire(["expired-mints-check-lock"], (mintsExpiredJob.intervalInSeconds - 3) * 1000)
-      .then(async () => {
-        logger.info(mintsExpiredJob.queueName, "Triggering expired mints check");
-        await mintsExpiredJob.addToQueue();
-      })
-      .catch(() => {
-        // Skip any errors
-      })
-);
+if (config.doBackgroundWork) {
+  cron.schedule(
+    `*/${mintsExpiredJob.intervalInSeconds} * * * * *`,
+    async () =>
+      await redlock
+        .acquire(["expired-mints-check-lock"], (mintsExpiredJob.intervalInSeconds - 3) * 1000)
+        .then(async () => {
+          logger.info(mintsExpiredJob.queueName, "Triggering expired mints check");
+          await mintsExpiredJob.addToQueue();
+        })
+        .catch(() => {
+          // Skip any errors
+        })
+  );
+}

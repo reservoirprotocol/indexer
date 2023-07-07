@@ -5,6 +5,7 @@ import cron from "node-cron";
 import { redis, redlock } from "@/common/redis";
 import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders";
 import _ from "lodash";
+import { config } from "@/config/index";
 
 export class OrderUpdatesExpiredOrderJob extends AbstractRabbitMqJobHandler {
   queueName = "expired-orders";
@@ -43,19 +44,21 @@ export class OrderUpdatesExpiredOrderJob extends AbstractRabbitMqJobHandler {
 
 export const orderUpdatesExpiredOrderJob = new OrderUpdatesExpiredOrderJob();
 
-cron.schedule(
-  `*/${orderUpdatesExpiredOrderJob.intervalInSeconds} * * * * *`,
-  async () =>
-    await redlock
-      .acquire(
-        ["expired-orders-check-lock"],
-        (orderUpdatesExpiredOrderJob.intervalInSeconds - 3) * 1000
-      )
-      .then(async () => {
-        logger.info(orderUpdatesExpiredOrderJob.queueName, "Triggering expired orders check");
-        await orderUpdatesExpiredOrderJob.addToQueue();
-      })
-      .catch(() => {
-        // Skip any errors
-      })
-);
+if (config.doBackgroundWork) {
+  cron.schedule(
+    `*/${orderUpdatesExpiredOrderJob.intervalInSeconds} * * * * *`,
+    async () =>
+      await redlock
+        .acquire(
+          ["expired-orders-check-lock"],
+          (orderUpdatesExpiredOrderJob.intervalInSeconds - 3) * 1000
+        )
+        .then(async () => {
+          logger.info(orderUpdatesExpiredOrderJob.queueName, "Triggering expired orders check");
+          await orderUpdatesExpiredOrderJob.addToQueue();
+        })
+        .catch(() => {
+          // Skip any errors
+        })
+  );
+}

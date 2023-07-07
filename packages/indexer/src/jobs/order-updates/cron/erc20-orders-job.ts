@@ -9,6 +9,7 @@ import { getUSDAndNativePrices, USDAndNativePrices } from "@/utils/prices";
 import { fromBuffer, now } from "@/common/utils";
 import cron from "node-cron";
 import { redlock } from "@/common/redis";
+import { config } from "@/config/index";
 
 export type OrderUpdatesErc20OrderJobPayload = {
   continuation?: string;
@@ -141,17 +142,19 @@ export class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandler {
 
 export const orderUpdatesErc20OrderJob = new OrderUpdatesErc20OrderJob();
 
-cron.schedule(
-  // Every 1 day (the frequency should match the granularity of the price data)
-  "0 0 1 * * *",
-  async () =>
-    await redlock
-      .acquire(["erc20-orders-update-lock"], (10 * 60 - 3) * 1000)
-      .then(async () => {
-        logger.info(orderUpdatesErc20OrderJob.queueName, "Triggering ERC20 orders update");
-        await orderUpdatesErc20OrderJob.addToQueue();
-      })
-      .catch(() => {
-        // Skip any errors
-      })
-);
+if (config.doBackgroundWork) {
+  cron.schedule(
+    // Every 1 day (the frequency should match the granularity of the price data)
+    "0 0 1 * * *",
+    async () =>
+      await redlock
+        .acquire(["erc20-orders-update-lock"], (10 * 60 - 3) * 1000)
+        .then(async () => {
+          logger.info(orderUpdatesErc20OrderJob.queueName, "Triggering ERC20 orders update");
+          await orderUpdatesErc20OrderJob.addToQueue();
+        })
+        .catch(() => {
+          // Skip any errors
+        })
+  );
+}

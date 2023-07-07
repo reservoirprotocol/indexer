@@ -88,17 +88,19 @@ export class OrderUpdatesOracleOrderJob extends AbstractRabbitMqJobHandler {
 
 export const orderUpdatesOracleOrderJob = new OrderUpdatesOracleOrderJob();
 
-cron.schedule(
-  // Every 5 seconds
-  "*/5 * * * * *",
-  async () =>
-    await redlock
-      .acquire(["oracle-orders-check-lock"], (5 - 3) * 1000)
-      .then(async () => {
-        logger.info(orderUpdatesOracleOrderJob.queueName, "Triggering oracle orders check");
-        await orderUpdatesOracleOrderJob.addToQueue();
-      })
-      .catch(() => {
-        // Skip any errors
-      })
-);
+if (config.doBackgroundWork) {
+  cron.schedule(
+    // Every 5 seconds
+    "*/5 * * * * *",
+    async () =>
+      await redlock
+        .acquire(["oracle-orders-check-lock"], (5 - 3) * 1000)
+        .then(async () => {
+          logger.info(orderUpdatesOracleOrderJob.queueName, "Triggering oracle orders check");
+          await orderUpdatesOracleOrderJob.addToQueue();
+        })
+        .catch(() => {
+          // Skip any errors
+        })
+  );
+}
