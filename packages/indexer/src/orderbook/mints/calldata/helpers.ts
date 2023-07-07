@@ -24,6 +24,32 @@ export const fetchMetadata = async (url: string) => {
   return axios.get(url).then((response) => response.data);
 };
 
+export const getContractKind = async (
+  contract: string
+): Promise<"erc721" | "erc1155" | undefined> => {
+  const c = new Contract(
+    contract,
+    new Interface(["function supportsInterface(bytes4 interfaceId) view returns (bool)"]),
+    baseProvider
+  );
+
+  try {
+    if (await c.supportsInterface("0x80ac58cd")) {
+      return "erc721";
+    }
+  } catch {
+    // Ignore errors
+  }
+
+  try {
+    if (await c.supportsInterface("0xd9b67a26")) {
+      return "erc1155";
+    }
+  } catch {
+    // Ignore errors
+  }
+};
+
 export const getMaxSupply = async (contract: string): Promise<string | undefined> => {
   let maxSupply: string | undefined;
   try {
