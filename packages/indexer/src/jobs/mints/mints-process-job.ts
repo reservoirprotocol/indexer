@@ -6,7 +6,7 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import MetadataApi from "@/utils/metadata-api";
+import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
 import {
   CollectionMint,
   CollectionMintStandard,
@@ -14,6 +14,7 @@ import {
 } from "@/orderbook/mints";
 import * as detector from "@/orderbook/mints/calldata/detector";
 import { getContractKind } from "@/orderbook/mints/calldata/helpers";
+import MetadataApi from "@/utils/metadata-api";
 
 export type MintsProcessJobPayload =
   | {
@@ -45,10 +46,12 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
     try {
       let collectionMints: CollectionMint[] = [];
 
+      // Process new mints knowing a mint transaction
       if (by === "tx") {
         collectionMints = await detector.extractByTx(data.txHash);
       }
 
+      // Process new mints knowing the collection (triggered from a standard-specific on-chain event)
       if (by === "collection") {
         // Make sure the collection exists
         const collectionExists = await idb.oneOrNone(
@@ -210,6 +213,9 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
             break;
           }
         }
+
+        // Also refresh (to clean up any old stages)
+        await mintsRefreshJob.addToQueue({ collection: data.collection });
       }
 
       for (const collectionMint of collectionMints) {
