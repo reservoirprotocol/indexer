@@ -281,6 +281,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             : Sdk.X2Y2.Addresses.Erc1155Delegate[config.chainId];
       }
 
+      logger.info("orders-x2y2-save", JSON.stringify(metadata));
+
       const validFrom = `date_trunc('seconds', to_timestamp(${currentTime}))`;
       const validTo = `date_trunc('seconds', to_timestamp(${order.params.deadline}))`;
       orderValues.push({
