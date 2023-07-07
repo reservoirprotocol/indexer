@@ -328,17 +328,18 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
             new Date(order.originatedAt ?? JSON.parse(order.validBetween)[0]).getTime() / 1000
           );
           const orderCreated = Math.floor(new Date(order.createdAt).getTime() / 1000);
-          const source = (await Sources.getInstance()).get(order.sourceIdInt);
-          const orderType =
-            side === "sell"
-              ? "listing"
-              : tokenSetId?.startsWith("token")
-              ? "token_offer"
-              : tokenSetId?.startsWith("list")
-              ? "attribute_offer"
-              : "collection_offer";
 
           if (orderStart <= orderCreated) {
+            const source = (await Sources.getInstance()).get(order.sourceIdInt);
+            const orderType =
+              side === "sell"
+                ? "listing"
+                : tokenSetId?.startsWith("token")
+                ? "token_offer"
+                : tokenSetId?.startsWith("list")
+                ? "attribute_offer"
+                : "collection_offer";
+
             logger.info(
               "order-latency",
               JSON.stringify({
@@ -347,24 +348,12 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
                 orderId: order.id,
                 orderKind: order.kind,
                 orderType,
-                orderCreatedAt: new Date(order.createdAt).toISOString(),
-                orderValidFrom: new Date(JSON.parse(order.validBetween)[0]).toISOString(),
-                orderOriginatedAt: order.originatedAt
-                  ? new Date(order.originatedAt).toISOString()
-                  : null,
                 ingestMethod: ingestMethod ?? "rest",
-                ingestDelay,
               })
             );
           }
-        } catch (error) {
-          logger.error(
-            "order-latency-error",
-            JSON.stringify({
-              orderId: order.id,
-              error,
-            })
-          );
+        } catch {
+          // Ignore errors
         }
       }
     } catch (error) {
