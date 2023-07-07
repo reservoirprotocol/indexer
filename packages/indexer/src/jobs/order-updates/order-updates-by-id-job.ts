@@ -357,8 +357,14 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
               })
             );
           }
-        } catch {
-          // Ignore errors
+        } catch (error) {
+          logger.error(
+            "order-latency-error",
+            JSON.stringify({
+              orderId: order.id,
+              error,
+            })
+          );
         }
       }
     } catch (error) {
