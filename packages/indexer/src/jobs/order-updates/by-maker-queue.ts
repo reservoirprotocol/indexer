@@ -6,11 +6,11 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import { TriggerKind } from "@/jobs/order-updates/types";
 import { Sources } from "@/models/sources";
 import { OrderKind } from "@/orderbook/orders";
 import { fetchAndUpdateFtApproval } from "@/utils/on-chain-data";
+import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
 
 const QUEUE_NAME = "order-updates-by-maker";
 
@@ -126,7 +126,7 @@ if (config.doBackgroundWork) {
             }
 
             // Recheck all updated orders
-            await orderUpdatesById.addToQueue(
+            await orderUpdatesByIdJob.addToQueue(
               fillabilityStatuses.map(({ id }) => ({
                 context: `${context}-${id}`,
                 id,
@@ -262,7 +262,7 @@ if (config.doBackgroundWork) {
                 }
 
                 // Recheck all affected orders
-                await orderUpdatesById.addToQueue(
+                await orderUpdatesByIdJob.addToQueue(
                   result.map(({ id }) => ({
                     context: `${context}-${id}`,
                     id,
@@ -403,7 +403,7 @@ if (config.doBackgroundWork) {
             }
 
             // Recheck all affected orders
-            await orderUpdatesById.addToQueue(
+            await orderUpdatesByIdJob.addToQueue(
               fillabilityStatuses.map(({ id }) => ({
                 context: `${context}-${id}`,
                 id,
@@ -528,7 +528,7 @@ if (config.doBackgroundWork) {
             }
 
             // Recheck all affected orders
-            await orderUpdatesById.addToQueue(
+            await orderUpdatesByIdJob.addToQueue(
               approvalStatuses.map(({ id }) => ({
                 context: `${context}-${id}`,
                 id,

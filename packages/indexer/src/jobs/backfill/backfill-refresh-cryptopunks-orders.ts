@@ -12,7 +12,10 @@ import { baseProvider } from "@/common/provider";
 import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
 
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 const QUEUE_NAME = "backfill-refresh-cryptopunks-orders";
 
@@ -110,7 +113,7 @@ if (config.doBackgroundWork) {
           `
         );
 
-        await orderUpdatesById.addToQueue(
+        await orderUpdatesByIdJob.addToQueue(
           values.map(
             (value) =>
               ({
@@ -119,7 +122,7 @@ if (config.doBackgroundWork) {
                 trigger: {
                   kind: "revalidation",
                 },
-              } as orderUpdatesById.OrderInfo)
+              } as OrderUpdatesByIdJobPayload)
           )
         );
       }

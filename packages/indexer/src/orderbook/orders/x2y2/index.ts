@@ -7,7 +7,6 @@ import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck } from "@/orderbook/orders/x2y2/check";
@@ -15,6 +14,10 @@ import * as tokenSet from "@/orderbook/token-sets";
 import { Sources } from "@/models/sources";
 import * as royalties from "@/utils/royalties";
 import { Royalty } from "@/utils/royalties";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 // import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 
 export type OrderInfo = {
@@ -377,7 +380,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
     );
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
 
-    await ordersUpdateById.addToQueue(
+    await orderUpdatesByIdJob.addToQueue(
       results
         .filter((r) => r.status === "success" && !r.unfillable)
         .map(
@@ -388,7 +391,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               trigger: {
                 kind: "new-order",
               },
-            } as ordersUpdateById.OrderInfo)
+            } as OrderUpdatesByIdJobPayload)
         )
     );
 
@@ -424,7 +427,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           }
         );
 
-        await ordersUpdateById.addToQueue(
+        await orderUpdatesByIdJob.addToQueue(
           result.map(
             ({ id }) =>
               ({
@@ -433,7 +436,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 trigger: {
                   kind: "cancel",
                 },
-              } as ordersUpdateById.OrderInfo)
+              } as OrderUpdatesByIdJobPayload)
           )
         );
       }

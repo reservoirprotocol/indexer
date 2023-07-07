@@ -13,14 +13,16 @@ import { config } from "@/config/index";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import * as orderbook from "@/jobs/orderbook/orders-queue";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
-
 import * as looksRareV2Check from "@/orderbook/orders/looks-rare-v2/check";
 import * as x2y2Check from "@/orderbook/orders/x2y2/check";
 import * as zeroExV4Check from "@/orderbook/orders/zeroex-v4/check";
 import * as seaportCheck from "@/orderbook/orders/seaport-base/check";
 import * as nftxCheck from "@/orderbook/orders/nftx/check";
 import * as raribleCheck from "@/orderbook/orders/rarible/check";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 export type OrderFixesJobPayload =
   | {
@@ -468,14 +470,14 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
 
             if (fixResult) {
               // Update any wrong caches
-              await orderUpdatesById.addToQueue([
+              await orderUpdatesByIdJob.addToQueue([
                 {
                   context: `revalidation-${Date.now()}-${fixResult.id}`,
                   id: fixResult.id,
                   trigger: {
                     kind: "revalidation",
                   },
-                } as orderUpdatesById.OrderInfo,
+                } as OrderUpdatesByIdJobPayload,
               ]);
             }
           }

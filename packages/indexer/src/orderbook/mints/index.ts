@@ -2,7 +2,7 @@ import { BigNumber } from "@ethersproject/bignumber";
 
 import { idb } from "@/common/db";
 import { bn, fromBuffer, now, toBuffer } from "@/common/utils";
-import { mintsCheckJob } from "@/jobs/mints/mints-check-job";
+import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
 import { MintTxSchema, CustomInfo } from "@/orderbook/mints/calldata";
 import { getAmountMinted, getCurrentSupply } from "@/orderbook/mints/calldata/helpers";
 import { simulateCollectionMint } from "@/orderbook/mints/simulation";
@@ -196,6 +196,14 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
       );
     }
 
+    // Make sure to auto-refresh "not-yey-started" mints
+    if (collectionMint.statusReason === "not-yet-started") {
+      await mintsRefreshJob.addToQueue(
+        { collection: collectionMint.collection },
+        collectionMint.startTime! - now()
+      );
+    }
+
     return isOpen;
   } else if (isOpen || collectionMint.statusReason === "not-yet-started") {
     // Otherwise, it's the first time we see this collection mint so we save it (only if it's open)
@@ -302,7 +310,7 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
 
     // Make sure to auto-refresh "not-yey-started" mints
     if (collectionMint.statusReason === "not-yet-started") {
-      await mintsCheckJob.addToQueue(
+      await mintsRefreshJob.addToQueue(
         { collection: collectionMint.collection },
         collectionMint.startTime! - now()
       );

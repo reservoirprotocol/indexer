@@ -9,7 +9,7 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
+import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
 
 const QUEUE_NAME = "backfill-foundation-orders";
 
@@ -83,7 +83,7 @@ if (config.doBackgroundWork) {
           `
         );
 
-        await orderUpdatesById.addToQueue(
+        await orderUpdatesByIdJob.addToQueue(
           values.map(({ id }) => ({
             context: `fix-foundation-orders-${id}`,
             id,

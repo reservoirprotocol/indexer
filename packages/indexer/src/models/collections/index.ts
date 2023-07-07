@@ -17,11 +17,10 @@ import * as marketplaceFees from "@/utils/marketplace-fees";
 import MetadataApi from "@/utils/metadata-api";
 import * as royalties from "@/utils/royalties";
 
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
-
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
 import { refreshActivitiesCollectionMetadataJob } from "@/jobs/activities/refresh-activities-collection-metadata-job";
+import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -330,7 +329,7 @@ export class Collections {
 
     if (result) {
       const currentTime = now();
-      await orderUpdatesById.addToQueue(
+      await orderUpdatesByIdJob.addToQueue(
         result.map(({ token_id }) => {
           const tokenSetId = `token:${contract}:${token_id}`;
           return {
@@ -358,7 +357,7 @@ export class Collections {
 
     if (result) {
       const currentTime = now();
-      await orderUpdatesById.addToQueue(
+      await orderUpdatesByIdJob.addToQueue(
         result.map(({ token_id }) => {
           const tokenSetId = `token:${contract}:${token_id}`;
           return {
@@ -385,7 +384,7 @@ export class Collections {
 
     if (tokenSetsResult.length) {
       const currentTime = now();
-      await orderUpdatesById.addToQueue(
+      await orderUpdatesByIdJob.addToQueue(
         tokenSetsResult.map((tokenSet: { id: any }) => ({
           context: `revalidate-buy-${tokenSet.id}-${currentTime}`,
           tokenSetId: tokenSet.id,

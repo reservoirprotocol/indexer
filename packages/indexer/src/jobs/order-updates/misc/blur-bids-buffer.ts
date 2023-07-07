@@ -5,7 +5,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import * as orderbook from "@/jobs/orderbook/orders-queue";
-import * as blurBidsRefresh from "@/jobs/order-updates/misc/blur-bids-refresh";
+import { blurBidsRefreshJob } from "@/jobs/order-updates/misc/blur-bids-refresh-job";
 
 const QUEUE_NAME = "blur-bids-buffer";
 
@@ -54,7 +54,7 @@ if (config.doBackgroundWork) {
                 ingestMethod: "websocket",
               },
             ]);
-            await blurBidsRefresh.addToQueue(collection);
+            await blurBidsRefreshJob.addToQueue(collection);
           }
         }
       } catch (error) {

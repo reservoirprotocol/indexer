@@ -8,12 +8,15 @@ import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Sources } from "@/models/sources";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
 import { getBlurRoyalties } from "@/utils/blur";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 type SaveResult = {
   id: string;
@@ -318,7 +321,7 @@ export const savePartialListings = async (
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
   }
 
-  await ordersUpdateById.addToQueue(
+  await orderUpdatesByIdJob.addToQueue(
     results
       .filter((r) => r.status === "success")
       .map(
@@ -330,7 +333,7 @@ export const savePartialListings = async (
               kind: triggerKind,
             },
             ingestMethod,
-          } as ordersUpdateById.OrderInfo)
+          } as OrderUpdatesByIdJobPayload)
       )
   );
 
@@ -665,7 +668,7 @@ export const savePartialBids = async (
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
   }
 
-  await ordersUpdateById.addToQueue(
+  await orderUpdatesByIdJob.addToQueue(
     results
       .filter((r) => r.status === "success")
       .map(
@@ -677,7 +680,7 @@ export const savePartialBids = async (
               kind: triggerKind,
             },
             ingestMethod,
-          } as ordersUpdateById.OrderInfo)
+          } as OrderUpdatesByIdJobPayload)
       )
   );
 

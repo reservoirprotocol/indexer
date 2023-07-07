@@ -12,7 +12,6 @@ import "@/jobs/data-archive";
 import "@/jobs/data-export";
 import "@/jobs/events-sync";
 import "@/jobs/oracle";
-import "@/jobs/order-fixes";
 import "@/jobs/order-updates";
 import "@/jobs/orderbook";
 import "@/jobs/sources";
@@ -52,8 +51,6 @@ import * as backfillNftTransferEventsUpdatedAt from "@/jobs/backfill/backfill-nf
 
 import * as eventsSyncRealtime from "@/jobs/events-sync/realtime-queue";
 import * as eventsSyncRealtimeV2 from "@/jobs/events-sync/realtime-queue-v2";
-
-import * as orderRevalidations from "@/jobs/order-fixes/revalidations";
 
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
@@ -175,6 +172,14 @@ import { nftBalanceUpdateFloorAskJob } from "@/jobs/nft-balance-updates/update-f
 import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
 import { RabbitMq, RabbitMQMessage } from "@/common/rabbit-mq";
 import { orderRevalidationsJob } from "@/jobs/order-fixes/order-revalidations-job";
+import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
+import { orderUpdatesDynamicOrderJob } from "@/jobs/order-updates/cron/dynamic-orders-job";
+import { orderUpdatesErc20OrderJob } from "@/jobs/order-updates/cron/erc20-orders-job";
+import { orderUpdatesExpiredOrderJob } from "@/jobs/order-updates/cron/expired-orders-job";
+import { orderUpdatesOracleOrderJob } from "@/jobs/order-updates/cron/oracle-orders-job";
+import { blurBidsBufferJob } from "@/jobs/order-updates/misc/blur-bids-buffer-job";
+import { blurBidsRefreshJob } from "@/jobs/order-updates/misc/blur-bids-refresh-job";
+import { blurListingsRefreshJob } from "@/jobs/order-updates/misc/blur-listings-refresh-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -211,8 +216,6 @@ export const allJobQueues = [
 
   eventsSyncRealtime.queue,
   eventsSyncRealtimeV2.queue,
-
-  orderRevalidations.queue,
 
   orderUpdatesById.queue,
   orderUpdatesByMaker.queue,
@@ -340,6 +343,14 @@ export class RabbitMqJobsConsumer {
       nftBalanceUpdateFloorAskJob,
       orderFixesJob,
       orderRevalidationsJob,
+      orderUpdatesByIdJob,
+      orderUpdatesDynamicOrderJob,
+      orderUpdatesErc20OrderJob,
+      orderUpdatesExpiredOrderJob,
+      orderUpdatesOracleOrderJob,
+      blurBidsBufferJob,
+      blurBidsRefreshJob,
+      blurListingsRefreshJob,
       deleteArchivedExpiredBidActivitiesJob,
     ];
   }

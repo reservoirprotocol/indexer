@@ -14,8 +14,6 @@ import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
-import * as blurBidsRefresh from "@/jobs/order-updates/misc/blur-bids-refresh";
-import * as blurListingsRefresh from "@/jobs/order-updates/misc/blur-listings-refresh";
 import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
 import {
@@ -24,6 +22,8 @@ import {
 } from "@/jobs/metadata-index/metadata-fetch-job";
 import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
 import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
+import { blurBidsRefreshJob } from "@/jobs/order-updates/misc/blur-bids-refresh-job";
+import { blurListingsRefreshJob } from "@/jobs/order-updates/misc/blur-listings-refresh-job";
 
 const version = "v2";
 
@@ -100,8 +100,8 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
       }
 
       // Refresh Blur bids and listings
-      await blurBidsRefresh.addToQueue(collection.id, true);
-      await blurListingsRefresh.addToQueue(collection.id, true);
+      await blurBidsRefreshJob.addToQueue(collection.id, true);
+      await blurListingsRefreshJob.addToQueue(collection.id, true);
 
       // Refresh collection mints
       await mintsRefreshJob.addToQueue({ collection: collection.id });

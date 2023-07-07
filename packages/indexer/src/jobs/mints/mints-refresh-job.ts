@@ -21,7 +21,7 @@ export class MintsRefreshJob extends AbstractRabbitMqJobHandler {
     await refreshMintsForCollection(collection);
   }
 
-  public async addToQueue(mintInfo: MintsRefreshJobPayload, delay = 30) {
+  public async addToQueue(mintInfo: MintsRefreshJobPayload, delay = 0) {
     await this.send({ payload: mintInfo, jobId: mintInfo.collection }, delay * 1000);
   }
 }

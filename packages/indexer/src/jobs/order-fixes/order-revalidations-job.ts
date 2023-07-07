@@ -1,7 +1,10 @@
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { idb } from "@/common/db";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import { logger } from "@/common/logger";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 export type OrderRevalidationsJobPayload = {
   id: string;
@@ -34,14 +37,14 @@ export class OrderRevalidationsJob extends AbstractRabbitMqJobHandler {
       );
 
       // Recheck the order
-      await orderUpdatesById.addToQueue([
+      await orderUpdatesByIdJob.addToQueue([
         {
           context: `revalidation-${Date.now()}-${id}`,
           id,
           trigger: {
             kind: "revalidation",
           },
-        } as orderUpdatesById.OrderInfo,
+        } as OrderUpdatesByIdJobPayload,
       ]);
     } catch (error) {
       logger.error(

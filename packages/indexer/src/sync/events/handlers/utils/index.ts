@@ -9,7 +9,6 @@ import { assignSourceToFillEvents } from "@/events-sync/handlers/utils/fills";
 import { BaseEventParams } from "@/events-sync/parser";
 import * as es from "@/events-sync/storage";
 
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import { AddressZero } from "@ethersproject/constants";
@@ -29,6 +28,10 @@ import {
 import { fillUpdatesJob, FillUpdatesJobPayload } from "@/jobs/fill-updates/fill-updates-job";
 import { fillPostProcessJob } from "@/jobs/fill-updates/fill-post-process-job";
 import { mintsProcessJob, MintsProcessJobPayload } from "@/jobs/mints/mints-process-job";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -68,7 +71,7 @@ export type OnChainData = {
   mints: MintsProcessJobPayload[];
 
   // For properly keeping orders validated on the go
-  orderInfos: orderUpdatesById.OrderInfo[];
+  orderInfos: OrderUpdatesByIdJobPayload[];
   makerInfos: orderUpdatesByMaker.MakerInfo[];
 
   // Orders
@@ -220,7 +223,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     // stale data which will cause inconsistencies (eg. orders can
     // have wrong statuses)
     await Promise.all([
-      orderUpdatesById.addToQueue(data.orderInfos),
+      orderUpdatesByIdJob.addToQueue(data.orderInfos),
       orderUpdatesByMaker.addToQueue(data.makerInfos),
       orderbookOrders.addToQueue(data.orders),
     ]);
