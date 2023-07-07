@@ -52,15 +52,7 @@ import * as backfillNftTransferEventsUpdatedAt from "@/jobs/backfill/backfill-nf
 import * as eventsSyncRealtime from "@/jobs/events-sync/realtime-queue";
 import * as eventsSyncRealtimeV2 from "@/jobs/events-sync/realtime-queue-v2";
 
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
-import * as dynamicOrdersCron from "@/jobs/order-updates/cron/dynamic-orders-queue";
-import * as erc20OrdersCron from "@/jobs/order-updates/cron/erc20-orders-queue";
-import * as expiredOrdersCron from "@/jobs/order-updates/cron/expired-orders-queue";
-import * as oracleOrdersCron from "@/jobs/order-updates/cron/oracle-orders-queue";
-import * as blurBidsBufferMisc from "@/jobs/order-updates/misc/blur-bids-buffer";
-import * as blurBidsRefreshMisc from "@/jobs/order-updates/misc/blur-bids-refresh";
-import * as blurListingsRefreshMisc from "@/jobs/order-updates/misc/blur-listings-refresh";
 import * as openSeaOffChainCancellations from "@/jobs/order-updates/misc/opensea-off-chain-cancellations";
 import * as saveBidEvents from "@/jobs/order-updates/save-bid-events";
 
@@ -141,6 +133,7 @@ import { processArchiveDataJob } from "@/jobs/data-archive/process-archive-data-
 import { exportDataJob } from "@/jobs/data-export/export-data-job";
 import { processActivityEventJob } from "@/jobs/activities/process-activity-event-job";
 import { savePendingActivitiesJob } from "@/jobs/activities/save-pending-activities-job";
+import { deleteArchivedExpiredBidActivitiesJob } from "@/jobs/activities/delete-archived-expired-bid-activities-job";
 import { eventsSyncFtTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/ft-transfers-job";
 import { eventsSyncNftTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
 import { eventsSyncProcessBackfillJob } from "@/jobs/events-sync/process/events-sync-process-backfill";
@@ -180,15 +173,7 @@ import { blurBidsBufferJob } from "@/jobs/order-updates/misc/blur-bids-buffer-jo
 import { blurBidsRefreshJob } from "@/jobs/order-updates/misc/blur-bids-refresh-job";
 import { blurListingsRefreshJob } from "@/jobs/order-updates/misc/blur-listings-refresh-job";
 
-export const gracefulShutdownJobWorkers = [
-  orderUpdatesById.worker,
-  orderUpdatesByMaker.worker,
-  dynamicOrdersCron.worker,
-  erc20OrdersCron.worker,
-  expiredOrdersCron.worker,
-  oracleOrdersCron.worker,
-  tokenUpdatesFloorAsk.worker,
-];
+export const gracefulShutdownJobWorkers = [orderUpdatesByMaker.worker, tokenUpdatesFloorAsk.worker];
 
 export const allJobQueues = [
   backfillBlockTimestamps.queue,
@@ -216,15 +201,7 @@ export const allJobQueues = [
   eventsSyncRealtime.queue,
   eventsSyncRealtimeV2.queue,
 
-  orderUpdatesById.queue,
   orderUpdatesByMaker.queue,
-  dynamicOrdersCron.queue,
-  erc20OrdersCron.queue,
-  expiredOrdersCron.queue,
-  oracleOrdersCron.queue,
-  blurBidsBufferMisc.queue,
-  blurBidsRefreshMisc.queue,
-  blurListingsRefreshMisc.queue,
   openSeaOffChainCancellations.queue,
   saveBidEvents.queue,
 
@@ -350,6 +327,7 @@ export class RabbitMqJobsConsumer {
       blurBidsBufferJob,
       blurBidsRefreshJob,
       blurListingsRefreshJob,
+      deleteArchivedExpiredBidActivitiesJob,
     ];
   }
 
