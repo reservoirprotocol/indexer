@@ -1,10 +1,10 @@
 import axios from "axios";
 import { Queue, QueueScheduler, Worker } from "bullmq";
-import cron from "node-cron";
+// import cron from "node-cron";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import {
   orderUpdatesByIdJob,
@@ -94,19 +94,19 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  const addToQueue = async () => queue.add(QUEUE_NAME, {});
-  cron.schedule(
-    // Every 5 seconds
-    "*/5 * * * * *",
-    async () =>
-      await redlock
-        .acquire(["oracle-orders-check-lock"], (5 - 3) * 1000)
-        .then(async () => {
-          logger.info(QUEUE_NAME, "Triggering oracle orders check");
-          await addToQueue();
-        })
-        .catch(() => {
-          // Skip any errors
-        })
-  );
+  // const addToQueue = async () => queue.add(QUEUE_NAME, {});
+  // cron.schedule(
+  //   // Every 5 seconds
+  //   "*/5 * * * * *",
+  //   async () =>
+  //     await redlock
+  //       .acquire(["oracle-orders-check-lock"], (5 - 3) * 1000)
+  //       .then(async () => {
+  //         logger.info(QUEUE_NAME, "Triggering oracle orders check");
+  //         await addToQueue();
+  //       })
+  //       .catch(() => {
+  //         // Skip any errors
+  //       })
+  // );
 }

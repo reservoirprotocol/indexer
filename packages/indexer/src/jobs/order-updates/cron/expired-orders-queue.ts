@@ -1,9 +1,9 @@
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import _ from "lodash";
-import cron from "node-cron";
+// import cron from "node-cron";
 
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { now } from "@/common/utils";
 import { config } from "@/config/index";
 import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders";
@@ -56,18 +56,18 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  const addToQueue = async () => queue.add(QUEUE_NAME, {});
-  cron.schedule(
-    `*/${intervalInSeconds} * * * * *`,
-    async () =>
-      await redlock
-        .acquire(["expired-orders-check-lock"], (intervalInSeconds - 3) * 1000)
-        .then(async () => {
-          logger.info(QUEUE_NAME, "Triggering expired orders check");
-          await addToQueue();
-        })
-        .catch(() => {
-          // Skip any errors
-        })
-  );
+  // const addToQueue = async () => queue.add(QUEUE_NAME, {});
+  // cron.schedule(
+  //   `*/${intervalInSeconds} * * * * *`,
+  //   async () =>
+  //     await redlock
+  //       .acquire(["expired-orders-check-lock"], (intervalInSeconds - 3) * 1000)
+  //       .then(async () => {
+  //         logger.info(QUEUE_NAME, "Triggering expired orders check");
+  //         await addToQueue();
+  //       })
+  //       .catch(() => {
+  //         // Skip any errors
+  //       })
+  // );
 }

@@ -1,9 +1,9 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
-import cron from "node-cron";
+// import cron from "node-cron";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { fromBuffer, now } from "@/common/utils";
 import { config } from "@/config/index";
 import { USDAndNativePrices, getUSDAndNativePrices } from "@/utils/prices";
@@ -157,18 +157,18 @@ if (config.doBackgroundWork) {
   });
 
   const addToQueue = async (continuation?: string) => queue.add(QUEUE_NAME, { continuation });
-  cron.schedule(
-    // Every 1 day (the frequency should match the granularity of the price data)
-    "0 0 1 * * *",
-    async () =>
-      await redlock
-        .acquire(["erc20-orders-update-lock"], (10 * 60 - 3) * 1000)
-        .then(async () => {
-          logger.info(QUEUE_NAME, "Triggering ERC20 orders update");
-          await addToQueue();
-        })
-        .catch(() => {
-          // Skip any errors
-        })
-  );
+  // cron.schedule(
+  //   // Every 1 day (the frequency should match the granularity of the price data)
+  //   "0 0 1 * * *",
+  //   async () =>
+  //     await redlock
+  //       .acquire(["erc20-orders-update-lock"], (10 * 60 - 3) * 1000)
+  //       .then(async () => {
+  //         logger.info(QUEUE_NAME, "Triggering ERC20 orders update");
+  //         await addToQueue();
+  //       })
+  //       .catch(() => {
+  //         // Skip any errors
+  //       })
+  // );
 }
