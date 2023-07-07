@@ -133,6 +133,9 @@ export const getUserCollectionsV3Options: RouteOptions = {
             onSaleCount: Joi.string(),
             liquidCount: Joi.string().optional(),
           }),
+          contractKind: Joi.string()
+            .allow("", null)
+            .description("Returns `erc721`, `erc1155`, etc."),
         })
       ),
     }).label(`getUserCollections${version.toUpperCase()}Response`),
@@ -228,7 +231,8 @@ export const getUserCollectionsV3Options: RouteOptions = {
                 (SELECT orders.currency FROM orders WHERE orders.id = collections.floor_sell_id) AS floor_sell_currency,                
                 (SELECT orders.currency_price FROM orders WHERE orders.id = collections.floor_sell_id) AS floor_sell_currency_price,
                 (SELECT orders.currency FROM orders WHERE orders.id = collections.top_buy_id) AS top_buy_currency,
-                (SELECT orders.currency_price FROM orders WHERE orders.id = collections.top_buy_id) AS top_buy_currency_price
+                (SELECT orders.currency_price FROM orders WHERE orders.id = collections.top_buy_id) AS top_buy_currency_price,
+                (SELECT contracts.kind FROM contracts WHERE contracts.address = collections.contract) AS contract_kind
         FROM nbsample 
         JOIN tokens ON nbsample.contract = tokens.contract AND nbsample.token_id = tokens.token_id
         ${liquidCount}
@@ -368,6 +372,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
               ? String(Number(r.owner_liquid_count))
               : undefined,
           },
+          contractKind: r.contract_kind,
         };
 
         if (query.includeTopBid) {
