@@ -133,15 +133,17 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
         result.old_metadata.image != imageUrl ||
         result.old_metadata.media != mediaUrl
       ) {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "debugCopyrightInfringement",
-            message: "Token metadata updated",
-            resultOldMetadata: result.old_metadata,
-            payload,
-          })
-        );
+        if (isCopyrightInfringement) {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              topic: "debugCopyrightInfringement",
+              message: "Token metadata updated",
+              resultOldMetadata: result.old_metadata,
+              payload,
+            })
+          );
+        }
 
         await refreshActivitiesTokenMetadataJob.addToQueue({
           contract,
@@ -152,6 +154,7 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
             image: imageUrl || null,
             media: mediaUrl || null,
           },
+          force: isCopyrightInfringement,
         });
       }
 
