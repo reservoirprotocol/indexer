@@ -127,15 +127,15 @@ export const getUserCollectionsV3Options: RouteOptions = {
               "7day": Joi.number().unsafe().allow(null),
               "30day": Joi.number().unsafe().allow(null),
             }).description("The floor sale from X-days ago."),
+            contractKind: Joi.string()
+              .allow("", null)
+              .description("Returns `erc721`, `erc1155`, etc."),
           }),
           ownership: Joi.object({
             tokenCount: Joi.string(),
             onSaleCount: Joi.string(),
             liquidCount: Joi.string().optional(),
           }),
-          contractKind: Joi.string()
-            .allow("", null)
-            .description("Returns `erc721`, `erc1155`, etc."),
         })
       ),
     }).label(`getUserCollections${version.toUpperCase()}Response`),
@@ -364,6 +364,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
               "7day": r.day7_floor_sell_value ? formatEth(r.day7_floor_sell_value) : null,
               "30day": r.day30_floor_sell_value ? formatEth(r.day30_floor_sell_value) : null,
             },
+            contractKind: r.contract_kind,
           },
           ownership: {
             tokenCount: String(r.owner_token_count),
@@ -372,7 +373,6 @@ export const getUserCollectionsV3Options: RouteOptions = {
               ? String(Number(r.owner_liquid_count))
               : undefined,
           },
-          contractKind: r.contract_kind,
         };
 
         if (query.includeTopBid) {
