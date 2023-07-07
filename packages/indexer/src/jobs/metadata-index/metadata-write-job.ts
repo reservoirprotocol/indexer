@@ -37,6 +37,7 @@ export type MetadataIndexWriteJobPayload = {
   metadataOriginalUrl?: string;
   mediaUrl?: string;
   flagged?: boolean;
+  isCopyrightInfringement?: boolean;
   attributes: {
     key: string;
     value: string;
@@ -72,6 +73,7 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       metadataOriginalUrl,
       mediaUrl,
       flagged,
+      isCopyrightInfringement,
       attributes,
     } = payload;
 
@@ -126,10 +128,21 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       }
 
       if (
+        isCopyrightInfringement ||
         result.old_metadata.name != name ||
         result.old_metadata.image != imageUrl ||
         result.old_metadata.media != mediaUrl
       ) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "debugCopyrightInfringement",
+            message: "Token metadata updated",
+            resultOldMetadata: result.old_metadata,
+            payload,
+          })
+        );
+
         await refreshActivitiesTokenMetadataJob.addToQueue({
           contract,
           tokenId,
