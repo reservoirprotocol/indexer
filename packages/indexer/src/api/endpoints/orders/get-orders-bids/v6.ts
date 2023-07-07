@@ -50,7 +50,7 @@ export const getOrdersBidsV6Options: RouteOptions = {
         .lowercase()
         .pattern(regex.address)
         .description(
-          "Filter to a particular user. Must set `source=blur.io` to reveal maker's blur bids. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
+          "Filter to a particular user. Must set `sources=blur.io` to reveal maker's blur bids. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
         ),
       community: Joi.string()
         .lowercase()
@@ -126,7 +126,7 @@ export const getOrdersBidsV6Options: RouteOptions = {
       includeRawData: Joi.boolean()
         .default(false)
         .description(
-          "If true, raw data is included in the response. Set `source=blur.io` and make this `true` to reveal individual blur bids."
+          "If true, raw data is included in the response. Set `sources=blur.io` and make this `true` to reveal individual blur bids."
         ),
       includeDepth: Joi.boolean()
         .default(false)
@@ -206,7 +206,7 @@ export const getOrdersBidsV6Options: RouteOptions = {
     try {
       // Since we treat Blur bids as a generic pool we cannot use the `orders`
       // table to fetch all the bids of a particular maker. However, filtering
-      // by `maker` and `source=blur.io` will result in making a call to Blur,
+      // by `maker` and `sources=blur.io` will result in making a call to Blur,
       // which will return the requested bids.
       if (query.sources === "blur.io" && query.maker) {
         if (config.chainId !== 1) {
