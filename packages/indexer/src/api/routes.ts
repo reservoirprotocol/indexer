@@ -461,6 +461,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/collections/v6",
+    options: collectionsEndpoints.getCollectionsV6Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/collections/{collectionOrSlug}/v1",
     options: collectionsEndpoints.getCollectionDeprecatedV1Options,
   });
