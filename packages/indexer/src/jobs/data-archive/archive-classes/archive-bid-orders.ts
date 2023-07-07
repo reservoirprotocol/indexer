@@ -1,13 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
-import { idb } from "@/common/db";
-import { fromBuffer } from "@/common/utils";
 import _ from "lodash";
 import fs from "fs";
 import { EOL } from "os";
+
+import { idb } from "@/common/db";
+import { fromBuffer } from "@/common/utils";
+import { logger } from "@/common/logger";
+
 import { ArchiveInterface } from "@/jobs/data-archive/archive-classes/archive-interface";
 import { PendingExpiredBidActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-expired-bid-activities-queue";
-import { logger } from "@/common/logger";
+import { deleteArchivedExpiredBidActivitiesJob } from "@/jobs/activities/delete-archived-expired-bid-activities-job";
 
 export class ArchiveBidOrders implements ArchiveInterface {
   static tableName = "orders";
@@ -140,7 +142,7 @@ export class ArchiveBidOrders implements ArchiveInterface {
 
       logger.info(
         "archive-bid-orders",
-        `Worker started. deletedOrdersCount=${JSON.stringify(deletedOrdersResult?.length)}`
+        `Bids deleted. deletedOrdersCount=${JSON.stringify(deletedOrdersResult?.length)}`
       );
 
       if (deletedOrdersResult.length) {
@@ -149,6 +151,8 @@ export class ArchiveBidOrders implements ArchiveInterface {
         await pendingExpiredBidActivitiesQueue.add(
           deletedOrdersResult.map((deletedOrder) => deletedOrder.id)
         );
+
+        await deleteArchivedExpiredBidActivitiesJob.addToQueue();
       }
     } while (deletedOrdersResult.length === limit);
   }
