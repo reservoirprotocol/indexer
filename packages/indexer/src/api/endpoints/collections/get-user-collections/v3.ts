@@ -136,9 +136,6 @@ export const getUserCollectionsV3Options: RouteOptions = {
             onSaleCount: Joi.string(),
             liquidCount: Joi.string().optional(),
           }),
-          contractKind: Joi.string()
-            .allow("", null)
-            .description("Returns `erc721`, `erc1155`, etc."),
         })
       ),
     }).label(`getUserCollections${version.toUpperCase()}Response`),
@@ -376,7 +373,6 @@ export const getUserCollectionsV3Options: RouteOptions = {
               ? String(Number(r.owner_liquid_count))
               : undefined,
           },
-          contractKind: r.contract_kind,
         };
 
         if (query.includeTopBid) {
