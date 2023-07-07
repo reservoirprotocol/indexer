@@ -196,6 +196,14 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
       );
     }
 
+    // Make sure to auto-refresh "not-yey-started" mints
+    if (collectionMint.statusReason === "not-yet-started") {
+      await mintsCheckJob.addToQueue(
+        { collection: collectionMint.collection },
+        collectionMint.startTime! - now()
+      );
+    }
+
     return isOpen;
   } else if (isOpen || collectionMint.statusReason === "not-yet-started") {
     // Otherwise, it's the first time we see this collection mint so we save it (only if it's open)
