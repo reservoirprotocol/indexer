@@ -181,13 +181,6 @@ export type GenericOrderInfo =
       ingestDelay?: number;
     }
   | {
-      kind: "blur";
-      info: orders.blur.FullListingOrderInfo;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
       kind: "blur-listing";
       info: orders.blur.PartialListingOrderInfo;
       validateBidValue?: boolean;
@@ -326,11 +319,6 @@ export const jobProcessor = async (job: Job) => {
 
       case "flow": {
         result = await orders.flow.save([info]);
-        break;
-      }
-
-      case "blur": {
-        result = await orders.blur.saveFullListings([info], ingestMethod);
         break;
       }
 

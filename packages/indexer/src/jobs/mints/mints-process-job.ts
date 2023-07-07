@@ -1,17 +1,20 @@
+import { Interface } from "@ethersproject/abi";
+import { Contract } from "@ethersproject/contracts";
+
 import { idb } from "@/common/db";
-import { toBuffer } from "@/common/utils";
-import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
-import MetadataApi from "@/utils/metadata-api";
+import { baseProvider } from "@/common/provider";
+import { fromBuffer, toBuffer } from "@/common/utils";
+import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
 import {
   CollectionMint,
   CollectionMintStandard,
   simulateAndUpsertCollectionMint,
 } from "@/orderbook/mints";
 import * as detector from "@/orderbook/mints/calldata/detector";
-import { Contract } from "@ethersproject/contracts";
-import { Interface } from "@ethersproject/abi";
-import { baseProvider } from "@/common/provider";
+import { getContractKind } from "@/orderbook/mints/calldata/helpers";
+import MetadataApi from "@/utils/metadata-api";
 
 export type MintsProcessJobPayload =
   | {
@@ -33,7 +36,7 @@ export type MintsProcessJobPayload =
 
 export class MintsProcessJob extends AbstractRabbitMqJobHandler {
   queueName = "mints-process";
-  maxRetries = 1;
+  maxRetries = 3;
   concurrency = 30;
   lazyMode = true;
 
@@ -43,11 +46,14 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
     try {
       let collectionMints: CollectionMint[] = [];
 
+      // Process new mints knowing a mint transaction
       if (by === "tx") {
         collectionMints = await detector.extractByTx(data.txHash);
       }
 
+      // Process new mints knowing the collection (triggered from a standard-specific on-chain event)
       if (by === "collection") {
+        // Make sure the collection exists
         const collectionExists = await idb.oneOrNone(
           "SELECT 1 FROM collections WHERE collections.id = $/collection/",
           {
@@ -80,24 +86,24 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
 
           await idb.none(
             `
-                INSERT INTO collections (
-                  id,
-                  slug,
-                  name,
-                  metadata,
-                  contract,
-                  token_id_range,
-                  token_set_id
-                ) VALUES (
-                  $/id/,
-                  $/slug/,
-                  $/name/,
-                  $/metadata:json/,
-                  $/contract/,
-                  ${tokenIdRangeParam},
-                  $/tokenSetId/
-                ) ON CONFLICT DO NOTHING
-              `,
+              INSERT INTO collections (
+                id,
+                slug,
+                name,
+                metadata,
+                contract,
+                token_id_range,
+                token_set_id
+              ) VALUES (
+                $/id/,
+                $/slug/,
+                $/name/,
+                $/metadata:json/,
+                $/contract/,
+                ${tokenIdRangeParam},
+                $/tokenSetId/
+              ) ON CONFLICT DO NOTHING
+            `,
             {
               id: collection.id,
               slug: collection.slug,
@@ -110,29 +116,67 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
           );
         }
 
+        // Make sure the contract exists
+        const contractResult = await idb.one(
+          `
+            SELECT
+              contracts.kind,
+              collections.contract
+            FROM collections
+            LEFT JOIN contracts
+              ON collections.contract = contracts.address
+            WHERE collections.id = $/collection/
+          `,
+          {
+            collection: data.collection,
+          }
+        );
+        if (!contractResult.kind) {
+          const kind = await getContractKind(fromBuffer(contractResult.contract));
+          if (!kind) {
+            throw new Error("Could not detect contract kind");
+          }
+
+          await idb.none(
+            `
+              INSERT INTO contracts (
+                address,
+                kind
+              ) VALUES (
+                $/contract/,
+                $/kind/
+              ) ON CONFLICT DO NOTHING
+            `,
+            {
+              contract: contractResult.contract,
+              kind,
+            }
+          );
+        }
+
         switch (data.standard) {
           case "manifold": {
             const c = new Contract(
               data.additionalInfo.extension,
               new Interface([
                 `
-                    function getClaim(address creatorContractAddress, uint256 instanceId) external view returns (
-                      (
-                        uint32 total,
-                        uint32 totalMax,
-                        uint32 walletMax,
-                        uint48 startDate,
-                        uint48 endDate,
-                        uint8 storageProtocol,
-                        bytes32 merkleRoot,
-                        string location,
-                        uint256 tokenId,
-                        uint256 cost,
-                        address payable paymentReceiver,
-                        address erc20
-                      )
+                  function getClaim(address creatorContractAddress, uint256 instanceId) external view returns (
+                    (
+                      uint32 total,
+                      uint32 totalMax,
+                      uint32 walletMax,
+                      uint48 startDate,
+                      uint48 endDate,
+                      uint8 storageProtocol,
+                      bytes32 merkleRoot,
+                      string location,
+                      uint256 tokenId,
+                      uint256 cost,
+                      address payable paymentReceiver,
+                      address erc20
                     )
-                  `,
+                  )
+                `,
               ]),
               baseProvider
             );
@@ -169,6 +213,9 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
             break;
           }
         }
+
+        // Also refresh (to clean up any old stages)
+        await mintsRefreshJob.addToQueue({ collection: data.collection });
       }
 
       for (const collectionMint of collectionMints) {

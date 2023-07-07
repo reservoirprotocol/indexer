@@ -113,7 +113,7 @@ export const addToQueue = async (
   endTimestamp: number,
   cursor?: string | null,
   dryRun = 1,
-  delay = 5000
+  delay = 1000
 ) => {
   await queue.add(randomUUID(), { endTimestamp, cursor, dryRun }, { delay });
 };

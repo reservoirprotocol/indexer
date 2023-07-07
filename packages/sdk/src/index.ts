@@ -45,6 +45,7 @@ import * as Blend from "./blend";
 import * as SudoswapV2 from "./sudoswap-v2";
 import * as PaymentProcessor from "./payment-processor";
 import * as Seadrop from "./seadrop";
+import * as BlurV2 from "./blur-v2";
 
 // Overrides (shouldn't belong here)
 if (process.env.SEAPORT_V15_OVERRIDE) {
@@ -117,4 +118,5 @@ export {
   SudoswapV2,
   PaymentProcessor,
   Seadrop,
+  BlurV2,
 };

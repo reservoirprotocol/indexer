@@ -1,10 +1,15 @@
+import { BigNumber } from "@ethersproject/bignumber";
+
 import { idb } from "@/common/db";
-import { fromBuffer, toBuffer } from "@/common/utils";
+import { bn, fromBuffer, now, toBuffer } from "@/common/utils";
+import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
 import { MintTxSchema, CustomInfo } from "@/orderbook/mints/calldata";
+import { getAmountMinted, getCurrentSupply } from "@/orderbook/mints/calldata/helpers";
 import { simulateCollectionMint } from "@/orderbook/mints/simulation";
 
 export type CollectionMintKind = "public" | "allowlist";
 export type CollectionMintStatus = "open" | "closed";
+export type CollectionMintStatusReason = "not-yet-started" | "ended" | "max-supply-exceeded";
 export type CollectionMintStandard =
   | "unknown"
   | "manifold"
@@ -24,6 +29,7 @@ export type CollectionMint = {
   stage: string;
   kind: CollectionMintKind;
   status: CollectionMintStatus;
+  statusReason?: CollectionMintStatusReason;
   standard: CollectionMintStandard;
   details: CollectionMintDetails;
   currency: string;
@@ -190,8 +196,16 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
       );
     }
 
+    // Make sure to auto-refresh "not-yey-started" mints
+    if (collectionMint.statusReason === "not-yet-started") {
+      await mintsRefreshJob.addToQueue(
+        { collection: collectionMint.collection },
+        collectionMint.startTime! - now()
+      );
+    }
+
     return isOpen;
-  } else if (isOpen) {
+  } else if (isOpen || collectionMint.statusReason === "not-yet-started") {
     // Otherwise, it's the first time we see this collection mint so we save it (only if it's open)
 
     const standardResult = await idb.oneOrNone(
@@ -294,8 +308,45 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
       }
     );
 
+    // Make sure to auto-refresh "not-yey-started" mints
+    if (collectionMint.statusReason === "not-yet-started") {
+      await mintsRefreshJob.addToQueue(
+        { collection: collectionMint.collection },
+        collectionMint.startTime! - now()
+      );
+    }
+
     return true;
   }
 
   return false;
+};
+
+export const getAmountMintableByWallet = async (
+  collectionMint: CollectionMint,
+  user: string
+): Promise<BigNumber | undefined> => {
+  let amountMintable: BigNumber | undefined;
+
+  // Handle remaining supply
+  if (collectionMint.maxSupply) {
+    const currentSupply = await getCurrentSupply(collectionMint);
+    const remainingSupply = bn(collectionMint.maxSupply).sub(currentSupply);
+    if (remainingSupply.gt(0)) {
+      amountMintable = remainingSupply;
+    }
+  }
+
+  // Handle maximum amount mintable per wallet
+  if (collectionMint.maxMintsPerWallet) {
+    const mintedAmount = await getAmountMinted(collectionMint, user);
+    const remainingAmount = bn(collectionMint.maxMintsPerWallet).sub(mintedAmount);
+    if (!amountMintable) {
+      amountMintable = remainingAmount;
+    } else {
+      amountMintable = remainingAmount.lt(amountMintable) ? remainingAmount : amountMintable;
+    }
+  }
+
+  return amountMintable;
 };

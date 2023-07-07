@@ -256,6 +256,10 @@ export const extractEventsBatches = async (
             kind: "seadrop",
             data: kindToEvents.get("seadrop") ?? [],
           },
+          {
+            kind: "blur-v2",
+            data: kindToEvents.get("blur-v2") ?? [],
+          },
         ];
 
         txHashToEventsBatch.set(txHash, {

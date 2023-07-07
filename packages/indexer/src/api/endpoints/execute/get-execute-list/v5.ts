@@ -19,7 +19,6 @@ import { ExecutionsBuffer } from "@/utils/executions";
 
 // Blur
 import * as blurSellToken from "@/orderbook/orders/blur/build/sell/token";
-import * as blurCheck from "@/orderbook/orders/blur/check";
 
 // LooksRare
 import * as looksRareV2SellToken from "@/orderbook/orders/looks-rare-v2/build/sell/token";
@@ -420,7 +419,7 @@ export const getExecuteListV5Options: RouteOptions = {
                   return errors.push({ message: "Custom fees not supported", orderIndex: i });
                 }
 
-                const { order, marketplaceData } = await blurSellToken.build({
+                const { marketplaceData, signData } = await blurSellToken.build({
                   ...params,
                   maker,
                   contract,
@@ -429,34 +428,21 @@ export const getExecuteListV5Options: RouteOptions = {
                 });
 
                 // Will be set if an approval is needed before listing
-                let approvalTx: TxData | undefined;
+                const approvalTx = (await commonHelpers.getNftApproval(
+                  contract,
+                  maker,
+                  Sdk.BlurV2.Addresses.Delegate[config.chainId]
+                ))
+                  ? undefined
+                  : new Sdk.Common.Helpers.Erc721(baseProvider, contract).approveTransaction(
+                      maker,
+                      Sdk.BlurV2.Addresses.Delegate[config.chainId]
+                    );
 
-                // Check the order's fillability
-                try {
-                  await blurCheck.offChainCheck(order, undefined, { onChainApprovalRecheck: true });
-                } catch (error: any) {
-                  switch (error.message) {
-                    case "no-balance-no-approval":
-                    case "no-balance": {
-                      return errors.push({ message: "Maker does not own token", orderIndex: i });
-                    }
-
-                    case "no-approval": {
-                      // Generate an approval transaction
-                      approvalTx = new Sdk.Common.Helpers.Erc721(
-                        baseProvider,
-                        order.params.collection
-                      ).approveTransaction(
-                        maker,
-                        Sdk.Blur.Addresses.ExecutionDelegate[config.chainId]
-                      );
-
-                      break;
-                    }
-                  }
-                }
-
-                const signData = order.getSignatureData();
+                const id = new Sdk.BlurV2.Order(config.chainId, {
+                  ...signData.value,
+                  nonce: signData.value.nonce.hex ?? signData.value.nonce,
+                }).hash();
 
                 steps[1].items.push({
                   status: approvalTx ? "incomplete" : "complete",
@@ -476,11 +462,10 @@ export const getExecuteListV5Options: RouteOptions = {
                             order: {
                               kind: "blur",
                               data: {
-                                id: order.hash(),
+                                id,
                                 maker,
                                 marketplaceData,
                                 authToken: blurAuth!.accessToken,
-                                originalData: order.params,
                               },
                             },
                             orderbook: params.orderbook,
@@ -494,10 +479,7 @@ export const getExecuteListV5Options: RouteOptions = {
                   orderIndexes: [i],
                 });
 
-                addExecution(
-                  new Sdk.Blur.Order(config.chainId, signData.value).hash(),
-                  params.quantity
-                );
+                addExecution(id, params.quantity);
 
                 break;
               }

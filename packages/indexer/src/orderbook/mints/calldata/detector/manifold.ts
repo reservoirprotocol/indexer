@@ -215,7 +215,10 @@ export const extractByCollection = async (
   // Update the status of each collection mint
   await Promise.all(
     results.map(async (cm) => {
-      cm.status = await getStatus(cm);
+      await getStatus(cm).then(({ status, reason }) => {
+        cm.status = status;
+        cm.statusReason = reason;
+      });
     })
   );
 

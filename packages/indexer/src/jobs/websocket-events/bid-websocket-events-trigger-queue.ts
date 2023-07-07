@@ -75,6 +75,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
               orders.raw_data,
               orders.created_at,
               orders.updated_at,
+              orders.originated_at,
               (
                 CASE
                   WHEN orders.fillability_status = 'filled' THEN 'filled'
@@ -156,6 +157,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           isDynamic: Boolean(rawResult.dynamic || rawResult.kind === "sudoswap"),
           createdAt: new Date(rawResult.created_at).toISOString(),
           updatedAt: new Date(rawResult.updated_at).toISOString(),
+          originatedAt: new Date(rawResult.originated_at).toISOString(),
           rawData: rawResult.raw_data,
         };
 

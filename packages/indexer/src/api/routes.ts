@@ -137,6 +137,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/retry-rabbit-queue",
+    options: adminEndpoints.postRetryRabbitQueue,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/pause-rabbit-queue",
     options: adminEndpoints.postPauseRabbitQueueOptions,
   });
@@ -451,6 +457,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/collections/v5",
     options: collectionsEndpoints.getCollectionsV5Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/collections/v6",
+    options: collectionsEndpoints.getCollectionsV6Options,
   });
 
   server.route({
