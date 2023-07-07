@@ -4,7 +4,6 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 import _ from "lodash";
 import { config } from "@/config/index";
 import { logger } from "@/common/logger";
-import { getNetworkSettings } from "@/config/network";
 import { idb, ridb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { refreshActivitiesTokenMetadataJob } from "@/jobs/activities/refresh-activities-token-metadata-job";
@@ -58,27 +57,6 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
 
   protected async process(payload: MetadataIndexWriteJobPayload) {
     const tokenAttributeCounter = {};
-
-    const isCopyrightInfringementContract =
-      getNetworkSettings().copyrightInfringementContracts.includes(payload.contract.toLowerCase());
-
-    if (isCopyrightInfringementContract) {
-      payload = {
-        collection: payload.collection,
-        contract: payload.contract,
-        tokenId: payload.tokenId,
-        attributes: [],
-      };
-
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "debugCopyrightInfringementContracts",
-          message: "Collection is a copyright infringement",
-          jobData: payload,
-        })
-      );
-    }
 
     const {
       collection,
@@ -148,7 +126,6 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       }
 
       if (
-        isCopyrightInfringementContract ||
         result.old_metadata.name != name ||
         result.old_metadata.image != imageUrl ||
         result.old_metadata.media != mediaUrl
@@ -162,7 +139,6 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
             image: imageUrl || null,
             media: mediaUrl || null,
           },
-          force: isCopyrightInfringementContract,
         });
       }
 

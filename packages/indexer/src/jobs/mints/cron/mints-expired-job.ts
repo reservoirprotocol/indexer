@@ -1,8 +1,9 @@
-import { idb } from "@/common/db";
-import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { logger } from "@/common/logger";
 import cron from "node-cron";
+
+import { idb } from "@/common/db";
+import { logger } from "@/common/logger";
 import { redlock } from "@/common/redis";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 
 export class MintsExpiredJob extends AbstractRabbitMqJobHandler {
   queueName = "expired-mints";

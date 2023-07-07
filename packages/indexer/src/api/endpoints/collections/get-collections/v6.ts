@@ -23,16 +23,16 @@ import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
 
-const version = "v5";
+const version = "v6";
 
-export const getCollectionsV5Options: RouteOptions = {
+export const getCollectionsV6Options: RouteOptions = {
   cache: {
     privacy: "public",
     expiresIn: 10000,
   },
   description: "Collections",
   notes: "Use this API to explore a collection’s metadata and statistics (sales, volume, etc).",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
       order: 3,
@@ -69,9 +69,6 @@ export const getCollectionsV5Options: RouteOptions = {
         .description("Search for collections that match a string. Example: `bored`"),
       maxFloorAskPrice: Joi.number().description("Maximum floor price of the collection"),
       minFloorAskPrice: Joi.number().description("Minumum floor price of the collection"),
-      includeTopBid: Joi.boolean()
-        .default(false)
-        .description("If true, top bid will be returned in the response."),
       includeAttributes: Joi.boolean()
         .when("id", {
           is: Joi.exist(),
@@ -173,10 +170,6 @@ export const getCollectionsV5Options: RouteOptions = {
             bps: Joi.number(),
           }).allow(null),
           allRoyalties: Joi.object().allow(null),
-          lastBuy: {
-            value: Joi.number().unsafe().allow(null),
-            timestamp: Joi.number().allow(null),
-          },
           floorAsk: {
             id: Joi.string().allow(null),
             sourceDomain: Joi.string().allow("", null),
@@ -260,7 +253,6 @@ export const getCollectionsV5Options: RouteOptions = {
           mintStages: Joi.array().items(
             Joi.object({
               stage: Joi.string().required(),
-              tokenId: Joi.string().pattern(regex.number).allow(null),
               kind: Joi.string().required(),
               price: JoiPrice.required(),
               startTime: Joi.number().allow(null),
@@ -280,38 +272,6 @@ export const getCollectionsV5Options: RouteOptions = {
     const query = request.query as any;
 
     try {
-      // Include top bid
-      let topBidSelectQuery = "";
-      let topBidJoinQuery = "";
-      if (query.includeTopBid) {
-        topBidSelectQuery += `, u.*`;
-        topBidJoinQuery = `LEFT JOIN LATERAL (
-          SELECT
-            token_sets.top_buy_id,
-            token_sets.top_buy_maker,
-            DATE_PART('epoch', LOWER(orders.valid_between)) AS top_buy_valid_from,
-            COALESCE(
-              NULLIF(DATE_PART('epoch', UPPER(orders.valid_between)), 'Infinity'),
-              0
-            ) AS top_buy_valid_until,
-            token_sets.last_buy_value,
-            token_sets.last_buy_timestamp,
-            orders.currency AS top_buy_currency,
-            orders.price AS top_buy_price,
-            orders.value AS top_buy_value,
-            orders.currency_price AS top_buy_currency_price,
-            orders.source_id_int AS top_buy_source_id_int,
-            orders.currency_value AS top_buy_currency_value,
-            orders.normalized_value AS top_buy_normalized_value,
-            orders.currency_normalized_value AS top_buy_currency_normalized_value
-          FROM token_sets
-          JOIN orders ON token_sets.top_buy_id = orders.id
-          WHERE token_sets.collection_id = x.id
-          ORDER BY token_sets.top_buy_value DESC NULLS LAST
-          LIMIT 1
-        ) u ON TRUE`;
-      }
-
       // Include attributes
       let attributesSelectQuery = "";
       let attributesJoinQuery = "";
@@ -346,12 +306,11 @@ export const getCollectionsV5Options: RouteOptions = {
               array_agg(
                 json_build_object(
                   'stage', collection_mints.stage,
-                  'tokenId', collection_mints.token_id,
                   'kind', collection_mints.kind,
                   'currency', concat('0x', encode(collection_mints.currency, 'hex')),
                   'price', collection_mints.price::TEXT,
-                  'startTime', floor(extract(epoch from collection_mints.start_time)),
-                  'endTime', floor(extract(epoch from collection_mints.end_time)),
+                  'startTime', collection_mints.start_time,
+                  'endTime', collection_mints.end_time,
                   'maxMintsPerWallet', collection_mints.max_mints_per_wallet
                 )
               ) AS mint_stages
@@ -459,6 +418,8 @@ export const getCollectionsV5Options: RouteOptions = {
           collections.token_count,
           collections.owner_count,
           collections.created_at,
+          collections.top_buy_id,
+          collections.top_buy_maker,        
           collections.minted_timestamp,
           (
             SELECT
@@ -614,9 +575,9 @@ export const getCollectionsV5Options: RouteOptions = {
         WITH x AS (${baseQuery})
         SELECT
           x.*,
-          y.*
+          y.*,
+          u.*
           ${attributesSelectQuery}
-          ${topBidSelectQuery}
           ${saleCountSelectQuery}
           ${mintStagesSelectQuery}
         FROM x
@@ -637,8 +598,25 @@ export const getCollectionsV5Options: RouteOptions = {
            JOIN tokens ON tokens.contract = token_sets_tokens.contract AND tokens.token_id = token_sets_tokens.token_id
            WHERE orders.id = x.floor_sell_id
         ) y ON TRUE
+        LEFT JOIN LATERAL (
+            SELECT
+              orders.currency AS top_buy_currency,
+              orders.price AS top_buy_price,
+              orders.value AS top_buy_value,
+              orders.currency_price AS top_buy_currency_price,
+              orders.source_id_int AS top_buy_source_id_int,
+              orders.currency_value AS top_buy_currency_value,
+              orders.normalized_value AS top_buy_normalized_value,
+              orders.currency_normalized_value AS top_buy_currency_normalized_value,
+              DATE_PART('epoch', LOWER(orders.valid_between)) AS top_buy_valid_from,
+              COALESCE(
+                NULLIF(DATE_PART('epoch', UPPER(orders.valid_between)), 'Infinity'),
+                0
+              ) AS top_buy_valid_until
+            FROM orders
+            WHERE orders.id = x.top_buy_id
+          ) u ON TRUE
         ${attributesJoinQuery}
-        ${topBidJoinQuery}
         ${saleCountJoinQuery}
         ${mintStagesJoinQuery}
       `;
@@ -695,10 +673,6 @@ export const getCollectionsV5Options: RouteOptions = {
                 }
               : null,
             allRoyalties: r.new_royalties ?? null,
-            lastBuy: {
-              value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
-              timestamp: r.last_buy_timestamp,
-            },
             floorAsk: {
               id: r.floor_sell_id,
               sourceDomain: sources.get(r.floor_sell_source_id_int)?.domain,
@@ -726,35 +700,33 @@ export const getCollectionsV5Options: RouteOptions = {
                 image: Assets.getLocalAssetsLink(r.floor_sell_token_image),
               },
             },
-            topBid: query.includeTopBid
-              ? {
-                  id: r.top_buy_id,
-                  sourceDomain: r.top_buy_id ? sources.get(r.top_buy_source_id_int)?.domain : null,
-                  price: r.top_buy_id
-                    ? await getJoiPriceObject(
-                        {
-                          net: {
-                            amount: query.normalizeRoyalties
-                              ? r.top_buy_currency_normalized_value ?? r.top_buy_value
-                              : r.top_buy_currency_value ?? r.top_buy_value,
-                            nativeAmount: query.normalizeRoyalties
-                              ? r.top_buy_normalized_value ?? r.top_buy_value
-                              : r.top_buy_value,
-                          },
-                          gross: {
-                            amount: r.top_buy_currency_price ?? r.top_buy_price,
-                            nativeAmount: r.top_buy_price,
-                          },
-                        },
-                        topBidCurrency,
-                        query.displayCurrency
-                      )
-                    : null,
-                  maker: r.top_buy_maker ? fromBuffer(r.top_buy_maker) : null,
-                  validFrom: r.top_buy_valid_from,
-                  validUntil: r.top_buy_value ? r.top_buy_valid_until : null,
-                }
-              : undefined,
+            topBid: {
+              id: r.top_buy_id,
+              sourceDomain: r.top_buy_id ? sources.get(r.top_buy_source_id_int)?.domain : null,
+              price: r.top_buy_id
+                ? await getJoiPriceObject(
+                    {
+                      net: {
+                        amount: query.normalizeRoyalties
+                          ? r.top_buy_currency_normalized_value ?? r.top_buy_value
+                          : r.top_buy_currency_value ?? r.top_buy_value,
+                        nativeAmount: query.normalizeRoyalties
+                          ? r.top_buy_normalized_value ?? r.top_buy_value
+                          : r.top_buy_value,
+                      },
+                      gross: {
+                        amount: r.top_buy_currency_price ?? r.top_buy_price,
+                        nativeAmount: r.top_buy_price,
+                      },
+                    },
+                    topBidCurrency,
+                    query.displayCurrency
+                  )
+                : null,
+              maker: r.top_buy_maker ? fromBuffer(r.top_buy_maker) : null,
+              validFrom: r.top_buy_valid_from,
+              validUntil: r.top_buy_value ? r.top_buy_valid_until : null,
+            },
             rank: {
               "1day": r.day1_rank,
               "7day": r.day7_rank,
@@ -811,7 +783,6 @@ export const getCollectionsV5Options: RouteOptions = {
               ? await Promise.all(
                   r.mint_stages.map(async (m: any) => ({
                     stage: m.stage,
-                    tokenId: m.tokenId,
                     kind: m.kind,
                     price: await getJoiPriceObject({ gross: { amount: m.price } }, m.currency),
                     startTime: m.startTime,
