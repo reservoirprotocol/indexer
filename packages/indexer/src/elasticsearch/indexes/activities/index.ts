@@ -1160,6 +1160,184 @@ export const updateActivitiesTokenMetadata = async (
   return keepGoing;
 };
 
+export const updateActivitiesTokenMetadataV2 = async (
+  contract: string,
+  tokenId: string,
+  tokenData: { name: string | null; image: string | null; media: string | null }
+): Promise<boolean> => {
+  let keepGoing = false;
+
+  const should: any[] = [
+    {
+      bool: tokenData.name
+        ? {
+            must_not: [
+              {
+                term: {
+                  "token.name": tokenData.name,
+                },
+              },
+            ],
+          }
+        : {
+            must: [
+              {
+                exists: {
+                  field: "token.name",
+                },
+              },
+            ],
+          },
+    },
+    {
+      bool: tokenData.image
+        ? {
+            must_not: [
+              {
+                term: {
+                  "token.image": tokenData.image,
+                },
+              },
+            ],
+          }
+        : {
+            must: [
+              {
+                exists: {
+                  field: "token.image",
+                },
+              },
+            ],
+          },
+    },
+    {
+      bool: tokenData.media
+        ? {
+            must_not: [
+              {
+                term: {
+                  "token.media": tokenData.media,
+                },
+              },
+            ],
+          }
+        : {
+            must: [
+              {
+                exists: {
+                  field: "token.media",
+                },
+              },
+            ],
+          },
+    },
+  ];
+
+  const query = {
+    bool: {
+      must: [
+        {
+          term: {
+            contract: contract.toLowerCase(),
+          },
+        },
+        {
+          term: {
+            "token.id": tokenId,
+          },
+        },
+      ],
+      filter: {
+        bool: {
+          should,
+        },
+      },
+    },
+  };
+
+  try {
+    const pendingUpdateActivities = await _search({
+      // This is needed due to issue with elasticsearch DSL.
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      query,
+      size: 1000,
+    });
+
+    if (pendingUpdateActivities.length) {
+      const response = await elasticsearch.bulk({
+        body: pendingUpdateActivities.flatMap((activity) => [
+          { update: { _index: INDEX_NAME, _id: activity.id, retry_on_conflict: 3 } },
+          {
+            script: {
+              source:
+                "if (params.token_name == null) { ctx._source.token.remove('name') } else { ctx._source.token.name = params.token_name } if (params.token_image == null) { ctx._source.token.remove('image') } else { ctx._source.token.image = params.token_image } if (params.token_media == null) { ctx._source.token.remove('media') } else { ctx._source.token.media = params.token_media }",
+              params: {
+                token_name: tokenData.name ?? null,
+                token_image: tokenData.image ?? null,
+                token_media: tokenData.media ?? null,
+              },
+            },
+          },
+        ]),
+      });
+
+      if (response?.errors) {
+        logger.error(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "updateActivitiesTokenMetadataV2",
+            data: {
+              contract,
+              tokenId,
+              tokenData,
+            },
+            query: JSON.stringify(query),
+            response,
+            keepGoing,
+          })
+        );
+      } else {
+        keepGoing = pendingUpdateActivities.length === 1000;
+
+        logger.info(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "updateActivitiesTokenMetadataV2",
+            data: {
+              contract,
+              tokenId,
+              tokenData,
+            },
+            query: JSON.stringify(query),
+            response,
+            keepGoing,
+          })
+        );
+      }
+    }
+  } catch (error) {
+    logger.error(
+      "elasticsearch-activities",
+      JSON.stringify({
+        topic: "updateActivitiesTokenMetadataV2",
+        data: {
+          contract,
+          tokenId,
+          tokenData,
+        },
+        query: JSON.stringify(query),
+        error,
+        keepGoing,
+      })
+    );
+
+    throw error;
+  }
+
+  return keepGoing;
+};
+
 export const updateActivitiesCollectionMetadata = async (
   collectionId: string,
   collectionData: { name: string | null; image: string | null }
