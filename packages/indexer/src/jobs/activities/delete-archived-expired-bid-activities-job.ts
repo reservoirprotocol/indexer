@@ -55,8 +55,4 @@ export class DeleteArchivedExpiredBidActivitiesJob extends AbstractRabbitMqJobHa
   }
 }
 
-export const getLockName = () => {
-  return `${deleteArchivedExpiredBidActivitiesJob.queueName}-lock`;
-};
-
 export const deleteArchivedExpiredBidActivitiesJob = new DeleteArchivedExpiredBidActivitiesJob();
