@@ -10,7 +10,6 @@
 // some additional processing is required (eg. on balance changes
 // many of the orders of a maker might change their state).
 
-import "@/jobs/order-updates/by-maker-queue";
 import "@/jobs/order-updates/save-bid-events";
 
 // Various cron jobs that must run once in a while

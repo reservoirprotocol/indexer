@@ -52,7 +52,6 @@ import * as backfillNftTransferEventsUpdatedAt from "@/jobs/backfill/backfill-nf
 import * as eventsSyncRealtime from "@/jobs/events-sync/realtime-queue";
 import * as eventsSyncRealtimeV2 from "@/jobs/events-sync/realtime-queue-v2";
 
-import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as openSeaOffChainCancellations from "@/jobs/order-updates/misc/opensea-off-chain-cancellations";
 import * as saveBidEvents from "@/jobs/order-updates/save-bid-events";
 
@@ -172,8 +171,10 @@ import { orderUpdatesOracleOrderJob } from "@/jobs/order-updates/cron/oracle-ord
 import { blurBidsBufferJob } from "@/jobs/order-updates/misc/blur-bids-buffer-job";
 import { blurBidsRefreshJob } from "@/jobs/order-updates/misc/blur-bids-refresh-job";
 import { blurListingsRefreshJob } from "@/jobs/order-updates/misc/blur-listings-refresh-job";
+import { orderUpdatesByMakerJob } from "@/jobs/order-updates/order-updates-by-maker-job";
+import { openseaOffChainCancellationsJob } from "@/jobs/order-updates/misc/opensea-off-chain-cancellations-job";
 
-export const gracefulShutdownJobWorkers = [orderUpdatesByMaker.worker, tokenUpdatesFloorAsk.worker];
+export const gracefulShutdownJobWorkers = [tokenUpdatesFloorAsk.worker];
 
 export const allJobQueues = [
   backfillBlockTimestamps.queue,
@@ -201,7 +202,6 @@ export const allJobQueues = [
   eventsSyncRealtime.queue,
   eventsSyncRealtimeV2.queue,
 
-  orderUpdatesByMaker.queue,
   openSeaOffChainCancellations.queue,
   saveBidEvents.queue,
 
@@ -328,6 +328,8 @@ export class RabbitMqJobsConsumer {
       blurBidsRefreshJob,
       blurListingsRefreshJob,
       deleteArchivedExpiredBidActivitiesJob,
+      orderUpdatesByMakerJob,
+      openseaOffChainCancellationsJob,
     ];
   }
 

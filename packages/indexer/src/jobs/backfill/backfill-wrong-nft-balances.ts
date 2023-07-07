@@ -9,7 +9,7 @@ import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
+import { orderUpdatesByMakerJob } from "@/jobs/order-updates/order-updates-by-maker-job";
 
 const QUEUE_NAME = "backfill-wrong-nft-balances";
 
@@ -134,7 +134,7 @@ if (config.doBackgroundWork) {
             `
           );
 
-          await orderUpdatesByMaker.addToQueue(
+          await orderUpdatesByMakerJob.addToQueue(
             values.map((v) => ({
               context: `revalidation-${fromBuffer(v.contract)}-${v.token_id}-${fromBuffer(
                 v.owner
