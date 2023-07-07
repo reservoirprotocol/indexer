@@ -19,14 +19,14 @@ export class DeleteArchivedExpiredBidActivitiesJob extends AbstractRabbitMqJobHa
     const pendingExpiredBidActivitiesQueue = new PendingExpiredBidActivitiesQueue();
     const pendingActivityIds = await pendingExpiredBidActivitiesQueue.get(BATCH_SIZE);
 
+    logger.info(
+      this.queueName,
+      `deleting activities. pendingActivitiesCount=${pendingActivityIds.length}`
+    );
+
     if (pendingActivityIds.length > 0) {
       try {
         await ActivitiesIndex.deleteActivitiesById(pendingActivityIds);
-
-        logger.error(
-          this.queueName,
-          `deleted activities. pendingActivitiesCount=${pendingActivityIds.length}`
-        );
       } catch (error) {
         logger.error(
           this.queueName,
