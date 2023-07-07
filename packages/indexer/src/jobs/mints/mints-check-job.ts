@@ -43,7 +43,7 @@ export class MintsCheckJob extends AbstractRabbitMqJobHandler {
     }
   }
 
-  public async addToQueue(mintInfo: MintsCheckJobPayload, delay = 30) {
+  public async addToQueue(mintInfo: MintsCheckJobPayload, delay = 0) {
     await this.send({ payload: mintInfo, jobId: mintInfo.collection }, delay * 1000);
   }
 }
