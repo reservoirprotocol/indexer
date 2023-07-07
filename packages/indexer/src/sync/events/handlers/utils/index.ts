@@ -9,7 +9,6 @@ import { assignSourceToFillEvents } from "@/events-sync/handlers/utils/fills";
 import { BaseEventParams } from "@/events-sync/parser";
 import * as es from "@/events-sync/storage";
 
-import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import { AddressZero } from "@ethersproject/constants";
 import { RecalcCollectionOwnerCountInfo } from "@/jobs/collection-updates/recalc-owner-count-queue";
@@ -32,6 +31,10 @@ import {
   orderUpdatesByIdJob,
   OrderUpdatesByIdJobPayload,
 } from "@/jobs/order-updates/order-updates-by-id-job";
+import {
+  orderUpdatesByMakerJob,
+  OrderUpdatesByMakerJobPayload,
+} from "@/jobs/order-updates/order-updates-by-maker-job";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -72,7 +75,7 @@ export type OnChainData = {
 
   // For properly keeping orders validated on the go
   orderInfos: OrderUpdatesByIdJobPayload[];
-  makerInfos: orderUpdatesByMaker.MakerInfo[];
+  makerInfos: OrderUpdatesByMakerJobPayload[];
 
   // Orders
   orders: orderbookOrders.GenericOrderInfo[];
@@ -224,7 +227,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     // have wrong statuses)
     await Promise.all([
       orderUpdatesByIdJob.addToQueue(data.orderInfos),
-      orderUpdatesByMaker.addToQueue(data.makerInfos),
+      orderUpdatesByMakerJob.addToQueue(data.makerInfos),
       orderbookOrders.addToQueue(data.orders),
     ]);
   }
