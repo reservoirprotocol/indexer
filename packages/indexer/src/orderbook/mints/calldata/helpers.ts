@@ -7,7 +7,11 @@ import axios from "axios";
 import { idb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
 import { bn, now, toBuffer } from "@/common/utils";
-import { CollectionMint, CollectionMintStatus } from "@/orderbook/mints";
+import {
+  CollectionMint,
+  CollectionMintStatus,
+  CollectionMintStatusReason,
+} from "@/orderbook/mints";
 
 export const toSafeTimestamp = (value: BigNumberish) =>
   bn(value).gte(9999999999) ? undefined : bn(value).toNumber();
@@ -18,6 +22,32 @@ export const fetchMetadata = async (url: string) => {
   }
 
   return axios.get(url).then((response) => response.data);
+};
+
+export const getContractKind = async (
+  contract: string
+): Promise<"erc721" | "erc1155" | undefined> => {
+  const c = new Contract(
+    contract,
+    new Interface(["function supportsInterface(bytes4 interfaceId) view returns (bool)"]),
+    baseProvider
+  );
+
+  try {
+    if (await c.supportsInterface("0x80ac58cd")) {
+      return "erc721";
+    }
+  } catch {
+    // Ignore errors
+  }
+
+  try {
+    if (await c.supportsInterface("0xd9b67a26")) {
+      return "erc1155";
+    }
+  } catch {
+    // Ignore errors
+  }
 };
 
 export const getMaxSupply = async (contract: string): Promise<string | undefined> => {
@@ -139,23 +169,28 @@ export const getCurrentSupply = async (collectionMint: CollectionMint): Promise<
   return bn(tokenCount);
 };
 
-export const getStatus = async (collectionMint: CollectionMint): Promise<CollectionMintStatus> => {
+export const getStatus = async (
+  collectionMint: CollectionMint
+): Promise<{
+  status: CollectionMintStatus;
+  reason?: CollectionMintStatusReason;
+}> => {
   // Check start and end time
   const currentTime = now();
   if (collectionMint.startTime && currentTime <= collectionMint.startTime) {
-    return "closed";
+    return { status: "closed", reason: "not-yet-started" };
   }
   if (collectionMint.endTime && currentTime >= collectionMint.endTime) {
-    return "closed";
+    return { status: "closed", reason: "ended" };
   }
 
   // Check maximum supply
   if (collectionMint.maxSupply) {
     const currentSupply = await getCurrentSupply(collectionMint);
     if (bn(collectionMint.maxSupply).lte(currentSupply)) {
-      return "closed";
+      return { status: "closed", reason: "max-supply-exceeded" };
     }
   }
 
-  return "open";
+  return { status: "open" };
 };

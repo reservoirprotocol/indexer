@@ -22,7 +22,7 @@ export class MintsCheckJob extends AbstractRabbitMqJobHandler {
 
     const collectionMints = await getCollectionMints(collection, { status: "open" });
     for (const collectionMint of collectionMints) {
-      const status = await getStatus(collectionMint);
+      const { status } = await getStatus(collectionMint);
       if (status === "closed") {
         await idb.none(
           `

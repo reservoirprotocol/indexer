@@ -1,7 +1,11 @@
+import { Interface } from "@ethersproject/abi";
+import { Contract } from "@ethersproject/contracts";
+
 import { idb } from "@/common/db";
-import { toBuffer } from "@/common/utils";
-import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
+import { baseProvider } from "@/common/provider";
+import { fromBuffer, toBuffer } from "@/common/utils";
+import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import MetadataApi from "@/utils/metadata-api";
 import {
   CollectionMint,
@@ -9,9 +13,7 @@ import {
   simulateAndUpsertCollectionMint,
 } from "@/orderbook/mints";
 import * as detector from "@/orderbook/mints/calldata/detector";
-import { Contract } from "@ethersproject/contracts";
-import { Interface } from "@ethersproject/abi";
-import { baseProvider } from "@/common/provider";
+import { getContractKind } from "@/orderbook/mints/calldata/helpers";
 
 export type MintsProcessJobPayload =
   | {
@@ -33,7 +35,7 @@ export type MintsProcessJobPayload =
 
 export class MintsProcessJob extends AbstractRabbitMqJobHandler {
   queueName = "mints-process";
-  maxRetries = 1;
+  maxRetries = 3;
   concurrency = 30;
   lazyMode = true;
 
@@ -48,6 +50,7 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
       }
 
       if (by === "collection") {
+        // Make sure the collection exists
         const collectionExists = await idb.oneOrNone(
           "SELECT 1 FROM collections WHERE collections.id = $/collection/",
           {
@@ -106,6 +109,44 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
               contract: toBuffer(collection.contract),
               tokenIdRange,
               tokenSetId: collection.tokenSetId,
+            }
+          );
+        }
+
+        // Make sure the contract exists
+        const contractResult = await idb.one(
+          `
+            SELECT
+              contracts.kind,
+              collections.contract
+            FROM collections
+            LEFT JOIN contracts
+              ON collections.contract = contracts.address
+            WHERE collections.id = $/collection/
+          `,
+          {
+            collection: data.collection,
+          }
+        );
+        if (!contractResult.kind) {
+          const kind = await getContractKind(fromBuffer(contractResult.contract));
+          if (!kind) {
+            throw new Error("Could not detect contract kind");
+          }
+
+          await idb.none(
+            `
+              INSERT INTO contracts (
+                address,
+                kind
+              ) VALUES (
+                $/contract/,
+                $/kind/
+              ) ON CONFLICT DO NOTHING
+            `,
+            {
+              contract: contractResult.contract,
+              kind,
             }
           );
         }

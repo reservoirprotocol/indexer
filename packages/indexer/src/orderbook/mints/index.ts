@@ -1,13 +1,15 @@
 import { BigNumber } from "@ethersproject/bignumber";
 
 import { idb } from "@/common/db";
-import { bn, fromBuffer, toBuffer } from "@/common/utils";
+import { bn, fromBuffer, now, toBuffer } from "@/common/utils";
+import { mintsCheckJob } from "@/jobs/mints/mints-check-job";
 import { MintTxSchema, CustomInfo } from "@/orderbook/mints/calldata";
 import { getAmountMinted, getCurrentSupply } from "@/orderbook/mints/calldata/helpers";
 import { simulateCollectionMint } from "@/orderbook/mints/simulation";
 
 export type CollectionMintKind = "public" | "allowlist";
 export type CollectionMintStatus = "open" | "closed";
+export type CollectionMintStatusReason = "not-yet-started" | "ended" | "max-supply-exceeded";
 export type CollectionMintStandard =
   | "unknown"
   | "manifold"
@@ -27,6 +29,7 @@ export type CollectionMint = {
   stage: string;
   kind: CollectionMintKind;
   status: CollectionMintStatus;
+  statusReason?: CollectionMintStatusReason;
   standard: CollectionMintStandard;
   details: CollectionMintDetails;
   currency: string;
@@ -194,7 +197,7 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
     }
 
     return isOpen;
-  } else if (isOpen) {
+  } else if (isOpen || collectionMint.statusReason === "not-yet-started") {
     // Otherwise, it's the first time we see this collection mint so we save it (only if it's open)
 
     const standardResult = await idb.oneOrNone(
@@ -296,6 +299,14 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
         allowlistId: collectionMint.allowlistId ?? null,
       }
     );
+
+    // Make sure to auto-refresh "not-yey-started" mints
+    if (collectionMint.statusReason === "not-yet-started") {
+      await mintsCheckJob.addToQueue(
+        { collection: collectionMint.collection },
+        collectionMint.startTime! - now()
+      );
+    }
 
     return true;
   }
