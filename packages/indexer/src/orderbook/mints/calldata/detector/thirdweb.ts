@@ -90,7 +90,7 @@ export const extractByCollection = async (
 
     for (
       let claimConditionId = currentStartId.toNumber();
-      claimConditionId < currentStartId.toNumber() + count.toNumber();
+      claimConditionId < Math.min(currentStartId.toNumber() + count.toNumber(), 10);
       claimConditionId++
     ) {
       const claimCondition = isERC1155
