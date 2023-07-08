@@ -121,17 +121,19 @@ export class OrderUpdatesDynamicOrderJob extends AbstractRabbitMqJobHandler {
 
 export const orderUpdatesDynamicOrderJob = new OrderUpdatesDynamicOrderJob();
 
-cron.schedule(
-  // Every 10 minutes
-  "*/10 * * * *",
-  async () =>
-    await redlock
-      .acquire(["dynamic-orders-update-lock"], (10 * 60 - 3) * 1000)
-      .then(async () => {
-        logger.info(orderUpdatesDynamicOrderJob.queueName, "Triggering dynamic orders update");
-        await orderUpdatesDynamicOrderJob.addToQueue();
-      })
-      .catch(() => {
-        // Skip any errors
-      })
-);
+if (config.doBackgroundWork) {
+  cron.schedule(
+    // Every 10 minutes
+    "*/10 * * * *",
+    async () =>
+      await redlock
+        .acquire(["dynamic-orders-update-lock"], (10 * 60 - 3) * 1000)
+        .then(async () => {
+          logger.info(orderUpdatesDynamicOrderJob.queueName, "Triggering dynamic orders update");
+          await orderUpdatesDynamicOrderJob.addToQueue();
+        })
+        .catch(() => {
+          // Skip any errors
+        })
+  );
+}
