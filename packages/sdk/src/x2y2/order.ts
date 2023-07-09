@@ -35,7 +35,9 @@ export class Order {
       type: localOrder.intent === Types.Intent.SELL ? "sell" : "buy",
       currency: localOrder.currency,
       price: localOrder.items[0].price,
+      amount: localOrder.amount,
       maker: localOrder.user,
+      delegateType: localOrder.delegateType,
       taker: AddressZero,
       deadline: localOrder.deadline,
       nft: {
@@ -62,9 +64,11 @@ const normalize = (order: Types.Order): Types.Order => {
     type: s(order.type),
     currency: lc(order.currency),
     price: s(order.price),
+    amount: n(order.amount),
     maker: lc(order.maker),
     taker: order.taker ? lc(order.taker) : AddressZero,
     deadline: n(order.deadline),
+    delegateType: order.delegateType ?? Types.DelegationType.ERC721,
     itemHash: lc(order.itemHash),
     nft: {
       token: lc(order.nft.token),

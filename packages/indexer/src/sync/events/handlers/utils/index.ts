@@ -9,10 +9,7 @@ import { assignSourceToFillEvents } from "@/events-sync/handlers/utils/fills";
 import { BaseEventParams } from "@/events-sync/parser";
 import * as es from "@/events-sync/storage";
 
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
-import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
-import * as mintsProcess from "@/jobs/mints/process";
 import { AddressZero } from "@ethersproject/constants";
 import { RecalcCollectionOwnerCountInfo } from "@/jobs/collection-updates/recalc-owner-count-queue";
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
@@ -29,6 +26,15 @@ import {
 } from "@/jobs/activities/process-activity-event-job";
 import { fillUpdatesJob, FillUpdatesJobPayload } from "@/jobs/fill-updates/fill-updates-job";
 import { fillPostProcessJob } from "@/jobs/fill-updates/fill-post-process-job";
+import { mintsProcessJob, MintsProcessJobPayload } from "@/jobs/mints/mints-process-job";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
+import {
+  orderUpdatesByMakerJob,
+  OrderUpdatesByMakerJobPayload,
+} from "@/jobs/order-updates/order-updates-by-maker-job";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -65,11 +71,11 @@ export type OnChainData = {
   // For keeping track of mints and last sales
   fillInfos: FillUpdatesJobPayload[];
   mintInfos: MintQueueJobPayload[];
-  mints: mintsProcess.Mint[];
+  mints: MintsProcessJobPayload[];
 
   // For properly keeping orders validated on the go
-  orderInfos: orderUpdatesById.OrderInfo[];
-  makerInfos: orderUpdatesByMaker.MakerInfo[];
+  orderInfos: OrderUpdatesByIdJobPayload[];
+  makerInfos: OrderUpdatesByMakerJobPayload[];
 
   // Orders
   orders: orderbookOrders.GenericOrderInfo[];
@@ -220,8 +226,8 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     // stale data which will cause inconsistencies (eg. orders can
     // have wrong statuses)
     await Promise.all([
-      orderUpdatesById.addToQueue(data.orderInfos),
-      orderUpdatesByMaker.addToQueue(data.makerInfos),
+      orderUpdatesByIdJob.addToQueue(data.orderInfos),
+      orderUpdatesByMakerJob.addToQueue(data.makerInfos),
       orderbookOrders.addToQueue(data.orders),
     ]);
   }
@@ -230,7 +236,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   await mintQueueJob.addToQueue(data.mintInfos);
   await fillUpdatesJob.addToQueue(data.fillInfos);
   if (!backfill) {
-    await mintsProcess.addToQueue(data.mints);
+    await mintsProcessJob.addToQueue(data.mints);
   }
 
   const startFillPostProcess = Date.now();

@@ -36,6 +36,7 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
 
   protected abstract process(payload: any): Promise<any>;
 
+  protected rabbitMQMessage: RabbitMQMessage | undefined; // Hold the rabbitmq message type with all the extra fields
   protected concurrency = 1;
   protected maxDeadLetterQueue = 5000;
   protected backoff: BackoffStrategy = null;
@@ -48,32 +49,32 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
   protected disableConsuming = false;
 
   public async consume(channel: Channel, consumeMessage: ConsumeMessage): Promise<void> {
-    const message = JSON.parse(consumeMessage.content.toString()) as RabbitMQMessage;
+    this.rabbitMQMessage = JSON.parse(consumeMessage.content.toString()) as RabbitMQMessage;
 
-    message.consumedTime = message.consumedTime ?? _.now();
-    message.retryCount = message.retryCount ?? 0;
+    this.rabbitMQMessage.consumedTime = this.rabbitMQMessage.consumedTime ?? _.now();
+    this.rabbitMQMessage.retryCount = this.rabbitMQMessage.retryCount ?? 0;
 
     try {
-      const processResult = await this.process(message.payload); // Process the message
-      message.completeTime = _.now(); // Set the complete time
+      const processResult = await this.process(this.rabbitMQMessage.payload); // Process the message
       await channel.ack(consumeMessage); // Ack the message with rabbit
-      this.emit("onCompleted", message, processResult); // Emit on Completed event
+      this.emit("onCompleted", this.rabbitMQMessage, processResult); // Emit on Completed event
+      this.rabbitMQMessage.completeTime = _.now(); // Set the complete time
 
       // Release lock if there's a job id with no delay
-      if (message.jobId && !message.delay) {
-        await releaseLock(message.jobId).catch();
+      if (this.rabbitMQMessage.jobId && !this.rabbitMQMessage.delay) {
+        await releaseLock(this.rabbitMQMessage.jobId).catch();
       }
     } catch (error) {
-      this.emit("onError", message, error); // Emit error event
+      this.emit("onError", this.rabbitMQMessage, error); // Emit error event
 
-      message.retryCount += 1;
+      this.rabbitMQMessage.retryCount += 1;
       let queueName = this.getRetryQueue();
 
       // Set the backoff strategy delay
-      let delay = this.getBackoffDelay(message);
+      let delay = this.getBackoffDelay(this.rabbitMQMessage);
 
       // If the event has already been retried maxRetries times, send it to the dead letter queue
-      if (message.retryCount > this.maxRetries) {
+      if (this.rabbitMQMessage.retryCount > this.maxRetries) {
         queueName = this.getDeadLetterQueue();
         delay = 0;
       }
@@ -83,13 +84,13 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
         this.queueName,
         `Error handling event: ${JSON.stringify(
           error
-        )}, queueName=${queueName}, payload=${JSON.stringify(message)}, retryCount=${
-          message.retryCount
+        )}, queueName=${queueName}, payload=${JSON.stringify(this.rabbitMQMessage)}, retryCount=${
+          this.rabbitMQMessage.retryCount
         }`
       );
 
       await channel.ack(consumeMessage); // Ack the message with rabbit
-      await RabbitMq.send(queueName, message, delay); // Trigger the retry / or send to dead letter queue
+      await RabbitMq.send(queueName, this.rabbitMQMessage, delay); // Trigger the retry / or send to dead letter queue
     }
   }
 
@@ -102,7 +103,7 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
           break;
 
         case "exponential":
-          delay = 2 ^ ((Number(message.retryCount) - 1) * this.backoff.delay);
+          delay = (2 ^ (Number(message.retryCount) - 1)) * this.backoff.delay;
           break;
       }
     }

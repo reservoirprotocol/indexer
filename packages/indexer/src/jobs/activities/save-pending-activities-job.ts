@@ -1,13 +1,14 @@
+import cron from "node-cron";
+
 import { logger } from "@/common/logger";
+import { config } from "@/config/index";
+import { redlock } from "@/common/redis";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/queue";
+import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
-import { config } from "@/config/index";
-import cron from "node-cron";
-import { redlock } from "@/common/redis";
 
 const BATCH_SIZE = 500;
 
@@ -55,6 +56,10 @@ export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue() {
+    if (!config.doElasticsearchWork) {
+      return;
+    }
+
     await this.send();
   }
 }
@@ -65,7 +70,7 @@ export const getLockName = () => {
 
 export const savePendingActivitiesJob = new SavePendingActivitiesJob();
 
-if (config.doBackgroundWork) {
+if (config.doBackgroundWork && config.doElasticsearchWork) {
   cron.schedule(
     "*/5 * * * * *",
     async () =>

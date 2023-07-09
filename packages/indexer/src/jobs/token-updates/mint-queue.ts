@@ -9,10 +9,10 @@ import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import * as tokenSets from "@/orderbook/token-sets";
 
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
 import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 
 const QUEUE_NAME = "token-updates-mint-queue";
 
@@ -148,9 +148,9 @@ if (config.doBackgroundWork) {
           // Refresh the metadata for the new token
           if (!config.disableRealtimeMetadataRefresh) {
             const delay = getNetworkSettings().metadataMintDelay;
-            const method = metadataIndexFetch.getIndexingMethod(collection.community);
+            const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
 
-            await metadataIndexFetch.addToQueue(
+            await metadataIndexFetchJob.addToQueue(
               [
                 {
                   kind: "single-token",

@@ -30,3 +30,4 @@ export * from "@/api/endpoints/admin/post-api-key-metrics";
 export * from "@/api/endpoints/admin/post-trigger-job";
 export * from "@/api/endpoints/admin/post-pause-rabbit-queue";
 export * from "@/api/endpoints/admin/post-resume-rabbit-queue";
+export * from "@/api/endpoints/admin/post-retry-rabbit-queue";

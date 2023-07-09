@@ -1,7 +1,7 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 
 import { logger } from "@/common/logger";
-import { redis } from "@/common/redis";
+import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { ActivityType } from "@/elasticsearch/indexes/activities/base";
@@ -29,7 +29,7 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      logger.info(QUEUE_NAME, `Worker started. jobData=${JSON.stringify(job.data)}`);
+      job.data.addToQueue = false;
 
       const { endTimestamp, cursor, dryRun } = job.data;
 
@@ -82,33 +82,49 @@ if (config.doBackgroundWork) {
           QUEUE_NAME,
           `Delete. jobData=${JSON.stringify(job.data)}, activitiesCount=${
             activities.length
-          }, activitiesToBeDeletedCount=${toBeDeletedActivityIds.length}`
+          }, activitiesToBeDeletedCount=${
+            toBeDeletedActivityIds.length
+          }, lastActivityTimestamp=${new Date(activities[0].timestamp).toISOString()} `
         );
 
         if (toBeDeletedActivityIds.length && dryRun === 0) {
           await ActivitiesIndex.deleteActivitiesById(toBeDeletedActivityIds);
-
-          logger.info(
-            QUEUE_NAME,
-            `Deleted. jobData=${JSON.stringify(job.data)}, activitiesCount=${
-              activities.length
-            }, activitiesToBeDeletedCount=${toBeDeletedActivityIds.length}`
-          );
         }
 
         if (continuation) {
-          await addToQueue(endTimestamp, continuation, dryRun);
+          job.data.addToQueue = true;
+          job.data.addToQueueCursor = continuation;
         }
       }
     },
-    { connection: redis.duplicate(), concurrency: 15 }
+    { connection: redis.duplicate(), concurrency: 1 }
   );
+
+  worker.on("completed", async (job) => {
+    if (job.data.addToQueue) {
+      await addToQueue(job.data.endTimestamp, job.data.addToQueueCursor, job.data.dryRun);
+    }
+  });
 
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
+
+  redlock
+    .acquire([`${QUEUE_NAME}-lock-v2`], 60 * 60 * 24 * 30 * 1000)
+    .then(async () => {
+      await addToQueue(Math.floor(Date.now() / 1000), null, 0);
+    })
+    .catch(() => {
+      // Skip on any errors
+    });
 }
 
-export const addToQueue = async (endTimestamp: number, cursor?: string | null, dryRun = 1) => {
-  await queue.add(randomUUID(), { endTimestamp, cursor, dryRun });
+export const addToQueue = async (
+  endTimestamp: number,
+  cursor?: string | null,
+  dryRun = 1,
+  delay = 1000
+) => {
+  await queue.add(randomUUID(), { endTimestamp, cursor, dryRun }, { delay });
 };

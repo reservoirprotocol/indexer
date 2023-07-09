@@ -27,10 +27,13 @@ import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
 import { isOpen } from "@/utils/seaport-conduits";
 
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { topBidsCache } from "@/models/top-bids-caching";
 import * as orderbook from "@/jobs/orderbook/orders-queue";
 import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 export type OrderInfo = {
   orderParams: Sdk.SeaportBase.Types.OrderComponents;
@@ -467,7 +470,6 @@ export const save = async (
       ];
 
       let openSeaRoyalties: royalties.Royalty[];
-
       if (order.params.kind === "single-token") {
         openSeaRoyalties = await royalties.getRoyalties(info.contract, info.tokenId, "", true);
       } else {
@@ -484,7 +486,6 @@ export const save = async (
               .mul(10000)
               .div(price)
               .toNumber();
-
         feeBps += bps;
 
         // First check for opensea hardcoded recipients
@@ -767,9 +768,9 @@ export const save = async (
         dynamic: info.isDynamic ?? null,
         raw_data: order.params,
         expiration: validTo,
-        missing_royalties: isProtectedOffer ? null : missingRoyalties,
-        normalized_value: isProtectedOffer ? null : normalizedValue,
-        currency_normalized_value: isProtectedOffer ? null : currencyNormalizedValue,
+        missing_royalties: missingRoyalties,
+        normalized_value: normalizedValue,
+        currency_normalized_value: currencyNormalizedValue,
         originated_at: metadata.originatedAt ?? null,
       });
 
@@ -869,7 +870,7 @@ export const save = async (
 
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
 
-    await ordersUpdateById.addToQueue(
+    await orderUpdatesByIdJob.addToQueue(
       results
         .filter((r) => r.status === "success" && !r.unfillable)
         .map(
@@ -882,7 +883,7 @@ export const save = async (
               },
               ingestMethod,
               ingestDelay,
-            } as ordersUpdateById.OrderInfo)
+            } as OrderUpdatesByIdJobPayload)
         )
     );
   }

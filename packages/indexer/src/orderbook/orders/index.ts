@@ -79,7 +79,8 @@ export type OrderKind =
   | "blend"
   | "collectionxyz"
   | "sudoswap-v2"
-  | "payment-processor";
+  | "payment-processor"
+  | "blur-v2";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
@@ -163,6 +164,7 @@ export const getOrderSourceByOrderKind = async (
       case "nftx":
         return sources.getOrInsert("nftx.io");
       case "blur":
+      case "blur-v2":
       case "blend":
         return sources.getOrInsert("blur.io");
       case "flow":

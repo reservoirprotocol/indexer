@@ -4,7 +4,10 @@ import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 const QUEUE_NAME = "opensea-off-chain-cancellations";
 
@@ -47,14 +50,14 @@ if (config.doBackgroundWork) {
         );
 
         if (result) {
-          await orderUpdatesById.addToQueue([
+          await orderUpdatesByIdJob.addToQueue([
             {
               context: `cancel-${orderId}`,
               id: orderId,
               trigger: {
                 kind: "cancel",
               },
-            } as orderUpdatesById.OrderInfo,
+            } as OrderUpdatesByIdJobPayload,
           ]);
         }
       } catch (error) {

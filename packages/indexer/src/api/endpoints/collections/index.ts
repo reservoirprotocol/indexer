@@ -8,6 +8,7 @@ export * from "@/api/endpoints/collections/get-collections/v2";
 export * from "@/api/endpoints/collections/get-collections/v3";
 export * from "@/api/endpoints/collections/get-collections/v4";
 export * from "@/api/endpoints/collections/get-collections/v5";
+export * from "@/api/endpoints/collections/get-collections/v6";
 export * from "@/api/endpoints/collections/get-user-collections/v1";
 export * from "@/api/endpoints/collections/get-user-collections/v2";
 export * from "@/api/endpoints/collections/get-user-collections/v3";

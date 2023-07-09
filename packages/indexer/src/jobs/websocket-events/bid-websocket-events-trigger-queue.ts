@@ -33,7 +33,7 @@ export const queue = new Queue(QUEUE_NAME, {
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork && config.doWebsocketServerWork && config.kafkaBrokers.length > 0) {
+if (config.doBackgroundWork && config.doWebsocketServerWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
@@ -75,6 +75,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork && config.kafkaBroke
               orders.raw_data,
               orders.created_at,
               orders.updated_at,
+              orders.originated_at,
               (
                 CASE
                   WHEN orders.fillability_status = 'filled' THEN 'filled'
@@ -156,6 +157,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork && config.kafkaBroke
           isDynamic: Boolean(rawResult.dynamic || rawResult.kind === "sudoswap"),
           createdAt: new Date(rawResult.created_at).toISOString(),
           updatedAt: new Date(rawResult.updated_at).toISOString(),
+          originatedAt: new Date(rawResult.originated_at).toISOString(),
           rawData: rawResult.raw_data,
         };
 

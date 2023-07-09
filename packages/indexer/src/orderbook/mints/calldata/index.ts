@@ -1,15 +1,18 @@
 import { defaultAbiCoder } from "@ethersproject/abi";
+import { AddressZero } from "@ethersproject/constants";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
 
 import { idb } from "@/common/db";
-import { bn, toBuffer } from "@/common/utils";
+import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { CollectionMint } from "@/orderbook/mints";
 
+import * as Decent from "@/orderbook/mints/calldata/detector/decent";
 import * as Generic from "@/orderbook/mints/calldata/detector/generic";
 import * as Manifold from "@/orderbook/mints/calldata/detector/manifold";
 import * as Seadrop from "@/orderbook/mints/calldata/detector/seadrop";
 import * as Thirdweb from "@/orderbook/mints/calldata/detector/thirdweb";
 import * as Zora from "@/orderbook/mints/calldata/detector/zora";
+import { mintsProcessJob } from "@/jobs/mints/mints-process-job";
 
 export type AbiParam =
   | {
@@ -112,6 +115,18 @@ export const generateCollectionMintTxData = async (
         let abiValue: any;
 
         switch (collectionMint.standard) {
+          case "decent": {
+            if (allowlistItemIndex === 0) {
+              abiValue = allowlistData.max_mints;
+            } else if (allowlistItemIndex === 1) {
+              abiValue = allowlistData.price;
+            } else {
+              abiValue = await Decent.generateProofValue(collectionMint, minter);
+            }
+
+            break;
+          }
+
           case "manifold": {
             if (allowlistItemIndex === 0) {
               abiValue = [(await Manifold.generateProofValue(collectionMint, minter)).value];
@@ -211,6 +226,8 @@ export const refreshMintsForCollection = async (collection: string) => {
   );
   if (standardResult) {
     switch (standardResult.standard) {
+      case "decent":
+        return Decent.refreshByCollection(collection);
       case "manifold":
         return Manifold.refreshByCollection(collection);
       case "seadrop-v1.0":
@@ -221,6 +238,36 @@ export const refreshMintsForCollection = async (collection: string) => {
         return Generic.refreshByCollection(collection);
       case "zora":
         return Zora.refreshByCollection(collection);
+    }
+  } else {
+    const lastMintResult = await idb.oneOrNone(
+      `
+        SELECT
+          nft_transfer_events.tx_hash
+        FROM nft_transfer_events
+        WHERE nft_transfer_events.address = $/contract/
+          AND nft_transfer_events."from" = $/from/
+          AND nft_transfer_events.is_deleted = 0
+        ORDER BY nft_transfer_events.timestamp DESC
+        LIMIT 1
+      `,
+      {
+        contract: toBuffer(collection),
+        from: toBuffer(AddressZero),
+      }
+    );
+    if (lastMintResult) {
+      await mintsProcessJob.addToQueue(
+        [
+          {
+            by: "tx",
+            data: {
+              txHash: fromBuffer(lastMintResult.tx_hash),
+            },
+          },
+        ],
+        true
+      );
     }
   }
 };

@@ -30,7 +30,7 @@ export const queue = new Queue(QUEUE_NAME, {
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork && config.doWebsocketServerWork && config.kafkaBrokers.length > 0) {
+if (config.doBackgroundWork && config.doWebsocketServerWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
@@ -64,6 +64,21 @@ if (config.doBackgroundWork && config.doWebsocketServerWork && config.kafkaBroke
             "c"."floor_sell_value",
             "c"."token_count",
             "c"."owner_count",
+            "c"."floor_sell_id",
+            "c"."floor_sell_value",
+            "c"."floor_sell_maker",
+            least(2147483647::NUMERIC, date_part('epoch', lower("c"."floor_sell_valid_between")))::INT AS "floor_sell_valid_from",
+            least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper("c"."floor_sell_valid_between")), 'Infinity'),0))::INT AS "floor_sell_valid_until",
+            "c"."normalized_floor_sell_id",
+            "c"."normalized_floor_sell_value",
+            "c"."normalized_floor_sell_maker",
+            least(2147483647::NUMERIC, date_part('epoch', lower("c"."normalized_floor_sell_valid_between")))::INT AS "normalized_floor_sell_valid_from",
+            least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper("c"."normalized_floor_sell_valid_between")), 'Infinity'),0))::INT AS "normalized_floor_sell_valid_until",
+            "c"."non_flagged_floor_sell_id",
+            "c"."non_flagged_floor_sell_value",
+            "c"."non_flagged_floor_sell_maker",
+            least(2147483647::NUMERIC, date_part('epoch', lower("c"."non_flagged_floor_sell_valid_between")))::INT AS "non_flagged_floor_sell_valid_from",
+            least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper("c"."non_flagged_floor_sell_valid_between")), 'Infinity'),0))::INT AS "non_flagged_floor_sell_valid_until",
             "c"."top_buy_id",
             "c"."top_buy_value",
             "c"."top_buy_maker",
@@ -134,6 +149,39 @@ if (config.doBackgroundWork && config.doWebsocketServerWork && config.kafkaBroke
                     : null,
                 },
                 ownerCount: Number(r.owner_count),
+                floorAsk: {
+                  id: r.floor_sell_id,
+                  price: r.floor_sell_id ? formatEth(r.floor_sell_value) : null,
+                  maker: r.floor_sell_id ? fromBuffer(r.floor_sell_maker) : null,
+                  validFrom: r.floor_sell_valid_from,
+                  validUntil: r.floor_sell_id ? r.floor_sell_valid_until : null,
+                },
+                floorAskNormalized: {
+                  id: r.normalized_floor_sell_id,
+                  price: r.normalized_floor_sell_id
+                    ? formatEth(r.normalized_floor_sell_value)
+                    : null,
+                  maker: r.normalized_floor_sell_id
+                    ? fromBuffer(r.normalized_floor_sell_maker)
+                    : null,
+                  validFrom: r.normalized_floor_sell_valid_from,
+                  validUntil: r.normalized_floor_sell_id
+                    ? r.normalized_floor_sell_valid_until
+                    : null,
+                },
+                floorAskNonFlagged: {
+                  id: r.non_flagged_floor_sell_id,
+                  price: r.non_flagged_floor_sell_id
+                    ? formatEth(r.non_flagged_floor_sell_value)
+                    : null,
+                  maker: r.non_flagged_floor_sell_id
+                    ? fromBuffer(r.non_flagged_floor_sell_maker)
+                    : null,
+                  validFrom: r.non_flagged_floor_sell_valid_from,
+                  validUntil: r.non_flagged_floor_sell_id
+                    ? r.non_flagged_floor_sell_valid_until
+                    : null,
+                },
               }
         );
 

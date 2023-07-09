@@ -79,6 +79,7 @@ export class MetadataApi {
         contract,
         tokenIdRange: null,
         tokenSetId: `contract:${contract}`,
+        isCopyrightInfringement: undefined,
         paymentTokens: undefined,
       };
     } else {
@@ -113,6 +114,7 @@ export class MetadataApi {
         tokenIdRange: [string, string] | null;
         tokenSetId: string | null;
         isFallback?: boolean;
+        isCopyrightInfringement?: boolean;
         paymentTokens?: object | null;
       } = (data as any).collection;
 

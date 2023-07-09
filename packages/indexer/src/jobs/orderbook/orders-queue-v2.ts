@@ -23,7 +23,7 @@ export const queue = new Queue(QUEUE_NAME, {
   },
 });
 
-new QueueScheduler(QUEUE_NAME, { connection: orderbookRedis.duplicate() });
+new QueueScheduler(QUEUE_NAME, { connection: orderbookRedis.duplicate(), maxStalledCount: 20 });
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {

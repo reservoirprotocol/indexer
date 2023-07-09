@@ -1,15 +1,18 @@
 import * as Sdk from "@reservoir0x/sdk";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import _ from "lodash";
-import cron from "node-cron";
+// import cron from "node-cron";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { fromBuffer, now } from "@/common/utils";
 import { config } from "@/config/index";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import { getUSDAndNativePrices } from "@/utils/prices";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 const QUEUE_NAME = "dynamic-orders";
 
@@ -105,14 +108,14 @@ if (config.doBackgroundWork) {
         }
 
         const currentTime = now();
-        await orderUpdatesById.addToQueue(
+        await orderUpdatesByIdJob.addToQueue(
           dynamicOrders.map(
             ({ id }) =>
               ({
                 context: `dynamic-orders-update-${currentTime}-${id}`,
                 id,
                 trigger: { kind: "reprice" },
-              } as orderUpdatesById.OrderInfo)
+              } as OrderUpdatesByIdJobPayload)
           )
         );
 
@@ -130,18 +133,18 @@ if (config.doBackgroundWork) {
   });
 
   const addToQueue = async (continuation?: string) => queue.add(QUEUE_NAME, { continuation });
-  cron.schedule(
-    // Every 10 minutes
-    "*/10 * * * *",
-    async () =>
-      await redlock
-        .acquire(["dynamic-orders-update-lock"], (10 * 60 - 3) * 1000)
-        .then(async () => {
-          logger.info(QUEUE_NAME, "Triggering dynamic orders update");
-          await addToQueue();
-        })
-        .catch(() => {
-          // Skip any errors
-        })
-  );
+  // cron.schedule(
+  //   // Every 10 minutes
+  //   "*/10 * * * *",
+  //   async () =>
+  //     await redlock
+  //       .acquire(["dynamic-orders-update-lock"], (10 * 60 - 3) * 1000)
+  //       .then(async () => {
+  //         logger.info(QUEUE_NAME, "Triggering dynamic orders update");
+  //         await addToQueue();
+  //       })
+  //       .catch(() => {
+  //         // Skip any errors
+  //       })
+  // );
 }

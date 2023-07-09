@@ -3,8 +3,8 @@
 import * as Boom from "@hapi/boom";
 
 import { logger } from "@/common/logger";
-import * as orderRevalidations from "@/jobs/order-fixes/revalidations";
-import * as blurBidsRefresh from "@/jobs/order-updates/misc/blur-bids-refresh";
+import { orderRevalidationsJob } from "@/jobs/order-fixes/order-revalidations-job";
+import { blurBidsRefreshJob } from "@/jobs/order-updates/misc/blur-bids-refresh-job";
 
 // Callback for errors coming from the router logic
 export const fillErrorCallback = async (
@@ -19,13 +19,13 @@ export const fillErrorCallback = async (
   const isUnrecoverable = data.isUnrecoverable || error.response?.status === 404;
   if (isUnrecoverable) {
     // Invalidate the order
-    await orderRevalidations.addToQueue([{ id: data.orderId, status: "inactive" }]);
+    await orderRevalidationsJob.addToQueue([{ id: data.orderId, status: "inactive" }]);
   }
 
   // Custom logic based on the error kind
   if (kind === "order-fetcher-blur-offers") {
     if (data.additionalInfo.contract) {
-      await blurBidsRefresh.addToQueue(data.additionalInfo.contract, true);
+      await blurBidsRefreshJob.addToQueue(data.additionalInfo.contract, true);
     }
   }
 

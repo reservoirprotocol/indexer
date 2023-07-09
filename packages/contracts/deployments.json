@@ -94,7 +94,8 @@
   },
   "RaribleModule": {
     "v1": {
-      "1": "0x428a6be88fc0d25778e3c3f6e09fcfdc9a526fad"
+      "1": "0x428a6be88fc0d25778e3c3f6e09fcfdc9a526fad",
+      "5": "0x428a6be88fc0d25778e3c3f6e09fcfdc9a526fad"
     }
   },
   "ReservoirApprovalProxy": {

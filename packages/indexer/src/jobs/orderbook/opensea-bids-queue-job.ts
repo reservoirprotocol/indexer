@@ -12,7 +12,8 @@ export class OpenseaBidsQueueJob extends AbstractRabbitMqJobHandler {
   maxRetries = 10;
   concurrency = 40;
   lazyMode = true;
-  consumerTimeout = 30000;
+  consumerTimeout = 90000;
+
   protected async process(payload: OpenseaBidsQueueJobPayload) {
     const { kind, info, validateBidValue, ingestMethod, ingestDelay } = payload.orderInfo;
 
@@ -96,11 +97,6 @@ export class OpenseaBidsQueueJob extends AbstractRabbitMqJobHandler {
 
         case "flow": {
           result = await orders.flow.save([info]);
-          break;
-        }
-
-        case "blur": {
-          result = await orders.blur.saveFullListings([info], ingestMethod);
           break;
         }
 

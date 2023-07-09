@@ -1,14 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import amqplib, { ConfirmChannel, Connection } from "amqplib";
+import amqplib from "amqplib";
+import amqplibConnectionManager, {
+  AmqpConnectionManager,
+  ChannelWrapper,
+} from "amqp-connection-manager";
 import { config } from "@/config/index";
 import _ from "lodash";
-import { RabbitMqJobsConsumer } from "@/jobs/index";
 import { logger } from "@/common/logger";
 import { getNetworkName } from "@/config/network";
 import { acquireLock } from "@/common/redis";
 import axios from "axios";
-import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import pLimit from "p-limit";
 
 export type RabbitMQMessage = {
@@ -20,6 +22,7 @@ export type RabbitMQMessage = {
   completeTime?: number;
   retryCount?: number;
   persistent?: boolean;
+  prioritized?: boolean;
 };
 
 export type CreatePolicyPayload = {
@@ -47,38 +50,51 @@ export type DeletePolicyPayload = {
 export class RabbitMq {
   public static delayedExchangeName = `${getNetworkName()}.delayed`;
 
-  private static rabbitMqPublisherConnection: Connection;
+  private static rabbitMqPublisherConnection: AmqpConnectionManager;
 
   private static maxPublisherChannelsCount = 10;
-  private static rabbitMqPublisherChannels: ConfirmChannel[] = [];
+  private static rabbitMqPublisherChannels: ChannelWrapper[] = [];
 
   public static async connect() {
-    RabbitMq.rabbitMqPublisherConnection = await amqplib.connect(config.rabbitMqUrl);
+    RabbitMq.rabbitMqPublisherConnection = await amqplibConnectionManager.connect(
+      config.rabbitMqUrl
+    );
 
-    for (let i = 0; i < RabbitMq.maxPublisherChannelsCount; ++i) {
-      const channel = await this.rabbitMqPublisherConnection.createConfirmChannel();
-      RabbitMq.rabbitMqPublisherChannels.push(channel);
+    for (let index = 0; index < RabbitMq.maxPublisherChannelsCount; ++index) {
+      const channel = await this.rabbitMqPublisherConnection.createChannel();
+      RabbitMq.rabbitMqPublisherChannels[index] = channel;
 
       channel.once("error", (error) => {
-        logger.error("rabbit-error", `Publisher channel error ${error}`);
+        logger.error("rabbit-channel", `Publisher channel error ${error}`);
+      });
+
+      channel.once("close", async () => {
+        logger.warn("rabbit-channel", `Rabbit publisher channel ${index} closed`);
       });
     }
 
     RabbitMq.rabbitMqPublisherConnection.once("error", (error) => {
-      logger.error("rabbit-error", `Publisher connection error ${error}`);
+      logger.error("rabbit-connection", `Publisher connection error ${error}`);
+    });
+
+    RabbitMq.rabbitMqPublisherConnection.once("close", (error) => {
+      logger.warn("rabbit-connection", `Publisher connection error ${error}`);
     });
   }
 
   public static async send(queueName: string, content: RabbitMQMessage, delay = 0, priority = 0) {
+    const lockTime = delay ? _.toInteger(delay / 1000) : 5 * 60;
+
     try {
       // For deduplication messages use redis lock, setting lock only if jobId is passed
-      const lockTime = delay ? Number(delay / 1000) : 5 * 60;
       if (content.jobId && !(await acquireLock(content.jobId, lockTime))) {
         return;
       }
 
       const channelIndex = _.random(0, RabbitMq.maxPublisherChannelsCount - 1);
+
       content.publishTime = content.publishTime ?? _.now();
+      content.prioritized = Boolean(priority);
 
       await new Promise<void>((resolve, reject) => {
         if (delay) {
@@ -124,9 +140,9 @@ export class RabbitMq {
         }
       });
     } catch (error) {
-      logger.debug(
-        `rabbitmq-publish-${queueName}`,
-        `failed to publish ${error} content=${JSON.stringify(content)}`
+      logger.error(
+        `rabbit-publish-error`,
+        `failed to publish to ${queueName} error ${error} content=${JSON.stringify(content)}`
       );
     }
   }
@@ -185,19 +201,21 @@ export class RabbitMq {
   }
 
   public static async assertQueuesAndExchanges() {
+    const abstract = await import("@/jobs/abstract-rabbit-mq-job-handler");
+    const jobsIndex = await import("@/jobs/index");
+
+    const connection = await amqplib.connect(config.rabbitMqUrl);
+    const channel = await connection.createChannel();
+
     // Assert the exchange for delayed messages
-    await this.rabbitMqPublisherChannels[0].assertExchange(
-      RabbitMq.delayedExchangeName,
-      "x-delayed-message",
-      {
-        durable: true,
-        autoDelete: false,
-        arguments: { "x-delayed-type": "direct" },
-      }
-    );
+    await channel.assertExchange(RabbitMq.delayedExchangeName, "x-delayed-message", {
+      durable: true,
+      autoDelete: false,
+      arguments: { "x-delayed-type": "direct" },
+    });
 
     // Assert the consumer queues
-    const consumerQueues = RabbitMqJobsConsumer.getQueues();
+    const consumerQueues = jobsIndex.RabbitMqJobsConsumer.getQueues();
     for (const queue of consumerQueues) {
       const options = {
         maxPriority: queue.getQueueType() === "classic" ? 1 : undefined,
@@ -208,29 +226,28 @@ export class RabbitMq {
       };
 
       // Create working queue
-      await this.rabbitMqPublisherChannels[0].assertQueue(queue.getQueue(), options);
+      await channel.assertQueue(queue.getQueue(), options);
 
       // Create retry queue
-      await this.rabbitMqPublisherChannels[0].assertQueue(queue.getRetryQueue(), options);
+      await channel.assertQueue(queue.getRetryQueue(), options);
 
       // Bind queues to the delayed exchange
-      await this.rabbitMqPublisherChannels[0].bindQueue(
-        queue.getQueue(),
-        RabbitMq.delayedExchangeName,
-        queue.getQueue()
-      );
+      await channel.bindQueue(queue.getQueue(), RabbitMq.delayedExchangeName, queue.getQueue());
 
-      await this.rabbitMqPublisherChannels[0].bindQueue(
+      await channel.bindQueue(
         queue.getRetryQueue(),
         RabbitMq.delayedExchangeName,
         queue.getRetryQueue()
       );
 
       // Create dead letter queue for all jobs the failed more than the max retries
-      await this.rabbitMqPublisherChannels[0].assertQueue(queue.getDeadLetterQueue());
+      await channel.assertQueue(queue.getDeadLetterQueue());
 
       // If the dead letter queue have custom max length
-      if (queue.getMaxDeadLetterQueue() !== AbstractRabbitMqJobHandler.defaultMaxDeadLetterQueue) {
+      if (
+        queue.getMaxDeadLetterQueue() !==
+        abstract.AbstractRabbitMqJobHandler.defaultMaxDeadLetterQueue
+      ) {
         await this.createOrUpdatePolicy({
           name: `${queue.getDeadLetterQueue()}-policy`,
           vhost: "/",
@@ -275,8 +292,11 @@ export class RabbitMq {
       pattern: `^${getNetworkName()}.+-dead-letter$`,
       applyTo: "queues",
       definition: {
-        "max-length": AbstractRabbitMqJobHandler.defaultMaxDeadLetterQueue,
+        "max-length": abstract.AbstractRabbitMqJobHandler.defaultMaxDeadLetterQueue,
       },
     });
+
+    await channel.close();
+    await connection.close();
   }
 }

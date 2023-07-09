@@ -25,7 +25,7 @@ export const postCancelSignatureV1Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      signature: Joi.string().required().description("Cancellation signature"),
+      signature: Joi.string().description("Cancellation signature"),
       auth: Joi.string().description("Optional auth token used instead of the signature"),
     }),
     payload: Joi.object({
