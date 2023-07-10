@@ -1,6 +1,6 @@
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
-import { GenericOrderInfo } from "@/jobs/orderbook/orders-queue";
+import { GenericOrderInfo } from "@/jobs/orderbook/utils";
 import * as orders from "@/orderbook/orders";
 
 export type OpenseaBidsQueueJobPayload = {

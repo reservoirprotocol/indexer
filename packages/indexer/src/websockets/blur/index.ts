@@ -3,9 +3,9 @@ import { io } from "socket.io-client";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-import * as orderbook from "@/jobs/orderbook/orders-queue";
 import { blurBidsBufferJob } from "@/jobs/order-updates/misc/blur-bids-buffer-job";
 import { blurListingsRefreshJob } from "@/jobs/order-updates/misc/blur-listings-refresh-job";
+import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
 
 const COMPONENT = "blur-websocket";
 
@@ -73,7 +73,7 @@ if (config.doWebsocketWork && config.blurWsUrl && config.blurWsApiKey) {
       logger.info(COMPONENT, JSON.stringify({ message, parsedMessage, orderInfos }));
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await orderbook.addToQueue(orderInfos as any);
+      await orderbookOrdersJob.addToQueue(orderInfos as any);
 
       await blurListingsRefreshJob.addToQueue(collection);
     } catch (error) {

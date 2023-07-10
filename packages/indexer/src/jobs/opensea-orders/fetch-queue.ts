@@ -12,10 +12,10 @@ import axios from "axios";
 import { getSupportedChainName } from "@/websockets/opensea/utils";
 import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
 import { parseProtocolData } from "@/websockets/opensea";
-import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import { Tokens } from "@/models/tokens";
 import { Collections } from "@/models/collections";
 import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
+import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
 
 const QUEUE_NAME = "opensea-orders-fetch-queue";
 
@@ -156,7 +156,7 @@ if (config.doBackgroundWork) {
                 validateBidValue: true,
               } as any;
 
-              await orderbookOrders.addToQueue([orderInfo]);
+              await orderbookOrdersJob.addToQueue([orderInfo]);
             }
           }
         }

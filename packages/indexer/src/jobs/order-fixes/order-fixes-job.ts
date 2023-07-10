@@ -11,7 +11,6 @@ import { redis } from "@/common/redis";
 import { now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import * as orderbook from "@/jobs/orderbook/orders-queue";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as looksRareV2Check from "@/orderbook/orders/looks-rare-v2/check";
 import * as x2y2Check from "@/orderbook/orders/x2y2/check";
@@ -23,6 +22,7 @@ import {
   orderUpdatesByIdJob,
   OrderUpdatesByIdJobPayload,
 } from "@/jobs/order-updates/order-updates-by-id-job";
+import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
 
 export type OrderFixesJobPayload =
   | {
@@ -270,7 +270,7 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
                   const cacheKey = `order-fixes:nftx:${order.params.pool}`;
                   if (!redis.get(cacheKey)) {
                     await redis.set(cacheKey, "locked", "EX", 3600);
-                    await orderbook.addToQueue([
+                    await orderbookOrdersJob.addToQueue([
                       {
                         kind: "nftx",
                         info: {
@@ -305,7 +305,7 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
                   const cacheKey = `order-fixes:sudoswap:${order.params.pair}`;
                   if (!redis.get(cacheKey)) {
                     await redis.set(cacheKey, "locked", "EX", 3600);
-                    await orderbook.addToQueue([
+                    await orderbookOrdersJob.addToQueue([
                       {
                         kind: "sudoswap",
                         info: {
@@ -348,7 +348,7 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
                   const cacheKey = `order-fixes:sudoswap-v2:${order.params.pair}`;
                   if (!redis.get(cacheKey)) {
                     await redis.set(cacheKey, "locked", "EX", 3600);
-                    await orderbook.addToQueue([
+                    await orderbookOrdersJob.addToQueue([
                       {
                         kind: "sudoswap-v2",
                         info: {

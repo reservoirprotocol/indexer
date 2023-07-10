@@ -6,10 +6,8 @@ import "@/jobs/arweave-relay";
 import "@/jobs/backfill";
 import "@/jobs/cache-check";
 import "@/jobs/collections-refresh";
-import "@/jobs/collection-updates";
 import "@/jobs/daily-volumes";
 import "@/jobs/data-archive";
-import "@/jobs/data-export";
 import "@/jobs/events-sync";
 import "@/jobs/oracle";
 import "@/jobs/order-updates";
@@ -173,6 +171,8 @@ import { blurBidsRefreshJob } from "@/jobs/order-updates/misc/blur-bids-refresh-
 import { blurListingsRefreshJob } from "@/jobs/order-updates/misc/blur-listings-refresh-job";
 import { orderUpdatesByMakerJob } from "@/jobs/order-updates/order-updates-by-maker-job";
 import { openseaOffChainCancellationsJob } from "@/jobs/order-updates/misc/opensea-off-chain-cancellations-job";
+import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
+import { openseaListingsJob } from "@/jobs/orderbook/opensea-listings-job";
 
 export const gracefulShutdownJobWorkers = [tokenUpdatesFloorAsk.worker];
 
@@ -330,6 +330,8 @@ export class RabbitMqJobsConsumer {
       deleteArchivedExpiredBidActivitiesJob,
       orderUpdatesByMakerJob,
       openseaOffChainCancellationsJob,
+      orderbookOrdersJob,
+      openseaListingsJob,
     ];
   }
 

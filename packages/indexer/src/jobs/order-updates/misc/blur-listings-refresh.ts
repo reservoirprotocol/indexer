@@ -6,8 +6,8 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as orderbook from "@/jobs/orderbook/orders-queue";
 import { updateBlurRoyalties } from "@/utils/blur";
+import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
 
 const QUEUE_NAME = "blur-listings-refresh";
 
@@ -53,7 +53,7 @@ if (config.doBackgroundWork) {
         logger.info(QUEUE_NAME, JSON.stringify(blurListings));
 
         // And add them to the queue (duplicates will simply be ignored)
-        await orderbook.addToQueue(
+        await orderbookOrdersJob.addToQueue(
           blurListings.map((l) => ({
             kind: "blur-listing",
             info: {
@@ -96,7 +96,7 @@ if (config.doBackgroundWork) {
         for (const l of ownListings) {
           const id = `${l.raw_data.collection}-${l.raw_data.tokenId}-${l.raw_data.price}-${l.raw_data.createdAt}`;
           if (!listingsMap[id]) {
-            await orderbook.addToQueue([
+            await orderbookOrdersJob.addToQueue([
               {
                 kind: "blur-listing",
                 info: {

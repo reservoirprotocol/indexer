@@ -11,6 +11,7 @@ export class CurrenciesFetchJob extends AbstractRabbitMqJobHandler {
   queueName = "currencies-fetch";
   maxRetries = 10;
   concurrency = 10;
+  consumerTimeout = 60000;
   backoff = {
     type: "exponential",
     delay: 10000,

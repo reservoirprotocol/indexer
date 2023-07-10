@@ -6,7 +6,8 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
+import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
+import { GenericOrderInfo } from "@/jobs/orderbook/utils";
 
 const version = "v1";
 
@@ -65,7 +66,7 @@ export const postOrdersV1Options: RouteOptions = {
 
       logger.info(`post-orders-${version}-handler`, `Got ${orders.length} orders`);
 
-      const orderInfos: orderbookOrders.GenericOrderInfo[] = [];
+      const orderInfos: GenericOrderInfo[] = [];
       for (const { kind, data, originatedAt } of orders) {
         orderInfos.push({
           kind,
@@ -80,7 +81,7 @@ export const postOrdersV1Options: RouteOptions = {
         });
       }
 
-      await orderbookOrders.addToQueue(orderInfos);
+      await orderbookOrdersJob.addToQueue(orderInfos);
 
       return { message: "Request accepted" };
     } catch (error) {

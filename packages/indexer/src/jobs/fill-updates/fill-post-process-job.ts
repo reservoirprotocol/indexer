@@ -16,6 +16,7 @@ export class FillPostProcessJob extends AbstractRabbitMqJobHandler {
   maxRetries = 10;
   concurrency = 10;
   lazyMode = true;
+  consumerTimeout = 60000;
 
   protected async process(payload: es.fills.Event[]) {
     const allFillEvents = payload;
