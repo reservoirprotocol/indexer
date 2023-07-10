@@ -1490,6 +1490,160 @@ export const updateActivitiesCollectionMetadata = async (
   return keepGoing;
 };
 
+export const updateActivitiesCollectionMetadataV2 = async (
+  collectionId: string,
+  collectionData: { name: string | null; image: string | null }
+): Promise<boolean> => {
+  let keepGoing = false;
+
+  const should: any[] = [
+    {
+      bool: collectionData.name
+        ? {
+            must_not: [
+              {
+                term: {
+                  "collection.name": collectionData.name,
+                },
+              },
+            ],
+          }
+        : {
+            must: [
+              {
+                exists: {
+                  field: "collection.name",
+                },
+              },
+            ],
+          },
+    },
+    {
+      bool: collectionData.image
+        ? {
+            must_not: [
+              {
+                term: {
+                  "collection.image": collectionData.image,
+                },
+              },
+            ],
+          }
+        : {
+            must: [
+              {
+                exists: {
+                  field: "collection.image",
+                },
+              },
+            ],
+          },
+    },
+  ];
+
+  const query = {
+    bool: {
+      must: [
+        {
+          term: {
+            "collection.id": collectionId.toLowerCase(),
+          },
+        },
+      ],
+      filter: {
+        bool: {
+          should,
+        },
+      },
+    },
+  };
+
+  try {
+    const pendingUpdateActivities = await _search({
+      // This is needed due to issue with elasticsearch DSL.
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      query,
+      size: 1000,
+    });
+
+    if (pendingUpdateActivities.length) {
+      const bulkParams = {
+        body: pendingUpdateActivities.flatMap((activity) => [
+          { update: { _index: INDEX_NAME, _id: activity.id, retry_on_conflict: 3 } },
+          {
+            script: {
+              source:
+                "if (params.collection_name == null) { ctx._source.collection.remove('name') } else { ctx._source.collection.name = params.collection_name } if (params.collection_image == null) { ctx._source.collection.remove('image') } else { ctx._source.collection.image = params.collection_image }",
+              params: {
+                collection_name: collectionData.name ?? null,
+                collection_image: collectionData.image ?? null,
+              },
+            },
+          },
+        ]),
+      };
+
+      const response = await elasticsearch.bulk(bulkParams);
+
+      if (response?.errors) {
+        logger.error(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "updateActivitiesCollectionMetadataV2",
+            message: `Errors in response`,
+            data: {
+              collectionId,
+              collectionData,
+            },
+            bulkParams,
+            response,
+            keepGoing,
+          })
+        );
+
+        keepGoing = true;
+      } else {
+        keepGoing = pendingUpdateActivities.length === 1000;
+
+        logger.info(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "updateActivitiesCollectionMetadataV2",
+            message: `Has more activities to update`,
+            data: {
+              collectionId,
+              collectionData,
+            },
+            bulkParams,
+            response,
+            keepGoing,
+          })
+        );
+      }
+    }
+  } catch (error) {
+    logger.error(
+      "elasticsearch-activities",
+      JSON.stringify({
+        topic: "updateActivitiesCollectionMetadataV2",
+        message: `Unexpected error`,
+        data: {
+          collectionId,
+          collectionData,
+        },
+        query: JSON.stringify(query),
+        error,
+        keepGoing,
+      })
+    );
+
+    throw error;
+  }
+
+  return keepGoing;
+};
+
 export const deleteActivitiesByBlockHash = async (blockHash: string): Promise<void> => {
   const query = {
     bool: {
