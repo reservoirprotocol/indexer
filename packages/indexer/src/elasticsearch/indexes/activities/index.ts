@@ -1264,19 +1264,6 @@ export const updateActivitiesTokenMetadataV2 = async (
       size: 1000,
     });
 
-    logger.info(
-      "elasticsearch-activities",
-      JSON.stringify({
-        topic: "updateActivitiesTokenMetadataV2",
-        message: `Found ${pendingUpdateActivities.length} to be updated.`,
-        data: {
-          contract,
-          tokenId,
-          tokenData,
-        },
-      })
-    );
-
     if (pendingUpdateActivities.length) {
       const bulkParams = {
         body: pendingUpdateActivities.flatMap((activity) => [
@@ -1302,7 +1289,7 @@ export const updateActivitiesTokenMetadataV2 = async (
           "elasticsearch-activities",
           JSON.stringify({
             topic: "updateActivitiesTokenMetadataV2",
-            message: `Errors in response.`,
+            message: `Errors in response`,
             data: {
               contract,
               tokenId,
@@ -1320,7 +1307,7 @@ export const updateActivitiesTokenMetadataV2 = async (
           "elasticsearch-activities",
           JSON.stringify({
             topic: "updateActivitiesTokenMetadataV2",
-            message: `Has more.`,
+            message: `Success.`,
             data: {
               contract,
               tokenId,
@@ -1338,7 +1325,7 @@ export const updateActivitiesTokenMetadataV2 = async (
       "elasticsearch-activities",
       JSON.stringify({
         topic: "updateActivitiesTokenMetadataV2",
-        message: `Error.`,
+        message: `Unexpected error`,
         data: {
           contract,
           tokenId,

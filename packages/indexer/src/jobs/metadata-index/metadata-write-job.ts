@@ -155,7 +155,7 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
             image: imageUrl || null,
             media: mediaUrl || null,
           },
-          force: isCopyrightInfringement,
+          force: true,
         });
       }
 
