@@ -1264,8 +1264,21 @@ export const updateActivitiesTokenMetadataV2 = async (
       size: 1000,
     });
 
+    logger.info(
+      "elasticsearch-activities",
+      JSON.stringify({
+        topic: "updateActivitiesTokenMetadataV2",
+        message: `Found ${pendingUpdateActivities.length} to be updated.`,
+        data: {
+          contract,
+          tokenId,
+          tokenData,
+        },
+      })
+    );
+
     if (pendingUpdateActivities.length) {
-      const response = await elasticsearch.bulk({
+      const bulkParams = {
         body: pendingUpdateActivities.flatMap((activity) => [
           { update: { _index: INDEX_NAME, _id: activity.id, retry_on_conflict: 3 } },
           {
@@ -1280,19 +1293,22 @@ export const updateActivitiesTokenMetadataV2 = async (
             },
           },
         ]),
-      });
+      };
+
+      const response = await elasticsearch.bulk(bulkParams);
 
       if (response?.errors) {
         logger.error(
           "elasticsearch-activities",
           JSON.stringify({
             topic: "updateActivitiesTokenMetadataV2",
+            message: `Errors in response.`,
             data: {
               contract,
               tokenId,
               tokenData,
             },
-            query: JSON.stringify(query),
+            bulkParams,
             response,
             keepGoing,
           })
@@ -1304,12 +1320,13 @@ export const updateActivitiesTokenMetadataV2 = async (
           "elasticsearch-activities",
           JSON.stringify({
             topic: "updateActivitiesTokenMetadataV2",
+            message: `Has more.`,
             data: {
               contract,
               tokenId,
               tokenData,
             },
-            query: JSON.stringify(query),
+            bulkParams,
             response,
             keepGoing,
           })
@@ -1321,6 +1338,7 @@ export const updateActivitiesTokenMetadataV2 = async (
       "elasticsearch-activities",
       JSON.stringify({
         topic: "updateActivitiesTokenMetadataV2",
+        message: `Error.`,
         data: {
           contract,
           tokenId,
