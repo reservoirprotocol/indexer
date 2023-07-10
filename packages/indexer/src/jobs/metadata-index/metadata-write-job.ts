@@ -134,28 +134,14 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
         result.old_metadata.image != imageUrl ||
         result.old_metadata.media != mediaUrl
       ) {
-        if (isCopyrightInfringement) {
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              topic: "debugCopyrightInfringement",
-              message: "Token metadata updated",
-              resultOldMetadata: result.old_metadata,
-              payload,
-            })
-          );
-        }
-
         await refreshActivitiesTokenMetadataJob.addToQueue({
           contract,
           tokenId,
-          collectionId: collection,
           tokenUpdateData: {
             name: name || null,
             image: imageUrl || null,
             media: mediaUrl || null,
           },
-          force: true,
         });
       }
 

@@ -1300,6 +1300,8 @@ export const updateActivitiesTokenMetadataV2 = async (
             keepGoing,
           })
         );
+
+        keepGoing = true;
       } else {
         keepGoing = pendingUpdateActivities.length === 1000;
 
