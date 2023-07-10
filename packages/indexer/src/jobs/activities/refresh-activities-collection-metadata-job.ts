@@ -32,7 +32,7 @@ export class RefreshActivitiesCollectionMetadataJob extends AbstractRabbitMqJobH
     }
 
     if (!_.isEmpty(collectionUpdateData)) {
-      const keepGoing = await ActivitiesIndex.updateActivitiesCollectionMetadataV2(
+      const keepGoing = await ActivitiesIndex.updateActivitiesCollectionMetadata(
         collectionId,
         collectionUpdateData
       );

@@ -24,7 +24,7 @@ export class RefreshActivitiesTokenMetadataJob extends AbstractRabbitMqJobHandle
       payload.tokenUpdateData ?? (await Tokens.getByContractAndTokenId(contract, tokenId));
 
     if (!_.isEmpty(tokenUpdateData)) {
-      const keepGoing = await ActivitiesIndex.updateActivitiesTokenMetadataV2(
+      const keepGoing = await ActivitiesIndex.updateActivitiesTokenMetadata(
         contract,
         tokenId,
         tokenUpdateData
