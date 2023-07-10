@@ -1,99 +1,6 @@
-import { Job, Queue, QueueScheduler, Worker } from "bullmq";
-import _ from "lodash";
-import cron from "node-cron";
-
-import { ridb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
-import { now } from "@/common/utils";
-import { config } from "@/config/index";
 import * as orders from "@/orderbook/orders";
-import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders";
-import { addToQueue as addToQueueV2 } from "@/jobs/orderbook/orders-queue-v2";
-
-const QUEUE_NAME = "orderbook-orders-queue";
-
-export const queue = new Queue(QUEUE_NAME, {
-  connection: redis.duplicate(),
-  defaultJobOptions: {
-    attempts: 5,
-    backoff: {
-      type: "exponential",
-      delay: 10000,
-    },
-    removeOnComplete: 1000,
-    removeOnFail: 10000,
-    timeout: 30000,
-  },
-});
-
-new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
-
-// BACKGROUND WORKER ONLY
-if (config.doBackgroundWork) {
-  const worker = new Worker(QUEUE_NAME, async (job: Job) => jobProcessor(job), {
-    connection: redis.duplicate(),
-    concurrency: 70,
-  });
-
-  worker.on("error", (error) => {
-    logger.error(QUEUE_NAME, `Worker errored: ${error}`);
-  });
-
-  // Checks
-
-  // Orders queue size
-  cron.schedule(
-    "*/1 * * * *",
-    async () =>
-      await redlock
-        .acquire(["orders-queue-size-check-lock"], (60 - 5) * 1000)
-        .then(async () => {
-          const size = await queue.count();
-          if (size >= 40000) {
-            logger.error("orders-queue-size-check", `Orders queue buffering up: size=${size}`);
-          }
-        })
-        .catch(() => {
-          // Skip on any errors
-        })
-  );
-
-  // Pending expired orders
-  cron.schedule(
-    "0 */1 * * *",
-    async () =>
-      await redlock
-        .acquire(["pending-expired-orders-check-lock"], (3600 - 5) * 1000)
-        .then(async () => {
-          const result = await ridb.oneOrNone(
-            `
-              SELECT
-                count(*) AS expired_count,
-                extract(epoch from min(upper(orders.valid_between))) AS min_timestamp
-              FROM orders
-              WHERE upper(orders.valid_between) < now()
-                AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
-            `
-          );
-
-          const currentTime = now();
-          if (currentTime - Number(result.min_timestamp) >= 60) {
-            await backfillExpiredOrders.addToQueue(
-              _.range(0, currentTime - result.min_timestamp + 1).map((s) => currentTime - s)
-            );
-          }
-
-          logger.info(
-            "pending-expired-orders-check",
-            JSON.stringify({ pendingExpiredOrdersCount: result.expired_count })
-          );
-        })
-        .catch(() => {
-          // Skip on any errors
-        })
-  );
-}
+import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
 export type GenericOrderInfo =
   | {
@@ -232,8 +139,8 @@ export type GenericOrderInfo =
       ingestDelay?: number;
     };
 
-export const jobProcessor = async (job: Job) => {
-  const { kind, info, validateBidValue, ingestMethod, ingestDelay } = job.data as GenericOrderInfo;
+export const processOrder = async (job: AbstractRabbitMqJobHandler, payload: GenericOrderInfo) => {
+  const { kind, info, validateBidValue, ingestMethod, ingestDelay } = payload;
 
   let result: { status: string; delay?: number }[] = [];
   try {
@@ -334,16 +241,9 @@ export const jobProcessor = async (job: Job) => {
       }
     }
   } catch (error) {
-    logger.error(job.queueName, `Failed to process order ${JSON.stringify(job.data)}: ${error}`);
+    logger.error(job.queueName, `Failed to process order ${JSON.stringify(payload)}: ${error}`);
     throw error;
   }
 
   logger.debug(job.queueName, `[${kind}] Order save result: ${JSON.stringify(result)}`);
 };
-
-export const addToQueue = async (
-  orderInfos: GenericOrderInfo[],
-  prioritized = false,
-  delay = 0,
-  jobId?: string
-) => addToQueueV2(orderInfos, prioritized, delay, jobId);

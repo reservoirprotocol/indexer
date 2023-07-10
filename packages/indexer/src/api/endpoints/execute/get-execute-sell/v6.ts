@@ -51,9 +51,7 @@ export const getExecuteSellV6Options: RouteOptions = {
             "seaport",
             "seaport-v1.4",
             "seaport-v1.5",
-            "x2y2",
-            "universe",
-            "flow"
+            "x2y2"
           )
           .required(),
         data: Joi.object().required(),
@@ -659,40 +657,7 @@ export const getExecuteSellV6Options: RouteOptions = {
         }
       }
 
-      // Flow / Rarible bids are to be filled directly (because we have no modules for them yet)
-      if (bidDetails.kind === "flow") {
-        const isApproved = await commonHelpers.getNftApproval(
-          bidDetails.contract,
-          payload.taker,
-          Sdk.Flow.Addresses.Exchange[config.chainId]
-        );
-
-        if (!isApproved) {
-          const approveTx =
-            bidDetails.contractKind === "erc721"
-              ? new Sdk.Common.Helpers.Erc721(baseProvider, bidDetails.contract).approveTransaction(
-                  payload.taker,
-                  Sdk.Flow.Addresses.Exchange[config.chainId]
-                )
-              : new Sdk.Common.Helpers.Erc1155(
-                  baseProvider,
-                  bidDetails.contract
-                ).approveTransaction(payload.taker, Sdk.Flow.Addresses.Exchange[config.chainId]);
-
-          steps[1].items.push({
-            status: "incomplete",
-            data: {
-              ...approveTx,
-              maxFeePerGas: payload.maxFeePerGas
-                ? bn(payload.maxFeePerGas).toHexString()
-                : undefined,
-              maxPriorityFeePerGas: payload.maxPriorityFeePerGas
-                ? bn(payload.maxPriorityFeePerGas).toHexString()
-                : undefined,
-            },
-          });
-        }
-      }
+      // Rarible bids are to be filled directly (because we have no modules for them yet)
       if (bidDetails.kind === "rarible") {
         const isApproved = await commonHelpers.getNftApproval(
           bidDetails.contract,

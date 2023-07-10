@@ -74,10 +74,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   "seaport-v1.4",
                   "seaport-v1.5",
                   "x2y2",
-                  "universe",
                   "rarible",
                   "sudoswap",
-                  "flow",
                   "nftx",
                   "alienswap"
                 )
@@ -709,9 +707,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 );
                 if (collectionData) {
                   const amountMintable = await mints.getAmountMintableByWallet(mint, payload.taker);
-                  const quantityAvailable = amountMintable
-                    ? Math.min(amountMintable.toNumber(), item.quantity)
-                    : item.quantity;
+                  const quantityAvailable = bn(
+                    amountMintable
+                      ? amountMintable.lt(item.quantity)
+                        ? amountMintable
+                        : item.quantity
+                      : item.quantity
+                  ).toNumber();
 
                   const { txData, price } = await generateCollectionMintTxData(
                     mint,

@@ -6,10 +6,8 @@ import "@/jobs/arweave-relay";
 import "@/jobs/backfill";
 import "@/jobs/cache-check";
 import "@/jobs/collections-refresh";
-import "@/jobs/collection-updates";
 import "@/jobs/daily-volumes";
 import "@/jobs/data-archive";
-import "@/jobs/data-export";
 import "@/jobs/events-sync";
 import "@/jobs/oracle";
 import "@/jobs/order-updates";
@@ -52,7 +50,6 @@ import * as backfillNftTransferEventsUpdatedAt from "@/jobs/backfill/backfill-nf
 import * as eventsSyncRealtime from "@/jobs/events-sync/realtime-queue";
 import * as eventsSyncRealtimeV2 from "@/jobs/events-sync/realtime-queue-v2";
 
-import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as openSeaOffChainCancellations from "@/jobs/order-updates/misc/opensea-off-chain-cancellations";
 import * as saveBidEvents from "@/jobs/order-updates/save-bid-events";
 
@@ -173,8 +170,11 @@ import { blurBidsBufferJob } from "@/jobs/order-updates/misc/blur-bids-buffer-jo
 import { blurBidsRefreshJob } from "@/jobs/order-updates/misc/blur-bids-refresh-job";
 import { blurListingsRefreshJob } from "@/jobs/order-updates/misc/blur-listings-refresh-job";
 import { orderUpdatesByMakerJob } from "@/jobs/order-updates/order-updates-by-maker-job";
+import { openseaOffChainCancellationsJob } from "@/jobs/order-updates/misc/opensea-off-chain-cancellations-job";
+import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
+import { openseaListingsJob } from "@/jobs/orderbook/opensea-listings-job";
 
-export const gracefulShutdownJobWorkers = [orderUpdatesByMaker.worker, tokenUpdatesFloorAsk.worker];
+export const gracefulShutdownJobWorkers = [tokenUpdatesFloorAsk.worker];
 
 export const allJobQueues = [
   backfillBlockTimestamps.queue,
@@ -202,7 +202,6 @@ export const allJobQueues = [
   eventsSyncRealtime.queue,
   eventsSyncRealtimeV2.queue,
 
-  orderUpdatesByMaker.queue,
   openSeaOffChainCancellations.queue,
   saveBidEvents.queue,
 
@@ -330,6 +329,9 @@ export class RabbitMqJobsConsumer {
       blurListingsRefreshJob,
       deleteArchivedExpiredBidActivitiesJob,
       orderUpdatesByMakerJob,
+      openseaOffChainCancellationsJob,
+      orderbookOrdersJob,
+      openseaListingsJob,
     ];
   }
 
@@ -427,17 +429,25 @@ export class RabbitMqJobsConsumer {
       }
     );
 
-    channel.once("error", (error) => {
+    channel.once("error", async (error) => {
       logger.error("rabbit-channel", `Consumer channel error ${error}`);
 
       const jobs = RabbitMqJobsConsumer.channelsToJobs.get(channel);
       if (jobs) {
-        logger.error(
-          "rabbit-jobs",
-          `Jobs stopped consume ${JSON.stringify(
+        // Resubscribe the jobs
+        for (const job of jobs) {
+          await this.subscribe(job);
+        }
+
+        logger.info(
+          "rabbit-channel",
+          `Resubscribed to ${JSON.stringify(
             jobs.map((job: AbstractRabbitMqJobHandler) => job.queueName)
           )}`
         );
+
+        // Clear the channel that closed
+        RabbitMqJobsConsumer.channelsToJobs.delete(channel);
       }
     });
   }

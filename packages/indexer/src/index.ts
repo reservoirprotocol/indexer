@@ -10,6 +10,6 @@ if (process.env.LOCAL_TESTING) {
 } else {
   // First assert queues / exchanges and connect to rabbit, then import setup and start the server
   RabbitMq.connect()
-    .then(() => RabbitMq.assertQueuesAndExchanges())
+    // .then(() => RabbitMq.assertQueuesAndExchanges())
     .then(() => import("./setup"));
 }

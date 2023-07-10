@@ -157,10 +157,6 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
         data: kindToEvents.get("zora") ?? [],
       },
       {
-        kind: "universe",
-        data: kindToEvents.get("universe") ?? [],
-      },
-      {
         kind: "rarible",
         data: kindToEvents.has("rarible")
           ? [
@@ -193,16 +189,6 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
       {
         kind: "superrare",
         data: kindToEvents.get("superrare") ?? [],
-      },
-      {
-        kind: "flow",
-        data: kindToEvents.has("flow")
-          ? [
-              ...kindToEvents.get("flow")!,
-              // To properly validate bids, we need some additional events
-              ...events.filter((e) => e.subKind === "erc20-transfer"),
-            ]
-          : [],
       },
       {
         kind: "zeroex-v2",

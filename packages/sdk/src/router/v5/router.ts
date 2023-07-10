@@ -70,19 +70,6 @@ export class Router {
       }
     }
 
-    if (details.some(({ kind }) => kind === "universe")) {
-      if (details.length > 1) {
-        throw new Error("Universe sweeping is not supported");
-      } else {
-        const order = details[0].order as Sdk.Universe.Order;
-        const exchange = new Sdk.Universe.Exchange(this.chainId);
-        return exchange.fillOrderTx(taker, order, {
-          amount: Number(details[0].amount),
-          source: options?.source,
-        });
-      }
-    }
-
     if (details.some(({ kind }) => kind === "rarible")) {
       if (details.length > 1) {
         throw new Error("Rarible sweeping is not supported");
@@ -355,14 +342,6 @@ export class Router {
   ) {
     // Assume the bid details are consistent with the underlying order object
 
-    if (detail.kind === "universe") {
-      const order = detail.order as Sdk.Universe.Order;
-      const exchange = new Sdk.Universe.Exchange(this.chainId);
-      return exchange.fillOrderTx(taker, order, {
-        amount: Number(detail.extraArgs.amount),
-      });
-    }
-
     if (detail.kind === "rarible") {
       const order = detail.order as Sdk.Rarible.Order;
       const exchange = new Sdk.Rarible.Exchange(this.chainId);
@@ -528,17 +507,6 @@ export class Router {
         }),
         exchangeKind: ExchangeKind.SEAPORT,
         maker: order.params.offerer,
-      };
-    } else if (kind === "universe") {
-      order = order as Sdk.Universe.Order;
-
-      const exchange = new Sdk.Universe.Exchange(this.chainId);
-      return {
-        tx: await exchange.fillOrderTx(taker, order, {
-          amount: Number(amount) ?? 1,
-        }),
-        exchangeKind: ExchangeKind.UNIVERSE,
-        maker: order.params.maker,
       };
     } else if (kind === "element") {
       order = order as Sdk.Element.Order;

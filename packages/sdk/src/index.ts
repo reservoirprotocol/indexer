@@ -13,7 +13,6 @@ import * as CryptoPunks from "./cryptopunks";
 import * as CryptoVoxels from "./cryptovoxels";
 import * as Decentraland from "./decentraland";
 import * as Element from "./element";
-import * as Flow from "./flow";
 import * as Foundation from "./foundation";
 import * as LooksRare from "./looks-rare";
 import * as Manifold from "./manifold";
@@ -32,7 +31,6 @@ import * as Sudoswap from "./sudoswap";
 import * as SuperRare from "./superrare";
 import * as TofuNft from "./tofunft";
 import * as Treasure from "./treasure";
-import * as Universe from "./universe";
 import * as WyvernV2 from "./wyvern-v2";
 import * as WyvernV23 from "./wyvern-v2.3";
 import * as X2Y2 from "./x2y2";
@@ -86,7 +84,6 @@ export {
   CryptoVoxels,
   Decentraland,
   Element,
-  Flow,
   Foundation,
   LooksRare,
   Manifold,
@@ -105,7 +102,6 @@ export {
   SuperRare,
   TofuNft,
   Treasure,
-  Universe,
   WyvernV2,
   WyvernV23,
   X2Y2,

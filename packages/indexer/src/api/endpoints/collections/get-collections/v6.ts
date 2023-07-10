@@ -31,7 +31,7 @@ export const getCollectionsV6Options: RouteOptions = {
     expiresIn: 10000,
   },
   description: "Collections",
-  notes: "Use this API to explore a collection’s metadata and statistics (sales, volume, etc).",
+  notes: "Use this API to explore a collection's metadata and statistics (sales, volume, etc).",
   tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
@@ -257,7 +257,7 @@ export const getCollectionsV6Options: RouteOptions = {
               price: JoiPrice.required(),
               startTime: Joi.number().allow(null),
               endTime: Joi.number().allow(null),
-              maxMintsPerWallet: Joi.number().allow(null),
+              maxMintsPerWallet: Joi.number().unsafe().allow(null),
             })
           ),
         })

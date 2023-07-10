@@ -1,11 +1,11 @@
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import * as orderbook from "@/jobs/orderbook/orders-queue";
 import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
 import { config } from "@/config/index";
 import { updateBlurRoyalties } from "@/utils/blur";
+import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
 
 export type BlurBidsRefreshJobPayload = {
   collection: string;
@@ -29,7 +29,7 @@ export class BlurBidsRefreshJob extends AbstractRabbitMqJobHandler {
         .get(`${config.orderFetcherBaseUrl}/api/blur-collection-bids?collection=${collection}`)
         .then((response) => response.data.bids as Sdk.Blur.Types.BlurBidPricePoint[]);
 
-      await orderbook.addToQueue([
+      await orderbookOrdersJob.addToQueue([
         {
           kind: "blur-bid",
           info: {

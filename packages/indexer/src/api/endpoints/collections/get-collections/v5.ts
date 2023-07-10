@@ -265,7 +265,7 @@ export const getCollectionsV5Options: RouteOptions = {
               price: JoiPrice.required(),
               startTime: Joi.number().allow(null),
               endTime: Joi.number().allow(null),
-              maxMintsPerWallet: Joi.number().allow(null),
+              maxMintsPerWallet: Joi.number().unsafe().allow(null),
             })
           ),
         })

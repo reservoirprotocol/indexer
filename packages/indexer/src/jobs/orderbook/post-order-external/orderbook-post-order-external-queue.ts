@@ -12,8 +12,6 @@ import * as BlurApi from "@/jobs/orderbook/post-order-external/api/blur";
 import * as OpenSeaApi from "@/jobs/orderbook/post-order-external/api/opensea";
 import * as LooksrareApi from "@/jobs/orderbook/post-order-external/api/looksrare";
 import * as X2Y2Api from "@/jobs/orderbook/post-order-external/api/x2y2";
-import * as UniverseApi from "@/jobs/orderbook/post-order-external/api/universe";
-import * as FlowApi from "@/jobs/orderbook/post-order-external/api/flow";
 
 import {
   InvalidRequestError,
@@ -59,7 +57,7 @@ export const jobProcessor = async (job: Job) => {
   const { crossPostingOrderId, orderId, orderData, orderSchema, orderbook } =
     job.data as PostOrderExternalParams;
 
-  if (!["blur", "opensea", "looks-rare", "x2y2", "universe", "flow"].includes(orderbook)) {
+  if (!["blur", "opensea", "looks-rare", "x2y2"].includes(orderbook)) {
     if (crossPostingOrderId) {
       await crossPostingOrdersModel.updateOrderStatus(
         crossPostingOrderId,
@@ -306,10 +304,6 @@ const getOrderbookDefaultApiKey = (orderbook: string) => {
       return config.looksRareApiKey;
     case "x2y2":
       return config.x2y2ApiKey;
-    case "universe":
-      return "";
-    case "flow":
-      return config.flowApiKey;
   }
 
   throw new Error(`Unsupported orderbook ${orderbook}`);
@@ -343,20 +337,6 @@ const getRateLimiter = (orderbook: string) => {
         storeClient: rateLimitRedis,
         points: X2Y2Api.RATE_LIMIT_REQUEST_COUNT,
         duration: X2Y2Api.RATE_LIMIT_INTERVAL,
-        keyPrefix: `${config.chainId}`,
-      });
-    case "universe":
-      return new RateLimiterRedis({
-        storeClient: rateLimitRedis,
-        points: UniverseApi.RATE_LIMIT_REQUEST_COUNT,
-        duration: UniverseApi.RATE_LIMIT_INTERVAL,
-        keyPrefix: `${config.chainId}`,
-      });
-    case "flow":
-      return new RateLimiterRedis({
-        storeClient: rateLimitRedis,
-        points: FlowApi.RATE_LIMIT_REQUEST_COUNT,
-        duration: FlowApi.RATE_LIMIT_INTERVAL,
         keyPrefix: `${config.chainId}`,
       });
   }
@@ -422,18 +402,8 @@ const postOrder = async (
       return LooksrareApi.postOrder(order, orderbookApiKey);
     }
 
-    case "universe": {
-      const order = new Sdk.Universe.Order(config.chainId, orderData as Sdk.Universe.Types.Order);
-      return UniverseApi.postOrder(order);
-    }
-
     case "x2y2": {
       return X2Y2Api.postOrder(orderData as Sdk.X2Y2.Types.LocalOrder, orderbookApiKey);
-    }
-
-    case "flow": {
-      const order = new Sdk.Flow.Order(config.chainId, orderData as Sdk.Flow.Types.OrderInput);
-      return FlowApi.postOrders(order, orderbookApiKey);
     }
 
     case "blur": {
@@ -469,24 +439,6 @@ export type PostOrderExternalParams =
       orderData: Sdk.X2Y2.Types.LocalOrder;
       orderSchema?: TSTCollection | TSTCollectionNonFlagged | TSTAttribute;
       orderbook: "x2y2";
-      orderbookApiKey?: string | null;
-      retry?: number;
-    }
-  | {
-      crossPostingOrderId: number;
-      orderId: string;
-      orderData: Sdk.Universe.Types.Order;
-      orderSchema?: TSTCollection | TSTCollectionNonFlagged | TSTAttribute;
-      orderbook: "universe";
-      orderbookApiKey?: string | null;
-      retry?: number;
-    }
-  | {
-      crossPostingOrderId: number;
-      orderId: string;
-      orderData: Sdk.Flow.Types.OrderInput;
-      orderSchema?: TSTCollection | TSTCollectionNonFlagged | TSTAttribute;
-      orderbook: "flow";
       orderbookApiKey?: string | null;
       retry?: number;
     }

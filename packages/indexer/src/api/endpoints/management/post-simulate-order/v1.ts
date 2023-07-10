@@ -134,7 +134,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
         }
       }
 
-      if (["blur", "nftx", "sudoswap", "sudoswap-v2", "universe"].includes(orderResult.kind)) {
+      if (["blur", "nftx", "sudoswap", "sudoswap-v2"].includes(orderResult.kind)) {
         return { message: "Order not simulatable" };
       }
       if (getNetworkSettings().whitelistedCurrencies.has(fromBuffer(orderResult.currency))) {
@@ -145,7 +145,12 @@ export const postSimulateOrderV1Options: RouteOptions = {
       }
       if (
         orderResult.side === "buy" &&
-        fromBuffer(orderResult.contract) === "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85"
+        // ENS on mainnet
+        ((fromBuffer(orderResult.contract) === "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85" &&
+          config.chainId === 1) ||
+          // y00ts on polygon
+          (fromBuffer(orderResult.contract) === "0x670fd103b1a08628e9557cd66b87ded841115190" &&
+            config.chainId === 137))
       ) {
         return {
           message: "ENS bids are not simulatable due to us not yet handling expiration of domains",

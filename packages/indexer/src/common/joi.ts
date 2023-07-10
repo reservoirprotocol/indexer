@@ -659,19 +659,18 @@ export const getJoiOrderObject = async (order: {
     validUntil: Number(order.validUntil),
     quantityFilled: Number(order.quantityFilled),
     quantityRemaining: Number(order.quantityRemaining),
-    dynamicPricing:
-      order.includeDynamicPricing && order.dynamic
-        ? await getJoiDynamicPricingObject(
-            order.dynamic,
-            order.kind,
-            order.normalizeRoyalties,
-            order.rawData,
-            currency,
-            order.missingRoyalties ? order.missingRoyalties : undefined
-          )
-        : order.dynamic !== undefined
-        ? null
-        : undefined,
+    dynamicPricing: order.includeDynamicPricing
+      ? await getJoiDynamicPricingObject(
+          Boolean(order.dynamic),
+          order.kind,
+          order.normalizeRoyalties,
+          order.rawData,
+          currency,
+          order.missingRoyalties ? order.missingRoyalties : undefined
+        )
+      : order.dynamic !== undefined
+      ? null
+      : undefined,
     criteria: order.criteria,
     source: {
       id: source?.address,

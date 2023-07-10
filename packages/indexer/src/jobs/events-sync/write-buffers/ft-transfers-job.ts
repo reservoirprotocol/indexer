@@ -12,6 +12,7 @@ export class EventsSyncFtTransfersWriteBufferJob extends AbstractRabbitMqJobHand
   maxRetries = 10;
   concurrency = 15;
   lazyMode = true;
+  consumerTimeout = 60000;
 
   protected async process(payload: EventsSyncFtTransfersWriteBufferPayload) {
     const { query } = payload;

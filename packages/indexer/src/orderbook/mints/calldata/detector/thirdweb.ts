@@ -100,9 +100,11 @@ export const extractByCollection = async (
       const currency = claimCondition.currency.toLowerCase();
       if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
         const price = claimCondition.pricePerToken.toString();
-        const maxMintsPerWallet = claimCondition.quantityLimitPerWallet.eq(0)
-          ? null
-          : claimCondition.quantityLimitPerWallet.toString();
+        const maxMintsPerWallet =
+          claimCondition.quantityLimitPerWallet.eq(0) ||
+          claimCondition.quantityLimitPerWallet.eq(MaxUint256)
+            ? null
+            : claimCondition.quantityLimitPerWallet.toString();
 
         // Public sale
         if (claimCondition.merkleRoot === HashZero) {

@@ -1,6 +1,6 @@
 import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
-import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { BackoffStrategy, AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { tryGetCurrencyDetails } from "@/utils/currencies";
 
 export type CurrenciesFetchJobPayload = {
@@ -11,6 +11,7 @@ export class CurrenciesFetchJob extends AbstractRabbitMqJobHandler {
   queueName = "currencies-fetch";
   maxRetries = 10;
   concurrency = 10;
+  consumerTimeout = 60000;
   backoff = {
     type: "exponential",
     delay: 10000,

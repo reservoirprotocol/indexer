@@ -9,7 +9,7 @@ import {
   InvalidRequestError,
 } from "@/jobs/orderbook/post-order-external/api/errors";
 
-import * as orderbook from "@/jobs/orderbook/orders-queue";
+import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
 
 // Looks Rare default rate limit - 120 requests per minute
 export const RATE_LIMIT_REQUEST_COUNT = 120;
@@ -77,7 +77,7 @@ export const postOrder = async (order: Sdk.LooksRareV2.Order, apiKey: string) =>
     });
 
   // If the cross-posting was successful, save the order directly
-  await orderbook.addToQueue([
+  await orderbookOrdersJob.addToQueue([
     {
       kind: "looks-rare-v2",
       info: {

@@ -1,12 +1,12 @@
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import * as orderbook from "@/jobs/orderbook/orders-queue";
 import axios from "axios";
 import { config } from "@/config/index";
 import { updateBlurRoyalties } from "@/utils/blur";
 import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
+import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
 
 export type BlurListingsRefreshJobPayload = {
   collection: string;
@@ -43,7 +43,7 @@ export class BlurListingsRefreshJob extends AbstractRabbitMqJobHandler {
       logger.info(this.queueName, JSON.stringify(blurListings));
 
       // And add them to the queue (duplicates will simply be ignored)
-      await orderbook.addToQueue(
+      await orderbookOrdersJob.addToQueue(
         blurListings.map((l) => ({
           kind: "blur-listing",
           info: {
@@ -86,7 +86,7 @@ export class BlurListingsRefreshJob extends AbstractRabbitMqJobHandler {
       for (const l of ownListings) {
         const id = `${l.raw_data.collection}-${l.raw_data.tokenId}-${l.raw_data.price}-${l.raw_data.createdAt}`;
         if (!listingsMap[id]) {
-          await orderbook.addToQueue([
+          await orderbookOrdersJob.addToQueue([
             {
               kind: "blur-listing",
               info: {

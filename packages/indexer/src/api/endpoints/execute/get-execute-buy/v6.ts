@@ -53,10 +53,8 @@ export const getExecuteBuyV6Options: RouteOptions = {
               "seaport-v1.4",
               "seaport-v1.5",
               "x2y2",
-              "universe",
               "rarible",
               "sudoswap",
-              "flow",
               "nftx"
             )
             .required(),
@@ -873,12 +871,10 @@ export const getExecuteBuyV6Options: RouteOptions = {
                 ? // Use OpenSea's conduit for sharing approvals
                   "0x1e0049783f008a0085193e00003d00cd54003c71"
                 : Sdk.SeaportV11.Addresses.Exchange[config.chainId];
-          } else if (listings.every((d) => d.kind === "universe")) {
-            conduit = Sdk.Universe.Addresses.Exchange[config.chainId];
           } else if (listings.every((d) => d.kind === "rarible")) {
             conduit = Sdk.Rarible.Addresses.Exchange[config.chainId];
           } else {
-            throw new Error("Only Seaport, Universe and Rarible ERC20 listings are supported");
+            throw new Error("Only Seaport and Rarible ERC20 listings are supported");
           }
 
           const allowance = await erc20.getAllowance(txSender, conduit);
