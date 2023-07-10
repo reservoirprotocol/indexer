@@ -1303,21 +1303,23 @@ export const updateActivitiesTokenMetadataV2 = async (
       } else {
         keepGoing = pendingUpdateActivities.length === 1000;
 
-        logger.info(
-          "elasticsearch-activities",
-          JSON.stringify({
-            topic: "updateActivitiesTokenMetadataV2",
-            message: `Success.`,
-            data: {
-              contract,
-              tokenId,
-              tokenData,
-            },
-            bulkParams,
-            response,
-            keepGoing,
-          })
-        );
+        if (keepGoing) {
+          logger.info(
+            "elasticsearch-activities",
+            JSON.stringify({
+              topic: "updateActivitiesTokenMetadataV2",
+              message: `Has more activities to update`,
+              data: {
+                contract,
+                tokenId,
+                tokenData,
+              },
+              bulkParams,
+              response,
+              keepGoing,
+            })
+          );
+        }
       }
     }
   } catch (error) {
