@@ -49,6 +49,8 @@ addPlatformAddress("bend-dao", ["0xf3ab1d58ce6b9e0d42b8958c918649305e1b1d26"]);
 
 addPlatformAddress("godid", ["0xe89b80d335a643495cfcf004037a381565edc130"]);
 
+addPlatformAddress("jungle", ["0x143ed32cd8c609a13dd73b3803d39e7a7544b1a4"]);
+
 // List of supported exchanges
 export const supportedExchanges: Map<OrderKind, string> = new Map();
 supportedExchanges.set("blur", Sdk.Blur.Addresses.Exchange[config.chainId]);

@@ -17,7 +17,7 @@ import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { getNetworkName } from "@/config/network";
 import * as countApiUsage from "@/jobs/metrics/count-api-usage";
-import { allJobQueues, gracefulShutdownJobWorkers } from "@/jobs/index";
+import { allJobQueues } from "@/jobs/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { RateLimitRules } from "@/models/rate-limit-rules";
 import { BlockedRouteError } from "@/models/rate-limit-rules/errors";
@@ -142,9 +142,6 @@ export const start = async (): Promise<void> => {
         signals: ["SIGINT", "SIGTERM"],
         preServerStop: async () => {
           logger.info("process", "Shutting down");
-
-          // Close all workers which should be gracefully shutdown
-          await Promise.all(gracefulShutdownJobWorkers.map((worker) => worker?.close()));
         },
       },
     },

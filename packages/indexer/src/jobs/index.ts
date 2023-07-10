@@ -13,7 +13,6 @@ import "@/jobs/oracle";
 import "@/jobs/order-updates";
 import "@/jobs/orderbook";
 import "@/jobs/sources";
-import "@/jobs/token-updates";
 import "@/jobs/update-attribute";
 import "@/jobs/websocket-events";
 import "@/jobs/metrics";
@@ -60,8 +59,6 @@ import * as orderbookPostOrderExternalOpensea from "@/jobs/orderbook/post-order-
 
 import * as orderbookTokenSets from "@/jobs/orderbook/token-sets-queue";
 import * as orderbookOpenseaListings from "@/jobs/orderbook/opensea-listings-queue";
-
-import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
 
 import * as askWebsocketEventsTriggerQueue from "@/jobs/websocket-events/ask-websocket-events-trigger-queue";
 import * as bidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/bid-websocket-events-trigger-queue";
@@ -174,8 +171,6 @@ import { openseaOffChainCancellationsJob } from "@/jobs/order-updates/misc/opens
 import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
 import { openseaListingsJob } from "@/jobs/orderbook/opensea-listings-job";
 
-export const gracefulShutdownJobWorkers = [tokenUpdatesFloorAsk.worker];
-
 export const allJobQueues = [
   backfillBlockTimestamps.queue,
   backfillCancelSeaport11Orders.queue,
@@ -212,8 +207,6 @@ export const allJobQueues = [
   orderbookPostOrderExternalOpensea.queue,
   orderbookTokenSets.queue,
   orderbookOpenseaListings.queue,
-
-  tokenUpdatesFloorAsk.queue,
 
   askWebsocketEventsTriggerQueue.queue,
   bidWebsocketEventsTriggerQueue.queue,
