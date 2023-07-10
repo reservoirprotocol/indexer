@@ -905,74 +905,85 @@ export const updateActivitiesCollection = async (
   };
 
   try {
-    const response = await elasticsearch.updateByQuery({
-      index: INDEX_NAME,
-      conflicts: "proceed",
-      refresh: true,
-      max_docs: 1000,
-      scroll: "1m",
+    const pendingUpdateActivities = await _search({
       // This is needed due to issue with elasticsearch DSL.
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       query,
-      script: {
-        source:
-          "ctx._source.collection = [:]; ctx._source.collection.id = params.collection_id; ctx._source.collection.name = params.collection_name; ctx._source.collection.image = params.collection_image;",
-        params: {
-          collection_id: newCollection.id,
-          collection_name: newCollection.name,
-          collection_image: newCollection.metadata?.imageUrl,
-        },
-      },
+      size: 1000,
     });
 
-    if (response?.failures?.length) {
-      logger.error(
-        "elasticsearch-activities",
-        JSON.stringify({
-          topic: "updateActivitiesCollection",
-          data: {
-            contract,
-            tokenId,
-            newCollection,
-            oldCollectionId,
+    if (pendingUpdateActivities.length) {
+      const bulkParams = {
+        body: pendingUpdateActivities.flatMap((activity) => [
+          { update: { _index: INDEX_NAME, _id: activity.id, retry_on_conflict: 3 } },
+          {
+            script: {
+              source:
+                "ctx._source.collection = [:]; ctx._source.collection.id = params.collection_id; ctx._source.collection.name = params.collection_name; ctx._source.collection.image = params.collection_image;",
+              params: {
+                collection_id: newCollection.id,
+                collection_name: newCollection.name,
+                collection_image: newCollection.metadata?.imageUrl,
+              },
+            },
           },
-          query: JSON.stringify(query),
-          response,
-          keepGoing,
-        })
-      );
-    } else {
-      keepGoing = Boolean(
-        (response?.version_conflicts ?? 0) > 0 || (response?.updated ?? 0) === 1000
-      );
+        ]),
+      };
 
-      logger.info(
-        "elasticsearch-activities",
-        JSON.stringify({
-          topic: "updateActivitiesCollection",
-          data: {
-            contract,
-            tokenId,
-            newCollection,
-            oldCollectionId,
-          },
-          query: JSON.stringify(query),
-          response,
-          keepGoing,
-        })
-      );
+      const response = await elasticsearch.bulk(bulkParams);
+
+      if (response?.errors) {
+        logger.error(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "updateActivitiesCollectionV2",
+            message: `Errors in response`,
+            data: {
+              contract,
+              tokenId,
+              newCollection,
+              oldCollectionId,
+            },
+            bulkParams,
+            response,
+            keepGoing,
+          })
+        );
+
+        keepGoing = true;
+      } else {
+        keepGoing = pendingUpdateActivities.length === 1000;
+
+        logger.info(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "updateActivitiesCollectionV2",
+            message: `Success`,
+            data: {
+              contract,
+              tokenId,
+              newCollection,
+              oldCollectionId,
+            },
+            bulkParams,
+            response,
+            keepGoing,
+          })
+        );
+      }
     }
   } catch (error) {
     logger.error(
       "elasticsearch-activities",
       JSON.stringify({
-        topic: "updateActivitiesCollection",
+        topic: "updateActivitiesCollectionV2",
+        message: `Unexpected error`,
         data: {
           contract,
           tokenId,
-          oldCollectionId,
           newCollection,
+          oldCollectionId,
         },
         query: JSON.stringify(query),
         error,
@@ -1135,7 +1146,7 @@ export const updateActivitiesTokenMetadata = async (
           "elasticsearch-activities",
           JSON.stringify({
             topic: "updateActivitiesTokenMetadataV2",
-            message: `Has more activities to update`,
+            message: `Success`,
             data: {
               contract,
               tokenId,
@@ -1291,7 +1302,7 @@ export const updateActivitiesCollectionMetadata = async (
           "elasticsearch-activities",
           JSON.stringify({
             topic: "updateActivitiesCollectionMetadataV2",
-            message: `Has more activities to update`,
+            message: `Success`,
             data: {
               collectionId,
               collectionData,
