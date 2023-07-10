@@ -356,7 +356,7 @@ export const getNetworkSettings = (): NetworkSettings => {
               decimals: 18,
               metadata: {
                 image:
-                  "https://www.dextools.io/resources/tokens/logos/ether/0xbb4f3ad7a2cf75d8effc4f6d7bd21d95f06165ca.png?1687668922646",
+                  "https://bafybeic2ukraukxbvs7mn5f5xqnqkr42r5exxjpij4fmw4otiows2zjzbi.ipfs-public.thirdwebcdn.com/Screenshot_2023-06-15_003656.png",
               },
             },
           ],
