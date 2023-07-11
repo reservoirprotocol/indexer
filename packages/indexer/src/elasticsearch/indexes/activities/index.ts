@@ -829,11 +829,10 @@ export const updateActivitiesMissingCollection = async (
             },
           },
         ]),
-        ignore: [404],
         filter_path: "items.*.error",
       };
 
-      const response = await elasticsearch.bulk(bulkParams);
+      const response = await elasticsearch.bulk(bulkParams, { ignore: [404] });
 
       if (response?.errors) {
         keepGoing = response?.items.some((item) => item.update?.status !== 400);
@@ -966,11 +965,10 @@ export const updateActivitiesCollection = async (
             },
           },
         ]),
-        ignore: [404],
         filter_path: "items.*.error",
       };
 
-      const response = await elasticsearch.bulk(bulkParams);
+      const response = await elasticsearch.bulk(bulkParams, { ignore: [404] });
 
       if (response?.errors) {
         keepGoing = response?.items.some((item) => item.update?.status !== 400);
@@ -1176,11 +1174,10 @@ export const updateActivitiesTokenMetadata = async (
             },
           },
         ]),
-        ignore: [404],
         filter_path: "items.*.error",
       };
 
-      const response = await elasticsearch.bulk(bulkParams);
+      const response = await elasticsearch.bulk(bulkParams, { ignore: [404] });
 
       if (response?.errors) {
         keepGoing = response?.items.some((item) => item.update?.status !== 400);
@@ -1354,11 +1351,10 @@ export const updateActivitiesCollectionMetadata = async (
             },
           },
         ]),
-        ignore: [404],
         filter_path: "items.*.error",
       };
 
-      const response = await elasticsearch.bulk(bulkParams);
+      const response = await elasticsearch.bulk(bulkParams, { ignore: [404] });
 
       if (response?.errors) {
         keepGoing = response?.items.some((item) => item.update?.status !== 400);
@@ -1466,11 +1462,10 @@ export const deleteActivitiesByBlockHash = async (blockHash: string): Promise<bo
         body: pendingDeleteActivities.flatMap((activity) => [
           { delete: { _index: INDEX_NAME, _id: activity.id } },
         ]),
-        ignore: [404],
         filter_path: "items.*.error",
       };
 
-      const response = await elasticsearch.bulk(bulkParams);
+      const response = await elasticsearch.bulk(bulkParams, { ignore: [404] });
 
       if (response?.errors) {
         keepGoing = response?.items.some((item) => item.update?.status !== 400);
