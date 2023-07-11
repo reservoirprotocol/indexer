@@ -830,7 +830,7 @@ export const updateActivitiesMissingCollection = async (
           },
         ]),
         ignore: [404],
-        filterPath: "items.*.error",
+        filter_path: "items.*.error",
       };
 
       const response = await elasticsearch.bulk(bulkParams);
@@ -967,7 +967,7 @@ export const updateActivitiesCollection = async (
           },
         ]),
         ignore: [404],
-        filterPath: "items.*.error",
+        filter_path: "items.*.error",
       };
 
       const response = await elasticsearch.bulk(bulkParams);
@@ -1177,7 +1177,7 @@ export const updateActivitiesTokenMetadata = async (
           },
         ]),
         ignore: [404],
-        filterPath: "items.*.error",
+        filter_path: "items.*.error",
       };
 
       const response = await elasticsearch.bulk(bulkParams);
@@ -1355,7 +1355,7 @@ export const updateActivitiesCollectionMetadata = async (
           },
         ]),
         ignore: [404],
-        filterPath: "items.*.error",
+        filter_path: "items.*.error",
       };
 
       const response = await elasticsearch.bulk(bulkParams);
@@ -1467,7 +1467,7 @@ export const deleteActivitiesByBlockHash = async (blockHash: string): Promise<bo
           { delete: { _index: INDEX_NAME, _id: activity.id } },
         ]),
         ignore: [404],
-        filterPath: "items.*.error",
+        filter_path: "items.*.error",
       };
 
       const response = await elasticsearch.bulk(bulkParams);
