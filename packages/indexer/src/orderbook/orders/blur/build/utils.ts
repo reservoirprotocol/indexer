@@ -3,6 +3,7 @@ import { getOrUpdateBlurRoyalties } from "@/utils/blur";
 
 export interface BaseOrderBuildOptions {
   maker: string;
+  taker: string;
   contract: string;
   weiPrice: string;
   expirationTime?: number;

@@ -8,6 +8,7 @@ import * as commonHelpers from "@/orderbook/orders/common/helpers";
 
 export interface BaseOrderBuildOptions {
   maker: string;
+  taker: string;
   contract?: string;
   weiPrice: string;
   listingTime?: number;

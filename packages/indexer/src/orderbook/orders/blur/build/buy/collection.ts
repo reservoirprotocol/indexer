@@ -34,6 +34,7 @@ export const build = async (options: BuildOrderOptions) => {
       weiPrice: options.weiPrice,
       quantity: options.quantity ?? 1,
       maker: options.maker,
+      taker: options.taker,
       expirationTime,
       authToken: options.authToken,
     })

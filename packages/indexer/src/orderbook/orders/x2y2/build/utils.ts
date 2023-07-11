@@ -7,6 +7,7 @@ import { config } from "@/config/index";
 
 export interface BaseOrderBuildOptions {
   maker: string;
+  taker: string;
   contract?: string;
   weiPrice: string;
   quantity?: number;

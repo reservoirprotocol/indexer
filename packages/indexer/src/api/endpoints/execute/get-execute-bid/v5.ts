@@ -2,6 +2,7 @@
 
 import { BigNumber } from "@ethersproject/bignumber";
 import { _TypedDataEncoder } from "@ethersproject/hash";
+import { AddressZero } from "@ethersproject/constants";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -165,6 +166,12 @@ export const getExecuteBidV5Options: RouteOptions = {
             .description(
               "Unix timestamp (seconds) indicating when listing will expire. Example: `1656080318`"
             ),
+          taker: Joi.string()
+            .pattern(regex.address)
+            .default(AddressZero)
+            .description(
+              "Order Taker address. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`, default to be zero address"
+            ),
           salt: Joi.string()
             .pattern(regex.number)
             .description("Optional. Random string to make the order unique"),
@@ -256,6 +263,7 @@ export const getExecuteBidV5Options: RouteOptions = {
         currency: string;
         listingTime?: number;
         expirationTime?: number;
+        taker: string;
         salt?: string;
         nonce?: string;
       }[];
