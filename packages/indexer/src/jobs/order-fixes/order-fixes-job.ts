@@ -2,15 +2,21 @@ import { Interface } from "@ethersproject/abi";
 import { BigNumber } from "@ethersproject/bignumber";
 import { HashZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
-import { baseProvider } from "@/common/provider";
 import * as Sdk from "@reservoir0x/sdk";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { baseProvider } from "@/common/provider";
 import { redis } from "@/common/redis";
 import { now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
+
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as looksRareV2Check from "@/orderbook/orders/looks-rare-v2/check";
 import * as x2y2Check from "@/orderbook/orders/x2y2/check";
@@ -18,11 +24,6 @@ import * as zeroExV4Check from "@/orderbook/orders/zeroex-v4/check";
 import * as seaportCheck from "@/orderbook/orders/seaport-base/check";
 import * as nftxCheck from "@/orderbook/orders/nftx/check";
 import * as raribleCheck from "@/orderbook/orders/rarible/check";
-import {
-  orderUpdatesByIdJob,
-  OrderUpdatesByIdJobPayload,
-} from "@/jobs/order-updates/order-updates-by-id-job";
-import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
 
 export type OrderFixesJobPayload =
   | {
@@ -69,21 +70,21 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
           // If the order is valid or potentially valid, recheck it's status
           const result = await idb.oneOrNone(
             `
-                SELECT
-                  orders.id,
-                  orders.side,
-                  orders.token_set_id,
-                  orders.kind,
-                  orders.quantity_remaining,
-                  orders.raw_data,
-                  orders.block_number,
-                  orders.log_index,
-                  orders.originated_at
-                FROM orders
-                WHERE orders.id = $/id/
-                  AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
-                  AND (orders.approval_status = 'approved' OR orders.approval_status = 'no-approval')
-              `,
+              SELECT
+                orders.id,
+                orders.side,
+                orders.token_set_id,
+                orders.kind,
+                orders.quantity_remaining,
+                orders.raw_data,
+                orders.block_number,
+                orders.log_index,
+                orders.originated_at
+              FROM orders
+              WHERE orders.id = $/id/
+                AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
+                AND (orders.approval_status = 'approved' OR orders.approval_status = 'no-approval')
+            `,
             { id: data.id }
           );
 
@@ -116,6 +117,7 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
                     return;
                   }
                 }
+
                 break;
               }
 
@@ -143,6 +145,7 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
                     return;
                   }
                 }
+
                 break;
               }
 
@@ -171,6 +174,7 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
                     return;
                   }
                 }
+
                 break;
               }
 
@@ -200,6 +204,7 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
                     return;
                   }
                 }
+
                 break;
               }
 
@@ -229,6 +234,7 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
                     return;
                   }
                 }
+
                 break;
               }
 
@@ -258,6 +264,7 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
                     return;
                   }
                 }
+
                 break;
               }
 
@@ -268,7 +275,7 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
                   // Fully refresh the order at most once per hour
                   const order = new Sdk.Nftx.Order(config.chainId, result.raw_data);
                   const cacheKey = `order-fixes:nftx:${order.params.pool}`;
-                  if (!redis.get(cacheKey)) {
+                  if (!(await redis.get(cacheKey))) {
                     await redis.set(cacheKey, "locked", "EX", 3600);
                     await orderbookOrdersJob.addToQueue([
                       {
@@ -296,6 +303,7 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
                     return;
                   }
                 }
+
                 break;
               }
 
@@ -303,7 +311,7 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
                 try {
                   const order = new Sdk.Sudoswap.Order(config.chainId, result.raw_data);
                   const cacheKey = `order-fixes:sudoswap:${order.params.pair}`;
-                  if (!redis.get(cacheKey)) {
+                  if (!(await redis.get(cacheKey))) {
                     await redis.set(cacheKey, "locked", "EX", 3600);
                     await orderbookOrdersJob.addToQueue([
                       {
@@ -346,7 +354,7 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
                 try {
                   const order = new Sdk.SudoswapV2.Order(config.chainId, result.raw_data);
                   const cacheKey = `order-fixes:sudoswap-v2:${order.params.pair}`;
-                  if (!redis.get(cacheKey)) {
+                  if (!(await redis.get(cacheKey))) {
                     await redis.set(cacheKey, "locked", "EX", 3600);
                     await orderbookOrdersJob.addToQueue([
                       {
@@ -441,26 +449,27 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
                     return;
                   }
                 }
+
                 break;
               }
             }
 
             const fixResult = await idb.oneOrNone(
               `
-                  UPDATE orders SET
-                    fillability_status = $/fillabilityStatus/,
-                    approval_status = $/approvalStatus/,
-                    expiration = (
-                      CASE
-                        WHEN $/fillabilityStatus/ = 'fillable' AND $/approvalStatus/ = 'approved' THEN nullif(upper(orders.valid_between), 'infinity')
-                        ELSE now()
-                      END
-                    ),
-                    updated_at = now()
-                  WHERE orders.id = $/id/
-                    AND (orders.fillability_status != $/fillabilityStatus/ OR orders.approval_status != $/approvalStatus/)
-                  RETURNING orders.id
-                `,
+                UPDATE orders SET
+                  fillability_status = $/fillabilityStatus/,
+                  approval_status = $/approvalStatus/,
+                  expiration = (
+                    CASE
+                      WHEN $/fillabilityStatus/ = 'fillable' AND $/approvalStatus/ = 'approved' THEN nullif(upper(orders.valid_between), 'infinity')
+                      ELSE now()
+                    END
+                  ),
+                  updated_at = now()
+                WHERE orders.id = $/id/
+                  AND (orders.fillability_status != $/fillabilityStatus/ OR orders.approval_status != $/approvalStatus/)
+                RETURNING orders.id
+              `,
               {
                 id: data.id,
                 fillabilityStatus,
@@ -489,10 +498,10 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
           // Trigger a fix for all valid orders on the token
           const result = await idb.manyOrNone(
             `
-                SELECT "o"."id" FROM "orders" "o"
-                WHERE "o"."token_set_id" = $/tokenSetId/
-                  AND ("o"."fillability_status" = 'fillable' AND "o"."approval_status" = 'approved')
-              `,
+              SELECT "o"."id" FROM "orders" "o"
+              WHERE "o"."token_set_id" = $/tokenSetId/
+                AND ("o"."fillability_status" = 'fillable' AND "o"."approval_status" = 'approved')
+            `,
             { tokenSetId: `token:${data.token}` }
           );
 
@@ -508,11 +517,11 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
           // TODO: Use keyset pagination to be able to handle large amounts of orders
           const result = await idb.manyOrNone(
             `
-                SELECT "o"."id" FROM "orders" "o"
-                WHERE "o"."maker" = $/maker/
-                  AND "o"."fillability_status" = 'fillable'
-                  AND "o"."approval_status" = 'approved'
-              `,
+              SELECT "o"."id" FROM "orders" "o"
+              WHERE "o"."maker" = $/maker/
+                AND "o"."fillability_status" = 'fillable'
+                AND "o"."approval_status" = 'approved'
+            `,
             { maker: toBuffer(data.maker) }
           );
 
@@ -529,10 +538,10 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
             // TODO: Use keyset pagination to be able to handle large amounts of orders
             const result = await idb.manyOrNone(
               `
-                  SELECT "o"."id" FROM "orders" "o"
-                  WHERE "o"."side" = $/side/ AND "o"."contract" = $/contract/
-                    AND ("o"."fillability_status" = 'fillable' AND "o"."approval_status" = 'approved')
-                `,
+                SELECT "o"."id" FROM "orders" "o"
+                WHERE "o"."side" = $/side/ AND "o"."contract" = $/contract/
+                  AND ("o"."fillability_status" = 'fillable' AND "o"."approval_status" = 'approved')
+              `,
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               { contract: toBuffer((data as any).contract), side }
             );

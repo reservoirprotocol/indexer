@@ -74,6 +74,7 @@ export const getCollectionMints = async (
             ? " AND collection_mints.status = 'closed'"
             : ""
         }
+      ORDER BY collection_mints.price
     `,
     {
       collection,

@@ -988,7 +988,6 @@ export const updateActivitiesCollection = async (
             },
             bulkParams,
             response,
-            keepGoing,
           })
         );
       } else {
@@ -1198,7 +1197,6 @@ export const updateActivitiesTokenMetadata = async (
             },
             bulkParams,
             response,
-            keepGoing,
           })
         );
       } else {

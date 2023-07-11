@@ -229,10 +229,10 @@
     }
   },
   "PaymentProcessorModule": {
-    "v1": {
-      "1": "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc",
-      "5": "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc",
-      "11155111": "0x3a0d7a7a141171fc044b2ab9b7995b4a7b92b7dc"
+    "v3": {
+      "1": "0x929adee14d57019bfd4d092889abe3e2a647e706",
+      "5": "0x929adee14d57019bfd4d092889abe3e2a647e706",
+      "11155111": "0x929adee14d57019bfd4d092889abe3e2a647e706"
     }
   },
   "PermitProxy": {

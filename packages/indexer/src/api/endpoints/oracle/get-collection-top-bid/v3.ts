@@ -47,6 +47,7 @@ export const getCollectionTopBidOracleV3Options: RouteOptions = {
         id: Joi.string().required(),
         payload: Joi.string().required(),
         timestamp: Joi.number().required(),
+        chainId: Joi.string().required(),
         signature: Joi.string().required(),
       }),
     }).label(`getCollectionTopBidOracle${version.toUpperCase()}Response`),

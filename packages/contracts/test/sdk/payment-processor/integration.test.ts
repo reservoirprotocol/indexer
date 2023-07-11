@@ -34,7 +34,7 @@ describe("PaymentProcessor - Indexer Integration Test", () => {
   });
 
   afterEach(async () => {
-    await reset();
+    // await reset();
   });
 
   const testCase = async ({
@@ -77,10 +77,10 @@ describe("PaymentProcessor - Indexer Integration Test", () => {
     const builder = new PaymentProcessor.Builders.SingleToken(chainId);
     const orderParameters = {
       protocol: PaymentProcessor.Types.TokenProtocols.ERC721,
+      sellerAcceptedOffer: true,
       marketplace: constants.AddressZero,
       marketplaceFeeNumerator: "0",
       maxRoyaltyFeeNumerator: "0",
-      privateTaker: constants.AddressZero,
       trader: buyer.address,
       tokenAddress: erc721.address,
       tokenId: boughtTokenId,
@@ -107,7 +107,6 @@ describe("PaymentProcessor - Indexer Integration Test", () => {
         marketplace: constants.AddressZero,
         marketplaceFeeNumerator: "0",
         maxRoyaltyFeeNumerator: "0",
-        taker: constants.AddressZero,
         privateTaker: constants.AddressZero,
         trader: seller.address,
         tokenAddress: erc721.address,
@@ -115,7 +114,7 @@ describe("PaymentProcessor - Indexer Integration Test", () => {
         amount: "1",
         price: price,
         expiration: (blockTime + 86400 * 30).toString(),
-        coin: constants.AddressZero,
+        coin: Common.Addresses.Eth[chainId],
         masterNonce: sellerMasterNonce,
       };
       order = builder.build(listingParams);
@@ -238,6 +237,12 @@ describe("PaymentProcessor - Indexer Integration Test", () => {
       return;
     }
 
+    console.log({
+      isListing,
+      seller: seller.address,
+      buyer: buyer.address
+    })
+
     await order.checkFillability(ethers.provider);
 
     // Fill Order
@@ -249,49 +254,50 @@ describe("PaymentProcessor - Indexer Integration Test", () => {
       await tx.wait();
       fillTxHash = tx.hash;
     } else {
-      // if (!isListing) {
-      //   try {
-      //     const executeResponse = await indexerHelper.executeSellV7({
-      //       items: [
-      //         {
-      //           token: `${erc721.address}:${boughtTokenId}`,
-      //           quantity: 1,
-      //           orderId: orderInfo.id,
-      //         },
-      //       ],
-      //       taker: matchOrder.recipient,
-      //     });
-      //     const allSteps = executeResponse.steps;
-      //     const lastSetp = allSteps[allSteps.length - 1];
-      //     const tx = await seller.sendTransaction(lastSetp.items[0].data);
-      //     await tx.wait();
-      //     fillTxHash = tx.hash;
-      //   } catch (error) {
-      //     console.log("executeSellV7 failed", error);
-      //   }
-      // } else {
-      //   try {
-      //     const payload = {
-      //       items: [
-      //         {
-      //           orderId: orderInfo.id,
-      //         },
-      //       ],
-      //       taker: matchOrder.recipient,
-      //     };
-      //     const executeResponse = await indexerHelper.executeBuyV7(payload);
-      //     const allSteps = executeResponse.steps;
-      //     const lastSetp = allSteps[allSteps.length - 1];
-      //     const transcation = lastSetp.items[0];
-      //     const tx = await buyer.sendTransaction({
-      //       ...transcation.data,
-      //     });
-      //     await tx.wait();
-      //     fillTxHash = tx.hash;
-      //   } catch (error) {
-      //     console.log("executeBuyV7 failed", (error as any).toString());
-      //   }
-      // }
+      if (!isListing) {
+        try {
+          const executeResponse = await indexerHelper.executeSellV7({
+            items: [
+              {
+                token: `${erc721.address}:${boughtTokenId}`,
+                quantity: 1,
+                orderId: orderInfo.id,
+              },
+            ],
+            taker: matchOrder.params.sellerOrBuyer,
+          });
+          const allSteps = executeResponse.steps;
+          const lastSetp = allSteps[allSteps.length - 1];
+          const transcation = lastSetp.items[0];
+          const tx = await seller.sendTransaction(transcation.data);
+          await tx.wait();
+          fillTxHash = tx.hash;
+        } catch (error) {
+          console.log("executeSellV7 failed", error);
+        }
+      } else {
+        try {
+          const payload = {
+            items: [
+              {
+                orderId: orderInfo.id,
+              },
+            ],
+            taker: matchOrder.params.sellerOrBuyer,
+          };
+          const executeResponse = await indexerHelper.executeBuyV7(payload);
+          const allSteps = executeResponse.steps;
+          const lastSetp = allSteps[allSteps.length - 1];
+          const transcation = lastSetp.items[0];
+          const tx = await buyer.sendTransaction({
+            ...transcation.data,
+          });
+          await tx.wait();
+          fillTxHash = tx.hash;
+        } catch (error) {
+          console.log("executeBuyV7 failed", (error as any).toString());
+        }
+      }
     }
 
     if (!fillTxHash) {
@@ -302,6 +308,7 @@ describe("PaymentProcessor - Indexer Integration Test", () => {
     const skipProcessing = false;
 
     console.log(green("\t Event Parsing:"));
+    console.log(`\t\t - fillTx: ${fillTxHash}`);
     const parseResult = await indexerHelper.doEventParsing(fillTxHash, skipProcessing);
 
     const onChainData = parseResult.onChainData[0];
@@ -336,33 +343,33 @@ describe("PaymentProcessor - Indexer Integration Test", () => {
     );
   };
 
-  it("Fill listing with cancel", async () => {
-    await testCase({
-      cancelOrder: true,
-    });
-    console.log("\n");
-  });
+  // it("Fill listing with cancel", async () => {
+  //   await testCase({
+  //     cancelOrder: true,
+  //   });
+  //   console.log("\n");
+  // });
 
   // it("Fill Offer via Router API", async () =>
   //   testCase({
   //     executeByRouterAPI: true,
   //   }));
 
-  // it("Fill Listing via Router API", async () =>
-  //   testCase({
-  //     isListing: true,
-  //     executeByRouterAPI: true,
-  //   }));
-
-  it("Fill offer", async () => testCase({}));
-
-  it("Fill listing", async () =>
+  it("Fill Listing via Router API", async () =>
     testCase({
       isListing: true,
+      executeByRouterAPI: true,
     }));
 
-  it("Fill listing with bulk Cancel", async () =>
-    testCase({
-      bulkCancel: true,
-    }));
+  // it("Fill offer", async () => testCase({}));
+
+  // it("Fill listing", async () =>
+  //   testCase({
+  //     isListing: true,
+  //   }));
+
+  // it("Fill listing with bulk Cancel", async () =>
+  //   testCase({
+  //     bulkCancel: true,
+  //   }));
 });

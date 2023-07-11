@@ -30,21 +30,19 @@ export class ContractWideBuilder extends BaseBuilder {
   }
 
   public build(params: BuildParams) {
-    if (params.sellerAcceptedOffer) {
-      throw new Error("Unsupported order side");
-    }
-
     this.defaultInitialize(params);
     return new Order(this.chainId, {
       kind: "collection-offer-approval",
       protocol: params.protocol,
-      collectionLevelOffer: params.collectionLevelOffer,
+      collectionLevelOffer: true,
+      sellerAcceptedOffer: true,
       marketplace: params.marketplace!,
       marketplaceFeeNumerator: s(params.marketplaceFeeNumerator),
       maxRoyaltyFeeNumerator: s(params.maxRoyaltyFeeNumerator),
       privateBuyerOrDelegatedPurchaser: AddressZero,
       sellerOrBuyer: params.trader,
       tokenAddress: params.tokenAddress,
+      tokenId: "0",
       amount: s(params.amount),
       price: s(params.price),
       expiration: s(params.expiration),
@@ -68,7 +66,7 @@ export class ContractWideBuilder extends BaseBuilder {
     const orderParams = order.params;
     return new Order(order.chainId, {
       protocol: orderParams.protocol,
-      sellerAcceptedOffer: false,
+      sellerAcceptedOffer: true,
       marketplace: orderParams.marketplace,
       marketplaceFeeNumerator: orderParams.marketplaceFeeNumerator,
       maxRoyaltyFeeNumerator: orderParams.maxRoyaltyFeeNumerator,

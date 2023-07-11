@@ -1,9 +1,9 @@
 import { BigNumberish } from "@ethersproject/bignumber";
+import { AddressZero } from "@ethersproject/constants";
 
 import { BaseBuildParams, BaseBuilder } from "../base";
 import { Order } from "../../order";
 import { s } from "../../../utils";
-import { AddressZero } from "@ethersproject/constants";
 
 interface BuildParams extends BaseBuildParams {
   tokenId: BigNumberish;
@@ -68,6 +68,8 @@ export class SingleTokenBuilder extends BaseBuilder {
     if (orderParams.kind === "sale-approval") {
       return new Order(order.chainId, {
         protocol: orderParams.protocol,
+        collectionLevelOffer: true,
+        sellerAcceptedOffer: false,
         marketplace: orderParams.marketplace,
         marketplaceFeeNumerator: orderParams.marketplaceFeeNumerator,
         maxRoyaltyFeeNumerator: orderParams.maxRoyaltyFeeNumerator,
@@ -85,7 +87,8 @@ export class SingleTokenBuilder extends BaseBuilder {
     } else {
       return new Order(order.chainId, {
         protocol: orderParams.protocol,
-        sellerAcceptedOffer: false,
+        collectionLevelOffer: false,
+        sellerAcceptedOffer: true,
         marketplace: orderParams.marketplace,
         marketplaceFeeNumerator: orderParams.marketplaceFeeNumerator,
         maxRoyaltyFeeNumerator: orderParams.maxRoyaltyFeeNumerator,

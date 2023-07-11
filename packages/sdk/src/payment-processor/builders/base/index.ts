@@ -3,7 +3,7 @@ import { AddressZero, HashZero } from "@ethersproject/constants";
 
 import { Order } from "../../order";
 import { TokenProtocols } from "../../types";
-import { getRandomBytes } from "../../../utils";
+import { getCurrentTimestamp, getRandomBytes } from "../../../utils";
 
 export type MatchingOptions = {
   taker: string;
@@ -25,12 +25,8 @@ export interface BaseBuildParams {
   marketplaceFeeNumerator?: BigNumberish;
   nonce?: BigNumberish;
 
-  // `SaleApproval`-only fields
   sellerAcceptedOffer?: boolean;
   maxRoyaltyFeeNumerator?: BigNumberish;
-
-  // `CollectionOfferApproval`-only fields
-  collectionLevelOffer?: boolean;
 
   v?: number;
   r?: string;
@@ -48,6 +44,7 @@ export abstract class BaseBuilder {
     params.marketplace = params.marketplace ?? AddressZero;
     params.marketplaceFeeNumerator = params.marketplaceFeeNumerator ?? "0";
     params.maxRoyaltyFeeNumerator = params.maxRoyaltyFeeNumerator ?? "0";
+    params.expiration = params.expiration ?? getCurrentTimestamp(60 * 60);
     params.nonce = params.nonce ?? getRandomBytes(10);
     params.v = params.v ?? 0;
     params.r = params.r ?? HashZero;

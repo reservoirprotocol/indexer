@@ -78,20 +78,24 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         const txTrace = await utils.fetchTransactionTrace(txHash);
         if (txTrace) {
-          const tradeRank = trades.order.get(`${txHash}-${exchangeAddress}`) ?? 0;
-          const executeCallTrace = searchForCall(
-            txTrace.calls,
-            {
-              to: exchangeAddress,
-              type: "CALL",
-              sigHashes: methods.map((c) => c.selector),
-            },
-            tradeRank
-          );
+          try {
+            const tradeRank = trades.order.get(`${txHash}-${exchangeAddress}`) ?? 0;
+            const executeCallTrace = searchForCall(
+              txTrace.calls,
+              {
+                to: exchangeAddress,
+                type: "CALL",
+                sigHashes: methods.map((c) => c.selector),
+              },
+              tradeRank
+            );
 
-          if (executeCallTrace) {
-            relevantCalldata = executeCallTrace.input;
-            trades.order.set(`${txHash}-${exchangeAddress}`, tradeRank + 1);
+            if (executeCallTrace) {
+              relevantCalldata = executeCallTrace.input;
+              trades.order.set(`${txHash}-${exchangeAddress}`, tradeRank + 1);
+            }
+          } catch {
+            relevantCalldata = tx.data;
           }
         } else {
           relevantCalldata = tx.data;
@@ -158,7 +162,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           const order = isCollectionLevel
             ? contractBuilder.build({
                 protocol: saleDetail["protocol"],
-                collectionLevelOffer: true,
                 marketplace: saleDetail["marketplace"],
                 marketplaceFeeNumerator: saleDetail["marketplaceFeeNumerator"],
                 maxRoyaltyFeeNumerator: saleDetail["maxRoyaltyFeeNumerator"],

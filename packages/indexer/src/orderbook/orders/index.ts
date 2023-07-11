@@ -722,6 +722,15 @@ export const generateBidDetailsV6 = async (
       };
     }
 
+    case "payment-processor": {
+      const sdkOrder = new Sdk.PaymentProcessor.Order(config.chainId, order.rawData);
+      return {
+        kind: "payment-processor",
+        ...common,
+        order: sdkOrder,
+      };
+    }
+
     default: {
       throw new Error("Unsupported order kind");
     }

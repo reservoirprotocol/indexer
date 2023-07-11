@@ -103,6 +103,7 @@ export const config = {
   orderFetcherBaseUrl: String(process.env.ORDER_FETCHER_BASE_URL),
 
   cipherSecret: String(process.env.CIPHER_SECRET),
+  imageTag: String(process.env.IMAGE_TAG),
 
   slackApiKeyWebhookUrl: String(process.env.SLACK_API_KEY_WEBHOOK_URL),
 
