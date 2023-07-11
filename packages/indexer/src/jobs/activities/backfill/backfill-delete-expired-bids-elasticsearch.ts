@@ -35,16 +35,13 @@ if (config.doBackgroundWork) {
 
       const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 1000;
 
-      const { activities, continuation } = await ActivitiesIndex.search(
-        {
-          types: [ActivityType.bid],
-          endTimestamp,
-          continuation: cursor,
-          sortBy: "timestamp",
-          limit: Number(limit),
-        },
-        true
-      );
+      const { activities, continuation } = await ActivitiesIndex.search({
+        types: [ActivityType.bid],
+        endTimestamp,
+        continuation: cursor,
+        sortBy: "timestamp",
+        limit: Number(limit),
+      });
 
       logger.info(
         QUEUE_NAME,
