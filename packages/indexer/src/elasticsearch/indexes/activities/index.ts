@@ -93,13 +93,16 @@ const MAPPINGS: MappingTypeMapping = {
     pricing: {
       properties: {
         price: { type: "keyword" },
+        priceDecimal: { type: "double" },
         currencyPrice: { type: "keyword" },
         usdPrice: { type: "keyword" },
         feeBps: { type: "integer" },
         currency: { type: "keyword" },
         value: { type: "keyword" },
+        valueDecimal: { type: "double" },
         currencyValue: { type: "keyword" },
         normalizedValue: { type: "keyword" },
+        normalizedValueDecimal: { type: "double" },
         currencyNormalizedValue: { type: "keyword" },
       },
     },
