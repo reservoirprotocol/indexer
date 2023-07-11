@@ -123,6 +123,7 @@ export class ArchiveBidOrders implements ArchiveInterface {
   async deleteFromTable(startTime: string, endTime: string) {
     const limit = 5000;
     let deletedOrdersResult;
+    let deleteActivities = false;
 
     do {
       const deleteQuery = `
@@ -152,8 +153,12 @@ export class ArchiveBidOrders implements ArchiveInterface {
           deletedOrdersResult.map((deletedOrder) => deletedOrder.id)
         );
 
-        await deleteArchivedExpiredBidActivitiesJob.addToQueue();
+        deleteActivities = true;
       }
     } while (deletedOrdersResult.length === limit);
+
+    if (deleteActivities) {
+      await deleteArchivedExpiredBidActivitiesJob.addToQueue();
+    }
   }
 }
