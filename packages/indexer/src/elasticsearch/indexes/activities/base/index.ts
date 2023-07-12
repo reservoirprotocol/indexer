@@ -123,6 +123,7 @@ export interface BuildActivityData extends BuildDocumentData {
     kind: string;
     data: Record<string, unknown>;
   };
+  created_ts: number;
 }
 
 export class ActivityBuilder extends DocumentBuilder {
@@ -132,6 +133,7 @@ export class ActivityBuilder extends DocumentBuilder {
     return {
       ...baseActivity,
       timestamp: data.timestamp,
+      createdAt: new Date(data.created_ts * 1000),
       type: data.type,
       fromAddress: fromBuffer(data.from),
       toAddress: data.to ? fromBuffer(data.to) : undefined,

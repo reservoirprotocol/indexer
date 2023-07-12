@@ -78,6 +78,7 @@ export class FillEventCreatedEventHandler extends BaseActivityEventHandler {
                   price AS "pricing_price",
                   currency_price AS "pricing_currency_price",
                   usd_price AS "pricing_usd_price",
+                  extract(epoch from orders.created_at) AS "created_ts",
                   t.*,
                   o.*
                 FROM fill_events_2

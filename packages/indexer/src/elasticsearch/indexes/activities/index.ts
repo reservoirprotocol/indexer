@@ -27,9 +27,9 @@ const MAPPINGS: MappingTypeMapping = {
   properties: {
     id: { type: "keyword" },
     createdAt: { type: "date" },
+    indexedAt: { type: "date" },
     type: { type: "keyword" },
     timestamp: { type: "float" },
-    name: { type: "keyword" },
     contract: { type: "keyword" },
     fromAddress: { type: "keyword" },
     toAddress: { type: "keyword" },
