@@ -64,7 +64,6 @@ export class ExportDataJob extends AbstractRabbitMqJobHandler {
   concurrency = 1;
   useSharedChannel = true;
   consumerTimeout = 120000;
-  disableConsuming = true;
 
   protected async process(payload: ExportDataJobPayload) {
     const { taskId } = payload;
