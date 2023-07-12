@@ -369,29 +369,6 @@ const saveLogsAndTracesAndTransactions = async (
   });
 
   const startTime = Date.now();
-  // logger.info(
-  //   "sync-events-v2",
-  //   JSON.stringify({
-  //     message: `Events realtime syncing block ${blockData.number}`,
-  //     block: blockData.number,
-  //     logs: transactionLogs,
-  //     traces,
-  //     transactionReceipts,
-  //     blockData,
-  //   })
-  // );
-
-  // // eslint-disable-next-line
-  // console.log(
-  //   JSON.stringify({
-  //     message: `Events realtime syncing block ${blockData.number}`,
-  //     block: blockData.number,
-  //     logs: transactionLogs,
-  //     traces,
-  //     transactionReceipts,
-  //     blockData,
-  //   })
-  // );
 
   await Promise.all([
     ...transactionLogs.map((txLogs) => saveTransactionLogs(txLogs)),
