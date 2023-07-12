@@ -140,11 +140,11 @@ type NetworkSettings = {
   };
   onStartup?: () => Promise<void>;
   subDomain: string;
-
   elasticsearch?: {
     numberOfShards?: number;
     indexes?: { [index: string]: ElasticsearchIndexSettings };
   };
+  isTestnet?: boolean;
 };
 
 type ElasticsearchIndexSettings = {
@@ -178,6 +178,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     elasticsearch: {
       numberOfShards: 2,
     },
+    isTestnet: false,
   };
 
   switch (config.chainId) {
@@ -398,6 +399,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 5: {
       return {
         ...defaultNetworkSettings,
+        isTestnet: true,
         backfillBlockBatchSize: 32,
         subDomain: "api-goerli",
         mintsAsSalesBlacklist: [
@@ -787,6 +789,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 11155111: {
       return {
         ...defaultNetworkSettings,
+        isTestnet: true,
         enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
@@ -820,6 +823,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 80001: {
       return {
         ...defaultNetworkSettings,
+        isTestnet: true,
         enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
@@ -860,6 +864,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 84531: {
       return {
         ...defaultNetworkSettings,
+        isTestnet: true,
         enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
@@ -940,6 +945,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 999: {
       return {
         ...defaultNetworkSettings,
+        isTestnet: true,
         enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,

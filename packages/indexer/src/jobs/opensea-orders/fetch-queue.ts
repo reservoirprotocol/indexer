@@ -16,6 +16,7 @@ import { Tokens } from "@/models/tokens";
 import { Collections } from "@/models/collections";
 import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
+import { getNetworkSettings } from "@/config/network";
 
 const QUEUE_NAME = "opensea-orders-fetch-queue";
 
@@ -54,20 +55,19 @@ if (config.doBackgroundWork) {
         try {
           const fetchCollectionOffersResponse = await axios.get(
             `https://${
-              config.chainId !== 5 ? "api" : "testnets-api"
+              getNetworkSettings().isTestnet ? "testnets-api" : "api"
             }.opensea.io/api/v2/offers/collection/${
               refreshOpenseaCollectionOffersCollections[0].slug
             }`,
             {
-              headers:
-                config.chainId !== 5
-                  ? {
-                      "Content-Type": "application/json",
-                      "X-Api-Key": config.openSeaApiKey,
-                    }
-                  : {
-                      "Content-Type": "application/json",
-                    },
+              headers: getNetworkSettings().isTestnet
+                ? {
+                    "Content-Type": "application/json",
+                  }
+                : {
+                    "Content-Type": "application/json",
+                    "X-Api-Key": config.openSeaApiKey,
+                  },
             }
           );
 
