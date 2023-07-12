@@ -68,6 +68,8 @@ export class ExportDataJob extends AbstractRabbitMqJobHandler {
     const { taskId } = payload;
     const queryLimit = 5000;
 
+    logger.info(this.queueName, `Start. taskId=${taskId}`);
+
     const timeBefore = performance.now();
 
     if (await acquireLock(this.getLockName(taskId), 60 * 5)) {
