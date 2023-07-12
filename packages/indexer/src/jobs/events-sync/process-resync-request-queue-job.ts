@@ -14,6 +14,7 @@ export type ProcessResyncRequestJobPayload = {
     | {
         method: "address";
         address: string;
+        fetchAllTxLogs?: boolean;
       };
   blocksPerBatch?: number;
 };
@@ -51,6 +52,7 @@ export class ProcessResyncRequestJob extends AbstractRabbitMqJobHandler {
         | {
             method: "address";
             address: string;
+            fetchAllTxLogs?: boolean;
           };
     }
   ) {

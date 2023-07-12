@@ -29,6 +29,7 @@ export const postSyncEventsOptions: RouteOptions = {
         Joi.object({
           method: Joi.string().valid("address"),
           address: Joi.string().pattern(regex.address),
+          fetchAllTxLogs: Joi.boolean().default(false),
         })
       ),
       fromBlock: Joi.number().integer().positive().required(),

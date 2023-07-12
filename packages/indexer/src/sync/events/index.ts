@@ -1,4 +1,4 @@
-import { Filter } from "@ethersproject/abstract-provider";
+import { Filter, Log } from "@ethersproject/abstract-provider";
 import _, { now } from "lodash";
 import pLimit from "p-limit";
 
@@ -279,6 +279,12 @@ export const syncEvents = async (
           // includes multiple addresses:
           // https://github.com/reservoirprotocol/indexer-v2/blob/main/src/syncer/base/index.ts
           address: string;
+          // when performing a eth_getLogs call and filtering by address, we only
+          // receive the logs that match the address filter. Often, we need to
+          // all logs for the given transaction and not only the ones emitted by
+          // the given address. By setting this flag to true, we will perform
+          // an additional eth_getTransactionReceipt call for each transactionHash
+          fetchAllTxLogs?: boolean;
         };
   }
 ) => {
@@ -297,10 +303,10 @@ export const syncEvents = async (
   if (!backfill && toBlock - fromBlock + 1 <= 32) {
     const existingBlocks = await idb.manyOrNone(
       `
-        SELECT blocks.number
-        FROM blocks
-        WHERE blocks.number IN ($/blocks:list/)
-      `,
+                SELECT blocks.number
+                FROM blocks
+                WHERE blocks.number IN ($/blocks:list/)
+            `,
       { blocks: _.range(fromBlock, toBlock + 1) }
     );
 
@@ -318,6 +324,7 @@ export const syncEvents = async (
     );
   }
   const endTimeFetchingBlocks = now();
+  let fetchAllTxLogs = false;
 
   // Generate the events filter with one of the following options:
   // - fetch all events
@@ -340,6 +347,7 @@ export const syncEvents = async (
       toBlock,
     };
   } else if (options?.syncDetails?.method === "address") {
+    fetchAllTxLogs = Boolean(options.syncDetails.fetchAllTxLogs);
     // Filter to all events of a particular address
     eventFilter = {
       address: options.syncDetails.address,
@@ -350,137 +358,160 @@ export const syncEvents = async (
 
   const enhancedEvents: EnhancedEvent[] = [];
   const startTimeFetchingLogs = now();
-  await baseProvider.getLogs(eventFilter).then(async (logs) => {
-    const endTimeFetchingLogs = now();
-    const startTimeProcessingEvents = now();
-    const availableEventData = getEventData();
+  await baseProvider
+    .getLogs(eventFilter)
+    .then(async (logs) => {
+      if (!fetchAllTxLogs) {
+        return logs;
+      }
 
-    for (const log of logs) {
-      try {
-        const baseEventParams = await parseEvent(log, blocksCache);
+      let allLogs: Log[] = [];
+      const uniqueTxHashes = [...new Set(logs.map((log) => log.transactionHash))];
 
-        // Cache the block data
-        if (!blocksCache.has(baseEventParams.block)) {
-          // It's very important from a performance perspective to have
-          // the block data available before proceeding with the events
-          // (otherwise we might have to perform too many db reads)
-          blocksCache.set(
-            baseEventParams.block,
-            await blocksModel.saveBlock({
-              number: baseEventParams.block,
-              hash: baseEventParams.blockHash,
-              timestamp: baseEventParams.timestamp,
+      for (const txHash of uniqueTxHashes) {
+        try {
+          const txReceipt = await baseProvider.getTransactionReceipt(txHash);
+          allLogs = [...allLogs, ...txReceipt.logs];
+        } catch (error) {
+          logger.error("sync-events", `Error fetching receipt: ${error}`);
+          // if we can't fetch the receipt, proceed with the logs we have
+          allLogs = [...allLogs, ...logs.filter((log) => log.transactionHash === txHash)];
+        }
+      }
+
+      return allLogs;
+    })
+    .then(async (logs) => {
+      const endTimeFetchingLogs = now();
+      const startTimeProcessingEvents = now();
+      const availableEventData = getEventData();
+
+      for (const log of logs) {
+        try {
+          const baseEventParams = await parseEvent(log, blocksCache);
+
+          // Cache the block data
+          if (!blocksCache.has(baseEventParams.block)) {
+            // It's very important from a performance perspective to have
+            // the block data available before proceeding with the events
+            // (otherwise we might have to perform too many db reads)
+            blocksCache.set(
+              baseEventParams.block,
+              await blocksModel.saveBlock({
+                number: baseEventParams.block,
+                hash: baseEventParams.blockHash,
+                timestamp: baseEventParams.timestamp,
+              })
+            );
+          }
+
+          // Keep track of the block
+          blocksSet.add(`${log.blockNumber}-${log.blockHash}`);
+
+          // Find matching events:
+          // - matching topic
+          // - matching number of topics (eg. indexed fields)
+          // - matching address
+          const matchingEventDatas = availableEventData.filter(
+            ({ addresses, numTopics, topic }) =>
+              log.topics[0] === topic &&
+              log.topics.length === numTopics &&
+              (addresses ? addresses[log.address.toLowerCase()] : true)
+          );
+          for (const eventData of matchingEventDatas) {
+            enhancedEvents.push({
+              kind: eventData.kind,
+              subKind: eventData.subKind,
+              baseEventParams,
+              log,
+            });
+          }
+        } catch (error) {
+          logger.info("sync-events", `Failed to handle events: ${error}`);
+          throw error;
+        }
+      }
+
+      // Process the retrieved events asynchronously
+      const eventsBatches = await extractEventsBatches(enhancedEvents, backfill);
+
+      const startTimeAddToProcessQueue = now();
+      if (backfill) {
+        await eventsSyncProcessBackfillJob.addToQueue(eventsBatches);
+      } else {
+        await eventsSyncProcessRealtimeJob.addToQueue(eventsBatches, true);
+      }
+      const endTimeAddToProcessQueue = now();
+
+      // Make sure to recheck the ingested blocks with a delay in order to undo any reorgs
+      const ns = getNetworkSettings();
+      if (!backfill && ns.enableReorgCheck) {
+        for (const blockData of blocksSet.values()) {
+          const block = Number(blockData.split("-")[0]);
+          const blockHash = blockData.split("-")[1];
+
+          // Act right away if the current block is a duplicate
+          if ((await blocksModel.getBlocks(block)).length > 1) {
+            await blockCheckJob.addToQueue({ block, blockHash, delay: 10 });
+            await blockCheckJob.addToQueue({ block, blockHash, delay: 30 });
+          }
+        }
+
+        const blocksToCheck: BlockCheckJobPayload[] = [];
+        let blockNumbersArray = _.range(fromBlock, toBlock + 1);
+
+        // Put all fetched blocks on a delayed queue
+        [...blocksSet.values()].map(async (blockData) => {
+          const block = Number(blockData.split("-")[0]);
+          const blockHash = blockData.split("-")[1];
+          blockNumbersArray = _.difference(blockNumbersArray, [block]);
+
+          ns.reorgCheckFrequency.map((frequency) =>
+            blocksToCheck.push({
+              block,
+              blockHash,
+              delay: frequency * 60,
             })
+          );
+        });
+
+        // Log blocks for which no logs were fetched from the RPC provider
+        if (!_.isEmpty(blockNumbersArray)) {
+          logger.debug(
+            "sync-events",
+            `[${fromBlock}, ${toBlock}] No logs fetched for ${JSON.stringify(blockNumbersArray)}`
           );
         }
 
-        // Keep track of the block
-        blocksSet.add(`${log.blockNumber}-${log.blockHash}`);
-
-        // Find matching events:
-        // - matching topic
-        // - matching number of topics (eg. indexed fields)
-        // - matching address
-        const matchingEventDatas = availableEventData.filter(
-          ({ addresses, numTopics, topic }) =>
-            log.topics[0] === topic &&
-            log.topics.length === numTopics &&
-            (addresses ? addresses[log.address.toLowerCase()] : true)
-        );
-        for (const eventData of matchingEventDatas) {
-          enhancedEvents.push({
-            kind: eventData.kind,
-            subKind: eventData.subKind,
-            baseEventParams,
-            log,
-          });
-        }
-      } catch (error) {
-        logger.info("sync-events", `Failed to handle events: ${error}`);
-        throw error;
-      }
-    }
-
-    // Process the retrieved events asynchronously
-    const eventsBatches = await extractEventsBatches(enhancedEvents, backfill);
-
-    const startTimeAddToProcessQueue = now();
-    if (backfill) {
-      await eventsSyncProcessBackfillJob.addToQueue(eventsBatches);
-    } else {
-      await eventsSyncProcessRealtimeJob.addToQueue(eventsBatches, true);
-    }
-    const endTimeAddToProcessQueue = now();
-
-    // Make sure to recheck the ingested blocks with a delay in order to undo any reorgs
-    const ns = getNetworkSettings();
-    if (!backfill && ns.enableReorgCheck) {
-      for (const blockData of blocksSet.values()) {
-        const block = Number(blockData.split("-")[0]);
-        const blockHash = blockData.split("-")[1];
-
-        // Act right away if the current block is a duplicate
-        if ((await blocksModel.getBlocks(block)).length > 1) {
-          await blockCheckJob.addToQueue({ block, blockHash, delay: 10 });
-          await blockCheckJob.addToQueue({ block, blockHash, delay: 30 });
-        }
+        await blockCheckJob.addBulk(blocksToCheck);
       }
 
-      const blocksToCheck: BlockCheckJobPayload[] = [];
-      let blockNumbersArray = _.range(fromBlock, toBlock + 1);
+      const endTimeProcessingEvents = now();
 
-      // Put all fetched blocks on a delayed queue
-      [...blocksSet.values()].map(async (blockData) => {
-        const block = Number(blockData.split("-")[0]);
-        const blockHash = blockData.split("-")[1];
-        blockNumbersArray = _.difference(blockNumbersArray, [block]);
-
-        ns.reorgCheckFrequency.map((frequency) =>
-          blocksToCheck.push({
-            block,
-            blockHash,
-            delay: frequency * 60,
+      if (!backfill) {
+        logger.info(
+          "sync-events-timing-2",
+          JSON.stringify({
+            message: `Events realtime syncing block range [${fromBlock}, ${toBlock}]`,
+            blocks: {
+              count: blocksSet.size,
+              time: endTimeFetchingBlocks - startTimeFetchingBlocks,
+            },
+            logs: {
+              count: logs.length,
+              time: endTimeFetchingLogs - startTimeFetchingLogs,
+            },
+            events: {
+              count: enhancedEvents.length,
+              time: endTimeProcessingEvents - startTimeProcessingEvents,
+            },
+            queue: {
+              time: endTimeAddToProcessQueue - startTimeAddToProcessQueue,
+            },
           })
         );
-      });
-
-      // Log blocks for which no logs were fetched from the RPC provider
-      if (!_.isEmpty(blockNumbersArray)) {
-        logger.debug(
-          "sync-events",
-          `[${fromBlock}, ${toBlock}] No logs fetched for ${JSON.stringify(blockNumbersArray)}`
-        );
       }
-
-      await blockCheckJob.addBulk(blocksToCheck);
-    }
-
-    const endTimeProcessingEvents = now();
-
-    if (!backfill) {
-      logger.info(
-        "sync-events-timing-2",
-        JSON.stringify({
-          message: `Events realtime syncing block range [${fromBlock}, ${toBlock}]`,
-          blocks: {
-            count: blocksSet.size,
-            time: endTimeFetchingBlocks - startTimeFetchingBlocks,
-          },
-          logs: {
-            count: logs.length,
-            time: endTimeFetchingLogs - startTimeFetchingLogs,
-          },
-          events: {
-            count: enhancedEvents.length,
-            time: endTimeProcessingEvents - startTimeProcessingEvents,
-          },
-          queue: {
-            time: endTimeAddToProcessQueue - startTimeAddToProcessQueue,
-          },
-        })
-      );
-    }
-  });
+    });
 };
 
 export const unsyncEvents = async (block: number, blockHash: string) => {
