@@ -33,7 +33,7 @@ export const checkMarketplaceIsFiltered = async (
     }
   }
 
-  const customCheck = await isBlockedByCustomRegistry(contract, operators);
+  const customCheck = await isBlockedByCustomLogic(contract, operators);
   if (customCheck) {
     return customCheck;
   }
@@ -41,14 +41,32 @@ export const checkMarketplaceIsFiltered = async (
   return operators.some((c) => result!.includes(c));
 };
 
-export const isBlockedByCustomRegistry = async (contract: string, operators: string[]) => {
-  const cacheKey = `marketplace-blacklist-custom-registry:${contract}:${JSON.stringify(operators)}`;
+export const isBlockedByCustomLogic = async (contract: string, operators: string[]) => {
+  const cacheDuration = 24 * 3600;
+
+  const cacheKey = `marketplace-blacklist-custom-logic:${contract}:${JSON.stringify(operators)}`;
   const cache = await redis.get(cacheKey);
   if (!cache) {
-    const iface = new Interface(["function registry() external view returns (address)"]);
+    const iface = new Interface([
+      "function registry() view returns (address)",
+      "function getWhitelistedOperators() view returns (address[])",
+    ]);
     const nft = new Contract(contract, iface, baseProvider);
 
-    let result = false;
+    // `getWhitelistedOperators()` (ERC721-C)
+    try {
+      const whitelistedOperators = await nft
+        .getWhitelistedOperators()
+        .then((ops: string[]) => ops.map((o) => o.toLowerCase()));
+      const result = operators.some((o) => !whitelistedOperators.includes(o));
+
+      await redis.set(cacheKey, result ? "1" : "0", "EX", cacheDuration);
+      return result;
+    } catch {
+      // Skip errors
+    }
+
+    // `registry()`
     try {
       const registry = new Contract(
         await nft.registry(),
@@ -58,13 +76,13 @@ export const isBlockedByCustomRegistry = async (contract: string, operators: str
         baseProvider
       );
       const allowed = await Promise.all(operators.map((c) => registry.isAllowedOperator(c)));
-      result = allowed.some((c) => c === false);
+      const result = allowed.some((c) => !c);
+
+      await redis.set(cacheKey, result ? "1" : "0", "EX", cacheDuration);
+      return result;
     } catch {
       // Skip errors
     }
-
-    await redis.set(cacheKey, result ? "1" : "0", "EX", 24 * 3600);
-    return result;
   }
 
   return Boolean(Number(cache));

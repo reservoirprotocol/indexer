@@ -6,6 +6,7 @@ import { redb } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
+import { getRoyalties } from "@/utils/royalties";
 
 export interface BaseOrderBuildOptions {
   maker: string;
@@ -43,6 +44,7 @@ export const getBuildInfo = async (
     throw new Error("Could not fetch token collection");
   }
 
+  const contract = fromBuffer(collectionResult.address);
   const buildParams: BaseBuildParams = {
     protocol:
       collectionResult.kind === "erc721"
@@ -51,9 +53,11 @@ export const getBuildInfo = async (
     marketplace: AddressZero,
     amount: options.quantity ?? "1",
     marketplaceFeeNumerator: "0",
-    maxRoyaltyFeeNumerator: "0",
+    maxRoyaltyFeeNumerator: await getRoyalties(contract, undefined, "on-chain").then((royalties) =>
+      royalties.map((r) => r.bps).reduce((a, b) => a + b, 0)
+    ),
     trader: options.maker,
-    tokenAddress: fromBuffer(collectionResult.address),
+    tokenAddress: contract,
     price: options.weiPrice,
     expiration: options.expirationTime!,
     coin:

@@ -66,6 +66,7 @@ export class ContractWideBuilder extends BaseBuilder {
     const orderParams = order.params;
     return new Order(order.chainId, {
       protocol: orderParams.protocol,
+      collectionLevelOffer: true,
       sellerAcceptedOffer: true,
       marketplace: orderParams.marketplace,
       marketplaceFeeNumerator: orderParams.marketplaceFeeNumerator,

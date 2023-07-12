@@ -15,6 +15,7 @@ import { baseProvider } from "@/common/provider";
 import { bn, now, regex } from "@/common/utils";
 import { config } from "@/config/index";
 import { getExecuteError } from "@/orderbook/orders/errors";
+import { checkBlacklistAndFallback } from "@/orderbook/orders";
 import * as b from "@/utils/auth/blur";
 import { ExecutionsBuffer } from "@/utils/executions";
 
@@ -430,6 +431,14 @@ export const getExecuteBidV5Options: RouteOptions = {
           // Force usage of looks-rare-v2
           if (params.orderKind === "looks-rare") {
             params.orderKind = "looks-rare-v2";
+          }
+
+          // Blacklist checks
+          if (collectionId) {
+            await checkBlacklistAndFallback(collectionId, params);
+          }
+          if (token) {
+            await checkBlacklistAndFallback(token.split(":")[0], params);
           }
 
           // Only single-contract token sets are biddable

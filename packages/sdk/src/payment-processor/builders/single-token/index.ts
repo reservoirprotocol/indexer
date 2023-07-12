@@ -37,7 +37,8 @@ export class SingleTokenBuilder extends BaseBuilder {
     return new Order(this.chainId, {
       kind: params.sellerAcceptedOffer ? "offer-approval" : "sale-approval",
       protocol: params.protocol,
-      sellerAcceptedOffer: params.sellerAcceptedOffer,
+      sellerAcceptedOffer: Boolean(params.sellerAcceptedOffer),
+      collectionLevelOffer: false,
       marketplace: params.marketplace ?? AddressZero,
       marketplaceFeeNumerator: s(params.marketplaceFeeNumerator) ?? "0",
       maxRoyaltyFeeNumerator: s(params.maxRoyaltyFeeNumerator) ?? "0",

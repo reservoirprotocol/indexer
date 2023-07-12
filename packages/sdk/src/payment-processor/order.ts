@@ -214,7 +214,7 @@ export class Order {
         sellerAcceptedOffer: this.params.sellerAcceptedOffer!,
         marketplace: this.params.marketplace,
         marketplaceFeeNumerator: this.params.marketplaceFeeNumerator,
-        maxRoyaltyFeeNumerator: this.params.maxRoyaltyFeeNumerator!,
+        maxRoyaltyFeeNumerator: this.params.maxRoyaltyFeeNumerator,
         privateBuyer: this.params.privateBuyerOrDelegatedPurchaser,
         seller: this.params.sellerOrBuyer,
         tokenAddress: this.params.tokenAddress,
@@ -361,7 +361,7 @@ const normalize = (order: Types.BaseOrder): Types.BaseOrder => {
     marketplace: lc(order.marketplace),
     marketplaceFeeNumerator: s(order.marketplaceFeeNumerator),
     tokenAddress: lc(order.tokenAddress),
-    tokenId: order.tokenId ? s(order.tokenId) : undefined,
+    tokenId: order.tokenId !== undefined ? s(order.tokenId) : undefined,
     amount: s(order.amount),
     price: s(order.price),
     expiration: s(order.expiration),
@@ -373,9 +373,8 @@ const normalize = (order: Types.BaseOrder): Types.BaseOrder => {
     sellerOrBuyer: lc(order.sellerOrBuyer),
 
     sellerAcceptedOffer: order.sellerAcceptedOffer,
-    maxRoyaltyFeeNumerator: order.maxRoyaltyFeeNumerator
-      ? s(order.maxRoyaltyFeeNumerator)
-      : undefined,
+    maxRoyaltyFeeNumerator:
+      order.maxRoyaltyFeeNumerator !== undefined ? s(order.maxRoyaltyFeeNumerator) : undefined,
 
     collectionLevelOffer: order.collectionLevelOffer ?? undefined,
 

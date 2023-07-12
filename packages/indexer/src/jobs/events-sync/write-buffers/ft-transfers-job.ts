@@ -2,6 +2,7 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 
 import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { config } from "@/config/index";
 
 export type EventsSyncFtTransfersWriteBufferPayload = {
   query: string;
@@ -10,7 +11,7 @@ export type EventsSyncFtTransfersWriteBufferPayload = {
 export class EventsSyncFtTransfersWriteBufferJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-ft-transfers-write";
   maxRetries = 10;
-  concurrency = 15;
+  concurrency = config.chainId === 43114 ? 5 : 15;
   lazyMode = true;
   consumerTimeout = 60000;
 

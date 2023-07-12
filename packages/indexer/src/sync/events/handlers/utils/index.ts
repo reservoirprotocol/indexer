@@ -167,33 +167,12 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
             eventKind: WebsocketEventKind.SaleEvent,
           })
         ),
-        ...data.nftApprovalEvents.map((event) =>
-          WebsocketEventRouter({
-            eventInfo: {
-              address: event.baseEventParams.address,
-              block: event.baseEventParams.block.toString(),
-              block_hash: event.baseEventParams.blockHash,
-              timestamp: event.baseEventParams.timestamp.toString(),
-              owner: event.owner,
-              operator: event.operator,
-              approved: event.approved.toString(),
-              tx_hash: event.baseEventParams.txHash,
-              tx_index: event.baseEventParams.txIndex.toString(),
-              log_index: event.baseEventParams.logIndex.toString(),
-              batch_index: event.baseEventParams.batchIndex.toString(),
-              offset: "",
-              trigger: "insert",
-            },
-            eventKind: WebsocketEventKind.ApprovalEvent,
-          })
-        ),
 
         ...data.nftTransferEvents.map((event) =>
           WebsocketEventRouter({
             eventInfo: {
               address: event.baseEventParams.address,
               block: event.baseEventParams.block.toString(),
-              block_hash: event.baseEventParams.blockHash,
               timestamp: event.baseEventParams.timestamp.toString(),
               tx_hash: event.baseEventParams.txHash,
               tx_index: event.baseEventParams.txIndex.toString(),

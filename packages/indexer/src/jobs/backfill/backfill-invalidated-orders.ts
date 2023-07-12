@@ -1,13 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { HashZero } from "@ethersproject/constants";
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { inject } from "@/api/index";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 
 const QUEUE_NAME = "backfill-invalidated-orders";
@@ -72,17 +71,6 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
-
-  if (config.chainId === 137) {
-    redlock
-      .acquire([`${QUEUE_NAME}-lock-3`], 60 * 60 * 24 * 30 * 1000)
-      .then(async () => {
-        await addToQueue(HashZero);
-      })
-      .catch(() => {
-        // Skip on any errors
-      });
-  }
 }
 
 export const addToQueue = async (orderId: string) =>

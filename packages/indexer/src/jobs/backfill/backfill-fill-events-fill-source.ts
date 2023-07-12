@@ -121,17 +121,6 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
-
-  // !!! DISABLED
-
-  // redlock
-  //   .acquire([`${QUEUE_NAME}-lock-10`], 60 * 60 * 24 * 30 * 1000)
-  //   .then(async () => {
-  //     await addToQueue(now(), 0, 0);
-  //   })
-  //   .catch(() => {
-  //     // Skip on any errors
-  //   });
 }
 
 export const addToQueue = async (timestamp: number, logIndex: number, batchIndex: number) => {

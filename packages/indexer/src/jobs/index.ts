@@ -12,7 +12,6 @@ import "@/jobs/events-sync";
 import "@/jobs/oracle";
 import "@/jobs/order-updates";
 import "@/jobs/orderbook";
-import "@/jobs/sources";
 import "@/jobs/update-attribute";
 import "@/jobs/websocket-events";
 import "@/jobs/metrics";
@@ -24,27 +23,7 @@ import "@/jobs/token-set-updates";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
-import * as backfillBlockTimestamps from "@/jobs/backfill/backfill-block-timestamps";
-import * as backfillCancelSeaport11Orders from "@/jobs/backfill/backfill-cancel-seaport-v11-orders";
-import * as backfillInvalidatedOrders from "@/jobs/backfill/backfill-invalidated-orders";
 import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders";
-import * as backfillExpiredOrders2 from "@/jobs/backfill/backfill-expired-orders-2";
-import * as backfillFoundationSales from "@/jobs/backfill/backfill-foundation-sales";
-import * as backfillMints from "@/jobs/backfill/backfill-mints";
-import * as backfillBlurSales from "@/jobs/backfill/backfill-blur-sales";
-import * as backfillSaleRoyalties from "@/jobs/backfill/backfill-sale-royalties";
-import * as backfillUpdateMissingMetadata from "@/jobs/backfill/backfill-update-missing-metadata";
-import * as backfillInvalidateSeaportV14Orders from "@/jobs/backfill/backfill-cancel-seaport-v11-orders";
-import * as backfillNftBalancesLastTokenAppraisalValue from "@/jobs/backfill/backfill-nft-balances-last-token-appraisal-value";
-import * as backfillCancelEventsCreatedAt from "@/jobs/backfill/backfill-cancel-events-created-at";
-import * as backfillNftTransferEventsCreatedAt from "@/jobs/backfill/backfill-nft-transfer-events-created-at";
-import * as backfillCollectionsRoyalties from "@/jobs/backfill/backfill-collections-royalties";
-import * as backfillCollectionsPaymentTokens from "@/jobs/backfill/backfill-collections-payment-tokens";
-import * as backfillWrongNftBalances from "@/jobs/backfill/backfill-wrong-nft-balances";
-import * as backfillFoundationOrders from "@/jobs/backfill/backfill-foundation-orders";
-import * as backfillLooksrareFills from "@/jobs/backfill/backfill-looks-rare-fills";
-import * as backfillCollectionsIds from "@/jobs/backfill/backfill-collections-ids";
-import * as backfillNftTransferEventsUpdatedAt from "@/jobs/backfill/backfill-nft-transfer-events-updated-at";
 
 import * as eventsSyncRealtime from "@/jobs/events-sync/realtime-queue";
 import * as eventsSyncRealtimeV2 from "@/jobs/events-sync/realtime-queue-v2";
@@ -62,7 +41,6 @@ import * as orderbookOpenseaListings from "@/jobs/orderbook/opensea-listings-que
 
 import * as askWebsocketEventsTriggerQueue from "@/jobs/websocket-events/ask-websocket-events-trigger-queue";
 import * as bidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/bid-websocket-events-trigger-queue";
-import * as approvalWebsocketEventsTriggerQueue from "@/jobs/websocket-events/approval-websocket-events-trigger-queue";
 import * as transferWebsocketEventsTriggerQueue from "@/jobs/websocket-events/transfer-websocket-events-trigger-queue";
 import * as saleWebsocketEventsTriggerQueue from "@/jobs/websocket-events/sale-websocket-events-trigger-queue";
 import * as tokenWebsocketEventsTriggerQueue from "@/jobs/websocket-events/token-websocket-events-trigger-queue";
@@ -170,29 +148,11 @@ import { orderUpdatesByMakerJob } from "@/jobs/order-updates/order-updates-by-ma
 import { openseaOffChainCancellationsJob } from "@/jobs/order-updates/misc/opensea-off-chain-cancellations-job";
 import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
 import { openseaListingsJob } from "@/jobs/orderbook/opensea-listings-job";
+import { orderbookPostOrderExternalJob } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-job";
+import { orderbookPostOrderExternalOpenseaJob } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-job";
 
 export const allJobQueues = [
-  backfillBlockTimestamps.queue,
-  backfillCancelSeaport11Orders.queue,
-  backfillInvalidatedOrders.queue,
   backfillExpiredOrders.queue,
-  backfillExpiredOrders2.queue,
-  backfillFoundationSales.queue,
-  backfillFoundationOrders.queue,
-  backfillMints.queue,
-  backfillSaleRoyalties.queue,
-  backfillUpdateMissingMetadata.queue,
-  backfillNftBalancesLastTokenAppraisalValue.queue,
-  backfillCancelEventsCreatedAt.queue,
-  backfillNftTransferEventsCreatedAt.queue,
-  backfillCollectionsRoyalties.queue,
-  backfillCollectionsPaymentTokens.queue,
-  backfillWrongNftBalances.queue,
-  backfillInvalidateSeaportV14Orders.queue,
-  backfillBlurSales.queue,
-  backfillLooksrareFills.queue,
-  backfillCollectionsIds.queue,
-  backfillNftTransferEventsUpdatedAt.queue,
 
   eventsSyncRealtime.queue,
   eventsSyncRealtimeV2.queue,
@@ -210,7 +170,6 @@ export const allJobQueues = [
 
   askWebsocketEventsTriggerQueue.queue,
   bidWebsocketEventsTriggerQueue.queue,
-  approvalWebsocketEventsTriggerQueue.queue,
   transferWebsocketEventsTriggerQueue.queue,
   saleWebsocketEventsTriggerQueue.queue,
   tokenWebsocketEventsTriggerQueue.queue,
@@ -325,6 +284,8 @@ export class RabbitMqJobsConsumer {
       openseaOffChainCancellationsJob,
       orderbookOrdersJob,
       openseaListingsJob,
+      orderbookPostOrderExternalJob,
+      orderbookPostOrderExternalOpenseaJob,
     ];
   }
 

@@ -1,12 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { HashZero } from "@ethersproject/constants";
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import {
@@ -113,15 +112,15 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  redlock
-    .acquire([`${QUEUE_NAME}-lock-7`], 60 * 60 * 24 * 30 * 1000)
-    .then(async () => {
-      await addToQueue("sell", new Date().toISOString(), HashZero);
-      await addToQueue("buy", new Date().toISOString(), HashZero);
-    })
-    .catch(() => {
-      // Skip on any errors
-    });
+  // redlock
+  //   .acquire([`${QUEUE_NAME}-lock-7`], 60 * 60 * 24 * 30 * 1000)
+  //   .then(async () => {
+  //     await addToQueue("sell", new Date().toISOString(), HashZero);
+  //     await addToQueue("buy", new Date().toISOString(), HashZero);
+  //   })
+  //   .catch(() => {
+  //     // Skip on any errors
+  //   });
 }
 
 export const addToQueue = async (side: string, createdAt: string, id: string) => {

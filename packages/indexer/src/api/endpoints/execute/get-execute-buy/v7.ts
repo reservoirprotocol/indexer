@@ -1163,10 +1163,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       const ordersEligibleForGlobalFees = listingDetails
         .filter(
           (b) =>
-            b.source !== "blur.io" &&
-            (hasBlurListings
-              ? !["opensea.io", "looksrare.org", "x2y2.io"].includes(b.source!)
-              : true)
+            b.source !== "blur.io" && (hasBlurListings ? !["opensea.io"].includes(b.source!) : true)
         )
         .map((b) => b.orderId);
 
@@ -1491,14 +1488,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
         });
       }
 
-      if (steps[2].items.length) {
-        // Return early since any next steps are dependent on the permits
-        return {
-          steps,
-          path,
-        };
-      }
-
       // Warning! When filtering the steps, we should ensure that it
       // won't affect the client, which might be polling the API and
       // expect to get the steps returned in the same order / at the
@@ -1512,6 +1501,14 @@ export const getExecuteBuyV7Options: RouteOptions = {
         // can be sure that no Blur orders were requested and it is safe
         // to remove the auth step
         steps = steps.slice(1);
+      }
+
+      if (steps.find((s) => s.id === "currency-permit")!.items.length) {
+        // Return early since any next steps are dependent on the permits
+        return {
+          steps,
+          path,
+        };
       }
 
       const executionsBuffer = new ExecutionsBuffer();

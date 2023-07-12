@@ -13,8 +13,8 @@ import { config } from "@/config/index";
 import * as crossPostingOrdersModel from "@/models/cross-posting-orders";
 import * as orders from "@/orderbook/orders";
 
-import * as postOrderExternal from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-queue";
-import * as postOrderExternalOpensea from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-queue";
+import { orderbookPostOrderExternalOpenseaJob } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-job";
+import { orderbookPostOrderExternalJob } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-job";
 
 const version = "v3";
 
@@ -238,7 +238,7 @@ export const postOrderV3Options: RouteOptions = {
               rawData: order.data,
             } as crossPostingOrdersModel.CrossPostingOrder);
 
-            await postOrderExternalOpensea.addToQueue({
+            await orderbookPostOrderExternalOpenseaJob.addToQueue({
               crossPostingOrderId: crossPostingOrder.id,
               orderId,
               orderData: order.data,
@@ -324,7 +324,7 @@ export const postOrderV3Options: RouteOptions = {
               );
 
               if (orderResult?.token_set_id?.startsWith("token")) {
-                await postOrderExternalOpensea.addToQueue({
+                await orderbookPostOrderExternalOpenseaJob.addToQueue({
                   orderId,
                   orderData: order.data,
                   orderSchema: schema,
@@ -365,7 +365,7 @@ export const postOrderV3Options: RouteOptions = {
               rawData: order.data,
             } as crossPostingOrdersModel.CrossPostingOrder);
 
-            await postOrderExternal.addToQueue({
+            await orderbookPostOrderExternalJob.addToQueue({
               crossPostingOrderId: crossPostingOrder.id,
               orderId,
               orderData: order.data,
@@ -421,7 +421,7 @@ export const postOrderV3Options: RouteOptions = {
               rawData: order.data,
             } as crossPostingOrdersModel.CrossPostingOrder);
 
-            await postOrderExternal.addToQueue({
+            await orderbookPostOrderExternalJob.addToQueue({
               crossPostingOrderId: crossPostingOrder.id,
               orderId,
               orderData: order.data,
