@@ -690,6 +690,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 534353: {
       return {
         ...defaultNetworkSettings,
+        isTestnet: true,
         enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
