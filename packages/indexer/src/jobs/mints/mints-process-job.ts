@@ -93,7 +93,8 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
                 metadata,
                 contract,
                 token_id_range,
-                token_set_id
+                token_set_id,
+                creator
               ) VALUES (
                 $/id/,
                 $/slug/,
@@ -101,7 +102,8 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
                 $/metadata:json/,
                 $/contract/,
                 ${tokenIdRangeParam},
-                $/tokenSetId/
+                $/tokenSetId/,
+                $/creator/
               ) ON CONFLICT DO NOTHING
             `,
             {
@@ -112,6 +114,7 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
               contract: toBuffer(collection.contract),
               tokenIdRange,
               tokenSetId: collection.tokenSetId,
+              creator: collection.creator ? toBuffer(collection.creator) : null,
             }
           );
         }
