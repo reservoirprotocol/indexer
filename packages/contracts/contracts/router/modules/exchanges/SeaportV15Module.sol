@@ -377,7 +377,7 @@ contract SeaportV15Module is BaseExchangeModule {
     bytes32 orderHash = _getOrderHash(order.parameters);
 
     // Before filling, get the order's filled amount
-    uint256 beforeFilledAmount = _getFilledAmount(orderHash);
+    uint256 beforeFilledAmount = _getFilledAmount(orderHash, order.denominator);
 
     // Execute the fill
     bool success;
@@ -393,7 +393,7 @@ contract SeaportV15Module is BaseExchangeModule {
       revert UnsuccessfulFill();
     } else {
       // After successfully filling, get the order's filled amount
-      uint256 afterFilledAmount = _getFilledAmount(orderHash);
+      uint256 afterFilledAmount = _getFilledAmount(orderHash, order.denominator);
 
       // Make sure the amount filled as part of this call is correct
       if (afterFilledAmount - beforeFilledAmount != order.numerator) {
@@ -419,7 +419,11 @@ contract SeaportV15Module is BaseExchangeModule {
     orderHash = EXCHANGE.getOrderHash(orderComponents);
   }
 
-  function _getFilledAmount(bytes32 orderHash) internal view returns (uint256 totalFilled) {
-    (, , totalFilled, ) = EXCHANGE.getOrderStatus(orderHash);
+  function _getFilledAmount(
+    bytes32 orderHash,
+    uint256 adjustedTotalSize
+  ) internal view returns (uint256 adjustedTotalFilled) {
+    (, , uint256 totalFilled, uint256 totalSize) = EXCHANGE.getOrderStatus(orderHash);
+    adjustedTotalFilled = totalSize > 0 ? (totalFilled * adjustedTotalSize) / totalSize : 0;
   }
 }
