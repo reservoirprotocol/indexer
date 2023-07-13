@@ -81,6 +81,7 @@ export class MetadataApi {
         tokenSetId: `contract:${contract}`,
         isCopyrightInfringement: undefined,
         paymentTokens: undefined,
+        creator: null,
       };
     } else {
       const indexingMethod =
@@ -116,6 +117,7 @@ export class MetadataApi {
         isFallback?: boolean;
         isCopyrightInfringement?: boolean;
         paymentTokens?: object | null;
+        creator?: string | null;
       } = (data as any).collection;
 
       if (collection.isFallback && !options?.allowFallback) {
