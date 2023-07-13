@@ -74,7 +74,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
               update: {
                 _index: ActivitiesIndex.getIndexName(),
                 _id: activity.id,
-                retry_on_conflict: 3,
+                retry_on_conflict: 5,
               },
             },
             {
