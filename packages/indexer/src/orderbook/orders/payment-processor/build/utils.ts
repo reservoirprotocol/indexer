@@ -53,7 +53,7 @@ export const getBuildInfo = async (
     marketplace: AddressZero,
     amount: options.quantity ?? "1",
     marketplaceFeeNumerator: "0",
-    maxRoyaltyFeeNumerator: await getRoyalties(contract, undefined, "on-chain").then((royalties) =>
+    maxRoyaltyFeeNumerator: await getRoyalties(contract, undefined, "onchain").then((royalties) =>
       royalties.map((r) => r.bps).reduce((a, b) => a + b, 0)
     ),
     trader: options.maker,

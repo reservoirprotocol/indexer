@@ -490,6 +490,14 @@ export const getExecuteCancelV3Options: RouteOptions = {
           break;
         }
 
+        case "payment-processor": {
+          const order = new Sdk.PaymentProcessor.Order(config.chainId, orderResult.raw_data);
+          const exchange = new Sdk.PaymentProcessor.Exchange(config.chainId);
+          cancelTx = exchange.cancelOrderTx(maker, order);
+
+          break;
+        }
+
         case "blur": {
           if (orderResult.raw_data.createdAt) {
             // Handle Blur authentication

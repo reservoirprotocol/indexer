@@ -487,7 +487,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
         if (!item.quantity) {
           if (preview) {
-            item.quantity = 20;
+            item.quantity = 30;
           } else {
             item.quantity = 1;
           }

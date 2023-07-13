@@ -2412,7 +2412,7 @@ export class Router {
         data: module.interface.encodeFunctionData("batchBuyPunksWithETH", [
           orders.map((order) => ({
             buyer: taker,
-            price: price,
+            price: order.params.price,
             punkIndex: order.params.tokenId,
           })),
           {
@@ -3768,6 +3768,7 @@ export class Router {
             taker: module.address,
             takerMasterNonce: "0",
             tokenId: order.params.collectionLevelOffer ? detail.tokenId : undefined,
+            maxRoyaltyFeeNumerator: detail.extraArgs?.maxRoyaltyFeeNumerator ?? "0",
           });
           const matchedOrder = order.getMatchedOrder(takerOrder);
 

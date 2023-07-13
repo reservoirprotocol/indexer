@@ -151,6 +151,7 @@ import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
 import { openseaListingsJob } from "@/jobs/orderbook/opensea-listings-job";
 import { orderbookPostOrderExternalJob } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-job";
 import { orderbookPostOrderExternalOpenseaJob } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-job";
+import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
 
 export const allJobQueues = [
   backfillExpiredOrders.queue,
@@ -288,6 +289,7 @@ export class RabbitMqJobsConsumer {
       openseaListingsJob,
       orderbookPostOrderExternalJob,
       orderbookPostOrderExternalOpenseaJob,
+      eventsSyncRealtimeJob,
     ];
   }
 

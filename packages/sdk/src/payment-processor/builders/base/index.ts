@@ -9,6 +9,7 @@ export type MatchingOptions = {
   taker: string;
   takerMasterNonce: BigNumberish;
   tokenId?: BigNumberish;
+  maxRoyaltyFeeNumerator?: BigNumberish;
 };
 
 export interface BaseBuildParams {

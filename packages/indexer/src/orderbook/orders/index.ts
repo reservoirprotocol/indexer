@@ -34,6 +34,7 @@ import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
+import { getRoyalties } from "@/utils/royalties";
 
 // Whenever a new order kind is added, make sure to also include an
 // entry/implementation in the below types/methods in order to have
@@ -729,6 +730,11 @@ export const generateBidDetailsV6 = async (
         kind: "payment-processor",
         ...common,
         order: sdkOrder,
+        extraArgs: {
+          maxRoyaltyFeeNumerator: await getRoyalties(token.contract, undefined, "onchain").then(
+            (royalties) => royalties.map((r) => r.bps).reduce((a, b) => a + b, 0)
+          ),
+        },
       };
     }
 

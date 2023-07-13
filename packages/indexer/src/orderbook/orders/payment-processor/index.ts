@@ -1,14 +1,11 @@
-import { Interface } from "@ethersproject/abi";
 import { BigNumber } from "@ethersproject/bignumber";
 import { AddressZero } from "@ethersproject/constants";
-import { Contract } from "@ethersproject/contracts";
 import { keccak256 } from "@ethersproject/solidity";
 import * as Sdk from "@reservoir0x/sdk";
 import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { baseProvider } from "@/common/provider";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
@@ -66,22 +63,22 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      const exchange = new Contract(
-        Sdk.PaymentProcessor.Addresses.Exchange[config.chainId],
-        new Interface([
-          "function getTokenSecurityPolicyId(address collectionAddress) public view returns (uint256)",
-        ]),
-        baseProvider
-      );
-      const securityId = await exchange.getTokenSecurityPolicyId(order.params.tokenAddress);
+      // const exchange = new Contract(
+      //   Sdk.PaymentProcessor.Addresses.Exchange[config.chainId],
+      //   new Interface([
+      //     "function getTokenSecurityPolicyId(address collectionAddress) public view returns (uint256)",
+      //   ]),
+      //   baseProvider
+      // );
+      // const securityId = await exchange.getTokenSecurityPolicyId(order.params.tokenAddress);
 
-      // For now, only the default security policy is supported
-      if (securityId.toString() != "0") {
-        return results.push({
-          id,
-          status: "unsupported-security-policy",
-        });
-      }
+      // // For now, only the default security policy is supported
+      // if (securityId.toString() != "0") {
+      //   return results.push({
+      //     id,
+      //     status: "unsupported-security-policy",
+      //   });
+      // }
 
       // Check: order doesn't already exist
       const orderExists = await idb.oneOrNone(`SELECT 1 FROM "orders" "o" WHERE "o"."id" = $/id/`, {
@@ -212,12 +209,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         bps: number;
       }[] = (
         side === "sell"
-          ? await royalties.getRoyalties(
-              order.params.tokenAddress,
-              order.params.tokenId,
-              "on-chain"
-            )
-          : await royalties.getRoyaltiesByTokenSet(tokenSetId, "on-chain")
+          ? await royalties.getRoyalties(order.params.tokenAddress, order.params.tokenId, "onchain")
+          : await royalties.getRoyaltiesByTokenSet(tokenSetId, "onchain")
       ).map((r) => ({ kind: "royalty", ...r }));
 
       const price = bn(order.params.price).div(order.params.amount).toString();
