@@ -13,7 +13,6 @@ if (process.env.DATADOG_AGENT_URL) {
     service,
     url: process.env.DATADOG_AGENT_URL,
     env: config.environment,
-    sampleRate: config.chainId == 1 ? 1.0 : undefined,
   });
 
   tracer.use("hapi", {
