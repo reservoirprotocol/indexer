@@ -18,8 +18,6 @@ export class FixActivitiesMissingCollectionJob extends AbstractRabbitMqJobHandle
   lazyMode = true;
 
   protected async process(payload: FixActivitiesMissingCollectionJobPayload) {
-    logger.info(this.queueName, `Worker started. payload=${JSON.stringify(payload)}`);
-
     const { contract, tokenId, retry } = payload;
 
     const collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
