@@ -2412,7 +2412,7 @@ export class Router {
         data: module.interface.encodeFunctionData("batchBuyPunksWithETH", [
           orders.map((order) => ({
             buyer: taker,
-            price: price,
+            price: order.params.price,
             punkIndex: order.params.tokenId,
           })),
           {

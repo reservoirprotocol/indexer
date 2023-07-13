@@ -266,21 +266,34 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               orderResult = false;
             }
 
-            if (!orderResult) {
-              // Handle: token set
-              const schemaHash = generateSchemaHash();
-              const [{ id: tokenSetId }] = await tokenSet.contractWide.save([
+            // Handle: token set
+            const schemaHash = generateSchemaHash();
+
+            let tokenSetId: string;
+            if (isERC1155) {
+              [{ id: tokenSetId }] = await tokenSet.singleToken.save([
+                {
+                  id: `token:${pool.nft}:${pool.tokenId!}`.toLowerCase(),
+                  schemaHash,
+                  contract: pool.nft,
+                  tokenId: pool.tokenId!,
+                },
+              ]);
+            } else {
+              [{ id: tokenSetId }] = await tokenSet.contractWide.save([
                 {
                   id: `contract:${pool.nft}`.toLowerCase(),
                   schemaHash,
                   contract: pool.nft,
                 },
               ]);
+            }
 
-              if (!tokenSetId) {
-                throw new Error("No token set available");
-              }
+            if (!tokenSetId) {
+              throw new Error("No token set available");
+            }
 
+            if (!orderResult) {
               // Handle: source
               const sources = await Sources.getInstance();
               const source = await sources.getOrInsert("sudoswap.xyz");
@@ -335,6 +348,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   UPDATE orders SET
                     fillability_status = 'fillable',
                     approval_status = 'approved',
+                    token_set_id = $/tokenSetId/,
                     price = $/price/,
                     currency_price = $/price/,
                     value = $/value/,
@@ -358,6 +372,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   id,
                   price,
                   value,
+                  tokenSetId,
                   rawData: sdkOrder.params,
                   quantityRemaining: prices.length.toString(),
                   missingRoyalties: missingRoyalties,

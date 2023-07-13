@@ -165,6 +165,7 @@ export class Collections {
         slug = $/slug/,
         token_count = $/tokenCount/,
         payment_tokens = $/paymentTokens/,
+        creator = $/creator/,
         updated_at = now()
       WHERE id = $/id/
       RETURNING (
@@ -185,6 +186,7 @@ export class Collections {
       slug: collection.slug,
       tokenCount,
       paymentTokens: collection.paymentTokens ? { opensea: collection.paymentTokens } : {},
+      creator: collection.creator ? toBuffer(collection.creator) : null,
     };
 
     const result = await idb.oneOrNone(query, values);

@@ -101,19 +101,19 @@ export const SeaportV14Module: ChainIdToAddress = {
 };
 
 export const SeaportV15Module: ChainIdToAddress = {
-  [Network.Ethereum]: "0xf645877ab54e5856f39dc90425ae21748f52b5d4",
-  [Network.EthereumGoerli]: "0xf645877ab54e5856f39dc90425ae21748f52b5d4",
-  [Network.EthereumSepolia]: "0x0df8a66ba3010af4f86ca4db6a6da9e367385a03",
-  [Network.Polygon]: "0xf645877ab54e5856f39dc90425ae21748f52b5d4",
-  [Network.Optimism]: "0xf645877ab54e5856f39dc90425ae21748f52b5d4",
-  [Network.Arbitrum]: "0xf645877ab54e5856f39dc90425ae21748f52b5d4",
-  [Network.ZoraTestnet]: "0x0df8a66ba3010af4f86ca4db6a6da9e367385a03",
-  [Network.ScrollAlpha]: "0xf645877ab54e5856f39dc90425ae21748f52b5d4",
-  [Network.Mumbai]: "0xf645877ab54e5856f39dc90425ae21748f52b5d4",
-  [Network.BaseGoerli]: "0x0df8a66ba3010af4f86ca4db6a6da9e367385a03",
-  [Network.ArbitrumNova]: "0xf645877ab54e5856f39dc90425ae21748f52b5d4",
-  [Network.Bsc]: "0xf645877ab54e5856f39dc90425ae21748f52b5d4",
-  [Network.Zora]: "0x0df8a66ba3010af4f86ca4db6a6da9e367385a03",
+  [Network.Ethereum]: "0x00ca04c45da318d5b7e7b14d5381ca59f09c73f0",
+  [Network.EthereumGoerli]: "0x00ca04c45da318d5b7e7b14d5381ca59f09c73f0",
+  [Network.EthereumSepolia]: "0x00ca04c45da318d5b7e7b14d5381ca59f09c73f0",
+  [Network.Polygon]: "0x00ca04c45da318d5b7e7b14d5381ca59f09c73f0",
+  [Network.Mumbai]: "0x00ca04c45da318d5b7e7b14d5381ca59f09c73f0",
+  [Network.Optimism]: "0x00ca04c45da318d5b7e7b14d5381ca59f09c73f0",
+  [Network.Arbitrum]: "0x00ca04c45da318d5b7e7b14d5381ca59f09c73f0",
+  [Network.ArbitrumNova]: "0x00ca04c45da318d5b7e7b14d5381ca59f09c73f0",
+  [Network.Bsc]: "0x00ca04c45da318d5b7e7b14d5381ca59f09c73f0",
+  [Network.Zora]: "0x4e9aaa72727a2f5aa5d2bef80ab5642661e29ef6",
+  [Network.ZoraTestnet]: "0x4e9aaa72727a2f5aa5d2bef80ab5642661e29ef6",
+  [Network.ScrollAlpha]: "0x00ca04c45da318d5b7e7b14d5381ca59f09c73f0",
+  [Network.BaseGoerli]: "0x4e9aaa72727a2f5aa5d2bef80ab5642661e29ef6",
 };
 
 export const AlienswapModule: ChainIdToAddress = {

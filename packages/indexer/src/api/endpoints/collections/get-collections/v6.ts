@@ -159,6 +159,7 @@ export const getCollectionsV6Options: RouteOptions = {
           onSaleCount: Joi.string().description("Total tokens currently on sale."),
           primaryContract: Joi.string().lowercase().pattern(regex.address),
           tokenSetId: Joi.string().allow(null),
+          creator: Joi.string().allow(null),
           royalties: Joi.object({
             recipient: Joi.string().allow("", null),
             breakdown: Joi.array().items(
@@ -253,6 +254,7 @@ export const getCollectionsV6Options: RouteOptions = {
           mintStages: Joi.array().items(
             Joi.object({
               stage: Joi.string().required(),
+              tokenId: Joi.string().pattern(regex.number).allow(null),
               kind: Joi.string().required(),
               price: JoiPrice.required(),
               startTime: Joi.number().allow(null),
@@ -306,6 +308,7 @@ export const getCollectionsV6Options: RouteOptions = {
               array_agg(
                 json_build_object(
                   'stage', collection_mints.stage,
+                  'tokenId', collection_mints.token_id::TEXT,
                   'kind', collection_mints.kind,
                   'currency', concat('0x', encode(collection_mints.currency, 'hex')),
                   'price', collection_mints.price::TEXT,
@@ -400,6 +403,7 @@ export const getCollectionsV6Options: RouteOptions = {
           collections.contract,
           collections.token_id_range,
           collections.token_set_id,
+          collections.creator,
           collections.day1_rank,
           collections.day1_volume,
           collections.day7_rank,
@@ -662,6 +666,7 @@ export const getCollectionsV6Options: RouteOptions = {
             onSaleCount: String(r.on_sale_count),
             primaryContract: fromBuffer(r.contract),
             tokenSetId: r.token_set_id,
+            creator: r.creator ? fromBuffer(r.creator) : null,
             royalties: r.royalties
               ? {
                   // Main recipient, kept for backwards-compatibility only
