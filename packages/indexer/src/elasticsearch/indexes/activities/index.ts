@@ -596,7 +596,7 @@ export const search = async (
   }
 };
 
-const _search = async (
+export const _search = async (
   params: {
     query?: QueryDslQueryContainer | undefined;
     sort?: Sort | undefined;
@@ -685,6 +685,10 @@ const _search = async (
 
     throw error;
   }
+};
+
+export const getIndexName = (): string => {
+  return INDEX_NAME;
 };
 
 export const initIndex = async (): Promise<void> => {

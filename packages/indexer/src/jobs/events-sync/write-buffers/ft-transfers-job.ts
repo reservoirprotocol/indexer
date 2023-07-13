@@ -1,4 +1,4 @@
-import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 
 import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
@@ -11,9 +11,13 @@ export type EventsSyncFtTransfersWriteBufferPayload = {
 export class EventsSyncFtTransfersWriteBufferJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-ft-transfers-write";
   maxRetries = 10;
-  concurrency = config.chainId === 43114 ? 5 : 15;
+  concurrency = config.chainId === 43114 ? 1 : 15;
   lazyMode = true;
-  consumerTimeout = 60000;
+  consumerTimeout = 30000;
+  backoff = {
+    type: "exponential",
+    delay: 5000,
+  } as BackoffStrategy;
 
   protected async process(payload: EventsSyncFtTransfersWriteBufferPayload) {
     const { query } = payload;

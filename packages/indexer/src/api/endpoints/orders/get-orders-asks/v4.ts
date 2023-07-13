@@ -184,6 +184,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
 
       let baseQuery = `
         SELECT
+          contracts.kind AS "contract_kind",
           orders.id,
           orders.kind,
           orders.side,
@@ -233,6 +234,11 @@ export const getOrdersAsksV4Options: RouteOptions = {
           (${criteriaBuildQuery}) AS criteria
           ${query.includeRawData || query.includeDynamicPricing ? ", orders.raw_data" : ""}
         FROM orders
+        JOIN LATERAL (
+          SELECT kind
+          FROM contracts
+          WHERE contracts.address = orders.contract
+        ) contracts ON TRUE
       `;
 
       // We default in the code so that these values don't appear in the docs
@@ -535,6 +541,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
           tokenSetId: r.token_set_id,
           tokenSetSchemaHash: r.token_set_schema_hash,
           contract: r.contract,
+          contractKind: r.contract_kind,
           maker: r.maker,
           taker: r.taker,
           prices: {

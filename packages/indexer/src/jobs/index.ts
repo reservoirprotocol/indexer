@@ -60,6 +60,7 @@ import * as backfillAskCancelActivitiesElasticsearch from "@/jobs/activities/bac
 import * as backfillBidCancelActivitiesElasticsearch from "@/jobs/activities/backfill/backfill-bid-cancel-activities-elasticsearch";
 import * as backfillActivitiesElasticsearch from "@/jobs/activities/backfill/backfill-activities-elasticsearch";
 import * as backfillDeleteExpiredBidsElasticsearch from "@/jobs/activities/backfill/backfill-delete-expired-bids-elasticsearch";
+import * as backfillSalePricingDecimalElasticsearch from "@/jobs/activities/backfill/backfill-sales-pricing-decimal-elasticsearch";
 
 import amqplib, { Channel, Connection } from "amqplib";
 import { config } from "@/config/index";
@@ -150,6 +151,7 @@ import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
 import { openseaListingsJob } from "@/jobs/orderbook/opensea-listings-job";
 import { orderbookPostOrderExternalJob } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-job";
 import { orderbookPostOrderExternalOpenseaJob } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-job";
+import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
 
 export const allJobQueues = [
   backfillExpiredOrders.queue,
@@ -189,6 +191,7 @@ export const allJobQueues = [
   backfillBidCancelActivitiesElasticsearch.queue,
   backfillActivitiesElasticsearch.queue,
   backfillDeleteExpiredBidsElasticsearch.queue,
+  backfillSalePricingDecimalElasticsearch.queue,
 ];
 
 export class RabbitMqJobsConsumer {
@@ -286,6 +289,7 @@ export class RabbitMqJobsConsumer {
       openseaListingsJob,
       orderbookPostOrderExternalJob,
       orderbookPostOrderExternalOpenseaJob,
+      eventsSyncRealtimeJob,
     ];
   }
 

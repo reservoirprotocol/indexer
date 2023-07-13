@@ -253,6 +253,7 @@ export const getCollectionsV6Options: RouteOptions = {
           mintStages: Joi.array().items(
             Joi.object({
               stage: Joi.string().required(),
+              tokenId: Joi.string().pattern(regex.number).allow(null),
               kind: Joi.string().required(),
               price: JoiPrice.required(),
               startTime: Joi.number().allow(null),
@@ -306,6 +307,7 @@ export const getCollectionsV6Options: RouteOptions = {
               array_agg(
                 json_build_object(
                   'stage', collection_mints.stage,
+                  'tokenId', collection_mints.token_id::TEXT,
                   'kind', collection_mints.kind,
                   'currency', concat('0x', encode(collection_mints.currency, 'hex')),
                   'price', collection_mints.price::TEXT,

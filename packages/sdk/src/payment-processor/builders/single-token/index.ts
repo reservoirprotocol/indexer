@@ -70,7 +70,7 @@ export class SingleTokenBuilder extends BaseBuilder {
     if (orderParams.kind === "sale-approval") {
       return new Order(order.chainId, {
         protocol: orderParams.protocol,
-        collectionLevelOffer: true,
+        collectionLevelOffer: false,
         sellerAcceptedOffer: false,
         marketplace: orderParams.marketplace,
         marketplaceFeeNumerator: orderParams.marketplaceFeeNumerator,

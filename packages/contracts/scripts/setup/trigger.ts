@@ -221,7 +221,7 @@ export const trigger = {
         Sdk.SeaportV14.Addresses.Exchange[chainId],
       ]),
     SeaportV15Module: async (chainId: number) =>
-      dv("SeaportV15Module", "v1", [
+      dv("SeaportV15Module", "v2", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.SeaportV15.Addresses.Exchange[chainId],
