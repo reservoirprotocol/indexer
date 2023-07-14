@@ -14,6 +14,7 @@ import { getSupportedChainName } from "@/websockets/opensea/utils";
 import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
 import { parseProtocolData } from "@/websockets/opensea";
 import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
+import { getNetworkSettings } from "@/config/network";
 
 export class OpenseaOrdersFetchJob extends AbstractRabbitMqJobHandler {
   queueName = "opensea-orders-fetch-queue";
@@ -41,20 +42,19 @@ export class OpenseaOrdersFetchJob extends AbstractRabbitMqJobHandler {
       try {
         const fetchCollectionOffersResponse = await axios.get(
           `https://${
-            config.chainId !== 5 ? "api" : "testnets-api"
+            getNetworkSettings().isTestnet ? "testnets-api" : "api"
           }.opensea.io/api/v2/offers/collection/${
             refreshOpenseaCollectionOffersCollections[0].slug
           }`,
           {
-            headers:
-              config.chainId !== 5
-                ? {
-                    "Content-Type": "application/json",
-                    "X-Api-Key": config.openSeaApiKey,
-                  }
-                : {
-                    "Content-Type": "application/json",
-                  },
+            headers: getNetworkSettings().isTestnet
+              ? {
+                  "Content-Type": "application/json",
+                }
+              : {
+                  "Content-Type": "application/json",
+                  "X-Api-Key": config.openSeaApiKey,
+                },
           }
         );
 
