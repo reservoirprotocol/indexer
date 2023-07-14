@@ -10,7 +10,6 @@ import "@/jobs/daily-volumes";
 import "@/jobs/data-archive";
 import "@/jobs/events-sync";
 import "@/jobs/oracle";
-import "@/jobs/order-updates";
 import "@/jobs/websocket-events";
 import "@/jobs/metrics";
 import "@/jobs/opensea-orders";
@@ -29,7 +28,6 @@ import amqplibConnectionManager, {
 import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders";
 import * as backfillRefreshCollectionMetadata from "@/jobs/backfill/backfill-refresh-collections-metadata";
 
-import * as saveBidEvents from "@/jobs/order-updates/save-bid-events";
 import * as askWebsocketEventsTriggerQueue from "@/jobs/websocket-events/ask-websocket-events-trigger-queue";
 import * as bidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/bid-websocket-events-trigger-queue";
 import * as transferWebsocketEventsTriggerQueue from "@/jobs/websocket-events/transfer-websocket-events-trigger-queue";
@@ -37,11 +35,6 @@ import * as saleWebsocketEventsTriggerQueue from "@/jobs/websocket-events/sale-w
 import * as tokenWebsocketEventsTriggerQueue from "@/jobs/websocket-events/token-websocket-events-trigger-queue";
 import * as topBidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/top-bid-websocket-events-trigger-queue";
 import * as collectionWebsocketEventsTriggerQueue from "@/jobs/websocket-events/collection-websocket-events-trigger-queue";
-
-import * as countApiUsage from "@/jobs/metrics/count-api-usage";
-
-import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
-import * as openseaOrdersFetchQueue from "@/jobs/opensea-orders/fetch-queue";
 
 import * as backfillTransferActivitiesElasticsearch from "@/jobs/activities/backfill/backfill-transfer-activities-elasticsearch";
 import * as backfillSaleActivitiesElasticsearch from "@/jobs/activities/backfill/backfill-sale-activities-elasticsearch";
@@ -152,8 +145,6 @@ export const allJobQueues = [
   backfillExpiredOrders.queue,
   backfillRefreshCollectionMetadata.queue,
 
-  saveBidEvents.queue,
-
   askWebsocketEventsTriggerQueue.queue,
   bidWebsocketEventsTriggerQueue.queue,
   transferWebsocketEventsTriggerQueue.queue,
@@ -161,11 +152,6 @@ export const allJobQueues = [
   tokenWebsocketEventsTriggerQueue.queue,
   topBidWebsocketEventsTriggerQueue.queue,
   collectionWebsocketEventsTriggerQueue.queue,
-
-  countApiUsage.queue,
-
-  openseaOrdersProcessQueue.queue,
-  openseaOrdersFetchQueue.queue,
 
   backfillTransferActivitiesElasticsearch.queue,
   backfillSaleActivitiesElasticsearch.queue,
