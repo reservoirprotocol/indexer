@@ -31,9 +31,7 @@ if (config.doBackgroundWork) {
       let cursor = job.data.cursor as CursorInfo;
       let continuationFilter = "";
 
-      const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 1000;
-      const maxCollections = 10000;
-      let count = 0;
+      const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 10000;
 
       if (!cursor) {
         const cursorJson = await redis.get(`${QUEUE_NAME}-next-cursor`);
@@ -78,11 +76,6 @@ if (config.doBackgroundWork) {
       }
 
       if (results.length == limit) {
-        count += results.length;
-        if (count >= maxCollections) {
-          return;
-        }
-
         const lastResult = _.last(results);
 
         nextCursor = {
@@ -91,7 +84,7 @@ if (config.doBackgroundWork) {
 
         await redis.set(`${QUEUE_NAME}-next-cursor`, JSON.stringify(nextCursor));
 
-        await addToQueue(nextCursor);
+        // await addToQueue(nextCursor);
       }
     },
     { connection: redis.duplicate(), concurrency: 1 }
