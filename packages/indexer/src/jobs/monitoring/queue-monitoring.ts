@@ -2,9 +2,9 @@ import cron from "node-cron";
 import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
-import { queue as eventsSyncRealtimeQueue } from "@/jobs/events-sync/realtime-queue";
 import { eventsSyncProcessRealtimeJob } from "@/jobs/events-sync/process/events-sync-process-realtime";
 import { RabbitMq } from "@/common/rabbit-mq";
+import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
 
 if (config.doBackgroundWork) {
   cron.schedule("*/5 * * * *", async () => {
@@ -15,22 +15,7 @@ if (config.doBackgroundWork) {
       logger.info("metadata-queue-length", JSON.stringify({ method, queueLength }));
     }
 
-    // Log queue job counts per status
-    for (const queue of [eventsSyncRealtimeQueue]) {
-      const jobCount = await queue.getJobCounts(
-        "wait",
-        "active",
-        "delayed",
-        "completed",
-        "failed",
-        "paused",
-        "repeat"
-      );
-
-      logger.info("queue-monitoring", JSON.stringify({ queue: queue.name, jobCount }));
-    }
-
-    for (const queue of [eventsSyncProcessRealtimeJob]) {
+    for (const queue of [eventsSyncProcessRealtimeJob, eventsSyncRealtimeJob]) {
       const queueSize = await RabbitMq.getQueueSize(queue.getQueue());
       const retryQueueSize = await RabbitMq.getQueueSize(queue.getRetryQueue());
 

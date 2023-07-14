@@ -15,5 +15,3 @@ import "@/jobs/order-updates/save-bid-events";
 // Various cron jobs that must run once in a while
 
 // Misc
-
-import "@/jobs/order-updates/misc/opensea-off-chain-cancellations";

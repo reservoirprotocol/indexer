@@ -2,7 +2,6 @@ import * as saleWebsocketEventsTriggerQueue from "@/jobs/websocket-events/sale-w
 
 import * as bidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/bid-websocket-events-trigger-queue";
 
-import * as approvalWebsocketEventsTriggerQueue from "@/jobs/websocket-events/approval-websocket-events-trigger-queue";
 import * as transferWebsocketEventsTriggerQueue from "@/jobs/websocket-events/transfer-websocket-events-trigger-queue";
 import * as tokenWebsocketEventsTriggerQueue from "@/jobs/websocket-events/token-websocket-events-trigger-queue";
 import * as topBidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/top-bid-websocket-events-trigger-queue";
@@ -28,13 +27,6 @@ export const WebsocketEventRouter = async ({
       await bidWebsocketEventsTriggerQueue.addToQueue([
         {
           data: eventInfo as bidWebsocketEventsTriggerQueue.BidWebsocketEventInfo,
-        },
-      ]);
-      break;
-    case WebsocketEventKind.ApprovalEvent:
-      await approvalWebsocketEventsTriggerQueue.addToQueue([
-        {
-          data: eventInfo as approvalWebsocketEventsTriggerQueue.ApprovalWebsocketEventInfo,
         },
       ]);
       break;
@@ -92,7 +84,6 @@ export type EventInfo =
   | topBidWebsocketEventsTriggerQueue.TopBidWebsocketEventInfo
   | askWebsocketEventsTriggerQueue.AskWebsocketEventInfo
   | bidWebsocketEventsTriggerQueue.BidWebsocketEventInfo
-  | approvalWebsocketEventsTriggerQueue.ApprovalWebsocketEventInfo
   | transferWebsocketEventsTriggerQueue.TransferWebsocketEventInfo
   | saleWebsocketEventsTriggerQueue.SaleWebsocketEventInfo
   | tokenWebsocketEventsTriggerQueue.TokenWebsocketEventInfo

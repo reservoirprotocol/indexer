@@ -1,8 +1,7 @@
 import { Queue, QueueScheduler, Worker } from "bullmq";
 
-import cron from "node-cron";
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { randomUUID } from "crypto";
 import { BidEventsList } from "@/models/bid-events-list";
@@ -138,15 +137,15 @@ export const addToQueue = async () => {
   await queue.add(randomUUID(), {});
 };
 
-if (config.doBackgroundWork) {
-  cron.schedule(
-    "*/10 * * * * *",
-    async () =>
-      await redlock
-        .acquire(["save-bid-events"], (10 - 5) * 1000)
-        .then(async () => addToQueue())
-        .catch(() => {
-          // Skip on any errors
-        })
-  );
-}
+// if (config.doBackgroundWork) {
+//   cron.schedule(
+//     "*/10 * * * * *",
+//     async () =>
+//       await redlock
+//         .acquire(["save-bid-events"], (10 - 5) * 1000)
+//         .then(async () => addToQueue())
+//         .catch(() => {
+//           // Skip on any errors
+//         })
+//   );
+// }

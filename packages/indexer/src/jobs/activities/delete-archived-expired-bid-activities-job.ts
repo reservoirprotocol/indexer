@@ -5,7 +5,7 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { PendingExpiredBidActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-expired-bid-activities-queue";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
-const BATCH_SIZE = 500;
+const BATCH_SIZE = 1000;
 
 export class DeleteArchivedExpiredBidActivitiesJob extends AbstractRabbitMqJobHandler {
   queueName = "delete-archived-expired-bid-activities-queue";

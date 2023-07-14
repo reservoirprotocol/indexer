@@ -9,10 +9,12 @@ import { assignSourceToFillEvents } from "@/events-sync/handlers/utils/fills";
 import { BaseEventParams } from "@/events-sync/parser";
 import * as es from "@/events-sync/storage";
 
-import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
+import { GenericOrderInfo } from "@/jobs/orderbook/utils";
 import { AddressZero } from "@ethersproject/constants";
-import { RecalcCollectionOwnerCountInfo } from "@/jobs/collection-updates/recalc-owner-count-queue";
-import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
+import {
+  recalcOwnerCountQueueJob,
+  RecalcOwnerCountQueueJobPayload,
+} from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import { mintQueueJob, MintQueueJobPayload } from "@/jobs/token-updates/mint-queue-job";
 import {
   WebsocketEventKind,
@@ -35,6 +37,7 @@ import {
   orderUpdatesByMakerJob,
   OrderUpdatesByMakerJobPayload,
 } from "@/jobs/order-updates/order-updates-by-maker-job";
+import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -78,7 +81,7 @@ export type OnChainData = {
   makerInfos: OrderUpdatesByMakerJobPayload[];
 
   // Orders
-  orders: orderbookOrders.GenericOrderInfo[];
+  orders: GenericOrderInfo[];
 };
 
 export const initOnChainData = (): OnChainData => ({
@@ -164,33 +167,12 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
             eventKind: WebsocketEventKind.SaleEvent,
           })
         ),
-        ...data.nftApprovalEvents.map((event) =>
-          WebsocketEventRouter({
-            eventInfo: {
-              address: event.baseEventParams.address,
-              block: event.baseEventParams.block.toString(),
-              block_hash: event.baseEventParams.blockHash,
-              timestamp: event.baseEventParams.timestamp.toString(),
-              owner: event.owner,
-              operator: event.operator,
-              approved: event.approved.toString(),
-              tx_hash: event.baseEventParams.txHash,
-              tx_index: event.baseEventParams.txIndex.toString(),
-              log_index: event.baseEventParams.logIndex.toString(),
-              batch_index: event.baseEventParams.batchIndex.toString(),
-              offset: "",
-              trigger: "insert",
-            },
-            eventKind: WebsocketEventKind.ApprovalEvent,
-          })
-        ),
 
         ...data.nftTransferEvents.map((event) =>
           WebsocketEventRouter({
             eventInfo: {
               address: event.baseEventParams.address,
               block: event.baseEventParams.block.toString(),
-              block_hash: event.baseEventParams.blockHash,
               timestamp: event.baseEventParams.timestamp.toString(),
               tx_hash: event.baseEventParams.txHash,
               tx_index: event.baseEventParams.txIndex.toString(),
@@ -201,6 +183,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
               amount: event.amount.toString(),
               token_id: event.tokenId.toString(),
               created_at: new Date(event.baseEventParams.timestamp).toISOString(),
+              is_deleted: false,
               offset: "",
               trigger: "insert",
             },
@@ -228,7 +211,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     await Promise.all([
       orderUpdatesByIdJob.addToQueue(data.orderInfos),
       orderUpdatesByMakerJob.addToQueue(data.makerInfos),
-      orderbookOrders.addToQueue(data.orders),
+      orderbookOrdersJob.addToQueue(data.orders),
     ]);
   }
 
@@ -247,7 +230,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
 
   // TODO: Is this the best place to handle activities?
 
-  const recalcCollectionOwnerCountInfo: RecalcCollectionOwnerCountInfo[] =
+  const recalcCollectionOwnerCountInfo: RecalcOwnerCountQueueJobPayload[] =
     data.nftTransferEvents.map((event) => ({
       context: "event-sync",
       kind: "contactAndTokenId",

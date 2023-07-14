@@ -1,3 +1,4 @@
+import { logger } from "@/common/logger";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { refreshMintsForCollection } from "@/orderbook/mints/calldata";
 
@@ -18,6 +19,7 @@ export class MintsRefreshJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: MintsRefreshJobPayload) {
     const { collection } = payload;
 
+    logger.info("mints-debug", `Refreshing ${collection}`);
     await refreshMintsForCollection(collection);
   }
 

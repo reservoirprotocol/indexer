@@ -37,9 +37,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
         "looks-rare-v2",
         "zeroex-v4-erc721",
         "zeroex-v4-erc1155",
-        "universe",
         "rarible",
-        "flow",
         "alienswap"
       ),
       token: Joi.string().pattern(regex.token),
@@ -484,14 +482,6 @@ export const getExecuteCancelV3Options: RouteOptions = {
           break;
         }
 
-        case "universe": {
-          const order = new Sdk.Universe.Order(config.chainId, orderResult.raw_data);
-          const exchange = new Sdk.Universe.Exchange(config.chainId);
-          cancelTx = await exchange.cancelOrderTx(order.params);
-
-          break;
-        }
-
         case "rarible": {
           const order = new Sdk.Rarible.Order(config.chainId, orderResult.raw_data);
           const exchange = new Sdk.Rarible.Exchange(config.chainId);
@@ -500,11 +490,10 @@ export const getExecuteCancelV3Options: RouteOptions = {
           break;
         }
 
-        case "flow": {
-          const order = new Sdk.Flow.Order(config.chainId, orderResult.raw_data);
-          const exchange = new Sdk.Flow.Exchange(config.chainId);
-          const nonce = order.nonce;
-          cancelTx = exchange.cancelMultipleOrdersTx(order.signer, [nonce]);
+        case "payment-processor": {
+          const order = new Sdk.PaymentProcessor.Order(config.chainId, orderResult.raw_data);
+          const exchange = new Sdk.PaymentProcessor.Exchange(config.chainId);
+          cancelTx = exchange.cancelOrderTx(maker, order);
 
           break;
         }

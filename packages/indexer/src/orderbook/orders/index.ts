@@ -13,8 +13,6 @@ export * as sudoswap from "@/orderbook/orders/sudoswap";
 export * as x2y2 from "@/orderbook/orders/x2y2";
 export * as zeroExV4 from "@/orderbook/orders/zeroex-v4";
 export * as zora from "@/orderbook/orders/zora";
-export * as universe from "@/orderbook/orders/universe";
-export * as flow from "@/orderbook/orders/flow";
 export * as blur from "@/orderbook/orders/blur";
 export * as rarible from "@/orderbook/orders/rarible";
 export * as nftx from "@/orderbook/orders/nftx";
@@ -23,6 +21,7 @@ export * as superrare from "@/orderbook/orders/superrare";
 export * as looksRareV2 from "@/orderbook/orders/looks-rare-v2";
 export * as collectionxyz from "@/orderbook/orders/collectionxyz";
 export * as sudoswapV2 from "@/orderbook/orders/sudoswap-v2";
+export * as caviarV1 from "@/orderbook/orders/caviar-v1";
 export * as paymentProcessor from "@/orderbook/orders/payment-processor";
 
 // Imports
@@ -31,10 +30,13 @@ import * as Sdk from "@reservoir0x/sdk";
 import * as SdkTypesV5 from "@reservoir0x/sdk/dist/router/v5/types";
 import * as SdkTypesV6 from "@reservoir0x/sdk/dist/router/v6/types";
 
+import { inject } from "@/api/index";
 import { idb } from "@/common/db";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
+import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
+import { getRoyalties } from "@/utils/royalties";
 
 // Whenever a new order kind is added, make sure to also include an
 // entry/implementation in the below types/methods in order to have
@@ -61,10 +63,8 @@ export type OrderKind =
   | "mint"
   | "cryptopunks"
   | "sudoswap"
-  | "universe"
   | "nftx"
   | "blur"
-  | "flow"
   | "manifold"
   | "tofu-nft"
   | "decentraland"
@@ -79,6 +79,7 @@ export type OrderKind =
   | "blend"
   | "collectionxyz"
   | "sudoswap-v2"
+  | "caviar-v1"
   | "payment-processor"
   | "blur-v2";
 
@@ -159,16 +160,14 @@ export const getOrderSourceByOrderKind = async (
       case "sudoswap":
       case "sudoswap-v2":
         return sources.getOrInsert("sudoswap.xyz");
-      case "universe":
-        return sources.getOrInsert("universe.xyz");
+      case "caviar-v1":
+        return sources.getOrInsert("caviar.sh");
       case "nftx":
         return sources.getOrInsert("nftx.io");
       case "blur":
       case "blur-v2":
       case "blend":
         return sources.getOrInsert("blur.io");
-      case "flow":
-        return sources.getOrInsert("flow.so");
       case "manifold":
         return sources.getOrInsert("manifold.xyz");
       case "tofu-nft":
@@ -347,23 +346,6 @@ export const generateListingDetailsV6 = (
       };
     }
 
-    case "universe": {
-      return {
-        kind: "universe",
-        ...common,
-        order: new Sdk.Universe.Order(config.chainId, order.rawData),
-      };
-    }
-
-    case "flow": {
-      const sdkOrder = new Sdk.Flow.Order(config.chainId, order.rawData);
-      return {
-        kind: "flow",
-        ...common,
-        order: sdkOrder,
-      };
-    }
-
     case "rarible": {
       return {
         kind: "rarible",
@@ -425,6 +407,14 @@ export const generateListingDetailsV6 = (
         kind: "sudoswap-v2",
         ...common,
         order: new Sdk.SudoswapV2.Order(config.chainId, order.rawData),
+      };
+    }
+
+    case "caviar-v1": {
+      return {
+        kind: "caviar-v1",
+        ...common,
+        order: new Sdk.CaviarV1.Order(config.chainId, order.rawData),
       };
     }
 
@@ -680,24 +670,6 @@ export const generateBidDetailsV6 = async (
       };
     }
 
-    case "universe": {
-      const sdkOrder = new Sdk.Universe.Order(config.chainId, order.rawData);
-      return {
-        kind: "universe",
-        ...common,
-        order: sdkOrder,
-      };
-    }
-
-    case "flow": {
-      const sdkOrder = new Sdk.Flow.Order(config.chainId, order.rawData);
-      return {
-        kind: "flow",
-        ...common,
-        order: sdkOrder,
-      };
-    }
-
     case "rarible": {
       return {
         kind: "rarible",
@@ -762,6 +734,43 @@ export const generateBidDetailsV6 = async (
         kind: "sudoswap-v2",
         ...common,
         order: sdkOrder,
+      };
+    }
+
+    case "caviar-v1": {
+      const sdkOrder = new Sdk.CaviarV1.Order(config.chainId, order.rawData);
+
+      const response = await inject({
+        method: "GET",
+        url: `/oracle/tokens/status/v2?tokens=${token.contract}:${token.tokenId}`,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const { messages } = JSON.parse(response.payload);
+
+      return {
+        kind: "caviar-v1",
+        ...common,
+        order: sdkOrder,
+        extraArgs: {
+          stolenProof: messages[0].message,
+        },
+      };
+    }
+
+    case "payment-processor": {
+      const sdkOrder = new Sdk.PaymentProcessor.Order(config.chainId, order.rawData);
+      return {
+        kind: "payment-processor",
+        ...common,
+        order: sdkOrder,
+        extraArgs: {
+          maxRoyaltyFeeNumerator: await getRoyalties(token.contract, undefined, "onchain").then(
+            (royalties) => royalties.map((r) => r.bps).reduce((a, b) => a + b, 0)
+          ),
+        },
       };
     }
 
@@ -856,14 +865,6 @@ export const generateListingDetailsV5 = (
         kind: "zora",
         ...common,
         order: new Sdk.Zora.Order(config.chainId, order.rawData),
-      };
-    }
-
-    case "universe": {
-      return {
-        kind: "universe",
-        ...common,
-        order: new Sdk.Universe.Order(config.chainId, order.rawData),
       };
     }
 
@@ -964,18 +965,6 @@ export const generateBidDetailsV5 = async (
       };
     }
 
-    case "universe": {
-      const sdkOrder = new Sdk.Universe.Order(config.chainId, order.rawData);
-      return {
-        kind: "universe",
-        ...common,
-        order: sdkOrder,
-        extraArgs: {
-          amount: sdkOrder.params.take.value,
-        },
-      };
-    }
-
     case "rarible": {
       const sdkOrder = new Sdk.Rarible.Order(config.chainId, order.rawData);
       return {
@@ -987,6 +976,36 @@ export const generateBidDetailsV5 = async (
 
     default: {
       throw new Error("Unsupported order kind");
+    }
+  }
+};
+
+// Check collection's blacklist, override the `orderKind` and `orderbook` in params
+export const checkBlacklistAndFallback = async (
+  collection: string,
+  params: {
+    orderKind: string;
+    orderbook: string;
+  }
+) => {
+  // Fallback to Seaport when LooksRare is blocked
+  if (["looks-rare-v2"].includes(params.orderKind) && ["looks-rare"].includes(params.orderbook)) {
+    const blocked = await checkMarketplaceIsFiltered(collection, [
+      Sdk.LooksRareV2.Addresses.Exchange[config.chainId],
+    ]);
+    if (blocked) {
+      params.orderKind = "seaport-v1.5";
+      params.orderbook = "reservoir";
+    }
+  }
+
+  // Fallback to PaymentProcessor when Seaport is blocked
+  if (["seaport-v1.5"].includes(params.orderKind) && ["reservoir"].includes(params.orderbook)) {
+    const blocked = await checkMarketplaceIsFiltered(collection, [
+      Sdk.SeaportV15.Addresses.Exchange[config.chainId],
+    ]);
+    if (blocked) {
+      params.orderKind = "payment-processor";
     }
   }
 };

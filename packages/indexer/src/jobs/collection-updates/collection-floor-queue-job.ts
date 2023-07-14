@@ -17,6 +17,7 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
   queueName = "collection-updates-floor-ask-queue";
   maxRetries = 10;
   concurrency = 5;
+  consumerTimeout = 60000;
   backoff = {
     type: "exponential",
     delay: 20000,

@@ -1,21 +1,17 @@
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
-import { GenericOrderInfo } from "@/jobs/orderbook/orders-queue";
+import { GenericOrderInfo } from "@/jobs/orderbook/utils";
 import * as orders from "@/orderbook/orders";
-
-export type OpenseaBidsQueueJobPayload = {
-  orderInfo: GenericOrderInfo;
-};
 
 export class OpenseaBidsQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "orderbook-opensea-bids-queue";
   maxRetries = 10;
-  concurrency = 40;
+  concurrency = 75;
   lazyMode = true;
   consumerTimeout = 90000;
 
-  protected async process(payload: OpenseaBidsQueueJobPayload) {
-    const { kind, info, validateBidValue, ingestMethod, ingestDelay } = payload.orderInfo;
+  protected async process(payload: GenericOrderInfo) {
+    const { kind, info, validateBidValue, ingestMethod, ingestDelay } = payload;
 
     let result: { status: string; delay?: number }[] = [];
     try {
@@ -85,18 +81,8 @@ export class OpenseaBidsQueueJob extends AbstractRabbitMqJobHandler {
           break;
         }
 
-        case "universe": {
-          result = await orders.universe.save([info]);
-          break;
-        }
-
         case "rarible": {
           result = await orders.rarible.save([info]);
-          break;
-        }
-
-        case "flow": {
-          result = await orders.flow.save([info]);
           break;
         }
 
@@ -146,7 +132,7 @@ export class OpenseaBidsQueueJob extends AbstractRabbitMqJobHandler {
   public async addToQueue(orderInfos: GenericOrderInfo[]) {
     await this.sendBatch(
       orderInfos.map((orderInfo) => ({
-        payload: { orderInfo },
+        payload: orderInfo,
       }))
     );
   }

@@ -15,6 +15,7 @@ export class CollectionRefreshJob extends AbstractRabbitMqJobHandler {
   maxRetries = 10;
   concurrency = 1;
   useSharedChannel = true;
+  consumerTimeout = 120000;
 
   protected async process() {
     let collections: CollectionsEntity[] = [];

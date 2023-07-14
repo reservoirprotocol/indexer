@@ -2,7 +2,6 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { config } from "@/config/index";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { Collections } from "@/models/collections";
-import { logger } from "@/common/logger";
 import _ from "lodash";
 
 export type RefreshActivitiesCollectionMetadataJobPayload = {
@@ -18,8 +17,6 @@ export class RefreshActivitiesCollectionMetadataJob extends AbstractRabbitMqJobH
   lazyMode = true;
 
   protected async process(payload: RefreshActivitiesCollectionMetadataJobPayload) {
-    logger.info(this.queueName, `Worker started. payload=${JSON.stringify(payload)}`);
-
     const collectionId = payload.collectionId;
     let collectionUpdateData = payload.collectionUpdateData;
 

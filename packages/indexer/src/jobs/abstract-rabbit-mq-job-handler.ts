@@ -7,8 +7,9 @@ import _ from "lodash";
 import { getNetworkName } from "@/config/network";
 import EventEmitter from "events";
 import TypedEmitter from "typed-emitter";
-import { Channel, ConsumeMessage } from "amqplib";
+import { ConsumeMessage } from "amqplib";
 import { releaseLock } from "@/common/redis";
+import { ChannelWrapper } from "amqp-connection-manager";
 
 export type BackoffStrategy =
   | {
@@ -48,7 +49,7 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
   protected consumerTimeout = 0;
   protected disableConsuming = false;
 
-  public async consume(channel: Channel, consumeMessage: ConsumeMessage): Promise<void> {
+  public async consume(channel: ChannelWrapper, consumeMessage: ConsumeMessage): Promise<void> {
     this.rabbitMQMessage = JSON.parse(consumeMessage.content.toString()) as RabbitMQMessage;
 
     this.rabbitMQMessage.consumedTime = this.rabbitMQMessage.consumedTime ?? _.now();

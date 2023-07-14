@@ -6,17 +6,11 @@ import "@/jobs/arweave-relay";
 import "@/jobs/backfill";
 import "@/jobs/cache-check";
 import "@/jobs/collections-refresh";
-import "@/jobs/collection-updates";
 import "@/jobs/daily-volumes";
 import "@/jobs/data-archive";
-import "@/jobs/data-export";
 import "@/jobs/events-sync";
 import "@/jobs/oracle";
 import "@/jobs/order-updates";
-import "@/jobs/orderbook";
-import "@/jobs/sources";
-import "@/jobs/token-updates";
-import "@/jobs/update-attribute";
 import "@/jobs/websocket-events";
 import "@/jobs/metrics";
 import "@/jobs/opensea-orders";
@@ -27,47 +21,17 @@ import "@/jobs/token-set-updates";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
-import * as backfillBlockTimestamps from "@/jobs/backfill/backfill-block-timestamps";
-import * as backfillCancelSeaport11Orders from "@/jobs/backfill/backfill-cancel-seaport-v11-orders";
-import * as backfillInvalidatedOrders from "@/jobs/backfill/backfill-invalidated-orders";
+import amqplibConnectionManager, {
+  AmqpConnectionManager,
+  ChannelWrapper,
+} from "amqp-connection-manager";
+
 import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders";
-import * as backfillExpiredOrders2 from "@/jobs/backfill/backfill-expired-orders-2";
-import * as backfillFoundationSales from "@/jobs/backfill/backfill-foundation-sales";
-import * as backfillMints from "@/jobs/backfill/backfill-mints";
-import * as backfillBlurSales from "@/jobs/backfill/backfill-blur-sales";
-import * as backfillSaleRoyalties from "@/jobs/backfill/backfill-sale-royalties";
-import * as backfillUpdateMissingMetadata from "@/jobs/backfill/backfill-update-missing-metadata";
-import * as backfillInvalidateSeaportV14Orders from "@/jobs/backfill/backfill-cancel-seaport-v11-orders";
-import * as backfillNftBalancesLastTokenAppraisalValue from "@/jobs/backfill/backfill-nft-balances-last-token-appraisal-value";
-import * as backfillCancelEventsCreatedAt from "@/jobs/backfill/backfill-cancel-events-created-at";
-import * as backfillNftTransferEventsCreatedAt from "@/jobs/backfill/backfill-nft-transfer-events-created-at";
-import * as backfillCollectionsRoyalties from "@/jobs/backfill/backfill-collections-royalties";
-import * as backfillCollectionsPaymentTokens from "@/jobs/backfill/backfill-collections-payment-tokens";
-import * as backfillWrongNftBalances from "@/jobs/backfill/backfill-wrong-nft-balances";
-import * as backfillFoundationOrders from "@/jobs/backfill/backfill-foundation-orders";
-import * as backfillLooksrareFills from "@/jobs/backfill/backfill-looks-rare-fills";
-import * as backfillCollectionsIds from "@/jobs/backfill/backfill-collections-ids";
-import * as backfillNftTransferEventsUpdatedAt from "@/jobs/backfill/backfill-nft-transfer-events-updated-at";
+import * as backfillRefreshCollectionMetadata from "@/jobs/backfill/backfill-refresh-collections-metadata";
 
-import * as eventsSyncRealtime from "@/jobs/events-sync/realtime-queue";
-import * as eventsSyncRealtimeV2 from "@/jobs/events-sync/realtime-queue-v2";
-
-import * as openSeaOffChainCancellations from "@/jobs/order-updates/misc/opensea-off-chain-cancellations";
 import * as saveBidEvents from "@/jobs/order-updates/save-bid-events";
-
-import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
-import * as orderbookOrdersV2 from "@/jobs/orderbook/orders-queue-v2";
-import * as orderbookPostOrderExternal from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-queue";
-import * as orderbookPostOrderExternalOpensea from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-queue";
-
-import * as orderbookTokenSets from "@/jobs/orderbook/token-sets-queue";
-import * as orderbookOpenseaListings from "@/jobs/orderbook/opensea-listings-queue";
-
-import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
-
 import * as askWebsocketEventsTriggerQueue from "@/jobs/websocket-events/ask-websocket-events-trigger-queue";
 import * as bidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/bid-websocket-events-trigger-queue";
-import * as approvalWebsocketEventsTriggerQueue from "@/jobs/websocket-events/approval-websocket-events-trigger-queue";
 import * as transferWebsocketEventsTriggerQueue from "@/jobs/websocket-events/transfer-websocket-events-trigger-queue";
 import * as saleWebsocketEventsTriggerQueue from "@/jobs/websocket-events/sale-websocket-events-trigger-queue";
 import * as tokenWebsocketEventsTriggerQueue from "@/jobs/websocket-events/token-websocket-events-trigger-queue";
@@ -87,8 +51,9 @@ import * as backfillAskCancelActivitiesElasticsearch from "@/jobs/activities/bac
 import * as backfillBidCancelActivitiesElasticsearch from "@/jobs/activities/backfill/backfill-bid-cancel-activities-elasticsearch";
 import * as backfillActivitiesElasticsearch from "@/jobs/activities/backfill/backfill-activities-elasticsearch";
 import * as backfillDeleteExpiredBidsElasticsearch from "@/jobs/activities/backfill/backfill-delete-expired-bids-elasticsearch";
+import * as backfillSalePricingDecimalElasticsearch from "@/jobs/activities/backfill/backfill-sales-pricing-decimal-elasticsearch";
 
-import amqplib, { Channel, Connection } from "amqplib";
+import amqplib from "amqplib";
 import { config } from "@/config/index";
 import _ from "lodash";
 import getUuidByString from "uuid-by-string";
@@ -173,51 +138,24 @@ import { blurBidsRefreshJob } from "@/jobs/order-updates/misc/blur-bids-refresh-
 import { blurListingsRefreshJob } from "@/jobs/order-updates/misc/blur-listings-refresh-job";
 import { orderUpdatesByMakerJob } from "@/jobs/order-updates/order-updates-by-maker-job";
 import { openseaOffChainCancellationsJob } from "@/jobs/order-updates/misc/opensea-off-chain-cancellations-job";
-
-export const gracefulShutdownJobWorkers = [tokenUpdatesFloorAsk.worker];
+import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
+import { openseaListingsJob } from "@/jobs/orderbook/opensea-listings-job";
+import { orderbookPostOrderExternalJob } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-job";
+import { orderbookPostOrderExternalOpenseaJob } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-job";
+import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
+import { openseaOrdersProcessJob } from "@/jobs/opensea-orders/opensea-orders-process-job";
+import { openseaOrdersFetchJob } from "@/jobs/opensea-orders/opensea-orders-fetch-job";
+import { saveBidEventsJob } from "@/jobs/order-updates/save-bid-events-job";
+import { countApiUsageJob } from "@/jobs/metrics/count-api-usage-job";
 
 export const allJobQueues = [
-  backfillBlockTimestamps.queue,
-  backfillCancelSeaport11Orders.queue,
-  backfillInvalidatedOrders.queue,
   backfillExpiredOrders.queue,
-  backfillExpiredOrders2.queue,
-  backfillFoundationSales.queue,
-  backfillFoundationOrders.queue,
-  backfillMints.queue,
-  backfillSaleRoyalties.queue,
-  backfillUpdateMissingMetadata.queue,
-  backfillNftBalancesLastTokenAppraisalValue.queue,
-  backfillCancelEventsCreatedAt.queue,
-  backfillNftTransferEventsCreatedAt.queue,
-  backfillCollectionsRoyalties.queue,
-  backfillCollectionsPaymentTokens.queue,
-  backfillWrongNftBalances.queue,
-  backfillInvalidateSeaportV14Orders.queue,
-  backfillBlurSales.queue,
-  backfillLooksrareFills.queue,
-  backfillCollectionsIds.queue,
-  backfillNftTransferEventsUpdatedAt.queue,
+  backfillRefreshCollectionMetadata.queue,
 
-  eventsSyncRealtime.queue,
-  eventsSyncRealtimeV2.queue,
-
-  openSeaOffChainCancellations.queue,
   saveBidEvents.queue,
-
-  orderbookOrders.queue,
-  orderbookOrdersV2.queue,
-
-  orderbookPostOrderExternal.queue,
-  orderbookPostOrderExternalOpensea.queue,
-  orderbookTokenSets.queue,
-  orderbookOpenseaListings.queue,
-
-  tokenUpdatesFloorAsk.queue,
 
   askWebsocketEventsTriggerQueue.queue,
   bidWebsocketEventsTriggerQueue.queue,
-  approvalWebsocketEventsTriggerQueue.queue,
   transferWebsocketEventsTriggerQueue.queue,
   saleWebsocketEventsTriggerQueue.queue,
   tokenWebsocketEventsTriggerQueue.queue,
@@ -237,15 +175,16 @@ export const allJobQueues = [
   backfillBidCancelActivitiesElasticsearch.queue,
   backfillActivitiesElasticsearch.queue,
   backfillDeleteExpiredBidsElasticsearch.queue,
+  backfillSalePricingDecimalElasticsearch.queue,
 ];
 
 export class RabbitMqJobsConsumer {
   private static maxConsumerConnectionsCount = 5;
 
-  private static rabbitMqConsumerConnections: Connection[] = [];
-  private static queueToChannel: Map<string, Channel> = new Map();
-  private static sharedChannels: Map<string, Channel> = new Map();
-  private static channelsToJobs: Map<Channel, AbstractRabbitMqJobHandler[]> = new Map();
+  private static rabbitMqConsumerConnections: AmqpConnectionManager[] = [];
+  private static queueToChannel: Map<string, ChannelWrapper> = new Map();
+  private static sharedChannels: Map<string, ChannelWrapper> = new Map();
+  private static channelsToJobs: Map<ChannelWrapper, AbstractRabbitMqJobHandler[]> = new Map();
   private static sharedChannelName = "shared-channel";
 
   /**
@@ -330,6 +269,15 @@ export class RabbitMqJobsConsumer {
       deleteArchivedExpiredBidActivitiesJob,
       orderUpdatesByMakerJob,
       openseaOffChainCancellationsJob,
+      orderbookOrdersJob,
+      openseaListingsJob,
+      orderbookPostOrderExternalJob,
+      orderbookPostOrderExternalOpenseaJob,
+      eventsSyncRealtimeJob,
+      openseaOrdersProcessJob,
+      openseaOrdersFetchJob,
+      saveBidEventsJob,
+      countApiUsageJob,
     ];
   }
 
@@ -339,13 +287,13 @@ export class RabbitMqJobsConsumer {
 
   public static async connect() {
     for (let i = 0; i < RabbitMqJobsConsumer.maxConsumerConnectionsCount; ++i) {
-      const connection = await amqplib.connect(config.rabbitMqUrl);
+      const connection = amqplibConnectionManager.connect(config.rabbitMqUrl);
       RabbitMqJobsConsumer.rabbitMqConsumerConnections.push(connection);
 
       // Create a shared channel for each connection
       RabbitMqJobsConsumer.sharedChannels.set(
         RabbitMqJobsConsumer.getSharedChannelName(i),
-        await connection.createChannel()
+        connection.createChannel({ confirm: false })
       );
 
       connection.once("error", (error) => {
@@ -374,7 +322,7 @@ export class RabbitMqJobsConsumer {
       return;
     }
 
-    let channel: Channel;
+    let channel: ChannelWrapper;
     const connectionIndex = _.random(0, RabbitMqJobsConsumer.maxConsumerConnectionsCount - 1);
     const sharedChannel = RabbitMqJobsConsumer.sharedChannels.get(
       RabbitMqJobsConsumer.getSharedChannelName(connectionIndex)
@@ -384,9 +332,10 @@ export class RabbitMqJobsConsumer {
     if (job.getUseSharedChannel() && sharedChannel) {
       channel = sharedChannel;
     } else {
-      channel = await RabbitMqJobsConsumer.rabbitMqConsumerConnections[
-        connectionIndex
-      ].createChannel();
+      channel = RabbitMqJobsConsumer.rabbitMqConsumerConnections[connectionIndex].createChannel({
+        confirm: false,
+      });
+      await channel.waitForConnect();
     }
 
     RabbitMqJobsConsumer.queueToChannel.set(job.getQueue(), channel);
@@ -394,9 +343,6 @@ export class RabbitMqJobsConsumer {
     RabbitMqJobsConsumer.channelsToJobs.get(channel)
       ? RabbitMqJobsConsumer.channelsToJobs.get(channel)?.push(job)
       : RabbitMqJobsConsumer.channelsToJobs.set(channel, [job]);
-
-    // Set the number of messages to consume simultaneously
-    await channel.prefetch(job.getConcurrency());
 
     // Subscribe to the queue
     await channel.consume(
@@ -408,11 +354,10 @@ export class RabbitMqJobsConsumer {
       },
       {
         consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getQueue()),
+        prefetch: job.getConcurrency(),
+        noAck: false,
       }
     );
-
-    // Set the number of messages to consume simultaneously for the retry queue
-    await channel.prefetch(_.max([_.toInteger(job.getConcurrency() / 4), 1]) ?? 1);
 
     // Subscribe to the retry queue
     await channel.consume(
@@ -424,20 +369,37 @@ export class RabbitMqJobsConsumer {
       },
       {
         consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getRetryQueue()),
+        prefetch: _.max([_.toInteger(job.getConcurrency() / 4), 1]) ?? 1,
+        noAck: false,
       }
     );
 
-    channel.once("error", (error) => {
-      logger.error("rabbit-channel", `Consumer channel error ${error}`);
+    channel.once("error", async (error) => {
+      if (error.message.includes("timeout")) {
+        const jobs = RabbitMqJobsConsumer.channelsToJobs.get(channel);
+        if (jobs) {
+          // Resubscribe the jobs
+          for (const job of jobs) {
+            try {
+              await this.subscribe(job);
+            } catch (error) {
+              logger.error(
+                "rabbit-channel",
+                `Consumer channel failed to resubscribe to ${job.queueName} ${error}`
+              );
+            }
+          }
 
-      const jobs = RabbitMqJobsConsumer.channelsToJobs.get(channel);
-      if (jobs) {
-        logger.error(
-          "rabbit-jobs",
-          `Jobs stopped consume ${JSON.stringify(
-            jobs.map((job: AbstractRabbitMqJobHandler) => job.queueName)
-          )}`
-        );
+          logger.info(
+            "rabbit-channel",
+            `Resubscribed to ${JSON.stringify(
+              jobs.map((job: AbstractRabbitMqJobHandler) => job.queueName)
+            )}`
+          );
+
+          // Clear the channel that closed
+          RabbitMqJobsConsumer.channelsToJobs.delete(channel);
+        }
       }
     });
   }

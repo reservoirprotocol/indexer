@@ -1,7 +1,7 @@
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { acquireLock, releaseLock } from "@/common/redis";
+import { acquireLock, redlock, releaseLock } from "@/common/redis";
 import { logger } from "@/common/logger";
-import { idb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import { AskEventsDataSource } from "@/jobs/data-export/data-sources/ask-events";
 import { BidEventsDataSource } from "@/jobs/data-export/data-sources/bid-events";
 import { TokenFloorAskEventsDataSource } from "@/jobs/data-export/data-sources/token-floor-ask-events";
@@ -30,6 +30,7 @@ import {
 import AWS from "aws-sdk";
 import { config } from "@/config/index";
 import { EOL } from "os";
+import cron from "node-cron";
 
 export type ExportDataJobPayload = {
   taskId: number;
@@ -62,6 +63,7 @@ export class ExportDataJob extends AbstractRabbitMqJobHandler {
   maxRetries = 10;
   concurrency = 1;
   useSharedChannel = true;
+  consumerTimeout = 120000;
 
   protected async process(payload: ExportDataJobPayload) {
     const { taskId } = payload;
@@ -273,3 +275,26 @@ export class ExportDataJob extends AbstractRabbitMqJobHandler {
 }
 
 export const exportDataJob = new ExportDataJob();
+
+// BACKGROUND WORKER ONLY
+if (config.doBackgroundWork) {
+  cron.schedule(
+    "*/5 * * * *",
+    async () =>
+      await redlock
+        .acquire([`data-export-cron-lock`], (5 * 60 - 5) * 1000)
+        .then(async () => {
+          redb
+            .manyOrNone(`SELECT id FROM data_export_tasks WHERE is_active = TRUE`)
+            .then(async (tasks) =>
+              tasks.forEach((task) => exportDataJob.addToQueue({ taskId: task.id }))
+            )
+            .catch(() => {
+              // Skip on any errors
+            });
+        })
+        .catch(() => {
+          // Skip on any errors
+        })
+  );
+}

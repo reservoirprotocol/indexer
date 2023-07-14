@@ -73,7 +73,6 @@ export const getExecuteSellV7Options: RouteOptions = {
                   "seaport-v1.4",
                   "seaport-v1.5",
                   "x2y2",
-                  "universe",
                   "rarible",
                   "sudoswap",
                   "nftx"
@@ -193,8 +192,8 @@ export const getExecuteSellV7Options: RouteOptions = {
           quantity: Joi.number().unsafe(),
           source: Joi.string().allow("", null),
           currency: Joi.string().lowercase().pattern(regex.address),
-          currencySymbol: Joi.string().optional(),
-          currencyDecimals: Joi.number().optional(),
+          currencySymbol: Joi.string().optional().allow(null),
+          currencyDecimals: Joi.number().optional().allow(null),
           // Net price (without fees on top) = price - builtInFees
           quote: Joi.number().unsafe(),
           rawQuote: Joi.string().pattern(regex.number),
@@ -284,7 +283,11 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
       ) => {
         // Handle dynamically-priced orders
-        if (["blur", "sudoswap", "sudoswap-v2", "collectionxyz", "nftx"].includes(order.kind)) {
+        if (
+          ["blur", "sudoswap", "sudoswap-v2", "collectionxyz", "nftx", "caviar-v1"].includes(
+            order.kind
+          )
+        ) {
           // TODO: Handle the case when the next best-priced order in the database
           // has a better price than the current dynamically-priced order (because
           // of a quantity > 1 being filled on this current order).
@@ -861,12 +864,11 @@ export const getExecuteSellV7Options: RouteOptions = {
         .map((b) => b.orderId);
 
       const addGlobalFee = async (item: (typeof path)[0], fee: Sdk.RouterV6.Types.Fee) => {
+        // The fees should be relative to a single quantity
+        fee.amount = bn(fee.amount).div(item.quantity).toString();
+
         // Global fees get split across all eligible orders
         const adjustedFeeAmount = bn(fee.amount).div(ordersEligibleForGlobalFees.length).toString();
-
-        const itemGrossPrice = bn(item.rawQuote)
-          .add(item.builtInFees.map((f) => bn(f.rawAmount)).reduce((a, b) => a.add(b), bn(0)))
-          .add(item.feesOnTop.map((f) => bn(f.rawAmount)).reduce((a, b) => a.add(b), bn(0)));
 
         const amount = formatPrice(
           adjustedFeeAmount,
@@ -877,7 +879,7 @@ export const getExecuteSellV7Options: RouteOptions = {
 
         item.feesOnTop.push({
           recipient: fee.recipient,
-          bps: bn(rawAmount).mul(10000).div(itemGrossPrice).toNumber(),
+          bps: bn(fee.amount).mul(10000).div(item.rawQuote).toNumber(),
           amount,
           rawAmount,
         });

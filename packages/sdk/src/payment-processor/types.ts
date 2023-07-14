@@ -50,16 +50,11 @@ export type BaseOrder = {
   nonce: string;
   masterNonce: string;
   coin: string;
-
   privateBuyerOrDelegatedPurchaser: string;
   sellerOrBuyer: string;
-
-  // `SaleApproval`-only fields
-  sellerAcceptedOffer?: boolean;
-  maxRoyaltyFeeNumerator?: string;
-
-  // `CollectionOfferApproval`-only fields
-  collectionLevelOffer?: boolean;
+  sellerAcceptedOffer: boolean;
+  maxRoyaltyFeeNumerator: string;
+  collectionLevelOffer: boolean;
 
   v?: number;
   r?: string;

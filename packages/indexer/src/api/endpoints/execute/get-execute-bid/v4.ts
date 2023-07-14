@@ -31,13 +31,6 @@ import * as zeroExV4BuyAttribute from "@/orderbook/orders/zeroex-v4/build/buy/at
 import * as zeroExV4BuyToken from "@/orderbook/orders/zeroex-v4/build/buy/token";
 import * as zeroExV4BuyCollection from "@/orderbook/orders/zeroex-v4/build/buy/collection";
 
-// Universe
-import * as universeBuyToken from "@/orderbook/orders/universe/build/buy/token";
-
-// Flow
-import * as flowBuyToken from "@/orderbook/orders/flow/build/buy/token";
-import * as flowBuyCollection from "@/orderbook/orders/flow/build/buy/collection";
-
 const version = "v4";
 
 export const getExecuteBidV4Options: RouteOptions = {
@@ -100,14 +93,12 @@ export const getExecuteBidV4Options: RouteOptions = {
               "seaport-v1.5",
               "looks-rare",
               "looks-rare-v2",
-              "x2y2",
-              "universe",
-              "flow"
+              "x2y2"
             )
             .default("seaport-v1.5")
             .description("Exchange protocol used to create order. Example: `seaport-v1.5`"),
           orderbook: Joi.string()
-            .valid("reservoir", "opensea", "looks-rare", "x2y2", "universe", "flow")
+            .valid("reservoir", "opensea", "looks-rare", "x2y2")
             .default("reservoir")
             .description("Orderbook where order is placed. Example: `Reservoir`"),
           orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
@@ -611,98 +602,6 @@ export const getExecuteBidV4Options: RouteOptions = {
             continue;
           }
 
-          case "flow": {
-            if (!["flow"].includes(params.orderbook)) {
-              throw Boom.badRequest("Only `flow` is supported as orderbook");
-            }
-
-            if (params.fees?.length) {
-              throw Boom.badRequest("Flow does not support custom fees");
-            }
-
-            if (params.excludeFlaggedTokens) {
-              throw Boom.badRequest("Flow does not support excluded token bids");
-            }
-
-            if (attributeKey || attributeValue) {
-              throw Boom.badRequest("Flow does not support attribute bids");
-            }
-
-            let order: Sdk.Flow.Order | undefined;
-            if (token) {
-              const [contract, tokenId] = token.split(":");
-              order = await flowBuyToken.build({
-                ...params,
-                maker,
-                collection: contract,
-                tokenId,
-              });
-            } else if (collection) {
-              order = await flowBuyCollection.build({ ...params, maker, collection });
-            }
-
-            if (!order) {
-              throw Boom.internal("Failed to generate order");
-            }
-
-            let approvalTx: TxData | undefined;
-            const wethApproval = await currency.getAllowance(
-              maker,
-              Sdk.Flow.Addresses.Exchange[config.chainId]
-            );
-
-            if (
-              bn(wethApproval).lt(bn(order.params.startPrice)) ||
-              bn(wethApproval).lt(bn(order.params.endPrice))
-            ) {
-              approvalTx = currency.approveTransaction(
-                maker,
-                Sdk.Flow.Addresses.Exchange[config.chainId]
-              );
-            }
-
-            steps[1].items.push({
-              status: !wrapEthTx ? "complete" : "incomplete",
-              data: wrapEthTx,
-              orderIndex: i,
-            });
-            steps[2].items.push({
-              status: !approvalTx ? "complete" : "incomplete",
-              data: approvalTx,
-              orderIndex: i,
-            });
-
-            steps[3].items.push({
-              status: "incomplete",
-              data: {
-                sign: order.getSignatureData(),
-                post: {
-                  endpoint: "/order/v3",
-                  method: "POST",
-                  body: {
-                    order: {
-                      kind: "flow",
-                      data: {
-                        ...order.params,
-                      },
-                    },
-                    tokenSetId,
-                    collection:
-                      collection && !attributeKey && !attributeValue ? collection : undefined,
-                    orderbook: params.orderbook,
-                    source,
-                  },
-                },
-              },
-              orderIndex: i,
-            });
-
-            addExecution(order.hash(), params.quantity);
-
-            // Go on with the next bid
-            continue;
-          }
-
           case "x2y2": {
             if (!["x2y2"].includes(params.orderbook)) {
               throw Boom.badRequest("Only `x2y2` is supported as orderbook");
@@ -789,92 +688,6 @@ export const getExecuteBidV4Options: RouteOptions = {
             });
 
             addExecution(new Sdk.X2Y2.Exchange(config.chainId, "").hash(order), params.quantity);
-
-            // Go on with the next bid
-            continue;
-          }
-
-          case "universe": {
-            if (!["reservoir"].includes(params.orderbook)) {
-              throw Boom.badRequest("Only `reservoir` is supported as orderbook");
-            }
-
-            let order: Sdk.Universe.Order | undefined;
-            if (token) {
-              const [contract, tokenId] = token.split(":");
-              order = await universeBuyToken.build({
-                ...params,
-                maker,
-                contract,
-                tokenId,
-              });
-            }
-
-            if (!order) {
-              throw Boom.internal("Failed to generate order");
-            }
-
-            // Check the maker's approval
-            let approvalTx: TxData | undefined;
-            const wethApproval = await currency.getAllowance(
-              maker,
-              Sdk.Universe.Addresses.Exchange[config.chainId]
-            );
-            if (bn(wethApproval).lt(bn(order.params.make.value))) {
-              approvalTx = currency.approveTransaction(
-                maker,
-                Sdk.Universe.Addresses.Exchange[config.chainId]
-              );
-            }
-
-            steps[1].items.push({
-              status: !wrapEthTx ? "complete" : "incomplete",
-              data: wrapEthTx,
-              orderIndex: i,
-            });
-            steps[2].items.push({
-              status: !approvalTx ? "complete" : "incomplete",
-              data: approvalTx,
-              orderIndex: i,
-            });
-            steps[3].items.push({
-              status: "incomplete",
-              data: {
-                sign: order.getSignatureData(),
-                post: {
-                  endpoint: "/order/v3",
-                  method: "POST",
-                  body: {
-                    order: {
-                      kind: "universe",
-                      data: {
-                        ...order.params,
-                      },
-                    },
-                    tokenSetId,
-                    attribute:
-                      collection && attributeKey && attributeValue
-                        ? {
-                            collection,
-                            key: attributeKey,
-                            value: attributeValue,
-                          }
-                        : undefined,
-                    collection:
-                      collection && params.excludeFlaggedTokens && !attributeKey && !attributeValue
-                        ? collection
-                        : undefined,
-                    isNonFlagged: params.excludeFlaggedTokens,
-                    orderbook: params.orderbook,
-                    orderbookApiKey: params.orderbookApiKey,
-                    source,
-                  },
-                },
-              },
-              orderIndex: i,
-            });
-
-            addExecution(order.hashOrderKey(), params.quantity);
 
             // Go on with the next bid
             continue;

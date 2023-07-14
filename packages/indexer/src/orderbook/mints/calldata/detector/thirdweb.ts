@@ -100,9 +100,11 @@ export const extractByCollection = async (
       const currency = claimCondition.currency.toLowerCase();
       if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
         const price = claimCondition.pricePerToken.toString();
-        const maxMintsPerWallet = claimCondition.quantityLimitPerWallet.eq(0)
-          ? null
-          : claimCondition.quantityLimitPerWallet.toString();
+        const maxMintsPerWallet =
+          claimCondition.quantityLimitPerWallet.eq(0) ||
+          claimCondition.quantityLimitPerWallet.eq(MaxUint256)
+            ? null
+            : claimCondition.quantityLimitPerWallet.toString();
 
         // Public sale
         if (claimCondition.merkleRoot === HashZero) {
@@ -127,7 +129,7 @@ export const extractByCollection = async (
                     isERC1155
                       ? {
                           kind: "unknown",
-                          abiKind: "uint256",
+                          abiType: "uint256",
                           abiValue: tokenId!,
                         }
                       : // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -149,7 +151,7 @@ export const extractByCollection = async (
                     {
                       kind: "unknown",
                       abiType: "(bytes32[],uint256,uint256,address)",
-                      abiValue: [[HashZero], maxMintsPerWallet, price, currency],
+                      abiValue: [[HashZero], maxMintsPerWallet ?? 0, price, currency],
                     },
                     {
                       kind: "unknown",

@@ -139,17 +139,6 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
-
-  // !!! DISABLED
-
-  // redlock
-  //   .acquire([`${QUEUE_NAME}-lock-v2`], 60 * 60 * 24 * 30 * 1000)
-  //   .then(async () => {
-  //     await addToQueue();
-  //   })
-  //   .catch(() => {
-  //     // Skip on any errors
-  //   });
 }
 
 export type CursorInfo = {

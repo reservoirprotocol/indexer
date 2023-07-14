@@ -29,11 +29,7 @@ export const postTriggerJobOptions: RouteOptions = {
     try {
       const job = await import(`@/jobs/${payload.path}`);
 
-      try {
-        job.addToQueue(...payload.params);
-      } catch {
-        job().addToQueue(...payload.params);
-      }
+      job.addToQueue(...payload.params);
 
       return true;
     } catch (error) {

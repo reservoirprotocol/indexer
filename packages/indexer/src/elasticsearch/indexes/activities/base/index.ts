@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { fromBuffer } from "@/common/utils";
+import { formatEth, fromBuffer } from "@/common/utils";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 
@@ -25,13 +25,16 @@ export interface ActivityDocument extends BaseDocument {
   amount: number;
   pricing?: {
     price?: string;
+    priceDecimal?: number;
     currencyPrice?: string;
     usdPrice?: number;
     feeBps?: number;
     currency?: string;
     value?: string;
+    valueDecimal?: number;
     currencyValue?: string;
     normalizedValue?: string;
+    normalizedValueDecimal?: number;
     currencyNormalizedValue?: string;
   };
   event?: {
@@ -120,6 +123,7 @@ export interface BuildActivityData extends BuildDocumentData {
     kind: string;
     data: Record<string, unknown>;
   };
+  created_ts: number;
 }
 
 export class ActivityBuilder extends DocumentBuilder {
@@ -129,6 +133,7 @@ export class ActivityBuilder extends DocumentBuilder {
     return {
       ...baseActivity,
       timestamp: data.timestamp,
+      createdAt: new Date(data.created_ts * 1000),
       type: data.type,
       fromAddress: fromBuffer(data.from),
       toAddress: data.to ? fromBuffer(data.to) : undefined,
@@ -137,6 +142,7 @@ export class ActivityBuilder extends DocumentBuilder {
       pricing: data.pricing_price
         ? {
             price: String(data.pricing_price),
+            priceDecimal: formatEth(data.pricing_price),
             currencyPrice: data.pricing_currency_price
               ? String(data.pricing_currency_price)
               : undefined,
@@ -146,11 +152,15 @@ export class ActivityBuilder extends DocumentBuilder {
               ? fromBuffer(data.pricing_currency)
               : Sdk.Common.Addresses.Eth[config.chainId],
             value: data.pricing_value ? String(data.pricing_value) : undefined,
+            valueDecimal: data.pricing_value ? formatEth(data.pricing_value) : undefined,
             currencyValue: data.pricing_currency_value
               ? String(data.pricing_currency_value)
               : undefined,
             normalizedValue: data.pricing_normalized_value
               ? String(data.pricing_normalized_value)
+              : undefined,
+            normalizedValueDecimal: data.pricing_normalized_value
+              ? formatEth(data.pricing_normalized_value)
               : undefined,
             currencyNormalizedValue: data.pricing_currency_normalized_value
               ? String(data.pricing_currency_normalized_value)

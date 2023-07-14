@@ -111,10 +111,6 @@ export type GenericOrder =
       order: Sdk.Zora.Order;
     }
   | {
-      kind: "universe";
-      order: Sdk.Universe.Order;
-    }
-  | {
       kind: "element";
       order: Sdk.Element.Order;
     }
@@ -139,10 +135,6 @@ export type GenericOrder =
       order: Sdk.Nftx.Order;
     }
   | {
-      kind: "flow";
-      order: Sdk.Flow.Order;
-    }
-  | {
       kind: "superrare";
       order: Sdk.SuperRare.Order;
     }
@@ -153,6 +145,10 @@ export type GenericOrder =
   | {
       kind: "sudoswap-v2";
       order: Sdk.SudoswapV2.Order;
+    }
+  | {
+      kind: "caviar-v1";
+      order: Sdk.CaviarV1.Order;
     }
   | {
       kind: "payment-processor";

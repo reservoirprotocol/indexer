@@ -9,6 +9,7 @@ export class EventsSyncProcessRealtimeJob extends AbstractRabbitMqJobHandler {
   maxRetries = 10;
   concurrency = config.chainId === 137 ? 5 : 20;
   lazyMode = true;
+  consumerTimeout = 120000;
   backoff = {
     type: "exponential",
     delay: 10000,

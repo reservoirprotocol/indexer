@@ -265,7 +265,7 @@ export const getCollectionsV5Options: RouteOptions = {
               price: JoiPrice.required(),
               startTime: Joi.number().allow(null),
               endTime: Joi.number().allow(null),
-              maxMintsPerWallet: Joi.number().allow(null),
+              maxMintsPerWallet: Joi.number().unsafe().allow(null),
             })
           ),
         })
@@ -346,7 +346,7 @@ export const getCollectionsV5Options: RouteOptions = {
               array_agg(
                 json_build_object(
                   'stage', collection_mints.stage,
-                  'tokenId', collection_mints.token_id,
+                  'tokenId', collection_mints.token_id::TEXT,
                   'kind', collection_mints.kind,
                   'currency', concat('0x', encode(collection_mints.currency, 'hex')),
                   'price', collection_mints.price::TEXT,

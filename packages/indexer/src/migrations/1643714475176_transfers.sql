@@ -36,6 +36,9 @@ CREATE INDEX "nft_transfer_events_address_token_id_timestamp_index"
 CREATE INDEX "nft_transfer_events_updated_at_address_token_id_index"
   ON "nft_transfer_events" ("updated_at", "address", "token_id");
 
+CREATE INDEX "nft_transfer_events_address_is_deleted_updated_at_index"
+  ON "nft_transfer_events" ("address", "is_deleted", "updated_at");
+
 CREATE TABLE "ft_transfer_events" (
   "address" BYTEA NOT NULL,
   "block" INT NOT NULL,

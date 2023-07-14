@@ -31,14 +31,6 @@ import * as x2y2Check from "@/orderbook/orders/x2y2/check";
 import * as zeroExV4SellToken from "@/orderbook/orders/zeroex-v4/build/sell/token";
 import * as zeroExV4Check from "@/orderbook/orders/zeroex-v4/check";
 
-// Universe
-import * as universeSellToken from "@/orderbook/orders/universe/build/sell/token";
-import * as universeCheck from "@/orderbook/orders/universe/check";
-
-// Flow
-import * as flowSellToken from "@/orderbook/orders/flow/build/sell/token";
-import * as flowCheck from "@/orderbook/orders/flow/check";
-
 const version = "v4";
 
 export const getExecuteListV4Options: RouteOptions = {
@@ -91,14 +83,12 @@ export const getExecuteListV4Options: RouteOptions = {
               "seaport",
               "seaport-v1.4",
               "seaport-v1.5",
-              "x2y2",
-              "universe",
-              "flow"
+              "x2y2"
             )
             .default("seaport-v1.5")
             .description("Exchange protocol used to create order. Example: `seaport-v1.5`"),
           orderbook: Joi.string()
-            .valid("opensea", "looks-rare", "reservoir", "x2y2", "universe", "flow")
+            .valid("opensea", "looks-rare", "reservoir", "x2y2")
             .default("reservoir")
             .description("Orderbook where order is placed. Example: `Reservoir`"),
           orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
@@ -224,10 +214,9 @@ export const getExecuteListV4Options: RouteOptions = {
         // For now, ERC20 listings are only supported on Seaport
         if (
           params.orderKind !== "seaport-v1.5" &&
-          params.orderKind !== "universe" &&
           params.currency !== Sdk.Common.Addresses.Eth[config.chainId]
         ) {
-          throw new Error("ERC20 listings are only supported on Seaport and Universe");
+          throw new Error("ERC20 listings are only supported on Seaport");
         }
 
         // Handle fees
@@ -306,80 +295,6 @@ export const getExecuteListV4Options: RouteOptions = {
                     },
                     orderbook: params.orderbook,
                     orderbookApiKey: params.orderbookApiKey,
-                    source,
-                  },
-                },
-              },
-              orderIndex: i,
-            });
-
-            addExecution(order.hash(), params.quantity);
-
-            // Go on with the next listing
-            continue;
-          }
-
-          case "flow": {
-            if (!["flow"].includes(params.orderbook)) {
-              throw Boom.badRequest("Only `flow` is supported as an orderbook");
-            }
-
-            const order = await flowSellToken.build({
-              ...params,
-              maker,
-              contract,
-              tokenId,
-            });
-
-            if (!order) {
-              throw Boom.internal("Failed to generate order");
-            }
-
-            // Will be set if an approval is needed before listing
-            let approvalTx: TxData | undefined;
-
-            // Check the order's fillability
-            try {
-              await flowCheck.offChainCheck(order, { onChainApprovalRecheck: true });
-            } catch (error: any) {
-              switch (error.message) {
-                case "no-balance-no-approval":
-                case "no-balance": {
-                  // We cannot do anything if the user doesn't own the listed token
-                  throw Boom.badData("Maker does not own the listed token");
-                }
-
-                case "no-approval": {
-                  // Generate an approval transaction
-                  approvalTx = new Sdk.Common.Helpers.Erc721(
-                    baseProvider,
-                    contract
-                  ).approveTransaction(maker, Sdk.Flow.Addresses.Exchange[config.chainId]);
-                  break;
-                }
-              }
-            }
-
-            steps[0].items.push({
-              status: approvalTx ? "incomplete" : "complete",
-              data: approvalTx,
-              orderIndex: i,
-            });
-            steps[1].items.push({
-              status: "incomplete",
-              data: {
-                sign: order.getSignatureData(),
-                post: {
-                  endpoint: "/order/v3",
-                  method: "POST",
-                  body: {
-                    order: {
-                      kind: params.orderKind,
-                      data: {
-                        ...order.params,
-                      },
-                    },
-                    orderbook: params.orderbook,
                     source,
                   },
                 },
@@ -671,89 +586,6 @@ export const getExecuteListV4Options: RouteOptions = {
             });
 
             addExecution(new Sdk.X2Y2.Exchange(config.chainId, "").hash(order), params.quantity);
-
-            // Go on with the next listing
-            continue;
-          }
-
-          case "universe": {
-            if (!["reservoir"].includes(params.orderbook)) {
-              throw Boom.badRequest("Only `reservoir` is supported as orderbook");
-            }
-
-            const order = await universeSellToken.build({
-              ...params,
-              maker,
-              contract,
-              tokenId,
-            });
-            if (!order) {
-              throw Boom.internal("Failed to generate order");
-            }
-
-            // Will be set if an approval is needed before listing
-            let approvalTx: TxData | undefined;
-
-            // Check the order's fillability
-            try {
-              await universeCheck.offChainCheck(order, { onChainApprovalRecheck: true });
-            } catch (error: any) {
-              switch (error.message) {
-                case "no-balance-no-approval":
-                case "no-balance": {
-                  // We cannot do anything if the user doesn't own the listed token
-                  throw Boom.badData("Maker does not own the listed token");
-                }
-
-                case "no-approval": {
-                  // Generate an approval transaction
-                  const kind = order.params.kind?.startsWith("erc721") ? "erc721" : "erc1155";
-                  approvalTx = (
-                    kind === "erc721"
-                      ? new Sdk.Common.Helpers.Erc721(
-                          baseProvider,
-                          order.params.make.assetType.contract!
-                        )
-                      : new Sdk.Common.Helpers.Erc1155(
-                          baseProvider,
-                          order.params.make.assetType.contract!
-                        )
-                  ).approveTransaction(maker, Sdk.Universe.Addresses.Exchange[config.chainId]);
-
-                  break;
-                }
-              }
-            }
-
-            steps[0].items.push({
-              status: approvalTx ? "incomplete" : "complete",
-              data: approvalTx,
-              orderIndex: i,
-            });
-            steps[1].items.push({
-              status: "incomplete",
-              data: {
-                sign: order.getSignatureData(),
-                post: {
-                  endpoint: "/order/v3",
-                  method: "POST",
-                  body: {
-                    order: {
-                      kind: "universe",
-                      data: {
-                        ...order.params,
-                      },
-                    },
-                    orderbook: params.orderbook,
-                    orderbookApiKey: params.orderbookApiKey,
-                    source,
-                  },
-                },
-              },
-              orderIndex: i,
-            });
-
-            addExecution(order.hashOrderKey(), params.quantity);
 
             // Go on with the next listing
             continue;

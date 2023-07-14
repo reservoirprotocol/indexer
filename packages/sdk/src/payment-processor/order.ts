@@ -49,19 +49,16 @@ export class Order {
   }
 
   private detectKind(): Types.OrderKind {
-    if (this.params.tokenId != undefined && this.params.sellerAcceptedOffer != undefined) {
+    if (!this.params.sellerAcceptedOffer && !this.params.collectionLevelOffer) {
       return "sale-approval";
     }
 
-    if (this.params.collectionLevelOffer != undefined) {
-      return "collection-offer-approval";
+    if (this.params.sellerAcceptedOffer && !this.params.collectionLevelOffer) {
+      return "offer-approval";
     }
 
-    if (
-      this.params.collectionLevelOffer == undefined &&
-      this.params.sellerAcceptedOffer == undefined
-    ) {
-      return "offer-approval";
+    if (this.params.sellerAcceptedOffer && this.params.collectionLevelOffer) {
+      return "collection-offer-approval";
     }
 
     throw new Error("Could not detect order kind (order might have unsupported params/calldata)");
@@ -188,7 +185,7 @@ export class Order {
         }
       }
     } else {
-      const totalPrice = bn(this.params.amount).mul(this.params.price);
+      const totalPrice = this.params.price;
 
       // Check that maker has enough balance to cover the payment
       // and the approval to the token transfer proxy is set
@@ -217,7 +214,7 @@ export class Order {
         sellerAcceptedOffer: this.params.sellerAcceptedOffer!,
         marketplace: this.params.marketplace,
         marketplaceFeeNumerator: this.params.marketplaceFeeNumerator,
-        maxRoyaltyFeeNumerator: this.params.maxRoyaltyFeeNumerator!,
+        maxRoyaltyFeeNumerator: this.params.maxRoyaltyFeeNumerator,
         privateBuyer: this.params.privateBuyerOrDelegatedPurchaser,
         seller: this.params.sellerOrBuyer,
         tokenAddress: this.params.tokenAddress,
@@ -364,7 +361,7 @@ const normalize = (order: Types.BaseOrder): Types.BaseOrder => {
     marketplace: lc(order.marketplace),
     marketplaceFeeNumerator: s(order.marketplaceFeeNumerator),
     tokenAddress: lc(order.tokenAddress),
-    tokenId: order.tokenId ? s(order.tokenId) : undefined,
+    tokenId: order.tokenId !== undefined ? s(order.tokenId) : undefined,
     amount: s(order.amount),
     price: s(order.price),
     expiration: s(order.expiration),
@@ -376,9 +373,8 @@ const normalize = (order: Types.BaseOrder): Types.BaseOrder => {
     sellerOrBuyer: lc(order.sellerOrBuyer),
 
     sellerAcceptedOffer: order.sellerAcceptedOffer,
-    maxRoyaltyFeeNumerator: order.maxRoyaltyFeeNumerator
-      ? s(order.maxRoyaltyFeeNumerator)
-      : undefined,
+    maxRoyaltyFeeNumerator:
+      order.maxRoyaltyFeeNumerator !== undefined ? s(order.maxRoyaltyFeeNumerator) : undefined,
 
     collectionLevelOffer: order.collectionLevelOffer ?? undefined,
 

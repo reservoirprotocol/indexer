@@ -10,7 +10,6 @@ import * as collectionxyz from "@/events-sync/data/collectionxyz";
 import * as cryptoPunks from "@/events-sync/data/cryptopunks";
 import * as decentraland from "@/events-sync/data/decentraland";
 import * as element from "@/events-sync/data/element";
-import * as flow from "@/events-sync/data/flow";
 import * as foundation from "@/events-sync/data/foundation";
 import * as looksRare from "@/events-sync/data/looks-rare";
 import * as manifold from "@/events-sync/data/manifold";
@@ -28,7 +27,6 @@ import * as sudoswap from "@/events-sync/data/sudoswap";
 import * as superrare from "@/events-sync/data/superrare";
 import * as tofu from "@/events-sync/data/tofu";
 import * as treasure from "@/events-sync/data/treasure";
-import * as universe from "@/events-sync/data/universe";
 import * as wyvernV2 from "@/events-sync/data/wyvern-v2";
 import * as wyvernV23 from "@/events-sync/data/wyvern-v2.3";
 import * as x2y2 from "@/events-sync/data/x2y2";
@@ -39,6 +37,7 @@ import * as zora from "@/events-sync/data/zora";
 import * as looksRareV2 from "@/events-sync/data/looks-rare-v2";
 import * as blend from "@/events-sync/data/blend";
 import * as sudoswapV2 from "@/events-sync/data/sudoswap-v2";
+import * as caviarV1 from "@/events-sync/data/caviar-v1";
 import * as paymentProcessor from "@/events-sync/data/payment-processor";
 import * as thirdweb from "@/events-sync/data/thirdweb";
 import * as blurV2 from "@/events-sync/data/blur-v2";
@@ -60,7 +59,6 @@ export type EventKind =
   | "cryptopunks"
   | "decentraland"
   | "element"
-  | "flow"
   | "foundation"
   | "looks-rare"
   | "manifold"
@@ -75,7 +73,6 @@ export type EventKind =
   | "superrare"
   | "tofu"
   | "treasure"
-  | "universe"
   | "wyvern"
   | "x2y2"
   | "zeroex-v2"
@@ -85,6 +82,7 @@ export type EventKind =
   | "looks-rare-v2"
   | "blend"
   | "sudoswap-v2"
+  | "caviar-v1"
   | "payment-processor"
   | "thirdweb"
   | "seadrop"
@@ -176,8 +174,6 @@ export type EventSubKind =
   | "sudoswap-spot-price-update"
   | "sudoswap-delta-update"
   | "sudoswap-new-pair"
-  | "universe-match"
-  | "universe-cancel"
   | "nftx-redeemed"
   | "nftx-minted"
   | "nftx-user-staked"
@@ -192,10 +188,6 @@ export type EventSubKind =
   | "nftx-enable-mint-updated"
   | "nftx-enable-target-redeem-updated"
   | "blur-orders-matched"
-  | "flow-match-order-fulfilled"
-  | "flow-take-order-fulfilled"
-  | "flow-cancel-all-orders"
-  | "flow-cancel-multiple-orders"
   | "blur-order-cancelled"
   | "blur-nonce-incremented"
   | "manifold-purchase"
@@ -265,6 +257,13 @@ export type EventSubKind =
   | "sudoswap-v2-delta-update"
   | "sudoswap-v2-new-erc721-pair"
   | "sudoswap-v2-new-erc1155-pair"
+  | "caviar-v1-create"
+  | "caviar-v1-add"
+  | "caviar-v1-remove"
+  | "caviar-v1-buy"
+  | "caviar-v1-sell"
+  | "caviar-v1-wrap"
+  | "caviar-v1-unwrap"
   | "payment-processor-buy-single-listing"
   | "payment-processor-master-nonce-invalidated"
   | "payment-processor-nonce-invalidated"
@@ -377,8 +376,6 @@ const allEventData = [
   sudoswap.spotPriceUpdate,
   sudoswap.deltaUpdate,
   sudoswap.newPair,
-  universe.match,
-  universe.cancel,
   nftx.minted,
   nftx.redeemed,
   nftx.swapped,
@@ -391,10 +388,6 @@ const allEventData = [
   nftx.enableMintUpdated,
   nftx.enableTargetRedeemUpdated,
   blur.ordersMatched,
-  flow.matchOrderFulfilled,
-  flow.takeOrderFulfilled,
-  flow.cancelAllOrders,
-  flow.cancelMultipleOrders,
   blur.orderCancelled,
   blur.nonceIncremented,
   manifold.modify,
@@ -459,6 +452,13 @@ const allEventData = [
   sudoswapV2.newERC721Pair,
   sudoswapV2.newERC1155Pair,
   treasure.bidAccepted,
+  caviarV1.create,
+  caviarV1.add,
+  caviarV1.remove,
+  caviarV1.buy,
+  caviarV1.sell,
+  caviarV1.wrap,
+  caviarV1.unwrap,
   paymentProcessor.buySingleListing,
   paymentProcessor.masterNonceInvalidated,
   paymentProcessor.nonceInvalidated,

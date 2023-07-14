@@ -8,6 +8,7 @@ import { randomUUID } from "crypto";
 import _ from "lodash";
 
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
+import crypto from "crypto";
 
 const QUEUE_NAME = "transfer-websocket-events-trigger-queue";
 
@@ -35,6 +36,10 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
 
       try {
         const result = {
+          id: crypto
+            .createHash("sha256")
+            .update(`${data.tx_hash}${data.log_index}${data.batch_index}`)
+            .digest("hex"),
           token: {
             contract: data.address,
             tokenId: data.token_id,
@@ -50,7 +55,8 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
         };
 
         let eventType = "";
-        if (data.trigger === "insert") eventType = "transfer.created";
+        if (data.is_deleted) eventType = "transfer.deleted";
+        else if (data.trigger === "insert") eventType = "transfer.created";
         else if (data.trigger === "update") eventType = "transfer.updated";
 
         await publishWebsocketEvent({
@@ -111,7 +117,7 @@ export type TransferWebsocketEventInfo = {
   token_id: string;
   amount: string;
   created_at: string;
-
+  is_deleted: boolean;
   trigger: "insert" | "update" | "delete";
   offset: string;
 };

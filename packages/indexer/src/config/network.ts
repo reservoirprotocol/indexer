@@ -140,11 +140,11 @@ type NetworkSettings = {
   };
   onStartup?: () => Promise<void>;
   subDomain: string;
-
   elasticsearch?: {
     numberOfShards?: number;
     indexes?: { [index: string]: ElasticsearchIndexSettings };
   };
+  isTestnet?: boolean;
 };
 
 type ElasticsearchIndexSettings = {
@@ -178,6 +178,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     elasticsearch: {
       numberOfShards: 2,
     },
+    isTestnet: false,
   };
 
   switch (config.chainId) {
@@ -356,7 +357,7 @@ export const getNetworkSettings = (): NetworkSettings => {
               decimals: 18,
               metadata: {
                 image:
-                  "https://www.dextools.io/resources/tokens/logos/ether/0xbb4f3ad7a2cf75d8effc4f6d7bd21d95f06165ca.png?1687668922646",
+                  "https://bafybeic2ukraukxbvs7mn5f5xqnqkr42r5exxjpij4fmw4otiows2zjzbi.ipfs-public.thirdwebcdn.com/Screenshot_2023-06-15_003656.png",
               },
             },
           ],
@@ -398,6 +399,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 5: {
       return {
         ...defaultNetworkSettings,
+        isTestnet: true,
         backfillBlockBatchSize: 32,
         subDomain: "api-goerli",
         mintsAsSalesBlacklist: [
@@ -688,6 +690,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 534353: {
       return {
         ...defaultNetworkSettings,
+        isTestnet: true,
         enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
@@ -787,6 +790,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 11155111: {
       return {
         ...defaultNetworkSettings,
+        isTestnet: true,
         enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
@@ -820,6 +824,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 80001: {
       return {
         ...defaultNetworkSettings,
+        isTestnet: true,
         enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
@@ -860,6 +865,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 84531: {
       return {
         ...defaultNetworkSettings,
+        isTestnet: true,
         enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
@@ -940,6 +946,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 999: {
       return {
         ...defaultNetworkSettings,
+        isTestnet: true,
         enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,

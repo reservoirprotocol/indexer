@@ -327,6 +327,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         missing_royalties: missingRoyalties,
         normalized_value: normalizedValue,
         currency_normalized_value: normalizedValue,
+        originated_at: metadata.originatedAt || null,
       });
 
       const unfillable =
@@ -381,6 +382,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         { name: "missing_royalties", mod: ":json" },
         "normalized_value",
         "currency_normalized_value",
+        "originated_at",
       ],
       {
         table: "orders",

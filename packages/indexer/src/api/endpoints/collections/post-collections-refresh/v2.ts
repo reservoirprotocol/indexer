@@ -13,7 +13,6 @@ import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 
-import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
 import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
 import {
@@ -24,6 +23,7 @@ import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
 import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
 import { blurBidsRefreshJob } from "@/jobs/order-updates/misc/blur-bids-refresh-job";
 import { blurListingsRefreshJob } from "@/jobs/order-updates/misc/blur-listings-refresh-job";
+import { openseaOrdersProcessJob } from "@/jobs/opensea-orders/opensea-orders-process-job";
 
 const version = "v2";
 
@@ -124,7 +124,7 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
 
         if (collection.slug) {
           // Refresh opensea collection offers
-          await openseaOrdersProcessQueue.addToQueue([
+          await openseaOrdersProcessJob.addToQueue([
             {
               kind: "collection-offers",
               data: {
@@ -197,7 +197,7 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
 
         if (collection.slug) {
           // Refresh opensea collection offers
-          await openseaOrdersProcessQueue.addToQueue([
+          await openseaOrdersProcessJob.addToQueue([
             {
               kind: "collection-offers",
               data: {

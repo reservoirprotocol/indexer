@@ -1,6 +1,7 @@
 import { BigNumber } from "@ethersproject/bignumber";
 
 import { idb } from "@/common/db";
+import { logger } from "@/common/logger";
 import { bn, fromBuffer, now, toBuffer } from "@/common/utils";
 import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
 import { MintTxSchema, CustomInfo } from "@/orderbook/mints/calldata";
@@ -73,6 +74,7 @@ export const getCollectionMints = async (
             ? " AND collection_mints.status = 'closed'"
             : ""
         }
+      ORDER BY collection_mints.price
     `,
     {
       collection,
@@ -198,6 +200,13 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
 
     // Make sure to auto-refresh "not-yey-started" mints
     if (collectionMint.statusReason === "not-yet-started") {
+      logger.info(
+        "mints-debug",
+        JSON.stringify({
+          collection: collectionMint.collection,
+          delay: collectionMint.startTime! - now() + 30,
+        })
+      );
       await mintsRefreshJob.addToQueue(
         { collection: collectionMint.collection },
         collectionMint.startTime! - now()
@@ -310,6 +319,13 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
 
     // Make sure to auto-refresh "not-yey-started" mints
     if (collectionMint.statusReason === "not-yet-started") {
+      logger.info(
+        "mints-debug",
+        JSON.stringify({
+          collection: collectionMint.collection,
+          delay: collectionMint.startTime! - now() + 30,
+        })
+      );
       await mintsRefreshJob.addToQueue(
         { collection: collectionMint.collection },
         collectionMint.startTime! - now()

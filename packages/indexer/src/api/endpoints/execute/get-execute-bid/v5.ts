@@ -15,6 +15,7 @@ import { baseProvider } from "@/common/provider";
 import { bn, now, regex } from "@/common/utils";
 import { config } from "@/config/index";
 import { getExecuteError } from "@/orderbook/orders/errors";
+import { checkBlacklistAndFallback } from "@/orderbook/orders";
 import * as b from "@/utils/auth/blur";
 import { ExecutionsBuffer } from "@/utils/executions";
 
@@ -44,12 +45,9 @@ import * as zeroExV4BuyAttribute from "@/orderbook/orders/zeroex-v4/build/buy/at
 import * as zeroExV4BuyToken from "@/orderbook/orders/zeroex-v4/build/buy/token";
 import * as zeroExV4BuyCollection from "@/orderbook/orders/zeroex-v4/build/buy/collection";
 
-// Universe
-import * as universeBuyToken from "@/orderbook/orders/universe/build/buy/token";
-
-// Flow
-import * as flowBuyToken from "@/orderbook/orders/flow/build/buy/token";
-import * as flowBuyCollection from "@/orderbook/orders/flow/build/buy/collection";
+// PaymentProcessor
+import * as paymentProcessorBuyToken from "@/orderbook/orders/payment-processor/build/buy/token";
+import * as paymentProcessorBuyCollection from "@/orderbook/orders/payment-processor/build/buy/collection";
 
 const version = "v5";
 
@@ -119,9 +117,8 @@ export const getExecuteBidV5Options: RouteOptions = {
               "looks-rare",
               "looks-rare-v2",
               "x2y2",
-              "universe",
-              "flow",
-              "alienswap"
+              "alienswap",
+              "payment-processor"
             )
             .default("seaport-v1.5")
             .description("Exchange protocol used to create order. Example: `seaport-v1.5`"),
@@ -146,7 +143,7 @@ export const getExecuteBidV5Options: RouteOptions = {
             }),
           }).description("Additional options."),
           orderbook: Joi.string()
-            .valid("blur", "reservoir", "opensea", "looks-rare", "x2y2", "universe", "flow")
+            .valid("blur", "reservoir", "opensea", "looks-rare", "x2y2")
             .default("reservoir")
             .description("Orderbook where order is placed. Example: `Reservoir`"),
           orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
@@ -434,6 +431,14 @@ export const getExecuteBidV5Options: RouteOptions = {
           // Force usage of looks-rare-v2
           if (params.orderKind === "looks-rare") {
             params.orderKind = "looks-rare-v2";
+          }
+
+          // Blacklist checks
+          if (collectionId) {
+            await checkBlacklistAndFallback(collectionId, params);
+          }
+          if (token) {
+            await checkBlacklistAndFallback(token.split(":")[0], params);
           }
 
           // Only single-contract token sets are biddable
@@ -1015,101 +1020,6 @@ export const getExecuteBidV5Options: RouteOptions = {
                 break;
               }
 
-              case "flow": {
-                if (!["flow"].includes(params.orderbook)) {
-                  return errors.push({
-                    message: "Unsupported orderbook",
-                    orderIndex: i,
-                  });
-                }
-
-                if (params.fees?.length) {
-                  return errors.push({
-                    message: "Custom fees not supported",
-                    orderIndex: i,
-                  });
-                }
-                if (params.excludeFlaggedTokens) {
-                  return errors.push({
-                    message: "Flagged tokens exclusion not supported",
-                    orderIndex: i,
-                  });
-                }
-
-                let order: Sdk.Flow.Order;
-                if (token) {
-                  const [contract, tokenId] = token.split(":");
-                  order = await flowBuyToken.build({
-                    ...params,
-                    orderbook: "flow",
-                    maker,
-                    contract,
-                    tokenId,
-                  });
-                } else if (collection) {
-                  order = await flowBuyCollection.build({
-                    ...params,
-                    orderbook: "flow",
-                    maker,
-                    contract: collection,
-                  });
-                } else {
-                  return errors.push({
-                    message: "Only token and collection bids are supported",
-                    orderIndex: i,
-                  });
-                }
-
-                let approvalTx: TxData | undefined;
-                const wethApproval = await currency.getAllowance(
-                  maker,
-                  Sdk.Flow.Addresses.Exchange[config.chainId]
-                );
-
-                if (
-                  bn(wethApproval).lt(bn(order.params.startPrice)) ||
-                  bn(wethApproval).lt(bn(order.params.endPrice))
-                ) {
-                  approvalTx = currency.approveTransaction(
-                    maker,
-                    Sdk.Flow.Addresses.Exchange[config.chainId]
-                  );
-                }
-
-                steps[2].items.push({
-                  status: !approvalTx ? "complete" : "incomplete",
-                  data: approvalTx,
-                  orderIndexes: [i],
-                });
-                steps[3].items.push({
-                  status: "incomplete",
-                  data: {
-                    sign: order.getSignatureData(),
-                    post: {
-                      endpoint: "/order/v3",
-                      method: "POST",
-                      body: {
-                        order: {
-                          kind: "flow",
-                          data: {
-                            ...order.params,
-                          },
-                        },
-                        tokenSetId,
-                        collection,
-                        orderbook: params.orderbook,
-                        source,
-                      },
-                    },
-                  },
-                  orderIndexes: [i],
-                });
-
-                addExecution(order.hash(), params.quantity);
-
-                break;
-              }
-
               case "x2y2": {
                 if (!["x2y2"].includes(params.orderbook)) {
                   return errors.push({
@@ -1205,7 +1115,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                 break;
               }
 
-              case "universe": {
+              case "payment-processor": {
                 if (!["reservoir"].includes(params.orderbook)) {
                   return errors.push({
                     message: "Unsupported orderbook",
@@ -1213,18 +1123,24 @@ export const getExecuteBidV5Options: RouteOptions = {
                   });
                 }
 
-                let order: Sdk.Universe.Order;
+                let order: Sdk.PaymentProcessor.Order;
                 if (token) {
                   const [contract, tokenId] = token.split(":");
-                  order = await universeBuyToken.build({
+                  order = await paymentProcessorBuyToken.build({
                     ...params,
                     maker,
                     contract,
                     tokenId,
                   });
+                } else if (collection) {
+                  order = await paymentProcessorBuyCollection.build({
+                    ...params,
+                    maker,
+                    collection,
+                  });
                 } else {
                   return errors.push({
-                    message: "Only token bids are supported",
+                    message: "Only token and collection bids are supported",
                     orderIndex: i,
                   });
                 }
@@ -1233,12 +1149,12 @@ export const getExecuteBidV5Options: RouteOptions = {
                 let approvalTx: TxData | undefined;
                 const wethApproval = await currency.getAllowance(
                   maker,
-                  Sdk.Universe.Addresses.Exchange[config.chainId]
+                  Sdk.PaymentProcessor.Addresses.Exchange[config.chainId]
                 );
-                if (bn(wethApproval).lt(bn(order.params.make.value))) {
+                if (bn(wethApproval).lt(bn(order.params.price))) {
                   approvalTx = currency.approveTransaction(
                     maker,
-                    Sdk.Universe.Addresses.Exchange[config.chainId]
+                    Sdk.PaymentProcessor.Addresses.Exchange[config.chainId]
                   );
                 }
 
@@ -1252,17 +1168,25 @@ export const getExecuteBidV5Options: RouteOptions = {
                   data: {
                     sign: order.getSignatureData(),
                     post: {
-                      endpoint: "/order/v3",
+                      endpoint: "/order/v4",
                       method: "POST",
                       body: {
-                        order: {
-                          kind: "universe",
-                          data: {
-                            ...order.params,
+                        items: [
+                          {
+                            order: {
+                              kind: "payment-processor",
+                              data: {
+                                ...order.params,
+                              },
+                            },
+                            tokenSetId,
+                            attribute,
+                            collection,
+                            isNonFlagged: params.excludeFlaggedTokens,
+                            orderbook: params.orderbook,
+                            orderbookApiKey: params.orderbookApiKey,
                           },
-                        },
-                        orderbook: params.orderbook,
-                        orderbookApiKey: params.orderbookApiKey,
+                        ],
                         source,
                       },
                     },
@@ -1270,7 +1194,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                   orderIndexes: [i],
                 });
 
-                addExecution(order.hashOrderKey(), params.quantity);
+                addExecution(order.hash(), params.quantity);
 
                 break;
               }

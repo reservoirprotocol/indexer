@@ -56,12 +56,11 @@ export class RabbitMq {
   private static rabbitMqPublisherChannels: ChannelWrapper[] = [];
 
   public static async connect() {
-    RabbitMq.rabbitMqPublisherConnection = await amqplibConnectionManager.connect(
-      config.rabbitMqUrl
-    );
+    RabbitMq.rabbitMqPublisherConnection = amqplibConnectionManager.connect(config.rabbitMqUrl);
 
     for (let index = 0; index < RabbitMq.maxPublisherChannelsCount; ++index) {
-      const channel = await this.rabbitMqPublisherConnection.createChannel();
+      const channel = this.rabbitMqPublisherConnection.createChannel();
+      await channel.waitForConnect();
       RabbitMq.rabbitMqPublisherChannels[index] = channel;
 
       channel.once("error", (error) => {

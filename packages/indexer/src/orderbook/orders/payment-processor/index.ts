@@ -1,14 +1,11 @@
-import { Interface } from "@ethersproject/abi";
 import { BigNumber } from "@ethersproject/bignumber";
 import { AddressZero } from "@ethersproject/constants";
-import { Contract } from "@ethersproject/contracts";
 import { keccak256 } from "@ethersproject/solidity";
 import * as Sdk from "@reservoir0x/sdk";
 import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { baseProvider } from "@/common/provider";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
@@ -44,14 +41,17 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
   const handleOrder = async ({ orderParams, metadata }: OrderInfo) => {
     try {
-      const order = new Sdk.PaymentProcessor.Order(config.chainId, orderParams);
+      const order = new Sdk.PaymentProcessor.Order(config.chainId, {
+        ...orderParams,
+        // Force kind detection
+        kind: undefined,
+      });
       const id = order.hash();
 
-      // For now, only listings are supported
-      if (order.params.kind !== "sale-approval") {
+      if (!order.params.kind) {
         return results.push({
           id,
-          status: "unsupported-side",
+          status: "unknown-kind",
         });
       }
 
@@ -63,22 +63,22 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      const exchange = new Contract(
-        Sdk.PaymentProcessor.Addresses.Exchange[config.chainId],
-        new Interface([
-          "function getTokenSecurityPolicyId(address collectionAddress) public view returns (uint256)",
-        ]),
-        baseProvider
-      );
-      const securityId = await exchange.getTokenSecurityPolicyId(order.params.tokenAddress);
+      // const exchange = new Contract(
+      //   Sdk.PaymentProcessor.Addresses.Exchange[config.chainId],
+      //   new Interface([
+      //     "function getTokenSecurityPolicyId(address collectionAddress) public view returns (uint256)",
+      //   ]),
+      //   baseProvider
+      // );
+      // const securityId = await exchange.getTokenSecurityPolicyId(order.params.tokenAddress);
 
-      // For now, only the default security policy is supported
-      if (securityId.toString() != "0") {
-        return results.push({
-          id,
-          status: "unsupported-security-policy",
-        });
-      }
+      // // For now, only the default security policy is supported
+      // if (securityId.toString() != "0") {
+      //   return results.push({
+      //     id,
+      //     status: "unsupported-security-policy",
+      //   });
+      // }
 
       // Check: order doesn't already exist
       const orderExists = await idb.oneOrNone(`SELECT 1 FROM "orders" "o" WHERE "o"."id" = $/id/`, {
@@ -103,7 +103,12 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       }
 
       // Check: order has ETH as payment token
-      if (![Sdk.Common.Addresses.Eth[config.chainId]].includes(order.params.coin)) {
+      if (
+        ![
+          Sdk.Common.Addresses.Eth[config.chainId],
+          Sdk.Common.Addresses.Weth[config.chainId],
+        ].includes(order.params.coin)
+      ) {
         return results.push({
           id,
           status: "unsupported-payment-token",
@@ -158,6 +163,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       const schemaHash = metadata.schemaHash ?? generateSchemaHash(metadata.schema);
 
       switch (order.params.kind) {
+        case "offer-approval":
         case "sale-approval": {
           [{ id: tokenSetId }] = await tokenSet.singleToken.save([
             {
@@ -165,6 +171,18 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               schemaHash,
               contract: order.params.tokenAddress,
               tokenId: order.params.tokenId!,
+            },
+          ]);
+
+          break;
+        }
+
+        case "collection-offer-approval": {
+          [{ id: tokenSetId }] = await tokenSet.contractWide.save([
+            {
+              id: `contract:${order.params.tokenAddress}`,
+              schemaHash,
+              contract: order.params.tokenAddress,
             },
           ]);
 
@@ -179,7 +197,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      const side = ["sale-approval"].includes(order.params.kind) ? "sell" : "buy";
+      const side = ["sale-approval"].includes(order.params.kind!) ? "sell" : "buy";
 
       // Handle: currency
       const currency = order.params.coin;
@@ -191,12 +209,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         bps: number;
       }[] = (
         side === "sell"
-          ? await royalties.getRoyalties(
-              order.params.tokenAddress,
-              order.params.tokenId,
-              "on-chain"
-            )
-          : await royalties.getRoyaltiesByTokenSet(tokenSetId, "on-chain")
+          ? await royalties.getRoyalties(order.params.tokenAddress, order.params.tokenId, "onchain")
+          : await royalties.getRoyaltiesByTokenSet(tokenSetId, "onchain")
       ).map((r) => ({ kind: "royalty", ...r }));
 
       const price = bn(order.params.price).div(order.params.amount).toString();

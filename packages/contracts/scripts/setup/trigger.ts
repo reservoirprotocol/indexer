@@ -104,12 +104,6 @@ export const trigger = {
       const version = "v1";
 
       try {
-        if (await readDeployment(contractName, version, chainId)) {
-          throw new Error(
-            `Version ${version} of ${contractName} already deployed on chain ${chainId}`
-          );
-        }
-
         const [deployer] = await ethers.getSigners();
 
         const conduitController = new Contract(
@@ -118,6 +112,7 @@ export const trigger = {
             "function getConduit(bytes32 conduitKey) view returns (address conduit, bool exists)",
             "function updateChannel(address conduit, address channel, bool isOpen)",
             "function createConduit(bytes32 conduitKey, address initialOwner)",
+            "function getChannelStatus(address conduit, address channel) view returns (bool)",
           ]),
           deployer
         );
@@ -128,13 +123,31 @@ export const trigger = {
         if (!result.exists) {
           await conduitController.createConduit(conduitKey, DEPLOYER);
           await new Promise((resolve) => setTimeout(resolve, 30000));
-          // Grant ApprovalProxy
+        }
+
+        // Grant ApprovalProxy
+        if (
+          Sdk.RouterV6.Addresses.ApprovalProxy[chainId] &&
+          !(await conduitController.getChannelStatus(
+            result.conduit,
+            Sdk.RouterV6.Addresses.ApprovalProxy[chainId]
+          ))
+        ) {
           await conduitController.updateChannel(
             result.conduit,
             Sdk.RouterV6.Addresses.ApprovalProxy[chainId],
             true
           );
-          // Grant Seaport
+        }
+
+        // Grant Seaport
+        if (
+          Sdk.SeaportV15.Addresses.Exchange[chainId] &&
+          !(await conduitController.getChannelStatus(
+            result.conduit,
+            Sdk.SeaportV15.Addresses.Exchange[chainId]
+          ))
+        ) {
           await conduitController.updateChannel(
             result.conduit,
             Sdk.SeaportV15.Addresses.Exchange[chainId],
@@ -142,7 +155,9 @@ export const trigger = {
           );
         }
 
-        await writeDeployment(result.conduit, contractName, version, chainId);
+        if (!(await readDeployment(contractName, version, chainId))) {
+          await writeDeployment(result.conduit, contractName, version, chainId);
+        }
       } catch (error) {
         console.log(`Failed to deploy ${contractName}: ${error}`);
       }
@@ -206,7 +221,7 @@ export const trigger = {
         Sdk.SeaportV14.Addresses.Exchange[chainId],
       ]),
     SeaportV15Module: async (chainId: number) =>
-      dv("SeaportV15Module", "v1", [
+      dv("SeaportV15Module", "v2", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.SeaportV15.Addresses.Exchange[chainId],
@@ -226,6 +241,10 @@ export const trigger = {
     SudoswapV2Module: async (chainId: number) =>
       [1, 5].includes(chainId)
         ? dv("SudoswapV2Module", "v2", [DEPLOYER, Sdk.RouterV6.Addresses.Router[chainId]])
+        : undefined,
+    CaviarV1Module: async (chainId: number) =>
+      [1, 5].includes(chainId)
+        ? dv("CaviarV1Module", "v1", [DEPLOYER, Sdk.RouterV6.Addresses.Router[chainId]])
         : undefined,
     SuperRareModule: async (chainId: number) =>
       dv("SuperRareModule", "v1", [
@@ -273,7 +292,7 @@ export const trigger = {
         Sdk.CryptoPunks.Addresses.Exchange[chainId],
       ]),
     PaymentProcessorModule: async (chainId: number) =>
-      dv("PaymentProcessorModule", "v1", [
+      dv("PaymentProcessorModule", "v3", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.PaymentProcessor.Addresses.Exchange[chainId],
