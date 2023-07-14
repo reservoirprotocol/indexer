@@ -99,7 +99,7 @@ if (config.doBackgroundWork) {
 
   worker.on("completed", async (job) => {
     if (job.data.addToQueue) {
-      await addToQueue(job.data.endTimestamp, job.data.addToQueueCursor, job.data.dryRun);
+      await addToQueue(job.data.addToQueueCursor, job.data.dryRun);
     }
   });
 
