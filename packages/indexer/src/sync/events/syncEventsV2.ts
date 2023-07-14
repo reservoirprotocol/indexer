@@ -1,4 +1,4 @@
-import { Filter } from "@ethersproject/abstract-provider";
+import { Filter, Log } from "@ethersproject/abstract-provider";
 
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
@@ -14,6 +14,8 @@ import { BlockWithTransactions } from "@ethersproject/abstract-provider";
 
 import { Block } from "@/models/blocks";
 import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
+import { config } from "@/config/index";
+import { idb } from "@/common/db";
 
 export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBatch[] => {
   const txHashToEvents = new Map<string, EnhancedEvent[]>();
@@ -268,6 +270,53 @@ const _saveBlockTransactions = async (blockData: BlockWithTransactions) => {
   return timerEnd - timerStart;
 };
 
+const getKnownCollectionAddresses = async () => {
+  const knownCollections: Array<{ contract_address: string }> = await idb.manyOrNone(
+    `
+        SELECT DISTINCT '0x' || encode(contract, 'hex') AS contract_address
+        FROM collections
+        `
+  );
+
+  return knownCollections.map(({ contract_address }) => contract_address);
+};
+
+const getMatchingLogsForCollections = async (collections: string[], block: number) => {
+  const logsPromises = collections.map((collectionAddress) => {
+    const eventFilter = {
+      address: collectionAddress,
+      fromBlock: block,
+      toBlock: block,
+    };
+    logger.info(
+      "sync-events-v2",
+      `Events realtime syncing block ${block} - getLogs using filter: ${JSON.stringify(
+        eventFilter
+      )}`
+    );
+
+    return _getLogs(eventFilter);
+  });
+
+  return (await Promise.all(logsPromises)).reduce((acc, { logs }) => {
+    return [...acc, ...logs];
+  }, [] as Log[]);
+};
+
+const getAllLogsInTransactions = async (txHashes: string[]) => {
+  // make sure we have all logs for the tx which were returned by our getLogs call
+  const transactionReceiptsPromises = txHashes.map((txHash) => {
+    return baseProvider.getTransactionReceipt(txHash);
+  });
+
+  return Promise.all(transactionReceiptsPromises).then((transactionReceipts) => {
+    // merge all logs from all transaction receipts
+    return transactionReceipts.reduce((acc, { logs }) => {
+      return [...acc, ...logs];
+    }, [] as Log[]);
+  });
+};
+
 export const syncEvents = async (block: number) => {
   try {
     logger.info("sync-events-v2", `Events realtime syncing block ${block}`);
@@ -288,21 +337,40 @@ export const syncEvents = async (block: number) => {
       toBlock: block,
     };
 
-    logger.info(
-      "sync-events-v2",
-      `Events realtime syncing block ${block} - getLogs using filter: ${JSON.stringify(
-        eventFilter
-      )}`
-    );
+    let logsPromise;
+
+    if (config.catchupForOnlyKnownCollections) {
+      const collectionAddresses = await getKnownCollectionAddresses();
+      if (collectionAddresses.length > 0) {
+        const timerStart = Date.now();
+        const partialLogs = await getMatchingLogsForCollections(collectionAddresses, block);
+        const uniqueTxHashes = [...new Set(partialLogs.map((log) => log.transactionHash))];
+        logsPromise = getAllLogsInTransactions(uniqueTxHashes).then((allLogs) => {
+          const timerEnd = Date.now();
+          return {
+            logs: allLogs,
+            getLogsTime: timerEnd - timerStart,
+          };
+        });
+      }
+    } else {
+      logsPromise = _getLogs(eventFilter);
+      logger.info(
+        "sync-events-v2",
+        `Events realtime syncing block ${block} - getLogs using filter: ${JSON.stringify(
+          eventFilter
+        )}`
+      );
+    }
 
     const availableEventData = getEventData();
 
     const [
-      { logs, getLogsTime },
+      { logs, getLogsTime } = { logs: [], getLogsTime: 0 },
       { saveBlocksTime, endSaveBlocksTime },
       saveBlockTransactionsTime,
     ] = await Promise.all([
-      _getLogs(eventFilter),
+      logsPromise,
       _saveBlock({
         number: block,
         hash: blockData.hash,

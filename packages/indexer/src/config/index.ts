@@ -48,6 +48,7 @@ export const config = {
 
   master: Boolean(Number(process.env.MASTER)),
   catchup: Boolean(Number(process.env.CATCHUP)),
+  catchupForOnlyKnownCollections: Boolean(Number(process.env.CATCHUP_FOR_ONLY_KNOWN_COLLECTIONS)),
   doBackgroundWork: Boolean(Number(process.env.DO_BACKGROUND_WORK)),
   doWebsocketWork: Boolean(Number(process.env.DO_WEBSOCKET_WORK)),
   doWebsocketServerWork: Boolean(Number(process.env.DO_WEBSOCKET_SERVER_WORK)),
