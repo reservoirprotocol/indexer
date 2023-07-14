@@ -2,7 +2,6 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { config } from "@/config/index";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { Collections } from "@/models/collections";
-import { logger } from "@/common/logger";
 
 export type ReplaceActivitiesCollectionJobPayload = {
   contract: string;
@@ -20,8 +19,6 @@ export class ReplaceActivitiesCollectionJob extends AbstractRabbitMqJobHandler {
   useSharedChannel = true;
 
   protected async process(payload: ReplaceActivitiesCollectionJobPayload) {
-    logger.info(this.queueName, `Worker started. payload=${JSON.stringify(payload)}`);
-
     const { contract, tokenId, newCollectionId, oldCollectionId } = payload;
 
     const collection = await Collections.getById(newCollectionId);

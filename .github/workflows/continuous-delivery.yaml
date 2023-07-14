@@ -281,3 +281,11 @@ jobs:
             ./prod/platform/indexer-kafka-worker-polygon.yaml \
             ${{ github.sha }} \
             indexer-kafka-worker-polygon
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-arbitrum.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-arbitrum
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-optimism.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-optimism

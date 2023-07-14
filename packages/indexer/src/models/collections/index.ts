@@ -115,6 +115,7 @@ export class Collections {
           context: "updateCollectionCache",
         },
       ]);
+
       return;
     }
 
