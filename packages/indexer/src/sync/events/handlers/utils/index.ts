@@ -183,6 +183,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
               amount: event.amount.toString(),
               token_id: event.tokenId.toString(),
               created_at: new Date(event.baseEventParams.timestamp).toISOString(),
+              is_deleted: false,
               offset: "",
               trigger: "insert",
             },

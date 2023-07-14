@@ -37,6 +37,7 @@ import * as zora from "@/events-sync/data/zora";
 import * as looksRareV2 from "@/events-sync/data/looks-rare-v2";
 import * as blend from "@/events-sync/data/blend";
 import * as sudoswapV2 from "@/events-sync/data/sudoswap-v2";
+import * as caviarV1 from "@/events-sync/data/caviar-v1";
 import * as paymentProcessor from "@/events-sync/data/payment-processor";
 import * as thirdweb from "@/events-sync/data/thirdweb";
 import * as blurV2 from "@/events-sync/data/blur-v2";
@@ -81,6 +82,7 @@ export type EventKind =
   | "looks-rare-v2"
   | "blend"
   | "sudoswap-v2"
+  | "caviar-v1"
   | "payment-processor"
   | "thirdweb"
   | "seadrop"
@@ -255,6 +257,13 @@ export type EventSubKind =
   | "sudoswap-v2-delta-update"
   | "sudoswap-v2-new-erc721-pair"
   | "sudoswap-v2-new-erc1155-pair"
+  | "caviar-v1-create"
+  | "caviar-v1-add"
+  | "caviar-v1-remove"
+  | "caviar-v1-buy"
+  | "caviar-v1-sell"
+  | "caviar-v1-wrap"
+  | "caviar-v1-unwrap"
   | "payment-processor-buy-single-listing"
   | "payment-processor-master-nonce-invalidated"
   | "payment-processor-nonce-invalidated"
@@ -443,6 +452,13 @@ const allEventData = [
   sudoswapV2.newERC721Pair,
   sudoswapV2.newERC1155Pair,
   treasure.bidAccepted,
+  caviarV1.create,
+  caviarV1.add,
+  caviarV1.remove,
+  caviarV1.buy,
+  caviarV1.sell,
+  caviarV1.wrap,
+  caviarV1.unwrap,
   paymentProcessor.buySingleListing,
   paymentProcessor.masterNonceInvalidated,
   paymentProcessor.nonceInvalidated,

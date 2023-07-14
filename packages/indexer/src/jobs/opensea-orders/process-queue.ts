@@ -7,7 +7,7 @@ import { acquireLock, redis } from "@/common/redis";
 import { config } from "@/config/index";
 
 import { PendingRefreshOpenseaCollectionOffersCollections } from "@/models/pending-refresh-opensea-collection-offers-collections";
-import * as openseaOrdersFetchQueue from "@/jobs/opensea-orders/fetch-queue";
+import { openseaOrdersFetchJob } from "@/jobs/opensea-orders/opensea-orders-fetch-job";
 
 export const QUEUE_NAME = "opensea-orders-process-queue";
 
@@ -49,8 +49,8 @@ if (config.doBackgroundWork) {
           prioritized
         );
 
-        if (await acquireLock(openseaOrdersFetchQueue.getLockName(), 60 * 5)) {
-          await openseaOrdersFetchQueue.addToQueue();
+        if (await acquireLock(openseaOrdersFetchJob.getLockName(), 60 * 5)) {
+          await openseaOrdersFetchJob.addToQueue();
         }
       }
     },
