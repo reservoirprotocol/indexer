@@ -137,8 +137,8 @@ export const getUserActivityV6Options: RouteOptions = {
               value: Joi.number().unsafe().allow(null),
               timestamp: Joi.number().unsafe().allow(null),
             },
-            tokenRarityScore: Joi.number().allow(null),
-            tokenRarityRank: Joi.number().allow(null),
+            tokenRarityScore: Joi.number().allow(null).description("No rarity for collections over 100k"),
+            tokenRarityRank: Joi.number().allow(null).description("No rarity rank for collections over 100k"),
             tokenMedia: Joi.string().allow(null),
           }),
           collection: Joi.object({
