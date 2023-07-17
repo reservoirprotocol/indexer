@@ -91,7 +91,7 @@ export const getExecuteListV5Options: RouteOptions = {
             .pattern(regex.number)
             .required()
             .description(
-              "Amount seller is willing to sell for in wei. Example: `1000000000000000000`"
+              "Amount seller is willing to sell for in the smallest denomination for the specific currency. Example: `1000000000000000000`"
             ),
           orderKind: Joi.string()
             .valid(
