@@ -151,8 +151,8 @@ export const getUserTokensV7Options: RouteOptions = {
               .allow(null)
               .description("Can be higher than one if erc1155."),
             remainingSupply: Joi.number().unsafe().allow(null),
-            rarityScore: Joi.number().allow(null),
-            rarityRank: Joi.number().allow(null),
+            rarityScore: Joi.number().allow(null).description("No rarity for collections over 100k"),
+            rarityRank: Joi.number().allow(null).description("No rarity rank for collections over 100k"),
             media: Joi.string().allow(null),
             collection: Joi.object({
               id: Joi.string().allow(null),
