@@ -43,7 +43,7 @@ if (config.doBackgroundWork) {
         {
           types: [ActivityType.bid],
           continuation: cursor,
-          sortBy: "createdAt",
+          sortBy: "timestamp",
           limit: Number(limit),
         },
         true
