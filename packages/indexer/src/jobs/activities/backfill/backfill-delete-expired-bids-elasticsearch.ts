@@ -34,7 +34,7 @@ if (config.doBackgroundWork) {
       const { cursor, dryRun } = job.data;
 
       if (cursor == null) {
-        logger.info(QUEUE_NAME, `Backfill Start. jobData=${JSON.stringify(job.data)}`);
+        logger.info(QUEUE_NAME, `Backfill StartV2. jobData=${JSON.stringify(job.data)}`);
       }
 
       const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 3000;
@@ -43,7 +43,7 @@ if (config.doBackgroundWork) {
         {
           types: [ActivityType.bid],
           continuation: cursor,
-          sortBy: "timestamp",
+          sortBy: "createdAt",
           limit: Number(limit),
         },
         true
