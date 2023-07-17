@@ -3,6 +3,8 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 
 export type RecalcTokenCountQueueJobPayload = {
   collection: string;
+  fromTokenId?: string;
+  totalCurrentCount?: number;
   force?: boolean;
 };
 
@@ -17,21 +19,78 @@ export class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler {
   } as BackoffStrategy;
 
   protected async process(payload: RecalcTokenCountQueueJobPayload) {
-    const { collection } = payload;
+    const { collection, fromTokenId } = payload;
+    const limit = 20000;
+    const continuation = fromTokenId ? `AND token_id > $/fromTokenId/` : "";
 
-    const query = `
+    let { totalCurrentCount } = payload;
+    totalCurrentCount = Number(totalCurrentCount);
+
+    const tokenQuery = `
+      SELECT token_id
+      FROM tokens
+      WHERE collection_id = $/collection/
+      AND (remaining_supply > 0 OR remaining_supply IS NULL)
+      ${continuation}
+      ORDER BY contract, token_id
+      LIMIT ${limit}
+    `;
+
+    const tokenCountQuery = `
+      SELECT COUNT(*) AS count
+      FROM (${tokenQuery}) AS tokens
+    `;
+
+    const { count } = await idb.one(tokenCountQuery, {
+      collection,
+      fromTokenId,
+    });
+
+    totalCurrentCount += Number(count); // Update the total current count
+
+    // If there are more tokens to count
+    if (Number(count) >= limit) {
+      // Get the last token_id from the current batch
+      const lastTokenQuery = `
+        SELECT token_id
+        FROM (${tokenQuery}) AS tokens
+        ORDER BY token_id DESC
+        LIMIT 1
+      `;
+
+      const lastToken = await idb.oneOrNone(lastTokenQuery, {
+        collection,
+        fromTokenId,
+      });
+
+      if (lastToken) {
+        // Trigger the next count job from the last token_id of the current batch
+        await this.addToQueue({
+          collection,
+          fromTokenId: lastToken.token_id,
+          totalCurrentCount,
+          force: true,
+        });
+      }
+    } else {
+      // No more tokens to count, update collections table
+      const query = `
           UPDATE "collections"
-          SET "token_count" = (SELECT COUNT(*) FROM "tokens" WHERE "collection_id" = $/collection/ AND (remaining_supply > 0 OR remaining_supply IS NULL)),
+          SET "token_count" = $/totalCurrentCount/,
               "updated_at" = now()
           WHERE "id" = $/collection/;
       `;
 
-    await idb.none(query, {
-      collection,
-    });
+      await idb.none(query, {
+        collection,
+        totalCurrentCount,
+      });
+    }
   }
 
   public async addToQueue(collection: RecalcTokenCountQueueJobPayload, delay = 5 * 60 * 1000) {
+    collection.totalCurrentCount = collection.totalCurrentCount ?? 0;
+
     await this.send(
       {
         payload: collection,

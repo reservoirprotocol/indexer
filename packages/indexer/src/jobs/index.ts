@@ -335,7 +335,7 @@ export class RabbitMqJobsConsumer {
       job.getQueue(),
       async (msg) => {
         if (!_.isNull(msg)) {
-          await job.consume(channel, msg);
+          await _.clone(job).consume(channel, msg);
         }
       },
       {
@@ -350,7 +350,7 @@ export class RabbitMqJobsConsumer {
       job.getRetryQueue(),
       async (msg) => {
         if (!_.isNull(msg)) {
-          await job.consume(channel, msg);
+          await _.clone(job).consume(channel, msg);
         }
       },
       {

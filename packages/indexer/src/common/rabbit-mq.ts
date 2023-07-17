@@ -113,10 +113,10 @@ export class RabbitMq {
             },
             (error) => {
               if (!_.isNull(error)) {
-                reject(error);
+                return reject(error);
               }
 
-              resolve();
+              return resolve();
             }
           );
         } else {
@@ -130,10 +130,10 @@ export class RabbitMq {
             },
             (error) => {
               if (!_.isNull(error)) {
-                reject(error);
+                return reject(error);
               }
 
-              resolve();
+              return resolve();
             }
           );
         }
