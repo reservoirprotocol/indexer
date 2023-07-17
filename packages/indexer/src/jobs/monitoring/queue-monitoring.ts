@@ -5,9 +5,10 @@ import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
 import { eventsSyncProcessRealtimeJob } from "@/jobs/events-sync/process/events-sync-process-realtime";
 import { RabbitMq } from "@/common/rabbit-mq";
 import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
+import { openseaBidsQueueJob } from "@/jobs/orderbook/opensea-bids-queue-job";
 
 if (config.doBackgroundWork) {
-  cron.schedule("*/5 * * * *", async () => {
+  cron.schedule("* * * * *", async () => {
     // Log metadata queue length
     for (const method of ["opensea"]) {
       const pendingRefreshTokens = new PendingRefreshTokens(method);
@@ -15,7 +16,11 @@ if (config.doBackgroundWork) {
       logger.info("metadata-queue-length", JSON.stringify({ method, queueLength }));
     }
 
-    for (const queue of [eventsSyncProcessRealtimeJob, eventsSyncRealtimeJob]) {
+    for (const queue of [
+      eventsSyncProcessRealtimeJob,
+      eventsSyncRealtimeJob,
+      openseaBidsQueueJob,
+    ]) {
       const queueSize = await RabbitMq.getQueueSize(queue.getQueue());
       const retryQueueSize = await RabbitMq.getQueueSize(queue.getRetryQueue());
 
