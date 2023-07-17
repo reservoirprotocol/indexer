@@ -21,6 +21,10 @@ import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner
 import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
 import { refreshActivitiesCollectionMetadataJob } from "@/jobs/activities/refresh-activities-collection-metadata-job";
 import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
+import {
+  topBidCollectionJob,
+  TopBidCollectionJobPayload,
+} from "@/jobs/collection-updates/top-bid-collection-job";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -395,6 +399,23 @@ export class Collections {
           trigger: { kind: "revalidation" },
         }))
       );
+    } else {
+      logger.info(
+        "revalidateCollectionTopBuy",
+        JSON.stringify({
+          message: "No token sets with top bid found for collection",
+          collection,
+        })
+      );
+
+      await topBidCollectionJob.addToQueue([
+        {
+          collectionId: collection,
+          kind: "revalidation",
+          txHash: null,
+          txTimestamp: null,
+        } as TopBidCollectionJobPayload,
+      ]);
     }
   }
 

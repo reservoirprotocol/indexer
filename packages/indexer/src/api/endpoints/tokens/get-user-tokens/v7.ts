@@ -161,12 +161,14 @@ export const getUserTokensV7Options: RouteOptions = {
               openseaVerificationStatus: Joi.string().allow("", null),
               floorAskPrice: JoiPrice.allow(null).description("Can be null if no active asks."),
               royaltiesBps: Joi.number().allow(null),
-              royalties: Joi.array().items(
-                Joi.object({
-                  bps: Joi.number().allow(null),
-                  recipient: Joi.string().allow(null),
-                })
-              ),
+              royalties: Joi.array()
+                .items(
+                  Joi.object({
+                    bps: Joi.number().allow(null),
+                    recipient: Joi.string().allow(null),
+                  })
+                )
+                .allow(null),
             }),
             lastSale: JoiSale.optional(),
             topBid: Joi.object({

@@ -1,5 +1,7 @@
 import { idb } from "@/common/db";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import _ from "lodash";
+import { toBuffer } from "@/common/utils";
 
 export type RecalcTokenCountQueueJobPayload = {
   collection: string;
@@ -20,16 +22,18 @@ export class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler {
 
   protected async process(payload: RecalcTokenCountQueueJobPayload) {
     const { collection, fromTokenId } = payload;
-    const limit = 20000;
+    const limit = 5000;
     const continuation = fromTokenId ? `AND token_id > $/fromTokenId/` : "";
 
     let { totalCurrentCount } = payload;
     totalCurrentCount = Number(totalCurrentCount);
+    const [contract] = _.split(collection, ":"); // Get the contract from the collection
 
     const tokenQuery = `
       SELECT token_id
       FROM tokens
       WHERE collection_id = $/collection/
+      AND contract = $/contract/
       AND (remaining_supply > 0 OR remaining_supply IS NULL)
       ${continuation}
       ORDER BY contract, token_id
@@ -44,6 +48,7 @@ export class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler {
     const { count } = await idb.one(tokenCountQuery, {
       collection,
       fromTokenId,
+      contract: toBuffer(contract),
     });
 
     totalCurrentCount += Number(count); // Update the total current count
@@ -61,16 +66,19 @@ export class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler {
       const lastToken = await idb.oneOrNone(lastTokenQuery, {
         collection,
         fromTokenId,
+        contract: toBuffer(contract),
       });
 
       if (lastToken) {
         // Trigger the next count job from the last token_id of the current batch
-        await this.addToQueue({
-          collection,
-          fromTokenId: lastToken.token_id,
-          totalCurrentCount,
-          force: true,
-        });
+        await this.addToQueue(
+          {
+            collection,
+            fromTokenId: lastToken.token_id,
+            totalCurrentCount,
+          },
+          _.random(1, 10) * 1000
+        );
       }
     } else {
       // No more tokens to count, update collections table
@@ -94,7 +102,7 @@ export class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler {
     await this.send(
       {
         payload: collection,
-        jobId: collection.force ? undefined : collection.collection,
+        jobId: collection.force ? undefined : `${collection.collection}:${collection.fromTokenId}`,
       },
       collection.force ? 0 : delay
     );
