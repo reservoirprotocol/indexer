@@ -37,14 +37,17 @@ if (config.doBackgroundWork) {
         logger.info(QUEUE_NAME, `Backfill Start. jobData=${JSON.stringify(job.data)}`);
       }
 
-      const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 1000;
+      const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 3000;
 
-      const { activities, continuation } = await ActivitiesIndex.search({
-        types: [ActivityType.bid],
-        continuation: cursor,
-        sortBy: "timestamp",
-        limit: Number(limit),
-      });
+      const { activities, continuation } = await ActivitiesIndex.search(
+        {
+          types: [ActivityType.bid],
+          continuation: cursor,
+          sortBy: "timestamp",
+          limit: Number(limit),
+        },
+        true
+      );
 
       if (activities.length > 0) {
         const orderIdToActivityId = Object.fromEntries(
@@ -80,7 +83,7 @@ if (config.doBackgroundWork) {
               activities.length
             }, activitiesToBeDeletedCount=${
               toBeDeletedActivityIds.length
-            }, lastActivityTimestamp=${new Date(activities[0].timestamp).toISOString()} `
+            }, lastActivity=${JSON.stringify(activities[0])} `
           );
 
           await ActivitiesIndex.deleteActivitiesById(toBeDeletedActivityIds);
