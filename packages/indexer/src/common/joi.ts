@@ -33,8 +33,8 @@ const JoiPriceCurrency = Joi.object({
 
 export const JoiPrice = Joi.object({
   currency: JoiPriceCurrency,
-  amount: JoiPriceAmount,
-  netAmount: JoiPriceAmount.optional(),
+  amount: JoiPriceAmount.description("Amount with fees & royalties included."),
+  netAmount: JoiPriceAmount.optional().description("Amount with fees & royalties removed."),
 });
 
 export const JoiDynamicPrice = Joi.alternatives(
