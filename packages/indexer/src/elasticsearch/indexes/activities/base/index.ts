@@ -133,6 +133,7 @@ export class ActivityBuilder extends DocumentBuilder {
     return {
       ...baseActivity,
       timestamp: data.timestamp,
+      timestampV2: data.timestamp,
       createdAt: new Date(data.created_ts * 1000),
       type: data.type,
       fromAddress: fromBuffer(data.from),

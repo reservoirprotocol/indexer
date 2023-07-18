@@ -7,9 +7,8 @@ import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { ActivityDocument } from "@/elasticsearch/indexes/activities/base";
 import { randomUUID } from "crypto";
 import { elasticsearch } from "@/common/elasticsearch";
-import { formatEth } from "@/common/utils";
 
-const QUEUE_NAME = "backfill-sales-pricing-decimal-elasticsearch-queue";
+const QUEUE_NAME = "backfill-timestampV2-elasticsearch-queue";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
@@ -37,19 +36,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           must_not: [
             {
               exists: {
-                field: "pricing.priceDecimal",
-              },
-            },
-          ],
-          must: [
-            {
-              exists: {
-                field: "pricing.price",
-              },
-            },
-            {
-              terms: {
-                type: ["sale", "mint"],
+                field: "timestampV2",
               },
             },
           ],
@@ -78,7 +65,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
               },
             },
             {
-              doc: { "pricing.priceDecimal": formatEth(activity.pricing!.price!) },
+              doc: { timestampV2: activity.timestamp },
             },
           ]),
           filter_path: "items.*.error",

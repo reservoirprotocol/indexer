@@ -30,6 +30,7 @@ const MAPPINGS: MappingTypeMapping = {
     indexedAt: { type: "date" },
     type: { type: "keyword" },
     timestamp: { type: "float" },
+    timestampV2: { type: "date", format: "epoch_second" },
     contract: { type: "keyword" },
     fromAddress: { type: "keyword" },
     toAddress: { type: "keyword" },
