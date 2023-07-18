@@ -364,6 +364,8 @@ export class RabbitMqJobsConsumer {
     );
 
     channel.once("error", async (error) => {
+      logger.error("rabbit-channel", `Consumer channel error ${error}`);
+
       if (error.message.includes("timeout")) {
         const jobs = RabbitMqJobsConsumer.channelsToJobs.get(channel);
         if (jobs) {
