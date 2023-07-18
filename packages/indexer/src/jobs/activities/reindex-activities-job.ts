@@ -4,6 +4,7 @@ import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { elasticsearch } from "@/common/elasticsearch";
 import { logger } from "@/common/logger";
 import { MappingTypeMapping } from "@elastic/elasticsearch/lib/api/types";
+import { monitorReindexActivitiesJob } from "@/jobs/activities/monitor-reindex-activities-job";
 
 const MAPPINGS: MappingTypeMapping = {
   dynamic: "false",
@@ -112,8 +113,8 @@ export class ReindexActivitiesJob extends AbstractRabbitMqJobHandler {
       settings: {
         number_of_shards: payload.numberOfShards,
         sort: {
-          field: ["timestamp", "createdAt"],
-          order: ["desc", "desc"],
+          field: ["timestamp"],
+          order: ["desc"],
         },
       },
     };
@@ -129,6 +130,24 @@ export class ReindexActivitiesJob extends AbstractRabbitMqJobHandler {
         createIndexResponse,
       })
     );
+
+    const reindexResult = await elasticsearch.reindex({
+      source: { index: ActivitiesIndex.getIndexName() },
+      dest: { index: params.index },
+      wait_for_completion: false,
+    });
+
+    if (reindexResult) {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          message: `Task Created! taskId=${reindexResult.task}`,
+          reindexResult,
+        })
+      );
+
+      await monitorReindexActivitiesJob.addToQueue(reindexResult.task!.toString());
+    }
   }
 
   public async addToQueue(indexName: string, numberOfShards: number) {

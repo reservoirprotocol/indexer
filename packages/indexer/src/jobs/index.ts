@@ -91,6 +91,7 @@ import { processActivityEventJob } from "@/jobs/activities/process-activity-even
 import { savePendingActivitiesJob } from "@/jobs/activities/save-pending-activities-job";
 import { deleteArchivedExpiredBidActivitiesJob } from "@/jobs/activities/delete-archived-expired-bid-activities-job";
 import { reindexActivitiesJob } from "@/jobs/activities/reindex-activities-job";
+import { monitorReindexActivitiesJob } from "@/jobs/activities/monitor-reindex-activities-job";
 
 import { eventsSyncFtTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/ft-transfers-job";
 import { eventsSyncNftTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
@@ -270,6 +271,7 @@ export class RabbitMqJobsConsumer {
       topBidWebSocketEventsTriggerJob,
       backfillDeleteExpiredBidsElasticsearchJob,
       reindexActivitiesJob,
+      monitorReindexActivitiesJob,
     ];
   }
 
