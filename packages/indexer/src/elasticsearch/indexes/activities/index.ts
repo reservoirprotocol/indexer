@@ -415,7 +415,7 @@ export const deleteActivitiesById = async (ids: string[]): Promise<void> => {
     });
 
     if (response.errors) {
-      logger.info(
+      logger.warn(
         "elasticsearch-activities",
         JSON.stringify({
           topic: "delete-by-id-conflicts",
@@ -454,7 +454,7 @@ export const search = async (
     endTimestamp?: number;
     sortBy?: "timestamp" | "createdAt";
     limit?: number;
-    continuation?: string;
+    continuation?: string | null;
     continuationAsInt?: boolean;
   },
   debug = false
