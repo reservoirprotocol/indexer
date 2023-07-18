@@ -108,7 +108,7 @@ export class ReindexActivitiesJob extends AbstractRabbitMqJobHandler {
 
   protected async process(payload: ReindexActivitiesJobPayload) {
     const params = {
-      index: `${ActivitiesIndex.getIndexName()}-${Date.now()}`,
+      index: payload.indexName || `${ActivitiesIndex.getIndexName()}-${Date.now()}`,
       mappings: MAPPINGS,
       settings: {
         number_of_shards: payload.numberOfShards,
@@ -125,28 +125,28 @@ export class ReindexActivitiesJob extends AbstractRabbitMqJobHandler {
       this.queueName,
       JSON.stringify({
         message: "Index Created!",
-        indexName: ActivitiesIndex.getIndexName(),
         params,
         createIndexResponse,
       })
     );
 
-    const reindexResult = await elasticsearch.reindex({
+    const reindexResponse = await elasticsearch.reindex({
       source: { index: ActivitiesIndex.getIndexName() },
       dest: { index: params.index },
       wait_for_completion: false,
     });
 
-    if (reindexResult) {
+    if (reindexResponse) {
       logger.info(
         this.queueName,
         JSON.stringify({
-          message: `Task Created! taskId=${reindexResult.task}`,
-          reindexResult,
+          message: `Task Created! taskId=${reindexResponse.task}`,
+          params,
+          reindexResponse,
         })
       );
 
-      await monitorReindexActivitiesJob.addToQueue(reindexResult.task!.toString());
+      await monitorReindexActivitiesJob.addToQueue(reindexResponse.task!.toString());
     }
   }
 

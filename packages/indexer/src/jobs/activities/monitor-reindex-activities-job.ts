@@ -19,13 +19,23 @@ export class MonitorReindexActivitiesJob extends AbstractRabbitMqJobHandler {
     const task = await elasticsearch.tasks.get({ task_id: payload.taskId });
 
     if (task.completed) {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: "Task Completed!",
-          task,
-        })
-      );
+      if (task.response?.failures?.length) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: "Task Completed!",
+            task,
+          })
+        );
+      } else {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: "Task Failed!",
+            task,
+          })
+        );
+      }
     } else {
       logger.info(
         this.queueName,
