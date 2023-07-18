@@ -4,7 +4,7 @@ import { logger } from "@/common/logger";
 import { EventKind, getEventData } from "@/events-sync/data";
 import { EventsBatch, EventsByKind, processEventsBatchV2 } from "@/events-sync/handlers";
 import { EnhancedEvent } from "@/events-sync/handlers/utils";
-import { parseEvent } from "@/events-sync/parserV2";
+import { parseEvent } from "@/events-sync/parser";
 import * as es from "@/events-sync/storage";
 import * as syncEventsUtils from "@/events-sync/utils";
 import * as blocksModel from "@/models/blocks";
@@ -374,6 +374,7 @@ const saveLogsAndTracesAndTransactions = async (
     ...transactionLogs.map((txLogs) => saveTransactionLogs(txLogs)),
     saveTransactionTraces(traces),
     _saveTransactions(blockData, transactionReceipts),
+    syncEventsUtils.processContractAddresses(traces),
   ]);
 
   const endTime = Date.now();
