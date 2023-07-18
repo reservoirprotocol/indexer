@@ -37,34 +37,29 @@ export const getApiKeyDetails: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
+    const params = request.params as any;
+
     if (request.headers["x-admin-api-key"] !== config.adminApiKey) {
       throw Boom.unauthorized("Wrong or missing admin API key");
     }
 
-    const params = request.params as any;
+    const apiKey = await ApiKeyManager.getApiKey(params.key, "", "", false);
 
-    try {
-      const apiKey = await ApiKeyManager.getApiKey(params.key, "", "", false);
-
-      if (!apiKey) {
-        throw new Error("Could not find API key");
-      }
-
-      return {
-        key: apiKey.key,
-        appName: apiKey.appName,
-        website: apiKey.website,
-        email: apiKey.email,
-        active: apiKey.active,
-        tier: apiKey.tier,
-        permissions: apiKey.permissions,
-        ips: apiKey.ips ?? [],
-        origins: apiKey.origins ?? [],
-        createdAt: new Date(apiKey.createdAt).toISOString(),
-      };
-    } catch (error) {
-      logger.error("get-api-key-details-handler", `Handler failure: ${error} key ${params.key}`);
-      throw error;
+    if (!apiKey) {
+      throw Boom.badRequest("Could not find API key");
     }
+
+    return {
+      key: apiKey.key,
+      appName: apiKey.appName,
+      website: apiKey.website,
+      email: apiKey.email,
+      active: apiKey.active,
+      tier: apiKey.tier,
+      permissions: apiKey.permissions,
+      ips: apiKey.ips ?? [],
+      origins: apiKey.origins ?? [],
+      createdAt: new Date(apiKey.createdAt).toISOString(),
+    };
   },
 };
