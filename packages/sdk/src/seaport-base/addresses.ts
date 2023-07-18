@@ -47,6 +47,7 @@ export const ConduitController: ChainIdToAddress = {
   [Network.LineaTestnet]: "0xc04dd964ed36c0e4796f53a7168393ed4fc38ff6",
   [Network.Zora]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Avalanche]: "0x00000000f9490004c11cef243f5400493c00ad63",
+  [Network.Base]: "0x00000000f9490004c11cef243f5400493c00ad63",
 };
 
 // https://github.com/ProjectOpenSea/seaport/blob/0a8e82ce7262b5ce0e67fa98a2131fd4c47c84e9/contracts/conduit/ConduitController.sol#L493

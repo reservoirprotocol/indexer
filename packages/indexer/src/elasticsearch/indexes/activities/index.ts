@@ -188,21 +188,25 @@ export const getChainStatsFromActivity = async () => {
         name: period.name,
         body: {
           query: {
-            bool: {
-              filter: [
-                {
-                  terms: {
-                    type: ["sale", "mint"],
-                  },
-                },
-                {
-                  range: {
-                    timestamp: {
-                      gte: period.startTime,
+            constant_score: {
+              filter: {
+                bool: {
+                  filter: [
+                    {
+                      terms: {
+                        type: ["sale", "mint"],
+                      },
                     },
-                  },
+                    {
+                      range: {
+                        timestamp: {
+                          gte: period.startTime,
+                        },
+                      },
+                    },
+                  ],
                 },
-              ],
+              },
             },
           },
           aggs: {
@@ -215,13 +219,7 @@ export const getChainStatsFromActivity = async () => {
                   value_count: { field: "id" },
                 },
                 total_volume: {
-                  sum: {
-                    // should be replaced when we reindex activities to include decimal fields
-                    script: {
-                      source:
-                        "doc['pricing.price'].size() == 0 ? 0 : Double.parseDouble(doc['pricing.price'].value) / Math.pow(10, 18)",
-                    },
-                  },
+                  sum: { field: "pricing.priceDecimal" },
                 },
               },
             },
@@ -286,12 +284,12 @@ const mapBucketToCollection = (bucket: any, includeRecentSales: boolean) => {
       toAddress: sale.toAddress,
       type: sale.type,
       timestamp: sale.timestamp,
+      pricing: sale.pricing,
     };
   });
 
   return {
-    // can add back when we have a value to aggregate on
-    //volume: bucket?.total_sales?.value,
+    volume: bucket?.total_volume?.value,
     count: bucket?.total_transactions?.value,
     id: collectionData?.id,
     name: collectionData?.name,
@@ -344,6 +342,12 @@ export const getTopSellingCollections = async (params: {
           },
         },
 
+        total_volume: {
+          sum: {
+            field: "pricing.priceDecimal",
+          },
+        },
+
         top_collection_hits: {
           top_hits: {
             _source: {
@@ -359,6 +363,18 @@ export const getTopSellingCollections = async (params: {
                 "token.image",
                 "type",
                 "timestamp",
+                "pricing.price",
+                "pricing.priceDecimal",
+                "pricing.currencyPrice",
+                "pricing.usdPrice",
+                "pricing.feeBps",
+                "pricing.currency",
+                "pricing.value",
+                "pricing.valueDecimal",
+                "pricing.currencyValue",
+                "pricing.normalizedValue",
+                "pricing.normalizedValueDecimal",
+                "pricing.currencyNormalizedValue",
               ],
             },
             size: params.includeRecentSales ? 8 : 1,
@@ -399,7 +415,7 @@ export const deleteActivitiesById = async (ids: string[]): Promise<void> => {
     });
 
     if (response.errors) {
-      logger.info(
+      logger.warn(
         "elasticsearch-activities",
         JSON.stringify({
           topic: "delete-by-id-conflicts",
@@ -438,7 +454,7 @@ export const search = async (
     endTimestamp?: number;
     sortBy?: "timestamp" | "createdAt";
     limit?: number;
-    continuation?: string;
+    continuation?: string | null;
     continuationAsInt?: boolean;
   },
   debug = false

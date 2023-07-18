@@ -48,8 +48,8 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
               },
             },
             {
-              term: {
-                type: "sale",
+              terms: {
+                type: ["sale", "mint"],
               },
             },
           ],

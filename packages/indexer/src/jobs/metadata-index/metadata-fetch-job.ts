@@ -56,7 +56,7 @@ export class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
     }
 
     const { kind, data } = payload;
-    const prioritized = !_.isUndefined(this.rabbitMQMessage?.prioritized);
+    const prioritized = !_.isUndefined(this.rabbitMqMessage?.prioritized);
     const limit = 1000;
     let refreshTokens: RefreshTokens[] = [];
 

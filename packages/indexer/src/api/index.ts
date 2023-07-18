@@ -287,9 +287,9 @@ export const start = async (): Promise<void> => {
 
             return reply
               .response(tooManyRequestsResponse)
+              .header("tier", `${tier}`)
               .type("application/json")
               .code(429)
-              .header("tier", `${tier}`)
               .takeover();
           } else {
             logger.warn("rate-limiter", `Rate limit error ${error}`);
@@ -339,7 +339,7 @@ export const start = async (): Promise<void> => {
         countApiUsageJob.addToQueue(request.pre.metrics).catch();
       }
 
-      if (!(response instanceof Boom)) {
+      if (!(response instanceof Boom) && statusCode === 200) {
         typedResponse.header("tier", request.headers["tier"]);
         typedResponse.header("X-RateLimit-Limit", request.headers["X-RateLimit-Limit"]);
         typedResponse.header("X-RateLimit-Remaining", request.headers["X-RateLimit-Remaining"]);

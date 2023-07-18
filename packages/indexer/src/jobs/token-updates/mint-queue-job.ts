@@ -36,12 +36,14 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
         id: string;
         token_set_id: string | null;
         community: string | null;
+        token_count: number;
       } | null = await idb.oneOrNone(
         `
             SELECT
               collections.id,
               collections.token_set_id,
-              collections.community
+              collections.community,
+              token_count
             FROM collections
             WHERE collections.contract = $/contract/
               AND collections.token_id_range @> $/tokenId/::NUMERIC(78, 0)
@@ -108,8 +110,15 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
         // Trigger the queries
         await idb.none(pgp.helpers.concat(queries));
 
-        // Schedule a job to re-count tokens in the collection
-        await recalcTokenCountQueueJob.addToQueue({ collection: collection.id });
+        // Schedule a job to re-count tokens in the collection with different delays based on the amount of tokens
+        let delay = 5 * 60 * 1000;
+        if (collection.token_count > 200000) {
+          delay = 24 * 60 * 60 * 1000;
+        } else if (collection.token_count > 25000) {
+          delay = 60 * 60 * 1000;
+        }
+
+        await recalcTokenCountQueueJob.addToQueue({ collection: collection.id }, delay);
 
         // Refresh any dynamic token set
         const cacheKey = `refresh-collection-non-flagged-token-set:${collection.id}`;

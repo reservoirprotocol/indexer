@@ -26,7 +26,7 @@ export class OpenseaOrdersProcessJob extends AbstractRabbitMqJobHandler {
 
   protected async process(payload: OpenseaOrdersProcessJobPayload) {
     const { kind, data } = payload;
-    const prioritized = !_.isUndefined(this.rabbitMQMessage?.prioritized);
+    const prioritized = !_.isUndefined(this.rabbitMqMessage?.prioritized);
 
     if (kind === "collection-offers") {
       // Add the collections slugs to the list

@@ -995,7 +995,6 @@ export const checkBlacklistAndFallback = async (
     ]);
     if (blocked) {
       params.orderKind = "seaport-v1.5";
-      params.orderbook = "reservoir";
     }
   }
 

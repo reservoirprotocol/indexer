@@ -26,7 +26,7 @@ export class Orders {
                   )
                 )
               FROM tokens
-              JOIN collections
+              LEFT JOIN collections
                 ON tokens.collection_id = collections.id
               WHERE tokens.contract = decode(substring(split_part(${tableName}.${tokenSetIdColumnName}, ':', 2) from 3), 'hex')
                 AND tokens.token_id = (split_part(${tableName}.${tokenSetIdColumnName}, ':', 3)::NUMERIC(78, 0)))

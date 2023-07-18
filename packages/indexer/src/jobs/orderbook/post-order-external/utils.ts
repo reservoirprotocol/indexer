@@ -370,11 +370,20 @@ const postOrder = async (
     }
 
     case "looks-rare": {
-      const order = new Sdk.LooksRareV2.Order(
-        config.chainId,
-        orderData as Sdk.LooksRareV2.Types.MakerOrderParams
-      );
-      return LooksrareApi.postOrder(order, orderbookApiKey);
+      // Seaport order
+      if ("consideration" in orderData) {
+        const order = new Sdk.SeaportV15.Order(
+          config.chainId,
+          orderData as Sdk.SeaportBase.Types.OrderComponents
+        );
+        return LooksrareApi.postSeaportOrder(order, orderbookApiKey);
+      } else {
+        const order = new Sdk.LooksRareV2.Order(
+          config.chainId,
+          orderData as Sdk.LooksRareV2.Types.MakerOrderParams
+        );
+        return LooksrareApi.postOrder(order, orderbookApiKey);
+      }
     }
 
     case "x2y2": {
@@ -422,7 +431,7 @@ export type PostOrderExternalParams =
   | {
       crossPostingOrderId: number;
       orderId: string;
-      orderData: Sdk.LooksRareV2.Types.MakerOrderParams;
+      orderData: Sdk.LooksRareV2.Types.MakerOrderParams | Sdk.SeaportBase.Types.OrderComponents;
       orderSchema?: TSTCollection | TSTCollectionNonFlagged | TSTAttribute;
       orderbook: "looks-rare";
       orderbookApiKey?: string | null;
