@@ -97,7 +97,9 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           t.last_flag_update,
           t.last_flag_change,
           c.slug,
-          (c.metadata ->> 'imageUrl')::TEXT AS collection_image
+          (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
+          t.supply,
+          t.remaining_supply
         FROM tokens t
         LEFT JOIN collections c ON t.collection_id = c.id
         JOIN contracts con ON t.contract = con.address

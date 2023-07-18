@@ -42,7 +42,6 @@ export class AskCancelledEventHandler extends AskCreatedEventHandler {
           orders.source_id_int AS "order_source_id_int",
           orders.fee_bps AS "pricing_fee_bps",
           (${orderCriteriaBuildQuery}) AS "order_criteria",
-          extract(epoch from orders.created_at) AS "created_ts",
           extract(epoch from orders.updated_at) AS "updated_ts",
           t.*,
           x.*
@@ -67,7 +66,8 @@ export class AskCancelledEventHandler extends AskCreatedEventHandler {
                         cancel_events."timestamp" AS "event_timestamp",
                         cancel_events.tx_hash AS "event_tx_hash",
                         cancel_events.log_index AS "event_log_index",
-                        cancel_events.block_hash AS "event_block_hash"
+                        cancel_events.block_hash AS "event_block_hash",
+                        extract(epoch from cancel_events.created_at) AS "created_ts",
                     FROM cancel_events WHERE cancel_events.order_id = orders.id
                     LIMIT 1
                  ) x ON TRUE`;

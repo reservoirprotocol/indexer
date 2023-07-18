@@ -9,7 +9,6 @@ import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
 import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
@@ -21,6 +20,7 @@ import {
   MetadataIndexFetchJobPayload,
 } from "@/jobs/metadata-index/metadata-fetch-job";
 import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
+import { openseaOrdersProcessJob } from "@/jobs/opensea-orders/opensea-orders-process-job";
 
 export const postRefreshCollectionOptions: RouteOptions = {
   description: "Refresh a collection's orders and metadata",
@@ -129,7 +129,7 @@ export const postRefreshCollectionOptions: RouteOptions = {
 
         if (collection.slug) {
           // Refresh opensea collection offers
-          await openseaOrdersProcessQueue.addToQueue([
+          await openseaOrdersProcessJob.addToQueue([
             {
               kind: "collection-offers",
               data: {

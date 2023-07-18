@@ -21,7 +21,7 @@ export type MetadataQueueJobPayload = {
 export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "collections-metadata-queue";
   maxRetries = 10;
-  concurrency = 20;
+  concurrency = 1;
   lazyMode = true;
   useSharedChannel = true;
 

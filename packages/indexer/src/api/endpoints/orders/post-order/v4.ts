@@ -323,7 +323,7 @@ export const postOrderV4Options: RouteOptions = {
             case "seaport":
             case "seaport-v1.4":
             case "seaport-v1.5": {
-              if (!["opensea", "reservoir"].includes(orderbook)) {
+              if (!["opensea", "reservoir", "looks-rare"].includes(orderbook)) {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
 
@@ -438,6 +438,24 @@ export const postOrderV4Options: RouteOptions = {
                     });
                   }
                 }
+              } else if (orderbook === "looks-rare") {
+                crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+                  orderId,
+                  kind: order.kind,
+                  orderbook,
+                  source,
+                  schema,
+                  rawData: order.data,
+                } as crossPostingOrdersModel.CrossPostingOrder);
+
+                await orderbookPostOrderExternalJob.addToQueue({
+                  crossPostingOrderId: crossPostingOrder.id,
+                  orderId,
+                  orderData: order.data,
+                  orderSchema: schema,
+                  orderbook,
+                  orderbookApiKey,
+                });
               }
 
               return results.push({

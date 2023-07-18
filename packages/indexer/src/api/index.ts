@@ -16,11 +16,11 @@ import { setupRoutes } from "@/api/routes";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { getNetworkName } from "@/config/network";
-import * as countApiUsage from "@/jobs/metrics/count-api-usage";
 import { allJobQueues } from "@/jobs/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { RateLimitRules } from "@/models/rate-limit-rules";
 import { BlockedRouteError } from "@/models/rate-limit-rules/errors";
+import { countApiUsageJob } from "@/jobs/metrics/count-api-usage-job";
 
 let server: Hapi.Server;
 
@@ -287,9 +287,9 @@ export const start = async (): Promise<void> => {
 
             return reply
               .response(tooManyRequestsResponse)
+              .header("tier", `${tier}`)
               .type("application/json")
               .code(429)
-              .header("tier", `${tier}`)
               .takeover();
           } else {
             logger.warn("rate-limiter", `Rate limit error ${error}`);
@@ -336,10 +336,10 @@ export const start = async (): Promise<void> => {
       // Count the API usage, to prevent any latency on the request no need to wait and ignore errors
       if (request.pre.metrics && statusCode >= 100 && statusCode < 500) {
         request.pre.metrics.statusCode = statusCode;
-        countApiUsage.addToQueue(request.pre.metrics).catch();
+        countApiUsageJob.addToQueue(request.pre.metrics).catch();
       }
 
-      if (!(response instanceof Boom)) {
+      if (!(response instanceof Boom) && statusCode === 200) {
         typedResponse.header("tier", request.headers["tier"]);
         typedResponse.header("X-RateLimit-Limit", request.headers["X-RateLimit-Limit"]);
         typedResponse.header("X-RateLimit-Remaining", request.headers["X-RateLimit-Remaining"]);

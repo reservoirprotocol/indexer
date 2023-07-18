@@ -28,7 +28,6 @@ export class IndexerTransferEventsHandler extends KafkaEventHandler {
     if (!payload.after) {
       return;
     }
-    return;
 
     await WebsocketEventRouter({
       eventInfo: {

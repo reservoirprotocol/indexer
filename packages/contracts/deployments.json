@@ -242,5 +242,11 @@
       "137": "0x104ff9a0e2a62aa531ef0cc9d19f948bde7062de",
       "80001": "0x104ff9a0e2a62aa531ef0cc9d19f948bde7062de"
     }
+  },
+  "CaviarV1Module": {
+    "v1": {
+      "1": "0x14e29b2de5cbb86fc8bad483e6dff38d58057e80",
+      "5": "0x14e29b2de5cbb86fc8bad483e6dff38d58057e80"
+    }
   }
 }

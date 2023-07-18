@@ -31,21 +31,22 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       job.data.addToQueue = false;
 
-      const { endTimestamp, cursor, dryRun } = job.data;
+      const { cursor, dryRun } = job.data;
 
-      const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 1000;
+      if (cursor == null) {
+        logger.info(QUEUE_NAME, `Backfill StartV2. jobData=${JSON.stringify(job.data)}`);
+      }
 
-      const { activities, continuation } = await ActivitiesIndex.search({
-        types: [ActivityType.bid],
-        endTimestamp,
-        continuation: cursor,
-        sortBy: "timestamp",
-        limit: Number(limit),
-      });
+      const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 3000;
 
-      logger.info(
-        QUEUE_NAME,
-        `Search. jobData=${JSON.stringify(job.data)}, activitiesCount=${activities.length}`
+      const { activities, continuation } = await ActivitiesIndex.search(
+        {
+          types: [ActivityType.bid],
+          continuation: cursor,
+          sortBy: "timestamp",
+          limit: Number(limit),
+        },
+        true
       );
 
       if (activities.length > 0) {
@@ -75,16 +76,16 @@ if (config.doBackgroundWork) {
           }
         }
 
-        logger.info(
-          QUEUE_NAME,
-          `Delete. jobData=${JSON.stringify(job.data)}, activitiesCount=${
-            activities.length
-          }, activitiesToBeDeletedCount=${
-            toBeDeletedActivityIds.length
-          }, lastActivityTimestamp=${new Date(activities[0].timestamp).toISOString()} `
-        );
-
         if (toBeDeletedActivityIds.length && dryRun === 0) {
+          logger.info(
+            QUEUE_NAME,
+            `Delete. jobData=${JSON.stringify(job.data)}, activitiesCount=${
+              activities.length
+            }, activitiesToBeDeletedCount=${
+              toBeDeletedActivityIds.length
+            }, lastActivity=${JSON.stringify(activities[0])} `
+          );
+
           await ActivitiesIndex.deleteActivitiesById(toBeDeletedActivityIds);
         }
 
@@ -92,6 +93,8 @@ if (config.doBackgroundWork) {
           job.data.addToQueue = true;
           job.data.addToQueueCursor = continuation;
         }
+      } else {
+        logger.info(QUEUE_NAME, `Backfill End. jobData=${JSON.stringify(job.data)}`);
       }
     },
     { connection: redis.duplicate(), concurrency: 1 }
@@ -99,7 +102,7 @@ if (config.doBackgroundWork) {
 
   worker.on("completed", async (job) => {
     if (job.data.addToQueue) {
-      await addToQueue(job.data.endTimestamp, job.data.addToQueueCursor, job.data.dryRun);
+      await addToQueue(job.data.addToQueueCursor, job.data.dryRun);
     }
   });
 
@@ -110,18 +113,13 @@ if (config.doBackgroundWork) {
   redlock
     .acquire([`${QUEUE_NAME}-lock-v2`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
-      await addToQueue(Math.floor(Date.now() / 1000), null, 0);
+      await addToQueue(null, 0);
     })
     .catch(() => {
       // Skip on any errors
     });
 }
 
-export const addToQueue = async (
-  endTimestamp: number,
-  cursor?: string | null,
-  dryRun = 1,
-  delay = 1000
-) => {
-  await queue.add(randomUUID(), { endTimestamp, cursor, dryRun }, { delay });
+export const addToQueue = async (cursor?: string | null, dryRun = 1, delay = 1000) => {
+  await queue.add(randomUUID(), { cursor, dryRun }, { delay });
 };

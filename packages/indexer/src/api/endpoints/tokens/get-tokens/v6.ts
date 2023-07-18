@@ -162,6 +162,9 @@ export const getTokensV6Options: RouteOptions = {
       includeTopBid: Joi.boolean()
         .default(false)
         .description("If true, top bid will be returned in the response."),
+      excludeEoa: Joi.boolean()
+        .default(false)
+        .description("If true, blur bids will be excluded from top bid / asks."),
       includeAttributes: Joi.boolean()
         .default(false)
         .description("If true, attributes will be returned in the response."),
@@ -403,31 +406,40 @@ export const getTokensV6Options: RouteOptions = {
     }
 
     let sourceCte = "";
-    if (query.nativeSource) {
-      const sources = await Sources.getInstance();
-      let nativeSource = sources.getByName(query.nativeSource, false);
-      if (!nativeSource) {
-        nativeSource = sources.getByDomain(query.nativeSource, false);
+    if (query.nativeSource || query.excludeEoa) {
+      const sourceConditions: string[] = [];
+
+      if (query.nativeSource) {
+        const sources = await Sources.getInstance();
+        let nativeSource = sources.getByName(query.nativeSource, false);
+        if (!nativeSource) {
+          nativeSource = sources.getByDomain(query.nativeSource, false);
+        }
+
+        if (!nativeSource) {
+          return {
+            tokens: [],
+            continuation: null,
+          };
+        }
+
+        (query as any).nativeSource = nativeSource?.id;
+        sourceConditions.push(`source_id_int = $/nativeSource/`);
       }
 
-      if (!nativeSource) {
-        return {
-          tokens: [],
-          continuation: null,
-        };
-      }
-
-      (query as any).nativeSource = nativeSource?.id;
       selectFloorData = "s.*";
 
-      const sourceConditions: string[] = [];
       sourceConditions.push(`side = 'sell'`);
       sourceConditions.push(`fillability_status = 'fillable'`);
       sourceConditions.push(`approval_status = 'approved'`);
-      sourceConditions.push(`source_id_int = $/nativeSource/`);
       sourceConditions.push(
         `taker = '\\x0000000000000000000000000000000000000000' OR taker IS NULL`
       );
+
+      if (query.excludeEoa) {
+        sourceConditions.push(`kind NOT IN ('blur')`);
+      }
+
       if (query.currencies) {
         sourceConditions.push(`currency IN ($/currenciesFilter:raw/)`);
       }
@@ -519,7 +531,9 @@ export const getTokensV6Options: RouteOptions = {
         FROM tokens t
         ${
           sourceCte !== ""
-            ? "JOIN filtered_orders s ON s.contract = t.contract AND s.token_id = t.token_id"
+            ? `${
+                query.excludeEoa ? "LEFT" : ""
+              } JOIN filtered_orders s ON s.contract = t.contract AND s.token_id = t.token_id`
             : ""
         }
         ${includeQuantityQuery}
@@ -885,6 +899,7 @@ export const getTokensV6Options: RouteOptions = {
               AND o.side = 'buy'
               AND o.fillability_status = 'fillable'
               AND o.approval_status = 'approved'
+              ${query.excludeEoa ? `AND o.kind NOT IN ('blur')` : ""}
               AND EXISTS(
                 SELECT FROM nft_balances nb
                   WHERE nb.contract = x.t_contract
@@ -1041,7 +1056,9 @@ export const getTokensV6Options: RouteOptions = {
                 },
               };
             } else if (
-              ["sudoswap", "sudoswap-v2", "nftx", "collectionxyz"].includes(r.floor_sell_order_kind)
+              ["sudoswap", "sudoswap-v2", "nftx", "collectionxyz", "caviar-v1"].includes(
+                r.floor_sell_order_kind
+              )
             ) {
               // Pool orders
               dynamicPricing = {

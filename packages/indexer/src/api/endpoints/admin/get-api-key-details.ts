@@ -15,7 +15,7 @@ export const getApiKeyDetails: RouteOptions = {
       "x-admin-api-key": Joi.string().required(),
     }).options({ allowUnknown: true }),
     params: Joi.object({
-      key: Joi.string().description("The API key"),
+      key: Joi.string().description("The API key").required(),
     }),
   },
   response: {
@@ -63,7 +63,7 @@ export const getApiKeyDetails: RouteOptions = {
         createdAt: new Date(apiKey.createdAt).toISOString(),
       };
     } catch (error) {
-      logger.error("get-api-key-details-handler", `Handler failure: ${error}`);
+      logger.error("get-api-key-details-handler", `Handler failure: ${error} key ${params.key}`);
       throw error;
     }
   },

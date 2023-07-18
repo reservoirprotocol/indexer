@@ -70,6 +70,10 @@ export async function startKafkaConsumer(): Promise<void> {
     eachBatch: async ({ batch, resolveOffset, heartbeat }) => {
       const messagePromises = batch.messages.map(async (message) => {
         try {
+          if (!message?.value) {
+            return;
+          }
+
           const event = JSON.parse(message.value!.toString());
 
           if (batch.topic.endsWith("-dead-letter")) {

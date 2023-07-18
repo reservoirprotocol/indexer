@@ -133,6 +133,11 @@ export const SudoswapV2Module: ChainIdToAddress = {
   [Network.EthereumGoerli]: "0xe2840826c43c25e88a5ef43ff790d7105889dd6e",
 };
 
+export const CaviarV1Module: ChainIdToAddress = {
+  [Network.Ethereum]: "0x14e29b2de5cbb86fc8bad483e6dff38d58057e80",
+  [Network.EthereumGoerli]: "0x14e29b2de5cbb86fc8bad483e6dff38d58057e80",
+};
+
 export const X2Y2Module: ChainIdToAddress = {
   [Network.Ethereum]: "0x7562e6d5d901ece54a89530f1c8d63e7cfaeebff",
   [Network.EthereumGoerli]: "0x7562e6d5d901ece54a89530f1c8d63e7cfaeebff",

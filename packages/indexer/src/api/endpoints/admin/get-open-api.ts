@@ -79,6 +79,9 @@ export const getOpenApiOptions: RouteOptions = {
           url: "https://api-sepolia.reservoir.tools",
         },
         {
+          url: "https://api-base.reservoir.tools",
+        },
+        {
           url: "https://api-base-goerli.reservoir.tools",
         },
         {

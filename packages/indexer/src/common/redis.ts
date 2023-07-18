@@ -47,12 +47,6 @@ export const metricsRedis = new Redis(config.metricsRedisUrl, {
   enableReadyCheck: false,
 });
 
-// Orders book redis
-export const orderbookRedis = new Redis(config.orderbookRedisUrl, {
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-});
-
 // All chains sync redis
 export const allChainsSyncRedis = new Redis(config.allChainsSyncRedisUrl, {
   maxRetriesPerRequest: null,

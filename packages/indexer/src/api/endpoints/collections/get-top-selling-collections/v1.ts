@@ -12,6 +12,8 @@ import {
   TopSellingFillOptions,
 } from "@/elasticsearch/indexes/activities";
 
+import { getJoiPriceObject, JoiPrice } from "@/common/joi";
+
 const version = "v5";
 
 export const getTopSellingCollectionsOptions: RouteOptions = {
@@ -63,12 +65,14 @@ export const getTopSellingCollectionsOptions: RouteOptions = {
           image: Joi.string().allow("", null),
           primaryContract: Joi.string().lowercase().pattern(regex.address),
           count: Joi.number().integer(),
+          volume: Joi.number(),
           recentSales: Joi.array().items(
             Joi.object({
               contract: Joi.string(),
               type: Joi.string(),
               timestamp: Joi.number(),
               toAddress: Joi.string(),
+              price: JoiPrice.allow(null),
               collection: Joi.object({
                 name: Joi.string().allow("", null),
                 image: Joi.string().allow("", null),
@@ -96,13 +100,43 @@ export const getTopSellingCollectionsOptions: RouteOptions = {
     const { startTime, endTime, fillType, limit, includeRecentSales } = request.query;
 
     try {
-      const collections = await getTopSellingCollections({
+      const collectionsResult = await getTopSellingCollections({
         startTime,
         endTime,
         fillType,
         limit,
         includeRecentSales,
       });
+
+      const collections = await Promise.all(
+        collectionsResult.map(async (collection: any) => {
+          return {
+            ...collection,
+            recentSales: await Promise.all(
+              collection.recentSales.map(async (sale: any) => {
+                const { pricing, ...salesData } = sale;
+                const price = pricing
+                  ? await getJoiPriceObject(
+                      {
+                        gross: {
+                          amount: String(pricing?.currencyPrice ?? pricing?.price ?? 0),
+                          nativeAmount: String(pricing?.price ?? 0),
+                          usdAmount: String(pricing.usdPrice ?? 0),
+                        },
+                      },
+                      pricing.currency
+                    )
+                  : null;
+
+                return {
+                  ...salesData,
+                  price,
+                };
+              })
+            ),
+          };
+        })
+      );
 
       return {
         collections,

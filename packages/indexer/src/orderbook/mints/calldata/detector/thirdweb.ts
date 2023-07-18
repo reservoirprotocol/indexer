@@ -129,7 +129,7 @@ export const extractByCollection = async (
                     isERC1155
                       ? {
                           kind: "unknown",
-                          abiKind: "uint256",
+                          abiType: "uint256",
                           abiValue: tokenId!,
                         }
                       : // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -151,7 +151,7 @@ export const extractByCollection = async (
                     {
                       kind: "unknown",
                       abiType: "(bytes32[],uint256,uint256,address)",
-                      abiValue: [[HashZero], maxMintsPerWallet, price, currency],
+                      abiValue: [[HashZero], maxMintsPerWallet ?? 0, price, currency],
                     },
                     {
                       kind: "unknown",

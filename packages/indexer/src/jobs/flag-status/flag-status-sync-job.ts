@@ -5,12 +5,12 @@ import { logger } from "@/common/logger";
 import _ from "lodash";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 import { releaseLock } from "@/common/redis";
-import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
 import { generateCollectionTokenSetJob } from "@/jobs/flag-status/generate-collection-token-set-job";
 import MetadataApi from "@/utils/metadata-api";
 import { TokensEntityUpdateParams } from "@/models/tokens/tokens-entity";
 import { Tokens } from "@/models/tokens";
 import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
+import { flagStatusProcessJob } from "@/jobs/flag-status/flag-status-process-job";
 
 export type FlagStatusSyncJobPayload = {
   contract: string;
@@ -44,7 +44,7 @@ export class FlagStatusSyncJob extends AbstractRabbitMqJobHandler {
 
       await releaseLock(this.getLockName());
 
-      await flagStatusProcessQueue.addToQueue();
+      await flagStatusProcessJob.addToQueue();
       await generateCollectionTokenSetJob.addToQueue({ contract, collectionId });
 
       return;

@@ -66,6 +66,28 @@ jobs:
       #   if: steps.semantic.outputs.new_release_version != ''
       #   uses: cycjimmy/semantic-release-action@v3
 
+      - name: Post to Slack
+        if: ${{ always() }}
+        id: slack
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          channel-id: "ci"
+          payload: |
+            {
+              "text": "GitHub build result: ${{ job.status }}\nAuthor: ${{ github.actor }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "GitHub build result: ${{ job.status }}\nAuthor: ${{ github.actor }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
   deploy-dev:
     name: Deploy to Development
     runs-on: ubuntu-latest
@@ -281,3 +303,11 @@ jobs:
             ./prod/platform/indexer-kafka-worker-polygon.yaml \
             ${{ github.sha }} \
             indexer-kafka-worker-polygon
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-arbitrum.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-arbitrum
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-optimism.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-optimism
