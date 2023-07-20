@@ -230,9 +230,15 @@ export const getTransfersV3Options: RouteOptions = {
           (query as any).logIndex = logIndex;
           (query as any).batchIndex = batchIndex;
 
-          conditions.push(
-            `(nft_transfer_events.timestamp, nft_transfer_events.log_index, nft_transfer_events.batch_index) < ($/timestamp/, $/logIndex/, $/batchIndex/)`
-          );
+          if (query.txHash) {
+            conditions.push(
+              `(nft_transfer_events.log_index, nft_transfer_events.batch_index) < ($/logIndex/, $/batchIndex/)`
+            );
+          } else {
+            conditions.push(
+              `(nft_transfer_events.timestamp, nft_transfer_events.log_index, nft_transfer_events.batch_index) < ($/timestamp/, $/logIndex/, $/batchIndex/)`
+            );
+          }
         } else if (query.orderBy == "updated_at") {
           const [updateAt, address, tokenId] = splitContinuation(
             query.continuation,
@@ -257,7 +263,7 @@ export const getTransfersV3Options: RouteOptions = {
       if (query.orderBy === "timestamp") {
         baseQuery += `
           ORDER BY
-            nft_transfer_events.timestamp DESC,
+            ${query.txHash ? "" : `nft_transfer_events.timestamp DESC,`}
             nft_transfer_events.log_index DESC,
             nft_transfer_events.batch_index DESC
         `;

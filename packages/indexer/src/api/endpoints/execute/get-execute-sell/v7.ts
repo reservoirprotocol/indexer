@@ -76,9 +76,8 @@ export const getExecuteSellV7Options: RouteOptions = {
                   "rarible",
                   "sudoswap",
                   "nftx"
-                )
-                .required(),
-              data: Joi.object().required(),
+                ),
+              data: Joi.object(),
             }).description("Optional raw order to sell into."),
             exactOrderSource: Joi.string()
               .lowercase()

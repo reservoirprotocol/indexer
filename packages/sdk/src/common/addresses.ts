@@ -72,6 +72,7 @@ export const RoyaltyEngine: ChainIdToAddress = {
   [Network.BaseGoerli]: "0x8755310f937528173e7c5a106131d79a3601c9d9",
   [Network.ArbitrumNova]: "0x60b433ee91680189deb2c94b0b062ea283f6b4dd",
   [Network.Zora]: "0x8755310f937528173e7c5a106131d79a3601c9d9",
+  [Network.Base]: "0x8755310f937528173e7c5a106131d79a3601c9d9",
 };
 
 export const SwapRouter: ChainIdToAddress = {
@@ -88,6 +89,7 @@ export const Create3Factory: ChainIdToAddress = {
   [Network.ZoraTestnet]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
   [Network.BaseGoerli]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
   [Network.Zora]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
+  [Network.Base]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
 };
 
 export const GelatoRelay1BalanceERC2771: ChainIdToAddress = {

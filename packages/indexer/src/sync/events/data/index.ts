@@ -160,6 +160,7 @@ export type EventSubKind =
   | "zora-ask-cancelled"
   | "zora-auction-ended"
   | "zora-sales-config-changed"
+  | "zora-updated-token"
   | "nouns-auction-settled"
   | "cryptopunks-punk-offered"
   | "cryptopunks-punk-no-longer-for-sale"
@@ -362,6 +363,7 @@ const allEventData = [
   zora.askPriceUpdated,
   zora.auctionEnded,
   zora.salesConfigChanged,
+  zora.updatedToken,
   nouns.auctionSettled,
   cryptoPunks.punkOffered,
   cryptoPunks.punkNoLongerForSale,

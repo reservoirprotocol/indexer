@@ -105,7 +105,9 @@ export const getExecuteBidV5Options: RouteOptions = {
           quantity: Joi.number().description("Quantity of tokens to bid on."),
           weiPrice: Joi.string()
             .pattern(regex.number)
-            .description("Amount bidder is willing to offer in wei. Example: `1000000000000000000`")
+            .description(
+              "Amount bidder is willing to offer in the smallest denomination for the specific currency. Example: `1000000000000000000`"
+            )
             .required(),
           orderKind: Joi.string()
             .valid(
@@ -569,10 +571,10 @@ export const getExecuteBidV5Options: RouteOptions = {
                     authToken: blurAuth!.accessToken,
                   });
 
-                  const id = new Sdk.BlurV2.Order(config.chainId, {
-                    ...signData.value,
-                    nonce: signData.value.nonce.hex ?? signData.value.nonce,
-                  }).hash();
+                  // Blur returns the nonce as a BigNumber object
+                  signData.value.nonce = signData.value.nonce.hex ?? signData.value.nonce;
+
+                  const id = new Sdk.BlurV2.Order(config.chainId, signData.value).hash();
 
                   steps[3].items.push({
                     status: "incomplete",
@@ -619,7 +621,7 @@ export const getExecuteBidV5Options: RouteOptions = {
               }
 
               case "seaport-v1.5": {
-                if (!["reservoir", "opensea"].includes(params.orderbook)) {
+                if (!["reservoir", "opensea", "looks-rare"].includes(params.orderbook)) {
                   return errors.push({
                     message: "Unsupported orderbook",
                     orderIndex: i,

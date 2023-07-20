@@ -166,6 +166,10 @@ export class RecalcOwnerCountQueueJob extends AbstractRabbitMqJobHandler {
       infos.map((info) => ({
         payload: info,
         delay: delayInSeconds * 1000,
+        jobId:
+          info.kind === "collectionId"
+            ? info.data.collectionId
+            : `${info.data.contract}:${info.data.tokenId}`,
       }))
     );
   }

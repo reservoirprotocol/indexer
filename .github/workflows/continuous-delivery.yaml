@@ -68,19 +68,19 @@ jobs:
 
       - name: Post to Slack
         if: ${{ always() }}
-        id: slack
-        uses: slackapi/slack-github-action@v1.24.0
+        id: slack-build
+        uses: unevenlabs/slack-github-action@v1.0.2
         with:
           channel-id: "ci"
           payload: |
             {
-              "text": "GitHub build result: ${{ job.status }}\nAuthor: ${{ github.actor }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
+              "text": "GitHub build result: <status-${{ job.status }}-status>\nAuthor: <author-${{ github.actor }}-author>\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "GitHub build result: ${{ job.status }}\nAuthor: ${{ github.actor }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+                    "text": "GitHub build result: <status-${{ job.status }}-status>\nAuthor: <author-${{ github.actor }}-author>\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
                   }
                 }
               ]
@@ -124,6 +124,29 @@ jobs:
             ${{ github.sha }} \
             indexer-kafka-worker-goerli
 
+      - name: Post to Slack
+        if: ${{ always() }}
+        id: slack-deploy-dev
+        uses: unevenlabs/slack-github-action@v1.0.2
+        with:
+          channel-id: "ci"
+          update-ts: ${{ steps.slack-build.outputs.ts }}
+          payload: |
+            {
+              "text": "GitHub deploy dev result: <status-${{ job.status }}-status>\nAuthor: <author-${{ github.actor }}-author>\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "GitHub deploy dev result: <status-${{ job.status }}-status>\nAuthor: <author-${{ github.actor }}-author>\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
   deploy-prod:
     name: Deploy to Production
     runs-on: ubuntu-latest
@@ -144,9 +167,9 @@ jobs:
         working-directory: k8s-configs
         run: |
           ./utils/version_update.sh \
-            ./prod/platform/indexer-api.yaml \
+            ./prod/platform/indexer-api-mainnet.yaml \
             ${{ github.sha }} \
-            indexer-api
+            indexer-api-mainnet
           ./utils/version_update.sh \
             ./prod/platform/indexer-api-arbitrum.yaml \
             ${{ github.sha }} \
@@ -204,17 +227,17 @@ jobs:
             ${{ github.sha }} \
             indexer-api-base
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker.yaml \
+            ./prod/platform/indexer-worker-mainnet.yaml \
             ${{ github.sha }} \
-            indexer-worker
+            indexer-worker-mainnet
           ./utils/version_update.sh \
             ./prod/platform/indexer-worker-arbitrum.yaml \
             ${{ github.sha }} \
             indexer-worker-arbitrum
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-master.yaml \
+            ./prod/platform/indexer-worker-master-mainnet.yaml \
             ${{ github.sha }} \
-            indexer-worker-master
+            indexer-worker-master-mainnet
           ./utils/version_update.sh \
             ./prod/platform/indexer-worker-optimism.yaml \
             ${{ github.sha }} \
@@ -292,13 +315,13 @@ jobs:
             ${{ github.sha }} \
             indexer-websocket-goerli
           ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker.yaml \
+            ./prod/platform/indexer-kafka-worker-mainnet.yaml \
             ${{ github.sha }} \
-            indexer-kafka-worker
+            indexer-kafka-worker-mainnet
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-polygon-master.yaml \
+            ./prod/platform/indexer-worker-master-polygon.yaml \
             ${{ github.sha }} \
-            indexer-worker-polygon-master
+            indexer-worker-master-polygon
           ./utils/version_update.sh \
             ./prod/platform/indexer-kafka-worker-polygon.yaml \
             ${{ github.sha }} \
@@ -311,3 +334,26 @@ jobs:
             ./prod/platform/indexer-kafka-worker-optimism.yaml \
             ${{ github.sha }} \
             indexer-kafka-worker-optimism
+
+      - name: Post to Slack
+        if: ${{ always() }}
+        id: slack-deploy-prod
+        uses: unevenlabs/slack-github-action@v1.0.2
+        with:
+          channel-id: "ci"
+          update-ts: ${{ steps.slack-build.outputs.ts }}
+          payload: |
+            {
+              "text": "GitHub deploy prod result: <status-${{ job.status }}-status>\nAuthor: <author-${{ github.actor }}-author>\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "GitHub deploy prod result: <status-${{ job.status }}-status>\nAuthor: <author-${{ github.actor }}-author>\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

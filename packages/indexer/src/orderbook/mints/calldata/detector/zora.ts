@@ -124,7 +124,9 @@ export const extractByCollection = async (
               },
               currency: Sdk.Common.Addresses.Eth[config.chainId],
               price,
-              maxMintsPerWallet: saleConfig.maxTokensPerAddress.toString(),
+              maxMintsPerWallet: bn(saleConfig.maxTokensPerAddress).eq(0)
+                ? null
+                : saleConfig.maxTokensPerAddress.toString(),
               tokenId,
               maxSupply: tokenInfo.maxSupply.toString(),
               startTime: toSafeTimestamp(saleConfig.saleStart),

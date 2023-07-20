@@ -1,6 +1,6 @@
-import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import {
   orderUpdatesByIdJob,
   OrderUpdatesByIdJobPayload,
@@ -27,12 +27,12 @@ export class OrderRevalidationsJob extends AbstractRabbitMqJobHandler {
     try {
       await idb.none(
         `
-            UPDATE orders SET
-              fillability_status = '${status === "active" ? "fillable" : "cancelled"}',
-              approval_status = '${status === "active" ? "approved" : "disabled"}',
-              updated_at = now()
-            WHERE orders.id = $/id/
-          `,
+          UPDATE orders SET
+            fillability_status = '${status === "active" ? "fillable" : "cancelled"}',
+            approval_status = '${status === "active" ? "approved" : "disabled"}',
+            updated_at = now()
+          WHERE orders.id = $/id/
+        `,
         { id }
       );
 

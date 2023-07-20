@@ -1,9 +1,12 @@
 import { OrderValidationEventPayload } from "@opensea/stream-js/dist/types";
 
 import { idb } from "@/common/db";
+import { logger } from "@/common/logger";
 import { orderRevalidationsJob } from "@/jobs/order-fixes/order-revalidations-job";
 
 export const handleEvent = async (payload: OrderValidationEventPayload) => {
+  logger.info("opensea-websocket-debug", JSON.stringify(payload));
+
   const currentStatus = await idb.oneOrNone(
     `
       SELECT

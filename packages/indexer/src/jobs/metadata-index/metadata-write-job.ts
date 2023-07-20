@@ -466,20 +466,6 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
     if (!_.isEmpty(tokenAttributeCounter)) {
       await resyncAttributeCountsJob.addToQueue({ tokenAttributeCounter });
     }
-
-    // Mark the token as having metadata indexed.
-    await idb.none(
-      `
-            UPDATE tokens SET metadata_indexed = TRUE, updated_at = now()
-            WHERE tokens.contract = $/contract/
-              AND tokens.token_id = $/tokenId/
-              AND tokens.metadata_indexed IS DISTINCT FROM TRUE
-          `,
-      {
-        contract: toBuffer(contract),
-        tokenId,
-      }
-    );
   }
 
   public updateActivities(contract: string) {

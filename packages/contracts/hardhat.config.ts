@@ -30,6 +30,9 @@ const getNetworkConfig = (chainId?: number) => {
       case 137:
         url = `https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
         break;
+      case 8453:
+        url = "https://developer-access-mainnet.base.org";
+        break;
       case 42161:
         url = `https://arb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
         break;
@@ -114,24 +117,25 @@ const config: HardhatUserConfig = {
     optimism: getNetworkConfig(10),
     bsc: getNetworkConfig(56),
     polygon: getNetworkConfig(137),
+    base: getNetworkConfig(8453),
     arbitrum: getNetworkConfig(42161),
-    "arbitrum-nova": getNetworkConfig(42170),
+    arbitrumNova: getNetworkConfig(42170),
     zora: getNetworkConfig(7777777),
     // Testnets
     goerli: getNetworkConfig(5),
-    "zora-testnet": getNetworkConfig(999),
-    "mantle-testnet": getNetworkConfig(5001),
-    "linea-testnet": getNetworkConfig(59140),
+    zoraTestnet: getNetworkConfig(999),
+    mantleTestnet: getNetworkConfig(5001),
+    lineaTestnet: getNetworkConfig(59140),
     mumbai: getNetworkConfig(80001),
-    "base-goerli": getNetworkConfig(84531),
-    "scroll-alpha": getNetworkConfig(534353),
+    baseGoerli: getNetworkConfig(84531),
+    scrollAlpha: getNetworkConfig(534353),
     sepolia: getNetworkConfig(11155111),
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
     customChains: [
       {
-        network: "mantle-testnet",
+        network: "mantleTestnet",
         chainId: 5001,
         urls: {
           apiURL: "https://explorer.testnet.mantle.xyz/api",
@@ -139,7 +143,7 @@ const config: HardhatUserConfig = {
         },
       },
       {
-        network: "linea-testnet",
+        network: "lineaTestnet",
         chainId: 59140,
         urls: {
           apiURL: "https://explorer.goerli.linea.build/api",
@@ -147,7 +151,7 @@ const config: HardhatUserConfig = {
         },
       },
       {
-        network: "scroll-alpha",
+        network: "scrollAlpha",
         chainId: 534353,
         urls: {
           apiURL: "https://blockscout.scroll.io/api",

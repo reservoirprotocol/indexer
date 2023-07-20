@@ -992,6 +992,7 @@ export const checkBlacklistAndFallback = async (
   if (["looks-rare-v2"].includes(params.orderKind) && ["looks-rare"].includes(params.orderbook)) {
     const blocked = await checkMarketplaceIsFiltered(collection, [
       Sdk.LooksRareV2.Addresses.Exchange[config.chainId],
+      Sdk.LooksRareV2.Addresses.TransferManager[config.chainId],
     ]);
     if (blocked) {
       params.orderKind = "seaport-v1.5";
@@ -1002,6 +1003,9 @@ export const checkBlacklistAndFallback = async (
   if (["seaport-v1.5"].includes(params.orderKind) && ["reservoir"].includes(params.orderbook)) {
     const blocked = await checkMarketplaceIsFiltered(collection, [
       Sdk.SeaportV15.Addresses.Exchange[config.chainId],
+      new Sdk.SeaportBase.ConduitController(config.chainId).deriveConduit(
+        Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
+      ),
     ]);
     if (blocked) {
       params.orderKind = "payment-processor";

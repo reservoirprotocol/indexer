@@ -889,6 +889,12 @@ export const setupRoutes = (server: Server) => {
     options: oracleEndpoints.getTokenStatusOracleV3Options,
   });
 
+  server.route({
+    method: "GET",
+    path: "/oracle/collections/bid-ask-midpoint/v1",
+    options: oracleEndpoints.getCollectionBidAskMidpointOracleV1Options,
+  });
+
   // Orders
 
   server.route({

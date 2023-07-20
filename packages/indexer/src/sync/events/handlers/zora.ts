@@ -256,6 +256,20 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         break;
       }
+
+      case "zora-updated-token": {
+        const { args } = eventData.abi.parseLog(log);
+        onChainData.mints.push({
+          by: "collection",
+          data: {
+            standard: "zora",
+            collection: baseEventParams.address,
+            tokenId: args["tokenId"].toString(),
+          },
+        });
+
+        break;
+      }
     }
   }
 };

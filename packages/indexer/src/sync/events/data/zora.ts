@@ -118,3 +118,21 @@ export const salesConfigChanged: EventData = {
   numTopics: 2,
   abi: new Interface([`event SalesConfigChanged(address indexed changedBy)`]),
 };
+
+export const updatedToken: EventData = {
+  kind: "zora",
+  subKind: "zora-updated-token",
+  topic: "0x5086d1bcea28999da9875111e3592688fbfa821db63214c695ca35768080c2fe",
+  numTopics: 3,
+  abi: new Interface([
+    `event UpdatedToken(
+      address indexed from,
+      uint256 indexed tokenId,
+      (
+        string uri,
+        uint256 maxSupply,
+        uint256 totalMinted
+      ) tokenData
+    )`,
+  ]),
+};

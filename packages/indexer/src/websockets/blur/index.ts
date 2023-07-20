@@ -70,8 +70,6 @@ if (config.doWebsocketWork && config.blurWsUrl && config.blurWsApiKey) {
         ingestMethod: "websocket",
       }));
 
-      logger.info(COMPONENT, JSON.stringify({ message, parsedMessage, orderInfos }));
-
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await orderbookOrdersJob.addToQueue(orderInfos as any);
 

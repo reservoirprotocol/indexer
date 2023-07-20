@@ -211,7 +211,10 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
           }
 
           case "zora": {
-            collectionMints = await detector.zora.extractByCollection(data.collection);
+            collectionMints = await detector.zora.extractByCollection(
+              data.collection,
+              data.tokenId
+            );
 
             break;
           }

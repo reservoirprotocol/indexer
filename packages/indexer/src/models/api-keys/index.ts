@@ -10,7 +10,7 @@ import { ApiKeyEntity, ApiKeyUpdateParams } from "@/models/api-keys/api-key-enti
 import getUuidByString from "uuid-by-string";
 import { AllChainsChannel, Channel } from "@/pubsub/channels";
 import axios from "axios";
-import { getNetworkName } from "@/config/network";
+import { getNetworkName, getNetworkSettings } from "@/config/network";
 import { config } from "@/config/index";
 import { Boom } from "@hapi/boom";
 import tracer from "@/common/tracer";
@@ -214,10 +214,6 @@ export class ApiKeyManager {
       log.params = request.params;
     }
 
-    if (request.pre.queryString) {
-      log.queryString = request.pre.queryString;
-    }
-
     if (request.query) {
       log.query = request.query;
     }
@@ -244,6 +240,12 @@ export class ApiKeyManager {
 
     if (request.headers["host"]) {
       log.hostname = request.headers["host"];
+    }
+
+    if (log.route) {
+      log.fullUrl = `https://${getNetworkSettings().subDomain}.reservoir.tools${log.route}${
+        request.pre.queryString ? `?${request.pre.queryString}` : ""
+      }`;
     }
 
     // Add key information if it exists

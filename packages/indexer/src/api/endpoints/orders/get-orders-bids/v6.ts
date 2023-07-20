@@ -124,7 +124,7 @@ export const getOrdersBidsV6Options: RouteOptions = {
           Joi.string().pattern(regex.domain)
         )
         .description(
-          "Filter to sources by domain. Only active listed will be returned. Must set `rawData=true` to reveal individual bids when `sources=blur.io`. Setting `sources=blur.io` does not support additional sources. Example: `opensea.io`"
+          "Filter to sources by domain. Only active listed will be returned. Must set `includeRawData=true` to reveal individual bids when `sources=blur.io`. Example: `opensea.io`"
         ),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
       includeCriteriaMetadata: Joi.boolean()
@@ -571,13 +571,11 @@ export const getOrdersBidsV6Options: RouteOptions = {
         }
       }
 
-      if (query.sources && query.sources != "blur.io") {
+      if (query.sources) {
         const sources = await Sources.getInstance();
 
         if (!Array.isArray(query.sources)) {
           query.sources = [query.sources];
-        } else if (query.sources.indexOf("blur.io") != -1) {
-          throw Boom.badRequest(`Cannot filter by additional sources with blur.io`);
         }
 
         (query as any).sourceIds = query.sources
