@@ -68,7 +68,10 @@ export class RarityQueueJob extends AbstractRabbitMqJobHandler {
 
       if (updateTokensString !== "") {
         const updateQuery = `UPDATE tokens
-                               SET rarity_score = x.rarityTraitSum, rarity_rank = x.rarityTraitSumRank
+                               SET 
+                                rarity_score = x.rarityTraitSum,
+                                rarity_rank = x.rarityTraitSumRank,
+                                updated_at = now()
                                FROM (VALUES ${updateTokensString}) AS x(tokenId, rarityTraitSum, rarityTraitSumRank)
                                WHERE contract = $/contract/
                                AND token_id = x.tokenId`;
