@@ -26,8 +26,22 @@ export class BackfillAskActivitiesElasticsearchJob extends AbstractRabbitMqJobHa
     const toTimestamp = payload.toTimestamp || 9999999999;
     const indexName = payload.indexName ?? ActivitiesIndex.getIndexName();
     const keepGoing = payload.keepGoing;
-
     const limit = Number((await redis.get(`${this.queueName}-limit`)) || 500);
+
+    if (!cursor) {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "backfill-activities",
+          message: `Start.`,
+          fromTimestamp,
+          toTimestamp,
+          cursor,
+          indexName,
+          keepGoing,
+        })
+      );
+    }
 
     try {
       let continuationFilter = "";
