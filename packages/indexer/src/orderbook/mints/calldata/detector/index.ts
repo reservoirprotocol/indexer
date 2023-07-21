@@ -145,7 +145,7 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
   }
 
   // Manifold
-  const manifoldResults = await manifold.extractByTx(collection, tokenIds[0], tx);
+  const manifoldResults = await manifold.extractByTx(collection, tx);
   if (manifoldResults.length) {
     return manifoldResults;
   }

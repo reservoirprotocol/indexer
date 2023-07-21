@@ -74,7 +74,9 @@ export class RarityQueueJob extends AbstractRabbitMqJobHandler {
                                 updated_at = now()
                                FROM (VALUES ${updateTokensString}) AS x(tokenId, rarityTraitSum, rarityTraitSumRank)
                                WHERE contract = $/contract/
-                               AND token_id = x.tokenId`;
+                               AND token_id = x.tokenId
+                               AND (rarity_score <> x.rarityTraitSum OR rarity_rank <> x.rarityTraitSumRank)
+                               `;
 
         await idb.none(updateQuery, replacementParams);
       }

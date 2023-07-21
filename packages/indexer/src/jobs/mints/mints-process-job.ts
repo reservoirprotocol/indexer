@@ -1,9 +1,5 @@
-import { Interface } from "@ethersproject/abi";
-import { Contract } from "@ethersproject/contracts";
-
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { baseProvider } from "@/common/provider";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
@@ -15,6 +11,8 @@ import {
 import * as detector from "@/orderbook/mints/calldata/detector";
 import { getContractKind } from "@/orderbook/mints/calldata/helpers";
 import MetadataApi from "@/utils/metadata-api";
+
+import { manifold } from "@/orderbook/mints/calldata/detector";
 
 export type MintsProcessJobPayload =
   | {
@@ -157,64 +155,78 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
           );
         }
 
-        switch (data.standard) {
-          case "manifold": {
-            const c = new Contract(
-              data.additionalInfo.extension,
-              new Interface([
-                `
-                  function getClaim(address creatorContractAddress, uint256 instanceId) external view returns (
-                    (
-                      uint32 total,
-                      uint32 totalMax,
-                      uint32 walletMax,
-                      uint48 startDate,
-                      uint48 endDate,
-                      uint8 storageProtocol,
-                      bytes32 merkleRoot,
-                      string location,
-                      uint256 tokenId,
-                      uint256 cost,
-                      address payable paymentReceiver,
-                      address erc20
-                    )
-                  )
-                `,
-              ]),
-              baseProvider
-            );
+        const { kind } = await idb
+          .one(
+            `
+              SELECT
+                contracts.kind
+              FROM collections
+              JOIN contracts
+                ON collections.contract = contracts.address
+              WHERE collections.id = $/collection/
+            `,
+            {
+              collection: data.collection,
+            }
+          )
+          .then((r) => ({
+            contract: fromBuffer(r.contract),
+            kind: r.kind,
+          }));
 
-            collectionMints = await detector.manifold.extractByCollection(
-              data.collection,
-              (
-                await c.getClaim(data.collection, data.additionalInfo.instanceId)
-              ).tokenId.toString(),
-              data.additionalInfo.extension
-            );
+        switch (data.standard) {
+          // TODO: Add support for `decent`
+
+          case "manifold": {
+            if (kind === "erc721") {
+              collectionMints = await detector.manifold.extractByCollectionERC721(
+                data.collection,
+                data.additionalInfo.instanceId,
+                data.additionalInfo.extension
+              );
+            } else if (kind === "erc1155") {
+              collectionMints = await detector.manifold.extractByCollectionERC1155(
+                data.collection,
+                await manifold.getTokenIdForERC1155Mint(
+                  data.collection,
+                  data.additionalInfo.instanceId,
+                  data.additionalInfo.extension
+                ),
+                data.additionalInfo.extension
+              );
+            }
 
             break;
           }
 
           case "seadrop-v1.0": {
-            collectionMints = await detector.seadrop.extractByCollection(data.collection);
+            collectionMints = await detector.seadrop.extractByCollectionERC721(data.collection);
 
             break;
           }
 
           case "thirdweb": {
-            collectionMints = await detector.thirdweb.extractByCollection(
-              data.collection,
-              data.tokenId
-            );
+            if (data.tokenId) {
+              collectionMints = await detector.thirdweb.extractByCollectionERC1155(
+                data.collection,
+                data.tokenId
+              );
+            } else {
+              collectionMints = await detector.thirdweb.extractByCollectionERC721(data.collection);
+            }
 
             break;
           }
 
           case "zora": {
-            collectionMints = await detector.zora.extractByCollection(
-              data.collection,
-              data.tokenId
-            );
+            if (data.tokenId) {
+              collectionMints = await detector.zora.extractByCollectionERC1155(
+                data.collection,
+                data.tokenId
+              );
+            } else {
+              collectionMints = await detector.zora.extractByCollectionERC721(data.collection);
+            }
 
             break;
           }

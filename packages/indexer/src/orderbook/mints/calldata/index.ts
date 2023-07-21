@@ -4,6 +4,7 @@ import { TxData } from "@reservoir0x/sdk/dist/utils";
 
 import { idb } from "@/common/db";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
+import { mintsProcessJob } from "@/jobs/mints/mints-process-job";
 import { CollectionMint } from "@/orderbook/mints";
 
 import * as Decent from "@/orderbook/mints/calldata/detector/decent";
@@ -12,7 +13,6 @@ import * as Manifold from "@/orderbook/mints/calldata/detector/manifold";
 import * as Seadrop from "@/orderbook/mints/calldata/detector/seadrop";
 import * as Thirdweb from "@/orderbook/mints/calldata/detector/thirdweb";
 import * as Zora from "@/orderbook/mints/calldata/detector/zora";
-import { mintsProcessJob } from "@/jobs/mints/mints-process-job";
 
 export type AbiParam =
   | {
@@ -155,14 +155,15 @@ export const generateCollectionMintTxData = async (
           }
 
           case "zora": {
-            // Different encoding for ERC721 vs ERC1155
             if (collectionMint.tokenId) {
+              // ERC1155
               const proofData = await Zora.generateProofValue(collectionMint, minter);
               abiValue = defaultAbiCoder.encode(
                 ["address", "uint256", "uint256", "bytes32[]"],
                 [minter, proofData.maxCanMint, proofData.price, proofData.proof]
               );
             } else {
+              // ERC721
               if (allowlistItemIndex === 0) {
                 abiValue = allowlistData.max_mints;
               } else if (allowlistItemIndex === 1) {

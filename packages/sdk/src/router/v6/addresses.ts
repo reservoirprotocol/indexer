@@ -63,6 +63,15 @@ export const SwapModule: ChainIdToAddress = {
   [Network.Bsc]: "0x5cf0a457d2b6c003232184178e87c91248f73477",
 };
 
+export const OneInchSwapModule: ChainIdToAddress = {
+  [Network.Ethereum]: "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
+  [Network.EthereumGoerli]: "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
+  [Network.Polygon]: "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
+  [Network.Optimism]: "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
+  [Network.Arbitrum]: "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
+  [Network.Bsc]: "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
+};
+
 // Exchange modules
 
 export const CollectionXyzModule: ChainIdToAddress = {
@@ -161,7 +170,7 @@ export const ElementModule: ChainIdToAddress = {
 };
 
 export const NFTXModule: ChainIdToAddress = {
-  [Network.Ethereum]: "0x716d13135f6a5bdb3fbc6beeb8dea35776d20da7",
+  [Network.Ethereum]: "0xfcd5b37fb64c06646c390d0376e8aad9bf5e1163",
 };
 
 export const NFTXZeroExModule: ChainIdToAddress = {

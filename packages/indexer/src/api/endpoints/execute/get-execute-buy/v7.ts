@@ -161,6 +161,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
         .pattern(regex.number)
         .description("Optional custom gas settings."),
       usePermit: Joi.boolean().description("When true, will use permit to avoid approvals."),
+      swapProvider: Joi.string()
+        .valid("uniswap", "1inch")
+        .default("uniswap")
+        .description(
+          "Choose a specific swapping provider when buying in a different currency (defaults to `uniswap`)"
+        ),
       // Various authorization keys
       x2y2ApiKey: Joi.string().description("Optional X2Y2 API key used for filling."),
       openseaApiKey: Joi.string().description(
@@ -1351,6 +1357,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           forceRouter: payload.forceRouter,
           relayer: payload.relayer,
           usePermit: payload.usePermit,
+          swapProvider: payload.swapProvider,
           globalFees,
           blurAuth,
           onError: async (kind, error, data) => {

@@ -89,8 +89,8 @@
     }
   },
   "NFTXModule": {
-    "v1": {
-      "1": "0x716d13135f6a5bdb3fbc6beeb8dea35776d20da7"
+    "v2": {
+      "1": "0xfcd5b37fb64c06646c390d0376e8aad9bf5e1163"
     }
   },
   "RaribleModule": {
@@ -254,6 +254,16 @@
     "v1": {
       "1": "0x14e29b2de5cbb86fc8bad483e6dff38d58057e80",
       "5": "0x14e29b2de5cbb86fc8bad483e6dff38d58057e80"
+    }
+  },
+  "OneInchSwapModule": {
+    "v1": {
+      "1": "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
+      "5": "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
+      "10": "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
+      "56": "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
+      "137": "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
+      "42161": "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d"
     }
   }
 }

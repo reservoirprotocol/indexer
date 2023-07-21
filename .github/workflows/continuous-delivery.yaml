@@ -334,6 +334,58 @@ jobs:
             ./prod/platform/indexer-kafka-worker-optimism.yaml \
             ${{ github.sha }} \
             indexer-kafka-worker-optimism
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-optimism-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-optimism-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-arbitrum-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-arbitrum-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-arbitrum-nova-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-arbitrum-nova-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-bsc-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-bsc-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-base-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-base-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-base-goerli-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-goerli-goerli-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-avalanche-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-avalanche-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-sepolia-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-sepolia-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-goerli-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-goerli-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-mumbai-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-mumbai-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-scroll-alpha-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-scroll-alpha-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-zora-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-zora-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-zora-testnet-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-zora-testnet-master
 
       - name: Post to Slack
         if: ${{ always() }}
