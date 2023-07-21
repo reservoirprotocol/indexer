@@ -1,6 +1,7 @@
 import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { ridb } from "@/common/db";
+import { elasticsearch } from "@/common/elasticsearch";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
@@ -10,6 +11,8 @@ import { backfillAskActivitiesElasticsearchJob } from "@/jobs/activities/backfil
 import { backfillAskCancelActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-ask-cancel-activities-elasticsearch-job";
 import { backfillBidActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-bid-activities-elasticsearch-job";
 import { backfillBidCancelActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-bid-cancel-activities-elasticsearch-job";
+
+import * as CONFIG from "@/elasticsearch/indexes/activities/config";
 
 export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-activities-elasticsearch-queue";
@@ -28,7 +31,28 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
       })
     );
 
-    const { indexName, keepGoing } = payload;
+    const { createIndex, indexName, indexConfig, keepGoing } = payload;
+
+    if (createIndex) {
+      const params = {
+        index: indexName,
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        ...CONFIG[indexConfig!],
+      };
+
+      const createIndexResponse = await elasticsearch.indices.create(params);
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "backfill-activities",
+          message: "Index Created!",
+          params,
+          createIndexResponse,
+        })
+      );
+    }
 
     const promises = [];
 
@@ -232,6 +256,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
   }
 
   public async addToQueue(
+    createIndex = false,
     indexName = undefined,
     keepGoing = false,
     backfillTransferActivities = true,
@@ -246,6 +271,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
     }
     await this.send({
       payload: {
+        createIndex,
         indexName,
         keepGoing,
         backfillTransferActivities,
@@ -262,7 +288,9 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
 export const backfillActivitiesElasticsearchJob = new BackfillActivitiesElasticsearchJob();
 
 export type BackfillActivitiesElasticsearchJobPayload = {
+  createIndex?: boolean;
   indexName?: string;
+  indexConfig?: string;
   keepGoing?: boolean;
   backfillTransferActivities?: boolean;
   backfillSaleActivities?: boolean;

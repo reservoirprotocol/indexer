@@ -11,12 +11,12 @@ import {
   ActivityType,
   CollectionAggregation,
 } from "@/elasticsearch/indexes/activities/base";
-import { getNetworkName, getNetworkSettings } from "@/config/network";
+import { getNetworkName } from "@/config/network";
 import _ from "lodash";
 import { buildContinuation, splitContinuation } from "@/common/utils";
-import { addToQueue as backfillActivitiesAddToQueue } from "@/jobs/activities/backfill/backfill-activities-elasticsearch";
+import { backfillActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-activities-elasticsearch-job";
 
-import { MAPPINGS_1684691017 as MAPPINGS } from "@/elasticsearch/indexes/activities/mappings";
+import { CONFIG_DEFAULT } from "@/elasticsearch/indexes/activities/config";
 
 const INDEX_NAME = `${getNetworkName()}.activities`;
 
@@ -636,7 +636,7 @@ export const initIndex = async (): Promise<void> => {
 
       const putMappingResponse = await elasticsearch.indices.putMapping({
         index: indexName,
-        properties: MAPPINGS.properties,
+        properties: CONFIG_DEFAULT.mappings.properties,
       });
 
       logger.info(
@@ -645,7 +645,7 @@ export const initIndex = async (): Promise<void> => {
           topic: "initIndex",
           message: "Updated mappings.",
           indexName: INDEX_NAME,
-          mappings: MAPPINGS.properties,
+          mappings: CONFIG_DEFAULT.mappings.properties,
           putMappingResponse,
         })
       );
@@ -664,17 +664,7 @@ export const initIndex = async (): Promise<void> => {
           [INDEX_NAME]: {},
         },
         index: `${INDEX_NAME}-${Date.now()}`,
-        mappings: MAPPINGS,
-        settings: {
-          number_of_shards:
-            getNetworkSettings().elasticsearch?.indexes?.activities?.numberOfShards ||
-            getNetworkSettings().elasticsearch?.numberOfShards ||
-            1,
-          sort: {
-            field: ["timestamp", "createdAt"],
-            order: ["desc", "desc"],
-          },
-        },
+        ...CONFIG_DEFAULT,
       };
 
       const createIndexResponse = await elasticsearch.indices.create(params);
@@ -690,7 +680,7 @@ export const initIndex = async (): Promise<void> => {
         })
       );
 
-      await backfillActivitiesAddToQueue(false);
+      await backfillActivitiesElasticsearchJob.addToQueue();
     }
   } catch (error) {
     logger.error(
