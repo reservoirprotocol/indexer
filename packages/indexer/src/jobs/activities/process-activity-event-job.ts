@@ -148,8 +148,14 @@ export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
     } catch (error) {
       logger.error(
         this.queueName,
-        `failed to generate elastic activity error ${error} data ${JSON.stringify(data)}`
+        JSON.stringify({
+          message: `Error generating activity. kind=${kind}, error=${error}`,
+          error,
+          data,
+        })
       );
+
+      throw error;
     }
 
     if (activity) {
