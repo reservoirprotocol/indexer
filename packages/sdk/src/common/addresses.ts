@@ -22,7 +22,6 @@ export const Eth: ChainIdToAddress = {
   [Network.Avalanche]: AddressZero,
   [Network.Base]: AddressZero,
   [Network.Linea]: AddressZero,
-
 };
 
 export const Weth: ChainIdToAddress = {
