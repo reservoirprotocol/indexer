@@ -29,6 +29,9 @@ export class BackfillSaleActivitiesElasticsearchJob extends AbstractRabbitMqJobH
     const keepGoing = payload.keepGoing;
     const limit = Number((await redis.get(`${this.queueName}-limit`)) || 500);
 
+    const fromTimestampISO = new Date(fromTimestamp * 1000).toISOString();
+    const toTimestampISO = new Date(toTimestamp * 1000).toISOString();
+
     if (!cursor) {
       logger.info(
         this.queueName,
@@ -97,11 +100,9 @@ export class BackfillSaleActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           this.queueName,
           JSON.stringify({
             topic: "backfill-activities",
-            message: `Backfilled ${results.length} activities. fromTimestamp=${new Date(
-              fromTimestamp
-            ).toISOString()}, toTimestamp=${new Date(
-              toTimestamp
-            ).toISOString()}, lastResultTimestamp=${new Date(
+            message: `Backfilled ${
+              results.length
+            } activities. fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, lastResultTimestamp=${new Date(
               lastResult.event_timestamp * 1000
             ).toISOString()}`,
             fromTimestamp,
@@ -132,9 +133,7 @@ export class BackfillSaleActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           this.queueName,
           JSON.stringify({
             topic: "backfill-activities",
-            message: `End. fromTimestamp=${new Date(
-              fromTimestamp
-            ).toISOString()}, toTimestamp=${new Date(toTimestamp).toISOString()}`,
+            message: `End. fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}`,
             fromTimestamp,
             toTimestamp,
             cursor,
@@ -148,9 +147,7 @@ export class BackfillSaleActivitiesElasticsearchJob extends AbstractRabbitMqJobH
         this.queueName,
         JSON.stringify({
           topic: "backfill-activities",
-          message: `Error. fromTimestamp=${new Date(
-            fromTimestamp
-          ).toISOString()}, toTimestamp=${new Date(toTimestamp).toISOString()}, error=${error}`,
+          message: `Error. fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, error=${error}`,
           fromTimestamp,
           toTimestamp,
           cursor,
