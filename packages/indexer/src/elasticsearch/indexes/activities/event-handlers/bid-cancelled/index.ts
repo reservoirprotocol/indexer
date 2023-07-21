@@ -67,7 +67,7 @@ export class BidCancelledEventHandler extends BidCreatedEventHandler {
                         cancel_events.tx_hash AS "event_tx_hash",
                         cancel_events.log_index AS "event_log_index",
                         cancel_events.block_hash AS "event_block_hash",
-                        extract(epoch from cancel_events.created_at) AS "created_ts",
+                        extract(epoch from cancel_events.created_at) AS "created_ts"
                     FROM cancel_events WHERE cancel_events.order_id = orders.id
                     LIMIT 1
                  ) x ON TRUE`;

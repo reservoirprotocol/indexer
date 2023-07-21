@@ -24,7 +24,8 @@ export abstract class KafkaEventHandler {
           this.handleUpdate(payload, offset);
           break;
         case "d":
-          this.handleDelete();
+          this.convertPayloadHexToString(payload);
+          this.handleDelete(payload, offset);
           break;
         default:
           logger.error(
@@ -98,5 +99,5 @@ export abstract class KafkaEventHandler {
 
   protected abstract handleInsert(payload: any, offset: string): Promise<void>;
   protected abstract handleUpdate(payload: any, offset: string): Promise<void>;
-  protected abstract handleDelete(): Promise<void>;
+  protected abstract handleDelete(payload: any, offset: string): Promise<void>;
 }

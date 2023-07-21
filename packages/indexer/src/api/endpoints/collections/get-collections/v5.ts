@@ -262,7 +262,7 @@ export const getCollectionsV5Options: RouteOptions = {
               stage: Joi.string().required(),
               tokenId: Joi.string().pattern(regex.number).allow(null),
               kind: Joi.string().required(),
-              price: JoiPrice.required(),
+              price: JoiPrice.allow(null),
               startTime: Joi.number().allow(null),
               endTime: Joi.number().allow(null),
               maxMintsPerWallet: Joi.number().unsafe().allow(null),
@@ -811,7 +811,9 @@ export const getCollectionsV5Options: RouteOptions = {
                     stage: m.stage,
                     tokenId: m.tokenId,
                     kind: m.kind,
-                    price: await getJoiPriceObject({ gross: { amount: m.price } }, m.currency),
+                    price: m.price
+                      ? await getJoiPriceObject({ gross: { amount: m.price } }, m.currency)
+                      : m.price,
                     startTime: m.startTime,
                     endTime: m.endTime,
                     maxMintsPerWallet: m.maxMintsPerWallet,
