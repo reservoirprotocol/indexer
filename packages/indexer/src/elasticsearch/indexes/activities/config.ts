@@ -93,6 +93,7 @@ export const CONFIG_DEFAULT = {
       getNetworkSettings().elasticsearch?.indexes?.activities?.numberOfShards ||
       getNetworkSettings().elasticsearch?.numberOfShards ||
       1,
+    number_of_replicas: 0,
     sort: {
       field: ["timestamp", "createdAt"],
       order: ["desc", "desc"],
@@ -192,6 +193,7 @@ export const CONFIG_1689873821 = {
       getNetworkSettings().elasticsearch?.indexes?.activities?.numberOfShards ||
       getNetworkSettings().elasticsearch?.numberOfShards ||
       1,
+    number_of_replicas: 0,
     sort: {
       field: ["timestamp"],
       order: ["desc"],

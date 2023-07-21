@@ -16,7 +16,7 @@ import { AskCancelledEventHandler } from "@/elasticsearch/indexes/activities/eve
 export class BackfillAskCancelActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-ask-cancel-activities-elasticsearch-queue";
   maxRetries = 10;
-  concurrency = 1;
+  concurrency = 5;
   persistent = true;
   lazyMode = true;
 
@@ -105,6 +105,19 @@ export class BackfillAskCancelActivitiesElasticsearchJob extends AbstractRabbitM
           keepGoing
         );
       } else if (keepGoing) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "backfill-activities",
+            message: `No new activities.`,
+            fromTimestamp,
+            toTimestamp,
+            cursor,
+            indexName,
+            keepGoing,
+          })
+        );
+
         await this.addToQueue(cursor, fromTimestamp, toTimestamp, indexName, keepGoing);
       } else {
         logger.info(

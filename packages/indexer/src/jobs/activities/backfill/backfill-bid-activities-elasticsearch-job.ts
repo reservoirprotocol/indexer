@@ -16,7 +16,7 @@ import { BidCreatedEventHandler } from "@/elasticsearch/indexes/activities/event
 export class BackfillBidActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-bid-activities-elasticsearch-queue";
   maxRetries = 10;
-  concurrency = 1;
+  concurrency = 5;
   persistent = true;
   lazyMode = true;
 
@@ -104,6 +104,19 @@ export class BackfillBidActivitiesElasticsearchJob extends AbstractRabbitMqJobHa
           keepGoing
         );
       } else if (keepGoing) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "backfill-activities",
+            message: `No new activities.`,
+            fromTimestamp,
+            toTimestamp,
+            cursor,
+            indexName,
+            keepGoing,
+          })
+        );
+
         await this.addToQueue(cursor, fromTimestamp, toTimestamp, indexName, keepGoing);
       } else {
         logger.info(
