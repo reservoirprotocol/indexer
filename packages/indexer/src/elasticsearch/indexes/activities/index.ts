@@ -2,11 +2,7 @@
 
 import { elasticsearch } from "@/common/elasticsearch";
 
-import {
-  MappingTypeMapping,
-  QueryDslQueryContainer,
-  Sort,
-} from "@elastic/elasticsearch/lib/api/types";
+import { QueryDslQueryContainer, Sort } from "@elastic/elasticsearch/lib/api/types";
 import { SortResults } from "@elastic/elasticsearch/lib/api/typesWithBodyKey";
 import { logger } from "@/common/logger";
 import { CollectionsEntity } from "@/models/collections/collections-entity";
@@ -20,94 +16,9 @@ import _ from "lodash";
 import { buildContinuation, splitContinuation } from "@/common/utils";
 import { addToQueue as backfillActivitiesAddToQueue } from "@/jobs/activities/backfill/backfill-activities-elasticsearch";
 
-const INDEX_NAME = `${getNetworkName()}.activities`;
+import { MAPPINGS_1684691017 as MAPPINGS } from "@/elasticsearch/indexes/activities/mappings";
 
-const MAPPINGS: MappingTypeMapping = {
-  dynamic: "false",
-  properties: {
-    id: { type: "keyword" },
-    createdAt: { type: "date" },
-    indexedAt: { type: "date" },
-    type: { type: "keyword" },
-    timestamp: { type: "float" },
-    contract: { type: "keyword" },
-    fromAddress: { type: "keyword" },
-    toAddress: { type: "keyword" },
-    amount: { type: "keyword" },
-    token: {
-      properties: {
-        id: { type: "keyword" },
-        name: { type: "keyword" },
-        image: { type: "keyword" },
-        media: { type: "keyword" },
-      },
-    },
-    collection: {
-      properties: {
-        id: { type: "keyword" },
-        name: { type: "keyword" },
-        image: { type: "keyword" },
-      },
-    },
-    order: {
-      properties: {
-        id: { type: "keyword" },
-        side: { type: "keyword" },
-        sourceId: { type: "integer" },
-        criteria: {
-          properties: {
-            kind: { type: "keyword" },
-            data: {
-              properties: {
-                token: {
-                  properties: {
-                    tokenId: { type: "keyword" },
-                  },
-                },
-                collection: {
-                  properties: {
-                    id: { type: "keyword" },
-                  },
-                },
-                attribute: {
-                  properties: {
-                    key: { type: "keyword" },
-                    value: { type: "keyword" },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-    event: {
-      properties: {
-        timestamp: { type: "float" },
-        txHash: { type: "keyword" },
-        logIndex: { type: "integer" },
-        batchIndex: { type: "integer" },
-        blockHash: { type: "keyword" },
-      },
-    },
-    pricing: {
-      properties: {
-        price: { type: "keyword" },
-        priceDecimal: { type: "double" },
-        currencyPrice: { type: "keyword" },
-        usdPrice: { type: "keyword" },
-        feeBps: { type: "integer" },
-        currency: { type: "keyword" },
-        value: { type: "keyword" },
-        valueDecimal: { type: "double" },
-        currencyValue: { type: "keyword" },
-        normalizedValue: { type: "keyword" },
-        normalizedValueDecimal: { type: "double" },
-        currencyNormalizedValue: { type: "keyword" },
-      },
-    },
-  },
-};
+const INDEX_NAME = `${getNetworkName()}.activities`;
 
 export const save = async (activities: ActivityDocument[], upsert = true): Promise<void> => {
   try {
