@@ -63,6 +63,9 @@ export const getNetworkName = () => {
     case 8453:
       return "base";
 
+    case 59144:
+      return "linea";
+
     default:
       return "unknown";
   }
@@ -1075,6 +1078,39 @@ export const getNetworkSettings = (): NetworkSettings => {
                   'ETH',
                   18,
                   '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // Linea
+    case 59144: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        subDomain: "api-linea",
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "wrapped-ether-linea", "image": "https://assets.coingecko.com/coins/images/31019/large/download_%2817%29.png"}'
                 ) ON CONFLICT DO NOTHING
               `
             ),

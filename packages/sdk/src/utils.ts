@@ -119,6 +119,7 @@ export enum Network {
   BaseGoerli = 84531,
   ScrollAlpha = 534353,
   EthereumSepolia = 11155111,
+  Linea = 59144,
 }
 
 export type ChainIdToAddress = { [chainId: number]: string };

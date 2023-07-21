@@ -386,7 +386,14 @@ jobs:
             ./prod/platform/indexer-worker-zora-testnet-master.yaml \
             ${{ github.sha }} \
             indexer-worker-zora-testnet-master
-
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-api-linea.yaml \
+            ${{ github.sha }} \
+            indexer-api-linea
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-linea.yaml \
+            ${{ github.sha }} \
+            indexer-worker-linea
       - name: Post to Slack
         if: ${{ always() }}
         id: slack-deploy-prod
