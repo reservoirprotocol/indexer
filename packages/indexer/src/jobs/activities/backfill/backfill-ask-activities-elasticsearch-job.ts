@@ -16,7 +16,7 @@ import { AskCreatedEventHandler } from "@/elasticsearch/indexes/activities/event
 export class BackfillAskActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-ask-activities-elasticsearch-queue";
   maxRetries = 10;
-  concurrency = 5;
+  concurrency = 1;
   persistent = true;
   lazyMode = true;
 

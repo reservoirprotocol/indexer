@@ -76,11 +76,22 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           undefined,
           fromTimestamp,
           toTimestamp,
-          indexName,
-          keepGoing
+          indexName
         );
 
         loop = new Date(newDate);
+      }
+
+      if (keepGoing) {
+        const fromTimestamp = Math.floor(end.getTime() / 1000);
+
+        await backfillTransferActivitiesElasticsearchJob.addToQueue(
+          undefined,
+          fromTimestamp,
+          undefined,
+          indexName,
+          true
+        );
       }
     };
 
@@ -104,11 +115,22 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           undefined,
           fromTimestamp,
           toTimestamp,
-          indexName,
-          keepGoing
+          indexName
         );
 
         loop = new Date(newDate);
+      }
+
+      if (keepGoing) {
+        const fromTimestamp = Math.floor(end.getTime() / 1000);
+
+        await backfillSaleActivitiesElasticsearchJob.addToQueue(
+          undefined,
+          fromTimestamp,
+          undefined,
+          indexName,
+          true
+        );
       }
     };
 
@@ -132,11 +154,22 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           undefined,
           fromTimestamp,
           toTimestamp,
-          indexName,
-          keepGoing
+          indexName
         );
 
         loop = new Date(newDate);
+      }
+
+      if (keepGoing) {
+        const fromTimestamp = Math.floor(end.getTime() / 1000);
+
+        await backfillAskActivitiesElasticsearchJob.addToQueue(
+          undefined,
+          fromTimestamp,
+          undefined,
+          indexName,
+          true
+        );
       }
     };
 
@@ -160,11 +193,22 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           undefined,
           fromTimestamp,
           toTimestamp,
-          indexName,
-          keepGoing
+          indexName
         );
 
         loop = new Date(newDate);
+      }
+
+      if (keepGoing) {
+        const fromTimestamp = Math.floor(end.getTime() / 1000);
+
+        await backfillAskCancelActivitiesElasticsearchJob.addToQueue(
+          undefined,
+          fromTimestamp,
+          undefined,
+          indexName,
+          true
+        );
       }
     };
 
@@ -188,11 +232,22 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           undefined,
           fromTimestamp,
           toTimestamp,
-          indexName,
-          keepGoing
+          indexName
         );
 
         loop = new Date(newDate);
+      }
+
+      if (keepGoing) {
+        const fromTimestamp = Math.floor(end.getTime() / 1000);
+
+        await backfillBidActivitiesElasticsearchJob.addToQueue(
+          undefined,
+          fromTimestamp,
+          undefined,
+          indexName,
+          true
+        );
       }
     };
 
@@ -216,11 +271,22 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           undefined,
           fromTimestamp,
           toTimestamp,
-          indexName,
-          keepGoing
+          indexName
         );
 
         loop = new Date(newDate);
+      }
+
+      if (keepGoing) {
+        const fromTimestamp = Math.floor(end.getTime() / 1000);
+
+        await backfillBidCancelActivitiesElasticsearchJob.addToQueue(
+          undefined,
+          fromTimestamp,
+          undefined,
+          indexName,
+          true
+        );
       }
     };
 

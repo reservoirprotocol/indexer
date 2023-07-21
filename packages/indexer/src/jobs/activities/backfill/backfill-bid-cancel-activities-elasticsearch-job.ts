@@ -16,7 +16,7 @@ import { BidCancelledEventHandler } from "@/elasticsearch/indexes/activities/eve
 export class BackfillBidCancelActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-bid-cancel-activities-elasticsearch-queue";
   maxRetries = 10;
-  concurrency = 5;
+  concurrency = 1;
   persistent = true;
   lazyMode = true;
 

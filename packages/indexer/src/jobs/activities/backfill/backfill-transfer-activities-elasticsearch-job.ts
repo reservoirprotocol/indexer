@@ -17,7 +17,7 @@ import { NftTransferEventCreatedEventHandler } from "@/elasticsearch/indexes/act
 export class BackfillTransferActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-transfer-activities-elasticsearch-queue";
   maxRetries = 10;
-  concurrency = 5;
+  concurrency = 1;
   persistent = true;
   lazyMode = true;
 

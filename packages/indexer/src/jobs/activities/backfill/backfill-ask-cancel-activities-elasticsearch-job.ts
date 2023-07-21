@@ -16,7 +16,7 @@ import { AskCancelledEventHandler } from "@/elasticsearch/indexes/activities/eve
 export class BackfillAskCancelActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-ask-cancel-activities-elasticsearch-queue";
   maxRetries = 10;
-  concurrency = 5;
+  concurrency = 1;
   persistent = true;
   lazyMode = true;
 
