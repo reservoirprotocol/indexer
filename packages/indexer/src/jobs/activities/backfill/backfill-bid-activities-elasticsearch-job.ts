@@ -28,21 +28,6 @@ export class BackfillBidActivitiesElasticsearchJob extends AbstractRabbitMqJobHa
     const keepGoing = payload.keepGoing;
     const limit = Number((await redis.get(`${this.queueName}-limit`)) || 500);
 
-    if (!cursor) {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "backfill-activities",
-          message: `Start.`,
-          fromTimestamp,
-          toTimestamp,
-          cursor,
-          indexName,
-          keepGoing,
-        })
-      );
-    }
-
     try {
       let continuationFilter = "";
 
@@ -97,7 +82,13 @@ export class BackfillBidActivitiesElasticsearchJob extends AbstractRabbitMqJobHa
           this.queueName,
           JSON.stringify({
             topic: "backfill-activities",
-            message: `Backfilled ${results.length} activities.`,
+            message: `Backfilled ${results.length} activities. fromTimestamp=${new Date(
+              fromTimestamp
+            ).toISOString()}, toTimestamp=${new Date(
+              toTimestamp
+            ).toISOString()}, lastResultTimestamp=${new Date(
+              lastResult.updated_ts * 1000
+            ).toISOString()}`,
             fromTimestamp,
             toTimestamp,
             cursor,
@@ -118,26 +109,15 @@ export class BackfillBidActivitiesElasticsearchJob extends AbstractRabbitMqJobHa
           keepGoing
         );
       } else if (keepGoing) {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "backfill-activities",
-            message: `No new activities.`,
-            fromTimestamp,
-            toTimestamp,
-            cursor,
-            indexName,
-            keepGoing,
-          })
-        );
-
         await this.addToQueue(cursor, fromTimestamp, toTimestamp, indexName, keepGoing);
       } else {
         logger.info(
           this.queueName,
           JSON.stringify({
             topic: "backfill-activities",
-            message: `End.`,
+            message: `End. fromTimestamp=${new Date(
+              fromTimestamp
+            ).toISOString()}, toTimestamp=${new Date(toTimestamp).toISOString()}`,
             fromTimestamp,
             toTimestamp,
             cursor,
@@ -149,10 +129,20 @@ export class BackfillBidActivitiesElasticsearchJob extends AbstractRabbitMqJobHa
     } catch (error) {
       logger.error(
         this.queueName,
-        `Backfill error. limit=${limit}, cursor=${JSON.stringify(cursor)}, error=${JSON.stringify(
-          error
-        )}`
+        JSON.stringify({
+          topic: "backfill-activities",
+          message: `Error. fromTimestamp=${new Date(
+            fromTimestamp
+          ).toISOString()}, toTimestamp=${new Date(toTimestamp).toISOString()}, error=${error}`,
+          fromTimestamp,
+          toTimestamp,
+          cursor,
+          indexName,
+          keepGoing,
+        })
       );
+
+      throw error;
     }
   }
 
