@@ -116,7 +116,7 @@ export const setupRaribleListings = async (listings: RaribleListing[]) => {
       dataType: ORDER_DATA_TYPES.V3_SELL,
       tokenAmount: listing.nft.amount,
       tokenId: nft.id.toString(),
-      paymentToken: paymentToken ?? Sdk.Common.Addresses.Eth[chainId],
+      paymentToken: paymentToken ?? Sdk.Common.Addresses.Native[chainId],
       startTime: await getCurrentTimestamp(ethers.provider),
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
       payouts: [
@@ -150,7 +150,7 @@ export const setupRaribleOffers = async (offers: RaribleListing[]) => {
   for (const offer of offers) {
     const { maker, nft, price } = offer;
 
-    const weth = new Sdk.Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Sdk.Common.Helpers.WNative(ethers.provider, chainId);
     await weth.deposit(maker, price);
     await weth.approve(maker, Sdk.Rarible.Addresses.ERC20TransferProxy[chainId]);
 

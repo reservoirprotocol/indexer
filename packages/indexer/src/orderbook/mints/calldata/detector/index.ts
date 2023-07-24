@@ -6,17 +6,20 @@ import { redis } from "@/common/redis";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { getNetworkSettings } from "@/config/network";
 import { fetchTransaction } from "@/events-sync/utils";
+import { mintsCheckJob } from "@/jobs/mints/mints-check-job";
+import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
 import { Sources } from "@/models/sources";
 
+import * as decent from "@/orderbook/mints/calldata/detector/decent";
+import * as foundation from "@/orderbook/mints/calldata/detector/foundation";
 import * as generic from "@/orderbook/mints/calldata/detector/generic";
 import * as manifold from "@/orderbook/mints/calldata/detector/manifold";
 import * as seadrop from "@/orderbook/mints/calldata/detector/seadrop";
 import * as thirdweb from "@/orderbook/mints/calldata/detector/thirdweb";
 import * as zora from "@/orderbook/mints/calldata/detector/zora";
-import * as decent from "@/orderbook/mints/calldata/detector/decent";
-import { mintsCheckJob } from "@/jobs/mints/mints-check-job";
+import { getCollectionMints } from "@/orderbook/mints";
 
-export { generic, manifold, seadrop, thirdweb, zora };
+export { decent, foundation, generic, manifold, seadrop, thirdweb, zora };
 
 export const extractByTx = async (txHash: string, skipCache = false) => {
   // Fetch all transfers associated to the transaction
@@ -85,7 +88,15 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
     return [];
   }
 
-  await mintsCheckJob.addToQueue({ collection });
+  await mintsCheckJob.addToQueue({ collection }, 10 * 60);
+
+  // If there are any open collection mints trigger a refresh with a delay
+  const hasOpenMints = await getCollectionMints(collection, { status: "open" }).then(
+    (mints) => mints.length > 0
+  );
+  if (hasOpenMints) {
+    await mintsRefreshJob.addToQueue({ collection }, 10 * 60);
+  }
 
   // For performance reasons, do at most one attempt per collection per 5 minutes
   if (!skipCache) {
@@ -144,8 +155,14 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
     return decentResults;
   }
 
+  // Foundation
+  const foundationResults = await foundation.extractByTx(collection, tx);
+  if (foundationResults.length) {
+    return foundationResults;
+  }
+
   // Manifold
-  const manifoldResults = await manifold.extractByTx(collection, tokenIds[0], tx);
+  const manifoldResults = await manifold.extractByTx(collection, tx);
   if (manifoldResults.length) {
     return manifoldResults;
   }

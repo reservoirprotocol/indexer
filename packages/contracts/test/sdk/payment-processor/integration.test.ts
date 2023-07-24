@@ -48,7 +48,7 @@ describe("PaymentProcessor - Indexer Integration Test", () => {
 
     const price = parseEther("1");
     const boughtTokenId = Math.floor(Math.random() * 100000);
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -87,7 +87,7 @@ describe("PaymentProcessor - Indexer Integration Test", () => {
       amount: "1",
       price: price,
       expiration: (blockTime + 86400 * 30).toString(),
-      coin: Common.Addresses.Weth[chainId],
+      coin: Common.Addresses.WNative[chainId],
       masterNonce: buyerMasterNonce,
     };
 
@@ -114,7 +114,7 @@ describe("PaymentProcessor - Indexer Integration Test", () => {
         amount: "1",
         price: price,
         expiration: (blockTime + 86400 * 30).toString(),
-        coin: Common.Addresses.Eth[chainId],
+        coin: Common.Addresses.Native[chainId],
         masterNonce: sellerMasterNonce,
       };
       order = builder.build(listingParams);
@@ -240,8 +240,8 @@ describe("PaymentProcessor - Indexer Integration Test", () => {
     console.log({
       isListing,
       seller: seller.address,
-      buyer: buyer.address
-    })
+      buyer: buyer.address,
+    });
 
     await order.checkFillability(ethers.provider);
 

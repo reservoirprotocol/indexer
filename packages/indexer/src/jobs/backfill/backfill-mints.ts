@@ -134,7 +134,7 @@ if (config.doBackgroundWork) {
             }
 
             const price = bn(tx.value).div(totalAmount).toString();
-            const currency = Sdk.Common.Addresses.Eth[config.chainId];
+            const currency = Sdk.Common.Addresses.Native[config.chainId];
 
             for (const mint of mints) {
               // Handle: attribution

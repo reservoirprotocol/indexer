@@ -6,7 +6,6 @@ export const OpenseaConduitKey: ChainIdToAddress = {
   [Network.EthereumSepolia]: "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000",
   [Network.Bsc]: "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000",
   [Network.Optimism]: "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000",
-  [Network.Gnosis]: "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000",
   [Network.Polygon]: "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000",
   [Network.Arbitrum]: "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000",
   [Network.ArbitrumNova]: "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000",
@@ -19,7 +18,6 @@ export const ReservoirConduitKey: ChainIdToAddress = {
   [Network.EthereumSepolia]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.Bsc]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.Optimism]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
-  [Network.Gnosis]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.Polygon]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.Mumbai]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.Arbitrum]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
@@ -28,13 +26,13 @@ export const ReservoirConduitKey: ChainIdToAddress = {
   [Network.LineaTestnet]: "0x7e727520b29773e7f23a8665649197aaf064cef1000000000000000000000000",
   [Network.Zora]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.Base]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
+  [Network.Linea]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
 };
 
 export const ConduitController: ChainIdToAddress = {
   [Network.Ethereum]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Bsc]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Optimism]: "0x00000000f9490004c11cef243f5400493c00ad63",
-  [Network.Gnosis]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Polygon]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Arbitrum]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.EthereumGoerli]: "0x00000000f9490004c11cef243f5400493c00ad63",
@@ -49,6 +47,7 @@ export const ConduitController: ChainIdToAddress = {
   [Network.Zora]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Avalanche]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Base]: "0x00000000f9490004c11cef243f5400493c00ad63",
+  [Network.Linea]: "0x00000000f9490004c11cef243f5400493c00ad63",
 };
 
 // https://github.com/ProjectOpenSea/seaport/blob/0a8e82ce7262b5ce0e67fa98a2131fd4c47c84e9/contracts/conduit/ConduitController.sol#L493
@@ -58,7 +57,6 @@ export const ConduitControllerCodeHash: ChainIdToAddress = {
   [Network.EthereumSepolia]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.Bsc]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.Optimism]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
-  [Network.Gnosis]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.Polygon]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.ArbitrumNova]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.Arbitrum]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
@@ -71,6 +69,7 @@ export const ConduitControllerCodeHash: ChainIdToAddress = {
   [Network.Zora]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.Avalanche]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.Base]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
+  [Network.Linea]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
 };
 
 export const OperatorFilterRegistry: ChainIdToAddress = {
@@ -78,7 +77,6 @@ export const OperatorFilterRegistry: ChainIdToAddress = {
   [Network.EthereumGoerli]: "0x000000000000aaeb6d7670e522a718067333cd4e",
   [Network.Bsc]: "0x000000000000aaeb6d7670e522a718067333cd4e",
   [Network.Optimism]: "0x000000000000aaeb6d7670e522a718067333cd4e",
-  [Network.Gnosis]: "0x000000000000aaeb6d7670e522a718067333cd4e",
   [Network.Polygon]: "0x000000000000aaeb6d7670e522a718067333cd4e",
   [Network.Arbitrum]: "0x000000000000aaeb6d7670e522a718067333cd4e",
 };
@@ -90,7 +88,6 @@ export const OpenSeaProtectedOffersZone: ChainIdToAddress = {
   [Network.EthereumGoerli]: "0x000000e7ec00e7b300774b00001314b8610022b8",
   [Network.Bsc]: "0x000000e7ec00e7b300774b00001314b8610022b8",
   [Network.Optimism]: "0x000000e7ec00e7b300774b00001314b8610022b8",
-  [Network.Gnosis]: "0x000000e7ec00e7b300774b00001314b8610022b8",
   [Network.Polygon]: "0x000000e7ec00e7b300774b00001314b8610022b8",
   [Network.Arbitrum]: "0x000000e7ec00e7b300774b00001314b8610022b8",
 };

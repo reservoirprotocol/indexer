@@ -70,7 +70,7 @@ export const getExecuteBuyV5Options: RouteOptions = {
       ),
       currency: Joi.string()
         .pattern(regex.address)
-        .default(Sdk.Common.Addresses.Eth[config.chainId]),
+        .default(Sdk.Common.Addresses.Native[config.chainId]),
       normalizeRoyalties: Joi.boolean().default(true),
       preferredOrderSource: Joi.string()
         .lowercase()
@@ -573,7 +573,7 @@ export const getExecuteBuyV5Options: RouteOptions = {
 
         // Check that the taker has enough funds to fill all requested tokens
         const totalPrice = subPath.map(({ rawQuote }) => bn(rawQuote)).reduce((a, b) => a.add(b));
-        if (payload.currency === Sdk.Common.Addresses.Eth[config.chainId]) {
+        if (payload.currency === Sdk.Common.Addresses.Native[config.chainId]) {
           const balance = await baseProvider.getBalance(payload.taker);
           if (!payload.skipBalanceCheck && bn(balance).lt(totalPrice)) {
             throw Boom.badData("Balance too low to proceed with transaction");

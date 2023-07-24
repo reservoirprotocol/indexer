@@ -80,9 +80,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      // Check: buy order has Weth as payment token
+      // Check: buy order has WNative as payment token
       const side = order.side() === "buy" ? "buy" : "sell";
-      if (side === "buy" && order.erc20Token() !== Sdk.Common.Addresses.Weth[config.chainId]) {
+      if (side === "buy" && order.erc20Token() !== Sdk.Common.Addresses.WNative[config.chainId]) {
         return results.push({
           id,
           status: "unsupported-payment-token",
@@ -90,7 +90,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       }
 
       // Check: sell order has Eth as payment token
-      if (side === "sell" && order.erc20Token() !== Sdk.Common.Addresses.Eth[config.chainId]) {
+      if (side === "sell" && order.erc20Token() !== Sdk.Common.Addresses.Native[config.chainId]) {
         return results.push({
           id,
           status: "unsupported-payment-token",

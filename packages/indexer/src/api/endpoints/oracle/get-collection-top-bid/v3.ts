@@ -270,9 +270,9 @@ export const getCollectionTopBidOracleV3Options: RouteOptions = {
         );
       }
 
-      if (Object.values(Sdk.Common.Addresses.Eth).includes(query.currency)) {
+      if (Object.values(Sdk.Common.Addresses.Native).includes(query.currency)) {
         // ETH: do nothing
-      } else if (Object.values(Sdk.Common.Addresses.Weth).includes(query.currency)) {
+      } else if (Object.values(Sdk.Common.Addresses.WNative).includes(query.currency)) {
         // WETH: do nothing
       } else if (Object.values(Sdk.Common.Addresses.Usdc).includes(query.currency)) {
         // USDC: convert price to USDC

@@ -15,7 +15,7 @@ import { getMaxSupply, getStatus, toSafeTimestamp } from "@/orderbook/mints/call
 
 const STANDARD = "seadrop-v1.0";
 
-export const extractByCollection = async (collection: string): Promise<CollectionMint[]> => {
+export const extractByCollectionERC721 = async (collection: string): Promise<CollectionMint[]> => {
   const c = new Contract(
     Sdk.Seadrop.Addresses.Seadrop[config.chainId],
     new Interface([
@@ -86,7 +86,7 @@ export const extractByCollection = async (collection: string): Promise<Collectio
               },
             },
           },
-          currency: Sdk.Common.Addresses.Eth[config.chainId],
+          currency: Sdk.Common.Addresses.Native[config.chainId],
           price: drop.mintPrice.toString(),
           maxMintsPerWallet: String(drop.maxTotalMintableByWallet),
           maxSupply: await getMaxSupply(collection),
@@ -121,7 +121,7 @@ export const extractByTx = async (
       "0x161ac21f", // `mintPublic`
     ].some((bytes4) => tx.data.startsWith(bytes4))
   ) {
-    return extractByCollection(collection);
+    return extractByCollectionERC721(collection);
   }
 
   return [];
@@ -133,7 +133,7 @@ export const refreshByCollection = async (collection: string) => {
   });
 
   // Fetch and save/update the currently available mints
-  const latestCollectionMints = await extractByCollection(collection);
+  const latestCollectionMints = await extractByCollectionERC721(collection);
   for (const collectionMint of latestCollectionMints) {
     await simulateAndUpsertCollectionMint(collectionMint);
   }

@@ -49,8 +49,15 @@ export const getBuildInfo = async (
     Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId] ??
     Sdk.SeaportBase.Addresses.ReservoirConduitKey[config.chainId];
 
+  // LooksRare requires their source in the salt
+  if (options.orderbook === "looks-rare") {
+    options.source = "looksrare.org";
+  }
+
   // Generate the salt
-  let salt = padSourceToSalt(options.salt ?? getRandomBytes(16).toString(), options.source);
+  let salt = bn(
+    padSourceToSalt(options.salt ?? getRandomBytes(16).toString(), options.source)
+  ).toHexString();
 
   // No zone by default
   let zone = AddressZero;
@@ -76,8 +83,8 @@ export const getBuildInfo = async (
     paymentToken: options.currency
       ? options.currency
       : side === "buy"
-      ? Sdk.Common.Addresses.Weth[config.chainId]
-      : Sdk.Common.Addresses.Eth[config.chainId],
+      ? Sdk.Common.Addresses.WNative[config.chainId]
+      : Sdk.Common.Addresses.Native[config.chainId],
     fees: [],
     zone,
     conduitKey,
@@ -92,7 +99,7 @@ export const getBuildInfo = async (
   let totalFees = bn(0);
 
   // Include royalties
-  if (options.automatedRoyalties) {
+  if (options.automatedRoyalties && options.orderbook !== "looks-rare") {
     const royalties: { bps: number; recipient: string }[] =
       (options.orderbook === "opensea"
         ? collectionResult.new_royalties?.opensea
@@ -145,6 +152,10 @@ export const getBuildInfo = async (
       options.fee.push(openseaMarketplaceFee.bps);
       options.feeRecipient.push(openseaMarketplaceFee.recipient);
     }
+  } else if (options.orderbook === "looks-rare") {
+    // Override any fees
+    options.fee = [50];
+    options.feeRecipient = [Sdk.LooksRareV2.Addresses.ProtocolFeeRecipient[config.chainId]];
   }
 
   if (options.fee && options.feeRecipient) {

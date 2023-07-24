@@ -67,18 +67,21 @@ describe("PunksProxy", () => {
 
     const exchange = new Sdk.SeaportV11.Exchange(chainId);
     const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
-    const order = builder.build({
-      side: "sell",
-      tokenKind: "erc721",
-      offerer: alice.address,
-      contract: punksProxy.address,
-      tokenId,
-      paymentToken: Sdk.Common.Addresses.Eth[chainId],
-      price,
-      counter: 0,
-      startTime: await getCurrentTimestamp(ethers.provider),
-      endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-    }, Sdk.SeaportV11.Order);
+    const order = builder.build(
+      {
+        side: "sell",
+        tokenKind: "erc721",
+        offerer: alice.address,
+        contract: punksProxy.address,
+        tokenId,
+        paymentToken: Sdk.Common.Addresses.Native[chainId],
+        price,
+        counter: 0,
+        startTime: await getCurrentTimestamp(ethers.provider),
+        endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
+      },
+      Sdk.SeaportV11.Order
+    );
     await order.sign(alice);
 
     // Checks
@@ -109,24 +112,27 @@ describe("PunksProxy", () => {
       .connect(alice)
       .setApprovalForAll(Sdk.SeaportV11.Addresses.Exchange[chainId], true);
 
-    const weth = new Sdk.Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Sdk.Common.Helpers.WNative(ethers.provider, chainId);
     await weth.deposit(bob, price);
     await weth.approve(bob, Sdk.SeaportV11.Addresses.Exchange[chainId]);
 
     const exchange = new Sdk.SeaportV11.Exchange(chainId);
     const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
-    const order = builder.build({
-      side: "buy",
-      tokenKind: "erc721",
-      offerer: bob.address,
-      contract: punksProxy.address,
-      tokenId,
-      paymentToken: Sdk.Common.Addresses.Weth[chainId],
-      price,
-      counter: 0,
-      startTime: await getCurrentTimestamp(ethers.provider),
-      endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-    }, Sdk.SeaportV11.Order);
+    const order = builder.build(
+      {
+        side: "buy",
+        tokenKind: "erc721",
+        offerer: bob.address,
+        contract: punksProxy.address,
+        tokenId,
+        paymentToken: Sdk.Common.Addresses.WNative[chainId],
+        price,
+        counter: 0,
+        startTime: await getCurrentTimestamp(ethers.provider),
+        endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
+      },
+      Sdk.SeaportV11.Order
+    );
     await order.sign(bob);
 
     // Checks

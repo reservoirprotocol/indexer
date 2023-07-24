@@ -31,7 +31,7 @@ describe("LooksRareV2 - SingleToken Erc721", () => {
     const price = parseEther("1");
     const boughtTokenId = 1;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -62,7 +62,7 @@ describe("LooksRareV2 - SingleToken Erc721", () => {
       collection: erc721.address,
       itemId: boughtTokenId,
       amount: 1,
-      currency: Common.Addresses.Weth[chainId],
+      currency: Common.Addresses.WNative[chainId],
       price,
       globalNonce: await exchange.getGlobalNonce(ethers.provider, buyer.address, "buy"),
       startTime: await getCurrentTimestamp(ethers.provider),
@@ -131,7 +131,7 @@ describe("LooksRareV2 - SingleToken Erc721", () => {
       signer: seller.address,
       collection: erc721.address,
       itemId: soldTokenId,
-      currency: Common.Addresses.Eth[chainId],
+      currency: Common.Addresses.Native[chainId],
       price,
       startTime: await getCurrentTimestamp(ethers.provider),
       globalNonce: await exchange.getGlobalNonce(ethers.provider, buyer.address, "sell"),

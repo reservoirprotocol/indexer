@@ -229,7 +229,7 @@ export const getTokensFloorAskV4Options: RouteOptions = {
 
           const floorAskCurrency = r.currency
             ? fromBuffer(r.currency)
-            : Sdk.Common.Addresses.Eth[config.chainId];
+            : Sdk.Common.Addresses.Native[config.chainId];
 
           let dynamicPricing = undefined;
 

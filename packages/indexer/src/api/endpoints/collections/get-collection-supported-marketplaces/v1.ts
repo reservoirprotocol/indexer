@@ -142,7 +142,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           listingEnabled: false,
           minimumBidExpiry: 15 * 60,
           customFeesSupported: false,
-          supportedBidCurrencies: [Sdk.Common.Addresses.Weth[config.chainId]],
+          supportedBidCurrencies: [Sdk.Common.Addresses.WNative[config.chainId]],
         },
         {
           name: "X2Y2",
@@ -155,7 +155,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           orderKind: "x2y2",
           listingEnabled: false,
           customFeesSupported: false,
-          supportedBidCurrencies: [Sdk.Common.Addresses.Weth[config.chainId]],
+          supportedBidCurrencies: [Sdk.Common.Addresses.WNative[config.chainId]],
         },
       ];
 

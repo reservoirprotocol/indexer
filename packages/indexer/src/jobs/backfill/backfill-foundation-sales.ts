@@ -70,7 +70,7 @@ if (config.doBackgroundWork) {
             const parsedLog = buyPriceAccepted.abi.parseLog(log);
             const protocolFee = parsedLog.args["protocolFee"].toString();
 
-            const currency = Sdk.Common.Addresses.Eth[config.chainId];
+            const currency = Sdk.Common.Addresses.Native[config.chainId];
             // Deduce the price from the protocol fee (which is 5%)
             const currencyPrice = bn(protocolFee).mul(10000).div(500).toString();
             const priceData = await getUSDAndNativePrices(currency, currencyPrice, timestamp);

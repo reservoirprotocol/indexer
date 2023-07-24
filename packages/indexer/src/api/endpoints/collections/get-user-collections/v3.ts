@@ -386,7 +386,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
                 },
                 r.top_buy_currency
                   ? fromBuffer(r.top_buy_currency)
-                  : Sdk.Common.Addresses.Eth[config.chainId],
+                  : Sdk.Common.Addresses.Native[config.chainId],
                 query.displayCurrency
               )
             : undefined;

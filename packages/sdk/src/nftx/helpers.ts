@@ -54,7 +54,7 @@ export const getPoolPrice = async (
 }> => {
   const chainId = await provider.getNetwork().then((n) => n.chainId);
 
-  const weth = Common.Addresses.Weth[chainId];
+  const weth = Common.Addresses.WNative[chainId];
   const sushiRouter = new Contract(
     Addresses.SushiRouter[chainId],
     new Interface([
@@ -114,7 +114,7 @@ export const getPoolPriceFrom0x = async (
   swapCallData: string;
 }> => {
   const chainId = await provider.getNetwork().then((n) => n.chainId);
-  const weth = Common.Addresses.Weth[chainId];
+  const weth = Common.Addresses.WNative[chainId];
   const localAmount = parseEther(amount.toString());
   const fees = await getPoolFees(vault, provider);
 

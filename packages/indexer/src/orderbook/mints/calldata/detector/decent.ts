@@ -27,37 +27,39 @@ import { getStatus, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
 
 const STANDARD = "decent";
 
-export const extractByCollection = async (collection: string): Promise<CollectionMint[]> => {
+export const extractByCollectionERC721 = async (collection: string): Promise<CollectionMint[]> => {
   const results: CollectionMint[] = [];
 
   // DCNT721A / DCNT4907A
   const v6Abi = new Interface([
-    `function MAX_TOKENS() external view returns(uint256)`,
-    `function tokenPrice() external view returns(uint256)`,
-    `function maxTokenPurchase() external view returns(uint256)`,
-    `function saleStart() external view returns(uint256)`,
-    `function saleEnd() external view returns(uint256)`,
-    `function royaltyBPS() external view returns(uint256)`,
-    `function presaleStart() external view returns(uint256)`,
-    `function presaleEnd() external view returns(uint256)`,
-    `function presaleMerkleRoot() external view returns(bytes32)`,
+    `function MAX_TOKENS() external view returns (uint256)`,
+    `function tokenPrice() external view returns (uint256)`,
+    `function maxTokenPurchase() external view returns (uint256)`,
+    `function saleStart() external view returns (uint256)`,
+    `function saleEnd() external view returns (uint256)`,
+    `function royaltyBPS() external view returns (uint256)`,
+    `function presaleStart() external view returns (uint256)`,
+    `function presaleEnd() external view returns (uint256)`,
+    `function presaleMerkleRoot() external view returns (bytes32)`,
   ]);
   const v8Abi = new Interface([
-    `function MAX_TOKENS() external view returns(uint256)`,
-    `function edition() external view returns (
-      bool hasAdjustableCap,
-      bool isSoulbound,
-      uint32 maxTokens,
-      uint32 maxTokenPurchase,
-      uint32 presaleStart,
-      uint32 presaleEnd,
-      uint32 saleStart,
-      uint32 saleEnd,
-      uint16 royaltyBPS,
-      uint96 tokenPrice,
-      address payoutAddress,
-      bytes32 presaleMerkleRoot
-    )`,
+    `function MAX_TOKENS() external view returns (uint256)`,
+    `
+      function edition() external view returns (
+        bool hasAdjustableCap,
+        bool isSoulbound,
+        uint32 maxTokens,
+        uint32 maxTokenPurchase,
+        uint32 presaleStart,
+        uint32 presaleEnd,
+        uint32 saleStart,
+        uint32 saleEnd,
+        uint16 royaltyBPS,
+        uint96 tokenPrice,
+        address payoutAddress,
+        bytes32 presaleMerkleRoot
+      )
+    `,
   ]);
 
   const contract = new Contract(
@@ -155,7 +157,7 @@ export const extractByCollection = async (collection: string): Promise<Collectio
             },
           },
         },
-        currency: Sdk.Common.Addresses.Eth[config.chainId],
+        currency: Sdk.Common.Addresses.Native[config.chainId],
         price: editionConfig.tokenPrice,
         maxMintsPerWallet: editionConfig.maxTokenPurchase,
         maxSupply: editionConfig.maxTokens,
@@ -229,7 +231,7 @@ export const extractByCollection = async (collection: string): Promise<Collectio
               },
             },
           },
-          currency: Sdk.Common.Addresses.Eth[config.chainId],
+          currency: Sdk.Common.Addresses.Native[config.chainId],
           allowlistId: editionConfig.presaleMerkleRoot,
           maxSupply: editionConfig.maxTokens,
           startTime:
@@ -272,7 +274,7 @@ export const extractByTx = async (
       "0x727a612e", // `mintPresale`
     ].some((bytes4) => tx.data.startsWith(bytes4))
   ) {
-    return extractByCollection(collection);
+    return extractByCollectionERC721(collection);
   }
 
   return [];
@@ -281,29 +283,27 @@ export const extractByTx = async (
 export const refreshByCollection = async (collection: string) => {
   const existingCollectionMints = await getCollectionMints(collection, { standard: STANDARD });
 
-  for (const { collection } of existingCollectionMints.filter((cm) => cm.tokenId)) {
-    // Fetch and save/update the currently available mints
-    const latestCollectionMints = await extractByCollection(collection);
-    for (const collectionMint of latestCollectionMints) {
-      await simulateAndUpsertCollectionMint(collectionMint);
-    }
+  // Fetch and save/update the currently available mints
+  const latestCollectionMints = await extractByCollectionERC721(collection);
+  for (const collectionMint of latestCollectionMints) {
+    await simulateAndUpsertCollectionMint(collectionMint);
+  }
 
-    // Assume anything that exists in our system but was not returned
-    // in the above call is not available anymore so we can close
-    for (const existing of existingCollectionMints) {
-      if (
-        !latestCollectionMints.find(
-          (latest) =>
-            latest.collection === existing.collection &&
-            latest.stage === existing.stage &&
-            latest.tokenId === existing.tokenId
-        )
-      ) {
-        await simulateAndUpsertCollectionMint({
-          ...existing,
-          status: "closed",
-        });
-      }
+  // Assume anything that exists in our system but was not returned
+  // in the above call is not available anymore so we can close
+  for (const existing of existingCollectionMints) {
+    if (
+      !latestCollectionMints.find(
+        (latest) =>
+          latest.collection === existing.collection &&
+          latest.stage === existing.stage &&
+          latest.tokenId === existing.tokenId
+      )
+    ) {
+      await simulateAndUpsertCollectionMint({
+        ...existing,
+        status: "closed",
+      });
     }
   }
 };

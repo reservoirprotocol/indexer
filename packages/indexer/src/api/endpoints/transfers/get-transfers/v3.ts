@@ -331,7 +331,7 @@ export const getTransfersV3Options: RouteOptions = {
                   nativeAmount: String(r.price),
                 },
               },
-              r.currency ? fromBuffer(r.currency) : Sdk.Common.Addresses.Eth[config.chainId],
+              r.currency ? fromBuffer(r.currency) : Sdk.Common.Addresses.Native[config.chainId],
               query.displayCurrency
             )
           : null,

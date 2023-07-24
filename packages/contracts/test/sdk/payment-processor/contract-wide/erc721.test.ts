@@ -31,7 +31,7 @@ describe("PaymentProcessor - Contract-wide", () => {
     const price = parseEther("1");
     const soldTokenId = 1;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -64,7 +64,7 @@ describe("PaymentProcessor - Contract-wide", () => {
       price: price,
       expiration: (blockTime + 60 * 60).toString(),
       nonce: "0",
-      coin: Common.Addresses.Weth[chainId],
+      coin: Common.Addresses.WNative[chainId],
       masterNonce: buyerMasterNonce,
     });
 

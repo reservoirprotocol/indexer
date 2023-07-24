@@ -101,7 +101,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       if (side === "sell") {
         switch (order.params.take.assetType.assetClass) {
           case "ETH":
-            currency = Sdk.Common.Addresses.Eth[config.chainId];
+            currency = Sdk.Common.Addresses.Native[config.chainId];
             break;
           case "ERC20":
             currency = order.params.take.assetType.contract!;
@@ -110,15 +110,15 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             break;
         }
       } else {
-        // This will always be WETH for now
+        // This will always be WNative for now
         currency = order.params.make.assetType.contract!;
       }
 
-      // Check: order has Weth or Eth as payment token
+      // Check: order has WNative or Native as payment token
       switch (side) {
         // Buy Order
         case "buy":
-          if (currency !== Sdk.Common.Addresses.Weth[config.chainId]) {
+          if (currency !== Sdk.Common.Addresses.WNative[config.chainId]) {
             return results.push({
               id,
               status: "unsupported-payment-token",

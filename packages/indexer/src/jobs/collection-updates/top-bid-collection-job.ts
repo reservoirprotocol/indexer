@@ -143,6 +143,10 @@ export class TopBidCollectionJob extends AbstractRabbitMqJobHandler {
           }
         } else {
           // clear the cache
+          logger.info(
+            this.queueName,
+            `Clearing collection top-bid value for collection ${payload.collectionId}`
+          );
           await topBidsCache.clearCacheCollectionTopBidValue(payload.collectionId);
         }
       } catch (error) {
@@ -155,7 +159,9 @@ export class TopBidCollectionJob extends AbstractRabbitMqJobHandler {
       if (payload.kind === "new-order" && collectionTopBid?.order_id) {
         await WebsocketEventRouter({
           eventKind: WebsocketEventKind.NewTopBid,
-          eventInfo: { orderId: collectionTopBid?.order_id },
+          eventInfo: {
+            orderId: collectionTopBid?.order_id,
+          },
         });
       }
     } catch (error) {

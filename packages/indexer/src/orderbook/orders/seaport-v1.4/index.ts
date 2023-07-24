@@ -592,8 +592,8 @@ export const save = async (
       let needsConversion = false;
       if (
         ![
-          Sdk.Common.Addresses.Eth[config.chainId],
-          Sdk.Common.Addresses.Weth[config.chainId],
+          Sdk.Common.Addresses.Native[config.chainId],
+          Sdk.Common.Addresses.WNative[config.chainId],
         ].includes(currency)
       ) {
         needsConversion = true;

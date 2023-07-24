@@ -84,7 +84,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         );
 
         // Handle: prices
-        const currency = Sdk.Common.Addresses.Eth[config.chainId];
+        const currency = Sdk.Common.Addresses.Native[config.chainId];
         const isBuyToBorrow = matchMethod?.name.includes("buyToBorrowLocked");
 
         const offer = isBuyToBorrow ? inputData.sellInput.offer : inputData.offer;

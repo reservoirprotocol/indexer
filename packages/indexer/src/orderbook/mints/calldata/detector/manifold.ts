@@ -15,15 +15,318 @@ import {
   getCollectionMints,
   simulateAndUpsertCollectionMint,
 } from "@/orderbook/mints";
-import { fetchMetadata, getStatus, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
+import {
+  fetchMetadata,
+  getContractKind,
+  getStatus,
+  toSafeTimestamp,
+} from "@/orderbook/mints/calldata/helpers";
+import * as commonHelpers from "@/orderbook/orders/common/helpers";
 
 const STANDARD = "manifold";
 
 export type Info = {
   merkleTreeId?: string;
+  instanceId?: string;
 };
 
-export const extractByCollection = async (
+export const extractByCollectionERC721 = async (
+  collection: string,
+  instanceId: string,
+  extension?: string
+): Promise<CollectionMint[]> => {
+  const extensions = extension
+    ? [extension]
+    : await new Contract(
+        collection,
+        new Interface(["function getExtensions() view returns (address[])"]),
+        baseProvider
+      ).getExtensions();
+
+  const results: CollectionMint[] = [];
+  for (const extension of extensions) {
+    let claimConfig:
+      | {
+          total: number;
+          totalMax: number;
+          walletMax: number;
+          startDate: number;
+          endDate: number;
+          storageProtocol: number;
+          identical: boolean;
+          merkleRoot: string;
+          location: string;
+          cost: string;
+          paymentReceiver: string;
+          erc20: string;
+          mintFee: string;
+          mintFeeMerkle: string;
+        }
+      | undefined;
+
+    if (!claimConfig) {
+      try {
+        const cV1 = new Contract(
+          extension,
+          new Interface([
+            `
+              function getClaim(address creatorContractAddress, uint256 claimIndex) external view returns (
+                (
+                  uint32 total,
+                  uint32 totalMax,
+                  uint32 walletMax,
+                  uint48 startDate,
+                  uint48 endDate,
+                  uint8 storageProtocol,
+                  bool identical,
+                  bytes32 merkleRoot,
+                  string location,
+                  uint cost,
+                  address payable paymentReceiver
+                ) claim
+              )
+            `,
+          ]),
+          baseProvider
+        );
+
+        const claim = await cV1.getClaim(collection, instanceId);
+        claimConfig = {
+          total: claim.total,
+          totalMax: claim.totalMax,
+          walletMax: claim.walletMax,
+          startDate: claim.startDate,
+          endDate: claim.endDate,
+          storageProtocol: claim.storageProtocol,
+          identical: claim.identical,
+          merkleRoot: claim.merkleRoot,
+          location: claim.location,
+          cost: claim.cost.toString(),
+          paymentReceiver: claim.paymentReceiver,
+          erc20: Sdk.Common.Addresses.Native[config.chainId],
+          mintFee: "0",
+          mintFeeMerkle: "0",
+        };
+      } catch {
+        // Skip errors
+      }
+    }
+
+    if (!claimConfig) {
+      try {
+        const cV2 = new Contract(
+          extension,
+          new Interface([
+            `
+              function getClaim(address creatorContractAddress, uint256 claimIndex) external view returns (
+                (
+                  uint32 total,
+                  uint32 totalMax,
+                  uint32 walletMax,
+                  uint48 startDate,
+                  uint48 endDate,
+                  uint8 storageProtocol,
+                  bool identical,
+                  bytes32 merkleRoot,
+                  string location,
+                  uint cost,
+                  address payable paymentReceiver,
+                  address erc20,
+                ) claim
+              )
+            `,
+            "function MINT_FEE() view returns (uint256)",
+            "function MINT_FEE_MERKLE() view returns (uint256)",
+          ]),
+          baseProvider
+        );
+
+        const [claim, mintFee, mintFeeMerkle] = await Promise.all([
+          cV2.getClaim(collection, instanceId),
+          cV2.MINT_FEE(),
+          cV2.MINT_FEE_MERKLE(),
+        ]);
+        claimConfig = {
+          total: claim.total,
+          totalMax: claim.totalMax,
+          walletMax: claim.walletMax,
+          startDate: claim.startDate,
+          endDate: claim.endDate,
+          storageProtocol: claim.storageProtocol,
+          identical: claim.identical,
+          merkleRoot: claim.merkleRoot,
+          location: claim.location,
+          cost: claim.cost.toString(),
+          paymentReceiver: claim.paymentReceiver,
+          erc20: claim.erc20,
+          mintFee: mintFee.toString(),
+          mintFeeMerkle: mintFeeMerkle.toString(),
+        };
+      } catch {
+        // Skip errors
+      }
+    }
+
+    if (claimConfig) {
+      try {
+        // Public sale
+        if (claimConfig.merkleRoot === HashZero) {
+          // Include the Manifold mint fee into the price
+          const price = bn(claimConfig.cost).add(bn(claimConfig.mintFee)).toString();
+          return [
+            {
+              collection,
+              contract: collection,
+              stage: `claim-${extension.toLowerCase()}-${instanceId}`,
+              kind: "public",
+              status: "open",
+              standard: STANDARD,
+              details: {
+                tx: {
+                  to: extension.toLowerCase(),
+                  data: {
+                    // `mintBatch`
+                    signature: "0x26c858a4",
+                    params: [
+                      {
+                        kind: "contract",
+                        abiType: "address",
+                      },
+                      {
+                        kind: "unknown",
+                        abiType: "uint256",
+                        abiValue: instanceId,
+                      },
+                      {
+                        kind: "quantity",
+                        abiType: "uint16",
+                      },
+                      {
+                        kind: "unknown",
+                        abiType: "uint32[]",
+                        abiValue: [],
+                      },
+                      {
+                        kind: "unknown",
+                        abiType: "bytes32[][]",
+                        abiValue: [],
+                      },
+                      {
+                        kind: "recipient",
+                        abiType: "address",
+                      },
+                    ],
+                  },
+                },
+                info: {
+                  instanceId,
+                },
+              },
+              currency: Sdk.Common.Addresses.Native[config.chainId],
+              price,
+              maxMintsPerWallet: bn(claimConfig.walletMax).gt(0)
+                ? claimConfig.walletMax.toString()
+                : undefined,
+              maxSupply: bn(claimConfig.totalMax).gt(0)
+                ? claimConfig.totalMax.toString()
+                : undefined,
+              startTime: claimConfig.startDate ? toSafeTimestamp(claimConfig.startDate) : undefined,
+              endTime: claimConfig.endDate ? toSafeTimestamp(claimConfig.endDate) : undefined,
+            },
+          ];
+        }
+
+        // Allowlist sale
+        if (claimConfig.merkleRoot !== HashZero) {
+          // Include the Manifold mint fee into the price
+          const price = bn(claimConfig.cost).add(bn(claimConfig.mintFeeMerkle)).toString();
+
+          const merkleTreeId = await fetchMetadata(
+            `https://apps.api.manifoldxyz.dev/public/instance/data?id=${instanceId}`
+          ).then((data) => data.publicData.merkleTreeId);
+
+          return [
+            {
+              collection,
+              contract: collection,
+              stage: `claim-${extension.toLowerCase()}-${instanceId}`,
+              kind: "allowlist",
+              status: "open",
+              standard: STANDARD,
+              details: {
+                tx: {
+                  to: extension.toLowerCase(),
+                  data: {
+                    // `mintBatch`
+                    signature: "0x26c858a4",
+                    params: [
+                      {
+                        kind: "contract",
+                        abiType: "address",
+                      },
+                      {
+                        kind: "unknown",
+                        abiType: "uint256",
+                        abiValue: instanceId,
+                      },
+                      {
+                        kind: "quantity",
+                        abiType: "uint16",
+                      },
+                      {
+                        kind: "allowlist",
+                        abiType: "uint32[]",
+                      },
+                      {
+                        kind: "allowlist",
+                        abiType: "bytes32[][]",
+                      },
+                      {
+                        kind: "recipient",
+                        abiType: "address",
+                      },
+                    ],
+                  },
+                },
+                info: {
+                  merkleTreeId,
+                  instanceId,
+                },
+              },
+              currency: Sdk.Common.Addresses.Native[config.chainId],
+              price,
+              maxMintsPerWallet: bn(claimConfig.walletMax).gt(0)
+                ? claimConfig.walletMax.toString()
+                : undefined,
+              maxSupply: bn(claimConfig.totalMax).gt(0)
+                ? claimConfig.totalMax.toString()
+                : undefined,
+              startTime: claimConfig.startDate ? toSafeTimestamp(claimConfig.startDate) : undefined,
+              endTime: claimConfig.endDate ? toSafeTimestamp(claimConfig.endDate) : undefined,
+              allowlistId: claimConfig.merkleRoot,
+            },
+          ];
+        }
+      } catch (error) {
+        logger.error("mint-detector", JSON.stringify({ kind: STANDARD, error }));
+      }
+    }
+  }
+
+  // Update the status of each collection mint
+  await Promise.all(
+    results.map(async (cm) => {
+      await getStatus(cm).then(({ status, reason }) => {
+        cm.status = status;
+        cm.statusReason = reason;
+      });
+    })
+  );
+
+  return results;
+};
+
+export const extractByCollectionERC1155 = async (
   collection: string,
   tokenId: string,
   extension?: string
@@ -73,7 +376,7 @@ export const extractByCollection = async (
 
       if (
         instanceId !== "0" &&
-        claim.erc20.toLowerCase() === Sdk.Common.Addresses.Eth[config.chainId]
+        claim.erc20.toLowerCase() === Sdk.Common.Addresses.Native[config.chainId]
       ) {
         // Public sale
         if (claim.merkleRoot === HashZero) {
@@ -127,7 +430,7 @@ export const extractByCollection = async (
                   },
                 },
               },
-              currency: Sdk.Common.Addresses.Eth[config.chainId],
+              currency: Sdk.Common.Addresses.Native[config.chainId],
               price,
               tokenId,
               maxMintsPerWallet: bn(claim.walletMax).gt(0) ? claim.walletMax.toString() : undefined,
@@ -195,7 +498,7 @@ export const extractByCollection = async (
                   merkleTreeId,
                 },
               },
-              currency: Sdk.Common.Addresses.Eth[config.chainId],
+              currency: Sdk.Common.Addresses.Native[config.chainId],
               price,
               tokenId,
               maxMintsPerWallet: bn(claim.walletMax).gt(0) ? claim.walletMax.toString() : undefined,
@@ -227,7 +530,6 @@ export const extractByCollection = async (
 
 export const extractByTx = async (
   collection: string,
-  tokenId: string,
   tx: Transaction
 ): Promise<CollectionMint[]> => {
   if (
@@ -236,7 +538,22 @@ export const extractByTx = async (
       "0x26c858a4", // `mintBatch`
     ].some((bytes4) => tx.data.startsWith(bytes4))
   ) {
-    return extractByCollection(collection, tokenId, tx.to);
+    const contractKind =
+      (await commonHelpers.getContractKind(collection)) ?? (await getContractKind(collection));
+
+    const instanceId = new Interface([
+      "function mint(address creatorContractAddress, uint256 instanceId, uint32 mintIndex, bytes32[] calldata merkleProof, address mintFor)",
+      "function mintBatch(address creatorContractAddress, uint256 instanceId, uint16 mintCount, uint32[] calldata mintIndices, bytes32[][] calldata merkleProofs, address mintFor)",
+    ])
+      .decodeFunctionData(tx.data.startsWith("0xfa2b068f") ? "mint" : "mintBatch", tx.data)
+      .instanceId.toString();
+
+    if (contractKind === "erc721") {
+      return extractByCollectionERC721(collection, instanceId, tx.to);
+    } else if (contractKind === "erc1155") {
+      const tokenId = await getTokenIdForERC1155Mint(collection, instanceId, tx.to);
+      return extractByCollectionERC1155(collection, tokenId, tx.to);
+    }
   }
 
   return [];
@@ -245,9 +562,11 @@ export const extractByTx = async (
 export const refreshByCollection = async (collection: string) => {
   const existingCollectionMints = await getCollectionMints(collection, { standard: STANDARD });
 
-  for (const { tokenId } of existingCollectionMints.filter((cm) => cm.tokenId)) {
+  for (const { tokenId, details } of existingCollectionMints) {
     // Fetch and save/update the currently available mints
-    const latestCollectionMints = await extractByCollection(collection, tokenId!);
+    const latestCollectionMints = tokenId
+      ? await extractByCollectionERC1155(collection, tokenId)
+      : await extractByCollectionERC721(collection, details.info!.instanceId!);
     for (const collectionMint of latestCollectionMints) {
       await simulateAndUpsertCollectionMint(collectionMint);
     }
@@ -297,4 +616,37 @@ export const generateProofValue = async (
   }
 
   return result;
+};
+
+export const getTokenIdForERC1155Mint = async (
+  collection: string,
+  instanceId: string,
+  extension: string
+): Promise<string> => {
+  const c = new Contract(
+    extension,
+    new Interface([
+      `
+        function getClaim(address creatorContractAddress, uint256 instanceId) external view returns (
+          (
+            uint32 total,
+            uint32 totalMax,
+            uint32 walletMax,
+            uint48 startDate,
+            uint48 endDate,
+            uint8 storageProtocol,
+            bytes32 merkleRoot,
+            string location,
+            uint256 tokenId,
+            uint256 cost,
+            address payable paymentReceiver,
+            address erc20
+          )
+        )
+      `,
+    ]),
+    baseProvider
+  );
+
+  return (await c.getClaim(collection, instanceId)).tokenId.toString();
 };

@@ -64,7 +64,7 @@ describe("[ReservoirV6_0_1] SeaportV15 listings", () => {
         factory.deploy(
           deployer.address,
           router.address,
-          Sdk.Common.Addresses.Weth[chainId],
+          Sdk.Common.Addresses.WNative[chainId],
           Sdk.Common.Addresses.SwapRouter[chainId]
         )
       );
@@ -73,7 +73,7 @@ describe("[ReservoirV6_0_1] SeaportV15 listings", () => {
   });
 
   const getBalances = async (token: string) => {
-    if (token === Sdk.Common.Addresses.Eth[chainId]) {
+    if (token === Sdk.Common.Addresses.Native[chainId]) {
       return {
         alice: await ethers.provider.getBalance(alice.address),
         bob: await ethers.provider.getBalance(bob.address),
@@ -121,7 +121,7 @@ describe("[ReservoirV6_0_1] SeaportV15 listings", () => {
 
     const paymentToken = useUsdc
       ? Sdk.Common.Addresses.Usdc[chainId]
-      : Sdk.Common.Addresses.Eth[chainId];
+      : Sdk.Common.Addresses.Native[chainId];
     const parsePrice = (price: string) => (useUsdc ? parseUnits(price, 6) : parseEther(price));
 
     const listings: seaportV15.Listing[] = [];
@@ -157,7 +157,7 @@ describe("[ReservoirV6_0_1] SeaportV15 listings", () => {
               data: swapModule.interface.encodeFunctionData("ethToExactOutput", [
                 {
                   params: {
-                    tokenIn: Sdk.Common.Addresses.Weth[chainId],
+                    tokenIn: Sdk.Common.Addresses.WNative[chainId],
                     tokenOut: Sdk.Common.Addresses.Usdc[chainId],
                     fee: 500,
                     recipient: swapModule.address,
@@ -403,7 +403,7 @@ describe("[ReservoirV6_0_1] SeaportV15 listings", () => {
         contract: erc721,
         id: getRandomInteger(1, 10000),
       },
-      paymentToken: Sdk.Common.Addresses.Eth[chainId],
+      paymentToken: Sdk.Common.Addresses.Native[chainId],
       price: parseEther("0.5"),
     };
 
@@ -414,7 +414,7 @@ describe("[ReservoirV6_0_1] SeaportV15 listings", () => {
         data: swapModule.interface.encodeFunctionData("ethToExactOutput", [
           {
             params: {
-              tokenIn: Sdk.Common.Addresses.Weth[chainId],
+              tokenIn: Sdk.Common.Addresses.WNative[chainId],
               tokenOut: Sdk.Common.Addresses.Usdc[chainId],
               fee: 500,
               recipient: swapModule.address,
@@ -459,7 +459,7 @@ describe("[ReservoirV6_0_1] SeaportV15 listings", () => {
           {
             params: {
               tokenIn: Sdk.Common.Addresses.Usdc[chainId],
-              tokenOut: Sdk.Common.Addresses.Weth[chainId],
+              tokenOut: Sdk.Common.Addresses.WNative[chainId],
               fee: 500,
               recipient: swapModule.address,
               amountOut: bn(listing.price),
@@ -508,7 +508,7 @@ describe("[ReservoirV6_0_1] SeaportV15 listings", () => {
 
     // Fetch pre-state
 
-    const balancesBefore = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
+    const balancesBefore = await getBalances(Sdk.Common.Addresses.Native[chainId]);
 
     // Execute
 
@@ -532,8 +532,8 @@ describe("[ReservoirV6_0_1] SeaportV15 listings", () => {
 
     // Fetch post-state
 
-    const balancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
-    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
+    const balancesAfter = await getBalances(Sdk.Common.Addresses.Native[chainId]);
+    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Native[chainId]);
 
     // Checks
 
@@ -575,7 +575,7 @@ describe("[ReservoirV6_0_1] SeaportV15 listings", () => {
         data: swapModule.interface.encodeFunctionData("ethToExactOutput", [
           {
             params: {
-              tokenIn: Sdk.Common.Addresses.Weth[chainId],
+              tokenIn: Sdk.Common.Addresses.WNative[chainId],
               tokenOut: Sdk.Common.Addresses.Usdc[chainId],
               fee: 500,
               recipient: swapModule.address,
@@ -668,7 +668,7 @@ describe("[ReservoirV6_0_1] SeaportV15 listings", () => {
     // Fetch post-state
 
     const balancesAfter = await getBalances(Sdk.Common.Addresses.Usdc[chainId]);
-    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
+    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Native[chainId]);
 
     // Checks
 
@@ -699,7 +699,7 @@ describe("[ReservoirV6_0_1] SeaportV15 listings", () => {
         contract: erc721,
         id: getRandomInteger(1, 10000),
       },
-      paymentToken: Sdk.Common.Addresses.Weth[chainId],
+      paymentToken: Sdk.Common.Addresses.WNative[chainId],
       price: parseEther("0.5"),
     };
 
@@ -710,7 +710,7 @@ describe("[ReservoirV6_0_1] SeaportV15 listings", () => {
         data: swapModule.interface.encodeFunctionData("ethToExactOutput", [
           {
             params: {
-              tokenIn: Sdk.Common.Addresses.Weth[chainId],
+              tokenIn: Sdk.Common.Addresses.WNative[chainId],
               tokenOut: Sdk.Common.Addresses.Usdc[chainId],
               fee: 500,
               recipient: swapModule.address,
@@ -754,7 +754,7 @@ describe("[ReservoirV6_0_1] SeaportV15 listings", () => {
           {
             params: {
               tokenIn: Sdk.Common.Addresses.Usdc[chainId],
-              tokenOut: Sdk.Common.Addresses.Weth[chainId],
+              tokenOut: Sdk.Common.Addresses.WNative[chainId],
               fee: 500,
               recipient: swapModule.address,
               amountOut: bn(listing.price),
@@ -802,7 +802,7 @@ describe("[ReservoirV6_0_1] SeaportV15 listings", () => {
 
     // Fetch pre-state
 
-    const balancesBefore = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
+    const balancesBefore = await getBalances(Sdk.Common.Addresses.WNative[chainId]);
 
     // Execute
 
@@ -826,8 +826,8 @@ describe("[ReservoirV6_0_1] SeaportV15 listings", () => {
 
     // Fetch post-state
 
-    const balancesAfter = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
-    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
+    const balancesAfter = await getBalances(Sdk.Common.Addresses.WNative[chainId]);
+    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.WNative[chainId]);
 
     // Checks
 
@@ -873,7 +873,7 @@ describe("[ReservoirV6_0_1] SeaportV15 listings", () => {
         data: swapModule.interface.encodeFunctionData("ethToExactOutput", [
           {
             params: {
-              tokenIn: Sdk.Common.Addresses.Weth[chainId],
+              tokenIn: Sdk.Common.Addresses.WNative[chainId],
               tokenOut: Sdk.Common.Addresses.Usdc[chainId],
               fee: 500,
               recipient: swapModule.address,
@@ -934,7 +934,7 @@ describe("[ReservoirV6_0_1] SeaportV15 listings", () => {
     // Fetch post-state
 
     const balancesAfter = await getBalances(Sdk.Common.Addresses.Usdc[chainId]);
-    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
+    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Native[chainId]);
 
     // Checks
 

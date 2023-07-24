@@ -190,7 +190,7 @@ const convertCurrencies = async (
   value: BigNumber;
   normalizedValue: BigNumber;
 }> => {
-  const isERC20 = currency !== Sdk.Common.Addresses.Eth[config.chainId];
+  const isERC20 = currency !== Sdk.Common.Addresses.Native[config.chainId];
   if (isERC20) {
     const prices = await getUSDAndNativePrices(currency, currencyPrice.toString(), now());
     const values = await getUSDAndNativePrices(currency, currencyValue.toString(), now());
@@ -394,7 +394,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         baseProvider
       );
 
-      const isERC20 = pool.token !== Sdk.Common.Addresses.Eth[config.chainId];
+      const isERC20 = pool.token !== Sdk.Common.Addresses.Native[config.chainId];
 
       // Force recheck at most once per hour
       const recheckCondition = orderParams.forceRecheck

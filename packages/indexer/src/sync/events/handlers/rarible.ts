@@ -128,7 +128,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             nftData = result[0][3];
 
             paymentCurrency = result[0][5].toLowerCase();
-            if (paymentCurrency === Sdk.Common.Addresses.Eth) {
+            if (paymentCurrency === Sdk.Common.Addresses.Native[config.chainId]) {
               currencyAssetType = ETH;
             } else {
               currencyAssetType = ERC20;
@@ -172,7 +172,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             nftData = result[0][3];
 
             paymentCurrency = result[0][5].toLowerCase();
-            if (paymentCurrency === Sdk.Common.Addresses.Eth) {
+            if (paymentCurrency === Sdk.Common.Addresses.Native[config.chainId]) {
               currencyAssetType = ETH;
             } else {
               currencyAssetType = ERC20;
@@ -235,7 +235,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             }
 
             if (currencyAssetType === ETH) {
-              paymentCurrency = Sdk.Common.Addresses.Eth[config.chainId];
+              paymentCurrency = Sdk.Common.Addresses.Native[config.chainId];
             } else if (currencyAssetType === ERC20) {
               const decodedCurrencyAsset = defaultAbiCoder.decode(
                 ["(address token)"],
@@ -270,7 +270,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         // Handle: prices
         let currency: string;
         if (currencyAssetType === ETH) {
-          currency = Sdk.Common.Addresses.Eth[config.chainId];
+          currency = Sdk.Common.Addresses.Native[config.chainId];
         } else if (currencyAssetType === ERC20) {
           currency = paymentCurrency;
         } else {
@@ -454,7 +454,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         let currency: string;
         if (currencyAsset.assetClass === ETH) {
-          currency = Sdk.Common.Addresses.Eth[config.chainId];
+          currency = Sdk.Common.Addresses.Native[config.chainId];
         } else if (currencyAsset.assetClass === ERC20) {
           const decodedCurrencyAsset = defaultAbiCoder.decode(
             ["(address token)"],

@@ -4,6 +4,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
 import _ from "lodash";
+import * as Boom from "@hapi/boom";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
@@ -116,11 +117,15 @@ export const getTokensV6Options: RouteOptions = {
       minRarityRank: Joi.number()
         .integer()
         .min(1)
-        .description("Get tokens with a min rarity rank (inclusive), no rarity rank for collections over 100k"),
+        .description(
+          "Get tokens with a min rarity rank (inclusive), no rarity rank for collections over 100k"
+        ),
       maxRarityRank: Joi.number()
         .integer()
         .min(1)
-        .description("Get tokens with a max rarity rank (inclusive), no rarity rank for collections over 100k"),
+        .description(
+          "Get tokens with a max rarity rank (inclusive), no rarity rank for collections over 100k"
+        ),
       minFloorAskPrice: Joi.number().description(
         "Get tokens with a min floor ask price (inclusive); use native currency"
       ),
@@ -221,8 +226,14 @@ export const getTokensV6Options: RouteOptions = {
               .allow(null)
               .description("Can be higher than 1 if erc1155"),
             remainingSupply: Joi.number().unsafe().allow(null),
-            rarity: Joi.number().unsafe().allow(null).description("No rarity for collections over 100k"),
-            rarityRank: Joi.number().unsafe().allow(null).description("No rarity rank for collections over 100k"),
+            rarity: Joi.number()
+              .unsafe()
+              .allow(null)
+              .description("No rarity for collections over 100k"),
+            rarityRank: Joi.number()
+              .unsafe()
+              .allow(null)
+              .description("No rarity rank for collections over 100k"),
             collection: Joi.object({
               id: Joi.string().allow(null),
               name: Joi.string().allow("", null),
@@ -554,6 +565,10 @@ export const getTokensV6Options: RouteOptions = {
       let collections: any[] = [];
       if (query.collectionsSetId) {
         collections = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+
+        if (_.isEmpty(collections)) {
+          throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
+        }
 
         if (collections.length > 20) {
           baseQuery += `
@@ -1003,10 +1018,10 @@ export const getTokensV6Options: RouteOptions = {
         // that don't have the currencies cached in the tokens table
         const floorAskCurrency = r.floor_sell_currency
           ? fromBuffer(r.floor_sell_currency)
-          : Sdk.Common.Addresses.Eth[config.chainId];
+          : Sdk.Common.Addresses.Native[config.chainId];
         const topBidCurrency = r.top_buy_currency
           ? fromBuffer(r.top_buy_currency)
-          : Sdk.Common.Addresses.Weth[config.chainId];
+          : Sdk.Common.Addresses.WNative[config.chainId];
 
         let dynamicPricing = undefined;
         if (query.includeDynamicPricing) {

@@ -161,6 +161,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
         .pattern(regex.number)
         .description("Optional custom gas settings."),
       usePermit: Joi.boolean().description("When true, will use permit to avoid approvals."),
+      swapProvider: Joi.string()
+        .valid("uniswap", "1inch")
+        .default("uniswap")
+        .description(
+          "Choose a specific swapping provider when buying in a different currency (defaults to `uniswap`)"
+        ),
       // Various authorization keys
       x2y2ApiKey: Joi.string().description("Optional X2Y2 API key used for filling."),
       openseaApiKey: Joi.string().description(
@@ -519,7 +525,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 nativePrice: order.data.price,
                 price: order.data.price,
                 sourceId: sources.getByDomain("blur.io")?.id ?? null,
-                currency: Sdk.Common.Addresses.Eth[config.chainId],
+                currency: Sdk.Common.Addresses.Native[config.chainId],
                 rawData: order.data,
                 builtInFees: [],
               },
@@ -1134,7 +1140,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           buyInCurrency = path[0].currency;
         } else {
           // If multiple different-currency orders are to get filled, we use the native currency
-          buyInCurrency = Sdk.Common.Addresses.Eth[config.chainId];
+          buyInCurrency = Sdk.Common.Addresses.Native[config.chainId];
         }
       }
 
@@ -1351,6 +1357,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           forceRouter: payload.forceRouter,
           relayer: payload.relayer,
           usePermit: payload.usePermit,
+          swapProvider: payload.swapProvider,
           globalFees,
           blurAuth,
           onError: async (kind, error, data) => {
@@ -1459,7 +1466,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
         // Check that the transaction sender has enough funds to fill all requested tokens
         const txSender = payload.relayer ?? payload.taker;
-        if (buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId]) {
+        if (buyInCurrency === Sdk.Common.Addresses.Native[config.chainId]) {
           // Get the price in the buy-in currency via the transaction value
           const totalBuyInCurrencyPrice = bn(txData.value ?? 0);
 
@@ -1501,7 +1508,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       // won't affect the client, which might be polling the API and
       // expect to get the steps returned in the same order / at the
       // same index.
-      if (buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId]) {
+      if (buyInCurrency === Sdk.Common.Addresses.Native[config.chainId]) {
         // Buying in ETH will never require an approval
         steps = [steps[0], ...steps.slice(2)];
       }

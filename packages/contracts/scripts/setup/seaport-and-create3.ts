@@ -30,7 +30,7 @@ export const setup = async () => {
     if (code.length > 2) {
       console.log("- step already executed");
     } else {
-      const balance = await provider.getBalance(deployer.address);
+      const balance = await provider.getBalance(KEYLESS_CREATE2);
       if (balance.gt(parseEther("0.01"))) {
         console.log("- already enough balance to proceed");
       } else {

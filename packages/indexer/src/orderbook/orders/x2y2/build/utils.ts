@@ -54,8 +54,8 @@ export const getBuildInfo = async (
         : Sdk.X2Y2.Types.DelegationType.ERC1155,
     currency:
       side === "buy"
-        ? Sdk.Common.Addresses.Weth[config.chainId]
-        : Sdk.Common.Addresses.Eth[config.chainId],
+        ? Sdk.Common.Addresses.WNative[config.chainId]
+        : Sdk.Common.Addresses.Native[config.chainId],
     deadline: options.expirationTime || now() + 24 * 3600,
     salt: options.salt?.toString(),
   };

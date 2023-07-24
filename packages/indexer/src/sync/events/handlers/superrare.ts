@@ -27,7 +27,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         // Superrare works only with ERC721
         const amount = "1";
         const orderSide = "sell";
-        let currency = Common.Addresses.Eth[config.chainId];
+        let currency = Common.Addresses.Native[config.chainId];
 
         const txTrace = await utils.fetchTransactionTrace(baseEventParams.txHash);
         if (!txTrace) {

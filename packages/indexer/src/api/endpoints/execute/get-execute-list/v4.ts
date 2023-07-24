@@ -119,7 +119,7 @@ export const getExecuteListV4Options: RouteOptions = {
           nonce: Joi.string().pattern(regex.number).description("Optional. Set a custom nonce"),
           currency: Joi.string()
             .pattern(regex.address)
-            .default(Sdk.Common.Addresses.Eth[config.chainId]),
+            .default(Sdk.Common.Addresses.Native[config.chainId]),
         })
       ),
     }),
@@ -214,7 +214,7 @@ export const getExecuteListV4Options: RouteOptions = {
         // For now, ERC20 listings are only supported on Seaport
         if (
           params.orderKind !== "seaport-v1.5" &&
-          params.currency !== Sdk.Common.Addresses.Eth[config.chainId]
+          params.currency !== Sdk.Common.Addresses.Native[config.chainId]
         ) {
           throw new Error("ERC20 listings are only supported on Seaport");
         }

@@ -122,7 +122,7 @@ export const getUsersLiquidityV2Options: RouteOptions = {
         FROM "x"
       `;
 
-      (query as any).weth = toBuffer(Sdk.Common.Addresses.Weth[config.chainId]);
+      (query as any).weth = toBuffer(Sdk.Common.Addresses.WNative[config.chainId]);
 
       const result = await redb.manyOrNone(baseQuery, query).then((result) =>
         result.map((r) => ({
