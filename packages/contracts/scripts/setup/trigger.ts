@@ -256,14 +256,14 @@ export const trigger = {
       dv("SwapModule", "v1", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
-        Sdk.Common.Addresses.Weth[chainId],
+        Sdk.Common.Addresses.WNative[chainId],
         Sdk.Common.Addresses.SwapRouter[chainId],
       ]),
     OneInchSwapModule: async (chainId: number) =>
       dv("OneInchSwapModule", "v1", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
-        Sdk.Common.Addresses.Weth[chainId],
+        Sdk.Common.Addresses.WNative[chainId],
         Sdk.Common.Addresses.AggregationRouterV5[chainId],
       ]),
     X2Y2Module: async (chainId: number) =>

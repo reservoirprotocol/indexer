@@ -157,7 +157,7 @@ export const savePartialListings = async (
       }
 
       // Handle: currency
-      const currency = Sdk.Common.Addresses.Eth[config.chainId];
+      const currency = Sdk.Common.Addresses.Native[config.chainId];
 
       // Handle: price
       const price = parseEther(orderParams.price!).toString();

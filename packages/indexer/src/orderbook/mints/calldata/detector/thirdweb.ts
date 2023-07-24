@@ -64,7 +64,7 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
       const claimCondition = await c.getClaimConditionById(claimConditionId);
 
       const currency = claimCondition.currency.toLowerCase();
-      if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
+      if (currency === Sdk.ZeroExV4.Addresses.Native[config.chainId]) {
         const price = claimCondition.pricePerToken.toString();
         const maxMintsPerWallet =
           claimCondition.quantityLimitPerWallet.eq(0) ||
@@ -120,7 +120,7 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
                 },
               },
             },
-            currency: Sdk.Common.Addresses.Eth[config.chainId],
+            currency: Sdk.Common.Addresses.Native[config.chainId],
             price,
             maxMintsPerWallet,
             maxSupply: claimCondition.maxClaimableSupply.toString(),
@@ -186,7 +186,7 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
                       {
                         kind: "unknown",
                         abiType: "address",
-                        abiValue: Sdk.ZeroExV4.Addresses.Eth[config.chainId],
+                        abiValue: Sdk.ZeroExV4.Addresses.Native[config.chainId],
                       },
                       {
                         kind: "allowlist",
@@ -205,7 +205,7 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
                   },
                 },
               },
-              currency: Sdk.Common.Addresses.Eth[config.chainId],
+              currency: Sdk.Common.Addresses.Native[config.chainId],
               maxSupply: claimCondition.maxClaimableSupply.toString(),
               startTime: toSafeTimestamp(claimCondition.startTimestamp),
               allowlistId: claimCondition.merkleRoot,
@@ -273,7 +273,7 @@ export const extractByCollectionERC1155 = async (
       const claimCondition = await c.getClaimConditionById(tokenId, claimConditionId);
 
       const currency = claimCondition.currency.toLowerCase();
-      if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
+      if (currency === Sdk.ZeroExV4.Addresses.Native[config.chainId]) {
         const price = claimCondition.pricePerToken.toString();
         const maxMintsPerWallet =
           claimCondition.quantityLimitPerWallet.eq(0) ||
@@ -334,7 +334,7 @@ export const extractByCollectionERC1155 = async (
                 },
               },
             },
-            currency: Sdk.Common.Addresses.Eth[config.chainId],
+            currency: Sdk.Common.Addresses.Native[config.chainId],
             price,
             tokenId,
             maxMintsPerWallet,
@@ -406,7 +406,7 @@ export const extractByCollectionERC1155 = async (
                       {
                         kind: "unknown",
                         abiType: "address",
-                        abiValue: Sdk.ZeroExV4.Addresses.Eth[config.chainId],
+                        abiValue: Sdk.ZeroExV4.Addresses.Native[config.chainId],
                       },
                       {
                         kind: "allowlist",
@@ -425,7 +425,7 @@ export const extractByCollectionERC1155 = async (
                   },
                 },
               },
-              currency: Sdk.Common.Addresses.Eth[config.chainId],
+              currency: Sdk.Common.Addresses.Native[config.chainId],
               tokenId,
               maxSupply: claimCondition.maxClaimableSupply.toString(),
               startTime: toSafeTimestamp(claimCondition.startTimestamp),
@@ -501,8 +501,7 @@ export const extractByTx = async (
 export const refreshByCollection = async (collection: string) => {
   const existingCollectionMints = await getCollectionMints(collection, { standard: STANDARD });
 
-  const uniqueTokenIds = [...new Set(existingCollectionMints.map(({ tokenId }) => tokenId))];
-  for (const tokenId of uniqueTokenIds) {
+  for (const { tokenId } of existingCollectionMints) {
     // Fetch and save/update the currently available mints
     const latestCollectionMints = tokenId
       ? await extractByCollectionERC1155(collection, tokenId)

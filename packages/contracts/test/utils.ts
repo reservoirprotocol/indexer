@@ -144,7 +144,7 @@ export const setupRouterWithModules = async (chainId: number, deployer: SignerWi
       factory.deploy(
         deployer.address,
         deployer.address,
-        Sdk.Common.Addresses.Weth[chainId],
+        Sdk.Common.Addresses.WNative[chainId],
         Sdk.Common.Addresses.SwapRouter[chainId]
       )
     )) as any;
@@ -156,7 +156,7 @@ export const setupRouterWithModules = async (chainId: number, deployer: SignerWi
       factory.deploy(
         deployer.address,
         deployer.address,
-        Sdk.Common.Addresses.Weth[chainId],
+        Sdk.Common.Addresses.WNative[chainId],
         Sdk.Common.Addresses.AggregationRouterV5[chainId]
       )
     )) as any;

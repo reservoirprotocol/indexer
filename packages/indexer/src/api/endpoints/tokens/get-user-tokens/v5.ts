@@ -363,10 +363,10 @@ export const getUserTokensV5Options: RouteOptions = {
         // that don't have the currencies cached in the tokens table
         const floorAskCurrency = r.floor_sell_currency
           ? fromBuffer(r.floor_sell_currency)
-          : Sdk.Common.Addresses.Eth[config.chainId];
+          : Sdk.Common.Addresses.Native[config.chainId];
         const topBidCurrency = r.top_bid_currency
           ? fromBuffer(r.top_bid_currency)
-          : Sdk.Common.Addresses.Weth[config.chainId];
+          : Sdk.Common.Addresses.WNative[config.chainId];
         const floorSellSource = r.floor_sell_value
           ? sources.get(Number(r.floor_sell_source_id_int), contract, tokenId)
           : undefined;

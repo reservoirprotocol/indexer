@@ -66,7 +66,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
           offerer: seller1.address,
           contract: erc721.address,
           tokenId: tokenId1,
-          paymentToken: Sdk.Common.Addresses.Eth[chainId],
+          paymentToken: Sdk.Common.Addresses.Native[chainId],
           price: price1.sub(price1.mul(fee1).div(10000)),
           fees: [
             {
@@ -92,7 +92,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         contract: erc721.address,
         tokenId: tokenId1.toString(),
         order: sellOrder,
-        currency: Sdk.Common.Addresses.Eth[chainId],
+        currency: Sdk.Common.Addresses.Native[chainId],
         price: price1.toString(),
       });
     }
@@ -128,7 +128,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
             amount: fee3,
           },
         ],
-        paymentToken: Sdk.ZeroExV4.Addresses.Eth[chainId],
+        paymentToken: Sdk.ZeroExV4.Addresses.Native[chainId],
         price: price3,
         expiry: (await getCurrentTimestamp(ethers.provider)) + 60,
       });
@@ -145,7 +145,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         tokenId: tokenId3.toString(),
         amount: amount3,
         order: sellOrder,
-        currency: Sdk.Common.Addresses.Eth[chainId],
+        currency: Sdk.Common.Addresses.Native[chainId],
         price: price3.toString(),
       });
     }
@@ -169,7 +169,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
 
     const {
       txs: [{ txData }],
-    } = await router.fillListingsTx(listings, buyer.address, Sdk.Common.Addresses.Eth[chainId], {
+    } = await router.fillListingsTx(listings, buyer.address, Sdk.Common.Addresses.Native[chainId], {
       source: "reservoir.market",
       globalFees: feesOnTop,
     });
@@ -231,7 +231,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
           offerer: seller1.address,
           contract: erc721.address,
           tokenId: tokenId1,
-          paymentToken: Sdk.Common.Addresses.Eth[chainId],
+          paymentToken: Sdk.Common.Addresses.Native[chainId],
           price: price1.sub(price1.mul(fee1).div(10000)),
           fees: [
             {
@@ -257,7 +257,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         contract: erc721.address,
         tokenId: tokenId1.toString(),
         order: sellOrder,
-        currency: Sdk.Common.Addresses.Eth[chainId],
+        currency: Sdk.Common.Addresses.Native[chainId],
         price: price1.toString(),
       });
 
@@ -269,7 +269,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         contract: erc721.address,
         tokenId: tokenId1.toString(),
         order: sellOrder,
-        currency: Sdk.Common.Addresses.Eth[chainId],
+        currency: Sdk.Common.Addresses.Native[chainId],
         price: price1.toString(),
       });
     }
@@ -290,7 +290,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
     const nonPartialTx = await router.fillListingsTx(
       listings,
       buyer.address,
-      Sdk.Common.Addresses.Eth[chainId],
+      Sdk.Common.Addresses.Native[chainId],
       {
         source: "reservoir.market",
         globalFees: feesOnTop,
@@ -304,7 +304,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
     const partialTx = await router.fillListingsTx(
       listings,
       buyer.address,
-      Sdk.Common.Addresses.Eth[chainId],
+      Sdk.Common.Addresses.Native[chainId],
       {
         source: "reservoir.market",
         globalFees: feesOnTop,
@@ -361,7 +361,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
           offerer: seller1.address,
           contract: erc721.address,
           tokenId: tokenId1,
-          paymentToken: Sdk.Common.Addresses.Eth[chainId],
+          paymentToken: Sdk.Common.Addresses.Native[chainId],
           price: price1.sub(price1.mul(fee1).div(10000)),
           fees: [
             {
@@ -387,7 +387,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         contract: erc721.address,
         tokenId: tokenId1.toString(),
         order: sellOrder,
-        currency: Sdk.Common.Addresses.Eth[chainId],
+        currency: Sdk.Common.Addresses.Native[chainId],
         price: price1.toString(),
       });
     }
@@ -415,7 +415,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
           offerer: seller2.address,
           contract: erc721.address,
           tokenId: tokenId2,
-          paymentToken: Sdk.Common.Addresses.Eth[chainId],
+          paymentToken: Sdk.Common.Addresses.Native[chainId],
           price: price2.sub(price2.mul(fee2).div(10000)),
           fees: [
             {
@@ -441,7 +441,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         contract: erc721.address,
         tokenId: tokenId2.toString(),
         order: sellOrder,
-        currency: Sdk.Common.Addresses.Eth[chainId],
+        currency: Sdk.Common.Addresses.Native[chainId],
         price: price2.toString(),
       });
     }
@@ -469,7 +469,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
           offerer: seller3.address,
           contract: erc721.address,
           tokenId: tokenId3,
-          paymentToken: Sdk.Common.Addresses.Eth[chainId],
+          paymentToken: Sdk.Common.Addresses.Native[chainId],
           price: price3.sub(price3.mul(fee3).div(10000)),
           fees: [
             {
@@ -495,7 +495,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         contract: erc721.address,
         tokenId: tokenId3.toString(),
         order: sellOrder,
-        currency: Sdk.Common.Addresses.Eth[chainId],
+        currency: Sdk.Common.Addresses.Native[chainId],
         price: price3.toString(),
       });
     }
@@ -515,7 +515,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
     const tx = await router.fillListingsTx(
       listings,
       buyer.address,
-      Sdk.Common.Addresses.Eth[chainId],
+      Sdk.Common.Addresses.Native[chainId],
       {
         source: "reservoir.market",
       }
@@ -575,7 +575,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
           offerer: seller1.address,
           contract: erc721.address,
           tokenId: tokenId1,
-          paymentToken: Sdk.Common.Addresses.Eth[chainId],
+          paymentToken: Sdk.Common.Addresses.Native[chainId],
           price: price1.sub(price1.mul(fee1).div(10000)),
           fees: [
             {
@@ -601,7 +601,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         contract: erc721.address,
         tokenId: tokenId1.toString(),
         order: sellOrder,
-        currency: Sdk.Common.Addresses.Eth[chainId],
+        currency: Sdk.Common.Addresses.Native[chainId],
         price: price1.toString(),
       });
     }
@@ -683,7 +683,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
           offerer: seller3.address,
           contract: erc721.address,
           tokenId: tokenId3,
-          paymentToken: Sdk.Common.Addresses.Weth[chainId],
+          paymentToken: Sdk.Common.Addresses.WNative[chainId],
           price: price3.sub(price3.mul(fee3).div(10000)),
           fees: [
             {
@@ -709,13 +709,13 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         contract: erc721.address,
         tokenId: tokenId3.toString(),
         order: sellOrder,
-        currency: Sdk.Common.Addresses.Weth[chainId],
+        currency: Sdk.Common.Addresses.WNative[chainId],
         price: price3.toString(),
       });
     }
 
     const usdc = new Sdk.Common.Helpers.Erc20(ethers.provider, Sdk.Common.Addresses.Usdc[chainId]);
-    const weth = new Sdk.Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Sdk.Common.Helpers.WNative(ethers.provider, chainId);
 
     const seller1EthBalanceBefore = await seller1.getBalance();
     const seller2UsdcBalanceBefore = await usdc.getBalance(seller2.address);
@@ -733,7 +733,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
     const tx = await router.fillListingsTx(
       listings,
       buyer.address,
-      Sdk.Common.Addresses.Eth[chainId],
+      Sdk.Common.Addresses.Native[chainId],
       {
         source: "reservoir.market",
       }
@@ -784,7 +784,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         data: router.contracts.swapModule.interface.encodeFunctionData("ethToExactOutput", [
           {
             params: {
-              tokenIn: Sdk.Common.Addresses.Weth[chainId],
+              tokenIn: Sdk.Common.Addresses.WNative[chainId],
               tokenOut: Sdk.Common.Addresses.Usdc[chainId],
               fee: 500,
               recipient: router.contracts.swapModule.address,
@@ -837,7 +837,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
           offerer: seller1.address,
           contract: erc721.address,
           tokenId: tokenId1,
-          paymentToken: Sdk.Common.Addresses.Eth[chainId],
+          paymentToken: Sdk.Common.Addresses.Native[chainId],
           price: price1.sub(price1.mul(fee1).div(10000)),
           fees: [
             {
@@ -863,7 +863,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         contract: erc721.address,
         tokenId: tokenId1.toString(),
         order: sellOrder,
-        currency: Sdk.Common.Addresses.Eth[chainId],
+        currency: Sdk.Common.Addresses.Native[chainId],
         price: price1.toString(),
       });
     }
@@ -945,7 +945,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
           offerer: seller4.address,
           contract: erc721.address,
           tokenId: tokenId4,
-          paymentToken: Sdk.Common.Addresses.Weth[chainId],
+          paymentToken: Sdk.Common.Addresses.WNative[chainId],
           price: price4.sub(price4.mul(fee1).div(10000)),
           fees: [
             {
@@ -971,13 +971,13 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         contract: erc721.address,
         tokenId: tokenId4.toString(),
         order: sellOrder,
-        currency: Sdk.Common.Addresses.Weth[chainId],
+        currency: Sdk.Common.Addresses.WNative[chainId],
         price: price4.toString(),
       });
     }
 
     const usdc = new Sdk.Common.Helpers.Erc20(ethers.provider, Sdk.Common.Addresses.Usdc[chainId]);
-    const weth = new Sdk.Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Sdk.Common.Helpers.WNative(ethers.provider, chainId);
 
     const seller1EthBalanceBefore = await seller1.getBalance();
     const seller2UsdcBalanceBefore = await usdc.getBalance(seller2.address);
@@ -1037,7 +1037,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
 
     const bids: BidDetails[] = [];
 
-    const weth = new Sdk.Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Sdk.Common.Helpers.WNative(ethers.provider, chainId);
 
     // Order 1: Seaport WETH
     const buyer1 = alice;
@@ -1066,7 +1066,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
           offerer: buyer1.address,
           contract: erc721.address,
           tokenId: tokenId1,
-          paymentToken: Sdk.Common.Addresses.Weth[chainId],
+          paymentToken: Sdk.Common.Addresses.WNative[chainId],
           price: price1,
           fees: [
             {
@@ -1121,7 +1121,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
           offerer: buyer2.address,
           contract: erc721.address,
           tokenId: tokenId2,
-          paymentToken: Sdk.Common.Addresses.Weth[chainId],
+          paymentToken: Sdk.Common.Addresses.WNative[chainId],
           price: price2,
           fees: [
             {
@@ -1193,7 +1193,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
 
     const bids: BidDetails[] = [];
 
-    const weth = new Sdk.Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Sdk.Common.Helpers.WNative(ethers.provider, chainId);
 
     // Order 1: Seaport WETH
     const buyer1 = alice;
@@ -1222,7 +1222,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
           offerer: buyer1.address,
           contract: erc721.address,
           tokenId: tokenId1,
-          paymentToken: Sdk.Common.Addresses.Weth[chainId],
+          paymentToken: Sdk.Common.Addresses.WNative[chainId],
           price: price1,
           fees: [
             {
@@ -1277,7 +1277,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
           offerer: buyer2.address,
           contract: erc721.address,
           tokenId: tokenId2,
-          paymentToken: Sdk.Common.Addresses.Weth[chainId],
+          paymentToken: Sdk.Common.Addresses.WNative[chainId],
           price: price2,
           fees: [
             {
@@ -1332,7 +1332,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
           offerer: buyer3.address,
           contract: erc721.address,
           tokenId: tokenId3,
-          paymentToken: Sdk.Common.Addresses.Weth[chainId],
+          paymentToken: Sdk.Common.Addresses.WNative[chainId],
           price: price3,
           fees: [
             {
@@ -1428,7 +1428,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
 
     const bids: BidDetails[] = [];
 
-    const weth = new Sdk.Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Sdk.Common.Helpers.WNative(ethers.provider, chainId);
 
     // Order 1: Seaport WETH
     const buyer1 = alice;
@@ -1457,7 +1457,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
           offerer: buyer1.address,
           contract: erc721.address,
           tokenId: tokenId1,
-          paymentToken: Sdk.Common.Addresses.Weth[chainId],
+          paymentToken: Sdk.Common.Addresses.WNative[chainId],
           price: price1,
           fees: [
             {
@@ -1532,7 +1532,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         data: router.contracts.swapModule.interface.encodeFunctionData("ethToExactOutput", [
           {
             params: {
-              tokenIn: Sdk.Common.Addresses.Weth[chainId],
+              tokenIn: Sdk.Common.Addresses.WNative[chainId],
               tokenOut: Sdk.Common.Addresses.Usdc[chainId],
               fee: 500,
               recipient: router.contracts.swapModule.address,
@@ -1585,7 +1585,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
           offerer: seller1.address,
           contract: erc721.address,
           tokenId: tokenId1,
-          paymentToken: Sdk.Common.Addresses.Eth[chainId],
+          paymentToken: Sdk.Common.Addresses.Native[chainId],
           price: price1.sub(price1.mul(fee1).div(10000)),
           fees: [
             {
@@ -1611,7 +1611,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         contract: erc721.address,
         tokenId: tokenId1.toString(),
         order: sellOrder,
-        currency: Sdk.Common.Addresses.Eth[chainId],
+        currency: Sdk.Common.Addresses.Native[chainId],
         price: price1.toString(),
       });
     }
@@ -1639,7 +1639,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
           offerer: seller2.address,
           contract: erc721.address,
           tokenId: tokenId2,
-          paymentToken: Sdk.Common.Addresses.Weth[chainId],
+          paymentToken: Sdk.Common.Addresses.WNative[chainId],
           price: price2.sub(price2.mul(fee1).div(10000)),
           fees: [
             {
@@ -1665,13 +1665,13 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         contract: erc721.address,
         tokenId: tokenId2.toString(),
         order: sellOrder,
-        currency: Sdk.Common.Addresses.Weth[chainId],
+        currency: Sdk.Common.Addresses.WNative[chainId],
         price: price2.toString(),
       });
     }
 
     const usdc = new Sdk.Common.Helpers.Erc20(ethers.provider, Sdk.Common.Addresses.Usdc[chainId]);
-    const weth = new Sdk.Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Sdk.Common.Helpers.WNative(ethers.provider, chainId);
 
     const seller1EthBalanceBefore = await seller1.getBalance();
     const token1OwnerBefore = await erc721.ownerOf(tokenId1);
@@ -1736,7 +1736,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         data: router.contracts.swapModule.interface.encodeFunctionData("ethToExactOutput", [
           {
             params: {
-              tokenIn: Sdk.Common.Addresses.Weth[chainId],
+              tokenIn: Sdk.Common.Addresses.WNative[chainId],
               tokenOut: Sdk.Common.Addresses.Usdc[chainId],
               fee: 500,
               recipient: router.contracts.swapModule.address,
@@ -1789,7 +1789,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
           offerer: seller1.address,
           contract: erc721.address,
           tokenId: tokenId1,
-          paymentToken: Sdk.Common.Addresses.Eth[chainId],
+          paymentToken: Sdk.Common.Addresses.Native[chainId],
           price: price1.sub(price1.mul(fee1).div(10000)),
           fees: [
             {
@@ -1815,7 +1815,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         contract: erc721.address,
         tokenId: tokenId1.toString(),
         order: sellOrder,
-        currency: Sdk.Common.Addresses.Eth[chainId],
+        currency: Sdk.Common.Addresses.Native[chainId],
         price: price1.toString(),
       });
     }
@@ -1897,7 +1897,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
           offerer: seller3.address,
           contract: erc721.address,
           tokenId: tokenId3,
-          paymentToken: Sdk.Common.Addresses.Weth[chainId],
+          paymentToken: Sdk.Common.Addresses.WNative[chainId],
           price: price3.sub(price3.mul(fee1).div(10000)),
           fees: [
             {
@@ -1923,13 +1923,13 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         contract: erc721.address,
         tokenId: tokenId3.toString(),
         order: sellOrder,
-        currency: Sdk.Common.Addresses.Weth[chainId],
+        currency: Sdk.Common.Addresses.WNative[chainId],
         price: price3.toString(),
       });
     }
 
     const usdc = new Sdk.Common.Helpers.Erc20(ethers.provider, Sdk.Common.Addresses.Usdc[chainId]);
-    const weth = new Sdk.Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Sdk.Common.Helpers.WNative(ethers.provider, chainId);
 
     const seller1EthBalanceBefore = await seller1.getBalance();
     const seller2UsdcBalanceBefore = await usdc.getBalance(seller2.address);
@@ -2013,7 +2013,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
           offerer: seller1.address,
           contract: erc721.address,
           tokenId: tokenId1,
-          paymentToken: Sdk.Common.Addresses.Eth[chainId],
+          paymentToken: Sdk.Common.Addresses.Native[chainId],
           price: price1.sub(price1.mul(fee1).div(10000)),
           fees: [
             {
@@ -2039,7 +2039,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         contract: erc721.address,
         tokenId: tokenId1.toString(),
         order: sellOrder,
-        currency: Sdk.Common.Addresses.Eth[chainId],
+        currency: Sdk.Common.Addresses.Native[chainId],
         price: price1.toString(),
       });
     }
@@ -2121,7 +2121,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
           offerer: seller3.address,
           contract: erc721.address,
           tokenId: tokenId3,
-          paymentToken: Sdk.Common.Addresses.Weth[chainId],
+          paymentToken: Sdk.Common.Addresses.WNative[chainId],
           price: price3.sub(price3.mul(fee3).div(10000)),
           fees: [
             {
@@ -2147,13 +2147,13 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         contract: erc721.address,
         tokenId: tokenId3.toString(),
         order: sellOrder,
-        currency: Sdk.Common.Addresses.Weth[chainId],
+        currency: Sdk.Common.Addresses.WNative[chainId],
         price: price3.toString(),
       });
     }
 
     const usdc = new Sdk.Common.Helpers.Erc20(ethers.provider, Sdk.Common.Addresses.Usdc[chainId]);
-    const weth = new Sdk.Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Sdk.Common.Helpers.WNative(ethers.provider, chainId);
 
     const seller1EthBalanceBefore = await seller1.getBalance();
     const seller2UsdcBalanceBefore = await usdc.getBalance(seller2.address);
@@ -2171,7 +2171,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
     const tx = await router.fillListingsTx(
       listings,
       buyer.address,
-      Sdk.Common.Addresses.Eth[chainId],
+      Sdk.Common.Addresses.Native[chainId],
       {
         source: "reservoir.market",
         swapProvider: "1inch",

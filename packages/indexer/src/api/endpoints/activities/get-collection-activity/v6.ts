@@ -214,7 +214,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
       const result = _.map(activities, async (activity) => {
         const currency = activity.pricing?.currency
           ? activity.pricing.currency
-          : Sdk.Common.Addresses.Eth[config.chainId];
+          : Sdk.Common.Addresses.Native[config.chainId];
 
         let order;
 

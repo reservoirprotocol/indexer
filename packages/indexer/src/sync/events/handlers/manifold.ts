@@ -228,7 +228,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         let tokenContract: string | undefined;
         let tokenId: string | undefined;
         let currencyPrice: string | undefined;
-        let currency = Sdk.Common.Addresses.Eth[config.chainId];
+        let currency = Sdk.Common.Addresses.Native[config.chainId];
         let purchasedAmount: string | undefined;
         let tokenKey: string | undefined;
 
@@ -345,7 +345,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const listingId = parsedLog.args["listingId"].toString();
         const currencyPrice = parsedLog.args["amount"].toString();
         const maker = parsedLog.args["oferrer"].toLowerCase();
-        let currency = Sdk.Common.Addresses.Eth[config.chainId];
+        let currency = Sdk.Common.Addresses.Native[config.chainId];
 
         const orderId = manifold.getOrderId(listingId);
 

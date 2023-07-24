@@ -6,9 +6,9 @@ import { Erc20 } from "./erc20";
 import * as Addresses from "../addresses";
 import { TxData, bn } from "../../utils";
 
-export class Weth extends Erc20 {
+export class WNative extends Erc20 {
   constructor(provider: Provider, chainId: number) {
-    super(provider, Addresses.Weth[chainId]);
+    super(provider, Addresses.WNative[chainId]);
   }
 
   public async deposit(depositor: Signer, amount: BigNumberish): Promise<TransactionResponse> {

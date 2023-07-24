@@ -133,8 +133,8 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             rawResult.currency
               ? fromBuffer(rawResult.currency)
               : rawResult.side === "sell"
-              ? Sdk.Common.Addresses.Eth[config.chainId]
-              : Sdk.Common.Addresses.Weth[config.chainId],
+              ? Sdk.Common.Addresses.Native[config.chainId]
+              : Sdk.Common.Addresses.WNative[config.chainId],
             undefined
           ),
           validFrom: Number(rawResult.valid_from),

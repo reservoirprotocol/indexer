@@ -8,7 +8,7 @@ import { AlphaRouter, SwapType } from "@uniswap/smart-order-router";
 
 import { ExecutionInfo } from "../types";
 import { isETH } from "../utils";
-import { Weth } from "../../../common/addresses";
+import { WNative } from "../../../common/addresses";
 import { Network } from "../../../utils";
 import { TransferDetail, SwapInfo } from "./index";
 
@@ -50,7 +50,7 @@ export const generateSwapExecutions = async (
   // https://github.com/Uniswap/sdk-core/issues/39
   let fromToken = await getToken(chainId, provider, fromTokenAddress);
   if (chainId === Network.Polygon && isETH(chainId, fromTokenAddress)) {
-    fromToken = await getToken(chainId, provider, Weth[chainId]);
+    fromToken = await getToken(chainId, provider, WNative[chainId]);
   }
 
   const toToken = await getToken(chainId, provider, toTokenAddress);

@@ -176,7 +176,10 @@ export const getNetworkSettings = (): NetworkSettings => {
     burnAddresses: [AddressZero, "0x000000000000000000000000000000000000dead"],
     reorgCheckFrequency: [1, 5, 10, 30, 60], // In minutes
     whitelistedCurrencies: new Map<string, Currency>(),
-    supportedBidCurrencies: { [Sdk.Common.Addresses.Weth[config.chainId]?.toLowerCase()]: true },
+    supportedBidCurrencies: {
+      [Sdk.Common.Addresses.WNative[config.chainId]?.toLowerCase()]: true,
+      [Sdk.Common.Addresses.Usdc[config.chainId]?.toLowerCase()]: true,
+    },
     subDomain: "api",
     elasticsearch: {
       numberOfShards: 2,
@@ -253,10 +256,6 @@ export const getNetworkSettings = (): NetworkSettings => {
           // Nifty Gateway Omnibus
           "0xe052113bd7d7700d623414a0a4585bcae754e9d5",
         ],
-        supportedBidCurrencies: {
-          ...defaultNetworkSettings.supportedBidCurrencies,
-          [Sdk.Common.Addresses.Usdc[config.chainId]]: true,
-        },
         whitelistedCurrencies: new Map([
           [
             "0xceb726e6383468dd8ac0b513c8330cc9fb4024a8",
@@ -428,7 +427,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         ],
         supportedBidCurrencies: {
           ...defaultNetworkSettings.supportedBidCurrencies,
-          [Sdk.Common.Addresses.Usdc[config.chainId]]: true,
           // OpenSea USDC
           "0x2f3a40a3db8a7e3d09b0adfefbce4f6f81927557": true,
         },
@@ -607,7 +605,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         },
         supportedBidCurrencies: {
           ...defaultNetworkSettings.supportedBidCurrencies,
-          [Sdk.Common.Addresses.Usdc[config.chainId]]: true,
           // WETH
           "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619": true,
           // CONE

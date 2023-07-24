@@ -48,7 +48,7 @@ describe("[ReservoirV6_0_1] - PaymentProcessor offers", () => {
     const price = parseEther("1");
     const tokenId = 1;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
     // Mint weth to buyer
     await weth.deposit(buyer, price);
 
@@ -86,7 +86,7 @@ describe("[ReservoirV6_0_1] - PaymentProcessor offers", () => {
       price: price,
       expiration: (blockTime + 60 * 60).toString(),
       nonce: "0",
-      coin: Common.Addresses.Weth[chainId],
+      coin: Common.Addresses.WNative[chainId],
       masterNonce: buyerMasterNonce,
     };
 
@@ -130,7 +130,7 @@ describe("[ReservoirV6_0_1] - PaymentProcessor offers", () => {
     const price = parseEther("1");
     const tokenId = 1;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
     // Mint weth to buyer
     await weth.deposit(buyer, price);
 
@@ -168,7 +168,7 @@ describe("[ReservoirV6_0_1] - PaymentProcessor offers", () => {
       price: price,
       expiration: (blockTime + 60 * 60).toString(),
       nonce: "0",
-      coin: Common.Addresses.Weth[chainId],
+      coin: Common.Addresses.WNative[chainId],
       masterNonce: buyerMasterNonce,
     };
 
@@ -211,7 +211,7 @@ describe("[ReservoirV6_0_1] - PaymentProcessor offers", () => {
     const tokenId = 1;
     const amount = 10;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
     // Mint weth to buyer
     await weth.deposit(buyer, price.mul(amount));
 
@@ -249,7 +249,7 @@ describe("[ReservoirV6_0_1] - PaymentProcessor offers", () => {
       price: price.mul(amount),
       expiration: (blockTime + 60 * 60).toString(),
       nonce: "0",
-      coin: Common.Addresses.Weth[chainId],
+      coin: Common.Addresses.WNative[chainId],
       masterNonce: buyerMasterNonce,
     };
 

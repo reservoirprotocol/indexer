@@ -85,7 +85,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       );
 
       // Check: sell order has Eth as payment token
-      if (orderParams.askCurrency !== Sdk.Common.Addresses.Eth[config.chainId]) {
+      if (orderParams.askCurrency !== Sdk.Common.Addresses.Native[config.chainId]) {
         if (!orderResult) {
           return results.push({
             id,

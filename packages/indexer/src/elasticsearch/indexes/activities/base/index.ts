@@ -150,7 +150,7 @@ export class ActivityBuilder extends DocumentBuilder {
             feeBps: data.pricing_fee_bps ?? undefined,
             currency: data.pricing_currency
               ? fromBuffer(data.pricing_currency)
-              : Sdk.Common.Addresses.Eth[config.chainId],
+              : Sdk.Common.Addresses.Native[config.chainId],
             value: data.pricing_value ? String(data.pricing_value) : undefined,
             valueDecimal: data.pricing_value ? formatEth(data.pricing_value) : undefined,
             currencyValue: data.pricing_currency_value

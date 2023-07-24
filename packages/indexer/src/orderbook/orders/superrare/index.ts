@@ -113,7 +113,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       );
 
       // Check: sell order has Eth as payment token
-      if (orderParams.currency !== Sdk.Common.Addresses.Eth[config.chainId]) {
+      if (orderParams.currency !== Sdk.Common.Addresses.Native[config.chainId]) {
         if (!orderResult) {
           return results.push({
             id,
@@ -303,7 +303,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         taker: toBuffer(AddressZero),
         price,
         value,
-        currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
+        currency: toBuffer(Sdk.Common.Addresses.Native[config.chainId]),
         currency_price: price,
         currency_value: value,
         needs_conversion: null,

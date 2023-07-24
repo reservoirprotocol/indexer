@@ -42,7 +42,7 @@ export async function getPoolPrice(
     "function getAmountsIn(uint amountOut, address[] memory path) view returns (uint[] memory amounts)",
   ]);
 
-  const WETH = Common.Addresses.Weth[chainId];
+  const WETH = Common.Addresses.WNative[chainId];
   const SUSHI_ROUTER = Nftx.Addresses.SushiRouter[chainId];
 
   const sushiRouter = new Contract(SUSHI_ROUTER, iface, provider);

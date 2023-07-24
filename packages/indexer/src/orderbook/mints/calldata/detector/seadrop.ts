@@ -86,7 +86,7 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
               },
             },
           },
-          currency: Sdk.Common.Addresses.Eth[config.chainId],
+          currency: Sdk.Common.Addresses.Native[config.chainId],
           price: drop.mintPrice.toString(),
           maxMintsPerWallet: String(drop.maxTotalMintableByWallet),
           maxSupply: await getMaxSupply(collection),

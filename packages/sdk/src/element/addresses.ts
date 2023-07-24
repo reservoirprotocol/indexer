@@ -7,12 +7,6 @@ export const Exchange: ChainIdToAddress = {
   [Network.EthereumGoerli]: "0x7fed7ed540c0731088190fed191fcf854ed65efa",
 };
 
-export const Eth: ChainIdToAddress = {
-  [Network.Ethereum]: NativeEthAddress,
-  [Network.EthereumGoerli]: NativeEthAddress,
-  [Network.Optimism]: NativeEthAddress,
-};
-
 export const TokenRangeValidator: ChainIdToAddress = {
   [Network.Ethereum]: "0xf4a4daa2e20f3d249d53e74a15b6a0518c27927d",
 };

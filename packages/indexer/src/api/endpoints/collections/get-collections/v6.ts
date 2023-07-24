@@ -635,11 +635,11 @@ export const getCollectionsV6Options: RouteOptions = {
           // that don't have the currencies cached in the tokens table
           const floorAskCurrency = r.floor_sell_currency
             ? fromBuffer(r.floor_sell_currency)
-            : Sdk.Common.Addresses.Eth[config.chainId];
+            : Sdk.Common.Addresses.Native[config.chainId];
 
           const topBidCurrency = r.top_buy_currency
             ? fromBuffer(r.top_buy_currency)
-            : Sdk.Common.Addresses.Weth[config.chainId];
+            : Sdk.Common.Addresses.WNative[config.chainId];
 
           const sampleImages = _.filter(
             r.sample_images,

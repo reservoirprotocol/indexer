@@ -7,12 +7,7 @@ import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { mintsProcessJob } from "@/jobs/mints/mints-process-job";
 import { CollectionMint } from "@/orderbook/mints";
 
-import * as Decent from "@/orderbook/mints/calldata/detector/decent";
-import * as Generic from "@/orderbook/mints/calldata/detector/generic";
-import * as Manifold from "@/orderbook/mints/calldata/detector/manifold";
-import * as Seadrop from "@/orderbook/mints/calldata/detector/seadrop";
-import * as Thirdweb from "@/orderbook/mints/calldata/detector/thirdweb";
-import * as Zora from "@/orderbook/mints/calldata/detector/zora";
+import * as mints from "@/orderbook/mints/calldata/detector";
 
 export type AbiParam =
   | {
@@ -50,7 +45,7 @@ export type MintTxSchema = {
   };
 };
 
-export type CustomInfo = Manifold.Info;
+export type CustomInfo = mints.manifold.Info;
 
 export const generateCollectionMintTxData = async (
   collectionMint: CollectionMint,
@@ -128,7 +123,7 @@ export const generateCollectionMintTxData = async (
             } else if (allowlistItemIndex === 1) {
               abiValue = allowlistData.price;
             } else {
-              abiValue = await Decent.generateProofValue(collectionMint, minter);
+              abiValue = await mints.decent.generateProofValue(collectionMint, minter);
             }
 
             break;
@@ -136,9 +131,11 @@ export const generateCollectionMintTxData = async (
 
           case "manifold": {
             if (allowlistItemIndex === 0) {
-              abiValue = [(await Manifold.generateProofValue(collectionMint, minter)).value];
+              abiValue = [(await mints.manifold.generateProofValue(collectionMint, minter)).value];
             } else {
-              abiValue = [(await Manifold.generateProofValue(collectionMint, minter)).merkleProof];
+              abiValue = [
+                (await mints.manifold.generateProofValue(collectionMint, minter)).merkleProof,
+              ];
             }
 
             break;
@@ -148,7 +145,7 @@ export const generateCollectionMintTxData = async (
             if (allowlistItemIndex === 0) {
               abiValue = allowlistData.price ?? collectionMint.price;
             } else {
-              abiValue = await Thirdweb.generateProofValue(collectionMint, minter);
+              abiValue = await mints.thirdweb.generateProofValue(collectionMint, minter);
             }
 
             break;
@@ -157,7 +154,7 @@ export const generateCollectionMintTxData = async (
           case "zora": {
             if (collectionMint.tokenId) {
               // ERC1155
-              const proofData = await Zora.generateProofValue(collectionMint, minter);
+              const proofData = await mints.zora.generateProofValue(collectionMint, minter);
               abiValue = defaultAbiCoder.encode(
                 ["address", "uint256", "uint256", "bytes32[]"],
                 [minter, proofData.maxCanMint, proofData.price, proofData.proof]
@@ -169,7 +166,7 @@ export const generateCollectionMintTxData = async (
               } else if (allowlistItemIndex === 1) {
                 abiValue = allowlistData.price;
               } else {
-                abiValue = (await Zora.generateProofValue(collectionMint, minter)).proof;
+                abiValue = (await mints.zora.generateProofValue(collectionMint, minter)).proof;
               }
             }
 
@@ -272,17 +269,19 @@ export const refreshMintsForCollection = async (collection: string) => {
   if (standardResult) {
     switch (standardResult.standard) {
       case "decent":
-        return Decent.refreshByCollection(collection);
+        return mints.decent.refreshByCollection(collection);
+      case "foundation":
+        return mints.foundation.refreshByCollection(collection);
       case "manifold":
-        return Manifold.refreshByCollection(collection);
+        return mints.manifold.refreshByCollection(collection);
       case "seadrop-v1.0":
-        return Seadrop.refreshByCollection(collection);
+        return mints.seadrop.refreshByCollection(collection);
       case "thirdweb":
-        return Thirdweb.refreshByCollection(collection);
+        return mints.thirdweb.refreshByCollection(collection);
       case "unknown":
-        return Generic.refreshByCollection(collection);
+        return mints.generic.refreshByCollection(collection);
       case "zora":
-        return Zora.refreshByCollection(collection);
+        return mints.zora.refreshByCollection(collection);
     }
   } else {
     const lastMintResult = await idb.oneOrNone(

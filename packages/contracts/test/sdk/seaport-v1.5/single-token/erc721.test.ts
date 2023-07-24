@@ -56,7 +56,7 @@ describe("SeaportV15 - SingleToken Erc721", () => {
         offerer: seller.address,
         contract: erc721.address,
         tokenId: soldTokenId,
-        paymentToken: Common.Addresses.Eth[chainId],
+        paymentToken: Common.Addresses.Native[chainId],
         price,
         counter: 0,
         startTime: await getCurrentTimestamp(ethers.provider),
@@ -120,7 +120,7 @@ describe("SeaportV15 - SingleToken Erc721", () => {
             offerer: seller.address,
             contract: erc721.address,
             tokenId: j,
-            paymentToken: Common.Addresses.Eth[chainId],
+            paymentToken: Common.Addresses.Native[chainId],
             price,
             counter: 0,
             startTime: await getCurrentTimestamp(ethers.provider),
@@ -253,7 +253,7 @@ describe("SeaportV15 - SingleToken Erc721", () => {
         offerer: seller.address,
         contract: erc721.address,
         tokenId: soldTokenId,
-        paymentToken: Common.Addresses.Eth[chainId],
+        paymentToken: Common.Addresses.Native[chainId],
         price,
         counter: 0,
         startTime: await getCurrentTimestamp(ethers.provider),
@@ -298,7 +298,7 @@ describe("SeaportV15 - SingleToken Erc721", () => {
         offerer: seller.address,
         contract: erc721.address,
         tokenId: soldTokenId,
-        paymentToken: Common.Addresses.Eth[chainId],
+        paymentToken: Common.Addresses.Native[chainId],
         price,
         fees: [
           {
@@ -355,7 +355,7 @@ describe("SeaportV15 - SingleToken Erc721", () => {
     const price = parseEther("1");
     const boughtTokenId = 10;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -383,7 +383,7 @@ describe("SeaportV15 - SingleToken Erc721", () => {
         offerer: buyer.address,
         contract: erc721.address,
         tokenId: boughtTokenId,
-        paymentToken: Common.Addresses.Weth[chainId],
+        paymentToken: Common.Addresses.WNative[chainId],
         price,
         counter: 0,
         startTime: await getCurrentTimestamp(ethers.provider),
@@ -428,7 +428,7 @@ describe("SeaportV15 - SingleToken Erc721", () => {
     const fee2 = parseEther("0.00025");
     const boughtTokenId = 10;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -456,7 +456,7 @@ describe("SeaportV15 - SingleToken Erc721", () => {
         offerer: buyer.address,
         contract: erc721.address,
         tokenId: boughtTokenId,
-        paymentToken: Common.Addresses.Weth[chainId],
+        paymentToken: Common.Addresses.WNative[chainId],
         price,
         fees: [
           {
@@ -516,7 +516,7 @@ describe("SeaportV15 - SingleToken Erc721", () => {
     const endPrice = parseEther("3");
     const boughtTokenId = 10;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price.add(endPrice));
@@ -545,7 +545,7 @@ describe("SeaportV15 - SingleToken Erc721", () => {
         contract: erc721.address,
         tokenId: boughtTokenId,
         endPrice,
-        paymentToken: Common.Addresses.Weth[chainId],
+        paymentToken: Common.Addresses.WNative[chainId],
         price,
         counter: 0,
         startTime: (await getCurrentTimestamp(ethers.provider)) - 120,

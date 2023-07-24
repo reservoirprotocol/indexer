@@ -412,7 +412,7 @@ export const getUserTopBidsV4Options: RouteOptions = {
                         nativeAmount: String(r.token_last_sell_value),
                       },
                     },
-                    Sdk.Common.Addresses.Eth[config.chainId],
+                    Sdk.Common.Addresses.Native[config.chainId],
                     query.displayCurrency
                   )
                 : null,

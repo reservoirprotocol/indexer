@@ -217,7 +217,7 @@ export class Router {
   public async fillListingsTx(
     details: ListingDetails[],
     taker: string,
-    buyInCurrency = Sdk.Common.Addresses.Eth[this.chainId],
+    buyInCurrency = Sdk.Common.Addresses.Native[this.chainId],
     options?: {
       source?: string;
       // Will be split among all listings to get filled
@@ -865,7 +865,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -917,7 +917,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -975,7 +975,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -1036,7 +1036,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: this.contracts.foundationModule.address,
         refundTo: relayer,
@@ -1095,7 +1095,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -1611,7 +1611,7 @@ export class Router {
       const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
       const totalPrice = price.add(feeAmount);
 
-      const isERC20 = buyInCurrency !== Sdk.Common.Addresses.Eth[this.chainId];
+      const isERC20 = buyInCurrency !== Sdk.Common.Addresses.Native[this.chainId];
       const functionName = `buyWith${isERC20 ? "ERC20" : "ETH"}`;
       const listingParams = isERC20
         ? {
@@ -1649,7 +1649,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -1705,7 +1705,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -1771,7 +1771,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -1831,7 +1831,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -1916,7 +1916,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -1975,7 +1975,7 @@ export class Router {
           // Track any possibly required swap
           swapDetails.push({
             tokenIn: buyInCurrency,
-            tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+            tokenOut: Sdk.Common.Addresses.Native[this.chainId],
             tokenOutAmount: totalPrice,
             recipient: module.address,
             refundTo: relayer,
@@ -2055,7 +2055,7 @@ export class Router {
           // Track any possibly required swap
           swapDetails.push({
             tokenIn: buyInCurrency,
-            tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+            tokenOut: Sdk.Common.Addresses.Native[this.chainId],
             tokenOutAmount: totalPrice,
             recipient: module.address,
             refundTo: relayer,
@@ -2156,7 +2156,7 @@ export class Router {
         // Track any possibly required swap
         swapDetails.push({
           tokenIn: buyInCurrency,
-          tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+          tokenOut: Sdk.Common.Addresses.Native[this.chainId],
           tokenOutAmount: totalPrice,
           recipient: module.address,
           refundTo: relayer,
@@ -2260,7 +2260,7 @@ export class Router {
         // Track any possibly required swap
         swapDetails.push({
           tokenIn: buyInCurrency,
-          tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+          tokenOut: Sdk.Common.Addresses.Native[this.chainId],
           tokenOutAmount: totalPrice,
           recipient: module.address,
           refundTo: relayer,
@@ -2330,7 +2330,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -2393,7 +2393,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -2460,7 +2460,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: this.contracts.superRareModule.address,
         refundTo: relayer,
@@ -2507,7 +2507,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -2558,7 +2558,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -2589,10 +2589,10 @@ export class Router {
           pool = `${tokenIn}:${tokenOut}`;
         } else {
           const normalizedTokenIn = isETH(this.chainId, tokenIn)
-            ? Sdk.Common.Addresses.Weth[this.chainId]
+            ? Sdk.Common.Addresses.WNative[this.chainId]
             : tokenIn;
           const normalizedTokenOut = isETH(this.chainId, tokenOut)
-            ? Sdk.Common.Addresses.Weth[this.chainId]
+            ? Sdk.Common.Addresses.WNative[this.chainId]
             : tokenOut;
           pool = `${normalizedTokenIn}:${normalizedTokenOut}`;
         }
@@ -2731,7 +2731,7 @@ export class Router {
       executions = [...successfulSwapExecutions, ...executions];
 
       // If the buy-in currency is not ETH then we won't need any `value` fields
-      if (buyInCurrency !== Sdk.Common.Addresses.Eth[this.chainId]) {
+      if (buyInCurrency !== Sdk.Common.Addresses.Native[this.chainId]) {
         executions.forEach((e) => {
           e.value = 0;
         });
@@ -3815,7 +3815,7 @@ export class Router {
           // Cover the case where the path is missing
           order.params.path = order.params.path.length
             ? order.params.path
-            : [order.params.pool, Sdk.Common.Addresses.Weth[this.chainId]];
+            : [order.params.pool, Sdk.Common.Addresses.WNative[this.chainId]];
 
           executionsWithDetails.push({
             detail,

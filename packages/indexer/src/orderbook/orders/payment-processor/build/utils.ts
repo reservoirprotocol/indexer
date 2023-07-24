@@ -62,8 +62,8 @@ export const getBuildInfo = async (
     expiration: options.expirationTime!,
     coin:
       side === "sell"
-        ? Sdk.Common.Addresses.Eth[config.chainId]
-        : Sdk.Common.Addresses.Weth[config.chainId],
+        ? Sdk.Common.Addresses.Native[config.chainId]
+        : Sdk.Common.Addresses.WNative[config.chainId],
     masterNonce: await commonHelpers.getMinNonce("payment-processor", options.maker),
   };
 

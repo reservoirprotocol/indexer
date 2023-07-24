@@ -22,9 +22,11 @@ export const generateSwapExecutions = async (
   }
 ): Promise<SwapInfo> => {
   const fromToken = isETH(chainId, fromTokenAddress)
-    ? ZeroExV4.Addresses.Eth[chainId]
+    ? ZeroExV4.Addresses.Native[chainId]
     : fromTokenAddress;
-  const toToken = isETH(chainId, toTokenAddress) ? Common.Addresses.Weth[chainId] : toTokenAddress;
+  const toToken = isETH(chainId, toTokenAddress)
+    ? Common.Addresses.WNative[chainId]
+    : toTokenAddress;
 
   const slippage = 10; // 0.01%
   const { data: quoteData } = await axios.get(`${API_1INCH_ENDPOINT}/v5.0/${chainId}/quote`, {

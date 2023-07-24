@@ -79,7 +79,7 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
             },
           },
         },
-        currency: Sdk.Common.Addresses.Eth[config.chainId],
+        currency: Sdk.Common.Addresses.Native[config.chainId],
         price,
         maxMintsPerWallet: saleDetails.maxSalePurchasePerAddress.toString(),
         maxSupply: saleDetails.maxSupply.toString(),
@@ -147,7 +147,7 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
             },
           },
         },
-        currency: Sdk.Common.Addresses.Eth[config.chainId],
+        currency: Sdk.Common.Addresses.Native[config.chainId],
         maxSupply: saleDetails.maxSupply.toString(),
         startTime: toSafeTimestamp(saleDetails.presaleStart),
         endTime: toSafeTimestamp(saleDetails.presaleEnd),
@@ -271,7 +271,7 @@ export const extractByCollectionERC1155 = async (
                 },
               },
             },
-            currency: Sdk.Common.Addresses.Eth[config.chainId],
+            currency: Sdk.Common.Addresses.Native[config.chainId],
             price,
             maxMintsPerWallet: saleConfig.maxTokensPerAddress.toString(),
             tokenId,
@@ -362,7 +362,7 @@ export const extractByCollectionERC1155 = async (
                 },
               },
             },
-            currency: Sdk.Common.Addresses.Eth[config.chainId],
+            currency: Sdk.Common.Addresses.Native[config.chainId],
             maxSupply: tokenInfo.maxSupply.toString(),
             startTime: toSafeTimestamp(saleConfig.presaleStart),
             endTime: toSafeTimestamp(saleConfig.presaleEnd),
@@ -428,8 +428,7 @@ export const refreshByCollection = async (collection: string) => {
     standard: STANDARD,
   });
 
-  const uniqueTokenIds = [...new Set(existingCollectionMints.map(({ tokenId }) => tokenId))];
-  for (const tokenId of uniqueTokenIds) {
+  for (const { tokenId } of existingCollectionMints) {
     // Fetch and save/update the currently available mints
     const latestCollectionMints = tokenId
       ? await extractByCollectionERC1155(collection, tokenId)
