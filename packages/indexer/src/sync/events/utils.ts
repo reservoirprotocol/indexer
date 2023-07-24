@@ -7,6 +7,10 @@ import { Transaction, getTransaction, saveTransactionsV2 } from "@/models/transa
 import { TransactionReceipt } from "@ethersproject/providers";
 
 import { BlockWithTransactions } from "@ethersproject/abstract-provider";
+import { TransactionTrace } from "@/models/transaction-traces";
+import { ContractAddress, saveContractAddresses } from "@/models/contract_addresses";
+import { CallTrace } from "@georgeroman/evm-tx-simulator/dist/types";
+
 import { getTransactionTraces } from "@/models/transaction-traces";
 import { getSourceV1 } from "@reservoir0x/sdk/dist/utils";
 import { Interface } from "@ethersproject/abi";
@@ -98,6 +102,45 @@ export const getTransactionReceiptsFromBlock = async (blockNumber: number) => {
 export const blockNumberToHex = (blockNumber: number) => {
   return "0x" + blockNumber.toString(16);
 };
+
+const processCall = (trace: TransactionTrace, call: CallTrace) => {
+  const processedCalls = [];
+  if (call.type === "CREATE" || call.type === "CREATE2") {
+    processedCalls.push({
+      address: call.to,
+      deploymentTxHash: trace.hash,
+      deploymentSender: call.from,
+      deploymentFactory: call?.to || AddressZero,
+      bytecode: call.input,
+    });
+  }
+
+  if (call?.calls) {
+    call.calls.forEach((c) => {
+      const processedCall = processCall(trace, c);
+      if (processedCall) {
+        processedCalls.push(processedCall);
+      }
+    });
+
+    return processedCalls;
+  }
+};
+
+export const processContractAddresses = async (traces: TransactionTrace[]) => {
+  const contractAddresses: ContractAddress[] = [];
+
+  for (const trace of traces) {
+    trace.calls.forEach((call) => {
+      const processedCall = processCall(trace, call);
+      if (processedCall) {
+        contractAddresses.push(...processedCall);
+      }
+    });
+  }
+
+  await saveContractAddresses(contractAddresses);
+}
 
 export const extractAttributionData = async (
   txHash: string,

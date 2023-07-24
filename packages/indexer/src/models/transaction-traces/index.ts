@@ -5,7 +5,7 @@ import { fromBuffer, toBuffer } from "@/common/utils";
 
 export type TransactionTrace = {
   hash: string;
-  calls: CallTrace;
+  calls: CallTrace[];
 };
 
 export const saveTransactionTraces = async (transactionTraces: TransactionTrace[]) => {
