@@ -8,7 +8,7 @@ import { TransactionReceipt } from "@ethersproject/providers";
 
 import { BlockWithTransactions } from "@ethersproject/abstract-provider";
 import { getTransactionTraces } from "@/models/transaction-traces";
-import { getSourceV1 } from "@reservoir0x/sdk/src/utils";
+import { getSourceV1 } from "@reservoir0x/sdk/dist/utils";
 import { Interface } from "@ethersproject/abi";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { OrderKind, getOrderSourceByOrderId, getOrderSourceByOrderKind } from "@/orderbook/orders";
