@@ -73,11 +73,12 @@ export abstract class KafkaEventHandler {
 
   convertPayloadHexToString(payload: any) {
     const numericKeys = ["amount", "token_id"];
+    const stringKeys = ["key", "value"];
 
     // go through all the keys in the payload and convert any hex strings to strings
     // This is necessary because debeezium converts bytea values and other non string values to base64 strings
     for (const key in payload.after) {
-      if (isBase64(payload.after[key])) {
+      if (isBase64(payload.after[key]) && !stringKeys.includes(key)) {
         payload.after[key] = base64ToHex(payload.after[key]);
         // if the key is a numeric key, convert the value to a number (hex -> number -> string)
         if (numericKeys.includes(key) && typeof payload.after[key] === "string") {
@@ -87,7 +88,7 @@ export abstract class KafkaEventHandler {
     }
 
     for (const key in payload.before) {
-      if (isBase64(payload.before[key])) {
+      if (isBase64(payload.before[key]) && !stringKeys.includes(key)) {
         payload.before[key] = base64ToHex(payload.before[key]);
         // if the key is a numeric key, convert the value to a number (hex -> number -> string)
         if (numericKeys.includes(key) && typeof payload.before[key] === "string") {
