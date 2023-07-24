@@ -140,7 +140,7 @@ export const processContractAddresses = async (traces: TransactionTrace[]) => {
   }
 
   await saveContractAddresses(contractAddresses);
-}
+};
 
 export const extractAttributionData = async (
   txHash: string,
