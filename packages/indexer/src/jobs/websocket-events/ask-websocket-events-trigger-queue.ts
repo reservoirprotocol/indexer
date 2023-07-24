@@ -39,7 +39,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
       const { data } = job.data as EventInfo;
 
       try {
-        const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
+        const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", true);
 
         const rawResult = await idb.oneOrNone(
           `
@@ -74,6 +74,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
               orders.raw_data,
               orders.created_at,
               orders.updated_at,
+              orders.originated_at,
               (
                 CASE
                   WHEN orders.fillability_status = 'filled' THEN 'filled'
@@ -111,7 +112,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           status: rawResult.status,
           tokenSetId: rawResult.token_set_id,
           tokenSetSchemaHash: fromBuffer(rawResult.token_set_schema_hash),
-          nonce: Number(rawResult.nonce),
+          nonce: rawResult.nonce,
           contract: fromBuffer(rawResult.contract),
           maker: fromBuffer(rawResult.maker),
           taker: fromBuffer(rawResult.taker),
@@ -132,12 +133,12 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             rawResult.currency
               ? fromBuffer(rawResult.currency)
               : rawResult.side === "sell"
-              ? Sdk.Common.Addresses.Eth[config.chainId]
-              : Sdk.Common.Addresses.Weth[config.chainId],
+              ? Sdk.Common.Addresses.Native[config.chainId]
+              : Sdk.Common.Addresses.WNative[config.chainId],
             undefined
           ),
           validFrom: Number(rawResult.valid_from),
-          validUntil: Number(rawResult.valid_until),
+          validUntil: Number(rawResult.valid_until) || 0,
           quantityFilled: Number(rawResult.quantity_filled),
           quantityRemaining: Number(rawResult.quantity_remaining),
           criteria: rawResult.criteria,
@@ -155,6 +156,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           isDynamic: Boolean(rawResult.dynamic || rawResult.kind === "sudoswap"),
           createdAt: new Date(rawResult.created_at).toISOString(),
           updatedAt: new Date(rawResult.updated_at).toISOString(),
+          originatedAt: new Date(rawResult.originated_at).toISOString(),
           rawData: rawResult.raw_data,
         };
 
@@ -170,8 +172,11 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           tags: {
             contract: fromBuffer(rawResult.contract),
             source: result.source.domain || "unknown",
+            maker: fromBuffer(rawResult.maker),
+            taker: fromBuffer(rawResult.taker),
           },
           data: result,
+          offset: data.offset,
         });
       } catch (error) {
         logger.error(
@@ -199,6 +204,7 @@ export type AskWebsocketEventInfo = {
   orderId: string;
   kind: string;
   trigger: "insert" | "update";
+  offset: string;
 };
 
 export const addToQueue = async (events: EventInfo[]) => {

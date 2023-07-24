@@ -53,8 +53,8 @@ export const getBuildInfo = async (
     price: options.weiPrice,
     currency:
       side === "sell"
-        ? Sdk.Common.Addresses.Eth[config.chainId]
-        : Sdk.Common.Addresses.Weth[config.chainId],
+        ? Sdk.Common.Addresses.Native[config.chainId]
+        : Sdk.Common.Addresses.WNative[config.chainId],
     startTime: options.listingTime!,
     endTime: options.expirationTime!,
     globalNonce: await commonHelpers.getMinNonce("looks-rare-v2", options.maker, side),

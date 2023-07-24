@@ -8,18 +8,22 @@ import _ from "lodash";
 
 import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { regex } from "@/common/utils";
 import { ApiKeyManager } from "@/models/api-keys";
 import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 
-import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections-refresh-cache";
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
-import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
-import * as orderFixes from "@/jobs/order-fixes/fixes";
-import * as blurBidsRefresh from "@/jobs/order-updates/misc/blur-bids-refresh";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
+import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
+import {
+  metadataIndexFetchJob,
+  MetadataIndexFetchJobPayload,
+} from "@/jobs/metadata-index/metadata-fetch-job";
+import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
+import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
+import { blurBidsRefreshJob } from "@/jobs/order-updates/misc/blur-bids-refresh-job";
+import { blurListingsRefreshJob } from "@/jobs/order-updates/misc/blur-listings-refresh-job";
+import { openseaOrdersProcessJob } from "@/jobs/opensea-orders/opensea-orders-process-job";
 
 const version = "v2";
 
@@ -95,23 +99,32 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         throw Boom.badRequest(`Collection ${payload.collection} not found`);
       }
 
-      const currentUtcTime = new Date().toISOString();
+      // Refresh Blur bids and listings
+      await blurBidsRefreshJob.addToQueue(collection.id, true);
+      await blurListingsRefreshJob.addToQueue(collection.id, true);
 
+      // Refresh collection mints
+      await mintsRefreshJob.addToQueue({ collection: collection.id });
+
+      const currentUtcTime = new Date().toISOString();
       if (!payload.refreshTokens) {
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionUpdatesMetadata.addToQueue(
-          collection.contract,
-          tokenId,
-          collection.community,
+        await collectionMetadataQueueJob.addToQueue(
+          {
+            contract: collection.contract,
+            tokenId,
+            community: collection.community,
+            forceRefresh: true,
+          },
           0,
-          true
+          "post-refresh-collection-v2"
         );
 
         if (collection.slug) {
           // Refresh opensea collection offers
-          await openseaOrdersProcessQueue.addToQueue([
+          await openseaOrdersProcessJob.addToQueue([
             {
               kind: "collection-offers",
               data: {
@@ -122,9 +135,6 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
             },
           ]);
         }
-
-        // Refresh Blur bids
-        await blurBidsRefresh.addToQueue(collection.id, true);
 
         // Refresh listings
         await OpenseaIndexerApi.fastContractSync(collection.contract);
@@ -174,17 +184,20 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionUpdatesMetadata.addToQueue(
-          collection.contract,
-          tokenId,
-          collection.community,
+        await collectionMetadataQueueJob.addToQueue(
+          {
+            contract: collection.contract,
+            tokenId,
+            community: collection.community,
+            forceRefresh: payload.overrideCoolDown,
+          },
           0,
-          payload.overrideCoolDown
+          "post-refresh-collection-v2"
         );
 
         if (collection.slug) {
           // Refresh opensea collection offers
-          await openseaOrdersProcessQueue.addToQueue([
+          await openseaOrdersProcessJob.addToQueue([
             {
               kind: "collection-offers",
               data: {
@@ -196,24 +209,21 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
           ]);
         }
 
-        // Refresh Blur bids
-        if (collection.id.match(regex.address)) {
-          await blurBidsRefresh.addToQueue(collection.id, true);
-        }
-
         // Refresh listings
         await OpenseaIndexerApi.fastContractSync(collection.contract);
 
         // Refresh the contract floor sell and top bid
-        await collectionsRefreshCache.addToQueue(collection.id);
+        await collectionRefreshCacheJob.addToQueue({ collection: collection.id });
 
         // Revalidate the contract orders
-        await orderFixes.addToQueue([{ by: "contract", data: { contract: collection.contract } }]);
+        await orderFixesJob.addToQueue([
+          { by: "contract", data: { contract: collection.contract } },
+        ]);
 
         // Do these refresh operation only for small collections
         if (!isLargeCollection) {
-          const method = metadataIndexFetch.getIndexingMethod(collection.community);
-          let metadataIndexInfo: metadataIndexFetch.MetadataIndexInfo = {
+          const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
+          let metadataIndexInfo: MetadataIndexFetchJobPayload = {
             kind: "full-collection",
             data: {
               method,
@@ -233,7 +243,7 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
           }
 
           // Refresh the collection tokens metadata
-          await metadataIndexFetch.addToQueue([metadataIndexInfo], true);
+          await metadataIndexFetchJob.addToQueue([metadataIndexInfo], true);
         }
       }
 

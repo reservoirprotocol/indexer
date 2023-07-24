@@ -1,29 +1,31 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { logger } from "@/common/logger";
-import { producer } from "..";
+// import { producer } from "..";
 import { base64ToHex, isBase64 } from "@/common/utils";
 import { getNetworkName } from "@/config/network";
+import { BigNumber } from "ethers";
 
 export abstract class KafkaEventHandler {
   abstract topicName: string;
   maxRetries = 5;
 
-  async handle(payload: any): Promise<void> {
+  async handle(payload: any, offset: string): Promise<void> {
     try {
       // convert any hex strings to strings
 
       switch (payload.op) {
         case "c":
           this.convertPayloadHexToString(payload);
-          this.handleInsert(payload);
+          this.handleInsert(payload, offset);
           break;
         case "u":
           this.convertPayloadHexToString(payload);
-          this.handleUpdate(payload);
+          this.handleUpdate(payload, offset);
           break;
         case "d":
-          this.handleDelete();
+          this.convertPayloadHexToString(payload);
+          this.handleDelete(payload, offset);
           break;
         default:
           logger.error(
@@ -50,17 +52,17 @@ export abstract class KafkaEventHandler {
         )}, retryCount=${payload.retryCount}`
       );
 
-      producer.send({
-        topic: topicToSendTo,
-        messages: [
-          {
-            value: JSON.stringify({
-              error: JSON.stringify(error),
-              payload,
-            }),
-          },
-        ],
-      });
+      // producer.send({
+      //   topic: topicToSendTo,
+      //   messages: [
+      //     {
+      //       value: JSON.stringify({
+      //         error: JSON.stringify(error),
+      //         payload,
+      //       }),
+      //     },
+      //   ],
+      // });
     }
   }
 
@@ -79,7 +81,7 @@ export abstract class KafkaEventHandler {
         payload.after[key] = base64ToHex(payload.after[key]);
         // if the key is a numeric key, convert the value to a number (hex -> number -> string)
         if (numericKeys.includes(key) && typeof payload.after[key] === "string") {
-          payload.after[key] = Number(payload.after[key]).toString();
+          payload.after[key] = BigNumber.from(payload.after[key]).toString();
         }
       }
     }
@@ -89,13 +91,13 @@ export abstract class KafkaEventHandler {
         payload.before[key] = base64ToHex(payload.before[key]);
         // if the key is a numeric key, convert the value to a number (hex -> number -> string)
         if (numericKeys.includes(key) && typeof payload.before[key] === "string") {
-          payload.before[key] = Number(payload.before[key]).toString();
+          payload.before[key] = BigNumber.from(payload.before[key]).toString();
         }
       }
     }
   }
 
-  protected abstract handleInsert(payload: any): Promise<void>;
-  protected abstract handleUpdate(payload: any): Promise<void>;
-  protected abstract handleDelete(): Promise<void>;
+  protected abstract handleInsert(payload: any, offset: string): Promise<void>;
+  protected abstract handleUpdate(payload: any, offset: string): Promise<void>;
+  protected abstract handleDelete(payload: any, offset: string): Promise<void>;
 }

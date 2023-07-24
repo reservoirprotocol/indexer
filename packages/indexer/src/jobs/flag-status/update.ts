@@ -8,8 +8,8 @@ import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as tokenSets from "@/orderbook/token-sets";
 
-import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
-import * as flagStatusGenerateCollectionTokenSet from "@/jobs/flag-status/generate-collection-token-set";
+import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
+import { generateCollectionTokenSetJob } from "@/jobs/flag-status/generate-collection-token-set-job";
 
 const QUEUE_NAME = "flag-status-update";
 
@@ -54,7 +54,8 @@ if (config.doBackgroundWork) {
               UPDATE tokens SET
                 is_flagged = $/isFlagged/,
                 last_flag_change = now(),
-                last_flag_update = now()
+                last_flag_update = now(),
+                updated_at = now()
               WHERE tokens.contract = $/contract/
                 AND tokens.token_id = $/tokenId/
             `,
@@ -68,7 +69,7 @@ if (config.doBackgroundWork) {
           // Trigger further processes that depend on flagged tokens changes
           await Promise.all([
             // Update the token's collection cached non-flagged floor ask
-            collectionUpdatesNonFlaggedFloorAsk.addToQueue([
+            nonFlaggedFloorQueueJob.addToQueue([
               {
                 kind: "revalidation",
                 contract,
@@ -79,7 +80,10 @@ if (config.doBackgroundWork) {
             ]),
             // Regenerate a new non-flagged token set
             // TODO: Is this needed anymore (we should always use the dynamic token set going forward)?
-            flagStatusGenerateCollectionTokenSet.addToQueue(contract, result.collection_id),
+            generateCollectionTokenSetJob.addToQueue({
+              contract,
+              collectionId: result.collection_id,
+            }),
             // Update the dynamic collection non-flagged token set
             tokenSets.dynamicCollectionNonFlagged.update(
               { collection: result.collection_id },
@@ -91,7 +95,8 @@ if (config.doBackgroundWork) {
           await idb.none(
             `
               UPDATE tokens SET
-                last_flag_update = now()
+                last_flag_update = now(),
+                updated_at = now()
               WHERE tokens.contract = $/contract/
                 AND tokens.token_id = $/tokenId/
             `,

@@ -6,6 +6,7 @@ import { fromBuffer, toBuffer } from "@/common/utils";
 import { generateSchemaHash } from "@/orderbook/orders/utils";
 import { TokenSet, TSTCollectionNonFlagged } from "@/orderbook/token-sets/utils";
 import { Tokens } from "@/models/tokens";
+import { config } from "@/config/index";
 
 export type Metadata = {
   collection: string;
@@ -85,19 +86,29 @@ export const save = async (
   const queries: PgPromiseQuery[] = [];
   try {
     // Fetch the collection's contract
-    const contract = await idb
-      .oneOrNone(
-        `
+    const collection = await idb.oneOrNone(
+      `
           SELECT
-            collections.contract
+            collections.contract,
+            collections.token_count
           FROM collections
           WHERE collections.id = $/collection/
         `,
-        {
-          collection: tokenSet.schema.data.collection,
-        }
-      )
-      .then((result) => fromBuffer(result.contract));
+      {
+        collection: tokenSet.schema.data.collection,
+      }
+    );
+
+    // Collection is too big
+    if (collection.token_count > config.maxTokenSetSize) {
+      logger.warn(
+        "token-sets",
+        `Collection ${tokenSet.schema.data.collection} has too many tokens ${collection.token_count}`
+      );
+      return undefined;
+    }
+
+    const contract = fromBuffer(collection.contract);
 
     // Fetch all non-flagged tokens from the collection
     const tokenIds = await Tokens.getTokenIdsInCollection(

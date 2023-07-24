@@ -25,6 +25,7 @@ import {
 } from "@/common/joi";
 import { Sources } from "@/models/sources";
 import _ from "lodash";
+import { Assets, ImageSize } from "@/utils/assets";
 
 const version = "v7";
 
@@ -142,13 +143,20 @@ export const getUserTokensV7Options: RouteOptions = {
             kind: Joi.string().description("Can be erc721, erc115, etc."),
             name: Joi.string().allow("", null),
             image: Joi.string().allow("", null),
+            imageSmall: Joi.string().allow("", null),
+            imageLarge: Joi.string().allow("", null),
+            metadata: Joi.object().allow(null),
             supply: Joi.number()
               .unsafe()
               .allow(null)
               .description("Can be higher than one if erc1155."),
             remainingSupply: Joi.number().unsafe().allow(null),
-            rarityScore: Joi.number().allow(null),
-            rarityRank: Joi.number().allow(null),
+            rarityScore: Joi.number()
+              .allow(null)
+              .description("No rarity for collections over 100k"),
+            rarityRank: Joi.number()
+              .allow(null)
+              .description("No rarity rank for collections over 100k"),
             media: Joi.string().allow(null),
             collection: Joi.object({
               id: Joi.string().allow(null),
@@ -157,12 +165,14 @@ export const getUserTokensV7Options: RouteOptions = {
               openseaVerificationStatus: Joi.string().allow("", null),
               floorAskPrice: JoiPrice.allow(null).description("Can be null if no active asks."),
               royaltiesBps: Joi.number().allow(null),
-              royalties: Joi.array().items(
-                Joi.object({
-                  bps: Joi.number().allow(null),
-                  recipient: Joi.string().allow(null),
-                })
-              ),
+              royalties: Joi.array()
+                .items(
+                  Joi.object({
+                    bps: Joi.number().allow(null),
+                    recipient: Joi.string().allow(null),
+                  })
+                )
+                .allow(null),
             }),
             lastSale: JoiSale.optional(),
             topBid: Joi.object({
@@ -378,6 +388,7 @@ export const getUserTokensV7Options: RouteOptions = {
           t.token_id,
           t.name,
           t.image,
+          t.metadata,
           t.media,
           t.rarity_rank,
           t.collection_id,
@@ -414,6 +425,7 @@ export const getUserTokensV7Options: RouteOptions = {
             t.token_id,
             t.name,
             t.image,
+            t.metadata,
             t.media,
             t.rarity_rank,
             t.collection_id,
@@ -503,7 +515,7 @@ export const getUserTokensV7Options: RouteOptions = {
     try {
       let baseQuery = `
         SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at, b.last_token_appraisal_value,
-               t.name, t.image, t.media, t.rarity_rank, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
+               t.name, t.image, t.metadata AS token_metadata, t.media, t.rarity_rank, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
                t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to, t.floor_sell_source_id_int, t.supply, t.remaining_supply,
                t.rarity_score, ${selectLastSale}
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value, top_bid_source_id_int,
@@ -624,13 +636,13 @@ export const getUserTokensV7Options: RouteOptions = {
         // that don't have the currencies cached in the tokens table
         const floorAskCurrency = r.floor_sell_currency
           ? fromBuffer(r.floor_sell_currency)
-          : Sdk.Common.Addresses.Eth[config.chainId];
+          : Sdk.Common.Addresses.Native[config.chainId];
         const topBidCurrency = r.top_bid_currency
           ? fromBuffer(r.top_bid_currency)
-          : Sdk.Common.Addresses.Weth[config.chainId];
+          : Sdk.Common.Addresses.WNative[config.chainId];
         const collectionFloorSellCurrency = r.collection_floor_sell_currency
           ? fromBuffer(r.collection_floor_sell_currency)
-          : Sdk.Common.Addresses.Eth[config.chainId];
+          : Sdk.Common.Addresses.Native[config.chainId];
         const floorSellSource = r.floor_sell_value
           ? sources.get(Number(r.floor_sell_source_id_int), contract, tokenId)
           : undefined;
@@ -645,6 +657,13 @@ export const getUserTokensV7Options: RouteOptions = {
             kind: r.kind,
             name: r.name,
             image: r.image,
+            imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small),
+            imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large),
+            metadata: r.token_metadata?.image_original_url
+              ? {
+                  imageOriginal: r.token_metadata.image_original_url,
+                }
+              : undefined,
             rarityScore: r.rarity_score,
             rarityRank: r.rarity_rank,
             supply: !_.isNull(r.supply) ? r.supply : null,

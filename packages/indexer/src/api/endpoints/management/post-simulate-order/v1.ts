@@ -1,7 +1,9 @@
+import { parseEther } from "@ethersproject/units";
 import { CallTrace } from "@georgeroman/evm-tx-simulator/dist/types";
 import Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
+import axios from "axios";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
@@ -95,11 +97,13 @@ export const postSimulateOrderV1Options: RouteOptions = {
           SELECT
             orders.kind,
             orders.side,
+            orders.price,
             orders.currency,
             orders.contract,
             orders.token_set_id,
             orders.fillability_status,
-            orders.approval_status
+            orders.approval_status,
+            orders.conduit
           FROM orders
           WHERE orders.id = $/id/
         `,
@@ -108,7 +112,29 @@ export const postSimulateOrderV1Options: RouteOptions = {
       if (!orderResult?.side || !orderResult?.contract) {
         throw Boom.badRequest("Could not find order");
       }
-      if (["blur", "nftx", "sudoswap", "universe"].includes(orderResult.kind)) {
+
+      // Custom logic for simulating Blur listings
+      if (orderResult.side === "sell" && orderResult.kind === "blur") {
+        const [, contract, tokenId] = orderResult.token_set_id.split(":");
+
+        const blurPrice = await axios
+          .get(
+            `${config.orderFetcherBaseUrl}/api/blur-token?contract=${contract}&tokenId=${tokenId}`
+          )
+          .then((response) =>
+            response.data.blurPrice
+              ? parseEther(response.data.blurPrice).toString()
+              : response.data.blurPrice
+          );
+        if (orderResult.price !== blurPrice) {
+          logger.info("debug-blur-simulation", JSON.stringify({ contract, tokenId, id }));
+          await logAndRevalidateOrder(id, "inactive", {
+            revalidate: true,
+          });
+        }
+      }
+
+      if (["blur", "nftx", "sudoswap", "sudoswap-v2"].includes(orderResult.kind)) {
         return { message: "Order not simulatable" };
       }
       if (getNetworkSettings().whitelistedCurrencies.has(fromBuffer(orderResult.currency))) {
@@ -119,7 +145,12 @@ export const postSimulateOrderV1Options: RouteOptions = {
       }
       if (
         orderResult.side === "buy" &&
-        fromBuffer(orderResult.contract) === "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85"
+        // ENS on mainnet
+        ((fromBuffer(orderResult.contract) === "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85" &&
+          config.chainId === 1) ||
+          // y00ts on polygon
+          (fromBuffer(orderResult.contract) === "0x670fd103b1a08628e9557cd66b87ded841115190" &&
+            config.chainId === 137))
       ) {
         return {
           message: "ENS bids are not simulatable due to us not yet handling expiration of domains",
@@ -150,7 +181,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
             items: [{ orderId: id }],
             taker: genericTaker,
             skipBalanceCheck: true,
-            currency: Sdk.Common.Addresses.Eth[config.chainId],
+            currency: Sdk.Common.Addresses.Native[config.chainId],
             allowInactiveOrderIds: true,
           },
         });
@@ -229,10 +260,22 @@ export const postSimulateOrderV1Options: RouteOptions = {
               AND (tokens.is_flagged IS NULL OR tokens.is_flagged = 0)
               AND nft_balances.amount > 0
               AND nft_balances.acquired_at < now() - interval '3 hours'
+              AND (
+                SELECT
+                  approved
+                FROM nft_approval_events
+                WHERE nft_approval_events.address = $/contract/
+                  AND nft_approval_events.owner = nft_balances.owner
+                  AND nft_approval_events.operator = $/conduit/
+                ORDER BY nft_approval_events.block DESC
+                LIMIT 1
+              )
             LIMIT 1
           `,
           {
             tokenSetId: orderResult.token_set_id,
+            contract: orderResult.contract,
+            conduit: orderResult.conduit,
           }
         );
         if (!tokenResult) {

@@ -53,14 +53,14 @@ describe("[ReservoirV6_0_1] Element listings", () => {
         factory.deploy(
           deployer.address,
           router.address,
-          Sdk.Common.Addresses.Weth[chainId],
+          Sdk.Common.Addresses.WNative[chainId],
           Sdk.Common.Addresses.SwapRouter[chainId]
         )
       );
   });
 
   const getBalances = async (token: string) => {
-    if (token === Sdk.Common.Addresses.Eth[chainId]) {
+    if (token === Sdk.Common.Addresses.Native[chainId]) {
       return {
         alice: await ethers.provider.getBalance(alice.address),
         bob: await ethers.provider.getBalance(bob.address),
@@ -108,7 +108,7 @@ describe("[ReservoirV6_0_1] Element listings", () => {
     // Fee recipient: Emilio
     const paymentToken = useUsdc
       ? Sdk.Common.Addresses.Usdc[chainId]
-      : Sdk.Common.Addresses.Eth[chainId];
+      : Sdk.Common.Addresses.Native[chainId];
     const parsePrice = (price: string) => (useUsdc ? parseUnits(price, 6) : parseEther(price));
     const useERC721 = useBatchSignedOrder || getRandomBoolean();
 
@@ -126,7 +126,7 @@ describe("[ReservoirV6_0_1] Element listings", () => {
         isBatchSignedOrder: useBatchSignedOrder,
         paymentToken: useUsdc
           ? Sdk.Common.Addresses.Usdc[chainId]
-          : Sdk.Element.Addresses.Eth[chainId],
+          : Sdk.ZeroExV4.Addresses.Native[chainId],
         price: parsePrice(getRandomFloat(0.0001, 2).toFixed(6)),
         isCancelled: partial && getRandomBoolean(),
       });
@@ -148,7 +148,7 @@ describe("[ReservoirV6_0_1] Element listings", () => {
         data: swapModule.interface.encodeFunctionData("ethToExactOutput", [
           {
             params: {
-              tokenIn: Sdk.Common.Addresses.Weth[chainId],
+              tokenIn: Sdk.Common.Addresses.WNative[chainId],
               tokenOut: Sdk.Common.Addresses.Usdc[chainId],
               fee: 500,
               recipient: swapModule.address,

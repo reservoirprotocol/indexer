@@ -5,10 +5,13 @@ import { randomUUID } from "crypto";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { now } from "@/common/utils";
 import { config } from "@/config/index";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 const QUEUE_NAME = "backfill-expired-orders-2";
 
@@ -58,14 +61,14 @@ if (config.doBackgroundWork) {
       }
 
       const currentTime = now();
-      await orderUpdatesById.addToQueue(
+      await orderUpdatesByIdJob.addToQueue(
         expiredOrders.map(
           ({ id }) =>
             ({
               context: `expired-orders-check-${currentTime}-${id}`,
               id,
               trigger: { kind: "expiry" },
-            } as orderUpdatesById.OrderInfo)
+            } as OrderUpdatesByIdJobPayload)
         )
       );
 
@@ -79,17 +82,6 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
-
-  redlock
-    .acquire([`${QUEUE_NAME}-lock-8`], 60 * 60 * 24 * 30 * 1000)
-    .then(async () => {
-      if (config.chainId === 1) {
-        await addToQueue([{ from: 1685102411, to: now() }]);
-      }
-    })
-    .catch(() => {
-      // Skip on any errors
-    });
 }
 
 export const addToQueue = async (timestamps: { from: number; to: number }[]) =>

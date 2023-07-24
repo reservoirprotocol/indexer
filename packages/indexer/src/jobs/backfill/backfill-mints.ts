@@ -8,7 +8,7 @@ import pLimit from "p-limit";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { bn, fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
@@ -134,7 +134,7 @@ if (config.doBackgroundWork) {
             }
 
             const price = bn(tx.value).div(totalAmount).toString();
-            const currency = Sdk.Common.Addresses.Eth[config.chainId];
+            const currency = Sdk.Common.Addresses.Native[config.chainId];
 
             for (const mint of mints) {
               // Handle: attribution
@@ -193,16 +193,16 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  if (config.chainId === 1) {
-    redlock
-      .acquire([`${QUEUE_NAME}-lock-2`], 60 * 60 * 24 * 30 * 1000)
-      .then(async () => {
-        await addToQueue(15018582);
-      })
-      .catch(() => {
-        // Skip on any errors
-      });
-  }
+  // if (config.chainId === 1) {
+  //   redlock
+  //     .acquire([`${QUEUE_NAME}-lock-2`], 60 * 60 * 24 * 30 * 1000)
+  //     .then(async () => {
+  //       await addToQueue(15018582);
+  //     })
+  //     .catch(() => {
+  //       // Skip on any errors
+  //     });
+  // }
 }
 
 export const addToQueue = async (block: number) => {

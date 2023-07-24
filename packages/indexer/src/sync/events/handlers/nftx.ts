@@ -312,6 +312,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               amount: "1",
               price: priceData.nativePrice,
               timestamp: baseEventParams.timestamp,
+              maker: baseEventParams.address,
+              taker,
             });
 
             onChainData.orderInfos.push({

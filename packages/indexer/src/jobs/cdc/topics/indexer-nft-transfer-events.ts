@@ -9,7 +9,7 @@ import {
 export class IndexerTransferEventsHandler extends KafkaEventHandler {
   topicName = "indexer.public.nft_transfer_events";
 
-  protected async handleInsert(payload: any): Promise<void> {
+  protected async handleInsert(payload: any, offset: string): Promise<void> {
     if (!payload.after) {
       return;
     }
@@ -18,12 +18,13 @@ export class IndexerTransferEventsHandler extends KafkaEventHandler {
       eventInfo: {
         ...payload.after,
         trigger: "insert",
+        offset,
       },
       eventKind: WebsocketEventKind.TransferEvent,
     });
   }
 
-  protected async handleUpdate(payload: any): Promise<void> {
+  protected async handleUpdate(payload: any, offset: string): Promise<void> {
     if (!payload.after) {
       return;
     }
@@ -32,6 +33,7 @@ export class IndexerTransferEventsHandler extends KafkaEventHandler {
       eventInfo: {
         ...payload.after,
         trigger: "update",
+        offset,
       },
       eventKind: WebsocketEventKind.TransferEvent,
     });

@@ -66,6 +66,28 @@ jobs:
       #   if: steps.semantic.outputs.new_release_version != ''
       #   uses: cycjimmy/semantic-release-action@v3
 
+      - name: Post to Slack
+        if: ${{ always() }}
+        id: slack-build
+        uses: unevenlabs/slack-github-action@v1.0.2
+        with:
+          channel-id: "ci"
+          payload: |
+            {
+              "text": "GitHub build result: <status-${{ job.status }}-status>\nAuthor: <author-${{ github.actor }}-author>\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "GitHub build result: <status-${{ job.status }}-status>\nAuthor: <author-${{ github.actor }}-author>\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
   deploy-dev:
     name: Deploy to Development
     runs-on: ubuntu-latest
@@ -90,9 +112,40 @@ jobs:
             ${{ github.sha }} \
             indexer-goerli
           ./utils/version_update.sh \
+            ./dev/platform/indexer-worker-goerli.yaml \
+            ${{ github.sha }} \
+            indexer-worker-goerli
+          ./utils/version_update.sh \
             ./dev/platform/indexer-websocket-goerli.yaml \
             ${{ github.sha }} \
             indexer-websocket-goerli
+          ./utils/version_update.sh \
+            ./dev/platform/indexer-kafka-worker-goerli.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-goerli
+
+      - name: Post to Slack
+        if: ${{ always() }}
+        id: slack-deploy-dev
+        uses: unevenlabs/slack-github-action@v1.0.2
+        with:
+          channel-id: "ci"
+          update-ts: ${{ steps.slack-build.outputs.ts }}
+          payload: |
+            {
+              "text": "GitHub deploy dev result: <status-${{ job.status }}-status>\nAuthor: <author-${{ github.actor }}-author>\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "GitHub deploy dev result: <status-${{ job.status }}-status>\nAuthor: <author-${{ github.actor }}-author>\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
   deploy-prod:
     name: Deploy to Production
@@ -114,9 +167,9 @@ jobs:
         working-directory: k8s-configs
         run: |
           ./utils/version_update.sh \
-            ./prod/platform/indexer-api.yaml \
+            ./prod/platform/indexer-api-mainnet.yaml \
             ${{ github.sha }} \
-            indexer-api
+            indexer-api-mainnet
           ./utils/version_update.sh \
             ./prod/platform/indexer-api-arbitrum.yaml \
             ${{ github.sha }} \
@@ -162,17 +215,29 @@ jobs:
             ${{ github.sha }} \
             indexer-api-goerli
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker.yaml \
+            ./prod/platform/indexer-api-zora.yaml \
             ${{ github.sha }} \
-            indexer-worker
+            indexer-api-zora
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-api-avalanche.yaml \
+            ${{ github.sha }} \
+            indexer-api-avalanche
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-api-base.yaml \
+            ${{ github.sha }} \
+            indexer-api-base
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-mainnet.yaml \
+            ${{ github.sha }} \
+            indexer-worker-mainnet
           ./utils/version_update.sh \
             ./prod/platform/indexer-worker-arbitrum.yaml \
             ${{ github.sha }} \
             indexer-worker-arbitrum
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-master.yaml \
+            ./prod/platform/indexer-worker-master-mainnet.yaml \
             ${{ github.sha }} \
-            indexer-worker-master
+            indexer-worker-master-mainnet
           ./utils/version_update.sh \
             ./prod/platform/indexer-worker-optimism.yaml \
             ${{ github.sha }} \
@@ -226,6 +291,18 @@ jobs:
             ${{ github.sha }} \
             indexer-worker-goerli
           ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-zora.yaml \
+            ${{ github.sha }} \
+            indexer-worker-zora
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-avalanche.yaml \
+            ${{ github.sha }} \
+            indexer-worker-avalanche
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-base.yaml \
+            ${{ github.sha }} \
+            indexer-worker-base
+          ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-ethereum.yaml \
             ${{ github.sha }} \
             indexer-websocket-ethereum
@@ -238,10 +315,104 @@ jobs:
             ${{ github.sha }} \
             indexer-websocket-goerli
           ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker.yaml \
+            ./prod/platform/indexer-kafka-worker-mainnet.yaml \
             ${{ github.sha }} \
-            indexer-kafka-worker
+            indexer-kafka-worker-mainnet
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-polygon-master.yaml \
+            ./prod/platform/indexer-worker-master-polygon.yaml \
             ${{ github.sha }} \
-            indexer-worker-polygon-master
+            indexer-worker-master-polygon
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-polygon.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-polygon
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-arbitrum.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-arbitrum
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-optimism.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-optimism
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-optimism-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-optimism-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-arbitrum-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-arbitrum-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-arbitrum-nova-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-arbitrum-nova-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-bsc-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-bsc-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-base-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-base-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-base-goerli-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-goerli-goerli-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-avalanche-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-avalanche-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-sepolia-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-sepolia-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-goerli-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-goerli-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-mumbai-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-mumbai-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-scroll-alpha-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-scroll-alpha-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-zora-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-zora-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-zora-testnet-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-zora-testnet-master
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-api-linea.yaml \
+            ${{ github.sha }} \
+            indexer-api-linea
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-linea.yaml \
+            ${{ github.sha }} \
+            indexer-worker-linea
+      - name: Post to Slack
+        if: ${{ always() }}
+        id: slack-deploy-prod
+        uses: unevenlabs/slack-github-action@v1.0.2
+        with:
+          channel-id: "ci"
+          update-ts: ${{ steps.slack-build.outputs.ts }}
+          payload: |
+            {
+              "text": "GitHub deploy prod result: <status-${{ job.status }}-status>\nAuthor: <author-${{ github.actor }}-author>\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "GitHub deploy prod result: <status-${{ job.status }}-status>\nAuthor: <author-${{ github.actor }}-author>\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

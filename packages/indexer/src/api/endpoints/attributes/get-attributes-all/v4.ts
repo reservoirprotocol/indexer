@@ -125,7 +125,7 @@ export const getAttributesAllV4Options: RouteOptions = {
                               nativeAmount: String(value.floor_sell_value),
                             },
                           },
-                          Sdk.Common.Addresses.Eth[config.chainId],
+                          Sdk.Common.Addresses.Native[config.chainId],
                           query.displayCurrency
                         )
                       : undefined,

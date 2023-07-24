@@ -7,6 +7,7 @@ export interface BaseDocument {
     name: string;
   };
   id: string;
+  indexedAt: Date;
   createdAt: Date;
 }
 
@@ -22,6 +23,7 @@ export abstract class DocumentBuilder {
         name: getNetworkName(),
       },
       id: data.id,
+      indexedAt: new Date(),
       createdAt: new Date(),
     };
   }

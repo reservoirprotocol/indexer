@@ -40,7 +40,14 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
       try {
         const r = await idb.oneOrNone(
           `
-            SELECT
+          SELECT
+            fill_events_2_data.*,
+            tokens_data.name,
+            tokens_data.image,
+            tokens_data.collection_id,
+            tokens_data.collection_name
+        FROM (
+          SELECT
             fill_events_2.contract,
             fill_events_2.token_id,
             fill_events_2.order_id,
@@ -76,6 +83,20 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             ON fill_events_2.currency = currencies.contract
           WHERE
             fill_events_2.tx_hash = $/txHash/ AND fill_events_2.log_index = $/log_index/ AND fill_events_2.batch_index = $/batch_index/
+        ) AS fill_events_2_data
+          LEFT JOIN LATERAL (
+            SELECT
+              tokens.name,
+              tokens.image,
+              tokens.collection_id,
+              collections.name AS collection_name
+            FROM tokens
+            LEFT JOIN collections 
+              ON tokens.collection_id = collections.id
+            WHERE fill_events_2_data.token_id = tokens.token_id
+              AND fill_events_2_data.contract = tokens.contract
+          ) tokens_data ON TRUE
+         
         `,
           {
             log_index: data.log_index,
@@ -149,6 +170,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             taker: fromBuffer(r.taker),
           },
           data: result,
+          offset: data.offset,
         });
       } catch (error) {
         logger.error(
@@ -190,4 +212,5 @@ export type SaleWebsocketEventInfo = {
   log_index: number;
   batch_index: number;
   trigger: "insert" | "update" | "delete";
+  offset: string;
 };

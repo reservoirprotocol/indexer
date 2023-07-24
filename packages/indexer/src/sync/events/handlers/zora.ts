@@ -31,7 +31,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
   for (const { subKind, baseEventParams, log } of events) {
     const eventData = getEventData([subKind])[0];
     switch (subKind) {
-      // Zora
       case "zora-ask-filled": {
         const { args } = eventData.abi.parseLog(log);
         const tokenContract = args["tokenContract"].toLowerCase();
@@ -241,6 +240,32 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           timestamp: baseEventParams.timestamp,
           taker,
           maker: tokenOwner,
+        });
+
+        break;
+      }
+
+      case "zora-sales-config-changed": {
+        onChainData.mints.push({
+          by: "collection",
+          data: {
+            standard: "zora",
+            collection: baseEventParams.address,
+          },
+        });
+
+        break;
+      }
+
+      case "zora-updated-token": {
+        const { args } = eventData.abi.parseLog(log);
+        onChainData.mints.push({
+          by: "collection",
+          data: {
+            standard: "zora",
+            collection: baseEventParams.address,
+            tokenId: args["tokenId"].toString(),
+          },
         });
 
         break;

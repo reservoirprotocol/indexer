@@ -15,8 +15,3 @@ export * from "@/api/endpoints/activities/get-user-activity/v3";
 export * from "@/api/endpoints/activities/get-user-activity/v4";
 export * from "@/api/endpoints/activities/get-user-activity/v5";
 export * from "@/api/endpoints/activities/get-user-activity/v6";
-export * from "@/api/endpoints/activities/get-activities/v1";
-export * from "@/api/endpoints/activities/get-activities/v2";
-export * from "@/api/endpoints/activities/get-activities/v3";
-export * from "@/api/endpoints/activities/get-activities/v4";
-export * from "@/api/endpoints/activities/get-activities/v5";

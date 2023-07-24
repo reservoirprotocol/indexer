@@ -42,37 +42,39 @@ describe("NFTx - Indexer Integration Test", () => {
     executeByRouterAPI = false,
     subsetCancel = false,
   }) => {
-
-    const currency = Common.Addresses.Weth[chainId];
-    const result = await indexerHelper.doEventParsing("0x123505c7b5e92e9816535c0fa474992108a5dbfdd5eb5d94f524e56fd35aede4", false)
+    const currency = Common.Addresses.WNative[chainId];
+    const result = await indexerHelper.doEventParsing(
+      "0x123505c7b5e92e9816535c0fa474992108a5dbfdd5eb5d94f524e56fd35aede4",
+      false
+    );
     if (result.error) {
-        console.log(result.error)
+      console.log(result.error);
     } else {
-        for (let index = 0; index < result.onChainData[0].orders.length; index++) {
-            const order = result.onChainData[0].orders[index];
-            console.log("order", order)
+      for (let index = 0; index < result.onChainData[0].orders.length; index++) {
+        const order = result.onChainData[0].orders[index];
+        console.log("order", order);
 
-             // Call the Indexer to save the order
-            const saveResult = await indexerHelper.doOrderSaving({
-                contract: "0x5af0d9827e0c53e4799bb226655a1de152a425a5",
-                kind: "erc721",
-                currency: currency,
-                makers: [],
-                nfts: [],
-                orders: [
-                    // Order Info
-                    {
-                        // export name from the @/orderbook/index
-                        kind: "nftx",
-                        data: order.info.orderParams,
-                    },
-                ],
-            });
-            
-            console.log("saveResult", saveResult)
-        }
+        // Call the Indexer to save the order
+        const saveResult = await indexerHelper.doOrderSaving({
+          contract: "0x5af0d9827e0c53e4799bb226655a1de152a425a5",
+          kind: "erc721",
+          currency: currency,
+          makers: [],
+          nfts: [],
+          orders: [
+            // Order Info
+            {
+              // export name from the @/orderbook/index
+              kind: "nftx",
+              data: order.info.orderParams,
+            },
+          ],
+        });
+
+        console.log("saveResult", saveResult);
+      }
     }
-   
+
     // // Mint weth to buyer
     // await weth.deposit(buyer, price);
     // await weth.deposit(seller, price);
@@ -108,7 +110,7 @@ describe("NFTx - Indexer Integration Test", () => {
     //   collection: erc721.address,
     //   itemId: boughtTokenId,
     //   amount: 1,
-    //   currency: Common.Addresses.Weth[chainId],
+    //   currency: Common.Addresses.WNative[chainId],
     //   price,
     //   globalNonce: await exchange.getGlobalNonce(ethers.provider, buyer.address, "buy"),
     //   startTime: await getCurrentTimestamp(ethers.provider),
@@ -130,7 +132,7 @@ describe("NFTx - Indexer Integration Test", () => {
     //     collection: erc721.address,
     //     itemId: boughtTokenId,
     //     amount: 1,
-    //     currency: Common.Addresses.Weth[chainId],
+    //     currency: Common.Addresses.WNative[chainId],
     //     price,
     //     startTime: await getCurrentTimestamp(ethers.provider),
     //     endTime: (await getCurrentTimestamp(ethers.provider)) + 86400 * 31,
@@ -143,7 +145,6 @@ describe("NFTx - Indexer Integration Test", () => {
 
     // console.log(green("\t Perform Order Saving:"));
 
-   
     // const orderInfo = saveResult[0];
 
     // console.log(`\t\t - Status: ${orderInfo.status}`);

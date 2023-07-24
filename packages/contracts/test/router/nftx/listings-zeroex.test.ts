@@ -39,7 +39,7 @@ describe("[ReservoirV6_0_1] NFTX listings (with 0x routing)", () => {
   });
 
   const getBalances = async (token: string) => {
-    if (token === Sdk.Common.Addresses.Eth[chainId]) {
+    if (token === Sdk.Common.Addresses.Native[chainId]) {
       return {
         alice: await ethers.provider.getBalance(alice.address),
         carol: await ethers.provider.getBalance(carol.address),
@@ -206,7 +206,7 @@ describe("[ReservoirV6_0_1] NFTX listings (with 0x routing)", () => {
 
     // Fetch post-state
 
-    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
+    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Native[chainId]);
 
     // Checks
 

@@ -42,6 +42,8 @@ describe("X2Y2 - SingleToken Erc721", () => {
       taker: orderData.taker,
       deadline: orderData.end_at,
       itemHash: orderData.item_hash,
+      delegateType: orderData.token.erc_type === "erc721" ? X2Y2.Types.DelegationType.ERC721 : X2Y2.Types.DelegationType.ERC1155,
+      royalty_fee: 0,
       nft: {
         token: orderData.nft.token,
         tokenId: orderData.nft.token_id,

@@ -14,6 +14,16 @@ export const getSupportedChainName = () => {
       return "optimism";
     case 42161:
       return "arbitrum";
+    case 56:
+      return "bsc";
+    case 43114:
+      return "avalanche";
+    case 11155111:
+      return "sepolia";
+    case 80001:
+      return "mumbai";
+    case 8453:
+      return "base";
     default:
       return "unknown";
   }

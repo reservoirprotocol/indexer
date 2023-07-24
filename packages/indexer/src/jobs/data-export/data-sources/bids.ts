@@ -77,7 +77,7 @@ export class BidsDataSource extends BaseDataSource {
       for (const r of result) {
         const currency = await getCurrency(
           fromBuffer(r.currency) === AddressZero
-            ? Sdk.Common.Addresses.Eth[config.chainId]
+            ? Sdk.Common.Addresses.Native[config.chainId]
             : fromBuffer(r.currency)
         );
 

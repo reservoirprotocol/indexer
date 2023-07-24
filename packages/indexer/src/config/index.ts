@@ -29,14 +29,12 @@ export const config = {
       "opensea"
   ),
   metadataApiBaseUrl: String(process.env.METADATA_API_BASE_URL),
-  metadataApiBaseUrlAlt: String(
-    process.env.METADATA_API_BASE_URL_ALT || process.env.METADATA_API_BASE_URL
-  ),
 
   disableRealtimeMetadataRefresh: Boolean(Number(process.env.DISABLE_REALTIME_METADATA_REFRESH)),
 
   databaseUrl: String(process.env.DATABASE_URL),
   txDatabaseUrl: String(process.env.TX_DATABASE_URL),
+  disableDatabaseStatementTimeout: Boolean(Number(process.env.DATABASE_DISABLE_STATEMENT_TIMEOUT)),
   readReplicaDatabaseUrl: String(process.env.READ_REPLICA_DATABASE_URL || process.env.DATABASE_URL),
   writeReplicaDatabaseUrl: String(
     process.env.WRITE_REPLICA_DATABASE_URL || process.env.DATABASE_URL
@@ -45,7 +43,6 @@ export const config = {
   rateLimitRedisUrl: String(process.env.RATE_LIMIT_REDIS_URL || process.env.REDIS_URL),
   redisWebsocketUrl: String(process.env.REDIS_WEBSOCKET_URL || process.env.REDIS_URL),
   metricsRedisUrl: String(process.env.METRICS_REDIS_URL || process.env.REDIS_URL),
-  orderbookRedisUrl: String(process.env.ORDERSBOOK_REDIS_URL || process.env.REDIS_URL),
   allChainsSyncRedisUrl: String(process.env.ALL_CHAINS_SYNC_REDIS_URL || process.env.REDIS_URL),
   redshiftUrl: String(process.env.REDSHIFT_URL),
 
@@ -61,7 +58,7 @@ export const config = {
   doKafkaWork: Boolean(Number(process.env.DO_KAFKA_WORK)),
   kafkaPartitionsConsumedConcurrently: Number(process.env.KAFKA_PARTITIONS_CONSUMED_CONCURRENTLY),
   kafkaConsumerGroupId: String(process.env.KAFKA_CONSUMER_GROUP_ID),
-  kafkaBrokers: String(process.env.KAFKA_BROKERS).split(","),
+  kafkaBrokers: process.env.KAFKA_BROKERS ? String(process.env.KAFKA_BROKERS).split(",") : [],
   kafkaClientId: String(process.env.KAFKA_CLIENT_ID),
   kafkaMaxBytesPerPartition: Number(process.env.KAFKA_MAX_BYTES_PER_PARTITION),
 
@@ -83,13 +80,6 @@ export const config = {
     ? String(process.env.DATA_EXPORT_S3_ARCHIVE_BUCKET_NAME)
     : undefined,
 
-  openseaWebsocketEventsAwsFirehoseDeliveryStreamName: String(
-    process.env.OPENSEA_WEBSOCKET_EVENTS_AWS_FIREHOSE_DELIVERY_STREAM_NAME
-  ),
-  openseaWebsocketEventsAwsFirehoseDeliveryStreamRegion: String(
-    process.env.OPENSEA_WEBSOCKET_EVENTS_AWS_FIREHOSE_DELIVERY_STREAM_REGION
-  ),
-
   // For forwarding orders to OpenSea
   forwardOpenseaApiKey: String(process.env.FORWARD_OPENSEA_API_KEY),
   forwardReservoirApiKeys: process.env.FORWARD_RESERVOIR_API_KEYS
@@ -106,20 +96,17 @@ export const config = {
 
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
   cbApiKey: String(process.env.CB_API_KEY),
-  flowApiKey: String(process.env.FLOW_API_KEY),
   orderFetcherApiKey: String(process.env.ORDER_FETCHER_API_KEY),
 
   blurWsApiKey: process.env.BLUR_WS_API_KEY,
   blurWsUrl: process.env.BLUR_WS_URL,
 
   orderFetcherBaseUrl: String(process.env.ORDER_FETCHER_BASE_URL),
-  railwayStaticUrl: String(process.env.RAILWAY_STATIC_URL || ""),
 
   cipherSecret: String(process.env.CIPHER_SECRET),
+  imageTag: String(process.env.IMAGE_TAG),
 
   slackApiKeyWebhookUrl: String(process.env.SLACK_API_KEY_WEBHOOK_URL),
-  // Used to prevent redis from being overloaded in heavy process like backfilling
-  redisMaxMemoryGB: Number(process.env.REDIS_MAX_MEMORY_GB || 25),
 
   maxParallelTokenRefreshJobs: Number(process.env.MAX_PARALLEL_TOKEN_REFRESH_JOBS || 1),
   maxParallelTokenCollectionSlugRefreshJobs: Number(
@@ -137,9 +124,8 @@ export const config = {
   // Elasticsearch
   elasticsearchUrl: String(process.env.ELASTICSEARCH_URL || ""),
   doElasticsearchWork: Boolean(Number(process.env.DO_ELASTICSEARCH_WORK)),
-  enableElasticsearchRead: Boolean(Number(process.env.ENABLE_ELASTICSEARCH_READ)),
 
-  // realtime v2
-  enableRealtimeProcessing: Boolean(process.env.ENABLE_REALTIME_PROCESSING),
-  enableRealtimeV2BlockQueue: Boolean(process.env.ENABLE_REALTIME_V2_BLOCK_QUEUE),
+  // RabbitMq
+  rabbitMqUrl: `amqp://${String(process.env.RABBIT_URL)}:5672`,
+  rabbitHttpUrl: `http://${String(process.env.RABBIT_URL)}:15672`,
 };

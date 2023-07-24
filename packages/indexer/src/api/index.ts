@@ -16,11 +16,11 @@ import { setupRoutes } from "@/api/routes";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { getNetworkName } from "@/config/network";
-import * as countApiUsage from "@/jobs/metrics/count-api-usage";
-import { allJobQueues, gracefulShutdownJobWorkers } from "@/jobs/index";
+import { allJobQueues } from "@/jobs/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { RateLimitRules } from "@/models/rate-limit-rules";
 import { BlockedRouteError } from "@/models/rate-limit-rules/errors";
+import { countApiUsageJob } from "@/jobs/metrics/count-api-usage-job";
 
 let server: Hapi.Server;
 
@@ -142,9 +142,6 @@ export const start = async (): Promise<void> => {
         signals: ["SIGINT", "SIGTERM"],
         preServerStop: async () => {
           logger.info("process", "Shutting down");
-
-          // Close all workers which should be gracefully shutdown
-          await Promise.all(gracefulShutdownJobWorkers.map((worker) => worker?.close()));
         },
       },
     },
@@ -152,6 +149,10 @@ export const start = async (): Promise<void> => {
 
   if (!process.env.LOCAL_TESTING) {
     server.ext("onPostAuth", async (request, reply) => {
+      // Set the request URL query string
+      const searchParams = new URLSearchParams(request.query);
+      request.pre.queryString = searchParams.toString();
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const isInjected = (request as any).isInjected;
       if (isInjected) {
@@ -286,9 +287,9 @@ export const start = async (): Promise<void> => {
 
             return reply
               .response(tooManyRequestsResponse)
+              .header("tier", `${tier}`)
               .type("application/json")
               .code(429)
-              .header("tier", `${tier}`)
               .takeover();
           } else {
             logger.warn("rate-limiter", `Rate limit error ${error}`);
@@ -335,10 +336,10 @@ export const start = async (): Promise<void> => {
       // Count the API usage, to prevent any latency on the request no need to wait and ignore errors
       if (request.pre.metrics && statusCode >= 100 && statusCode < 500) {
         request.pre.metrics.statusCode = statusCode;
-        countApiUsage.addToQueue(request.pre.metrics).catch();
+        countApiUsageJob.addToQueue(request.pre.metrics).catch();
       }
 
-      if (!(response instanceof Boom)) {
+      if (!(response instanceof Boom) && statusCode === 200) {
         typedResponse.header("tier", request.headers["tier"]);
         typedResponse.header("X-RateLimit-Limit", request.headers["X-RateLimit-Limit"]);
         typedResponse.header("X-RateLimit-Remaining", request.headers["X-RateLimit-Remaining"]);
@@ -361,4 +362,13 @@ export const start = async (): Promise<void> => {
   logger.info("process", `Started on port ${config.port}`);
 };
 
-export const inject = (options: Hapi.ServerInjectOptions) => server.inject(options);
+export const inject = async (options: Hapi.ServerInjectOptions) => {
+  if (server) {
+    return server.inject(options);
+  }
+
+  return {
+    payload: "",
+    statusCode: 0,
+  };
+};

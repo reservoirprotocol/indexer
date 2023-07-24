@@ -5,6 +5,7 @@ import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
+import { PermitHandler, PermitWithTransfers } from "@reservoir0x/sdk/dist/router/v6/permit";
 import { FillListingsResult, ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
 import axios from "axios";
 import Joi from "joi";
@@ -12,7 +13,7 @@ import Joi from "joi";
 import { inject } from "@/api/index";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { JoiExecuteFee } from "@/common/joi";
+import { JoiExecuteFee, JoiOrderDepth } from "@/common/joi";
 import { baseProvider } from "@/common/provider";
 import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
@@ -27,8 +28,9 @@ import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import { ExecutionsBuffer } from "@/utils/executions";
 import * as onChainData from "@/utils/on-chain-data";
-import * as mints from "@/utils/mints/collection-mints";
-import { generateMintTxData } from "@/utils/mints/calldata/generator";
+import * as mints from "@/orderbook/mints";
+import { generateCollectionMintTxData } from "@/orderbook/mints/calldata";
+import { getPermitId, getPermit, savePermit } from "@/utils/permits";
 import { getUSDAndCurrencyPrices } from "@/utils/prices";
 
 const version = "v7";
@@ -53,18 +55,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
           Joi.object({
             collection: Joi.string().lowercase().description("Collection to buy."),
             token: Joi.string().lowercase().pattern(regex.token).description("Token to buy."),
-            quantity: Joi.number()
-              .integer()
-              .positive()
-              .default(1)
-              .description("Quantity of tokens to buy."),
+            quantity: Joi.number().integer().positive().description("Quantity of tokens to buy."),
             orderId: Joi.string().lowercase().description("Optional order id to fill."),
             rawOrder: Joi.object({
               kind: Joi.string()
                 .lowercase()
                 .valid(
                   "opensea",
-                  "blur",
                   "blur-partial",
                   "looks-rare",
                   "zeroex-v4",
@@ -72,16 +69,19 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   "seaport-v1.4",
                   "seaport-v1.5",
                   "x2y2",
-                  "universe",
                   "rarible",
                   "sudoswap",
-                  "flow",
                   "nftx",
                   "alienswap"
-                )
-                .required(),
-              data: Joi.object().required(),
+                ),
+              data: Joi.object(),
             }).description("Optional raw order to fill."),
+            fillType: Joi.string()
+              .valid("trade", "mint", "preferMint")
+              .default("preferMint")
+              .description(
+                "Optionally specify a particular fill method. Only relevant when filling via `collection`."
+              ),
             preferredOrderSource: Joi.string()
               .lowercase()
               .pattern(regex.domain)
@@ -94,6 +94,14 @@ export const getExecuteBuyV7Options: RouteOptions = {
               .pattern(regex.domain)
               .when("token", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() })
               .description("Only consider orders from this source."),
+            exclusions: Joi.array()
+              .items(
+                Joi.object({
+                  orderId: Joi.string().required(),
+                  price: Joi.string().pattern(regex.number),
+                })
+              )
+              .description("Items to exclude"),
           })
             .oxor("token", "collection", "orderId", "rawOrder")
             .or("token", "collection", "orderId", "rawOrder")
@@ -117,7 +125,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       forceRouter: Joi.boolean().description(
         "If true, all fills will be executed through the router (where possible)"
       ),
-      currency: Joi.string().description("Currency to be used for purchases."),
+      currency: Joi.string().lowercase().description("Currency to be used for purchases."),
       normalizeRoyalties: Joi.boolean().default(false).description("Charge any missing royalties."),
       allowInactiveOrderIds: Joi.boolean()
         .default(false)
@@ -152,6 +160,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
       maxPriorityFeePerGas: Joi.string()
         .pattern(regex.number)
         .description("Optional custom gas settings."),
+      usePermit: Joi.boolean().description("When true, will use permit to avoid approvals."),
+      swapProvider: Joi.string()
+        .valid("uniswap", "1inch")
+        .default("uniswap")
+        .description(
+          "Choose a specific swapping provider when buying in a different currency (defaults to `uniswap`)"
+        ),
       // Various authorization keys
       x2y2ApiKey: Joi.string().description("Optional X2Y2 API key used for filling."),
       openseaApiKey: Joi.string().description(
@@ -164,6 +179,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
+      requestId: Joi.string(),
       steps: Joi.array().items(
         Joi.object({
           id: Joi.string().required(),
@@ -196,11 +212,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
           orderId: Joi.string(),
           contract: Joi.string().lowercase().pattern(regex.address),
           tokenId: Joi.string().lowercase().pattern(regex.number),
-          quantity: Joi.number().unsafe().description("Can be higher than 1 if erc1155"),
+          quantity: Joi.number().unsafe(),
           source: Joi.string().allow("", null),
           currency: Joi.string().lowercase().pattern(regex.address),
-          currencySymbol: Joi.string().optional(),
-          currencyDecimals: Joi.number().optional(),
+          currencySymbol: Joi.string().optional().allow(null),
+          currencyDecimals: Joi.number().optional().allow(null),
           quote: Joi.number().unsafe(),
           rawQuote: Joi.string().pattern(regex.number),
           buyInQuote: Joi.number().unsafe(),
@@ -211,6 +227,19 @@ export const getExecuteBuyV7Options: RouteOptions = {
             .items(JoiExecuteFee)
             .description("Can be marketplace fees or royalties"),
           feesOnTop: Joi.array().items(JoiExecuteFee).description("Can be referral fees."),
+        })
+      ),
+      maxQuantities: Joi.array().items(
+        Joi.object({
+          itemIndex: Joi.number().required(),
+          maxQuantity: Joi.string().pattern(regex.number).allow(null),
+        })
+      ),
+      // TODO: Remove
+      preview: Joi.array().items(
+        Joi.object({
+          itemIndex: Joi.number().required(),
+          depth: JoiOrderDepth,
         })
       ),
     }).label(`getExecuteBuy${version.toUpperCase()}Response`),
@@ -239,7 +268,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       let path: {
         orderId: string;
         contract: string;
-        tokenId: string;
+        tokenId?: string;
         quantity: number;
         source: string | null;
         currency: string;
@@ -279,6 +308,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           id: string;
           kind: OrderKind;
           maker: string;
+          nativePrice: string;
           price: string;
           sourceId: number | null;
           currency: string;
@@ -289,12 +319,14 @@ export const getExecuteBuyV7Options: RouteOptions = {
         token: {
           kind: "erc721" | "erc1155";
           contract: string;
-          tokenId: string;
+          tokenId?: string;
           quantity?: number;
         }
       ) => {
         // Handle dynamically-priced orders
-        if (["sudoswap", "nftx"].includes(order.kind)) {
+        if (
+          ["sudoswap", "sudoswap-v2", "collectionxyz", "nftx", "caviar-v1"].includes(order.kind)
+        ) {
           let poolId: string;
           let priceList: string[];
 
@@ -313,7 +345,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           }
 
           // Fetch the price corresponding to the order's index per pool
-          const price = priceList[poolPrices[poolId].length];
+          const price = priceList[Math.min(poolPrices[poolId].length, priceList.length - 1)];
           // Save the latest price per pool
           poolPrices[poolId].push(price);
           // Override the order's price
@@ -329,11 +361,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
         if (order.kind !== "mint") {
           // Decrement the maker's available NFT balance
-          const key = getMakerBalancesKey(order.maker, token.contract, token.tokenId);
+          const key = getMakerBalancesKey(order.maker, token.contract, token.tokenId!);
           if (!makerBalances[key]) {
             makerBalances[key] = await commonHelpers.getNftBalance(
               token.contract,
-              token.tokenId,
+              token.tokenId!,
               order.maker
             );
           }
@@ -413,7 +445,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               {
                 kind: token.kind,
                 contract: token.contract,
-                tokenId: token.tokenId,
+                tokenId: token.tokenId!,
                 amount: token.quantity,
                 isFlagged: Boolean(flaggedResult.is_flagged),
               }
@@ -434,6 +466,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
         quantity: number;
         preferredOrderSource?: string;
         exactOrderSource?: string;
+        exclusions?: {
+          orderId: string;
+        }[];
+        fillType?: "trade" | "mint" | "preferMint";
+        originalItemIndex?: number;
       }[] = payload.items;
 
       // Keep track of any mint transactions that need to be aggregated
@@ -442,8 +479,26 @@ export const getExecuteBuyV7Options: RouteOptions = {
         txData: TxData;
       }[] = [];
 
+      // Keep track of the maximum quantity available per item
+      // (only relevant when the below `preview` field is true)
+      const maxQuantities: {
+        itemIndex: number;
+        maxQuantity: string | null;
+      }[] = [];
+      const preview = payload.onlyPath && payload.partial && items.every((i) => !i.quantity);
+
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
+        const itemIndex =
+          items[i].originalItemIndex !== undefined ? items[i].originalItemIndex! : i;
+
+        if (!item.quantity) {
+          if (preview) {
+            item.quantity = 30;
+          } else {
+            item.quantity = 1;
+          }
+        }
 
         // Scenario 1: fill via `rawOrder`
         if (item.rawOrder) {
@@ -467,9 +522,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 ),
                 kind: "blur",
                 maker: AddressZero,
+                nativePrice: order.data.price,
                 price: order.data.price,
                 sourceId: sources.getByDomain("blur.io")?.id ?? null,
-                currency: Sdk.Common.Addresses.Eth[config.chainId],
+                currency: Sdk.Common.Addresses.Native[config.chainId],
                 rawData: order.data,
                 builtInFees: [],
               },
@@ -479,6 +535,14 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 tokenId: order.data.tokenId,
               }
             );
+
+            if (preview) {
+              // Blur only supports ERC721 listings so max quantity is always 1
+              maxQuantities.push({
+                itemIndex,
+                maxQuantity: "1",
+              });
+            }
           } else {
             const response = await inject({
               method: "POST",
@@ -495,7 +559,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               if (payload.partial) {
                 continue;
               } else {
-                throw Boom.badData("Raw order failed to get processed");
+                throw getExecuteError("Raw order failed to get processed");
               }
             }
           }
@@ -509,6 +573,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 orders.id,
                 orders.kind,
                 contracts.kind AS token_kind,
+                orders.price AS native_price,
                 coalesce(orders.currency_price, orders.price) AS price,
                 orders.raw_data,
                 orders.source_id_int,
@@ -533,10 +598,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   OR orders.taker = '\\x0000000000000000000000000000000000000000'
                   OR orders.taker = $/taker/
                 )
+                ${item.exclusions?.length ? " AND orders.id NOT IN ($/excludedOrderIds:list/)" : ""}
             `,
             {
               taker: toBuffer(payload.taker),
               id: item.orderId,
+              excludedOrderIds: item.exclusions?.map((e) => e.orderId) ?? [],
             }
           );
 
@@ -589,7 +656,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
             if (payload.partial) {
               continue;
             } else {
-              throw Boom.badData(error);
+              throw getExecuteError(error);
             }
           }
 
@@ -598,6 +665,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               id: result.id,
               kind: result.kind,
               maker: fromBuffer(result.maker),
+              nativePrice: result.native_price,
               price: result.price,
               sourceId: result.source_id_int,
               currency: fromBuffer(result.currency),
@@ -612,79 +680,111 @@ export const getExecuteBuyV7Options: RouteOptions = {
               quantity: item.quantity,
             }
           );
+
+          if (preview) {
+            // The max quantity is the quantity still fillable on the order
+            maxQuantities.push({
+              itemIndex,
+              maxQuantity: result.quantity_remaining,
+            });
+          }
         }
 
         // Scenario 3: fill via `collection`
         if (item.collection) {
-          // Fetch any open mints on the collection which the taker is elligible for
-          // const openMints = await mints.getOpenCollectionMints(item.collection);
-          const openMints: mints.CollectionMint[] = [];
-          for (const mint of openMints) {
-            if (!payload.currency || mint.currency === payload.currency) {
-              const collectionData = await idb.one(
-                `
-                  SELECT
-                    collections.contract,
-                    contracts.kind AS token_kind,
-                    (
-                      SELECT
-                        MAX(tokens.token_id) + 1
-                      FROM tokens
-                      WHERE tokens.contract = collections.contract
-                        AND tokens.collection_id = collections.id
-                    ) AS next_token_id
-                  FROM collections
-                  JOIN contracts
-                    ON collections.contract = contracts.address
-                  WHERE collections.id = $/id/
-                `,
-                {
-                  id: item.collection,
-                }
-              );
-              if (collectionData) {
-                const quantityToMint = mint.maxMintsPerWallet
-                  ? Math.min(item.quantity, mint.maxMintsPerWallet)
-                  : item.quantity;
+          let mintAvailable = false;
+          if (item.fillType === "mint" || item.fillType === "preferMint") {
+            const collectionData = await idb.oneOrNone(
+              `
+                SELECT
+                  contracts.kind AS token_kind
+                FROM collections
+                JOIN contracts
+                  ON collections.contract = contracts.address
+                WHERE collections.id = $/id/
+              `,
+              {
+                id: item.collection,
+              }
+            );
+            if (collectionData) {
+              // Fetch any open mints on the collection which the taker is elligible for
+              const openMints = await mints.getCollectionMints(item.collection, {
+                status: "open",
+              });
+              for (const mint of openMints) {
+                if (!payload.currency || mint.currency === payload.currency) {
+                  const amountMintable = await mints.getAmountMintableByWallet(mint, payload.taker);
 
-                const orderId = `mint:${item.collection}`;
-                mintTxs.push({
-                  orderId,
-                  txData: generateMintTxData(
-                    mint.details,
-                    payload.taker,
-                    fromBuffer(collectionData.contract),
-                    quantityToMint,
-                    mint.price
-                  ),
-                });
+                  let quantityToMint = bn(
+                    amountMintable
+                      ? amountMintable.lt(item.quantity)
+                        ? amountMintable
+                        : item.quantity
+                      : item.quantity
+                  ).toNumber();
 
-                await addToPath(
-                  {
-                    id: orderId,
-                    kind: "mint",
-                    maker: fromBuffer(collectionData.contract),
-                    price: mint.price,
-                    sourceId: null,
-                    currency: mint.currency,
-                    rawData: {},
-                    builtInFees: [],
-                    additionalFees: [],
-                  },
-                  {
-                    kind: collectionData.token_kind,
-                    contract: fromBuffer(collectionData.contract),
-                    tokenId: collectionData.next_token_id,
-                    quantity: quantityToMint,
+                  // If minting by collection was request but the current mint is tied to a token,
+                  // only mint a single quantity of the current token in order to mimick the logic
+                  // of buying by collection (where we choose as many token ids as the quantity)
+                  if (mint.tokenId) {
+                    quantityToMint = Math.min(quantityToMint, 1);
                   }
-                );
 
-                item.quantity -= quantityToMint;
+                  if (quantityToMint > 0) {
+                    const { txData, price } = await generateCollectionMintTxData(
+                      mint,
+                      payload.taker,
+                      quantityToMint
+                    );
+
+                    const orderId = `mint:${item.collection}`;
+                    mintTxs.push({
+                      orderId,
+                      txData,
+                    });
+
+                    await addToPath(
+                      {
+                        id: orderId,
+                        kind: "mint",
+                        maker: mint.contract,
+                        nativePrice: price,
+                        price: price,
+                        sourceId: null,
+                        currency: mint.currency,
+                        rawData: {},
+                        builtInFees: [],
+                        additionalFees: [],
+                      },
+                      {
+                        kind: collectionData.token_kind,
+                        contract: mint.contract,
+                        quantity: quantityToMint,
+                      }
+                    );
+
+                    if (preview) {
+                      // The max quantity is the amount mintable on the collection
+                      maxQuantities.push({
+                        itemIndex,
+                        maxQuantity: mint.tokenId
+                          ? quantityToMint.toString()
+                          : amountMintable
+                          ? amountMintable.toString()
+                          : null,
+                      });
+                    }
+
+                    item.quantity -= quantityToMint;
+                    mintAvailable = true;
+                  }
+                }
               }
             }
           }
 
-          if (item.quantity > 0) {
+          if (item.fillType === "trade" || (item.fillType === "preferMint" && !mintAvailable)) {
             // Filtering by collection on the `orders` table is inefficient, so what we
             // do here is select the cheapest tokens from the `tokens` table and filter
             // out the ones that aren't fillable. For this to work we fetch more tokens
@@ -728,6 +828,31 @@ export const getExecuteBuyV7Options: RouteOptions = {
               }
             );
 
+            if (preview) {
+              // The max quantity is the total number of tokens which can be bought from the collection
+              maxQuantities.push({
+                itemIndex: itemIndex,
+                maxQuantity: await idb
+                  .one(
+                    `
+                      SELECT
+                        count(*) AS on_sale_count
+                      FROM tokens
+                      WHERE tokens.collection_id = $/collection/
+                        AND ${
+                          payload.normalizeRoyalties
+                            ? "tokens.normalized_floor_sell_id"
+                            : "tokens.floor_sell_id"
+                        } IS NOT NULL
+                    `,
+                    {
+                      collection: item.collection,
+                    }
+                  )
+                  .then((r) => String(r.on_sale_count)),
+              });
+            }
+
             // Add each retrieved token as a new item so that it will get
             // processed by the next pipeline of the same API rather than
             // building something custom for it.
@@ -735,8 +860,16 @@ export const getExecuteBuyV7Options: RouteOptions = {
             for (const t of tokenResults) {
               items.push({
                 token: `${fromBuffer(t.contract)}:${t.token_id}`,
+                fillType: item.fillType,
                 quantity: 1,
+                originalItemIndex: itemIndex,
               });
+            }
+
+            if (tokenResults.length < item.quantity) {
+              if (!payload.partial) {
+                throw getExecuteError("Unable to fill requested quantity");
+              }
             }
           }
         }
@@ -745,138 +878,247 @@ export const getExecuteBuyV7Options: RouteOptions = {
         if (item.token) {
           const [contract, tokenId] = item.token.split(":");
 
-          // TODO: Right now we filter out Blur orders since those don't yet
-          // support royalty normalization. A better approach to handling it
-          // would be to set the normalized fields to `null` for every order
-          // which doesn't support royalty normalization and then filter out
-          // such `null` fields in various normalized events/caches.
+          let mintAvailable = false;
+          if (item.fillType === "mint" || item.fillType === "preferMint") {
+            const collectionData = await idb.oneOrNone(
+              `
+                SELECT
+                  collections.id,
+                  contracts.kind AS token_kind
+                FROM tokens
+                JOIN collections
+                  ON tokens.collection_id = collections.id
+                JOIN contracts
+                  ON collections.contract = contracts.address
+                WHERE tokens.contract = $/contract/
+                  AND tokens.token_id = $/tokenId/
+              `,
+              {
+                contract: toBuffer(contract),
+                tokenId,
+              }
+            );
+            if (collectionData) {
+              // Fetch any open mints on the token which the taker is elligible for
+              const openMints = await mints.getCollectionMints(collectionData.id, {
+                status: "open",
+                tokenId,
+              });
+              for (const mint of openMints) {
+                if (!payload.currency || mint.currency === payload.currency) {
+                  const amountMintable = await mints.getAmountMintableByWallet(mint, payload.taker);
 
-          // Only one of `exactOrderSource` and `preferredOrderSource` will be set
-          const sourceDomain = item.exactOrderSource || item.preferredOrderSource;
+                  const quantityToMint = bn(
+                    amountMintable
+                      ? amountMintable.lt(item.quantity)
+                        ? amountMintable
+                        : item.quantity
+                      : item.quantity
+                  ).toNumber();
 
-          // Fetch all matching orders sorted by price
-          const orderResults = await idb.manyOrNone(
-            `
-              SELECT
-                orders.id,
-                orders.kind,
-                contracts.kind AS token_kind,
-                coalesce(orders.currency_price, orders.price) AS price,
-                orders.quantity_remaining,
-                orders.source_id_int,
-                orders.currency,
-                orders.missing_royalties,
-                orders.maker,
-                orders.raw_data,
-                orders.fee_breakdown,
-                contracts.kind AS token_kind,
-                orders.quantity_remaining AS quantity
-              FROM orders
-              JOIN contracts
-                ON orders.contract = contracts.address
-              WHERE orders.token_set_id = $/tokenSetId/
-                AND orders.side = 'sell'
-                AND orders.fillability_status = 'fillable'
-                AND orders.approval_status = 'approved'
-                AND (
-                  orders.taker IS NULL
-                  OR orders.taker = '\\x0000000000000000000000000000000000000000'
-                  OR orders.taker = $/taker/
-                )
-                ${
-                  payload.normalizeRoyalties || payload.excludeEOA
-                    ? " AND orders.kind != 'blur'"
-                    : ""
+                  if (quantityToMint > 0) {
+                    const { txData, price } = await generateCollectionMintTxData(
+                      mint,
+                      payload.taker,
+                      quantityToMint
+                    );
+
+                    const orderId = `mint:${collectionData.id}`;
+                    mintTxs.push({
+                      orderId,
+                      txData,
+                    });
+
+                    await addToPath(
+                      {
+                        id: orderId,
+                        kind: "mint",
+                        maker: mint.contract,
+                        nativePrice: price,
+                        price: price,
+                        sourceId: null,
+                        currency: mint.currency,
+                        rawData: {},
+                        builtInFees: [],
+                        additionalFees: [],
+                      },
+                      {
+                        kind: collectionData.token_kind,
+                        contract: mint.contract,
+                        tokenId,
+                        quantity: quantityToMint,
+                      }
+                    );
+
+                    if (preview) {
+                      // The max quantity is the amount mintable on the collection
+                      maxQuantities.push({
+                        itemIndex,
+                        maxQuantity: amountMintable ? amountMintable.toString() : null,
+                      });
+                    }
+
+                    item.quantity -= quantityToMint;
+                    mintAvailable = true;
+                  }
                 }
-                ${item.exactOrderSource ? " AND orders.source_id_int = $/sourceId/" : ""}
-              ORDER BY
-                ${payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"},
-                ${
-                  item.preferredOrderSource
-                    ? `(
-                        CASE
-                          WHEN orders.source_id_int = $/sourceId/ THEN 0
-                          ELSE 1
-                        END
-                      )`
-                    : "orders.fee_bps"
-                }
-              LIMIT 1000
-            `,
-            {
-              tokenSetId: `token:${item.token}`,
-              quantity: item.quantity,
-              sourceId: sourceDomain ? sources.getByDomain(sourceDomain)?.id ?? -1 : undefined,
-              taker: toBuffer(payload.taker),
-            }
-          );
-
-          let quantityToFill = item.quantity;
-          let makerEqualsTakerQuantity = 0;
-          for (const result of orderResults) {
-            if (fromBuffer(result.maker) === payload.taker) {
-              makerEqualsTakerQuantity += Number(result.quantity_remaining);
-              continue;
-            }
-
-            // Stop if we filled the total quantity
-            if (quantityToFill <= 0) {
-              break;
-            }
-
-            // Account for the already filled order's quantity
-            let availableQuantity = Number(result.quantity_remaining);
-            if (quantityFilled[result.id]) {
-              availableQuantity -= quantityFilled[result.id];
-            }
-
-            // Account for the already filled maker's balance
-            const maker = fromBuffer(result.maker);
-            const key = getMakerBalancesKey(maker, contract, tokenId);
-            if (makerBalances[key]) {
-              const makerAvailableQuantity = makerBalances[key].toNumber();
-              if (makerAvailableQuantity < availableQuantity) {
-                availableQuantity = makerAvailableQuantity;
               }
             }
+          }
 
-            // Skip the current order if it has no quantity available
-            if (availableQuantity <= 0) {
-              continue;
-            }
+          if (item.fillType === "trade" || (item.fillType === "preferMint" && !mintAvailable)) {
+            // TODO: Right now we filter out Blur orders since those don't yet
+            // support royalty normalization. A better approach to handling it
+            // would be to set the normalized fields to `null` for every order
+            // which doesn't support royalty normalization and then filter out
+            // such `null` fields in various normalized events/caches.
 
-            await addToPath(
+            // Only one of `exactOrderSource` and `preferredOrderSource` will be set
+            const sourceDomain = item.exactOrderSource || item.preferredOrderSource;
+
+            // Keep track of the max fillable quantity
+            let maxQuantity = bn(0);
+
+            // Fetch all matching orders sorted by price
+            const orderResults = await idb.manyOrNone(
+              `
+                SELECT
+                  orders.id,
+                  orders.kind,
+                  contracts.kind AS token_kind,
+                  orders.price AS native_price,
+                  coalesce(orders.currency_price, orders.price) AS price,
+                  orders.quantity_remaining,
+                  orders.source_id_int,
+                  orders.currency,
+                  orders.missing_royalties,
+                  orders.maker,
+                  orders.raw_data,
+                  orders.fee_breakdown,
+                  contracts.kind AS token_kind,
+                  orders.quantity_remaining AS quantity
+                FROM orders
+                JOIN contracts
+                  ON orders.contract = contracts.address
+                WHERE orders.token_set_id = $/tokenSetId/
+                  AND orders.side = 'sell'
+                  AND orders.fillability_status = 'fillable'
+                  AND orders.approval_status = 'approved'
+                  AND (
+                    orders.taker IS NULL
+                    OR orders.taker = '\\x0000000000000000000000000000000000000000'
+                    OR orders.taker = $/taker/
+                  )
+                  ${
+                    payload.normalizeRoyalties || payload.excludeEOA
+                      ? " AND orders.kind != 'blur'"
+                      : ""
+                  }
+                  ${item.exactOrderSource ? " AND orders.source_id_int = $/sourceId/" : ""}
+                  ${
+                    item.exclusions?.length
+                      ? " AND orders.id NOT IN ($/excludedOrderIds:list/)"
+                      : ""
+                  }
+                ORDER BY
+                  ${payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"},
+                  ${
+                    item.preferredOrderSource
+                      ? `(
+                          CASE
+                            WHEN orders.source_id_int = $/sourceId/ THEN 0
+                            ELSE 1
+                          END
+                        )`
+                      : "orders.fee_bps"
+                  }
+                LIMIT 1000
+              `,
               {
-                id: result.id,
-                kind: result.kind,
-                maker,
-                price: result.price,
-                sourceId: result.source_id_int,
-                currency: fromBuffer(result.currency),
-                rawData: result.raw_data,
-                builtInFees: result.fee_breakdown,
-                additionalFees: result.missing_royalties,
-              },
-              {
-                kind: result.token_kind,
-                contract,
-                tokenId,
-                quantity: Math.min(quantityToFill, availableQuantity),
+                tokenSetId: `token:${item.token}`,
+                quantity: item.quantity,
+                sourceId: sourceDomain ? sources.getByDomain(sourceDomain)?.id ?? -1 : undefined,
+                taker: toBuffer(payload.taker),
+                excludedOrderIds: item.exclusions?.map((e) => e.orderId) ?? [],
               }
             );
 
-            // Update the quantity to fill with the current order's available quantity
-            quantityToFill -= availableQuantity;
-          }
+            let quantityToFill = item.quantity;
+            let makerEqualsTakerQuantity = 0;
+            for (const result of orderResults) {
+              if (fromBuffer(result.maker) === payload.taker) {
+                makerEqualsTakerQuantity += Number(result.quantity_remaining);
+                continue;
+              }
 
-          if (quantityToFill > 0) {
-            if (payload.partial) {
-              continue;
-            } else {
-              if (makerEqualsTakerQuantity >= quantityToFill) {
-                throw Boom.badData("No fillable orders (taker cannot fill own orders)");
-              } else {
-                throw Boom.badData("Unable to fill requested quantity");
+              // Stop if we filled the total quantity
+              if (quantityToFill <= 0 && !preview) {
+                break;
+              }
+
+              // Account for the already filled order's quantity
+              let availableQuantity = Number(result.quantity_remaining);
+              if (quantityFilled[result.id]) {
+                availableQuantity -= quantityFilled[result.id];
+              }
+
+              // Account for the already filled maker's balance
+              const maker = fromBuffer(result.maker);
+              const key = getMakerBalancesKey(maker, contract, tokenId);
+              if (makerBalances[key]) {
+                const makerAvailableQuantity = makerBalances[key].toNumber();
+                if (makerAvailableQuantity < availableQuantity) {
+                  availableQuantity = makerAvailableQuantity;
+                }
+              }
+
+              // Skip the current order if it has no quantity available
+              if (availableQuantity <= 0) {
+                continue;
+              }
+
+              await addToPath(
+                {
+                  id: result.id,
+                  kind: result.kind,
+                  maker,
+                  nativePrice: result.native_price,
+                  price: result.price,
+                  sourceId: result.source_id_int,
+                  currency: fromBuffer(result.currency),
+                  rawData: result.raw_data,
+                  builtInFees: result.fee_breakdown,
+                  additionalFees: result.missing_royalties,
+                },
+                {
+                  kind: result.token_kind,
+                  contract,
+                  tokenId,
+                  quantity: Math.min(quantityToFill, availableQuantity),
+                }
+              );
+              maxQuantity = maxQuantity.add(availableQuantity);
+
+              // Update the quantity to fill with the current order's available quantity
+              quantityToFill -= availableQuantity;
+            }
+
+            if (quantityToFill > 0) {
+              if (!payload.partial) {
+                if (makerEqualsTakerQuantity >= quantityToFill) {
+                  throw getExecuteError("No fillable orders (taker cannot fill own orders)");
+                } else {
+                  throw getExecuteError("Unable to fill requested quantity");
+                }
+              }
+            }
+
+            if (preview) {
+              if (!maxQuantities.find((m) => m.itemIndex === itemIndex)) {
+                maxQuantities.push({
+                  itemIndex,
+                  maxQuantity: maxQuantity.toString(),
+                });
               }
             }
           }
@@ -884,7 +1126,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       }
 
       if (!path.length) {
-        throw Boom.badRequest("No fillable orders");
+        throw getExecuteError("No fillable orders");
       }
 
       let buyInCurrency = payload.currency;
@@ -898,7 +1140,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           buyInCurrency = path[0].currency;
         } else {
           // If multiple different-currency orders are to get filled, we use the native currency
-          buyInCurrency = Sdk.Common.Addresses.Eth[config.chainId];
+          buyInCurrency = Sdk.Common.Addresses.Native[config.chainId];
         }
       }
 
@@ -937,20 +1179,16 @@ export const getExecuteBuyV7Options: RouteOptions = {
       const ordersEligibleForGlobalFees = listingDetails
         .filter(
           (b) =>
-            b.source !== "blur.io" &&
-            (hasBlurListings
-              ? !["opensea.io", "looksrare.org", "x2y2.io"].includes(b.source!)
-              : true)
+            b.source !== "blur.io" && (hasBlurListings ? !["opensea.io"].includes(b.source!) : true)
         )
         .map((b) => b.orderId);
 
       const addGlobalFee = async (item: (typeof path)[0], fee: Sdk.RouterV6.Types.Fee) => {
+        // The fees should be relative to a single quantity
+        fee.amount = bn(fee.amount).div(item.quantity).toString();
+
         // Global fees get split across all eligible orders
         const adjustedFeeAmount = bn(fee.amount).div(ordersEligibleForGlobalFees.length).toString();
-
-        const itemNetPrice = bn(item.rawQuote).sub(
-          item.feesOnTop.map((f) => bn(f.rawAmount)).reduce((a, b) => a.add(b), bn(0))
-        );
 
         const amount = formatPrice(
           adjustedFeeAmount,
@@ -961,7 +1199,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
         item.feesOnTop.push({
           recipient: fee.recipient,
-          bps: bn(itemNetPrice).mul(10000).div(item.rawQuote).toNumber(),
+          bps: bn(fee.amount).mul(10000).div(item.rawQuote).toNumber(),
           amount,
           rawAmount,
         });
@@ -987,7 +1225,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
       }
 
       if (payload.onlyPath) {
-        return { path };
+        return {
+          path,
+          maxQuantities: preview ? maxQuantities : undefined,
+        };
       }
 
       // Set up generic filling steps
@@ -1015,6 +1256,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
           action: "Approve exchange contract",
           description: "A one-time setup transaction to enable trading",
           kind: "transaction",
+          items: [],
+        },
+        {
+          id: "currency-permit",
+          action: "Sign permits",
+          description: "Sign permits for accessing the tokens in your wallet",
+          kind: "signature",
           items: [],
         },
         {
@@ -1076,7 +1324,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
             });
 
-            // Return an early since any next steps are dependent on the Blur auth
+            // Return early since any next steps are dependent on the Blur auth
             return {
               steps,
               path,
@@ -1108,6 +1356,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
           partial: payload.partial,
           forceRouter: payload.forceRouter,
           relayer: payload.relayer,
+          usePermit: payload.usePermit,
+          swapProvider: payload.swapProvider,
           globalFees,
           blurAuth,
           onError: async (kind, error, data) => {
@@ -1129,6 +1379,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       for (const { orderId, txData } of mintTxs) {
         txs.push({
           approvals: [],
+          permits: [],
           txData,
           orderIds: [orderId],
         });
@@ -1139,7 +1390,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       path = path.filter((p) => success[p.orderId]);
 
       if (!path.length) {
-        throw Boom.badRequest("No fillable orders");
+        throw getExecuteError("No fillable orders");
       }
 
       // Custom gas settings
@@ -1150,7 +1401,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         ? bn(payload.maxPriorityFeePerGas).toHexString()
         : undefined;
 
-      for (const { txData, approvals, orderIds } of txs) {
+      for (const { txData, approvals, permits, orderIds } of txs) {
         // Handle approvals
         for (const approval of approvals) {
           const approvedAmount = await onChainData
@@ -1170,15 +1421,58 @@ export const getExecuteBuyV7Options: RouteOptions = {
           }
         }
 
+        // Handle permits
+        const permitHandler = new PermitHandler(config.chainId, baseProvider);
+        for (const permit of permits) {
+          const id = getPermitId(request.payload as object, {
+            token: permit.data.token,
+            amount: permit.data.amount,
+          });
+
+          const cachedPermit = await getPermit(id);
+          if (cachedPermit) {
+            // Override with the cached permit data
+            permit.data = cachedPermit.data;
+          } else {
+            // Cache the permit if it's the first time we encounter it
+            await savePermit(id, permit);
+          }
+
+          // If the permit has a signature attached to it, we can skip it
+          const hasSignature = (permit.data as PermitWithTransfers).signature;
+          if (hasSignature) {
+            continue;
+          }
+
+          steps[2].items.push({
+            status: "incomplete",
+            data: {
+              sign: await permitHandler.getSignatureData(permit.data),
+              post: {
+                endpoint: "/execute/permit-signature/v1",
+                method: "POST",
+                body: {
+                  id,
+                },
+              },
+            },
+          });
+        }
+
+        // Cannot skip balance checking when filling Blur orders
+        if (payload.skipBalanceCheck && path.some((p) => p.source === "blur.io")) {
+          payload.skipBalanceCheck = false;
+        }
+
         // Check that the transaction sender has enough funds to fill all requested tokens
         const txSender = payload.relayer ?? payload.taker;
-        if (buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId]) {
+        if (buyInCurrency === Sdk.Common.Addresses.Native[config.chainId]) {
           // Get the price in the buy-in currency via the transaction value
           const totalBuyInCurrencyPrice = bn(txData.value ?? 0);
 
           const balance = await baseProvider.getBalance(txSender);
           if (!payload.skipBalanceCheck && bn(balance).lt(totalBuyInCurrencyPrice)) {
-            throw Boom.badData("Balance too low to proceed with transaction");
+            throw getExecuteError("Balance too low to proceed with transaction");
           }
         } else {
           // Get the price in the buy-in currency via the approval amounts
@@ -1189,18 +1483,24 @@ export const getExecuteBuyV7Options: RouteOptions = {
           const erc20 = new Sdk.Common.Helpers.Erc20(baseProvider, buyInCurrency);
           const balance = await erc20.getBalance(txSender);
           if (!payload.skipBalanceCheck && bn(balance).lt(totalBuyInCurrencyPrice)) {
-            throw Boom.badData("Balance too low to proceed with transaction");
+            throw getExecuteError("Balance too low to proceed with transaction");
           }
         }
 
-        steps[2].items.push({
+        steps[3].items.push({
           status: "incomplete",
           orderIds,
-          data: {
-            ...txData,
-            maxFeePerGas,
-            maxPriorityFeePerGas,
-          },
+          // Do not return the final step unless all permits have a signature attached
+          data: !steps[2].items.length
+            ? {
+                ...permitHandler.attachToRouterExecution(
+                  txData,
+                  permits.map((p) => p.data)
+                ),
+                maxFeePerGas,
+                maxPriorityFeePerGas,
+              }
+            : undefined,
         });
       }
 
@@ -1208,7 +1508,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       // won't affect the client, which might be polling the API and
       // expect to get the steps returned in the same order / at the
       // same index.
-      if (buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId]) {
+      if (buyInCurrency === Sdk.Common.Addresses.Native[config.chainId]) {
         // Buying in ETH will never require an approval
         steps = [steps[0], ...steps.slice(2)];
       }
@@ -1219,6 +1519,14 @@ export const getExecuteBuyV7Options: RouteOptions = {
         steps = steps.slice(1);
       }
 
+      if (steps.find((s) => s.id === "currency-permit")!.items.length) {
+        // Return early since any next steps are dependent on the permits
+        return {
+          steps,
+          path,
+        };
+      }
+
       const executionsBuffer = new ExecutionsBuffer();
       for (const item of path) {
         executionsBuffer.addFromRequest(request, {
@@ -1227,10 +1535,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
           user: payload.taker,
           orderId: item.orderId,
           quantity: item.quantity,
-          calldata: txs.find((tx) => tx.orderIds.includes(item.orderId))?.txData.data,
+          ...txs.find((tx) => tx.orderIds.includes(item.orderId))?.txData,
         });
       }
-      await executionsBuffer.flush();
+      const requestId = await executionsBuffer.flush();
 
       const perfTime2 = performance.now();
 
@@ -1245,6 +1553,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       );
 
       return {
+        requestId,
         steps: blurAuth ? [steps[0], ...steps.slice(1).filter((s) => s.items.length)] : steps,
         errors,
         path,

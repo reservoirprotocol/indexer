@@ -1,1 +1,0 @@
-import "@/jobs/mints/process";

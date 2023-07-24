@@ -66,3 +66,42 @@ export const buyPriceAccepted: EventData = {
     )`,
   ]),
 };
+
+export const offerAccepted: EventData = {
+  kind: "foundation",
+  subKind: "foundation-offer-accepted",
+  addresses: { [Foundation.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0x1cb8adb37d6d35e94cd0695ca39895b84371864713f5ca7eada52af9ff23744b",
+  numTopics: 4,
+  abi: new Interface([
+    `event OfferAccepted(
+      address indexed nftContract,
+      uint256 indexed tokenId,
+      address indexed buyer,
+      address seller,
+      uint256 f8nFee,
+      uint256 creatorFee,
+      uint256 ownerRev
+    )`,
+  ]),
+};
+
+export const createFixedPriceSale: EventData = {
+  kind: "foundation",
+  subKind: "foundation-created-fixed-price-sale",
+  addresses: { [Foundation.Addresses.DropMarket[config.chainId]?.toLowerCase()]: true },
+  topic: "0xa4e684574cd21d7eb4df36ec6d7f86d16aa900ceddae41e4e82f8f4170f293b9",
+  numTopics: 3,
+  abi: new Interface([
+    `event CreateFixedPriceSale(
+      address indexed nftContract,
+      address indexed seller,
+      uint256 price,
+      uint256 limitPerAccount,
+      uint256 generalAvailabilityStartTime,
+      uint256 earlyAccessStartTime,
+      bytes32 merkleRoot,
+      string merkleTreeUri
+    )`,
+  ]),
+};

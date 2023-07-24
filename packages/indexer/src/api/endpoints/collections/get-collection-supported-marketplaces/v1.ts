@@ -12,6 +12,13 @@ import { getNetworkSettings } from "@/config/network";
 import { getOrUpdateBlurRoyalties } from "@/utils/blur";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 
+type PaymentToken = {
+  address: string;
+  decimals: number;
+  name: string;
+  symbol: string;
+};
+
 type Marketplace = {
   name: string;
   domain?: string;
@@ -27,9 +34,11 @@ type Marketplace = {
   orderKind: string | null;
   listingEnabled: boolean;
   customFeesSupported: boolean;
+  collectionBidSupported?: boolean;
   minimumBidExpiry?: number;
   minimumPrecision?: string;
   supportedBidCurrencies: string[];
+  paymentTokens?: PaymentToken[];
 };
 
 const version = "v1";
@@ -74,9 +83,20 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           customFeesSupported: Joi.boolean(),
           minimumBidExpiry: Joi.number(),
           minimumPrecision: Joi.string(),
+          collectionBidSupported: Joi.boolean(),
           supportedBidCurrencies: Joi.array()
             .items(Joi.string())
             .description("erc20 contract addresses"),
+          paymentTokens: Joi.array()
+            .items(
+              Joi.object({
+                address: Joi.string(),
+                decimals: Joi.number(),
+                name: Joi.string(),
+                symbol: Joi.string(),
+              })
+            )
+            .allow(null),
         })
       ),
     }),
@@ -91,7 +111,9 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
             collections.royalties,
             collections.new_royalties,
             collections.marketplace_fees,
-            collections.contract
+            collections.payment_tokens,
+            collections.contract,
+            collections.token_count
           FROM collections
           JOIN contracts
             ON collections.contract = contracts.address
@@ -120,7 +142,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           listingEnabled: false,
           minimumBidExpiry: 15 * 60,
           customFeesSupported: false,
-          supportedBidCurrencies: [Sdk.Common.Addresses.Weth[config.chainId]],
+          supportedBidCurrencies: [Sdk.Common.Addresses.WNative[config.chainId]],
         },
         {
           name: "X2Y2",
@@ -133,7 +155,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           orderKind: "x2y2",
           listingEnabled: false,
           customFeesSupported: false,
-          supportedBidCurrencies: [Sdk.Common.Addresses.Weth[config.chainId]],
+          supportedBidCurrencies: [Sdk.Common.Addresses.WNative[config.chainId]],
         },
       ];
 
@@ -153,9 +175,10 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
             maxBps: royalties.map((r) => r.bps).reduce((a, b) => a + b, 0),
           },
           orderbook: "reservoir",
-          orderKind: "seaport-v1.4",
+          orderKind: "seaport-v1.5",
           listingEnabled: true,
           customFeesSupported: true,
+          collectionBidSupported: Number(collectionResult.token_count) <= config.maxTokenSetSize,
           supportedBidCurrencies: Object.keys(ns.supportedBidCurrencies),
         });
       }
@@ -193,11 +216,12 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
               }
             : undefined,
           orderbook: "opensea",
-          orderKind: "seaport-v1.4",
+          orderKind: "seaport-v1.5",
           listingEnabled: false,
           customFeesSupported: false,
           minimumBidExpiry: 15 * 60,
           supportedBidCurrencies: Object.keys(ns.supportedBidCurrencies),
+          paymentTokens: collectionResult.payment_tokens?.opensea,
         });
       }
 

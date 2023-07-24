@@ -7,7 +7,11 @@ import {
   OpenSeaStreamClient,
   TraitOfferEventPayload,
 } from "@opensea/stream-js";
-import { ItemListedEventPayload, ItemMetadataUpdatePayload } from "@opensea/stream-js/dist/types";
+import {
+  ItemCancelledEventPayload,
+  ItemListedEventPayload,
+  OrderValidationEventPayload,
+} from "@opensea/stream-js/dist/types";
 import * as Sdk from "@reservoir0x/sdk";
 import { WebSocket } from "ws";
 import { logger } from "@/common/logger";
@@ -16,15 +20,18 @@ import { now } from "lodash";
 import { config } from "@/config/index";
 import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
 import { generateHash, getSupportedChainName } from "@/websockets/opensea/utils";
-import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
-import { GenericOrderInfo } from "@/jobs/orderbook/orders-queue";
-import * as orderbookOpenseaListings from "@/jobs/orderbook/opensea-listings-queue";
+import { GenericOrderInfo } from "@/jobs/orderbook/utils";
 import { handleEvent as handleItemListedEvent } from "@/websockets/opensea/handlers/item_listed";
 import { handleEvent as handleItemReceivedBidEvent } from "@/websockets/opensea/handlers/item_received_bid";
 import { handleEvent as handleCollectionOfferEvent } from "@/websockets/opensea/handlers/collection_offer";
+import { handleEvent as handleItemCancelled } from "@/websockets/opensea/handlers/item_cancelled";
+import { handleEvent as handleOrderRevalidate } from "@/websockets/opensea/handlers/order_revalidate";
 import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handlers/trait_offer";
 import MetadataApi from "@/utils/metadata-api";
-import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
+
+import { openseaBidsQueueJob } from "@/jobs/orderbook/opensea-bids-queue-job";
+import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
+import { openseaListingsJob } from "@/jobs/orderbook/opensea-listings-job";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
@@ -50,9 +57,11 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     "*",
     [
       EventType.ITEM_LISTED,
-      EventType.ITEM_RECEIVED_BID,
       EventType.COLLECTION_OFFER,
+      EventType.ITEM_RECEIVED_BID,
       EventType.TRAIT_OFFER,
+      EventType.ITEM_CANCELLED,
+      EventType.ORDER_REVALIDATE,
     ],
     async (event) => {
       try {
@@ -68,12 +77,12 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
         // await saveEvent(event);
 
         const eventType = event.event_type as EventType;
-        const openSeaOrderParams = handleEvent(eventType, event.payload);
+        const openSeaOrderParams = await handleEvent(eventType, event.payload);
 
         if (openSeaOrderParams) {
           const protocolData = parseProtocolData(event.payload);
 
-          let orderInfo: orderbookOrders.GenericOrderInfo;
+          let orderInfo: GenericOrderInfo;
           if (protocolData) {
             orderInfo = {
               kind: protocolData.kind,
@@ -90,13 +99,14 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
             } as GenericOrderInfo;
 
             if (eventType === EventType.ITEM_LISTED) {
-              await orderbookOpenseaListings.addToQueue([orderInfo]);
+              await openseaListingsJob.addToQueue([orderInfo]);
             } else {
               bidsEvents.push(orderInfo);
 
               if (bidsEvents.length >= maxBidsSize) {
                 const orderInfoBatch = bidsEvents.splice(0, bidsEvents.length);
-                await orderbookOrders.addToQueue(orderInfoBatch);
+
+                await openseaBidsQueueJob.addToQueue(orderInfoBatch);
               }
             }
           }
@@ -131,17 +141,16 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
         },
         token_id: tokenId,
         name: event.payload.item.metadata.name ?? undefined,
-        description:
-          (event.payload.item.metadata as ItemMetadataUpdatePayload).description ?? undefined,
+        description: event.payload.item.metadata.description ?? undefined,
         image_url: event.payload.item.metadata.image_url ?? undefined,
         animation_url: event.payload.item.metadata.animation_url ?? undefined,
-        traits: (event.payload.item.metadata as ItemMetadataUpdatePayload).traits,
+        traits: event.payload.item.metadata.traits,
       };
 
       const parsedMetadata = await MetadataApi.parseTokenMetadata(metadata, "opensea");
 
       if (parsedMetadata) {
-        await metadataIndexWrite.addToQueue([parsedMetadata]);
+        await metadataIndexWriteJob.addToQueue([parsedMetadata]);
       }
     } catch (error) {
       logger.error(
@@ -180,11 +189,11 @@ export const isDuplicateEvent = async (event: BaseStreamMessage<unknown>): Promi
   return setResult === null;
 };
 
-export const handleEvent = (
+export const handleEvent = async (
   type: EventType,
   payload: unknown
   // `PartialOrderComponents` has the same types for both `seaport` and `seaport-v1.4`
-): OpenseaOrderParams | null => {
+): Promise<OpenseaOrderParams | null> => {
   switch (type) {
     case EventType.ITEM_LISTED:
       return handleItemListedEvent(payload as ItemListedEventPayload);
@@ -194,6 +203,10 @@ export const handleEvent = (
       return handleCollectionOfferEvent(payload as CollectionOfferEventPayload);
     case EventType.TRAIT_OFFER:
       return handleTraitOfferEvent(payload as TraitOfferEventPayload);
+    case EventType.ITEM_CANCELLED:
+      return await handleItemCancelled(payload as ItemCancelledEventPayload);
+    case EventType.ORDER_REVALIDATE:
+      return await handleOrderRevalidate(payload as OrderValidationEventPayload);
     default:
       return null;
   }

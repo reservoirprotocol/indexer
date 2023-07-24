@@ -22,10 +22,10 @@ export const getCollectionFloorAskOracleV5Options: RouteOptions = {
   description: "Collection floor",
   notes:
     "Get a signed message of any collection's floor price (spot or twap). The oracle's address is 0xAeB1D03929bF87F69888f381e73FBf75753d75AF. The address is the same for all chains.",
-  tags: ["api", "Oracle"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 12,
+      deprecated: true,
     },
   },
   validate: {
@@ -263,9 +263,9 @@ export const getCollectionFloorAskOracleV5Options: RouteOptions = {
         );
       }
 
-      if (Object.values(Sdk.Common.Addresses.Eth).includes(query.currency)) {
+      if (Object.values(Sdk.Common.Addresses.Native).includes(query.currency)) {
         // ETH: do nothing
-      } else if (Object.values(Sdk.Common.Addresses.Weth).includes(query.currency)) {
+      } else if (Object.values(Sdk.Common.Addresses.WNative).includes(query.currency)) {
         // WETH: do nothing
       } else if (Object.values(Sdk.Common.Addresses.Usdc).includes(query.currency)) {
         // USDC: convert price to USDC

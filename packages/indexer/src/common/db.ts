@@ -11,7 +11,7 @@ export const edb = pgp({
   max: 60,
   connectionTimeoutMillis: 10 * 1000,
   query_timeout: 10 * 1000,
-  statement_timeout: 10 * 1000,
+  statement_timeout: config.disableDatabaseStatementTimeout ? undefined : 10 * 1000,
   allowExitOnIdle: true,
 });
 
@@ -22,7 +22,7 @@ export const idb = pgp({
   max: config.doBackgroundWork ? 160 : 80,
   connectionTimeoutMillis: 30 * 1000,
   query_timeout: 5 * 60 * 1000,
-  statement_timeout: 5 * 60 * 1000,
+  statement_timeout: config.disableDatabaseStatementTimeout ? undefined : 5 * 60 * 1000,
   allowExitOnIdle: true,
 });
 
@@ -43,7 +43,7 @@ export const hdb = pgp({
   max: 5,
   connectionTimeoutMillis: 30 * 1000,
   query_timeout: 30 * 1000,
-  statement_timeout: 30 * 1000,
+  statement_timeout: config.disableDatabaseStatementTimeout ? undefined : 30 * 1000,
   allowExitOnIdle: true,
 });
 
@@ -54,7 +54,7 @@ export const redb = pgp({
   max: 60,
   connectionTimeoutMillis: 10 * 1000,
   query_timeout: 10 * 1000,
-  statement_timeout: 10 * 1000,
+  statement_timeout: config.disableDatabaseStatementTimeout ? undefined : 10 * 1000,
   allowExitOnIdle: true,
 });
 
@@ -64,7 +64,7 @@ export const redbAlt = pgp({
   max: 60,
   connectionTimeoutMillis: 20 * 1000,
   query_timeout: 20 * 1000,
-  statement_timeout: 20 * 1000,
+  statement_timeout: config.disableDatabaseStatementTimeout ? undefined : 20 * 1000,
   allowExitOnIdle: true,
 });
 
@@ -75,7 +75,7 @@ export const ridb = pgp({
   max: config.chainId === 1 ? 250 : 60,
   connectionTimeoutMillis: 30 * 1000,
   query_timeout: 5 * 60 * 1000,
-  statement_timeout: 5 * 60 * 1000,
+  statement_timeout: config.disableDatabaseStatementTimeout ? undefined : 5 * 60 * 1000,
   allowExitOnIdle: true,
 });
 

@@ -8,10 +8,14 @@ import axios from "axios";
 import { TokenIDs } from "fummpel";
 // Needed for `rarible`
 import { encodeForMatchOrders } from "../../rarible/utils";
+// Needed for `seaport`
+import { constructOfferCounterOrderAndFulfillments } from "../../seaport-base/helpers";
 
+import * as Sdk from "../../index";
+import { TxData, bn, generateSourceBytes, getErrorMessage, uniqBy } from "../../utils";
 import * as Addresses from "./addresses";
 import * as ApprovalProxy from "./approval-proxy";
-
+import { PermitHandler, PermitWithTransfers } from "./permit";
 import {
   BidDetails,
   ExecutionInfo,
@@ -25,10 +29,8 @@ import {
   PerPoolSwapDetails,
   SwapDetail,
 } from "./types";
-import { generateSwapExecutions } from "./uniswap";
+import { generateSwapExecutions } from "./swap/index";
 import { generateFTApprovalTxData, generateNFTApprovalTxData, isETH, isWETH } from "./utils";
-import * as Sdk from "../../index";
-import { TxData, bn, generateSourceBytes, getErrorMessage, uniqBy } from "../../utils";
 
 // Tokens
 import ERC721Abi from "../../common/abis/Erc721.json";
@@ -52,9 +54,17 @@ import AlienswapModuleAbi from "./abis/AlienswapModule.json";
 import SudoswapModuleAbi from "./abis/SudoswapModule.json";
 import SuperRareModuleAbi from "./abis/SuperRareModule.json";
 import SwapModuleAbi from "./abis/SwapModule.json";
+import OneInchSwapModuleAbi from "./abis/OneInchSwapModule.json";
 import X2Y2ModuleAbi from "./abis/X2Y2Module.json";
 import ZeroExV4ModuleAbi from "./abis/ZeroExV4Module.json";
 import ZoraModuleAbi from "./abis/ZoraModule.json";
+import PermitProxyAbi from "./abis/PermitProxy.json";
+import SudoswapV2ModuleAbi from "./abis/SudoswapV2Module.json";
+import CaviarV1ModuleAbi from "./abis/CaviarV1Module.json";
+import CryptoPunksModuleAbi from "./abis/CryptoPunksModule.json";
+import PaymentProcessorModuleAbi from "./abis/PaymentProcessorModule.json";
+// Exchanges
+import SeaportV15Abi from "../../seaport-v1.5/abis/Exchange.json";
 
 type SetupOptions = {
   x2y2ApiKey?: string;
@@ -126,6 +136,16 @@ export class Router {
         SudoswapModuleAbi,
         provider
       ),
+      sudoswapV2Module: new Contract(
+        Addresses.SudoswapV2Module[chainId] ?? AddressZero,
+        SudoswapV2ModuleAbi,
+        provider
+      ),
+      caviarV1Module: new Contract(
+        Addresses.CaviarV1Module[chainId] ?? AddressZero,
+        CaviarV1ModuleAbi,
+        provider
+      ),
       superRareModule: new Contract(
         Addresses.SuperRareModule[chainId] ?? AddressZero,
         SuperRareModuleAbi,
@@ -166,9 +186,29 @@ export class Router {
         SwapModuleAbi,
         provider
       ),
+      oneInchSwapModule: new Contract(
+        Addresses.OneInchSwapModule[chainId] ?? AddressZero,
+        OneInchSwapModuleAbi,
+        provider
+      ),
       alienswapModule: new Contract(
         Addresses.AlienswapModule[chainId] ?? AddressZero,
         AlienswapModuleAbi,
+        provider
+      ),
+      cryptoPunksModule: new Contract(
+        Addresses.CryptoPunksModule[chainId] ?? AddressZero,
+        CryptoPunksModuleAbi,
+        provider
+      ),
+      paymentProcessorModule: new Contract(
+        Addresses.PaymentProcessorModule[chainId] ?? AddressZero,
+        PaymentProcessorModuleAbi,
+        provider
+      ),
+      permitProxy: new Contract(
+        Addresses.PermitProxy[chainId] ?? AddressZero,
+        PermitProxyAbi,
         provider
       ),
     };
@@ -177,7 +217,7 @@ export class Router {
   public async fillListingsTx(
     details: ListingDetails[],
     taker: string,
-    buyInCurrency = Sdk.Common.Addresses.Eth[this.chainId],
+    buyInCurrency = Sdk.Common.Addresses.Native[this.chainId],
     options?: {
       source?: string;
       // Will be split among all listings to get filled
@@ -192,6 +232,9 @@ export class Router {
       blurAuth?: {
         accessToken: string;
       };
+      // Use permit instead of approvals (only works for USDC)
+      usePermit?: boolean;
+      swapProvider?: "uniswap" | "1inch";
       // Callback for handling errors
       onError?: (
         kind: string,
@@ -210,6 +253,7 @@ export class Router {
 
     const txs: {
       approvals: FTApproval[];
+      permits: { kind: "erc20"; data: PermitWithTransfers }[];
       txData: TxData;
       orderIds: string[];
     }[] = [];
@@ -218,99 +262,6 @@ export class Router {
     // When filling a single order in partial mode, propagate any errors back directly
     if (options?.partial && details.length === 1) {
       options.partial = false;
-    }
-
-    if (details.some(({ kind }) => kind === "universe")) {
-      if (options?.relayer) {
-        throw new Error("Relayer not supported for Universe orders");
-      }
-      for (const detail of details.filter(({ kind }) => kind === "universe")) {
-        if (detail.fees?.length || options?.globalFees?.length) {
-          throw new Error("Fees not supported for Universe orders");
-        }
-
-        let approval: FTApproval | undefined;
-        if (!isETH(this.chainId, detail.currency)) {
-          approval = {
-            currency: detail.currency,
-            amount: detail.price,
-            owner: taker,
-            operator: Sdk.Universe.Addresses.Exchange[this.chainId],
-            txData: generateFTApprovalTxData(
-              detail.currency,
-              taker,
-              Sdk.Universe.Addresses.Exchange[this.chainId]
-            ),
-          };
-        }
-        const order = detail.order as Sdk.Universe.Order;
-        const exchange = new Sdk.Universe.Exchange(this.chainId);
-        txs.push({
-          approvals: approval ? [approval] : [],
-          txData: await exchange.fillOrderTx(taker, order, {
-            amount: Number(detail.amount),
-            source: options?.source,
-          }),
-          orderIds: [detail.orderId],
-        });
-        success[detail.orderId] = true;
-      }
-    }
-
-    if (details.some(({ kind }) => kind === "cryptopunks")) {
-      if (options?.relayer) {
-        throw new Error("Relayer not supported for Cryptopunks orders");
-      }
-
-      for (const detail of details.filter(({ kind }) => kind === "cryptopunks")) {
-        if (detail.fees?.length || options?.globalFees?.length) {
-          throw new Error("Fees not supported for Cryptopunks orders");
-        }
-
-        const order = detail.order as Sdk.CryptoPunks.Order;
-        const exchange = new Sdk.CryptoPunks.Exchange(this.chainId);
-        txs.push({
-          approvals: [],
-          txData: exchange.fillListingTx(taker, order, options),
-          orderIds: [detail.orderId],
-        });
-        success[detail.orderId] = true;
-      }
-    }
-
-    if (details.some(({ kind }) => kind === "flow")) {
-      if (options?.relayer) {
-        throw new Error("Relayer not supported for Flow orders");
-      }
-
-      for (const detail of details.filter(({ kind }) => kind === "flow")) {
-        if (detail.fees?.length || options?.globalFees?.length) {
-          throw new Error("Fees not supported for Flow orders");
-        }
-
-        let approval: FTApproval | undefined;
-        if (!isETH(this.chainId, detail.currency)) {
-          approval = {
-            currency: detail.currency,
-            amount: detail.price,
-            owner: taker,
-            operator: Sdk.Flow.Addresses.Exchange[this.chainId],
-            txData: generateNFTApprovalTxData(
-              detail.currency,
-              taker,
-              Sdk.Flow.Addresses.Exchange[this.chainId]
-            ),
-          };
-        }
-        const order = detail.order as Sdk.Flow.Order;
-        const exchange = new Sdk.Flow.Exchange(this.chainId);
-        txs.push({
-          approvals: approval ? [approval] : [],
-          txData: exchange.takeMultipleOneOrdersTx(taker, [order]),
-          orderIds: [detail.orderId],
-        });
-        success[detail.orderId] = true;
-      }
     }
 
     if (details.some(({ kind }) => kind === "manifold")) {
@@ -331,6 +282,7 @@ export class Router {
 
         txs.push({
           approvals: [],
+          permits: [],
           txData: exchange.fillOrderTx(
             taker,
             Number(order.params.id),
@@ -365,7 +317,7 @@ export class Router {
         const detail = details[i];
         if (
           detail.contractKind === "erc721" &&
-          ["blur.io", "opensea.io", "looksrare.org", "x2y2.io"].includes(detail.source!)
+          ["blur.io", "opensea.io"].includes(detail.source!)
         ) {
           blurCompatibleListings.push(detail);
         }
@@ -418,6 +370,12 @@ export class Router {
               );
               if (listing) {
                 await options.onError("order-fetcher-blur-listings", new Error(reason), {
+                  isUnrecoverable:
+                    listing.kind === "blur" &&
+                    reason === "ListingNotFound" &&
+                    listing.tokenId === tokenId
+                      ? true
+                      : false,
                   orderId: listing.orderId,
                   additionalInfo: { detail: listing, taker },
                 });
@@ -436,6 +394,7 @@ export class Router {
 
             txs.push({
               approvals: [],
+              permits: [],
               txData: {
                 from: data.from,
                 to: data.to,
@@ -542,81 +501,6 @@ export class Router {
     if (
       details.every(
         ({ kind, fees, currency, order }) =>
-          kind === "seaport-v1.4" &&
-          buyInCurrency === currency &&
-          // All orders must have the same currency
-          currency === details[0].currency &&
-          // All orders must have the same conduit
-          (order as Sdk.SeaportV14.Order).params.conduitKey ===
-            (details[0].order as Sdk.SeaportV14.Order).params.conduitKey &&
-          !fees?.length
-      ) &&
-      !options?.globalFees?.length &&
-      !options?.forceRouter &&
-      !options?.relayer
-    ) {
-      const exchange = new Sdk.SeaportV14.Exchange(this.chainId);
-
-      const conduitKey = (details[0].order as Sdk.SeaportV14.Order).params.conduitKey;
-      const conduit = exchange.deriveConduit(conduitKey);
-
-      let approval: FTApproval | undefined;
-      if (!isETH(this.chainId, details[0].currency)) {
-        approval = {
-          currency: details[0].currency,
-          amount: details[0].price,
-          owner: taker,
-          operator: conduit,
-          txData: generateFTApprovalTxData(details[0].currency, taker, conduit),
-        };
-      }
-
-      if (details.length === 1) {
-        const order = details[0].order as Sdk.SeaportV14.Order;
-        return {
-          txs: [
-            {
-              approvals: approval ? [approval] : [],
-              txData: await exchange.fillOrderTx(
-                taker,
-                order,
-                order.buildMatching({ amount: details[0].amount }),
-                {
-                  ...options,
-                  conduitKey,
-                }
-              ),
-              orderIds: [details[0].orderId],
-            },
-          ],
-          success: { [details[0].orderId]: true },
-        };
-      } else {
-        const orders = details.map((d) => d.order as Sdk.SeaportV14.Order);
-        return {
-          txs: [
-            {
-              approvals: approval ? [approval] : [],
-              txData: await exchange.fillOrdersTx(
-                taker,
-                orders,
-                orders.map((order, i) => order.buildMatching({ amount: details[i].amount })),
-                {
-                  ...options,
-                  conduitKey,
-                }
-              ),
-              orderIds: details.map((d) => d.orderId),
-            },
-          ],
-          success: Object.fromEntries(details.map((d) => [d.orderId, true])),
-        };
-      }
-    }
-
-    if (
-      details.every(
-        ({ kind, fees, currency, order }) =>
           kind === "seaport-v1.5" &&
           buyInCurrency === currency &&
           // All orders must have the same currency
@@ -628,7 +512,8 @@ export class Router {
       ) &&
       !options?.globalFees?.length &&
       !options?.forceRouter &&
-      !options?.relayer
+      !options?.relayer &&
+      !options?.usePermit
     ) {
       const exchange = new Sdk.SeaportV15.Exchange(this.chainId);
 
@@ -652,6 +537,7 @@ export class Router {
           txs: [
             {
               approvals: approval ? [approval] : [],
+              permits: [],
               txData: await exchange.fillOrderTx(
                 taker,
                 order,
@@ -672,6 +558,7 @@ export class Router {
           txs: [
             {
               approvals: approval ? [approval] : [],
+              permits: [],
               txData: await exchange.fillOrdersTx(
                 taker,
                 orders,
@@ -703,7 +590,8 @@ export class Router {
       ) &&
       !options?.globalFees?.length &&
       !options?.forceRouter &&
-      !options?.relayer
+      !options?.relayer &&
+      !options?.usePermit
     ) {
       const exchange = new Sdk.Alienswap.Exchange(this.chainId);
 
@@ -727,6 +615,7 @@ export class Router {
           txs: [
             {
               approvals: approval ? [approval] : [],
+              permits: [],
               txData: await exchange.fillOrderTx(
                 taker,
                 order,
@@ -747,6 +636,7 @@ export class Router {
           txs: [
             {
               approvals: approval ? [approval] : [],
+              permits: [],
               txData: await exchange.fillOrdersTx(
                 taker,
                 orders,
@@ -798,12 +688,13 @@ export class Router {
     const elementErc1155Details: ListingDetails[] = [];
     const foundationDetails: ListingDetails[] = [];
     const looksRareV2Details: ListingDetails[] = [];
-    // Only `seaport`, `seaport-v1.4` and `alienswap` support non-ETH listings
     const seaportDetails: PerCurrencyListingDetails = {};
     const seaportV14Details: PerCurrencyListingDetails = {};
     const seaportV15Details: PerCurrencyListingDetails = {};
     const alienswapDetails: PerCurrencyListingDetails = {};
     const sudoswapDetails: ListingDetails[] = [];
+    const sudoswapV2Details: ListingDetails[] = [];
+    const caviarV1Details: ListingDetails[] = [];
     const collectionXyzDetails: ListingDetails[] = [];
     const x2y2Details: ListingDetails[] = [];
     const zeroexV4Erc721Details: ListingDetails[] = [];
@@ -812,6 +703,8 @@ export class Router {
     const nftxDetails: ListingDetails[] = [];
     const raribleDetails: ListingDetails[] = [];
     const superRareDetails: ListingDetails[] = [];
+    const cryptoPunksDetails: ListingDetails[] = [];
+    const paymentProcessorDetails: ListingDetails[] = [];
 
     for (const detail of details) {
       // Skip any listings handled in a previous step
@@ -877,6 +770,14 @@ export class Router {
           detailsRef = sudoswapDetails;
           break;
 
+        case "sudoswap-v2":
+          detailsRef = sudoswapV2Details;
+          break;
+
+        case "caviar-v1":
+          detailsRef = caviarV1Details;
+          break;
+
         case "x2y2":
           detailsRef = x2y2Details;
           break;
@@ -901,6 +802,16 @@ export class Router {
 
         case "superrare": {
           detailsRef = superRareDetails;
+          break;
+        }
+
+        case "cryptopunks": {
+          detailsRef = cryptoPunksDetails;
+          break;
+        }
+
+        case "payment-processor": {
+          detailsRef = paymentProcessorDetails;
           break;
         }
 
@@ -954,7 +865,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -1006,7 +917,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -1064,7 +975,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -1125,7 +1036,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: this.contracts.foundationModule.address,
         refundTo: relayer,
@@ -1184,7 +1095,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -1700,7 +1611,7 @@ export class Router {
       const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
       const totalPrice = price.add(feeAmount);
 
-      const isERC20 = buyInCurrency !== Sdk.Common.Addresses.Eth[this.chainId];
+      const isERC20 = buyInCurrency !== Sdk.Common.Addresses.Native[this.chainId];
       const functionName = `buyWith${isERC20 ? "ERC20" : "ETH"}`;
       const listingParams = isERC20
         ? {
@@ -1738,7 +1649,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -1794,7 +1705,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -1804,6 +1715,132 @@ export class Router {
 
       // Mark the listings as successfully handled
       for (const { orderId } of sudoswapDetails) {
+        success[orderId] = true;
+        orderIds.push(orderId);
+      }
+    }
+
+    // Handle Sudoswap V2 listings
+    if (sudoswapV2Details.length) {
+      const orders = sudoswapV2Details.map((d) => ({
+        order: d.order as Sdk.SudoswapV2.Order,
+        amount: d.amount,
+        contractKind: d.contractKind,
+      }));
+      const module = this.contracts.sudoswapV2Module;
+
+      const fees = getFees(sudoswapV2Details);
+      const price = orders
+        .map(({ order, amount, contractKind }) =>
+          bn(
+            // Handle multiple listings from the same pool
+            contractKind === "erc721"
+              ? // For ERC721, each order from the same pool gets a different price
+                order.params.extra.prices[
+                  orders
+                    .map(({ order }) => order)
+                    .filter((o) => o.params.pair === order.params.pair)
+                    .findIndex((o) => o.params.tokenId === order.params.tokenId)
+                ]
+              : // For ERC1155, each amount from the same pool gets a different price
+                order.params.extra.prices
+                  .slice(0, Number(amount ?? 1))
+                  .reduce((a, b) => a.add(b), bn(0))
+          )
+        )
+        .reduce((a, b) => a.add(b), bn(0));
+      const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+      const totalPrice = price.add(feeAmount);
+
+      executions.push({
+        module: module.address,
+        data: module.interface.encodeFunctionData("buyWithETH", [
+          sudoswapV2Details.map((d) => (d.order as Sdk.SudoswapV2.Order).params.pair),
+          sudoswapV2Details.map((d) => (d.contractKind === "erc721" ? d.tokenId : d.amount ?? 1)),
+          {
+            fillTo: taker,
+            refundTo: relayer,
+            revertIfIncomplete: Boolean(!options?.partial),
+            amount: price,
+          },
+          fees,
+        ]),
+        value: totalPrice,
+      });
+
+      // Track any possibly required swap
+      swapDetails.push({
+        tokenIn: buyInCurrency,
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
+        tokenOutAmount: totalPrice,
+        recipient: module.address,
+        refundTo: relayer,
+        details: sudoswapV2Details,
+        executionIndex: executions.length - 1,
+      });
+
+      // Mark the listings as successfully handled
+      for (const { orderId } of sudoswapV2Details) {
+        success[orderId] = true;
+        orderIds.push(orderId);
+      }
+    }
+
+    // Handle Caviar V1 listings
+    if (caviarV1Details.length) {
+      const orders = caviarV1Details.map((d) => ({
+        order: d.order as Sdk.CaviarV1.Order,
+        amount: d.amount,
+        contractKind: d.contractKind,
+      }));
+
+      const module = this.contracts.caviarV1Module;
+      const fees = getFees(caviarV1Details);
+      const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+      const price = orders
+        .map(({ order }) =>
+          bn(
+            order.params.extra.prices[
+              orders
+                .map(({ order }) => order)
+                .filter((o) => o.params.pool === order.params.pool)
+                .findIndex((o) => o.params.tokenId === order.params.tokenId)
+            ]
+          )
+        )
+        .reduce((a, b) => a.add(b), bn(0));
+
+      const totalPrice = price.add(feeAmount);
+
+      executions.push({
+        module: module.address,
+        data: module.interface.encodeFunctionData("buyWithETH", [
+          caviarV1Details.map((d) => (d.order as Sdk.CaviarV1.Order).params.pool),
+          caviarV1Details.map((d) => d.tokenId),
+          {
+            fillTo: taker,
+            refundTo: relayer,
+            revertIfIncomplete: Boolean(!options?.partial),
+            amount: price,
+          },
+          fees,
+        ]),
+        value: totalPrice,
+      });
+
+      // Track any possibly required swap
+      swapDetails.push({
+        tokenIn: buyInCurrency,
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
+        tokenOutAmount: totalPrice,
+        recipient: module.address,
+        refundTo: relayer,
+        details: caviarV1Details,
+        executionIndex: executions.length - 1,
+      });
+
+      // Mark the listings as successfully handled
+      for (const { orderId } of caviarV1Details) {
         success[orderId] = true;
         orderIds.push(orderId);
       }
@@ -1879,7 +1916,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -1938,7 +1975,7 @@ export class Router {
           // Track any possibly required swap
           swapDetails.push({
             tokenIn: buyInCurrency,
-            tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+            tokenOut: Sdk.Common.Addresses.Native[this.chainId],
             tokenOutAmount: totalPrice,
             recipient: module.address,
             refundTo: relayer,
@@ -2018,7 +2055,7 @@ export class Router {
           // Track any possibly required swap
           swapDetails.push({
             tokenIn: buyInCurrency,
-            tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+            tokenOut: Sdk.Common.Addresses.Native[this.chainId],
             tokenOutAmount: totalPrice,
             recipient: module.address,
             refundTo: relayer,
@@ -2119,7 +2156,7 @@ export class Router {
         // Track any possibly required swap
         swapDetails.push({
           tokenIn: buyInCurrency,
-          tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+          tokenOut: Sdk.Common.Addresses.Native[this.chainId],
           tokenOutAmount: totalPrice,
           recipient: module.address,
           refundTo: relayer,
@@ -2223,7 +2260,7 @@ export class Router {
         // Track any possibly required swap
         swapDetails.push({
           tokenIn: buyInCurrency,
-          tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+          tokenOut: Sdk.Common.Addresses.Native[this.chainId],
           tokenOutAmount: totalPrice,
           recipient: module.address,
           refundTo: relayer,
@@ -2293,7 +2330,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -2356,7 +2393,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
@@ -2423,7 +2460,7 @@ export class Router {
       // Track any possibly required swap
       swapDetails.push({
         tokenIn: buyInCurrency,
-        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
         tokenOutAmount: totalPrice,
         recipient: this.contracts.superRareModule.address,
         refundTo: relayer,
@@ -2433,6 +2470,104 @@ export class Router {
 
       // Mark the listings as successfully handled
       for (const { orderId } of superRareDetails) {
+        success[orderId] = true;
+        orderIds.push(orderId);
+      }
+    }
+
+    // Handle CryptoPunks listings
+    if (cryptoPunksDetails.length) {
+      const orders = cryptoPunksDetails.map((d) => d.order as Sdk.CryptoPunks.Order);
+      const module = this.contracts.cryptoPunksModule;
+      const fees = getFees(cryptoPunksDetails);
+
+      const price = orders.map((order) => bn(order.params.price)).reduce((a, b) => a.add(b), bn(0));
+      const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+      const totalPrice = price.add(feeAmount);
+
+      executions.push({
+        module: module.address,
+        data: module.interface.encodeFunctionData("batchBuyPunksWithETH", [
+          orders.map((order) => ({
+            buyer: taker,
+            price: order.params.price,
+            punkIndex: order.params.tokenId,
+          })),
+          {
+            fillTo: taker,
+            refundTo: relayer,
+            revertIfIncomplete: Boolean(!options?.partial),
+            amount: price,
+          },
+          fees,
+        ]),
+        value: totalPrice,
+      });
+
+      // Track any possibly required swap
+      swapDetails.push({
+        tokenIn: buyInCurrency,
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
+        tokenOutAmount: totalPrice,
+        recipient: module.address,
+        refundTo: relayer,
+        details: cryptoPunksDetails,
+        executionIndex: executions.length - 1,
+      });
+
+      // Mark the listings as successfully handled
+      for (const { orderId } of cryptoPunksDetails) {
+        success[orderId] = true;
+        orderIds.push(orderId);
+      }
+    }
+
+    // Handle PaymentProcessor listings
+    if (paymentProcessorDetails.length) {
+      const orders = paymentProcessorDetails.map((d) => d.order as Sdk.PaymentProcessor.Order);
+      const module = this.contracts.paymentProcessorModule;
+      const fees = getFees(paymentProcessorDetails);
+
+      const price = orders.map((order) => bn(order.params.price)).reduce((a, b) => a.add(b), bn(0));
+      const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+      const totalPrice = price.add(feeAmount);
+
+      executions.push({
+        module: module.address,
+        data: module.interface.encodeFunctionData("acceptETHListings", [
+          orders.map((order) =>
+            order.getMatchedOrder(
+              order.buildMatching({
+                taker: module.address,
+                takerMasterNonce: "0",
+              })
+            )
+          ),
+          orders.map((order) => order.params),
+          {
+            fillTo: taker,
+            refundTo: relayer,
+            revertIfIncomplete: Boolean(!options?.partial),
+            amount: price,
+          },
+          fees,
+        ]),
+        value: totalPrice,
+      });
+
+      // Track any possibly required swap
+      swapDetails.push({
+        tokenIn: buyInCurrency,
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
+        tokenOutAmount: totalPrice,
+        recipient: module.address,
+        refundTo: relayer,
+        details: paymentProcessorDetails,
+        executionIndex: executions.length - 1,
+      });
+
+      // Mark the listings as successfully handled
+      for (const { orderId } of paymentProcessorDetails) {
         success[orderId] = true;
         orderIds.push(orderId);
       }
@@ -2454,10 +2589,10 @@ export class Router {
           pool = `${tokenIn}:${tokenOut}`;
         } else {
           const normalizedTokenIn = isETH(this.chainId, tokenIn)
-            ? Sdk.Common.Addresses.Weth[this.chainId]
+            ? Sdk.Common.Addresses.WNative[this.chainId]
             : tokenIn;
           const normalizedTokenOut = isETH(this.chainId, tokenOut)
-            ? Sdk.Common.Addresses.Weth[this.chainId]
+            ? Sdk.Common.Addresses.WNative[this.chainId]
             : tokenOut;
           pool = `${normalizedTokenIn}:${normalizedTokenOut}`;
         }
@@ -2488,6 +2623,10 @@ export class Router {
           .map((order) => bn(order.tokenOutAmount))
           .reduce((a, b) => a.add(b), bn(0));
 
+        const swapProvider = options?.swapProvider ?? "uniswap";
+        const swapModule =
+          swapProvider === "uniswap" ? this.contracts.swapModule : this.contracts.oneInchSwapModule;
+
         try {
           // Only generate a swap if the in token is different from the out token
           let inAmount = totalAmountOut.toString();
@@ -2495,11 +2634,12 @@ export class Router {
             const { executions: swapExecutions, amountIn } = await generateSwapExecutions(
               this.chainId,
               this.provider,
+              swapProvider,
               tokenIn,
               tokenOut,
               totalAmountOut,
               {
-                swapModule: this.contracts.swapModule,
+                module: swapModule,
                 transfers,
                 refundTo: relayer,
               }
@@ -2536,18 +2676,20 @@ export class Router {
                     amount: inAmount,
                   },
                 ],
-                recipient: this.contracts.swapModule.address,
+                recipient: swapModule.address,
               });
             } else {
-              // We need to split the permit items based on the individual transfers
+              // Split based on the individual transfers
               ftTransferItems.push(
                 ...transfers.map((t) => ({
-                  items: transfers.map((t) => ({
-                    itemType: ApprovalProxy.ItemType.ERC20,
-                    token: tokenIn,
-                    identifier: 0,
-                    amount: t.amount,
-                  })),
+                  items: [
+                    {
+                      itemType: ApprovalProxy.ItemType.ERC20,
+                      token: tokenIn,
+                      identifier: 0,
+                      amount: t.amount,
+                    },
+                  ],
                   recipient: t.recipient,
                 }))
               );
@@ -2589,42 +2731,76 @@ export class Router {
       executions = [...successfulSwapExecutions, ...executions];
 
       // If the buy-in currency is not ETH then we won't need any `value` fields
-      if (buyInCurrency !== Sdk.Common.Addresses.Eth[this.chainId]) {
+      if (buyInCurrency !== Sdk.Common.Addresses.Native[this.chainId]) {
         executions.forEach((e) => {
           e.value = 0;
         });
       }
 
-      txs.push({
-        approvals,
-        txData: {
-          from: relayer,
-          ...(ftTransferItems.length
-            ? {
-                to: this.contracts.approvalProxy.address,
-                data:
-                  this.contracts.approvalProxy.interface.encodeFunctionData(
-                    "bulkTransferWithExecute",
-                    [
-                      ftTransferItems,
-                      executions,
-                      Sdk.SeaportBase.Addresses.ReservoirConduitKey[this.chainId],
-                    ]
-                  ) + generateSourceBytes(options?.source),
-              }
-            : {
-                to: this.contracts.router.address,
-                data:
-                  this.contracts.router.interface.encodeFunctionData("execute", [executions]) +
-                  generateSourceBytes(options?.source),
-                value: executions
-                  .map((e) => bn(e.value))
-                  .reduce((a, b) => a.add(b))
-                  .toHexString(),
-              }),
-        },
-        orderIds,
-      });
+      if (options?.usePermit) {
+        const supportedPermitCurrencies = [Sdk.Common.Addresses.Usdc[this.chainId]];
+        if (!supportedPermitCurrencies.includes(buyInCurrency)) {
+          throw new Error("Buying with permit not supported");
+        }
+
+        txs.push({
+          approvals: [],
+          permits: await new PermitHandler(this.chainId, this.provider)
+            .generate(relayer, ftTransferItems)
+            .then((permits) =>
+              permits.map((p) => ({
+                kind: "erc20",
+                data: p,
+              }))
+            ),
+          txData: {
+            from: relayer,
+            ...{
+              to: this.contracts.router.address,
+              data:
+                this.contracts.router.interface.encodeFunctionData("execute", [executions]) +
+                generateSourceBytes(options?.source),
+              value: executions
+                .map((e) => bn(e.value))
+                .reduce((a, b) => a.add(b))
+                .toHexString(),
+            },
+          },
+          orderIds,
+        });
+      } else {
+        txs.push({
+          approvals,
+          permits: [],
+          txData: {
+            from: relayer,
+            ...(ftTransferItems.length
+              ? {
+                  to: this.contracts.approvalProxy.address,
+                  data:
+                    this.contracts.approvalProxy.interface.encodeFunctionData(
+                      "bulkTransferWithExecute",
+                      [
+                        ftTransferItems,
+                        executions,
+                        Sdk.SeaportBase.Addresses.ReservoirConduitKey[this.chainId],
+                      ]
+                    ) + generateSourceBytes(options?.source),
+                }
+              : {
+                  to: this.contracts.router.address,
+                  data:
+                    this.contracts.router.interface.encodeFunctionData("execute", [executions]) +
+                    generateSourceBytes(options?.source),
+                  value: executions
+                    .map((e) => bn(e.value))
+                    .reduce((a, b) => a.add(b))
+                    .toHexString(),
+                }),
+          },
+          orderIds,
+        });
+      }
     }
 
     if (!txs.length) {
@@ -2685,73 +2861,7 @@ export class Router {
     // CASE 1
     // Handle exchanges which don't have a router module implemented by filling directly
 
-    if (details.some(({ kind }) => kind === "universe")) {
-      for (const detail of details.filter(({ kind }) => kind === "universe")) {
-        if (detail.fees?.length || options?.globalFees?.length) {
-          throw new Error("Fees not supported for Universe orders");
-        }
-
-        // Approve Universe's Exchange contract
-        const approval: NFTApproval = {
-          orderIds: [detail.orderId],
-          contract: detail.contract,
-          owner: taker,
-          operator: Sdk.Universe.Addresses.Exchange[this.chainId],
-          txData: generateNFTApprovalTxData(
-            detail.contract,
-            taker,
-            Sdk.Universe.Addresses.Exchange[this.chainId]
-          ),
-        };
-
-        const order = detail.order as Sdk.Universe.Order;
-        const exchange = new Sdk.Universe.Exchange(this.chainId);
-
-        txs.push({
-          approvals: [approval],
-          txData: await exchange.fillOrderTx(taker, order, {
-            amount: Number(detail.amount ?? 1),
-            source: options?.source,
-          }),
-          orderIds: [detail.orderId],
-        });
-
-        success[detail.orderId] = true;
-      }
-    }
-
-    // TODO: Add Flow router module
-    if (details.some(({ kind }) => kind === "flow")) {
-      for (const detail of details.filter(({ kind }) => kind === "flow")) {
-        if (detail.fees?.length || options?.globalFees?.length) {
-          throw new Error("Fees not supported for Universe orders");
-        }
-
-        // Approve Universe's Exchange contract
-        const approval: NFTApproval = {
-          orderIds: [detail.orderId],
-          contract: detail.contract,
-          owner: taker,
-          operator: Sdk.Flow.Addresses.Exchange[this.chainId],
-          txData: generateNFTApprovalTxData(
-            detail.contract,
-            taker,
-            Sdk.Universe.Addresses.Exchange[this.chainId]
-          ),
-        };
-
-        const order = detail.order as Sdk.Flow.Order;
-        const exchange = new Sdk.Flow.Exchange(this.chainId);
-
-        txs.push({
-          approvals: approval ? [approval] : [],
-          txData: exchange.takeMultipleOneOrdersTx(taker, [order]),
-          orderIds: [detail.orderId],
-        });
-
-        success[detail.orderId] = true;
-      }
-    }
+    // Nothing here
 
     // CASE 2
     // Handle orders which require special handling such as direct filling
@@ -2801,7 +2911,7 @@ export class Router {
               if (detail) {
                 await options.onError("order-fetcher-blur-offers", new Error(reason), {
                   orderId: detail.orderId,
-                  additionalInfo: { detail, taker },
+                  additionalInfo: { detail, taker, contract },
                 });
               }
             }
@@ -2919,6 +3029,16 @@ export class Router {
           break;
         }
 
+        case "sudoswap-v2": {
+          module = this.contracts.sudoswapV2Module;
+          break;
+        }
+
+        case "caviar-v1": {
+          module = this.contracts.caviarV1Module;
+          break;
+        }
+
         case "collectionxyz": {
           module = this.contracts.collectionXyzModule;
           break;
@@ -2949,6 +3069,11 @@ export class Router {
           break;
         }
 
+        case "payment-processor": {
+          module = this.contracts.paymentProcessorModule;
+          break;
+        }
+
         default: {
           continue;
         }
@@ -2973,9 +3098,7 @@ export class Router {
     // Step 2
     // Handle calldata generation
 
-    const numDetailsToConsider = details.filter(
-      (d) => !success[d.orderId] && !d.isProtected
-    ).length;
+    const numDetailsToConsider = details.filter((d) => !success[d.orderId]).length;
     const getFees = (ownDetail: BidDetails) =>
       [
         // Global fees
@@ -3132,108 +3255,6 @@ export class Router {
           break;
         }
 
-        case "seaport-v1.4-partial": {
-          const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
-          const module = this.contracts.seaportV14Module;
-
-          if (detail.isProtected) {
-            if (detail.fees?.length || options?.globalFees?.length) {
-              throw new Error("Fees not supported for protected OpenSea orders");
-            }
-          }
-
-          try {
-            const result = await axios.post(`${this.options?.orderFetcherBaseUrl}/api/offer`, {
-              orderHash: order.id,
-              contract: order.contract,
-              tokenId: order.tokenId,
-              taker: detail.isProtected ? taker : detail.owner ?? taker,
-              chainId: this.chainId,
-              protocolVersion: "v1.4",
-              unitPrice: order.unitPrice,
-              isProtected: detail.isProtected,
-              openseaApiKey: this.options?.openseaApiKey,
-              metadata: this.options?.orderFetcherMetadata,
-            });
-
-            if (result.data.calldata) {
-              const contract = detail.contract;
-              const owner = taker;
-              const operator = new Sdk.SeaportBase.ConduitController(this.chainId).deriveConduit(
-                Sdk.SeaportBase.Addresses.OpenseaConduitKey[this.chainId]
-              );
-
-              // Fill directly
-              txs.push({
-                txData: {
-                  from: taker,
-                  to: Sdk.SeaportV14.Addresses.Exchange[this.chainId],
-                  data: result.data.calldata + generateSourceBytes(options?.source),
-                },
-                approvals: [
-                  {
-                    orderIds: [detail.orderId],
-                    contract,
-                    owner,
-                    operator,
-                    txData: generateNFTApprovalTxData(contract, owner, operator),
-                  },
-                ],
-                orderIds: [detail.orderId],
-              });
-            } else {
-              const fullOrder = new Sdk.SeaportV14.Order(this.chainId, result.data.order);
-              executionsWithDetails.push({
-                detail,
-                execution: {
-                  module: module.address,
-                  data: module.interface.encodeFunctionData(
-                    detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
-                    [
-                      {
-                        parameters: {
-                          ...fullOrder.params,
-                          totalOriginalConsiderationItems: fullOrder.params.consideration.length,
-                        },
-                        numerator: detail.amount ?? 1,
-                        denominator: fullOrder.getInfo()!.amount,
-                        signature: fullOrder.params.signature,
-                        extraData: result.data.extraData,
-                      },
-                      result.data.criteriaResolvers ?? [],
-                      {
-                        fillTo: taker,
-                        refundTo: taker,
-                        revertIfIncomplete: Boolean(!options?.partial),
-                      },
-                      fees,
-                    ]
-                  ),
-                  value: 0,
-                },
-              });
-            }
-
-            success[detail.orderId] = true;
-          } catch (error) {
-            if (options?.onError) {
-              options.onError("order-fetcher-opensea-offer", error, {
-                orderId: detail.orderId,
-                additionalInfo: {
-                  detail,
-                  taker,
-                },
-              });
-            }
-
-            if (!options?.partial) {
-              throw new Error(getErrorMessage(error));
-            }
-          }
-
-          break;
-        }
-
         case "seaport-v1.5": {
           const order = detail.order as Sdk.SeaportV15.Order;
           const module = this.contracts.seaportV15Module;
@@ -3284,12 +3305,6 @@ export class Router {
           const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
           const module = this.contracts.seaportV15Module;
 
-          if (detail.isProtected) {
-            if (detail.fees?.length || options?.globalFees?.length) {
-              throw new Error("Fees not supported for protected OpenSea orders");
-            }
-          }
-
           try {
             const result = await axios.post(`${this.options?.orderFetcherBaseUrl}/api/offer`, {
               orderHash: order.id,
@@ -3304,11 +3319,51 @@ export class Router {
               metadata: this.options?.orderFetcherMetadata,
             });
 
-            if (result.data.calldata) {
+            const fullOrder = new Sdk.SeaportV15.Order(this.chainId, result.data.order);
+            if (detail.isProtected) {
               const contract = detail.contract;
               const owner = taker;
               const operator = new Sdk.SeaportBase.ConduitController(this.chainId).deriveConduit(
                 Sdk.SeaportBase.Addresses.OpenseaConduitKey[this.chainId]
+              );
+
+              const { order: counterOrder, fulfillments } =
+                constructOfferCounterOrderAndFulfillments(fullOrder.params, taker, {
+                  counter: await new Sdk.SeaportV15.Exchange(this.chainId).getCounter(
+                    this.provider,
+                    taker
+                  ),
+                  tips: fees,
+                  amount: detail.amount,
+                  tokenId: result.data.criteriaResolvers[0]?.identifier,
+                });
+
+              const calldata = new Interface(SeaportV15Abi).encodeFunctionData(
+                "matchAdvancedOrders",
+                [
+                  [
+                    {
+                      parameters: {
+                        ...fullOrder.params,
+                        totalOriginalConsiderationItems: fullOrder.params.consideration.length,
+                      },
+                      signature: fullOrder.params.signature!,
+                      extraData: result.data.extraData,
+                      numerator: detail.amount ?? 1,
+                      denominator: fullOrder.params.consideration[0].startAmount,
+                    },
+                    {
+                      parameters: counterOrder.parameters,
+                      signature: counterOrder.signature,
+                      extraData: "0x",
+                      numerator: detail.amount ?? 1,
+                      denominator: fullOrder.params.consideration[0].startAmount,
+                    },
+                  ],
+                  result.data.criteriaResolvers ?? [],
+                  fulfillments,
+                  taker,
+                ]
               );
 
               // Fill directly
@@ -3316,7 +3371,7 @@ export class Router {
                 txData: {
                   from: taker,
                   to: Sdk.SeaportV15.Addresses.Exchange[this.chainId],
-                  data: result.data.calldata + generateSourceBytes(options?.source),
+                  data: calldata + generateSourceBytes(options?.source),
                 },
                 approvals: [
                   {
@@ -3330,7 +3385,6 @@ export class Router {
                 orderIds: [detail.orderId],
               });
             } else {
-              const fullOrder = new Sdk.SeaportV15.Order(this.chainId, result.data.order);
               executionsWithDetails.push({
                 detail,
                 execution: {
@@ -3444,6 +3498,66 @@ export class Router {
                   bn(order.params.extra.prices[0]).mul(50).div(10000)
                 ),
                 Math.floor(Date.now() / 1000) + 10 * 60,
+                {
+                  fillTo: taker,
+                  refundTo: taker,
+                  revertIfIncomplete: Boolean(!options?.partial),
+                },
+                fees,
+              ]),
+              value: 0,
+            },
+          });
+
+          success[detail.orderId] = true;
+
+          break;
+        }
+
+        case "sudoswap-v2": {
+          const order = detail.order as Sdk.SudoswapV2.Order;
+          const module = this.contracts.sudoswapV2Module;
+
+          executionsWithDetails.push({
+            detail,
+            execution: {
+              module: module.address,
+              data: module.interface.encodeFunctionData("sell", [
+                order.params.pair,
+                detail.contractKind === "erc721" ? detail.tokenId : detail.amount ?? 1,
+                bn(order.params.extra.prices[0]).sub(
+                  // Take into account the protocol fee of 0.5%
+                  bn(order.params.extra.prices[0]).mul(50).div(10000)
+                ),
+                {
+                  fillTo: taker,
+                  refundTo: taker,
+                  revertIfIncomplete: Boolean(!options?.partial),
+                },
+                fees,
+              ]),
+              value: 0,
+            },
+          });
+
+          success[detail.orderId] = true;
+
+          break;
+        }
+
+        case "caviar-v1": {
+          const order = detail.order as Sdk.CaviarV1.Order;
+          const module = this.contracts.caviarV1Module;
+
+          executionsWithDetails.push({
+            detail,
+            execution: {
+              module: module.address,
+              data: module.interface.encodeFunctionData("sell", [
+                order.params.pool,
+                detail.tokenId,
+                bn(order.params.extra.prices[0]),
+                detail.extraArgs.stolenProof,
                 {
                   fillTo: taker,
                   refundTo: taker,
@@ -3701,7 +3815,7 @@ export class Router {
           // Cover the case where the path is missing
           order.params.path = order.params.path.length
             ? order.params.path
-            : [order.params.pool, Sdk.Common.Addresses.Weth[this.chainId]];
+            : [order.params.pool, Sdk.Common.Addresses.WNative[this.chainId]];
 
           executionsWithDetails.push({
             detail,
@@ -3760,6 +3874,40 @@ export class Router {
 
           success[detail.orderId] = true;
 
+          break;
+        }
+
+        case "payment-processor": {
+          const order = detail.order as Sdk.PaymentProcessor.Order;
+          const module = this.contracts.paymentProcessorModule;
+
+          const takerOrder = order.buildMatching({
+            taker: module.address,
+            takerMasterNonce: "0",
+            tokenId: order.params.collectionLevelOffer ? detail.tokenId : undefined,
+            maxRoyaltyFeeNumerator: detail.extraArgs?.maxRoyaltyFeeNumerator ?? "0",
+          });
+          const matchedOrder = order.getMatchedOrder(takerOrder);
+
+          executionsWithDetails.push({
+            detail,
+            execution: {
+              module: module.address,
+              data: module.interface.encodeFunctionData("acceptOffers", [
+                [matchedOrder],
+                [order.params],
+                {
+                  fillTo: taker,
+                  refundTo: taker,
+                  revertIfIncomplete: Boolean(!options?.partial),
+                },
+                fees,
+              ]),
+              value: 0,
+            },
+          });
+
+          success[detail.orderId] = true;
           break;
         }
       }

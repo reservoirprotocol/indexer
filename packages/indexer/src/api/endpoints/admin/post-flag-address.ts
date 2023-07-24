@@ -10,7 +10,7 @@ import { config } from "@/config/index";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { idb } from "@/common/db";
 import { PendingFlagStatusSyncJobs } from "@/models/pending-flag-status-sync-jobs";
-import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
+import { flagStatusProcessJob } from "@/jobs/flag-status/flag-status-process-job";
 
 export const postFlagAddressOptions: RouteOptions = {
   description: "Update address flag status",
@@ -79,7 +79,7 @@ export const postFlagAddressOptions: RouteOptions = {
               true
             );
 
-            await flagStatusProcessQueue.addToQueue();
+            await flagStatusProcessJob.addToQueue();
           }
         }
       }

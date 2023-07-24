@@ -49,18 +49,21 @@ describe("SeaportV14 - SingleToken Erc721", () => {
     const builder = new Builders.SingleToken(chainId);
 
     // Build sell order
-    const sellOrder = builder.build({
-      side: "sell",
-      tokenKind: "erc721",
-      offerer: seller.address,
-      contract: erc721.address,
-      tokenId: soldTokenId,
-      paymentToken: Common.Addresses.Eth[chainId],
-      price,
-      counter: 0,
-      startTime: await getCurrentTimestamp(ethers.provider),
-      endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-    }, SeaportV14.Order);
+    const sellOrder = builder.build(
+      {
+        side: "sell",
+        tokenKind: "erc721",
+        offerer: seller.address,
+        contract: erc721.address,
+        tokenId: soldTokenId,
+        paymentToken: Common.Addresses.Native[chainId],
+        price,
+        counter: 0,
+        startTime: await getCurrentTimestamp(ethers.provider),
+        endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
+      },
+      SeaportV14.Order
+    );
 
     // Sign the order
     await sellOrder.sign(seller);
@@ -110,18 +113,21 @@ describe("SeaportV14 - SingleToken Erc721", () => {
         await erc721.connect(seller).mint(j);
 
         // Build sell order
-        const order = builder.build({
-          side: "sell",
-          tokenKind: "erc721",
-          offerer: seller.address,
-          contract: erc721.address,
-          tokenId: j,
-          paymentToken: Common.Addresses.Eth[chainId],
-          price,
-          counter: 0,
-          startTime: await getCurrentTimestamp(ethers.provider),
-          endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-        }, SeaportV14.Order);
+        const order = builder.build(
+          {
+            side: "sell",
+            tokenKind: "erc721",
+            offerer: seller.address,
+            contract: erc721.address,
+            tokenId: j,
+            paymentToken: Common.Addresses.Native[chainId],
+            price,
+            counter: 0,
+            startTime: await getCurrentTimestamp(ethers.provider),
+            endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
+          },
+          SeaportV14.Order
+        );
         orders.push(order);
       }
 
@@ -180,18 +186,21 @@ describe("SeaportV14 - SingleToken Erc721", () => {
     const builder = new Builders.SingleToken(chainId);
 
     // Build sell order
-    const sellOrder = builder.build({
-      side: "sell",
-      tokenKind: "erc721",
-      offerer: seller.address,
-      contract: erc721.address,
-      tokenId: soldTokenId,
-      paymentToken: erc20.address,
-      price,
-      counter: 0,
-      startTime: await getCurrentTimestamp(ethers.provider),
-      endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-    }, SeaportV14.Order);
+    const sellOrder = builder.build(
+      {
+        side: "sell",
+        tokenKind: "erc721",
+        offerer: seller.address,
+        contract: erc721.address,
+        tokenId: soldTokenId,
+        paymentToken: erc20.address,
+        price,
+        counter: 0,
+        startTime: await getCurrentTimestamp(ethers.provider),
+        endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
+      },
+      SeaportV14.Order
+    );
 
     // Sign the order
     await sellOrder.sign(seller);
@@ -237,18 +246,21 @@ describe("SeaportV14 - SingleToken Erc721", () => {
     const builder = new Builders.SingleToken(chainId);
 
     // Build sell order
-    const sellOrder = builder.build({
-      side: "sell",
-      tokenKind: "erc721",
-      offerer: seller.address,
-      contract: erc721.address,
-      tokenId: soldTokenId,
-      paymentToken: Common.Addresses.Eth[chainId],
-      price,
-      counter: 0,
-      startTime: await getCurrentTimestamp(ethers.provider),
-      endTime: (await getCurrentTimestamp(ethers.provider)) + 10000,
-    }, SeaportV14.Order);
+    const sellOrder = builder.build(
+      {
+        side: "sell",
+        tokenKind: "erc721",
+        offerer: seller.address,
+        contract: erc721.address,
+        tokenId: soldTokenId,
+        paymentToken: Common.Addresses.Native[chainId],
+        price,
+        counter: 0,
+        startTime: await getCurrentTimestamp(ethers.provider),
+        endTime: (await getCurrentTimestamp(ethers.provider)) + 10000,
+      },
+      SeaportV14.Order
+    );
     sellOrder.params.consideration[0].endAmount = price.div(2).toString();
 
     expect(bn(sellOrder.getMatchingPrice(sellOrder.params.startTime + 1000))).to.eq(
@@ -279,28 +291,31 @@ describe("SeaportV14 - SingleToken Erc721", () => {
     const builder = new Builders.SingleToken(chainId);
 
     // Build sell order
-    const sellOrder = builder.build({
-      side: "sell",
-      tokenKind: "erc721",
-      offerer: seller.address,
-      contract: erc721.address,
-      tokenId: soldTokenId,
-      paymentToken: Common.Addresses.Eth[chainId],
-      price,
-      fees: [
-        {
-          amount: fee1,
-          recipient: feeRecipient1.address,
-        },
-        {
-          amount: fee2,
-          recipient: feeRecipient2.address,
-        },
-      ],
-      counter: 0,
-      startTime: await getCurrentTimestamp(ethers.provider),
-      endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-    }, SeaportV14.Order);
+    const sellOrder = builder.build(
+      {
+        side: "sell",
+        tokenKind: "erc721",
+        offerer: seller.address,
+        contract: erc721.address,
+        tokenId: soldTokenId,
+        paymentToken: Common.Addresses.Native[chainId],
+        price,
+        fees: [
+          {
+            amount: fee1,
+            recipient: feeRecipient1.address,
+          },
+          {
+            amount: fee2,
+            recipient: feeRecipient2.address,
+          },
+        ],
+        counter: 0,
+        startTime: await getCurrentTimestamp(ethers.provider),
+        endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
+      },
+      SeaportV14.Order
+    );
 
     // Sign the order
     await sellOrder.sign(seller);
@@ -340,7 +355,7 @@ describe("SeaportV14 - SingleToken Erc721", () => {
     const price = parseEther("1");
     const boughtTokenId = 10;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -361,18 +376,21 @@ describe("SeaportV14 - SingleToken Erc721", () => {
     const builder = new Builders.SingleToken(chainId);
 
     // Build buy order
-    const buyOrder = builder.build({
-      side: "buy",
-      tokenKind: "erc721",
-      offerer: buyer.address,
-      contract: erc721.address,
-      tokenId: boughtTokenId,
-      paymentToken: Common.Addresses.Weth[chainId],
-      price,
-      counter: 0,
-      startTime: await getCurrentTimestamp(ethers.provider),
-      endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-    }, SeaportV14.Order);
+    const buyOrder = builder.build(
+      {
+        side: "buy",
+        tokenKind: "erc721",
+        offerer: buyer.address,
+        contract: erc721.address,
+        tokenId: boughtTokenId,
+        paymentToken: Common.Addresses.WNative[chainId],
+        price,
+        counter: 0,
+        startTime: await getCurrentTimestamp(ethers.provider),
+        endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
+      },
+      SeaportV14.Order
+    );
 
     // Sign the order
     await buyOrder.sign(buyer);
@@ -410,7 +428,7 @@ describe("SeaportV14 - SingleToken Erc721", () => {
     const fee2 = parseEther("0.00025");
     const boughtTokenId = 10;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -431,28 +449,31 @@ describe("SeaportV14 - SingleToken Erc721", () => {
     const builder = new Builders.SingleToken(chainId);
 
     // Build buy order
-    const buyOrder = builder.build({
-      side: "buy",
-      tokenKind: "erc721",
-      offerer: buyer.address,
-      contract: erc721.address,
-      tokenId: boughtTokenId,
-      paymentToken: Common.Addresses.Weth[chainId],
-      price,
-      fees: [
-        {
-          amount: fee1,
-          recipient: feeRecipient1.address,
-        },
-        {
-          amount: fee2,
-          recipient: feeRecipient2.address,
-        },
-      ],
-      counter: 0,
-      startTime: await getCurrentTimestamp(ethers.provider),
-      endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-    }, SeaportV14.Order);
+    const buyOrder = builder.build(
+      {
+        side: "buy",
+        tokenKind: "erc721",
+        offerer: buyer.address,
+        contract: erc721.address,
+        tokenId: boughtTokenId,
+        paymentToken: Common.Addresses.WNative[chainId],
+        price,
+        fees: [
+          {
+            amount: fee1,
+            recipient: feeRecipient1.address,
+          },
+          {
+            amount: fee2,
+            recipient: feeRecipient2.address,
+          },
+        ],
+        counter: 0,
+        startTime: await getCurrentTimestamp(ethers.provider),
+        endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
+      },
+      SeaportV14.Order
+    );
 
     // Sign the order
     await buyOrder.sign(buyer);

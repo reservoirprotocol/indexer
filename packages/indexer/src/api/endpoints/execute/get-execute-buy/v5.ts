@@ -35,7 +35,7 @@ export const getExecuteBuyV5Options: RouteOptions = {
         Joi.object({
           kind: Joi.string()
             .lowercase()
-            .valid("opensea", "looks-rare", "zeroex-v4", "seaport", "x2y2", "universe")
+            .valid("opensea", "looks-rare", "zeroex-v4", "seaport", "x2y2")
             .required(),
           data: Joi.object().required(),
         })
@@ -70,7 +70,7 @@ export const getExecuteBuyV5Options: RouteOptions = {
       ),
       currency: Joi.string()
         .pattern(regex.address)
-        .default(Sdk.Common.Addresses.Eth[config.chainId]),
+        .default(Sdk.Common.Addresses.Native[config.chainId]),
       normalizeRoyalties: Joi.boolean().default(true),
       preferredOrderSource: Joi.string()
         .lowercase()
@@ -573,7 +573,7 @@ export const getExecuteBuyV5Options: RouteOptions = {
 
         // Check that the taker has enough funds to fill all requested tokens
         const totalPrice = subPath.map(({ rawQuote }) => bn(rawQuote)).reduce((a, b) => a.add(b));
-        if (payload.currency === Sdk.Common.Addresses.Eth[config.chainId]) {
+        if (payload.currency === Sdk.Common.Addresses.Native[config.chainId]) {
           const balance = await baseProvider.getBalance(payload.taker);
           if (!payload.skipBalanceCheck && bn(balance).lt(totalPrice)) {
             throw Boom.badData("Balance too low to proceed with transaction");
@@ -597,10 +597,8 @@ export const getExecuteBuyV5Options: RouteOptions = {
                 ? // Use OpenSea's conduit for sharing approvals
                   "0x1e0049783f008a0085193e00003d00cd54003c71"
                 : Sdk.SeaportV11.Addresses.Exchange[config.chainId];
-          } else if (listings.every((d) => d.kind === "universe")) {
-            conduit = Sdk.Universe.Addresses.Exchange[config.chainId];
           } else {
-            throw new Error("Only Seaport and Universe ERC20 listings are supported");
+            throw new Error("Only Seaport ERC20 listings are supported");
           }
 
           const allowance = await erc20.getAllowance(payload.taker, conduit);

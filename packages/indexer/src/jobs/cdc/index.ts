@@ -1,9 +1,8 @@
-import { Kafka, logLevel } from "kafkajs";
+import { Kafka, Producer, logLevel } from "kafkajs";
 
 import { config } from "@/config/index";
 import { TopicHandlers } from "@/jobs/cdc/topics";
 import { logger } from "@/common/logger";
-import { getServiceName } from "@/config/network";
 
 const kafka = new Kafka({
   clientId: config.kafkaClientId,
@@ -11,25 +10,52 @@ const kafka = new Kafka({
   logLevel: logLevel.ERROR,
 });
 
-export const producer = kafka.producer();
+export let producer: Producer;
 export const consumer = kafka.consumer({
   groupId: config.kafkaConsumerGroupId,
   maxBytesPerPartition: config.kafkaMaxBytesPerPartition || 1048576, // (default is 1MB)
 });
 
 export async function startKafkaProducer(): Promise<void> {
-  logger.info(`${getServiceName()}-kafka`, "Starting Kafka producer");
+  producer = kafka.producer();
+  logger.info(`kafka-producer`, "Starting Kafka producer");
   await producer.connect();
+
+  try {
+    await new Promise((resolve, reject) => {
+      producer.on("producer.connect", async () => {
+        logger.info(`kafka-producer`, "Producer connected");
+        resolve(true);
+      });
+
+      setTimeout(() => {
+        reject("Producer connection timeout");
+      }, 60000);
+    });
+  } catch (e) {
+    logger.error(`kafka-producer`, `Error connecting to producer, error=${e}`);
+    await startKafkaProducer();
+    return;
+  }
+
+  producer.on("producer.disconnect", async (error) => {
+    logger.error(`kafka-producer`, `Producer disconnected, error=${error}`);
+    await restartKafkaProducer();
+  });
 }
 
 export async function startKafkaConsumer(): Promise<void> {
-  logger.info(`${getServiceName()}-kafka`, "Starting Kafka consumer");
+  logger.info(`kafka-consumer`, "Starting Kafka consumer");
   await consumer.connect();
 
   const topicsToSubscribe = TopicHandlers.map((topicHandler) => {
     return topicHandler.getTopics();
   }).flat();
 
+  logger.info(`kafka-consumer`, `Subscribing to topics=${JSON.stringify(topicsToSubscribe)}`);
+
+  // Do this one at a time, as sometimes the consumer will re-create a topic that already exists if we use the method to subscribe to all topics at once and
+  // one of the topics do not exist.
   await Promise.all(
     topicsToSubscribe.map(async (topic) => {
       await consumer.subscribe({ topic });
@@ -44,11 +70,15 @@ export async function startKafkaConsumer(): Promise<void> {
     eachBatch: async ({ batch, resolveOffset, heartbeat }) => {
       const messagePromises = batch.messages.map(async (message) => {
         try {
+          if (!message?.value) {
+            return;
+          }
+
           const event = JSON.parse(message.value!.toString());
 
           if (batch.topic.endsWith("-dead-letter")) {
             logger.info(
-              `${getServiceName()}-kafka-consumer`,
+              `kafka-consumer`,
               `Dead letter topic=${batch.topic}, message=${JSON.stringify(event)}`
             );
             return;
@@ -56,11 +86,11 @@ export async function startKafkaConsumer(): Promise<void> {
 
           for (const handler of TopicHandlers) {
             if (handler.getTopics().includes(batch.topic)) {
-              if (!event.payload.retryCount) {
-                event.payload.retryCount = 0;
+              if (!event.retryCount) {
+                event.retryCount = 0;
               }
 
-              await handler.handle(event.payload);
+              await handler.handle(event, message.offset);
               break;
             }
           }
@@ -69,24 +99,24 @@ export async function startKafkaConsumer(): Promise<void> {
         } catch (error) {
           try {
             logger.error(
-              `${getServiceName()}-kafka-consumer`,
+              `kafka-consumer`,
               `Error handling topic=${batch.topic}, error=${error}, payload=${JSON.stringify(
                 message
               )}`
             );
 
-            const newMessage = {
-              error: JSON.stringify(error),
-              value: message.value,
-            };
+            // const newMessage = {
+            //   error: JSON.stringify(error),
+            //   value: message.value,
+            // };
 
-            await producer.send({
-              topic: `${batch.topic}-dead-letter`,
-              messages: [newMessage],
-            });
+            // await producer.send({
+            //   topic: `${batch.topic}-dead-letter`,
+            //   messages: [newMessage],
+            // });
           } catch (error) {
             logger.error(
-              `${getServiceName()}-kafka-consumer`,
+              `kafka-consumer`,
               `Error sending to dead letter topic=${batch.topic}, error=${error}}`
             );
           }
@@ -99,12 +129,12 @@ export async function startKafkaConsumer(): Promise<void> {
   });
 
   consumer.on("consumer.crash", async (error) => {
-    logger.error(`${getServiceName()}-kafka-consumer`, `Consumer crashed, error=${error}`);
+    logger.error(`kafka-consumer`, `Consumer crashed, error=${error}`);
     await restartKafkaConsumer();
   });
 
   consumer.on("consumer.disconnect", async (error) => {
-    logger.error(`${getServiceName()}-kafka-consumer`, `Consumer disconnected, error=${error}`);
+    logger.error(`kafka-consumer`, `Consumer disconnected, error=${error}`);
     await restartKafkaConsumer();
   });
 }
@@ -112,6 +142,19 @@ export async function startKafkaConsumer(): Promise<void> {
 // This can be used to restart the Kafka consumer, for example if the consumer is disconnected, or if we need to subscribe to new topics as
 // we cannot subscribe to new topics while the consumer is running.
 export async function restartKafkaConsumer(): Promise<void> {
-  await consumer.disconnect();
+  try {
+    await consumer.disconnect();
+  } catch (error) {
+    logger.error(`kafka-consumer`, `Error disconnecting consumer, error=${error}`);
+  }
   await startKafkaConsumer();
+}
+
+export async function restartKafkaProducer(): Promise<void> {
+  try {
+    await producer.disconnect();
+  } catch (error) {
+    logger.error(`kafka-producer`, `Error disconnecting producer, error=${error}`);
+  }
+  await startKafkaProducer();
 }

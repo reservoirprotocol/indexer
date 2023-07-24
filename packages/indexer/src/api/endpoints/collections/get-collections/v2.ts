@@ -98,6 +98,7 @@ export const getCollectionsV2Options: RouteOptions = {
             SELECT array(
               SELECT tokens.image FROM tokens
               WHERE tokens.collection_id = collections.id
+              ORDER BY rarity_rank DESC NULLS LAST
               LIMIT 4
             )
           ) AS sample_images,

@@ -38,14 +38,14 @@ export class AskCancelledEventHandler extends AskCreatedEventHandler {
           orders.currency_value AS "pricing_currency_value",
           orders.normalized_value AS "pricing_normalized_value",
           orders.currency_normalized_value AS "pricing_currency_normalized_value",
-          (orders.quantity_filled + orders.quantity_remaining) AS amount,
+          (orders.quantity_filled + orders.quantity_remaining) AS "amount",
           orders.source_id_int AS "order_source_id_int",
           orders.fee_bps AS "pricing_fee_bps",
           (${orderCriteriaBuildQuery}) AS "order_criteria",
-          extract(epoch from orders.created_at) AS created_ts,
-          extract(epoch from orders.updated_at) AS updated_ts,
+          extract(epoch from orders.updated_at) AS "updated_ts",
           t.*,
-          x.*
+          x.*,
+          COALESCE(x.cancel_event_created_ts, extract(epoch from orders.updated_at)) AS "created_ts"
         FROM orders
         LEFT JOIN LATERAL (
                     SELECT
@@ -67,9 +67,14 @@ export class AskCancelledEventHandler extends AskCreatedEventHandler {
                         cancel_events."timestamp" AS "event_timestamp",
                         cancel_events.tx_hash AS "event_tx_hash",
                         cancel_events.log_index AS "event_log_index",
-                        cancel_events.block_hash AS "event_block_hash"
+                        cancel_events.block_hash AS "event_block_hash",
+                        extract(epoch from cancel_events.created_at) AS "cancel_event_created_ts"
                     FROM cancel_events WHERE cancel_events.order_id = orders.id
                     LIMIT 1
                  ) x ON TRUE`;
+  }
+
+  parseEvent(data: any) {
+    data.timestamp = data.event_timestamp ?? Math.floor(data.updated_ts);
   }
 }

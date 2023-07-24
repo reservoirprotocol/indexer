@@ -205,7 +205,9 @@ export const getCollectionsTopBidV2Options: RouteOptions = {
                       nativeAmount: r.value,
                     },
                   },
-                  r.currency ? fromBuffer(r.currency) : Sdk.Common.Addresses.Weth[config.chainId],
+                  r.currency
+                    ? fromBuffer(r.currency)
+                    : Sdk.Common.Addresses.WNative[config.chainId],
                   query.displayCurrency
                 )
               : null,

@@ -84,14 +84,14 @@ if (config.doBackgroundWork) {
         );
         for (const { tx_hash, log_index, batch_index, currency, order_side } of results) {
           if (
-            fromBuffer(currency) === Sdk.Common.Addresses.Eth[config.chainId] &&
+            fromBuffer(currency) === Sdk.Common.Addresses.Native[config.chainId] &&
             order_side === "buy"
           ) {
             values.push({
               tx_hash,
               log_index,
               batch_index,
-              currency: toBuffer(Sdk.Common.Addresses.Weth[config.chainId]),
+              currency: toBuffer(Sdk.Common.Addresses.WNative[config.chainId]),
             });
           }
         }
@@ -173,17 +173,6 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
-
-  // !!! DISABLED
-
-  // redlock
-  //   .acquire([`${QUEUE_NAME}-lock-2`], 60 * 60 * 24 * 30 * 1000)
-  //   .then(async () => {
-  //     await addToQueue(now(), HashZero, 0, 0);
-  //   })
-  //   .catch(() => {
-  //     // Skip on any errors
-  //   });
 }
 
 export const addToQueue = async (

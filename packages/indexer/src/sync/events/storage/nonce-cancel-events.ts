@@ -1,8 +1,11 @@
 import { idb, pgp } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { BaseEventParams } from "@/events-sync/parser";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import { OrderKind } from "@/orderbook/orders";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 export type Event = {
   orderKind: OrderKind;
@@ -106,7 +109,7 @@ export const addEvents = async (events: Event[], backfill = false) => {
       // a job queue (since we can potentially have an unbounded
       // number of orders that need status updates and executing
       // it synchronously is not ideal).
-      await orderUpdatesById.addToQueue(
+      await orderUpdatesByIdJob.addToQueue(
         result.map(
           ({ id, tx_hash, timestamp, log_index, batch_index, block_hash }) =>
             ({
@@ -120,7 +123,7 @@ export const addEvents = async (events: Event[], backfill = false) => {
                 batchIndex: batch_index,
                 blockHash: fromBuffer(block_hash),
               },
-            } as orderUpdatesById.OrderInfo)
+            } as OrderUpdatesByIdJobPayload)
         )
       );
     }

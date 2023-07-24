@@ -7,12 +7,15 @@ import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck } from "@/orderbook/orders/zeroex-v4/check";
 import * as tokenSet from "@/orderbook/token-sets";
 import { Sources } from "@/models/sources";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 export type OrderInfo = {
   orderParams: Sdk.ZeroExV4.Types.BaseOrder;
@@ -135,10 +138,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      // Check: buy order has Weth as payment token
+      // Check: buy order has WNative as payment token
       if (
         order.params.direction === Sdk.ZeroExV4.Types.TradeDirection.BUY &&
-        order.params.erc20Token !== Sdk.Common.Addresses.Weth[config.chainId]
+        order.params.erc20Token !== Sdk.Common.Addresses.WNative[config.chainId]
       ) {
         return results.push({
           id,
@@ -149,7 +152,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       // Check: sell order has Eth as payment token
       if (
         order.params.direction === Sdk.ZeroExV4.Types.TradeDirection.SELL &&
-        order.params.erc20Token !== Sdk.ZeroExV4.Addresses.Eth[config.chainId]
+        order.params.erc20Token !== Sdk.ZeroExV4.Addresses.Native[config.chainId]
       ) {
         return results.push({
           id,
@@ -344,9 +347,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       // Handle: currency
       let currency = order.params.erc20Token;
-      if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
+      if (currency === Sdk.ZeroExV4.Addresses.Native[config.chainId]) {
         // ZeroEx-like exchanges use a non-standard ETH address
-        currency = Sdk.Common.Addresses.Eth[config.chainId];
+        currency = Sdk.Common.Addresses.Native[config.chainId];
       }
 
       const validFrom = `date_trunc('seconds', to_timestamp(${currentTime}))`;
@@ -382,6 +385,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         missing_royalties: null,
         normalized_value: null,
         currency_normalized_value: null,
+        originated_at: metadata.originatedAt || null,
       });
 
       const unfillable =
@@ -434,6 +438,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         "dynamic",
         "raw_data",
         { name: "expiration", mod: ":raw" },
+        "originated_at",
       ],
       {
         table: "orders",
@@ -441,7 +446,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
     );
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
 
-    await ordersUpdateById.addToQueue(
+    await orderUpdatesByIdJob.addToQueue(
       results
         .filter((r) => r.status === "success" && !r.unfillable)
         .map(
@@ -452,7 +457,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               trigger: {
                 kind: "new-order",
               },
-            } as ordersUpdateById.OrderInfo)
+            } as OrderUpdatesByIdJobPayload)
         )
     );
   }

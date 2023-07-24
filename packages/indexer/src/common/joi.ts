@@ -33,8 +33,8 @@ const JoiPriceCurrency = Joi.object({
 
 export const JoiPrice = Joi.object({
   currency: JoiPriceCurrency,
-  amount: JoiPriceAmount,
-  netAmount: JoiPriceAmount.optional(),
+  amount: JoiPriceAmount.description("Amount with fees & royalties included."),
+  netAmount: JoiPriceAmount.optional().description("Amount with fees & royalties removed."),
 });
 
 export const JoiDynamicPrice = Joi.alternatives(
@@ -252,6 +252,9 @@ export const JoiOrderCriteria = Joi.alternatives(
   }),
   Joi.object({
     kind: "custom",
+    data: Joi.object({
+      collection: JoiOrderCriteriaCollection,
+    }),
   })
 );
 
@@ -272,6 +275,7 @@ export const JoiOrder = Joi.object({
   tokenSetId: Joi.string().required(),
   tokenSetSchemaHash: Joi.string().lowercase().pattern(regex.bytes32).required(),
   contract: Joi.string().lowercase().pattern(regex.address),
+  contractKind: Joi.string().lowercase(),
   maker: Joi.string().lowercase().pattern(regex.address).required(),
   taker: Joi.string().lowercase().pattern(regex.address).required(),
   price: JoiPrice.description("Return native currency unless displayCurrency contract was passed."),
@@ -299,6 +303,7 @@ export const JoiOrder = Joi.object({
   isDynamic: Joi.boolean(),
   createdAt: Joi.string().required().description("Time when added to indexer"),
   updatedAt: Joi.string().required().description("Time when updated in indexer"),
+  originatedAt: Joi.string().allow(null).description("Time when created by maker"),
   rawData: Joi.object().optional().allow(null),
   isNativeOffChainCancellable: Joi.boolean().optional(),
   depth: JoiOrderDepth,
@@ -318,12 +323,11 @@ export const getJoiDynamicPricingObject = async (
   raw_data:
     | Sdk.SeaportBase.Types.OrderComponents
     | Sdk.Sudoswap.OrderParams
-    | Sdk.Nftx.Types.OrderParams
-    | Sdk.CollectionXyz.Types.OrderParams,
+    | Sdk.Nftx.Types.OrderParams,
   currency?: string,
   missing_royalties?: []
 ) => {
-  const floorAskCurrency = currency ? currency : Sdk.Common.Addresses.Eth[config.chainId];
+  const floorAskCurrency = currency ? currency : Sdk.Common.Addresses.Native[config.chainId];
 
   // Add missing royalties on top of the raw prices
   const missingRoyalties = normalizeRoyalties
@@ -332,7 +336,7 @@ export const getJoiDynamicPricingObject = async (
         .reduce((a, b) => a.add(b), bn(0))
     : bn(0);
 
-  if (dynamic && (kind === "seaport" || kind === "seaport-v1.4")) {
+  if (dynamic && (kind === "seaport" || kind === "seaport-v1.4" || kind === "seaport-v1.5")) {
     const order = new Sdk.SeaportV14.Order(
       config.chainId,
       raw_data as Sdk.SeaportBase.Types.OrderComponents
@@ -370,7 +374,7 @@ export const getJoiDynamicPricingObject = async (
         },
       },
     };
-  } else if (kind === "sudoswap") {
+  } else if (kind === "sudoswap" || kind === "sudoswap-v2") {
     // Pool orders
     return {
       kind: "pool",
@@ -390,28 +394,7 @@ export const getJoiDynamicPricingObject = async (
         ),
       },
     };
-  } else if (kind === "collectionxyz") {
-    // Pool orders
-    return {
-      kind: "pool",
-      data: {
-        pool: (raw_data as Sdk.CollectionXyz.Types.OrderParams).pool,
-        prices: await Promise.all(
-          ((raw_data as Sdk.CollectionXyz.Types.OrderParams).extra.prices as string[]).map(
-            (price) =>
-              getJoiPriceObject(
-                {
-                  gross: {
-                    amount: bn(price).add(missingRoyalties).toString(),
-                  },
-                },
-                floorAskCurrency
-              )
-          )
-        ),
-      },
-    };
-  } else if (kind === "nftx") {
+  } else if (kind === "collectionxyz" || kind === "nftx" || kind === "caviar-v1") {
     // Pool orders
     return {
       kind: "pool",
@@ -445,14 +428,15 @@ export const getJoiOrderDepthObject = async (
 ) => {
   // By default, show all prices in the native currency of the chain
   if (!displayCurrency) {
-    displayCurrency = Sdk.Common.Addresses.Eth[config.chainId];
+    displayCurrency = Sdk.Common.Addresses.Native[config.chainId];
   }
 
   const precisionDecimals = 4;
   const scale = (value: number) => Number(value.toFixed(precisionDecimals));
 
   switch (kind) {
-    case "sudoswap": {
+    case "sudoswap":
+    case "sudoswap-v2": {
       const order = rawData as Sdk.Sudoswap.OrderParams;
       return Promise.all(
         order.extra.prices.map(async (price) => ({
@@ -471,6 +455,8 @@ export const getJoiOrderDepthObject = async (
       );
     }
 
+    case "caviar-v1":
+    case "collectionxyz":
     case "nftx": {
       const order = rawData as Sdk.Nftx.Types.OrderParams;
       return Promise.all(
@@ -541,6 +527,7 @@ export const getJoiOrderObject = async (order: {
   tokenSetId: string;
   tokenSetSchemaHash: Buffer;
   contract: Buffer;
+  contractKind: string;
   maker: Buffer;
   taker: Buffer;
   prices: {
@@ -568,6 +555,7 @@ export const getJoiOrderObject = async (order: {
   isReservoir: boolean;
   createdAt: number;
   updatedAt: number;
+  originatedAt: number | null;
   includeRawData: boolean;
   rawData:
     | Sdk.SeaportBase.Types.OrderComponents
@@ -620,8 +608,8 @@ export const getJoiOrderObject = async (order: {
   const currency = order.prices.currency
     ? fromBuffer(order.prices.currency)
     : order.side === "sell"
-    ? Sdk.Common.Addresses.Eth[config.chainId]
-    : Sdk.Common.Addresses.Weth[config.chainId];
+    ? Sdk.Common.Addresses.Native[config.chainId]
+    : Sdk.Common.Addresses.WNative[config.chainId];
 
   return {
     id: order.id,
@@ -631,6 +619,7 @@ export const getJoiOrderObject = async (order: {
     tokenSetId: order.tokenSetId,
     tokenSetSchemaHash: fromBuffer(order.tokenSetSchemaHash),
     contract: fromBuffer(order.contract),
+    contractKind: order.contractKind,
     maker: fromBuffer(order.maker),
     taker: fromBuffer(order.taker),
     price: await getJoiPriceObject(
@@ -653,19 +642,18 @@ export const getJoiOrderObject = async (order: {
     validUntil: Number(order.validUntil),
     quantityFilled: Number(order.quantityFilled),
     quantityRemaining: Number(order.quantityRemaining),
-    dynamicPricing:
-      order.includeDynamicPricing && order.dynamic
-        ? await getJoiDynamicPricingObject(
-            order.dynamic,
-            order.kind,
-            order.normalizeRoyalties,
-            order.rawData,
-            currency,
-            order.missingRoyalties ? order.missingRoyalties : undefined
-          )
-        : order.dynamic !== undefined
-        ? null
-        : undefined,
+    dynamicPricing: order.includeDynamicPricing
+      ? await getJoiDynamicPricingObject(
+          Boolean(order.dynamic),
+          order.kind,
+          order.normalizeRoyalties,
+          order.rawData,
+          currency,
+          order.missingRoyalties ? order.missingRoyalties : undefined
+        )
+      : order.dynamic !== undefined
+      ? null
+      : undefined,
     criteria: order.criteria,
     source: {
       id: source?.address,
@@ -682,9 +670,10 @@ export const getJoiOrderObject = async (order: {
       order.dynamic !== undefined ? Boolean(order.dynamic || order.kind === "sudoswap") : undefined,
     createdAt: new Date(order.createdAt * 1000).toISOString(),
     updatedAt: new Date(order.updatedAt * 1000).toISOString(),
+    originatedAt: order.originatedAt ? new Date(order.originatedAt).toISOString() : null,
     rawData: order.includeRawData ? order.rawData : undefined,
     isNativeOffChainCancellable: order.includeRawData
-      ? (order.rawData as any).zone ===
+      ? (order.rawData as any)?.zone ===
         Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
       : undefined,
     depth: order.includeDepth

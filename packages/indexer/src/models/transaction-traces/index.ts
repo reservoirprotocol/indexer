@@ -27,7 +27,7 @@ export const saveTransactionTraces = async (transactionTraces: TransactionTrace[
 
   await txdb.none(
     `
-      INSERT INTO transaction_traces (
+      INSERT INTO "transaction_traces" (
         hash,
         calls
       ) VALUES ${pgp.helpers.values(values, columns)}
