@@ -12,8 +12,6 @@ import { config } from "@/config/index";
 if (process.env.LOCAL_TESTING) {
   import("./setup");
 } else {
-  console.log("Connecting to RabbitMQ");
-
   RabbitMq.connect().then(async () => {
     console.log("Connected to RabbitMQ");
 
