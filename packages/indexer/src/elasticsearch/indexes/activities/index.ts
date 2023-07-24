@@ -16,7 +16,7 @@ import _ from "lodash";
 import { buildContinuation, splitContinuation } from "@/common/utils";
 import { backfillActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-activities-elasticsearch-job";
 
-import { CONFIG_DEFAULT } from "@/elasticsearch/indexes/activities/config";
+import { CONFIG_1689873821 as CONFIG_DEFAULT } from "@/elasticsearch/indexes/activities/config";
 
 const INDEX_NAME = `${getNetworkName()}.activities`;
 
