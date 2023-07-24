@@ -155,7 +155,24 @@ export class BackfillBidCancelActivitiesElasticsearchJob extends AbstractRabbitM
     if (!config.doElasticsearchWork) {
       return;
     }
-    await this.send({ payload: { cursor, fromTimestamp, toTimestamp, indexName, keepGoing } });
+    logger.info(
+      this.queueName,
+      JSON.stringify({
+        topic: "addToQueueDebug",
+        fromTimestamp,
+        toTimestamp,
+        cursor,
+        indexName,
+        keepGoing,
+      })
+    );
+
+    await this.send({
+      payload: { cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
+      jobId: cursor
+        ? `${fromTimestamp}:${toTimestamp}:${keepGoing}:${indexName}:${cursor.updatedAt}:${cursor.id}`
+        : `${fromTimestamp}:${toTimestamp}:${keepGoing}:${indexName}`,
+    });
   }
 }
 
