@@ -4,9 +4,9 @@ import { idb, pgp } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { BaseEventParams } from "@/events-sync/parser";
-import * as nftTransfersWriteBuffer from "@/jobs/events-sync/write-buffers/nft-transfers";
+import { eventsSyncNftTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
 import { AddressZero } from "@ethersproject/constants";
-import * as tokenRecalcSupply from "@/jobs/token-updates/token-reclac-supply";
+import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
 
 export type Event = {
   kind: ContractKind;
@@ -228,7 +228,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
       await insertQueries([query], backfill);
 
       // Recalc supply
-      await tokenRecalcSupply.addToQueue(
+      await tokenReclacSupplyJob.addToQueue(
         tokenValuesChunk.map((t) => ({ contract: fromBuffer(t.contract), tokenId: t.token_id }))
       );
     }
@@ -273,7 +273,7 @@ async function insertQueries(queries: string[], backfill: boolean) {
   if (backfill) {
     // When backfilling, use the write buffer to avoid deadlocks
     for (const query of _.chunk(queries, 1000)) {
-      await nftTransfersWriteBuffer.addToQueue(pgp.helpers.concat(query));
+      await eventsSyncNftTransfersWriteBufferJob.addToQueue({ query: pgp.helpers.concat(query) });
     }
   } else {
     // Otherwise write directly since there might be jobs that depend
@@ -289,7 +289,8 @@ export const removeEvents = async (block: number, blockHash: string) => {
   await idb.any(
     `
       WITH "x" AS (
-        DELETE FROM "nft_transfer_events"
+        UPDATE "nft_transfer_events"
+        SET is_deleted = 1
         WHERE "block" = $/block/ AND "block_hash" = $/blockHash/
         RETURNING
           "address",

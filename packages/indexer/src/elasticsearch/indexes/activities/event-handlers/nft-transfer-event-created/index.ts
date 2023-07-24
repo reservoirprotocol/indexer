@@ -1,12 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { fromBuffer, toBuffer } from "@/common/utils";
-import { redb } from "@/common/db";
+import { idb } from "@/common/db";
 
 import { ActivityDocument, ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { getActivityHash } from "@/elasticsearch/indexes/activities/utils";
 import { BaseActivityEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/base";
 import { getNetworkSettings } from "@/config/network";
+import { logger } from "@/common/logger";
 
 export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandler {
   public txHash: string;
@@ -21,8 +22,8 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
     this.batchIndex = batchIndex;
   }
 
-  async generateActivity(): Promise<ActivityDocument> {
-    const data = await redb.oneOrNone(
+  async generateActivity(): Promise<ActivityDocument | null> {
+    const data = await idb.oneOrNone(
       `
                 ${NftTransferEventCreatedEventHandler.buildBaseQuery()}
                 WHERE tx_hash = $/txHash/
@@ -36,6 +37,15 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
         batchIndex: this.batchIndex.toString(),
       }
     );
+
+    if (!data) {
+      logger.warn(
+        "NftTransferEventCreatedEventHandler",
+        `failed to generate elastic activity activity. txHash=${this.txHash}, logIndex=${this.logIndex}, logIndex=${this.logIndex}`
+      );
+
+      return null;
+    }
 
     return this.buildDocument(data);
   }
@@ -63,6 +73,7 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
                   block_hash AS "event_block_hash",
                   log_index AS "event_log_index",
                   batch_index AS "event_batch_index",
+                  extract(epoch from created_at) AS "created_ts",
                   t.*
                 FROM nft_transfer_events
                 LEFT JOIN LATERAL (

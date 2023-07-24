@@ -5,11 +5,11 @@ import { randomUUID } from "crypto";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { config } from "@/config/index";
-import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import _ from "lodash";
 import { fromBuffer } from "@/common/utils";
+import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
 
 const QUEUE_NAME = "backfill-collections-non-flagged-floor-ask";
 
@@ -75,7 +75,7 @@ if (config.doBackgroundWork) {
             `Backfilling collection. tokenSetResult=${JSON.stringify(result)}`
           );
 
-          await collectionUpdatesNonFlaggedFloorAsk.addToQueue([
+          await nonFlaggedFloorQueueJob.addToQueue([
             {
               kind: result.non_flagged_floor_sell_id ? "revalidation" : "bootstrap",
               contract: fromBuffer(result.contract),
@@ -105,15 +105,6 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
-
-  redlock
-    .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
-    .then(async () => {
-      await addToQueue();
-    })
-    .catch(() => {
-      // Skip on any errors
-    });
 }
 
 export type CursorInfo = {

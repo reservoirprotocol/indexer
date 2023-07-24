@@ -15,15 +15,16 @@ import { updateBlurRoyalties } from "@/utils/blur";
 import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import MetadataApi from "@/utils/metadata-api";
-import {
-  getOpenCollectionMints,
-  simulateAndUpdateCollectionMint,
-} from "@/utils/mints/collection-mints";
 import * as royalties from "@/utils/royalties";
 
-import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
-import * as collectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
+import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
+import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
+import { refreshActivitiesCollectionMetadataJob } from "@/jobs/activities/refresh-activities-collection-metadata-job";
+import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
+import {
+  topBidCollectionJob,
+  TopBidCollectionJobPayload,
+} from "@/jobs/collection-updates/top-bid-collection-job";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -108,21 +109,36 @@ export class Collections {
         tokenId,
       }
     );
+
     if (!collectionExists) {
       // If the collection doesn't exist, push a job to retrieve it
-      await collectionMetadata.addToQueue([
+      await fetchCollectionMetadataJob.addToQueue([
         {
           contract,
           tokenId,
           context: "updateCollectionCache",
         },
       ]);
+
       return;
     }
 
     const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, community);
 
-    if (collection.metadata == null) {
+    if (collection.isCopyrightInfringement) {
+      collection.name = collection.id;
+      collection.metadata = null;
+
+      logger.info(
+        "updateCollectionCache",
+        JSON.stringify({
+          topic: "debugCopyrightInfringement",
+          message: "Collection is a copyright infringement",
+          contract,
+          collection,
+        })
+      );
+    } else if (collection.metadata == null) {
       const collectionResult = await Collections.getById(collection.id);
 
       if (collectionResult?.metadata != null) {
@@ -139,7 +155,7 @@ export class Collections {
 
     const tokenCount = await Tokens.countTokensInCollection(collection.id);
 
-    await collectionRecalcOwnerCount.addToQueue([
+    await recalcOwnerCountQueueJob.addToQueue([
       {
         context: "updateCollectionCache",
         kind: "collectionId",
@@ -153,8 +169,19 @@ export class Collections {
         name = $/name/,
         slug = $/slug/,
         token_count = $/tokenCount/,
+        payment_tokens = $/paymentTokens/,
+        creator = $/creator/,
         updated_at = now()
       WHERE id = $/id/
+      RETURNING (
+                  SELECT
+                  json_build_object(
+                    'name', collections.name,
+                    'metadata', collections.metadata
+                  )
+                  FROM collections
+                  WHERE collections.id = $/id/
+                ) AS old_metadata
     `;
 
     const values = {
@@ -163,9 +190,24 @@ export class Collections {
       name: collection.name,
       slug: collection.slug,
       tokenCount,
+      paymentTokens: collection.paymentTokens ? { opensea: collection.paymentTokens } : {},
+      creator: collection.creator ? toBuffer(collection.creator) : null,
     };
 
-    await idb.none(query, values);
+    const result = await idb.oneOrNone(query, values);
+
+    if (
+      result?.old_metadata.name != collection.name ||
+      result?.old_metadata.metadata.imageUrl != (collection.metadata as any)?.imageUrl
+    ) {
+      await refreshActivitiesCollectionMetadataJob.addToQueue({
+        collectionId: collection.id,
+        collectionUpdateData: {
+          name: collection.name || null,
+          image: (collection.metadata as any)?.imageUrl || null,
+        },
+      });
+    }
 
     // Refresh all royalty specs and the default royalties
     await royalties.refreshAllRoyaltySpecs(
@@ -184,12 +226,6 @@ export class Collections {
 
     // Refresh any contract blacklists
     await marketplaceBlacklist.updateMarketplaceBlacklist(collection.contract);
-
-    // Simulate any open mints
-    const collectionMints = await getOpenCollectionMints(collection.id);
-    await Promise.all(
-      collectionMints.map((collectionMint) => simulateAndUpdateCollectionMint(collectionMint))
-    );
   }
 
   public static async update(collectionId: string, fields: CollectionsEntityUpdateParams) {
@@ -300,7 +336,7 @@ export class Collections {
 
     if (result) {
       const currentTime = now();
-      await orderUpdatesById.addToQueue(
+      await orderUpdatesByIdJob.addToQueue(
         result.map(({ token_id }) => {
           const tokenSetId = `token:${contract}:${token_id}`;
           return {
@@ -328,7 +364,7 @@ export class Collections {
 
     if (result) {
       const currentTime = now();
-      await orderUpdatesById.addToQueue(
+      await orderUpdatesByIdJob.addToQueue(
         result.map(({ token_id }) => {
           const tokenSetId = `token:${contract}:${token_id}`;
           return {
@@ -355,7 +391,7 @@ export class Collections {
 
     if (tokenSetsResult.length) {
       const currentTime = now();
-      await orderUpdatesById.addToQueue(
+      await orderUpdatesByIdJob.addToQueue(
         tokenSetsResult.map((tokenSet: { id: any }) => ({
           context: `revalidate-buy-${tokenSet.id}-${currentTime}`,
           tokenSetId: tokenSet.id,
@@ -363,6 +399,23 @@ export class Collections {
           trigger: { kind: "revalidation" },
         }))
       );
+    } else {
+      logger.info(
+        "revalidateCollectionTopBuy",
+        JSON.stringify({
+          message: "No token sets with top bid found for collection",
+          collection,
+        })
+      );
+
+      await topBidCollectionJob.addToQueue([
+        {
+          collectionId: collection,
+          kind: "revalidation",
+          txHash: null,
+          txTimestamp: null,
+        } as TopBidCollectionJobPayload,
+      ]);
     }
   }
 

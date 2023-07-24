@@ -9,3 +9,7 @@ export const TransferManager: ChainIdToAddress = {
   [Network.Ethereum]: "0x000000000060c4ca14cfc4325359062ace33fe3d",
   [Network.EthereumGoerli]: "0xc20e0cead98abbbeb626b77efb8dc1e5d781f90c",
 };
+
+export const ProtocolFeeRecipient: ChainIdToAddress = {
+  [Network.Ethereum]: "0x1838de7d4e4e42c8eb7b204a91e28e9fad14f536",
+};

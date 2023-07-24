@@ -37,9 +37,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
         "looks-rare-v2",
         "zeroex-v4-erc721",
         "zeroex-v4-erc1155",
-        "universe",
         "rarible",
-        "flow",
         "alienswap"
       ),
       token: Joi.string().pattern(regex.token),
@@ -66,6 +64,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
             .items(
               Joi.object({
                 status: Joi.string().valid("complete", "incomplete").required(),
+                tip: Joi.string(),
                 data: Joi.object(),
               })
             )
@@ -189,49 +188,53 @@ export const getExecuteCancelV3Options: RouteOptions = {
 
         // Handle Blur authentication
         const blurAuthId = b.getAuthId(maker);
-        const blurAuth = await b.getAuth(blurAuthId);
+        let blurAuth = await b.getAuth(blurAuthId);
         if (!blurAuth) {
-          const blurAuthChallengeId = b.getAuthChallengeId(maker);
+          if (payload.blurAuth) {
+            blurAuth = { accessToken: payload.blurAuth };
+          } else {
+            const blurAuthChallengeId = b.getAuthChallengeId(maker);
 
-          let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
-          if (!blurAuthChallenge) {
-            blurAuthChallenge = (await axios
-              .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${maker}`)
-              .then((response) => response.data.authChallenge)) as b.AuthChallenge;
+            let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
+            if (!blurAuthChallenge) {
+              blurAuthChallenge = (await axios
+                .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${maker}`)
+                .then((response) => response.data.authChallenge)) as b.AuthChallenge;
 
-            await b.saveAuthChallenge(
-              blurAuthChallengeId,
-              blurAuthChallenge,
-              // Give a 1 minute buffer for the auth challenge to expire
-              Math.floor(new Date(blurAuthChallenge?.expiresOn).getTime() / 1000) - now() - 60
-            );
-          }
+              await b.saveAuthChallenge(
+                blurAuthChallengeId,
+                blurAuthChallenge,
+                // Give a 1 minute buffer for the auth challenge to expire
+                Math.floor(new Date(blurAuthChallenge?.expiresOn).getTime() / 1000) - now() - 60
+              );
+            }
 
-          steps[0].items.push({
-            status: "incomplete",
-            data: {
-              sign: {
-                signatureKind: "eip191",
-                message: blurAuthChallenge.message,
-              },
-              post: {
-                endpoint: "/execute/auth-signature/v1",
-                method: "POST",
-                body: {
-                  kind: "blur",
-                  id: blurAuthChallengeId,
+            steps[0].items.push({
+              status: "incomplete",
+              data: {
+                sign: {
+                  signatureKind: "eip191",
+                  message: blurAuthChallenge.message,
+                },
+                post: {
+                  endpoint: "/execute/auth-signature/v1",
+                  method: "POST",
+                  body: {
+                    kind: "blur",
+                    id: blurAuthChallengeId,
+                  },
                 },
               },
-            },
-          });
+            });
 
-          // Force the client to poll
-          steps[1].items.push({
-            status: "incomplete",
-            tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
-          });
+            // Force the client to poll
+            steps[1].items.push({
+              status: "incomplete",
+              tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
+            });
 
-          return { steps };
+            return { steps };
+          }
         } else {
           steps[0].items.push({
             status: "complete",
@@ -479,14 +482,6 @@ export const getExecuteCancelV3Options: RouteOptions = {
           break;
         }
 
-        case "universe": {
-          const order = new Sdk.Universe.Order(config.chainId, orderResult.raw_data);
-          const exchange = new Sdk.Universe.Exchange(config.chainId);
-          cancelTx = await exchange.cancelOrderTx(order.params);
-
-          break;
-        }
-
         case "rarible": {
           const order = new Sdk.Rarible.Order(config.chainId, orderResult.raw_data);
           const exchange = new Sdk.Rarible.Exchange(config.chainId);
@@ -495,11 +490,10 @@ export const getExecuteCancelV3Options: RouteOptions = {
           break;
         }
 
-        case "flow": {
-          const order = new Sdk.Flow.Order(config.chainId, orderResult.raw_data);
-          const exchange = new Sdk.Flow.Exchange(config.chainId);
-          const nonce = order.nonce;
-          cancelTx = exchange.cancelMultipleOrdersTx(order.signer, [nonce]);
+        case "payment-processor": {
+          const order = new Sdk.PaymentProcessor.Order(config.chainId, orderResult.raw_data);
+          const exchange = new Sdk.PaymentProcessor.Exchange(config.chainId);
+          cancelTx = exchange.cancelOrderTx(maker, order);
 
           break;
         }

@@ -4,6 +4,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
 import _ from "lodash";
+import * as Boom from "@hapi/boom";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
@@ -846,6 +847,11 @@ export const getTokensV5Options: RouteOptions = {
       if (query.collectionsSetId) {
         const collectionsSetQueries = [];
         const collections = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+
+        if (_.isEmpty(collections)) {
+          throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
+        }
+
         const collectionsSetSort = getSort(query.sortBy, true);
 
         for (const i in collections) {
@@ -951,10 +957,10 @@ export const getTokensV5Options: RouteOptions = {
         // that don't have the currencies cached in the tokens table
         const floorAskCurrency = r.floor_sell_currency
           ? fromBuffer(r.floor_sell_currency)
-          : Sdk.Common.Addresses.Eth[config.chainId];
+          : Sdk.Common.Addresses.Native[config.chainId];
         const topBidCurrency = r.top_buy_currency
           ? fromBuffer(r.top_buy_currency)
-          : Sdk.Common.Addresses.Weth[config.chainId];
+          : Sdk.Common.Addresses.WNative[config.chainId];
 
         let dynamicPricing = undefined;
         if (query.includeDynamicPricing) {
@@ -1003,33 +1009,16 @@ export const getTokensV5Options: RouteOptions = {
                   },
                 },
               };
-            } else if (r.floor_sell_order_kind === "sudoswap") {
+            } else if (
+              ["sudoswap", "sudoswap-v2", "nftx", "collectionxyz", "caviar-v1"].includes(
+                r.floor_sell_order_kind
+              )
+            ) {
               // Pool orders
               dynamicPricing = {
                 kind: "pool",
                 data: {
-                  pool: r.floor_sell_raw_data.pair,
-                  prices: await Promise.all(
-                    (r.floor_sell_raw_data.extra.prices as string[]).map((price) =>
-                      getJoiPriceObject(
-                        {
-                          gross: {
-                            amount: bn(price).add(missingRoyalties).toString(),
-                          },
-                        },
-                        floorAskCurrency,
-                        query.displayCurrency
-                      )
-                    )
-                  ),
-                },
-              };
-            } else if (r.floor_sell_order_kind === "nftx") {
-              // Pool orders
-              dynamicPricing = {
-                kind: "pool",
-                data: {
-                  pool: r.floor_sell_raw_data.pool,
+                  pool: r.floor_sell_raw_data.pair ?? r.floor_sell_raw_data.pool,
                   prices: await Promise.all(
                     (r.floor_sell_raw_data.extra.prices as string[]).map((price) =>
                       getJoiPriceObject(

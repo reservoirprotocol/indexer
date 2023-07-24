@@ -8,7 +8,10 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { now } from "@/common/utils";
 import { config } from "@/config/index";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 const QUEUE_NAME = "backfill-expired-orders";
 
@@ -56,14 +59,14 @@ if (config.doBackgroundWork) {
       }
 
       const currentTime = now();
-      await orderUpdatesById.addToQueue(
+      await orderUpdatesByIdJob.addToQueue(
         expiredOrders.map(
           ({ id }) =>
             ({
               context: `expired-orders-check-${currentTime}-${id}`,
               id,
               trigger: { kind: "expiry" },
-            } as orderUpdatesById.OrderInfo)
+            } as OrderUpdatesByIdJobPayload)
         )
       );
     },

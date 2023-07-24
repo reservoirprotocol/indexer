@@ -2,12 +2,15 @@
 pragma solidity ^0.8.9;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+
+import {INFTXVaultFactory} from "./INFTXVaultFactory.sol";
 
 interface INFTXMarketplace0xZap {
+  function nftxFactory() external view returns (INFTXVaultFactory);
+
   struct BuyOrder {
     uint256 vaultId;
-    IERC165 collection;
+    address collection;
     uint256[] specificIds;
     uint256 amount;
     uint256 price;
@@ -16,7 +19,7 @@ interface INFTXMarketplace0xZap {
 
   struct SellOrder {
     uint256 vaultId;
-    IERC165 collection;
+    address collection;
     IERC20 currency;
     uint256[] specificIds;
     // For ERC1155 only

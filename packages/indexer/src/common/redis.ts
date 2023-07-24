@@ -28,6 +28,11 @@ export const redisWebsocketPublisher = new Redis(config.redisWebsocketUrl, {
   enableReadyCheck: false,
 });
 
+export const redisWebsocketClient = new Redis(config.redisWebsocketUrl, {
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
+});
+
 // Rate limiter redis
 export const rateLimitRedis = new Redis(config.rateLimitRedisUrl, {
   maxRetriesPerRequest: 1,
@@ -38,12 +43,6 @@ export const rateLimitRedis = new Redis(config.rateLimitRedisUrl, {
 
 // Metric redis
 export const metricsRedis = new Redis(config.metricsRedisUrl, {
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-});
-
-// Orders book redis
-export const orderbookRedis = new Redis(config.orderbookRedisUrl, {
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
 });

@@ -43,7 +43,7 @@ export const setupZoraListings = async (listings: ZoraListing[]) => {
       tokenContract: nft.contract.address,
       tokenId: nft.id.toString(),
       askPrice: price.toString(),
-      askCurrency: paymentToken ?? Sdk.Common.Addresses.Eth[chainId],
+      askCurrency: paymentToken ?? Sdk.Common.Addresses.Native[chainId],
       sellerFundsRecipient: seller.address,
       findersFeeBps: 0,
     });

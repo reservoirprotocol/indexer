@@ -12,7 +12,7 @@ import getUuidByString from "uuid-by-string";
 import { BlockWithTransactions } from "@ethersproject/abstract-provider";
 import * as realtimeEventsSync from "@/jobs/events-sync/realtime-queue";
 
-import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
+import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
 import { Block } from "@/models/blocks";
 import { saveTransactionLogs } from "@/models/transaction-logs";
 import { TransactionTrace, saveTransactionTraces } from "@/models/transaction-traces";
@@ -53,10 +53,8 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
         logIndex = event.baseEventParams.logIndex;
         batchIndex = event.baseEventParams.batchIndex;
       }
-
       kindToEvents.get(event.kind)!.push(event);
     }
-
     const eventsByKind: EventsByKind[] = [
       {
         kind: "erc20",
@@ -127,6 +125,14 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
         data: kindToEvents.get("sudoswap") ?? [],
       },
       {
+        kind: "sudoswap-v2",
+        data: kindToEvents.get("sudoswap-v2") ?? [],
+      },
+      {
+        kind: "caviar-v1",
+        data: kindToEvents.get("caviar-v1") ?? [],
+      },
+      {
         kind: "wyvern",
         data: kindToEvents.has("wyvern")
           ? [
@@ -160,10 +166,6 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
       {
         kind: "zora",
         data: kindToEvents.get("zora") ?? [],
-      },
-      {
-        kind: "universe",
-        data: kindToEvents.get("universe") ?? [],
       },
       {
         kind: "rarible",
@@ -200,16 +202,6 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
         data: kindToEvents.get("superrare") ?? [],
       },
       {
-        kind: "flow",
-        data: kindToEvents.has("flow")
-          ? [
-              ...kindToEvents.get("flow")!,
-              // To properly validate bids, we need some additional events
-              ...events.filter((e) => e.subKind === "erc20-transfer"),
-            ]
-          : [],
-      },
-      {
         kind: "zeroex-v2",
         data: kindToEvents.get("zeroex-v2") ?? [],
       },
@@ -232,6 +224,22 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
       {
         kind: "collectionxyz",
         data: kindToEvents.get("collectionxyz") ?? [],
+      },
+      {
+        kind: "payment-processor",
+        data: kindToEvents.get("payment-processor") ?? [],
+      },
+      {
+        kind: "thirdweb",
+        data: kindToEvents.get("thirdweb") ?? [],
+      },
+      {
+        kind: "seadrop",
+        data: kindToEvents.get("seadrop") ?? [],
+      },
+      {
+        kind: "blur-v2",
+        data: kindToEvents.get("blur-v2") ?? [],
       },
     ];
 
@@ -511,7 +519,7 @@ export const unsyncEvents = async (block: number, blockHash: string) => {
     es.ftTransfers.removeEvents(block, blockHash),
     es.nftApprovals.removeEvents(block, blockHash),
     es.nftTransfers.removeEvents(block, blockHash),
-    removeUnsyncedEventsActivities.addToQueue(blockHash),
+    removeUnsyncedEventsActivitiesJob.addToQueue(blockHash),
   ]);
 };
 

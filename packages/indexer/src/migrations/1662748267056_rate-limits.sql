@@ -11,16 +11,19 @@ CREATE TABLE "rate_limit_rules" (
 );
 
 INSERT INTO "rate_limit_rules" (route, tier, options)
-VALUES('/', 0, '{"points":300,"duration":60}');
+VALUES('/', 0, '{"points": 1000, "duration": 86400}');
 
 INSERT INTO "rate_limit_rules" (route, tier, options)
-VALUES('/', 1, '{"points":900,"duration":60}');
+VALUES('/', 1, '{"points": 120, "duration": 60}');
 
 INSERT INTO "rate_limit_rules" (route, tier, options)
-VALUES('/', 2, '{"points":1800,"duration":60}');
+VALUES('/', 2, '{"points": 1000, "duration": 60}');
 
 INSERT INTO "rate_limit_rules" (route, tier, options)
-VALUES('/', 3, '{"points":6000,"duration":60}');
+VALUES('/', 3, '{"points": 10000, "duration": 60}');
+
+INSERT INTO "rate_limit_rules" (route, tier, options)
+VALUES('/', 4, '{"points": 50000, "duration": 60}');
 
 -- Down Migration
 

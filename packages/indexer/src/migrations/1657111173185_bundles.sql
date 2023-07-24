@@ -38,14 +38,6 @@ ALTER TABLE "orders" ADD COLUMN "bundle_kind" "order_bundle_kind_t";
 ALTER TABLE "orders" ADD COLUMN "offer_bundle_id" BIGINT;
 ALTER TABLE "orders" ADD COLUMN "consideration_bundle_id" BIGINT;
 
-CREATE INDEX "orders_offer_bundle_id_index"
-  ON "orders" ("offer_bundle_id")
-  WHERE "offer_bundle_id" IS NOT NULL;
-
-CREATE INDEX "orders_consideration_bundle_id_index"
-  ON "orders" ("consideration_bundle_id")
-  WHERE "consideration_bundle_id" IS NOT NULL;
-
 -- Down Migration
 
 ALTER TABLE "orders" DROP COLUMN "consideration_bundle_id";

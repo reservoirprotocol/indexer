@@ -1,14 +1,12 @@
-import { AddressZero } from "@ethersproject/constants";
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { fromBuffer, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-
-import * as mintQueue from "@/jobs/token-updates/mint-queue";
+import { mintQueueJob } from "@/jobs/token-updates/mint-queue-job";
 
 const QUEUE_NAME = "backfill-tokens-with-missing-collection";
 
@@ -51,7 +49,7 @@ if (config.doBackgroundWork) {
       );
 
       const currentTime = now();
-      await mintQueue.addToQueue(
+      await mintQueueJob.addToQueue(
         results.map((r) => ({
           contract: fromBuffer(r.contract),
           tokenId: r.token_id,
@@ -70,17 +68,6 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
-
-  if (config.chainId === 1) {
-    redlock
-      .acquire([`${QUEUE_NAME}-lock-1`], 60 * 60 * 24 * 30 * 1000)
-      .then(async () => {
-        await addToQueue(AddressZero, "0");
-      })
-      .catch(() => {
-        // Skip on any errors
-      });
-  }
 }
 
 export const addToQueue = async (contract: string, tokenId: string) => {

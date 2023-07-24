@@ -12,7 +12,6 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Sources } from "@/models/sources";
 import { SudoswapPoolKind } from "@/models/sudoswap-pools";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
@@ -25,6 +24,10 @@ import {
 import * as tokenSet from "@/orderbook/token-sets";
 import * as royalties from "@/utils/royalties";
 import * as sudoswap from "@/utils/sudoswap";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 export type OrderInfo = {
   orderParams: {
@@ -66,7 +69,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         throw new Error("Could not fetch pool details");
       }
 
-      if (pool.token !== Sdk.Common.Addresses.Eth[config.chainId]) {
+      if (pool.token !== Sdk.Common.Addresses.Native[config.chainId]) {
         throw new Error("Unsupported currency");
       }
 
@@ -390,7 +393,12 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
           const prices: BigNumber[] = [];
           for (let i = 0; i < priceList.length; i++) {
-            prices.push(bn(priceList[i]).sub(i > 0 ? priceList[i - 1] : 0));
+            prices.push(
+              bn(priceList[i])
+                .sub(i > 0 ? priceList[i - 1] : 0)
+                // Just for safety, add 1 wei
+                .add(1)
+            );
           }
 
           // Handle: prices
@@ -398,7 +406,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           const value = prices[0].toString();
 
           // Fetch all token ids owned by the pool
-          const poolOwnedTokenIds = await commonHelpers.getNfts(pool.nft, pool.address);
+          const poolOwnedTokenIds = await commonHelpers
+            .getNfts(pool.nft, pool.address)
+            .then((nfts) => nfts.map((nft) => nft.tokenId));
 
           const limit = pLimit(50);
           await Promise.all(
@@ -638,7 +648,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
   }
 
-  await ordersUpdateById.addToQueue(
+  await orderUpdatesByIdJob.addToQueue(
     results
       .filter(({ status }) => status === "success")
       .map(
@@ -651,7 +661,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               txHash: txHash,
               txTimestamp: txTimestamp,
             },
-          } as ordersUpdateById.OrderInfo)
+          } as OrderUpdatesByIdJobPayload)
       )
   );
 

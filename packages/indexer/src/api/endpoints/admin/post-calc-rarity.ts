@@ -6,7 +6,7 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-import * as rarityQueue from "@/jobs/collection-updates/rarity-queue";
+import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
 
 export const postCalcRarityOptions: RouteOptions = {
   description: "Trigger calculation of the give collection tokens rarity",
@@ -34,7 +34,7 @@ export const postCalcRarityOptions: RouteOptions = {
 
     try {
       const collectionId = payload.collection;
-      await rarityQueue.addToQueue(collectionId, 0);
+      await rarityQueueJob.addToQueue({ collectionId }, 0);
 
       return { message: "Request accepted" };
     } catch (error) {

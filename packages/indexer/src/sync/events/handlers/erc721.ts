@@ -88,7 +88,10 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             mintedTimestamp: baseEventParams.timestamp,
           });
           onChainData.mints.push({
-            txHash: baseEventParams.txHash,
+            by: "tx",
+            data: {
+              txHash: baseEventParams.txHash,
+            },
           });
 
           if (!ns.mintsAsSalesBlacklist.includes(baseEventParams.address)) {
@@ -137,7 +140,10 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               mintedTimestamp: baseEventParams.timestamp,
             });
             onChainData.mints.push({
-              txHash: baseEventParams.txHash,
+              by: "tx",
+              data: {
+                txHash: baseEventParams.txHash,
+              },
             });
 
             if (!ns.mintsAsSalesBlacklist.includes(baseEventParams.address)) {
@@ -242,7 +248,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         .map(({ amount }) => amount)
         .reduce((a, b) => bn(a).add(b).toString());
       const price = bn(tx.value).div(totalAmount).toString();
-      const currency = Sdk.Common.Addresses.Eth[config.chainId];
+      const currency = Sdk.Common.Addresses.Native[config.chainId];
 
       for (const mint of mints) {
         // Handle: attribution

@@ -7,12 +7,15 @@ import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Sources } from "@/models/sources";
 import { offChainCheck } from "@/orderbook/orders/rarible/check";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
 import * as royalties from "@/utils/royalties";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 export type OrderInfo = {
   orderParams: Sdk.Rarible.Types.Order;
@@ -98,7 +101,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       if (side === "sell") {
         switch (order.params.take.assetType.assetClass) {
           case "ETH":
-            currency = Sdk.Common.Addresses.Eth[config.chainId];
+            currency = Sdk.Common.Addresses.Native[config.chainId];
             break;
           case "ERC20":
             currency = order.params.take.assetType.contract!;
@@ -107,15 +110,15 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             break;
         }
       } else {
-        // This will always be WETH for now
+        // This will always be WNative for now
         currency = order.params.make.assetType.contract!;
       }
 
-      // Check: order has Weth or Eth as payment token
+      // Check: order has WNative or Native as payment token
       switch (side) {
         // Buy Order
         case "buy":
-          if (currency !== Sdk.Common.Addresses.Weth[config.chainId]) {
+          if (currency !== Sdk.Common.Addresses.WNative[config.chainId]) {
             return results.push({
               id,
               status: "unsupported-payment-token",
@@ -366,6 +369,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         missing_royalties: null,
         normalized_value: null,
         currency_normalized_value: null,
+        originated_at: metadata.originatedAt || null,
       });
 
       const unfillable =
@@ -418,6 +422,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         "dynamic",
         "raw_data",
         { name: "expiration", mod: ":raw" },
+        "originated_at",
       ],
       {
         table: "orders",
@@ -425,7 +430,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
     );
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
 
-    await ordersUpdateById.addToQueue(
+    await orderUpdatesByIdJob.addToQueue(
       results
         .filter((r) => r.status === "success" && !r.unfillable)
         .map(
@@ -436,7 +441,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               trigger: {
                 kind: "new-order",
               },
-            } as ordersUpdateById.OrderInfo)
+            } as OrderUpdatesByIdJobPayload)
         )
     );
   }

@@ -5,10 +5,12 @@ import * as Sdk from "../../index";
 import { MaxUint256, TxData } from "../../utils";
 
 export const isETH = (chainId: number, address: string) =>
-  address.toLowerCase() === Sdk.Common.Addresses.Eth[chainId];
+  [Sdk.Common.Addresses.Native[chainId], Sdk.ZeroExV4.Addresses.Native[chainId]].includes(
+    address.toLowerCase()
+  );
 
 export const isWETH = (chainId: number, address: string) =>
-  address.toLowerCase() === Sdk.Common.Addresses.Weth[chainId];
+  address.toLowerCase() === Sdk.Common.Addresses.WNative[chainId];
 
 export const generateNFTApprovalTxData = (
   contract: string,

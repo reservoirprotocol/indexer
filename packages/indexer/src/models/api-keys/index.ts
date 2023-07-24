@@ -10,7 +10,7 @@ import { ApiKeyEntity, ApiKeyUpdateParams } from "@/models/api-keys/api-key-enti
 import getUuidByString from "uuid-by-string";
 import { AllChainsChannel, Channel } from "@/pubsub/channels";
 import axios from "axios";
-import { getNetworkName } from "@/config/network";
+import { getNetworkName, getNetworkSettings } from "@/config/network";
 import { config } from "@/config/index";
 import { Boom } from "@hapi/boom";
 import tracer from "@/common/tracer";
@@ -242,6 +242,12 @@ export class ApiKeyManager {
       log.hostname = request.headers["host"];
     }
 
+    if (log.route) {
+      log.fullUrl = `https://${getNetworkSettings().subDomain}.reservoir.tools${log.route}${
+        request.pre.queryString ? `?${request.pre.queryString}` : ""
+      }`;
+    }
+
     // Add key information if it exists
     if (key) {
       try {
@@ -336,6 +342,8 @@ export class ApiKeyManager {
         JSON.stringify({ key, fields })
       );
     }
+
+    logger.info("api-key", `Update key ${key} with ${JSON.stringify(fields)}`);
   }
 
   static async notifyApiKeyCreated(values: ApiKeyRecord) {

@@ -11,7 +11,7 @@ import { ApiKeyManager } from "@/models/api-keys";
 
 import { TokensEntityUpdateParams } from "@/models/tokens/tokens-entity";
 import { Collections } from "@/models/collections";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 
 const version = "v1";
 
@@ -62,12 +62,12 @@ export const postFlagTokenV1Options: RouteOptions = {
       if (token.isFlagged != payload.flag) {
         const collection = await Collections.getByContractAndTokenId(contract, tokenId);
 
-        await metadataIndexFetch.addToQueue(
+        await metadataIndexFetchJob.addToQueue(
           [
             {
               kind: "single-token",
               data: {
-                method: metadataIndexFetch.getIndexingMethod(collection?.community || null),
+                method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
                 contract,
                 tokenId,
                 collection: token.collectionId,

@@ -92,7 +92,7 @@ export const postSimulateFloorV1Options: RouteOptions = {
           tokens: [token],
           taker: genericTaker,
           skipBalanceCheck: true,
-          currency: Sdk.Common.Addresses.Eth[config.chainId],
+          currency: Sdk.Common.Addresses.Native[config.chainId],
         },
       });
 
@@ -155,7 +155,7 @@ export const postSimulateFloorV1Options: RouteOptions = {
         );
 
         if (
-          ["blur", "nftx", "sudoswap", "universe"].includes(orderResult.kind) ||
+          ["blur", "nftx", "sudoswap"].includes(orderResult.kind) ||
           getNetworkSettings().whitelistedCurrencies.has(fromBuffer(orderResult.currency))
         ) {
           return { message: "Order not simulatable" };

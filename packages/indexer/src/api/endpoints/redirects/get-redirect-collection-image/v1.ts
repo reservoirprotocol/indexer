@@ -28,7 +28,7 @@ export const getRedirectCollectionImageV1Options: RouteOptions = {
     params: Joi.object({
       collection: Joi.string()
         .lowercase()
-        .pattern(regex.address)
+        .pattern(regex.collectionId)
         .required()
         .description(
           "Redirect to the given collection image. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"

@@ -85,7 +85,7 @@ export const setupNFTXListings = async (listings: NFTXListing[]) => {
       ethers.provider
     );
 
-    const lpToken = await sushiFactory.getPair(vaultAddress, Sdk.Common.Addresses.Weth[chainId]);
+    const lpToken = await sushiFactory.getPair(vaultAddress, Sdk.Common.Addresses.WNative[chainId]);
 
     const [poolPrice] = await Promise.all([
       Sdk.Nftx.Helpers.getPoolPrice(vaultAddress, 1, "buy", 100, ethers.provider),
@@ -102,7 +102,7 @@ export const setupNFTXListings = async (listings: NFTXListing[]) => {
         pool: vaultAddress,
         specificIds: [newId.toString()],
         amount: "1",
-        path: [Sdk.Common.Addresses.Weth[chainId], vaultAddress],
+        path: [Sdk.Common.Addresses.WNative[chainId], vaultAddress],
         price: isCancelled ? "0" : listing.price.toString(),
         extra: {
           prices: [listing.price.toString()],
@@ -189,7 +189,7 @@ export const setupNFTXOffers = async (offers: NFTXOffer[]) => {
       ethers.provider
     );
 
-    const lpToken = await sushiFactory.getPair(vaultAddress, Sdk.Common.Addresses.Weth[chainId]);
+    const lpToken = await sushiFactory.getPair(vaultAddress, Sdk.Common.Addresses.WNative[chainId]);
 
     const [poolPrice] = await Promise.all([
       Sdk.Nftx.Helpers.getPoolPrice(vaultAddress, 1, "sell", 100, ethers.provider),
@@ -204,13 +204,13 @@ export const setupNFTXOffers = async (offers: NFTXOffer[]) => {
         vaultId: _vaultId.toString(),
         pool: vaultAddress,
         collection: nft.contract.address,
-        currency: Sdk.Common.Addresses.Weth[chainId],
+        currency: Sdk.Common.Addresses.WNative[chainId],
         specificIds: [newId.toString()],
         price: isCancelled ? offer.price.mul(bn(10)).toString() : offer.price.toString(),
         extra: {
           prices: [offer.price.toString()],
         },
-        path: [vaultAddress, Sdk.Common.Addresses.Weth[chainId]],
+        path: [vaultAddress, Sdk.Common.Addresses.WNative[chainId]],
       });
     }
   }

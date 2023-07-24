@@ -6,7 +6,7 @@ import { randomUUID } from "crypto";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { buyPriceAccepted } from "@/events-sync/data/foundation";
@@ -70,7 +70,7 @@ if (config.doBackgroundWork) {
             const parsedLog = buyPriceAccepted.abi.parseLog(log);
             const protocolFee = parsedLog.args["protocolFee"].toString();
 
-            const currency = Sdk.Common.Addresses.Eth[config.chainId];
+            const currency = Sdk.Common.Addresses.Native[config.chainId];
             // Deduce the price from the protocol fee (which is 5%)
             const currencyPrice = bn(protocolFee).mul(10000).div(500).toString();
             const priceData = await getUSDAndNativePrices(currency, currencyPrice, timestamp);
@@ -120,20 +120,20 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  if (config.chainId === 1) {
-    redlock
-      .acquire([`${QUEUE_NAME}-lock-2`], 60 * 60 * 24 * 30 * 1000)
-      .then(async () => {
-        await addToQueue(
-          "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-          0,
-          0
-        );
-      })
-      .catch(() => {
-        // Skip on any errors
-      });
-  }
+  // if (config.chainId === 1) {
+  //   redlock
+  //     .acquire([`${QUEUE_NAME}-lock-2`], 60 * 60 * 24 * 30 * 1000)
+  //     .then(async () => {
+  //       await addToQueue(
+  //         "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  //         0,
+  //         0
+  //       );
+  //     })
+  //     .catch(() => {
+  //       // Skip on any errors
+  //     });
+  // }
 }
 
 export const addToQueue = async (txHash: string, logIndex: number, batchIndex: number) => {

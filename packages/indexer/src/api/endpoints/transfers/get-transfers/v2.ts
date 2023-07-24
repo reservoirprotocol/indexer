@@ -142,6 +142,8 @@ export const getTransfersV2Options: RouteOptions = {
 
       // Filters
       const conditions: string[] = [];
+      conditions.push(`nft_transfer_events.is_deleted = 0`);
+
       if (query.contract) {
         (query as any).contract = toBuffer(query.contract);
         conditions.push(`nft_transfer_events.address = $/contract/`);

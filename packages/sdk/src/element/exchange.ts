@@ -99,12 +99,12 @@ export class Exchange {
         ]);
       }
 
-      if (order.erc20Token() == CommonAddresses.Eth[this.chainId]) {
+      if (order.erc20Token() == CommonAddresses.Native[this.chainId]) {
         value = order.getTotalPrice(matchParams.nftAmount);
       }
     } else {
       const unwrapNativeToken =
-        order.erc20Token() == CommonAddresses.Weth[this.chainId].toLowerCase()
+        order.erc20Token() == CommonAddresses.WNative[this.chainId].toLowerCase()
           ? matchParams.unwrapNativeToken ?? true
           : false;
       if (order.contractKind() == "erc721") {

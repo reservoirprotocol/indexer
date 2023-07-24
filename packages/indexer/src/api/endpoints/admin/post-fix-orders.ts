@@ -7,7 +7,7 @@ import Joi from "joi";
 import { logger } from "@/common/logger";
 import { regex } from "@/common/utils";
 import { config } from "@/config/index";
-import * as orderFixes from "@/jobs/order-fixes/fixes";
+import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
 
 export const postFixOrdersOptions: RouteOptions = {
   description: "Trigger fixing any order inconsistencies.",
@@ -54,13 +54,13 @@ export const postFixOrdersOptions: RouteOptions = {
       const by = payload.by;
 
       if (by === "id") {
-        await orderFixes.addToQueue([{ by, data: { id: payload.id } }]);
+        await orderFixesJob.addToQueue([{ by, data: { id: payload.id } }]);
       } else if (by === "maker") {
-        await orderFixes.addToQueue([{ by, data: { maker: payload.maker } }]);
+        await orderFixesJob.addToQueue([{ by, data: { maker: payload.maker } }]);
       } else if (by === "contract") {
-        await orderFixes.addToQueue([{ by, data: { contract: payload.contract } }]);
+        await orderFixesJob.addToQueue([{ by, data: { contract: payload.contract } }]);
       } else if (by === "token") {
-        await orderFixes.addToQueue([{ by, data: { token: payload.token } }]);
+        await orderFixesJob.addToQueue([{ by, data: { token: payload.token } }]);
       }
 
       return { message: "Success" };

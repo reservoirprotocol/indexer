@@ -14,6 +14,8 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, now, regex } from "@/common/utils";
 import { config } from "@/config/index";
+import { getExecuteError } from "@/orderbook/orders/errors";
+import { checkBlacklistAndFallback } from "@/orderbook/orders";
 import * as b from "@/utils/auth/blur";
 import { ExecutionsBuffer } from "@/utils/executions";
 
@@ -43,12 +45,9 @@ import * as zeroExV4BuyAttribute from "@/orderbook/orders/zeroex-v4/build/buy/at
 import * as zeroExV4BuyToken from "@/orderbook/orders/zeroex-v4/build/buy/token";
 import * as zeroExV4BuyCollection from "@/orderbook/orders/zeroex-v4/build/buy/collection";
 
-// Universe
-import * as universeBuyToken from "@/orderbook/orders/universe/build/buy/token";
-
-// Flow
-import * as flowBuyToken from "@/orderbook/orders/flow/build/buy/token";
-import * as flowBuyCollection from "@/orderbook/orders/flow/build/buy/collection";
+// PaymentProcessor
+import * as paymentProcessorBuyToken from "@/orderbook/orders/payment-processor/build/buy/token";
+import * as paymentProcessorBuyCollection from "@/orderbook/orders/payment-processor/build/buy/collection";
 
 const version = "v5";
 
@@ -78,6 +77,9 @@ export const getExecuteBidV5Options: RouteOptions = {
         .description(
           `Domain of your app that is creating the order, e.g. \`myapp.xyz\`. This is used for filtering, and to attribute the "order source" of sales in on-chain analytics, to help your app get discovered. Lean more <a href='https://docs.reservoir.tools/docs/calldata-attribution'>here</a>`
         ),
+      blurAuth: Joi.string().description(
+        "Advanced use case to pass personal blurAuthToken; the API will generate one if left empty."
+      ),
       params: Joi.array().items(
         Joi.object({
           token: Joi.string()
@@ -100,12 +102,12 @@ export const getExecuteBidV5Options: RouteOptions = {
           attributeValue: Joi.string().description(
             "Bid on a particular attribute value. This is case sensitive. Example: `Teddy (#33)`"
           ),
-          quantity: Joi.number().description(
-            "Quantity of tokens user is buying. Only compatible with ERC1155 tokens. Example: `5`"
-          ),
+          quantity: Joi.number().description("Quantity of tokens to bid on."),
           weiPrice: Joi.string()
             .pattern(regex.number)
-            .description("Amount bidder is willing to offer in wei. Example: `1000000000000000000`")
+            .description(
+              "Amount bidder is willing to offer in the smallest denomination for the specific currency. Example: `1000000000000000000`"
+            )
             .required(),
           orderKind: Joi.string()
             .valid(
@@ -117,9 +119,8 @@ export const getExecuteBidV5Options: RouteOptions = {
               "looks-rare",
               "looks-rare-v2",
               "x2y2",
-              "universe",
-              "flow",
-              "alienswap"
+              "alienswap",
+              "payment-processor"
             )
             .default("seaport-v1.5")
             .description("Exchange protocol used to create order. Example: `seaport-v1.5`"),
@@ -144,7 +145,7 @@ export const getExecuteBidV5Options: RouteOptions = {
             }),
           }).description("Additional options."),
           orderbook: Joi.string()
-            .valid("blur", "reservoir", "opensea", "looks-rare", "x2y2", "universe", "flow")
+            .valid("blur", "reservoir", "opensea", "looks-rare", "x2y2")
             .default("reservoir")
             .description("Orderbook where order is placed. Example: `Reservoir`"),
           orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
@@ -178,7 +179,7 @@ export const getExecuteBidV5Options: RouteOptions = {
           nonce: Joi.string().pattern(regex.number).description("Optional. Set a custom nonce"),
           currency: Joi.string()
             .pattern(regex.address)
-            .default(Sdk.Common.Addresses.Weth[config.chainId]),
+            .default(Sdk.Common.Addresses.WNative[config.chainId]),
         })
           .or("token", "collection", "tokenSetId")
           .oxor("token", "collection", "tokenSetId")
@@ -354,58 +355,62 @@ export const getExecuteBidV5Options: RouteOptions = {
       // Handle Blur authentication
       let blurAuth: b.Auth | undefined;
       if (params.some((p) => p.orderKind === "blur")) {
-        const blurAuthId = b.getAuthId(maker);
+        if (payload.blurAuth) {
+          blurAuth = { accessToken: payload.blurAuth };
+        } else {
+          const blurAuthId = b.getAuthId(maker);
 
-        blurAuth = await b.getAuth(blurAuthId);
-        if (!blurAuth) {
-          const blurAuthChallengeId = b.getAuthChallengeId(maker);
+          blurAuth = await b.getAuth(blurAuthId);
+          if (!blurAuth) {
+            const blurAuthChallengeId = b.getAuthChallengeId(maker);
 
-          let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
-          if (!blurAuthChallenge) {
-            blurAuthChallenge = (await axios
-              .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${maker}`)
-              .then((response) => response.data.authChallenge)) as b.AuthChallenge;
+            let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
+            if (!blurAuthChallenge) {
+              blurAuthChallenge = (await axios
+                .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${maker}`)
+                .then((response) => response.data.authChallenge)) as b.AuthChallenge;
 
-            await b.saveAuthChallenge(
-              blurAuthChallengeId,
-              blurAuthChallenge,
-              // Give a 1 minute buffer for the auth challenge to expire
-              Math.floor(new Date(blurAuthChallenge?.expiresOn).getTime() / 1000) - now() - 60
-            );
-          }
+              await b.saveAuthChallenge(
+                blurAuthChallengeId,
+                blurAuthChallenge,
+                // Give a 1 minute buffer for the auth challenge to expire
+                Math.floor(new Date(blurAuthChallenge?.expiresOn).getTime() / 1000) - now() - 60
+              );
+            }
 
-          steps[0].items.push({
-            status: "incomplete",
-            data: {
-              sign: {
-                signatureKind: "eip191",
-                message: blurAuthChallenge.message,
-              },
-              post: {
-                endpoint: "/execute/auth-signature/v1",
-                method: "POST",
-                body: {
-                  kind: "blur",
-                  id: blurAuthChallengeId,
+            steps[0].items.push({
+              status: "incomplete",
+              data: {
+                sign: {
+                  signatureKind: "eip191",
+                  message: blurAuthChallenge.message,
+                },
+                post: {
+                  endpoint: "/execute/auth-signature/v1",
+                  method: "POST",
+                  body: {
+                    kind: "blur",
+                    id: blurAuthChallengeId,
+                  },
                 },
               },
-            },
-          });
+            });
 
-          // Force the client to poll
-          steps[1].items.push({
-            status: "incomplete",
-            tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
-          });
+            // Force the client to poll
+            steps[1].items.push({
+              status: "incomplete",
+              tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
+            });
 
-          // Return an early since any next steps are dependent on the Blur auth
-          return {
-            steps,
-          };
-        } else {
-          steps[0].items.push({
-            status: "complete",
-          });
+            // Return an early since any next steps are dependent on the Blur auth
+            return {
+              steps,
+            };
+          } else {
+            steps[0].items.push({
+              status: "complete",
+            });
+          }
         }
       }
 
@@ -428,6 +433,14 @@ export const getExecuteBidV5Options: RouteOptions = {
           // Force usage of looks-rare-v2
           if (params.orderKind === "looks-rare") {
             params.orderKind = "looks-rare-v2";
+          }
+
+          // Blacklist checks
+          if (collectionId) {
+            await checkBlacklistAndFallback(collectionId, params);
+          }
+          if (token) {
+            await checkBlacklistAndFallback(token.split(":")[0], params);
           }
 
           // Only single-contract token sets are biddable
@@ -458,7 +471,7 @@ export const getExecuteBidV5Options: RouteOptions = {
           }
 
           try {
-            const WETH = Sdk.Common.Addresses.Weth[config.chainId];
+            const WETH = Sdk.Common.Addresses.WNative[config.chainId];
             const BETH = Sdk.Blur.Addresses.Beth[config.chainId];
 
             // Default currency for Blur is BETH
@@ -491,7 +504,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                     orderIndex: i,
                   });
                 } else {
-                  const weth = new Sdk.Common.Helpers.Weth(baseProvider, config.chainId);
+                  const weth = new Sdk.Common.Helpers.WNative(baseProvider, config.chainId);
                   const wrapTx = weth.depositTransaction(maker, totalPrice.sub(currencyBalance));
 
                   steps[1].items.push({
@@ -558,6 +571,11 @@ export const getExecuteBidV5Options: RouteOptions = {
                     authToken: blurAuth!.accessToken,
                   });
 
+                  // Blur returns the nonce as a BigNumber object
+                  signData.value.nonce = signData.value.nonce.hex ?? signData.value.nonce;
+
+                  const id = new Sdk.BlurV2.Order(config.chainId, signData.value).hash();
+
                   steps[3].items.push({
                     status: "incomplete",
                     data: {
@@ -577,6 +595,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                               order: {
                                 kind: "blur",
                                 data: {
+                                  id,
                                   maker,
                                   marketplaceData,
                                   authToken: blurAuth!.accessToken,
@@ -595,17 +614,14 @@ export const getExecuteBidV5Options: RouteOptions = {
                     orderIndexes: [i],
                   });
 
-                  addExecution(
-                    new Sdk.Blur.Order(config.chainId, signData.value).hash(),
-                    params.quantity
-                  );
+                  addExecution(id, params.quantity);
                 }
 
                 break;
               }
 
               case "seaport-v1.5": {
-                if (!["reservoir", "opensea"].includes(params.orderbook)) {
+                if (!["reservoir", "opensea", "looks-rare"].includes(params.orderbook)) {
                   return errors.push({
                     message: "Unsupported orderbook",
                     orderIndex: i,
@@ -618,7 +634,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                   params.royaltyBps !== undefined &&
                   Number(params.royaltyBps) < 50
                 ) {
-                  throw Boom.badRequest(
+                  throw getExecuteError(
                     "Royalties should be at least 0.5% when posting to OpenSea"
                   );
                 }
@@ -1006,101 +1022,6 @@ export const getExecuteBidV5Options: RouteOptions = {
                 break;
               }
 
-              case "flow": {
-                if (!["flow"].includes(params.orderbook)) {
-                  return errors.push({
-                    message: "Unsupported orderbook",
-                    orderIndex: i,
-                  });
-                }
-
-                if (params.fees?.length) {
-                  return errors.push({
-                    message: "Custom fees not supported",
-                    orderIndex: i,
-                  });
-                }
-                if (params.excludeFlaggedTokens) {
-                  return errors.push({
-                    message: "Flagged tokens exclusion not supported",
-                    orderIndex: i,
-                  });
-                }
-
-                let order: Sdk.Flow.Order;
-                if (token) {
-                  const [contract, tokenId] = token.split(":");
-                  order = await flowBuyToken.build({
-                    ...params,
-                    orderbook: "flow",
-                    maker,
-                    contract,
-                    tokenId,
-                  });
-                } else if (collection) {
-                  order = await flowBuyCollection.build({
-                    ...params,
-                    orderbook: "flow",
-                    maker,
-                    contract: collection,
-                  });
-                } else {
-                  return errors.push({
-                    message: "Only token and collection bids are supported",
-                    orderIndex: i,
-                  });
-                }
-
-                let approvalTx: TxData | undefined;
-                const wethApproval = await currency.getAllowance(
-                  maker,
-                  Sdk.Flow.Addresses.Exchange[config.chainId]
-                );
-
-                if (
-                  bn(wethApproval).lt(bn(order.params.startPrice)) ||
-                  bn(wethApproval).lt(bn(order.params.endPrice))
-                ) {
-                  approvalTx = currency.approveTransaction(
-                    maker,
-                    Sdk.Flow.Addresses.Exchange[config.chainId]
-                  );
-                }
-
-                steps[2].items.push({
-                  status: !approvalTx ? "complete" : "incomplete",
-                  data: approvalTx,
-                  orderIndexes: [i],
-                });
-                steps[3].items.push({
-                  status: "incomplete",
-                  data: {
-                    sign: order.getSignatureData(),
-                    post: {
-                      endpoint: "/order/v3",
-                      method: "POST",
-                      body: {
-                        order: {
-                          kind: "flow",
-                          data: {
-                            ...order.params,
-                          },
-                        },
-                        tokenSetId,
-                        collection,
-                        orderbook: params.orderbook,
-                        source,
-                      },
-                    },
-                  },
-                  orderIndexes: [i],
-                });
-
-                addExecution(order.hash(), params.quantity);
-
-                break;
-              }
-
               case "x2y2": {
                 if (!["x2y2"].includes(params.orderbook)) {
                   return errors.push({
@@ -1196,7 +1117,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                 break;
               }
 
-              case "universe": {
+              case "payment-processor": {
                 if (!["reservoir"].includes(params.orderbook)) {
                   return errors.push({
                     message: "Unsupported orderbook",
@@ -1204,18 +1125,24 @@ export const getExecuteBidV5Options: RouteOptions = {
                   });
                 }
 
-                let order: Sdk.Universe.Order;
+                let order: Sdk.PaymentProcessor.Order;
                 if (token) {
                   const [contract, tokenId] = token.split(":");
-                  order = await universeBuyToken.build({
+                  order = await paymentProcessorBuyToken.build({
                     ...params,
                     maker,
                     contract,
                     tokenId,
                   });
+                } else if (collection) {
+                  order = await paymentProcessorBuyCollection.build({
+                    ...params,
+                    maker,
+                    collection,
+                  });
                 } else {
                   return errors.push({
-                    message: "Only token bids are supported",
+                    message: "Only token and collection bids are supported",
                     orderIndex: i,
                   });
                 }
@@ -1224,12 +1151,12 @@ export const getExecuteBidV5Options: RouteOptions = {
                 let approvalTx: TxData | undefined;
                 const wethApproval = await currency.getAllowance(
                   maker,
-                  Sdk.Universe.Addresses.Exchange[config.chainId]
+                  Sdk.PaymentProcessor.Addresses.Exchange[config.chainId]
                 );
-                if (bn(wethApproval).lt(bn(order.params.make.value))) {
+                if (bn(wethApproval).lt(bn(order.params.price))) {
                   approvalTx = currency.approveTransaction(
                     maker,
-                    Sdk.Universe.Addresses.Exchange[config.chainId]
+                    Sdk.PaymentProcessor.Addresses.Exchange[config.chainId]
                   );
                 }
 
@@ -1243,17 +1170,25 @@ export const getExecuteBidV5Options: RouteOptions = {
                   data: {
                     sign: order.getSignatureData(),
                     post: {
-                      endpoint: "/order/v3",
+                      endpoint: "/order/v4",
                       method: "POST",
                       body: {
-                        order: {
-                          kind: "universe",
-                          data: {
-                            ...order.params,
+                        items: [
+                          {
+                            order: {
+                              kind: "payment-processor",
+                              data: {
+                                ...order.params,
+                              },
+                            },
+                            tokenSetId,
+                            attribute,
+                            collection,
+                            isNonFlagged: params.excludeFlaggedTokens,
+                            orderbook: params.orderbook,
+                            orderbookApiKey: params.orderbookApiKey,
                           },
-                        },
-                        orderbook: params.orderbook,
-                        orderbookApiKey: params.orderbookApiKey,
+                        ],
                         source,
                       },
                     },
@@ -1261,7 +1196,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                   orderIndexes: [i],
                 });
 
-                addExecution(order.hashOrderKey(), params.quantity);
+                addExecution(order.hash(), params.quantity);
 
                 break;
               }
@@ -1431,7 +1366,7 @@ export const getExecuteBidV5Options: RouteOptions = {
         steps[1].items = [];
         for (const [to, amount] of Object.entries(amounts)) {
           if (amount.gt(0)) {
-            const weth = new Sdk.Common.Helpers.Weth(baseProvider, config.chainId);
+            const weth = new Sdk.Common.Helpers.WNative(baseProvider, config.chainId);
             const wrapTx = weth.depositTransaction(maker, amount);
 
             steps[1].items.push({
@@ -1446,7 +1381,7 @@ export const getExecuteBidV5Options: RouteOptions = {
       }
 
       if (!steps[3].items.length) {
-        const error = Boom.badRequest("No bids can be created");
+        const error = getExecuteError("No orders can be created");
         error.output.payload.errors = errors;
         throw error;
       }

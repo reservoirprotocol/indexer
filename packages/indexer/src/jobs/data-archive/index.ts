@@ -1,9 +1,8 @@
 import { config } from "@/config/index";
 
-import * as processArchiveData from "@/jobs/data-archive/process-archive-data";
-
 import cron from "node-cron";
 import { redlock } from "@/common/redis";
+import { processArchiveDataJob } from "@/jobs/data-archive/process-archive-data-job";
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
@@ -14,8 +13,8 @@ if (config.doBackgroundWork) {
       await redlock
         .acquire([`data-archive-cron-lock`], (10 * 60 - 5) * 1000)
         .then(async () => {
-          await processArchiveData.addToQueue("bid_events");
-          await processArchiveData.addToQueue("orders", "bids");
+          await processArchiveDataJob.addToQueue({ tableName: "bid_events" });
+          await processArchiveDataJob.addToQueue({ tableName: "orders", type: "bids" });
         })
         .catch(() => {
           // Skip on any errors

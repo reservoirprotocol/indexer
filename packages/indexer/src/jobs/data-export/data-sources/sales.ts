@@ -76,8 +76,8 @@ export class SalesDataSourceV2 extends BaseDataSource {
         const currency = await getCurrency(
           fromBuffer(r.currency) === AddressZero
             ? r.order_side === "sell"
-              ? Sdk.Common.Addresses.Eth[config.chainId]
-              : Sdk.Common.Addresses.Weth[config.chainId]
+              ? Sdk.Common.Addresses.Native[config.chainId]
+              : Sdk.Common.Addresses.WNative[config.chainId]
             : fromBuffer(r.currency)
         );
 

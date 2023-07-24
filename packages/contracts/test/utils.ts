@@ -117,13 +117,6 @@ export const setupRouterWithModules = async (chainId: number, deployer: SignerWi
 
   // Deploy modules
 
-  const looksRareModule = await ethers
-    .getContractFactory("LooksRareModule", deployer)
-    .then((factory) =>
-      factory.deploy(deployer.address, router.address, Sdk.LooksRare.Addresses.Exchange[chainId])
-    );
-  Sdk.RouterV6.Addresses.LooksRareModule[chainId] = looksRareModule.address.toLowerCase();
-
   const seaportModule = await ethers
     .getContractFactory("SeaportModule", deployer)
     .then((factory) =>
@@ -151,11 +144,23 @@ export const setupRouterWithModules = async (chainId: number, deployer: SignerWi
       factory.deploy(
         deployer.address,
         deployer.address,
-        Sdk.Common.Addresses.Weth[chainId],
+        Sdk.Common.Addresses.WNative[chainId],
         Sdk.Common.Addresses.SwapRouter[chainId]
       )
     )) as any;
   Sdk.RouterV6.Addresses.SwapModule[chainId] = swapModule.address.toLowerCase();
+
+  const oneInchSwapModule = (await ethers
+    .getContractFactory("OneInchSwapModule", deployer)
+    .then((factory) =>
+      factory.deploy(
+        deployer.address,
+        deployer.address,
+        Sdk.Common.Addresses.WNative[chainId],
+        Sdk.Common.Addresses.AggregationRouterV5[chainId]
+      )
+    )) as any;
+  Sdk.RouterV6.Addresses.OneInchSwapModule[chainId] = oneInchSwapModule.address.toLowerCase();
 
   const approvalProxy = await ethers
     .getContractFactory("ReservoirApprovalProxy", deployer)
@@ -163,6 +168,11 @@ export const setupRouterWithModules = async (chainId: number, deployer: SignerWi
       factory.deploy(Sdk.SeaportBase.Addresses.ConduitController[chainId], router.address)
     );
   Sdk.RouterV6.Addresses.ApprovalProxy[chainId] = approvalProxy.address.toLowerCase();
+
+  const permitProxy = await ethers
+    .getContractFactory("PermitProxy", deployer)
+    .then((factory) => factory.deploy(router.address, deployer.address));
+  Sdk.RouterV6.Addresses.PermitProxy[chainId] = permitProxy.address.toLowerCase();
 
   const conduitKey = await setupConduit(chainId, deployer, [approvalProxy.address]);
   Sdk.SeaportBase.Addresses.ReservoirConduitKey[chainId] = conduitKey;

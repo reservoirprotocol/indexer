@@ -54,7 +54,7 @@ export const setupListings = async (listings: Listing[]) => {
         contract: nft.contract.address,
         tokenId: nft.id,
         amount: nft.amount ?? 1,
-        paymentToken: paymentToken ?? Sdk.Common.Addresses.Eth[chainId],
+        paymentToken: paymentToken ?? Sdk.Common.Addresses.Native[chainId],
         price,
         counter: 0,
         startTime: await getCurrentTimestamp(ethers.provider),
@@ -101,7 +101,7 @@ export const setupOffers = async (offers: Offer[]) => {
   for (const offer of offers) {
     const { buyer, nft, price, fees } = offer;
 
-    const weth = new Sdk.Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Sdk.Common.Helpers.WNative(ethers.provider, chainId);
     await weth.deposit(buyer, price);
     await weth.approve(buyer, Sdk.SeaportV14.Addresses.Exchange[chainId]);
 

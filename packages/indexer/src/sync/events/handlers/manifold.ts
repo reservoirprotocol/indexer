@@ -228,7 +228,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         let tokenContract: string | undefined;
         let tokenId: string | undefined;
         let currencyPrice: string | undefined;
-        let currency = Sdk.Common.Addresses.Eth[config.chainId];
+        let currency = Sdk.Common.Addresses.Native[config.chainId];
         let purchasedAmount: string | undefined;
         let tokenKey: string | undefined;
 
@@ -345,7 +345,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const listingId = parsedLog.args["listingId"].toString();
         const currencyPrice = parsedLog.args["amount"].toString();
         const maker = parsedLog.args["oferrer"].toLowerCase();
-        let currency = Sdk.Common.Addresses.Eth[config.chainId];
+        let currency = Sdk.Common.Addresses.Native[config.chainId];
 
         const orderId = manifold.getOrderId(listingId);
 
@@ -472,6 +472,25 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         });
 
         break;
+      }
+
+      case "manifold-claim-initialized":
+      case "manifold-claim-updated": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const collection = parsedLog.args["creatorContract"].toLowerCase();
+        const instanceId = parsedLog.args["claimIndex"].toString();
+
+        onChainData.mints.push({
+          by: "collection",
+          data: {
+            standard: "manifold",
+            collection,
+            additionalInfo: {
+              extension: baseEventParams.address,
+              instanceId,
+            },
+          },
+        });
       }
     }
   }

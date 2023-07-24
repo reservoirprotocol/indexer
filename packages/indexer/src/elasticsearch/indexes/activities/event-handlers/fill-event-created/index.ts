@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { toBuffer } from "@/common/utils";
-import { redb } from "@/common/db";
+import { idb } from "@/common/db";
 
 import {
   ActivityDocument,
@@ -26,7 +26,7 @@ export class FillEventCreatedEventHandler extends BaseActivityEventHandler {
   }
 
   async generateActivity(): Promise<ActivityDocument> {
-    const data = await redb.oneOrNone(
+    const data = await idb.oneOrNone(
       `
                 ${FillEventCreatedEventHandler.buildBaseQuery()}
                 WHERE tx_hash = $/txHash/
@@ -78,6 +78,7 @@ export class FillEventCreatedEventHandler extends BaseActivityEventHandler {
                   price AS "pricing_price",
                   currency_price AS "pricing_currency_price",
                   usd_price AS "pricing_usd_price",
+                  extract(epoch from created_at) AS "created_ts",
                   t.*,
                   o.*
                 FROM fill_events_2

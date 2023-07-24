@@ -157,6 +157,7 @@ export const getCollectionsV4Options: RouteOptions = {
               SELECT tokens.image FROM tokens
               WHERE tokens.collection_id = collections.id
               AND tokens.image IS NOT NULL
+              ORDER BY rarity_rank DESC NULLS LAST
               LIMIT 4
             )
           ) AS sample_images,

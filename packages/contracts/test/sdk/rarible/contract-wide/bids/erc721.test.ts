@@ -35,7 +35,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
     const price = parseEther("1");
     const soldTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -65,7 +65,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
       contract: erc721.address,
       price: price.toString(),
       tokenAmount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V2,
@@ -104,7 +104,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
     const price = parseEther("1");
     const soldTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -137,7 +137,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
       tokenId: soldTokenId.toString(),
       price: price.toString(),
       tokenAmount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       orderType: Rarible.Constants.ORDER_TYPES.V2,
       dataType: Rarible.Constants.ORDER_DATA_TYPES.V3_SELL,
       startTime: 0,
@@ -176,9 +176,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
 
     let priceAfterFees = price;
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
 
     expect(sellerBalanceAfter).to.be.eq(0);
@@ -193,7 +191,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
     const price = parseEther("1");
     const soldTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -223,7 +221,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
       contract: erc721.address,
       price: price.toString(),
       tokenAmount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V1,
@@ -265,7 +263,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
     const price = parseEther("1");
     const soldTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -295,7 +293,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
       contract: erc721.address,
       price: price.toString(),
       tokenAmount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V1,
@@ -337,7 +335,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
     const price = parseEther("1");
     const soldTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -367,7 +365,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
       contract: erc721.address,
       price: price.toString(),
       tokenAmount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V2,
@@ -409,7 +407,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
     const price = parseEther("1");
     const soldTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -439,7 +437,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
       contract: erc721.address,
       price: price.toString(),
       tokenAmount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V2,
@@ -484,7 +482,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
     const price = parseEther("1");
     const soldTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -514,7 +512,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
       contract: erc721.address,
       price: price.toString(),
       tokenAmount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V2,
@@ -554,7 +552,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
     const price = parseEther("1");
     const soldTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -584,7 +582,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
       contract: erc721.address,
       price: price.toString(),
       tokenAmount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V2,
@@ -622,7 +620,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
     const price = parseEther("1");
     const soldTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -655,7 +653,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
       tokenId: soldTokenId.toString(),
       price: price.toString(),
       tokenAmount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       orderType: Rarible.Constants.ORDER_TYPES.V2,
       dataType: Rarible.Constants.ORDER_DATA_TYPES.V3_SELL,
       startTime: 0,
@@ -695,9 +693,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
 
     let priceAfterFees = price;
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
 
     expect(sellerBalanceAfter).to.be.eq(0);
@@ -710,7 +706,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
     const price = parseEther("1");
     const soldTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -743,7 +739,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
       tokenId: soldTokenId.toString(),
       price: price.toString(),
       tokenAmount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       orderType: Rarible.Constants.ORDER_TYPES.V2,
       dataType: Rarible.Constants.ORDER_DATA_TYPES.V3_SELL,
       startTime: 0,
@@ -774,9 +770,7 @@ describe("Rarible - ContractWide Bids Erc721", () => {
 
     let priceAfterFees = price;
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
 
     expect(sellerBalanceAfter).to.be.eq(0);

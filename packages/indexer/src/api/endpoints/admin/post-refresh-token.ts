@@ -7,13 +7,14 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
-import * as orderFixes from "@/jobs/order-fixes/fixes";
-import * as resyncAttributeCache from "@/jobs/update-attribute/resync-attribute-cache";
-import * as tokenRefreshCacheQueue from "@/jobs/token-updates/token-refresh-cache";
 import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
+import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
+import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
+import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
 
 export const postRefreshTokenOptions: RouteOptions = {
   description: "Refresh a token's orders and metadata",
@@ -60,12 +61,12 @@ export const postRefreshTokenOptions: RouteOptions = {
       // Refresh meta data
       const collection = await Collections.getByContractAndTokenId(contract, tokenId);
 
-      await metadataIndexFetch.addToQueue(
+      await metadataIndexFetchJob.addToQueue(
         [
           {
             kind: "single-token",
             data: {
-              method: metadataIndexFetch.getIndexingMethod(collection?.community || null),
+              method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
               contract,
               tokenId,
               collection: collection?.id || contract,
@@ -76,13 +77,16 @@ export const postRefreshTokenOptions: RouteOptions = {
       );
 
       // Revalidate the token orders
-      await orderFixes.addToQueue([{ by: "token", data: { token: payload.token } }]);
+      await orderFixesJob.addToQueue([{ by: "token", data: { token: payload.token } }]);
 
       // Revalidate the token attribute cache
-      await resyncAttributeCache.addToQueue(contract, tokenId, 0);
+      await resyncAttributeCacheJob.addToQueue({ contract, tokenId }, 0);
 
       // Refresh the token floor sell and top bid
-      await tokenRefreshCacheQueue.addToQueue(contract, tokenId, true);
+      await tokenRefreshCacheJob.addToQueue({ contract, tokenId, checkTopBid: true });
+
+      // Recalc supply
+      await tokenReclacSupplyJob.addToQueue([{ contract, tokenId }]);
 
       return { message: "Request accepted" };
     } catch (error) {

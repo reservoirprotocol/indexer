@@ -3,7 +3,6 @@ import { HashZero } from "@ethersproject/constants";
 import { searchForCall } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
 
-import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
@@ -86,6 +85,12 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           orderSide = isSellOrder ? "sell" : "buy";
           maker = isSellOrder ? traderOfSell : traderOfBuy;
           taker = isSellOrder ? traderOfBuy : traderOfSell;
+
+          const callFromBlend =
+            executeCallTraceCall?.from === Sdk.Blend.Addresses.Blend[config.chainId];
+          if (callFromBlend) {
+            taker = (await utils.fetchTransaction(baseEventParams.txHash)).from.toLowerCase();
+          }
         }
 
         if (routers.get(maker)) {
@@ -94,11 +99,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         if (taker === Sdk.Blend.Addresses.Blend[config.chainId]) {
           taker = (await utils.fetchTransaction(baseEventParams.txHash)).from.toLowerCase();
         }
-
-        logger.info(
-          "blur-sales-debug",
-          JSON.stringify({ txHash: baseEventParams.txHash, taker, after: false })
-        );
 
         // Handle: attribution
         const orderKind = "blur";
@@ -112,15 +112,10 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           taker = attributionData.taker;
         }
 
-        logger.info(
-          "blur-sales-debug",
-          JSON.stringify({ txHash: baseEventParams.txHash, taker, after: true })
-        );
-
         // Handle: prices
         const currency =
           sell.paymentToken.toLowerCase() === Sdk.Blur.Addresses.Beth[config.chainId]
-            ? Sdk.Common.Addresses.Eth[config.chainId]
+            ? Sdk.Common.Addresses.Native[config.chainId]
             : sell.paymentToken.toLowerCase();
         const currencyPrice = sell.price.div(sell.amount).toString();
 
@@ -129,7 +124,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           currencyPrice,
           baseEventParams.timestamp
         );
-
         if (!priceData.nativePrice) {
           // We must always have the native price
           break;
@@ -163,8 +157,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           fillSourceId: attributionData.fillSource?.id,
           baseEventParams,
         });
-
-        logger.info("blur-sales-debug", JSON.stringify({ fillEvents: onChainData.fillEvents }));
 
         onChainData.fillInfos.push({
           context: `${orderId}-${baseEventParams.txHash}`,

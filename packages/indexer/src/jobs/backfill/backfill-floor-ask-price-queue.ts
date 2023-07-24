@@ -9,7 +9,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as updateNftBalanceFloorAskPriceQueue from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
+import { nftBalanceUpdateFloorAskJob } from "@/jobs/nft-balance-updates/update-floor-ask-price-job";
 
 const QUEUE_NAME = "nft-balance-updates-backfill-floor-ask-price-queue";
 
@@ -80,7 +80,7 @@ if (config.doBackgroundWork) {
           });
         }
 
-        await updateNftBalanceFloorAskPriceQueue.addToQueue(updateFloorAskPriceInfos);
+        await nftBalanceUpdateFloorAskJob.addToQueue(updateFloorAskPriceInfos);
 
         if (sellOrders.length == limit) {
           const lastSellOrder = _.last(sellOrders);
@@ -109,17 +109,6 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
-
-  // !!! DISABLED
-
-  // redlock
-  //   .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
-  //   .then(async () => {
-  //     await addToQueue();
-  //   })
-  //   .catch(() => {
-  //     // Skip on any errors
-  //   });
 }
 
 export type CursorInfo = {

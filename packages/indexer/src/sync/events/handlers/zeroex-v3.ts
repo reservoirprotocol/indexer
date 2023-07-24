@@ -75,9 +75,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const decodedFtData = defaultAbiCoder.decode(["address"], ftData.replace(ERC20Proxy, "0x"));
 
         let currency = decodedFtData[0].toLowerCase();
-        if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
+        if (currency === Sdk.ZeroExV4.Addresses.Native[config.chainId]) {
           // Map the weird ZeroEx ETH address to the default ETH address
-          currency = Sdk.Common.Addresses.Eth[config.chainId];
+          currency = Sdk.Common.Addresses.Native[config.chainId];
         }
 
         const currencyPrice =
@@ -141,6 +141,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             amount: amount.toString(),
             price: priceData.nativePrice,
             timestamp: baseEventParams.timestamp,
+            maker,
+            taker,
           });
         }
 

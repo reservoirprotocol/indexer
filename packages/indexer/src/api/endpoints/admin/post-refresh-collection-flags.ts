@@ -9,7 +9,7 @@ import { config } from "@/config/index";
 import { regex } from "@/common/utils";
 
 import { PendingFlagStatusSyncJobs } from "@/models/pending-flag-status-sync-jobs";
-import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
+import { flagStatusProcessJob } from "@/jobs/flag-status/flag-status-process-job";
 
 export const postRefreshCollectionFlagsOptions: RouteOptions = {
   description: "Refresh tokens flag status for the given collection",
@@ -48,7 +48,7 @@ export const postRefreshCollectionFlagsOptions: RouteOptions = {
         },
       ]);
 
-      await flagStatusProcessQueue.addToQueue();
+      await flagStatusProcessJob.addToQueue();
 
       return { message: "Request accepted" };
     } catch (error) {

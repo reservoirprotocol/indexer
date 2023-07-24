@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { redb } from "@/common/db";
+import { idb } from "@/common/db";
 
 import { ActivityDocument, ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { getActivityHash } from "@/elasticsearch/indexes/activities/utils";
@@ -23,7 +23,7 @@ export class AskCreatedEventHandler extends BaseActivityEventHandler {
   }
 
   async generateActivity(): Promise<ActivityDocument> {
-    const data = await redb.oneOrNone(
+    const data = await idb.oneOrNone(
       `
           ${AskCreatedEventHandler.buildBaseQuery()}
           WHERE id = $/orderId/
@@ -64,12 +64,14 @@ export class AskCreatedEventHandler extends BaseActivityEventHandler {
           orders.currency_value AS "pricing_currency_value",
           orders.normalized_value AS "pricing_normalized_value",
           orders.currency_normalized_value AS "pricing_currency_normalized_value",
-          (orders.quantity_filled + orders.quantity_remaining) AS amount,
+          (orders.quantity_filled + orders.quantity_remaining) AS "amount",
           orders.source_id_int AS "order_source_id_int",
           orders.fee_bps AS "pricing_fee_bps",
           (${orderCriteriaBuildQuery}) AS "order_criteria",
-          extract(epoch from orders.created_at) AS created_ts,
-          extract(epoch from orders.updated_at) AS updated_ts,
+          extract(epoch from orders.created_at) AS "created_ts",
+          extract(epoch from orders.updated_at) AS "updated_ts",
+          extract(epoch from orders.originated_at) AS "originated_ts",
+          DATE_PART('epoch', LOWER(orders.valid_between)) AS "valid_from",
           t.*
         FROM orders
         LEFT JOIN LATERAL (
@@ -91,6 +93,8 @@ export class AskCreatedEventHandler extends BaseActivityEventHandler {
 
   /* eslint-disable @typescript-eslint/no-explicit-any */
   parseEvent(data: any) {
-    data.timestamp = Math.floor(data.created_ts);
+    data.timestamp = data.originated_ts
+      ? Math.floor(data.originated_ts)
+      : data.valid_from || Math.floor(data.created_ts);
   }
 }
