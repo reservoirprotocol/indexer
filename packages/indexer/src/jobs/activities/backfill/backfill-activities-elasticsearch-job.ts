@@ -39,6 +39,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         ...CONFIG[indexConfig!],
+        refresh_interval: "-1",
       };
 
       const createIndexResponse = await elasticsearch.indices.create(params);
