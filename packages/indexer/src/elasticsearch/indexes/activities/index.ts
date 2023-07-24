@@ -1074,13 +1074,18 @@ export const updateActivitiesTokenMetadata = async (
   };
 
   try {
-    const pendingUpdateActivities = await _search({
-      // This is needed due to issue with elasticsearch DSL.
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      query,
-      size: 1000,
-    });
+    const debug = contract.toLowerCase() === "0xf178e1e50b42b6dfdcc8a1d0e8c773d57413dffe";
+
+    const pendingUpdateActivities = await _search(
+      {
+        // This is needed due to issue with elasticsearch DSL.
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        query,
+        size: 1000,
+      },
+      debug
+    );
 
     if (pendingUpdateActivities.length) {
       const bulkParams = {
