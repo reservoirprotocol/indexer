@@ -6,7 +6,7 @@ import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { syncEvents } from "@/events-sync/index";
 
-const QUEUE_NAME = "events-sync-backfill";
+const QUEUE_NAME = "historical-events-sync";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
@@ -26,7 +26,7 @@ export const queue = new Queue(QUEUE_NAME, {
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork && config.enableRealtimeProcessing) {
+if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job) => {

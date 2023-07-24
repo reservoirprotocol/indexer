@@ -10,7 +10,7 @@ import * as syncEventsUtils from "@/events-sync/utils";
 import * as blocksModel from "@/models/blocks";
 import getUuidByString from "uuid-by-string";
 import { BlockWithTransactions } from "@ethersproject/abstract-provider";
-import * as realtimeEventsSync from "@/jobs/events-sync/realtime-queue";
+import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
 
 import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
 import { Block } from "@/models/blocks";
@@ -20,7 +20,7 @@ import { TransactionReceipt } from "@ethersproject/providers";
 import {
   supports_eth_getBlockReceipts,
   supports_eth_getBlockTrace,
-} from "@/jobs/events-sync/realtime-queue";
+} from "@/jobs/events-sync/events-sync-realtime-job";
 import { baseProvider } from "@/common/provider";
 import { redis } from "@/common/redis";
 
@@ -535,7 +535,7 @@ export const checkForMissingBlocks = async (block: number) => {
         // if we are missing more than 1 block, we need to sync the missing blocks
         for (let i = latestBlockNumber + 1; i < block; i++) {
           logger.info("sync-events-v2", `Found missing block: ${i}`);
-          await realtimeEventsSync.addToQueue({ block: i });
+          await eventsSyncRealtimeJob.addToQueue({ block: i });
         }
       }
     }
