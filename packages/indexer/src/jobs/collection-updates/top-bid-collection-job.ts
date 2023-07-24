@@ -143,10 +143,6 @@ export class TopBidCollectionJob extends AbstractRabbitMqJobHandler {
           }
         } else {
           // clear the cache
-          logger.info(
-            this.queueName,
-            `Clearing collection top-bid value for collection ${payload.collectionId}`
-          );
           await topBidsCache.clearCacheCollectionTopBidValue(payload.collectionId);
         }
       } catch (error) {
