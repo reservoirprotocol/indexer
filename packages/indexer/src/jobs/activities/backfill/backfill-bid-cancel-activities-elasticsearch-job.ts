@@ -112,6 +112,19 @@ export class BackfillBidCancelActivitiesElasticsearchJob extends AbstractRabbitM
           keepGoing
         );
       } else if (keepGoing) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "addToQueueDebug",
+            message: `No Results - Keep Going.`,
+            fromTimestamp,
+            toTimestamp,
+            cursor,
+            indexName,
+            keepGoing,
+          })
+        );
+
         await this.addToQueue(cursor, fromTimestamp, toTimestamp, indexName, keepGoing);
       } else {
         logger.info(
@@ -159,6 +172,7 @@ export class BackfillBidCancelActivitiesElasticsearchJob extends AbstractRabbitM
       this.queueName,
       JSON.stringify({
         topic: "addToQueueDebug",
+        message: `Adding To Queue.`,
         fromTimestamp,
         toTimestamp,
         cursor,
