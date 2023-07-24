@@ -168,6 +168,11 @@ export class BackfillBidCancelActivitiesElasticsearchJob extends AbstractRabbitM
     if (!config.doElasticsearchWork) {
       return;
     }
+
+    const jobId = cursor
+      ? `${fromTimestamp}:${toTimestamp}:${keepGoing}:${indexName}:${cursor.updatedAt}:${cursor.id}`
+      : `${fromTimestamp}:${toTimestamp}:${keepGoing}:${indexName}`;
+
     logger.info(
       this.queueName,
       JSON.stringify({
@@ -178,14 +183,13 @@ export class BackfillBidCancelActivitiesElasticsearchJob extends AbstractRabbitM
         cursor,
         indexName,
         keepGoing,
+        jobId,
       })
     );
 
-    await this.send({
+    return this.send({
       payload: { cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
-      jobId: cursor
-        ? `${fromTimestamp}:${toTimestamp}:${keepGoing}:${indexName}:${cursor.updatedAt}:${cursor.id}`
-        : `${fromTimestamp}:${toTimestamp}:${keepGoing}:${indexName}`,
+      jobId,
     });
   }
 }
