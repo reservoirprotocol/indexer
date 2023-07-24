@@ -157,7 +157,12 @@ export class CollectionNormalizedJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue(params: CollectionNormalizedJobPayload[]) {
-    await this.sendBatch(params.map((info) => ({ payload: info })));
+    await this.sendBatch(
+      params.map((info) => ({
+        payload: info,
+        jobId: `${info.kind}${info.contract}${info.tokenId}${info.txHash}${info.txTimestamp}`,
+      }))
+    );
   }
 }
 
