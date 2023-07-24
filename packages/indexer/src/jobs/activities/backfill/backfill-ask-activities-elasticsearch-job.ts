@@ -154,7 +154,12 @@ export class BackfillAskActivitiesElasticsearchJob extends AbstractRabbitMqJobHa
     if (!config.doElasticsearchWork) {
       return;
     }
-    await this.send({ payload: { cursor, fromTimestamp, toTimestamp, indexName, keepGoing } });
+    await this.send({
+      payload: { cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
+      jobId: cursor
+        ? `${fromTimestamp}:${toTimestamp}:${cursor.updatedAt}:${cursor.id}`
+        : `${fromTimestamp}:${toTimestamp}`,
+    });
   }
 }
 
