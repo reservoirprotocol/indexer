@@ -1,3 +1,5 @@
+/* eslint-disable no-console */
+
 import "@/jobs/index";
 import "@/jobs/cdc/index";
 import "@/config/polyfills";
@@ -26,26 +28,48 @@ const setup = async () => {
     return;
   }
 
+  console.log("setup - start");
+
   if (config.doBackgroundWork) {
+    console.log("setup - worker - sync sources");
+
     await Sources.syncSources();
+
+    console.log("setup - worker - startRabbitJobsConsumer");
+
     await RabbitMqJobsConsumer.startRabbitJobsConsumer();
 
     const networkSettings = getNetworkSettings();
     if (networkSettings.onStartup) {
+      console.log("setup - worker - networkSettings.onStartup");
+
       await networkSettings.onStartup();
     }
+
+    console.log("setup - worker - end");
   }
 
+  console.log("setup - Sources.getInstance");
+
   await Sources.getInstance();
+
+  console.log("setup - Sources.forceDataReload");
+
   await Sources.forceDataReload();
 
   if (config.doElasticsearchWork) {
+    console.log("setup - initIndexes");
+
     await initIndexes();
   }
 
   if (config.doKafkaWork) {
+    console.log("setup - startKafkaConsumer");
+
     await startKafkaConsumer();
   }
+
+  console.log("setup - end");
 };
 
 setup().then(() => start());
