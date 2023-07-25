@@ -2,7 +2,8 @@
 
 CREATE TABLE "blocks" (
   "hash" BYTEA NOT NULL,
-  "number" INT NOT NULL
+  "number" INT NOT NULL,
+  "timestamp" INT NOT NULL
 );
 
 ALTER TABLE "blocks"
