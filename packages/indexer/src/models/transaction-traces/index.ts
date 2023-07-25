@@ -25,6 +25,10 @@ export const saveTransactionTraces = async (transactionTraces: TransactionTrace[
     });
   }
 
+  if (values.length === 0) {
+    return;
+  }
+
   await txdb.none(
     `
       INSERT INTO "transaction_traces" (
