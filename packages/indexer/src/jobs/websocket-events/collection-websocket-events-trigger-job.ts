@@ -160,7 +160,7 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
             id: r.top_buy_id,
             value: r.top_buy_value ? formatEth(r.top_buy_value) : null,
             maker: r.top_buy_maker ? r.top_buy_maker : null,
-            validFrom: top_buy_valid_between[0],
+            validFrom: r.top_buy_value ? top_buy_valid_between[0] : null,
             validUntil: r.top_buy_value ? top_buy_valid_between[1] : null,
           },
           rank: {
@@ -201,21 +201,21 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
             id: r.floor_sell_id,
             price: r.floor_sell_id ? formatEth(r.floor_sell_value) : null,
             maker: r.floor_sell_id ? r.floor_sell_maker : null,
-            validFrom: floor_sell_valid_between[0],
+            validFrom: r.floor_sell_id ? floor_sell_valid_between[0] : null,
             validUntil: r.floor_sell_id ? floor_sell_valid_between[1] : null,
           },
           floorAskNormalized: {
             id: r.normalized_floor_sell_id,
             price: r.normalized_floor_sell_id ? formatEth(r.normalized_floor_sell_value) : null,
             maker: r.normalized_floor_sell_id ? r.normalized_floor_sell_maker : null,
-            validFrom: normalized_floor_sell_valid_between[0],
+            validFrom: r.normalized_floor_sell_id ? normalized_floor_sell_valid_between[0] : null,
             validUntil: r.normalized_floor_sell_id ? normalized_floor_sell_valid_between[1] : null,
           },
           floorAskNonFlagged: {
             id: r.non_flagged_floor_sell_id,
             price: r.non_flagged_floor_sell_id ? formatEth(r.non_flagged_floor_sell_value) : null,
             maker: r.non_flagged_floor_sell_id ? r.non_flagged_floor_sell_maker : null,
-            validFrom: non_flagged_floor_sell_valid_between[0],
+            validFrom: r.non_flagged_floor_sell_id ? non_flagged_floor_sell_valid_between[0] : null,
             validUntil: r.non_flagged_floor_sell_id
               ? non_flagged_floor_sell_valid_between[1]
               : null,
