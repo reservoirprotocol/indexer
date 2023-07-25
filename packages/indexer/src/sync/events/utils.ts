@@ -1,44 +1,47 @@
-import { Interface } from "@ethersproject/abi";
 import { AddressZero } from "@ethersproject/constants";
-import { JsonRpcProvider } from "@ethersproject/providers";
-import { getTxTraces } from "@georgeroman/evm-tx-simulator";
-import { getSourceV1 } from "@reservoir0x/sdk/dist/utils";
-import _ from "lodash";
+import { bn } from "@/common/utils";
 
 import { baseProvider } from "@/common/provider";
-import { bn } from "@/common/utils";
-import { extractNestedTx } from "@/events-sync/handlers/attribution";
-import { getBlocks, saveBlock } from "@/models/blocks";
-import { Sources } from "@/models/sources";
+
+import { Transaction, getTransaction, saveTransactionsV2 } from "@/models/transactions";
+import { TransactionReceipt } from "@ethersproject/providers";
+
+import { BlockWithTransactions } from "@ethersproject/abstract-provider";
+import { TransactionTrace } from "@/models/transaction-traces";
+import { ContractAddress, saveContractAddresses } from "@/models/contract_addresses";
+import { CallTrace } from "@georgeroman/evm-tx-simulator/dist/types";
+
+import { getTransactionTraces } from "@/models/transaction-traces";
+import { getSourceV1 } from "@reservoir0x/sdk/dist/utils";
+import { Interface } from "@ethersproject/abi";
 import { SourcesEntity } from "@/models/sources/sources-entity";
-import {
-  Transaction,
-  getTransaction,
-  saveTransaction,
-  saveTransactions,
-} from "@/models/transactions";
-import { getTransactionLogs, saveTransactionLogs } from "@/models/transaction-logs";
-import { getTransactionTraces, saveTransactionTraces } from "@/models/transaction-traces";
 import { OrderKind, getOrderSourceByOrderId, getOrderSourceByOrderKind } from "@/orderbook/orders";
 import { getRouters } from "@/utils/routers";
+import { Sources } from "@/models/sources";
+import { extractNestedTx } from "@/events-sync/handlers/attribution";
+import { getTransactionLogs } from "@/models/transaction-logs";
 
-export const fetchBlock = async (blockNumber: number, force = false) => {
-  if (!force) {
-    const blocks = await getBlocks(blockNumber);
-    if (blocks.length) {
-      return blocks[0];
-    }
-  }
-
+export const fetchBlock = async (blockNumber: number) => {
   const block = await baseProvider.getBlockWithTransactions(blockNumber);
+  return block;
+};
 
+export const saveBlockTransactions = async (
+  blockData: BlockWithTransactions,
+  transactionReceipts: TransactionReceipt[]
+) => {
   // Create transactions array to store
-  const transactions = block.transactions.map((tx) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rawTx = tx.raw as any;
+  const transactions = transactionReceipts.map((txReceipt) => {
+    const tx = blockData.transactions.find((t) => t.hash === txReceipt.transactionHash);
+    if (!tx)
+      throw new Error(
+        `Could not find transaction ${txReceipt.transactionHash} in block ${blockData.number}`
+      );
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const txRaw = tx.raw as any;
     const gasPrice = tx.gasPrice?.toString();
-    const gasUsed = rawTx?.gas ? bn(rawTx.gas).toString() : undefined;
+    const gasUsed = txRaw?.gas ? bn(txRaw.gas).toString() : undefined;
     const gasFee = gasPrice && gasUsed ? bn(gasPrice).mul(gasUsed).toString() : undefined;
 
     return {
@@ -47,117 +50,99 @@ export const fetchBlock = async (blockNumber: number, force = false) => {
       to: (tx.to || AddressZero).toLowerCase(),
       value: tx.value.toString(),
       data: tx.data.toLowerCase(),
-      blockNumber: block.number,
-      blockTimestamp: block.timestamp,
+      blockNumber: blockData.number,
+      blockTimestamp: blockData.timestamp,
       gasPrice,
       gasUsed,
       gasFee,
+      cumulativeGasUsed: txReceipt.cumulativeGasUsed.toString(),
+      contractAddress: txReceipt.contractAddress?.toLowerCase(),
+      logsBloom: txReceipt.logsBloom,
+      status: txReceipt.status === 1,
+      transactionIndex: txReceipt.transactionIndex,
     };
   });
 
   // Save all transactions within the block
-  await saveTransactions(transactions);
-
-  return saveBlock({
-    number: block.number,
-    hash: block.hash,
-    timestamp: block.timestamp,
-  });
+  await saveTransactionsV2(transactions);
 };
 
-export const fetchTransaction = async (txHash: string) =>
-  getTransaction(txHash).catch(async () => {
-    // TODO: This should happen very rarely since all transactions
-    // should be readily available. The only case when data misses
-    // is when a block reorg happens and the replacing block takes
-    // in transactions that were missing in the previous block. In
-    // this case we don't refetch the new block's transactions but
-    // assume it cannot include new transactions. But that's not a
-    // a good assumption so we should force re-fetch the new block
-    // together with its transactions when a reorg happens.
+export const fetchTransaction = async (hash: string) => {
+  const tx = await getTransaction(hash);
+  return tx;
+};
 
-    let tx = await baseProvider.getTransaction(txHash);
-    if (!tx) {
-      tx = await baseProvider.getTransaction(txHash);
-    }
+export const fetchTransactionTrace = async (hash: string) => {
+  const trace = await getTransactionTraces([hash]);
+  return trace[0];
+};
+export const fetchTransactionTraces = async (hashes: string[]) => {
+  const traces = await getTransactionTraces(hashes);
+  return traces;
+};
 
-    // Also fetch all transactions within the block
-    const blockTimestamp = (await fetchBlock(tx.blockNumber!, true)).timestamp;
+export const fetchTransactionLogs = async (hash: string) => {
+  const tx = await getTransactionLogs(hash);
+  return tx;
+};
 
-    // TODO: Fetch gas fields via `eth_getTransactionReceipt`
-    // Sometimes `effectiveGasPrice` can be null
-    // const txReceipt = await baseProvider.getTransactionReceipt(txHash);
-    // const gasPrice = txReceipt.effectiveGasPrice || tx.gasPrice || 0;
+export const getTracesFromBlock = async (blockNumber: number) => {
+  const traces = await baseProvider.send("debug_traceBlockByNumber", [
+    blockNumberToHex(blockNumber),
+    { tracer: "callTracer" },
+  ]);
+  return traces;
+};
 
-    return saveTransaction({
-      hash: tx.hash.toLowerCase(),
-      from: tx.from.toLowerCase(),
-      to: (tx.to || AddressZero).toLowerCase(),
-      value: tx.value.toString(),
-      data: tx.data.toLowerCase(),
-      blockNumber: tx.blockNumber!,
-      blockTimestamp,
-      // gasUsed: txReceipt.gasUsed.toString(),
-      // gasPrice: gasPrice.toString(),
-      // gasFee: txReceipt.gasUsed.mul(gasPrice).toString(),
+export const getTransactionReceiptsFromBlock = async (blockNumber: number) => {
+  const receipts = await baseProvider.send("eth_getBlockReceipts", [blockNumberToHex(blockNumber)]);
+  return receipts;
+};
+
+export const blockNumberToHex = (blockNumber: number) => {
+  return "0x" + blockNumber.toString(16);
+};
+
+const processCall = (trace: TransactionTrace, call: CallTrace) => {
+  const processedCalls = [];
+  if (call.type === "CREATE" || call.type === "CREATE2") {
+    processedCalls.push({
+      address: call.to,
+      deploymentTxHash: trace.hash,
+      deploymentSender: call.from,
+      deploymentFactory: call?.to || AddressZero,
+      bytecode: call.input,
     });
-  });
+  }
 
-export const fetchTransactionTraces = async (txHashes: string[], provider?: JsonRpcProvider) => {
-  // Some traces might already exist
-  const existingTraces = await getTransactionTraces(txHashes);
-  const existingTxHashes = Object.fromEntries(existingTraces.map(({ hash }) => [hash, true]));
+  if (call?.calls) {
+    call.calls.forEach((c) => {
+      const processedCall = processCall(trace, c);
+      if (processedCall) {
+        processedCalls.push(processedCall);
+      }
+    });
 
-  // Only fetch those that don't yet exist
-  const missingTxHashes = txHashes.filter((txHash) => !existingTxHashes[txHash]);
-  if (missingTxHashes.length) {
-    // For efficiency, fetch in multiple small batches
-    const batches = _.chunk(missingTxHashes, 10);
-    const missingTraces = (
-      await Promise.all(
-        batches.map(async (batch) => {
-          const missingTraces = Object.entries(
-            await getTxTraces(
-              batch.map((hash) => ({ hash })),
-              provider ?? baseProvider
-            )
-          ).map(([hash, calls]) => ({ hash, calls }));
-
-          // Save the newly fetched traces
-          await saveTransactionTraces(missingTraces);
-          return missingTraces;
-        })
-      )
-    ).flat();
-
-    return existingTraces.concat(missingTraces);
-  } else {
-    return existingTraces;
+    return processedCalls;
   }
 };
 
-export const fetchTransactionTrace = async (txHash: string) => {
-  try {
-    const traces = await fetchTransactionTraces([txHash]);
-    if (!traces.length) {
-      return undefined;
-    }
+export const processContractAddresses = async (traces: TransactionTrace[]) => {
+  const contractAddresses: ContractAddress[] = [];
 
-    return traces[0];
-  } catch {
-    return undefined;
-  }
-};
-
-export const fetchTransactionLogs = async (txHash: string) =>
-  getTransactionLogs(txHash).catch(async () => {
-    const receipt = await baseProvider.getTransactionReceipt(txHash);
-
-    return saveTransactionLogs({
-      hash: txHash,
-      logs: receipt.logs,
+  for (const trace of traces) {
+    // eslint-disable-next-line
+    // @ts-ignore
+    trace.calls.forEach((call) => {
+      const processedCall = processCall(trace, call);
+      if (processedCall) {
+        contractAddresses.push(...processedCall);
+      }
     });
-  });
+  }
+
+  await saveContractAddresses(contractAddresses);
+};
 
 export const extractAttributionData = async (
   txHash: string,

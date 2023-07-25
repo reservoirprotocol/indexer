@@ -7,8 +7,7 @@ import Joi from "joi";
 import { logger } from "@/common/logger";
 import { regex } from "@/common/utils";
 import { config } from "@/config/index";
-import { processResyncRequestJob } from "@/jobs/events-sync/process-resync-request-queue-job";
-
+import * as backfillQueue from "@/jobs/events-sync/historical-queue";
 export const postSyncEventsOptions: RouteOptions = {
   description: "Trigger syncing of events.",
   tags: ["api", "x-admin"],
@@ -46,17 +45,12 @@ export const postSyncEventsOptions: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      const syncDetails = payload.syncDetails;
       const fromBlock = payload.fromBlock;
       const toBlock = payload.toBlock;
-      const blocksPerBatch = payload.blocksPerBatch;
-      const backfill = payload.backfill;
 
-      await processResyncRequestJob.addToQueue(fromBlock, toBlock, {
-        backfill,
-        syncDetails,
-        blocksPerBatch,
-      });
+      for (const block of [fromBlock, toBlock]) {
+        await backfillQueue.addToQueue({ block });
+      }
 
       return { message: "Request accepted" };
     } catch (error) {

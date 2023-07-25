@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { StaticJsonRpcProvider } from "@ethersproject/providers";
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
@@ -12,7 +11,7 @@ import { config } from "@/config/index";
 import { assignRoyaltiesToFillEvents } from "@/events-sync/handlers/royalties";
 import * as es from "@/events-sync/storage";
 import { fetchTransactionTraces } from "@/events-sync/utils";
-import { blockCheckJob } from "@/jobs/events-sync/block-check-queue-job";
+import * as historicalEventsSync from "@/jobs/events-sync/historical-queue";
 
 const QUEUE_NAME = "backfill-sale-royalties";
 
@@ -198,13 +197,14 @@ if (config.doBackgroundWork) {
       // Fix any orhpaned blocks along the way
       for (const [block, blockHashes] of Object.entries(blockToBlockHash)) {
         if (blockHashes.size > 1) {
-          await blockCheckJob.addBulk(
-            [...blockHashes.values()].map((blockHash) => ({
-              block: Number(block),
-              blockHash,
-              delay: 0,
-            }))
-          );
+          await historicalEventsSync.addToQueue({ block: Number(block) });
+          // await blockCheckJob.addBulk(
+          //   [...blockHashes.values()].map((blockHash) => ({
+          //     block: Number(block),
+          //     blockHash,
+          //     delay: 0,
+          //   }))
+          // );
         }
       }
 
@@ -216,12 +216,7 @@ if (config.doBackgroundWork) {
         )
       );
 
-      const traces = await fetchTransactionTraces(
-        Object.keys(fillEventsPerTxHash),
-        process.env.BACKFILL_NETWORK_HTTP_URL
-          ? new StaticJsonRpcProvider(process.env.BACKFILL_NETWORK_HTTP_URL, config.chainId)
-          : undefined
-      );
+      const traces = await fetchTransactionTraces(Object.keys(fillEventsPerTxHash));
       await Promise.all(
         Object.values(traces).map(async (trace) =>
           redis.set(`fetch-transaction-trace:${trace.hash}`, JSON.stringify(trace), "EX", 10 * 60)

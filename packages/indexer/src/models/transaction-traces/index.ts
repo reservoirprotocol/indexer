@@ -1,6 +1,6 @@
 import { CallTrace } from "@georgeroman/evm-tx-simulator/dist/types";
 
-import { idb, pgp } from "@/common/db";
+import { txdb, pgp } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
 
 export type TransactionTrace = {
@@ -16,15 +16,18 @@ export const saveTransactionTraces = async (transactionTraces: TransactionTrace[
   });
 
   for (const { hash, calls } of transactionTraces) {
+    if (!calls) {
+      continue;
+    }
     values.push({
       hash: toBuffer(hash),
       calls,
     });
   }
 
-  await idb.none(
+  await txdb.none(
     `
-      INSERT INTO transaction_traces (
+      INSERT INTO "transaction_traces" (
         hash,
         calls
       ) VALUES ${pgp.helpers.values(values, columns)}
@@ -40,7 +43,7 @@ export const getTransactionTraces = async (hashes: string[]): Promise<Transactio
     return [];
   }
 
-  const result = await idb.manyOrNone(
+  const result = await txdb.manyOrNone(
     `
       SELECT
         transaction_traces.hash,

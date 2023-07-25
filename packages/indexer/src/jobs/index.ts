@@ -94,9 +94,6 @@ import { eventsSyncFtTransfersWriteBufferJob } from "@/jobs/events-sync/write-bu
 import { eventsSyncNftTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
 import { eventsSyncProcessBackfillJob } from "@/jobs/events-sync/process/events-sync-process-backfill";
 import { openseaBidsQueueJob } from "@/jobs/orderbook/opensea-bids-queue-job";
-import { processResyncRequestJob } from "@/jobs/events-sync/process-resync-request-queue-job";
-import { eventsSyncBackfillJob } from "@/jobs/events-sync/events-sync-backfill-job";
-import { blockCheckJob } from "@/jobs/events-sync/block-check-queue-job";
 import { collectionNormalizedJob } from "@/jobs/collection-updates/collection-normalized-floor-queue-job";
 import { replaceActivitiesCollectionJob } from "@/jobs/activities/replace-activities-collection-job";
 import { refreshActivitiesTokenMetadataJob } from "@/jobs/activities/refresh-activities-token-metadata-job";
@@ -214,9 +211,6 @@ export class RabbitMqJobsConsumer {
       eventsSyncNftTransfersWriteBufferJob,
       eventsSyncProcessBackfillJob,
       openseaBidsQueueJob,
-      processResyncRequestJob,
-      eventsSyncBackfillJob,
-      blockCheckJob,
       collectionNormalizedJob,
       replaceActivitiesCollectionJob,
       refreshActivitiesCollectionMetadataJob,
