@@ -227,8 +227,8 @@ export const getTransfersBulkV1Options: RouteOptions = {
           baseQuery += `
           ORDER BY
             nft_transfer_events.address ${query.sortDirection},
-            nft_transfer_events.token_id ${query.sortDirection}
-            nft_transfer_events.updated_at ${query.sortDirection},
+            nft_transfer_events.token_id ${query.sortDirection},
+            nft_transfer_events.updated_at ${query.sortDirection}
         `;
         } else {
           baseQuery += `
