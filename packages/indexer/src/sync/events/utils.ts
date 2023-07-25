@@ -105,8 +105,10 @@ export const blockNumberToHex = (blockNumber: number) => {
 
 const processCall = (trace: TransactionTrace, call: CallTrace) => {
   const processedCalls = [];
-  call.type as "CALL" | "STATICCALL" | "DELEGATECALL" | "CREATE" | "CREATE2";
-  if (call.type === "CREATE" || call.type === "CREATE2") {
+  if (
+    (call.type as "CALL" | "STATICCALL" | "DELEGATECALL" | "CREATE" | "CREATE2") === "CREATE" ||
+    (call.type as "CALL" | "STATICCALL" | "DELEGATECALL" | "CREATE" | "CREATE2") === "CREATE2"
+  ) {
     processedCalls.push({
       address: call.to,
       deploymentTxHash: trace.hash,
