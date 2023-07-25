@@ -29,7 +29,7 @@ export const idb = pgp({
 export const txdb = pgp({
   connectionString: config.txDatabaseUrl,
   keepAlive: true,
-  max: config.doBackgroundWork ? 160 : 80,
+  max: 60,
   connectionTimeoutMillis: 30 * 1000,
   query_timeout: 5 * 60 * 1000,
   statement_timeout: 5 * 60 * 1000,
