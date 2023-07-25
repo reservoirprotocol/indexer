@@ -65,7 +65,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             con.kind,
             c.name AS collection_name,
             c.slug,
-            (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
+            (c.metadata ->> 'imageUrl')::TEXT AS collection_image
           FROM contracts con
           LEFT JOIN collections c ON con.address = c.contract
           WHERE con.address = $/contract/
