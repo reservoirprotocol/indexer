@@ -1,8 +1,4 @@
-import { config } from "@/config/index";
-import { logger } from "@/common/logger";
-
 import { Log } from "@ethersproject/abstract-provider";
-
 import { concat } from "@/common/utils";
 import { EventKind, EventSubKind } from "@/events-sync/data";
 import { assignSourceToFillEvents } from "@/events-sync/handlers/utils/fills";
@@ -16,11 +12,6 @@ import {
   RecalcOwnerCountQueueJobPayload,
 } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import { mintQueueJob, MintQueueJobPayload } from "@/jobs/token-updates/mint-queue-job";
-import {
-  WebsocketEventKind,
-  WebsocketEventRouter,
-} from "@/jobs/websocket-events/websocket-event-router";
-
 import {
   processActivityEventJob,
   EventKind as ProcessActivityEventKind,
@@ -144,40 +135,6 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   ]);
 
   const endPersistOtherEvents = Date.now();
-
-  try {
-    if (config.doOldOrderWebsocketWork) {
-      await Promise.all([
-        ...data.nftTransferEvents.map((event) =>
-          WebsocketEventRouter({
-            eventInfo: {
-              address: event.baseEventParams.address,
-              block: event.baseEventParams.block.toString(),
-              timestamp: event.baseEventParams.timestamp.toString(),
-              tx_hash: event.baseEventParams.txHash,
-              tx_index: event.baseEventParams.txIndex.toString(),
-              log_index: event.baseEventParams.logIndex.toString(),
-              batch_index: event.baseEventParams.batchIndex.toString(),
-              to: event.to,
-              from: event.from,
-              amount: event.amount.toString(),
-              token_id: event.tokenId.toString(),
-              created_at: new Date(event.baseEventParams.timestamp).toISOString(),
-              is_deleted: false,
-              offset: "",
-              trigger: "insert",
-            },
-            eventKind: WebsocketEventKind.TransferEvent,
-          })
-        ),
-      ]);
-    }
-  } catch (error) {
-    logger.error(
-      "processOnChainData",
-      `Error processing websocket event. error=${JSON.stringify(error)}`
-    );
-  }
 
   // Trigger further processes:
   // - revalidate potentially-affected orders
