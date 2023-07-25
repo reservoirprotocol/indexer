@@ -131,13 +131,6 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   ]);
   const endPersistEvents = Date.now();
 
-  // concat all fill events
-  const allFillEventsForWebsocket = concat(
-    data.fillEvents,
-    data.fillEventsPartial,
-    data.fillEventsOnChain
-  );
-
   // Persist other events
   const startPersistOtherEvents = Date.now();
   await Promise.all([
@@ -155,19 +148,6 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   try {
     if (config.doOldOrderWebsocketWork) {
       await Promise.all([
-        ...allFillEventsForWebsocket.map((event) =>
-          WebsocketEventRouter({
-            eventInfo: {
-              tx_hash: event.baseEventParams.txHash,
-              log_index: event.baseEventParams.logIndex,
-              batch_index: event.baseEventParams.batchIndex,
-              trigger: "insert",
-              offset: "",
-            },
-            eventKind: WebsocketEventKind.SaleEvent,
-          })
-        ),
-
         ...data.nftTransferEvents.map((event) =>
           WebsocketEventRouter({
             eventInfo: {

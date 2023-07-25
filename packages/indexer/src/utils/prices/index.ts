@@ -1,7 +1,6 @@
 import { AddressZero } from "@ethersproject/constants";
 import { parseUnits } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk";
-import { Network } from "@reservoir0x/sdk/dist/utils";
 import axios from "axios";
 
 import { idb } from "@/common/db";
