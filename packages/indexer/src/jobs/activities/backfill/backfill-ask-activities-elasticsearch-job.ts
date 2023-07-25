@@ -14,6 +14,7 @@ import { AskCreatedEventHandler } from "@/elasticsearch/indexes/activities/event
 
 import { backillSavePendingActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-save-pending-activities-elasticsearch-job";
 import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
+import { RabbitMQMessage } from "@/common/rabbit-mq";
 
 export class BackfillAskActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-ask-activities-elasticsearch-queue";
@@ -23,6 +24,9 @@ export class BackfillAskActivitiesElasticsearchJob extends AbstractRabbitMqJobHa
   lazyMode = true;
 
   protected async process(payload: BackfillBaseActivitiesElasticsearchJobPayload) {
+    let addToQueue = false;
+    let nextCursor: OrderCursorInfo | undefined;
+
     const cursor = payload.cursor as OrderCursorInfo;
     const fromTimestamp = payload.fromTimestamp || 0;
     const toTimestamp = payload.toTimestamp || 9999999999;
@@ -100,18 +104,14 @@ export class BackfillAskActivitiesElasticsearchJob extends AbstractRabbitMqJobHa
           })
         );
 
-        await this.addToQueue(
-          {
-            updatedAt: lastResult.updated_ts,
-            id: lastResult.order_id,
-          },
-          fromTimestamp,
-          toTimestamp,
-          indexName,
-          keepGoing
-        );
+        addToQueue = true;
+        nextCursor = {
+          updatedAt: lastResult.updated_ts,
+          id: lastResult.order_id,
+        };
       } else if (keepGoing) {
-        await this.addToQueue(cursor, fromTimestamp, toTimestamp, indexName, keepGoing);
+        addToQueue = true;
+        nextCursor = cursor;
       } else {
         logger.info(
           this.queueName,
@@ -142,6 +142,39 @@ export class BackfillAskActivitiesElasticsearchJob extends AbstractRabbitMqJobHa
 
       throw error;
     }
+
+    return { addToQueue, nextCursor };
+  }
+
+  public events() {
+    this.once(
+      "onCompleted",
+      async (
+        message: RabbitMQMessage,
+        processResult: { addToQueue: boolean; nextCursor?: OrderCursorInfo }
+      ) => {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "addToQueueDebug",
+            message: `onCompleted`,
+            rabbitMQMessage: message,
+            processResult,
+          })
+        );
+
+        if (processResult.addToQueue) {
+          const payload = message.payload as BackfillBaseActivitiesElasticsearchJobPayload;
+          await this.addToQueue(
+            processResult.nextCursor,
+            payload.fromTimestamp,
+            payload.toTimestamp,
+            payload.indexName,
+            payload.keepGoing
+          );
+        }
+      }
+    );
   }
 
   public async addToQueue(
@@ -154,7 +187,15 @@ export class BackfillAskActivitiesElasticsearchJob extends AbstractRabbitMqJobHa
     if (!config.doElasticsearchWork) {
       return;
     }
-    await this.send({ payload: { cursor, fromTimestamp, toTimestamp, indexName, keepGoing } });
+
+    const jobId = cursor
+      ? `${fromTimestamp}:${toTimestamp}:${keepGoing}:${indexName}:${cursor.updatedAt}:${cursor.id}`
+      : `${fromTimestamp}:${toTimestamp}:${keepGoing}:${indexName}`;
+
+    return this.send({
+      payload: { cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
+      jobId,
+    });
   }
 }
 

@@ -154,7 +154,7 @@ export class BackfillBidCancelActivitiesElasticsearchJob extends AbstractRabbitM
         processResult: { addToQueue: boolean; nextCursor?: OrderCursorInfo }
       ) => {
         logger.info(
-          backfillBidCancelActivitiesElasticsearchJob.queueName,
+          this.queueName,
           JSON.stringify({
             topic: "addToQueueDebug",
             message: `onCompleted`,
@@ -165,7 +165,7 @@ export class BackfillBidCancelActivitiesElasticsearchJob extends AbstractRabbitM
 
         if (processResult.addToQueue) {
           const payload = message.payload as BackfillBaseActivitiesElasticsearchJobPayload;
-          await backfillBidCancelActivitiesElasticsearchJob.addToQueue(
+          await this.addToQueue(
             processResult.nextCursor,
             payload.fromTimestamp,
             payload.toTimestamp,
