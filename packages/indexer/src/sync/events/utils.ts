@@ -131,6 +131,8 @@ export const processContractAddresses = async (traces: TransactionTrace[]) => {
   const contractAddresses: ContractAddress[] = [];
 
   for (const trace of traces) {
+    // eslint-disable-next-line
+    // @ts-ignore
     trace.calls.forEach((call) => {
       const processedCall = processCall(trace, call);
       if (processedCall) {

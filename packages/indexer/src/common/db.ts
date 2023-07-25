@@ -34,6 +34,9 @@ export const txdb = pgp({
   query_timeout: 5 * 60 * 1000,
   statement_timeout: 5 * 60 * 1000,
   allowExitOnIdle: true,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 });
 
 // Database connection for health checks
