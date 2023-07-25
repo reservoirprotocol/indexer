@@ -1,7 +1,6 @@
 import { AddressZero } from "@ethersproject/constants";
 import { parseUnits } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk";
-import { Network } from "@reservoir0x/sdk/src/utils";
 import axios from "axios";
 
 import { idb } from "@/common/db";
@@ -193,29 +192,15 @@ const getAvailableUSDPrice = async (
   return USD_PRICE_MEMORY_CACHE.get(key);
 };
 
-const isTestnetCurrency = (currencyAddress: string) => {
-  if (
-    [
-      Network.EthereumGoerli,
-      Network.EthereumSepolia,
-      Network.BaseGoerli,
-      Network.LineaTestnet,
-      Network.MantleTestnet,
-      Network.Mumbai,
-      Network.ScrollAlpha,
-      Network.ZoraTestnet,
-    ].includes(config.chainId)
-  ) {
-    return [
-      Sdk.Common.Addresses.Native[config.chainId],
-      Sdk.Common.Addresses.WNative[config.chainId],
-      Sdk.Common.Addresses.Usdc[config.chainId],
-      // Only needed for Goerli
-      "0x68b7e050e6e2c7efe11439045c9d49813c1724b8",
-      "0x2f3a40a3db8a7e3d09b0adfefbce4f6f81927557",
-    ].includes(currencyAddress);
-  }
-};
+const isTestnetCurrency = (currencyAddress: string) =>
+  config.chainId === 5 &&
+  [
+    Sdk.Common.Addresses.Native[config.chainId],
+    Sdk.Common.Addresses.WNative[config.chainId],
+    "0x07865c6e87b9f70255377e024ace6630c1eaa37f",
+    "0x68b7e050e6e2c7efe11439045c9d49813c1724b8",
+    "0x2f3a40a3db8a7e3d09b0adfefbce4f6f81927557",
+  ].includes(currencyAddress);
 
 const areEquivalentCurrencies = (currencyAddress1: string, currencyAddress2: string) => {
   const equivalentCurrencySets = [
