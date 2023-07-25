@@ -1,7 +1,6 @@
 import { AddressZero } from "@ethersproject/constants";
 import { parseUnits } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk";
-import { Network } from "@reservoir0x/sdk/dist/utils";
 import axios from "axios";
 
 import { idb } from "@/common/db";
@@ -199,18 +198,7 @@ const getAvailableUSDPrice = async (
 };
 
 const isTestnetCurrency = (currencyAddress: string) => {
-  if (
-    [
-      Network.EthereumGoerli,
-      Network.EthereumSepolia,
-      Network.BaseGoerli,
-      Network.LineaTestnet,
-      Network.MantleTestnet,
-      Network.Mumbai,
-      Network.ScrollAlpha,
-      Network.ZoraTestnet,
-    ].includes(config.chainId)
-  ) {
+  if ([5, 11155111, 84531, 59140, 5001, 80001, 534353, 999].includes(config.chainId)) {
     return [
       Sdk.Common.Addresses.Native[config.chainId],
       Sdk.Common.Addresses.WNative[config.chainId],
