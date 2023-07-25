@@ -110,6 +110,19 @@ export class BackfillAskActivitiesElasticsearchJob extends AbstractRabbitMqJobHa
           id: lastResult.order_id,
         };
       } else if (keepGoing) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "backfill-activities",
+            message: `KeepGoing. fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}`,
+            fromTimestamp,
+            toTimestamp,
+            cursor,
+            indexName,
+            keepGoing,
+          })
+        );
+
         addToQueue = true;
         nextCursor = cursor;
       } else {
@@ -180,10 +193,13 @@ export class BackfillAskActivitiesElasticsearchJob extends AbstractRabbitMqJobHa
 
     const jobId = `${fromTimestamp}:${toTimestamp}:${keepGoing}:${indexName}`;
 
-    return this.send({
-      payload: { cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
-      jobId,
-    });
+    return this.send(
+      {
+        payload: { cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
+        jobId,
+      },
+      keepGoing ? 1000 : 0
+    );
   }
 }
 
