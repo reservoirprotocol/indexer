@@ -362,10 +362,7 @@ const saveLogsAndTracesAndTransactions = async (
     hash: string;
     logs: any[];
   }[] = [];
-  logger.info(
-    "sync-events-v2",
-    `Saving logs and traces and transactions for block ${blockData.number}, ${blockData.hash}, ${blockData.timestamp}, ${traces.length}, ${transactionReceipts.length}`
-  );
+
   const logs = transactionReceipts.map((tx) => tx.logs).flat();
 
   transactionReceipts.forEach((tx) => {

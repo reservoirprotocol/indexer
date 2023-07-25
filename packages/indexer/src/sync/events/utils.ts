@@ -122,27 +122,31 @@ const processCall = (trace: TransactionTrace, call: CallTrace) => {
     call.calls.forEach((c) => {
       const processedCall = processCall(trace, c);
       if (processedCall) {
-        processedCalls.push(processedCall);
+        processedCalls.push(...processedCall);
       }
     });
 
     return processedCalls;
   }
+
+  return processedCalls.length ? processedCalls : undefined;
 };
 
 export const processContractAddresses = async (traces: TransactionTrace[]) => {
-  const contractAddresses: ContractAddress[] = [];
+  let contractAddresses: ContractAddress[] = [];
 
   for (const trace of traces) {
     // eslint-disable-next-line
     // @ts-ignore
-    trace.calls.forEach((call) => {
+    trace?.calls?.forEach((call) => {
       const processedCall = processCall(trace, call);
       if (processedCall) {
         contractAddresses.push(...processedCall);
       }
     });
   }
+
+  contractAddresses = contractAddresses.filter((ca) => ca);
 
   await saveContractAddresses(contractAddresses);
 };
