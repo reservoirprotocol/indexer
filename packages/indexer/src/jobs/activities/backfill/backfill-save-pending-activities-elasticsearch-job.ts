@@ -80,7 +80,7 @@ export class BackillSavePendingActivitiesElasticsearchJob extends AbstractRabbit
       return;
     }
 
-    return this.send({ payload: { indexName } });
+    return this.send({ payload: { indexName }, jobId: this.queueName });
   }
 }
 export const backillSavePendingActivitiesElasticsearchJob =
