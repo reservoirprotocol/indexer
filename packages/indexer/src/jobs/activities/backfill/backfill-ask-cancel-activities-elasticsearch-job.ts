@@ -2,7 +2,6 @@ import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { ridb } from "@/common/db";
-import { elasticsearch } from "@/common/elasticsearch";
 
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
@@ -12,6 +11,8 @@ import {
   BackfillBaseActivitiesElasticsearchJobPayload,
 } from "@/jobs/activities/backfill/backfill-activities-elasticsearch-job";
 import { AskCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-cancelled";
+import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
+import { backillSavePendingActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-save-pending-activities-elasticsearch-job";
 
 export class BackfillAskCancelActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-ask-cancel-activities-elasticsearch-queue";
@@ -58,6 +59,8 @@ export class BackfillAskCancelActivitiesElasticsearchJob extends AbstractRabbitM
       });
 
       if (results.length) {
+        const pendingActivitiesQueue = new PendingActivitiesQueue(payload.indexName);
+
         const activities = [];
 
         for (const result of results) {
@@ -73,12 +76,8 @@ export class BackfillAskCancelActivitiesElasticsearchJob extends AbstractRabbitM
           activities.push(activity);
         }
 
-        await elasticsearch.bulk({
-          body: activities.flatMap((activity) => [
-            { index: { _index: indexName, _id: activity.id } },
-            activity,
-          ]),
-        });
+        await pendingActivitiesQueue.add(activities);
+        await backillSavePendingActivitiesElasticsearchJob.addToQueue(indexName);
 
         const lastResult = results[results.length - 1];
 
@@ -98,17 +97,6 @@ export class BackfillAskCancelActivitiesElasticsearchJob extends AbstractRabbitM
             keepGoing,
             lastResult,
           })
-        );
-
-        await this.addToQueue(
-          {
-            updatedAt: lastResult.updated_ts,
-            id: lastResult.order_id,
-          },
-          fromTimestamp,
-          toTimestamp,
-          indexName,
-          keepGoing
         );
       } else if (keepGoing) {
         await this.addToQueue(cursor, fromTimestamp, toTimestamp, indexName, keepGoing);
