@@ -13,6 +13,7 @@ import {
 import { AskCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-cancelled";
 import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
 import { backillSavePendingActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-save-pending-activities-elasticsearch-job";
+import { RabbitMQMessage } from "@/common/rabbit-mq";
 
 export class BackfillAskCancelActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-ask-cancel-activities-elasticsearch-queue";
@@ -31,6 +32,9 @@ export class BackfillAskCancelActivitiesElasticsearchJob extends AbstractRabbitM
 
     const fromTimestampISO = new Date(fromTimestamp * 1000).toISOString();
     const toTimestampISO = new Date(toTimestamp * 1000).toISOString();
+
+    let addToQueue = false;
+    let nextCursor: OrderCursorInfo | undefined;
 
     try {
       let continuationFilter = "";
@@ -98,8 +102,15 @@ export class BackfillAskCancelActivitiesElasticsearchJob extends AbstractRabbitM
             lastResult,
           })
         );
+
+        addToQueue = true;
+        nextCursor = {
+          updatedAt: lastResult.updated_ts,
+          id: lastResult.order_id,
+        };
       } else if (keepGoing) {
-        await this.addToQueue(cursor, fromTimestamp, toTimestamp, indexName, keepGoing);
+        addToQueue = true;
+        nextCursor = cursor;
       } else {
         logger.info(
           this.queueName,
@@ -130,6 +141,29 @@ export class BackfillAskCancelActivitiesElasticsearchJob extends AbstractRabbitM
 
       throw error;
     }
+
+    return { addToQueue, nextCursor };
+  }
+
+  public events() {
+    this.once(
+      "onCompleted",
+      async (
+        message: RabbitMQMessage,
+        processResult: { addToQueue: boolean; nextCursor?: OrderCursorInfo }
+      ) => {
+        if (processResult.addToQueue) {
+          const payload = message.payload as BackfillBaseActivitiesElasticsearchJobPayload;
+          await this.addToQueue(
+            processResult.nextCursor,
+            payload.fromTimestamp,
+            payload.toTimestamp,
+            payload.indexName,
+            payload.keepGoing
+          );
+        }
+      }
+    );
   }
 
   public async addToQueue(
@@ -142,7 +176,13 @@ export class BackfillAskCancelActivitiesElasticsearchJob extends AbstractRabbitM
     if (!config.doElasticsearchWork) {
       return;
     }
-    await this.send({ payload: { cursor, fromTimestamp, toTimestamp, indexName, keepGoing } });
+
+    const jobId = `${fromTimestamp}:${toTimestamp}:${keepGoing}:${indexName}`;
+
+    return this.send({
+      payload: { cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
+      jobId,
+    });
   }
 }
 
