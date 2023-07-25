@@ -23,9 +23,6 @@ export class BackfillBidCancelActivitiesElasticsearchJob extends AbstractRabbitM
   lazyMode = true;
 
   protected async process(payload: BackfillBaseActivitiesElasticsearchJobPayload) {
-    let addToQueue = false;
-    let nextCursor: OrderCursorInfo | undefined;
-
     const cursor = payload.cursor as OrderCursorInfo;
     const fromTimestamp = payload.fromTimestamp || 0;
     const toTimestamp = payload.toTimestamp || 9999999999;
@@ -35,6 +32,9 @@ export class BackfillBidCancelActivitiesElasticsearchJob extends AbstractRabbitM
 
     const fromTimestampISO = new Date(fromTimestamp * 1000).toISOString();
     const toTimestampISO = new Date(toTimestamp * 1000).toISOString();
+
+    let addToQueue = false;
+    let nextCursor: OrderCursorInfo | undefined;
 
     try {
       let continuationFilter = "";
@@ -153,16 +153,6 @@ export class BackfillBidCancelActivitiesElasticsearchJob extends AbstractRabbitM
         message: RabbitMQMessage,
         processResult: { addToQueue: boolean; nextCursor?: OrderCursorInfo }
       ) => {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "addToQueueDebug",
-            message: `onCompleted`,
-            rabbitMQMessage: message,
-            processResult,
-          })
-        );
-
         if (processResult.addToQueue) {
           const payload = message.payload as BackfillBaseActivitiesElasticsearchJobPayload;
           await this.addToQueue(
@@ -188,9 +178,7 @@ export class BackfillBidCancelActivitiesElasticsearchJob extends AbstractRabbitM
       return;
     }
 
-    const jobId = cursor
-      ? `${fromTimestamp}:${toTimestamp}:${keepGoing}:${indexName}:${cursor.updatedAt}:${cursor.id}`
-      : `${fromTimestamp}:${toTimestamp}:${keepGoing}:${indexName}`;
+    const jobId = `${fromTimestamp}:${toTimestamp}:${keepGoing}:${indexName}`;
 
     return this.send({
       payload: { cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
