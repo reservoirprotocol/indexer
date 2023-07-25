@@ -1082,8 +1082,7 @@ export const updateActivitiesTokenMetadata = async (
         query,
         size: 1000,
       },
-      0,
-      true
+      0
     );
 
     if (pendingUpdateActivities.length) {
