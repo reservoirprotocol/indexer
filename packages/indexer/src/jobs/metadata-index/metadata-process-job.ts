@@ -98,10 +98,19 @@ export class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler {
 
     // If there are potentially more tokens to process trigger another job
     if (rateLimitExpiredIn || _.size(refreshTokens) == countTotal) {
-      return rateLimitExpiredIn;
+      return rateLimitExpiredIn || 1;
     }
 
     return 0;
+  }
+
+  public events() {
+    this.once("onCompleted", async (rabbitMqMessage, processResult) => {
+      if (processResult) {
+        const { method } = rabbitMqMessage.payload;
+        await this.addToQueue({ method }, processResult * 1000);
+      }
+    });
   }
 
   public async addToQueue(params: MetadataIndexProcessJobPayload, delay = 0) {
@@ -110,10 +119,3 @@ export class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler {
 }
 
 export const metadataIndexProcessJob = new MetadataIndexProcessJob();
-
-metadataIndexProcessJob.on("onCompleted", async (rabbitMqMessage, processResult) => {
-  if (processResult) {
-    const { method } = rabbitMqMessage.payload;
-    await metadataIndexProcessJob.addToQueue({ method }, processResult * 1000);
-  }
-});
