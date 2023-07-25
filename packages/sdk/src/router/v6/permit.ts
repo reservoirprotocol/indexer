@@ -87,17 +87,16 @@ export class PermitHandler {
     const tokenContract = new Contract(
       permit.token,
       new Interface([
-        "function nonces(address owner) external view returns (uint256)",
-        "function name() external view returns (string)",
-        "function version() external view returns (string)",
-        "function EIP712_VERSION() external view returns (string)",
+        `function nonces(address owner) external view returns (uint256)`,
+        `function name() external view returns(string)`,
+        `function version() external view returns(string)`,
       ]),
       this.provider
     );
     const [nonce, name, version] = await Promise.all([
       tokenContract.nonces(permit.owner),
       tokenContract.name(),
-      tokenContract.version().catch(() => tokenContract.EIP712_VERSION()),
+      tokenContract.version(),
     ]);
 
     return {
