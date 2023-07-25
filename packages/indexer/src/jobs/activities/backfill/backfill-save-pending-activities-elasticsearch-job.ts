@@ -28,12 +28,21 @@ export class BackillSavePendingActivitiesElasticsearchJob extends AbstractRabbit
 
     if (pendingActivities.length > 0) {
       try {
-        await elasticsearch.bulk({
+        const bulkResponse = await elasticsearch.bulk({
           body: pendingActivities.flatMap((activity) => [
             { index: { _index: payload.indexName, _id: activity.id } },
             activity,
           ]),
         });
+
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "save-conflicts",
+            message: `Saved ${pendingActivities.length} activities.`,
+            bulkResponse,
+          })
+        );
       } catch (error) {
         logger.error(
           this.queueName,
@@ -59,15 +68,6 @@ export class BackillSavePendingActivitiesElasticsearchJob extends AbstractRabbit
     this.once(
       "onCompleted",
       async (message: RabbitMQMessage, processResult: { addToQueue: boolean }) => {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "onCompleted",
-            rabbitMQMessage: message,
-            processResult,
-          })
-        );
-
         if (processResult.addToQueue) {
           await this.addToQueue(message.payload.indexName);
         }

@@ -110,19 +110,6 @@ export class BackfillBidCancelActivitiesElasticsearchJob extends AbstractRabbitM
           id: lastResult.order_id,
         };
       } else if (keepGoing) {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "addToQueueDebug",
-            message: `No Results - Keep Going.`,
-            fromTimestamp,
-            toTimestamp,
-            cursor,
-            indexName,
-            keepGoing,
-          })
-        );
-
         addToQueue = true;
         nextCursor = cursor;
       } else {
@@ -204,20 +191,6 @@ export class BackfillBidCancelActivitiesElasticsearchJob extends AbstractRabbitM
     const jobId = cursor
       ? `${fromTimestamp}:${toTimestamp}:${keepGoing}:${indexName}:${cursor.updatedAt}:${cursor.id}`
       : `${fromTimestamp}:${toTimestamp}:${keepGoing}:${indexName}`;
-
-    logger.info(
-      this.queueName,
-      JSON.stringify({
-        topic: "addToQueueDebug",
-        message: `Adding To Queue.`,
-        fromTimestamp,
-        toTimestamp,
-        cursor,
-        indexName,
-        keepGoing,
-        jobId,
-      })
-    );
 
     return this.send({
       payload: { cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
