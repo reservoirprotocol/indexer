@@ -4,7 +4,6 @@ import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import _ from "lodash";
 import { Tokens } from "@/models/tokens";
 import crypto from "crypto";
-import { logger } from "@/common/logger";
 
 export type RefreshActivitiesTokenMetadataJobPayload = {
   contract: string;
@@ -53,16 +52,6 @@ export class RefreshActivitiesTokenMetadataJob extends AbstractRabbitMqJobHandle
             )}`
           )
           .digest("hex");
-
-    logger.info(
-      "elasticsearch-activities",
-      JSON.stringify({
-        topic: "updateActivitiesTokenMetadata",
-        message: `RefreshActivitiesTokenMetadataJob - AddToQueue`,
-        data: payload,
-        force,
-      })
-    );
 
     await this.send({ payload, jobId });
   }
