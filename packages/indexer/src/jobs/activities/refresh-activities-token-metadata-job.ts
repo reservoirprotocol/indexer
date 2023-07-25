@@ -47,7 +47,11 @@ export class RefreshActivitiesTokenMetadataJob extends AbstractRabbitMqJobHandle
       ? undefined
       : crypto
           .createHash("sha256")
-          .update(`${payload.contract}${payload.tokenId}${JSON.stringify(payload.tokenUpdateData)}`)
+          .update(
+            `${payload.contract.toLowerCase()}${payload.tokenId}${JSON.stringify(
+              payload.tokenUpdateData
+            )}`
+          )
           .digest("hex");
 
     logger.info(
