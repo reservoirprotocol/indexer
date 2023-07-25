@@ -10,9 +10,13 @@ CREATE TABLE "transactions" (
   "block_timestamp" INT,
   "gas_used" NUMERIC,
   "gas_price" NUMERIC,
-  "gas_fee" NUMERIC
+  "gas_fee" NUMERIC,
+  "cumulative_gas_used" NUMERIC(78, 0) NOT NULL DEFAULT 0,
+  "contract_address" BYTEA,
+  "logs_bloom" BYTEA,
+  "status" BOOLEAN NOT NULL DEFAULT FALSE,
+  "transaction_index" NUMERIC(78, 0) NOT NULL DEFAULT 0
 );
-
 
 ALTER TABLE "transactions"
   ADD CONSTRAINT "transactions_pk"
