@@ -3,7 +3,6 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { ridb } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
-import { elasticsearch } from "@/common/elasticsearch";
 
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
@@ -13,6 +12,8 @@ import {
   BackfillBaseActivitiesElasticsearchJobPayload,
 } from "@/jobs/activities/backfill/backfill-activities-elasticsearch-job";
 import { NftTransferEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/nft-transfer-event-created";
+import { backillSavePendingActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-save-pending-activities-elasticsearch-job";
+import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
 
 export class BackfillTransferActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-transfer-activities-elasticsearch-queue";
@@ -38,6 +39,7 @@ export class BackfillTransferActivitiesElasticsearchJob extends AbstractRabbitMq
       if (cursor) {
         continuationFilter = `AND (timestamp, tx_hash, log_index, batch_index) > ($/timestamp/, $/txHash/, $/logIndex/, $/batchIndex/)`;
       }
+
       const query = `
             ${NftTransferEventCreatedEventHandler.buildBaseQuery()}
             WHERE  NOT EXISTS (
@@ -64,6 +66,8 @@ export class BackfillTransferActivitiesElasticsearchJob extends AbstractRabbitMq
       });
 
       if (results.length) {
+        const pendingActivitiesQueue = new PendingActivitiesQueue(payload.indexName);
+
         const activities = [];
 
         for (const result of results) {
@@ -77,12 +81,8 @@ export class BackfillTransferActivitiesElasticsearchJob extends AbstractRabbitMq
           activities.push(activity);
         }
 
-        await elasticsearch.bulk({
-          body: activities.flatMap((activity) => [
-            { index: { _index: indexName, _id: activity.id } },
-            activity,
-          ]),
-        });
+        await pendingActivitiesQueue.add(activities);
+        await backillSavePendingActivitiesElasticsearchJob.addToQueue(indexName);
 
         const lastResult = results[results.length - 1];
 
