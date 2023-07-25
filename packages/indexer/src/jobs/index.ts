@@ -132,12 +132,15 @@ import { openseaListingsJob } from "@/jobs/orderbook/opensea-listings-job";
 import { orderbookPostOrderExternalJob } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-job";
 import { orderbookPostOrderExternalOpenseaJob } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-job";
 import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
+import { saleWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/sale-websocket-events-trigger-job";
 import { openseaOrdersProcessJob } from "@/jobs/opensea-orders/opensea-orders-process-job";
 import { openseaOrdersFetchJob } from "@/jobs/opensea-orders/opensea-orders-fetch-job";
 import { saveBidEventsJob } from "@/jobs/order-updates/save-bid-events-job";
 import { countApiUsageJob } from "@/jobs/metrics/count-api-usage-job";
+import { transferWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/transfer-websocket-events-trigger-job";
 import { tokenAttributeWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/token-attribute-websocket-events-trigger-job";
 import { topBidWebSocketEventsTriggerJob } from "@/jobs/websocket-events/top-bid-websocket-events-trigger-job";
+import { collectionWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/collection-websocket-events-trigger-job";
 import { backfillDeleteExpiredBidsElasticsearchJob } from "@/jobs/activities/backfill/backfill-delete-expired-bids-elasticsearch-job";
 
 export const allJobQueues = [
@@ -253,6 +256,9 @@ export class RabbitMqJobsConsumer {
       openseaOrdersFetchJob,
       saveBidEventsJob,
       countApiUsageJob,
+      collectionWebsocketEventsTriggerQueueJob,
+      saleWebsocketEventsTriggerQueueJob,
+      transferWebsocketEventsTriggerQueueJob,
       tokenAttributeWebsocketEventsTriggerQueueJob,
       topBidWebSocketEventsTriggerJob,
       backfillDeleteExpiredBidsElasticsearchJob,
