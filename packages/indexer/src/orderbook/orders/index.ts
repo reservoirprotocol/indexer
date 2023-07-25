@@ -26,6 +26,7 @@ export * as paymentProcessor from "@/orderbook/orders/payment-processor";
 
 // Imports
 
+import { HashZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { BidDetails, ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
 
@@ -803,7 +804,8 @@ export const checkBlacklistAndFallback = async (
     const blocked = await checkMarketplaceIsFiltered(collection, [
       Sdk.SeaportV15.Addresses.Exchange[config.chainId],
       new Sdk.SeaportBase.ConduitController(config.chainId).deriveConduit(
-        Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
+        // Default to cover chains where there's no OpenSea conduit
+        Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId] ?? HashZero
       ),
     ]);
     if (blocked) {

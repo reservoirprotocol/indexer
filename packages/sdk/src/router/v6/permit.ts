@@ -1,11 +1,11 @@
 import { Interface } from "@ethersproject/abi";
 import { Provider } from "@ethersproject/abstract-provider";
 import { BigNumberish } from "@ethersproject/bignumber";
-import { splitSignature } from "@ethersproject/bytes";
+import { hexZeroPad, splitSignature } from "@ethersproject/bytes";
 import { Contract } from "@ethersproject/contracts";
 import { verifyTypedData } from "@ethersproject/wallet";
 
-import { TxData, bn, getCurrentTimestamp } from "../../utils";
+import { Network, TxData, bn, getCurrentTimestamp } from "../../utils";
 import * as Addresses from "./addresses";
 import * as ApprovalProxy from "./approval-proxy";
 
@@ -87,26 +87,34 @@ export class PermitHandler {
     const tokenContract = new Contract(
       permit.token,
       new Interface([
-        `function nonces(address owner) external view returns (uint256)`,
-        `function name() external view returns(string)`,
-        `function version() external view returns(string)`,
+        "function nonces(address owner) external view returns (uint256)",
+        "function name() external view returns (string)",
+        "function version() external view returns (string)",
+        "function EIP712_VERSION() external view returns (string)",
       ]),
       this.provider
     );
     const [nonce, name, version] = await Promise.all([
       tokenContract.nonces(permit.owner),
       tokenContract.name(),
-      tokenContract.version(),
+      tokenContract.version().catch(() => tokenContract.EIP712_VERSION()),
     ]);
 
     return {
       signatureKind: "eip712",
-      domain: {
-        name,
-        version,
-        chainId: this.chainId,
-        verifyingContract: permit.token,
-      },
+      domain: [Network.Polygon, Network.Mumbai].includes(this.chainId)
+        ? {
+            name,
+            version,
+            salt: hexZeroPad(bn(this.chainId).toHexString(), 32),
+            verifyingContract: permit.token,
+          }
+        : {
+            name,
+            version,
+            chainId: this.chainId,
+            verifyingContract: permit.token,
+          },
       types: {
         Permit: [
           { name: "owner", type: "address" },
