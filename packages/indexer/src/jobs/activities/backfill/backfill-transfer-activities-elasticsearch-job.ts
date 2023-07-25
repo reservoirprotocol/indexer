@@ -116,6 +116,19 @@ export class BackfillTransferActivitiesElasticsearchJob extends AbstractRabbitMq
           batchIndex: lastResult.event_batch_index,
         };
       } else if (keepGoing) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "backfill-activities",
+            message: `KeepGoing. fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}`,
+            fromTimestamp,
+            toTimestamp,
+            cursor,
+            indexName,
+            keepGoing,
+          })
+        );
+
         addToQueue = true;
         nextCursor = cursor;
       } else {
@@ -186,10 +199,13 @@ export class BackfillTransferActivitiesElasticsearchJob extends AbstractRabbitMq
 
     const jobId = `${fromTimestamp}:${toTimestamp}:${keepGoing}:${indexName}`;
 
-    return this.send({
-      payload: { cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
-      jobId,
-    });
+    return this.send(
+      {
+        payload: { cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
+        jobId,
+      },
+      keepGoing ? 1000 : 0
+    );
   }
 }
 
