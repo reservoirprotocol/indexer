@@ -26,6 +26,8 @@ const getUpstreamUSDPrice = async (
   timestamp: number
 ): Promise<Price | undefined> => {
   try {
+    currencyAddress = currencyAddress.toLowerCase();
+
     const date = new Date(timestamp * 1000);
     const truncatedTimestamp = Math.floor(date.valueOf() / 1000);
 
@@ -79,7 +81,10 @@ const getUpstreamUSDPrice = async (
           value,
         };
       }
-    } else if (getNetworkSettings().whitelistedCurrencies.has(currencyAddress.toLowerCase())) {
+    } else if (
+      getNetworkSettings().whitelistedCurrencies.has(currencyAddress) ||
+      isTestnetCurrency(currencyAddress)
+    ) {
       // Whitelisted currencies are 1:1 with USD
       const value = "1";
 
