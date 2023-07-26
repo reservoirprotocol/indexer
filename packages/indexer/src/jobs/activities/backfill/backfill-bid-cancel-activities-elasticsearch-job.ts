@@ -53,7 +53,6 @@ export class BackfillBidCancelActivitiesElasticsearchJob extends AbstractRabbitM
       const query = `
             ${BidCancelledEventHandler.buildBaseQuery()}
             WHERE side = 'buy' AND fillability_status = 'cancelled'
-            AND fillability_status = 'fillable' AND approval_status = 'approved'
             ${timestampFilter}
             ${continuationFilter}
             ORDER BY updated_at, id
@@ -98,50 +97,47 @@ export class BackfillBidCancelActivitiesElasticsearchJob extends AbstractRabbitM
 
         const lastResult = results[results.length - 1];
 
-        if (bulkResponse.errors) {
-          logger.warn(
-            this.queueName,
-            JSON.stringify({
-              topic: "backfill-activities",
-              message: `Backfilled ${
-                results.length
-              } activities. fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, lastResultTimestamp=${new Date(
-                lastResult.updated_ts * 1000
-              ).toISOString()}`,
-              fromTimestamp,
-              toTimestamp,
-              cursor,
-              indexName,
-              keepGoing,
-              lastResult,
-              errors: bulkResponse.items.filter((item) => item.index?.error),
-            })
-          );
-        } else {
-          addToQueue = true;
-          nextCursor = {
-            updatedAt: lastResult.updated_ts,
-            id: lastResult.order_id,
-          };
+        addToQueue = true;
+        nextCursor = {
+          updatedAt: lastResult.updated_ts,
+          id: lastResult.order_id,
+        };
 
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              topic: "backfill-activities",
-              message: `Backfilled ${
-                results.length
-              } activities. fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, lastResultTimestamp=${new Date(
-                lastResult.updated_ts * 1000
-              ).toISOString()}`,
-              fromTimestamp,
-              toTimestamp,
-              cursor,
-              indexName,
-              keepGoing,
-              nextCursor,
-            })
-          );
-        }
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "backfill-activities",
+            message: `Backfilled ${
+              results.length
+            } activities. fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, lastResultTimestamp=${new Date(
+              lastResult.updated_ts * 1000
+            ).toISOString()}`,
+            fromTimestamp,
+            toTimestamp,
+            cursor,
+            indexName,
+            keepGoing,
+            lastResult,
+            hasErrors: bulkResponse.errors,
+            errors: bulkResponse.items.filter((item) => item.index?.error),
+          })
+        );
+      } else if (keepGoing) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "backfill-activities",
+            message: `KeepGoing. fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}`,
+            fromTimestamp,
+            toTimestamp,
+            cursor,
+            indexName,
+            keepGoing,
+          })
+        );
+
+        addToQueue = true;
+        nextCursor = cursor;
       } else {
         logger.info(
           this.queueName,
