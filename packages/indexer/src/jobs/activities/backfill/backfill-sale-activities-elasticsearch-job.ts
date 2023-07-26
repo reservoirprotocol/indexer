@@ -6,7 +6,7 @@ import { fromBuffer, toBuffer } from "@/common/utils";
 
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
-import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import {
   EventCursorInfo,
   BackfillBaseActivitiesElasticsearchJobPayload,
@@ -23,6 +23,10 @@ export class BackfillSaleActivitiesElasticsearchJob extends AbstractRabbitMqJobH
   concurrency = 1;
   persistent = true;
   lazyMode = true;
+  backoff = {
+    type: "fixed",
+    delay: 5000,
+  } as BackoffStrategy;
 
   protected async process(payload: BackfillBaseActivitiesElasticsearchJobPayload) {
     const cursor = payload.cursor as EventCursorInfo;
@@ -97,7 +101,7 @@ export class BackfillSaleActivitiesElasticsearchJob extends AbstractRabbitMqJobH
 
         const bulkResponse = await elasticsearch.bulk({
           body: activities.flatMap((activity) => [
-            { index: { _index: payload.indexName, _id: activity.id } },
+            { index: { _index: indexName, _id: activity.id } },
             activity,
           ]),
         });
@@ -194,7 +198,6 @@ export class BackfillSaleActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           cursor,
           indexName,
           keepGoing,
-          error,
         })
       );
 

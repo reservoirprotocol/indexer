@@ -5,7 +5,7 @@ import { ridb } from "@/common/db";
 
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
-import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import {
   OrderCursorInfo,
   BackfillBaseActivitiesElasticsearchJobPayload,
@@ -22,6 +22,10 @@ export class BackfillBidCancelActivitiesElasticsearchJob extends AbstractRabbitM
   concurrency = 1;
   persistent = true;
   lazyMode = true;
+  backoff = {
+    type: "fixed",
+    delay: 5000,
+  } as BackoffStrategy;
 
   protected async process(payload: BackfillBaseActivitiesElasticsearchJobPayload) {
     const cursor = payload.cursor as OrderCursorInfo;
@@ -163,7 +167,6 @@ export class BackfillBidCancelActivitiesElasticsearchJob extends AbstractRabbitM
           cursor,
           indexName,
           keepGoing,
-          error,
         })
       );
 
