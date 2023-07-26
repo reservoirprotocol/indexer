@@ -8,18 +8,18 @@ import { RabbitMQMessage } from "@/common/rabbit-mq";
 
 const BATCH_SIZE = 1000;
 
-export type BackillSavePendingActivitiesElasticsearchJobPayload = {
+export type BackfillSavePendingActivitiesElasticsearchJobPayload = {
   indexName?: string;
 };
 
-export class BackillSavePendingActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
+export class BackfillSavePendingActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-save-pending-activities-elasticsearch";
   maxRetries = 10;
   concurrency = 1;
   persistent = true;
   lazyMode = true;
 
-  protected async process(payload: BackillSavePendingActivitiesElasticsearchJobPayload) {
+  protected async process(payload: BackfillSavePendingActivitiesElasticsearchJobPayload) {
     let addToQueue = false;
 
     const pendingActivitiesQueue = new PendingActivitiesQueue(payload.indexName);
@@ -82,5 +82,5 @@ export class BackillSavePendingActivitiesElasticsearchJob extends AbstractRabbit
     return this.send({ payload: { indexName } });
   }
 }
-export const backillSavePendingActivitiesElasticsearchJob =
-  new BackillSavePendingActivitiesElasticsearchJob();
+export const backfillSavePendingActivitiesElasticsearchJob =
+  new BackfillSavePendingActivitiesElasticsearchJob();
