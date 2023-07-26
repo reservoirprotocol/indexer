@@ -18,7 +18,6 @@ import { BidCancelledEventHandler } from "@/elasticsearch/indexes/activities/eve
 import { FillEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/fill-event-created";
 import { toBuffer } from "@/common/utils";
 import { NftTransferEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/nft-transfer-event-created";
-import crypto from "crypto";
 
 export type BackfillSaveActivitiesElasticsearchJobPayload = {
   type: "ask" | "ask-cancel" | "bid" | "bid-cancel" | "sale" | "transfer";
@@ -174,17 +173,10 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
       return;
     }
 
-    const jobId = crypto
-      .createHash("sha256")
-      .update(
-        `${type}:${fromTimestamp}:${toTimestamp}:${keepGoing}:${indexName}${JSON.stringify(cursor)}`
-      )
-      .digest("hex");
-
     return this.send(
       {
         payload: { type, cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
-        jobId,
+        jobId: `${type}:${fromTimestamp}:${toTimestamp}:${keepGoing}:${indexName}`,
       },
       1000
     );
