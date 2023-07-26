@@ -52,14 +52,14 @@ export class OrderUpdatesOracleOrderJob extends AbstractRabbitMqJobHandler {
     if (values.length) {
       const updatedOrders = await idb.manyOrNone(
         `
-            UPDATE orders SET
-              fillability_status = 'cancelled',
-              updated_at = now()
-            FROM (VALUES ${pgp.helpers.values(values, columns)}) AS x(id)
-            WHERE orders.id = x.id::TEXT
-              AND orders.fillability_status != 'cancelled'
-            RETURNING orders.id
-          `
+          UPDATE orders SET
+            fillability_status = 'cancelled',
+            updated_at = now()
+          FROM (VALUES ${pgp.helpers.values(values, columns)}) AS x(id)
+          WHERE orders.id = x.id::TEXT
+            AND orders.fillability_status != 'cancelled'
+          RETURNING orders.id
+        `
       );
 
       await orderUpdatesByIdJob.addToQueue(
@@ -96,8 +96,10 @@ if (config.doBackgroundWork) {
       await redlock
         .acquire(["oracle-orders-check-lock"], (5 - 3) * 1000)
         .then(async () => {
-          logger.info(orderUpdatesOracleOrderJob.queueName, "Triggering oracle orders check");
-          await orderUpdatesOracleOrderJob.addToQueue();
+          if ([1, 5, 137, 80001].includes(config.chainId)) {
+            logger.info(orderUpdatesOracleOrderJob.queueName, "Triggering oracle orders check");
+            await orderUpdatesOracleOrderJob.addToQueue();
+          }
         })
         .catch(() => {
           // Skip any errors
