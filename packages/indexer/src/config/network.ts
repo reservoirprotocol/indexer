@@ -88,6 +88,12 @@ export const getOpenseaNetworkName = () => {
     case 42161:
       return "arbitrum";
 
+    case 80001:
+      return "mumbai";
+
+    case 11155111:
+      return "sepolia";
+
     default:
       return "ethereum";
   }
@@ -96,6 +102,8 @@ export const getOpenseaNetworkName = () => {
 export const getOpenseaSubDomain = () => {
   switch (config.chainId) {
     case 5:
+    case 80001:
+    case 11155111:
       return "testnets-api";
 
     default:
@@ -106,6 +114,8 @@ export const getOpenseaSubDomain = () => {
 export const getOpenseaBaseUrl = () => {
   switch (config.chainId) {
     case 5:
+    case 80001:
+    case 11155111:
       return "https://testnets-api.opensea.io";
     default:
       return "https://api.opensea.io";
