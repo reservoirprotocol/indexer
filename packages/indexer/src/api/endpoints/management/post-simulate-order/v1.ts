@@ -181,7 +181,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
             items: [{ orderId: id }],
             taker: genericTaker,
             skipBalanceCheck: true,
-            currency: Sdk.Common.Addresses.Eth[config.chainId],
+            currency: Sdk.Common.Addresses.Native[config.chainId],
             allowInactiveOrderIds: true,
           },
         });

@@ -7,12 +7,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
-import {
-  getChainId,
-  getCurrentTimestamp,
-  reset,
-  setupNFTs,
-} from "../../../utils";
+import { getChainId, getCurrentTimestamp, reset, setupNFTs } from "../../../utils";
 
 describe("SeaportV11 - ContractWide ERC1155", () => {
   const chainId = getChainId();
@@ -41,7 +36,7 @@ describe("SeaportV11 - ContractWide ERC1155", () => {
     const fee = 250;
     const soldTokenId = 100;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -64,23 +59,26 @@ describe("SeaportV11 - ContractWide ERC1155", () => {
     const builder = new Builders.ContractWide(chainId);
 
     // Build buy order
-    const buyOrder = builder.build({
-      offerer: buyer.address,
-      contract: erc1155.address,
-      tokenKind: "erc1155",
-      side: "buy",
-      price,
-      paymentToken: Common.Addresses.Weth[chainId],
-      fees: [
-        {
-          recipient: feeRecipient.address,
-          amount: price.mul(fee).div(10000),
-        },
-      ],
-      startTime: await getCurrentTimestamp(ethers.provider),
-      endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-      counter: await exchange.getCounter(ethers.provider, buyer.address),
-    }, SeaportV11.Order);
+    const buyOrder = builder.build(
+      {
+        offerer: buyer.address,
+        contract: erc1155.address,
+        tokenKind: "erc1155",
+        side: "buy",
+        price,
+        paymentToken: Common.Addresses.WNative[chainId],
+        fees: [
+          {
+            recipient: feeRecipient.address,
+            amount: price.mul(fee).div(10000),
+          },
+        ],
+        startTime: await getCurrentTimestamp(ethers.provider),
+        endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
+        counter: await exchange.getCounter(ethers.provider, buyer.address),
+      },
+      SeaportV11.Order
+    );
 
     buyOrder.checkValidity();
 
@@ -96,13 +94,8 @@ describe("SeaportV11 - ContractWide ERC1155", () => {
 
     const buyerBalanceBefore = await weth.getBalance(buyer.address);
     const sellerBalanceBefore = await weth.getBalance(seller.address);
-    const feeRecipientBalanceBefore = await weth.getBalance(
-      feeRecipient.address
-    );
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
+    const feeRecipientBalanceBefore = await weth.getBalance(feeRecipient.address);
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
 
     expect(buyerBalanceBefore).to.eq(price);
     expect(sellerBalanceBefore).to.eq(0);
@@ -114,13 +107,8 @@ describe("SeaportV11 - ContractWide ERC1155", () => {
 
     const buyerBalanceAfter = await weth.getBalance(buyer.address);
     const sellerBalanceAfter = await weth.getBalance(seller.address);
-    const feeRecipientBalanceAfter = await weth.getBalance(
-      feeRecipient.address
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const feeRecipientBalanceAfter = await weth.getBalance(feeRecipient.address);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(buyerBalanceAfter).to.eq(0);
     expect(sellerBalanceAfter).to.eq(price.sub(price.mul(fee).div(10000)));

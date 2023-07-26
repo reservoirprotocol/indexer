@@ -84,14 +84,14 @@ if (config.doBackgroundWork) {
         );
         for (const { tx_hash, log_index, batch_index, currency, order_side } of results) {
           if (
-            fromBuffer(currency) === Sdk.Common.Addresses.Eth[config.chainId] &&
+            fromBuffer(currency) === Sdk.Common.Addresses.Native[config.chainId] &&
             order_side === "buy"
           ) {
             values.push({
               tx_hash,
               log_index,
               batch_index,
-              currency: toBuffer(Sdk.Common.Addresses.Weth[config.chainId]),
+              currency: toBuffer(Sdk.Common.Addresses.WNative[config.chainId]),
             });
           }
         }

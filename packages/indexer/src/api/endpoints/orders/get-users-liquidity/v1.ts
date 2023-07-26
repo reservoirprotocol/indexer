@@ -116,7 +116,7 @@ export const getUsersLiquidityV1Options: RouteOptions = {
           ) AS "weth_balance"
         FROM "x"
       `;
-      (query as any).weth = toBuffer(Sdk.Common.Addresses.Weth[config.chainId]);
+      (query as any).weth = toBuffer(Sdk.Common.Addresses.WNative[config.chainId]);
 
       if (query.user) {
         (query as any).user = toBuffer(query.user);

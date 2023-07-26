@@ -212,7 +212,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         taker: toBuffer(orderParams.taker ?? AddressZero),
         price: orderParams.price.toString(),
         value: orderParams.price.toString(),
-        currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
+        currency: toBuffer(Sdk.Common.Addresses.Native[config.chainId]),
         currency_price: orderParams.price.toString(),
         currency_value: orderParams.price.toString(),
         needs_conversion: null,

@@ -39,6 +39,9 @@ const getNetworkConfig = (chainId?: number) => {
       case 42170:
         url = "";
         break;
+      case 59144:
+        url = "";
+        break;
       case 7777777:
         url = "https://rpc.zora.co";
         break;
@@ -120,6 +123,7 @@ const config: HardhatUserConfig = {
     base: getNetworkConfig(8453),
     arbitrum: getNetworkConfig(42161),
     arbitrumNova: getNetworkConfig(42170),
+    linea: getNetworkConfig(59144),
     zora: getNetworkConfig(7777777),
     // Testnets
     goerli: getNetworkConfig(5),

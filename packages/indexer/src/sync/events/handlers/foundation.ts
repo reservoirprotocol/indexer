@@ -65,7 +65,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         // Handle: prices
 
-        const currency = Sdk.Common.Addresses.Eth[config.chainId];
+        const currency = Sdk.Common.Addresses.Native[config.chainId];
         // Deduce the price from the protocol fee (which is 5%)
         const currencyPrice = bn(protocolFee).mul(10000).div(500).toString();
         const priceData = await getUSDAndNativePrices(
@@ -172,7 +172,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         // Handle: prices
 
-        const currency = Sdk.Common.Addresses.Eth[config.chainId];
+        const currency = Sdk.Common.Addresses.Native[config.chainId];
         // Deduce the price from the protocol fee (which is 5%)
         const currencyPrice = bn(protocolFee).mul(10000).div(500).toString();
         const priceData = await getUSDAndNativePrices(
@@ -214,6 +214,21 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           timestamp: baseEventParams.timestamp,
           maker,
           taker,
+        });
+
+        break;
+      }
+
+      case "foundation-created-fixed-price-sale": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const collection = parsedLog.args["nftContract"].toLowerCase();
+
+        onChainData.mints.push({
+          by: "collection",
+          data: {
+            standard: "foundation",
+            collection,
+          },
         });
 
         break;

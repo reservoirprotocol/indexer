@@ -63,6 +63,9 @@ export const getNetworkName = () => {
     case 8453:
       return "base";
 
+    case 59144:
+      return "linea";
+
     default:
       return "unknown";
   }
@@ -85,6 +88,12 @@ export const getOpenseaNetworkName = () => {
     case 42161:
       return "arbitrum";
 
+    case 80001:
+      return "mumbai";
+
+    case 11155111:
+      return "sepolia";
+
     default:
       return "ethereum";
   }
@@ -93,6 +102,8 @@ export const getOpenseaNetworkName = () => {
 export const getOpenseaSubDomain = () => {
   switch (config.chainId) {
     case 5:
+    case 80001:
+    case 11155111:
       return "testnets-api";
 
     default:
@@ -103,6 +114,8 @@ export const getOpenseaSubDomain = () => {
 export const getOpenseaBaseUrl = () => {
   switch (config.chainId) {
     case 5:
+    case 80001:
+    case 11155111:
       return "https://testnets-api.opensea.io";
     default:
       return "https://api.opensea.io";
@@ -173,7 +186,10 @@ export const getNetworkSettings = (): NetworkSettings => {
     burnAddresses: [AddressZero, "0x000000000000000000000000000000000000dead"],
     reorgCheckFrequency: [1, 5, 10, 30, 60], // In minutes
     whitelistedCurrencies: new Map<string, Currency>(),
-    supportedBidCurrencies: { [Sdk.Common.Addresses.Weth[config.chainId]?.toLowerCase()]: true },
+    supportedBidCurrencies: {
+      [Sdk.Common.Addresses.WNative[config.chainId]?.toLowerCase()]: true,
+      [Sdk.Common.Addresses.Usdc[config.chainId]?.toLowerCase()]: true,
+    },
     subDomain: "api",
     elasticsearch: {
       numberOfShards: 2,
@@ -250,10 +266,6 @@ export const getNetworkSettings = (): NetworkSettings => {
           // Nifty Gateway Omnibus
           "0xe052113bd7d7700d623414a0a4585bcae754e9d5",
         ],
-        supportedBidCurrencies: {
-          ...defaultNetworkSettings.supportedBidCurrencies,
-          [Sdk.Common.Addresses.Usdc[config.chainId]]: true,
-        },
         whitelistedCurrencies: new Map([
           [
             "0xceb726e6383468dd8ac0b513c8330cc9fb4024a8",
@@ -425,7 +437,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         ],
         supportedBidCurrencies: {
           ...defaultNetworkSettings.supportedBidCurrencies,
-          [Sdk.Common.Addresses.Usdc[config.chainId]]: true,
           // OpenSea USDC
           "0x2f3a40a3db8a7e3d09b0adfefbce4f6f81927557": true,
         },
@@ -604,7 +615,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         },
         supportedBidCurrencies: {
           ...defaultNetworkSettings.supportedBidCurrencies,
-          [Sdk.Common.Addresses.Usdc[config.chainId]]: true,
           // WETH
           "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619": true,
           // CONE
@@ -1075,6 +1085,39 @@ export const getNetworkSettings = (): NetworkSettings => {
                   'ETH',
                   18,
                   '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // Linea
+    case 59144: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        subDomain: "api-linea",
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "wrapped-ether-linea", "image": "https://assets.coingecko.com/coins/images/31019/large/download_%2817%29.png"}'
                 ) ON CONFLICT DO NOTHING
               `
             ),

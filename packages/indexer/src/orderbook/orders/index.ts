@@ -26,9 +26,9 @@ export * as paymentProcessor from "@/orderbook/orders/payment-processor";
 
 // Imports
 
+import { HashZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
-import * as SdkTypesV5 from "@reservoir0x/sdk/dist/router/v5/types";
-import * as SdkTypesV6 from "@reservoir0x/sdk/dist/router/v6/types";
+import { BidDetails, ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
 
 import { inject } from "@/api/index";
 import { idb } from "@/common/db";
@@ -217,7 +217,7 @@ export const generateListingDetailsV6 = (
     amount?: number;
     isFlagged?: boolean;
   }
-): SdkTypesV6.ListingDetails => {
+): ListingDetails => {
   const common = {
     orderId: order.id,
     contractKind: token.kind,
@@ -451,7 +451,7 @@ export const generateBidDetailsV6 = async (
     amount?: number;
     owner?: string;
   }
-): Promise<SdkTypesV6.BidDetails> => {
+): Promise<BidDetails> => {
   const common = {
     orderId: order.id,
     contractKind: token.kind,
@@ -780,206 +780,6 @@ export const generateBidDetailsV6 = async (
   }
 };
 
-// DEPRECATED
-
-// Support for filling listings
-export const generateListingDetailsV5 = (
-  order: {
-    id: string;
-    kind: OrderKind;
-    currency: string;
-    rawData: any;
-  },
-  token: {
-    kind: "erc721" | "erc1155";
-    contract: string;
-    tokenId: string;
-    amount?: number;
-  }
-): SdkTypesV5.ListingDetails => {
-  const common = {
-    contractKind: token.kind,
-    contract: token.contract,
-    tokenId: token.tokenId,
-    currency: order.currency,
-    amount: token.amount ?? 1,
-  };
-
-  switch (order.kind) {
-    case "cryptopunks": {
-      return {
-        kind: "cryptopunks",
-        ...common,
-        order: new Sdk.CryptoPunks.Order(config.chainId, order.rawData),
-      };
-    }
-
-    case "foundation": {
-      return {
-        kind: "foundation",
-        ...common,
-        order: new Sdk.Foundation.Order(config.chainId, order.rawData),
-      };
-    }
-
-    case "x2y2": {
-      return {
-        kind: "x2y2",
-        ...common,
-        order: new Sdk.X2Y2.Order(config.chainId, order.rawData),
-      };
-    }
-
-    case "zeroex-v4-erc721":
-    case "zeroex-v4-erc1155": {
-      return {
-        kind: "zeroex-v4",
-        ...common,
-        order: new Sdk.ZeroExV4.Order(config.chainId, order.rawData),
-      };
-    }
-
-    case "seaport": {
-      if (order.rawData) {
-        return {
-          kind: "seaport",
-          ...common,
-          order: new Sdk.SeaportV11.Order(config.chainId, order.rawData),
-        };
-      } else {
-        // Sorry for all the below `any` types
-        return {
-          kind: "seaport-partial" as any,
-          ...common,
-          order: {
-            contract: token.contract,
-            tokenId: token.tokenId,
-            id: order.id,
-          } as any,
-        };
-      }
-    }
-
-    case "zora-v3": {
-      return {
-        kind: "zora",
-        ...common,
-        order: new Sdk.Zora.Order(config.chainId, order.rawData),
-      };
-    }
-
-    case "rarible": {
-      return {
-        kind: "rarible",
-        ...common,
-        order: new Sdk.Rarible.Order(config.chainId, order.rawData),
-      };
-    }
-
-    default: {
-      throw new Error("Unsupported order kind");
-    }
-  }
-};
-
-// Support for filling bids
-export const generateBidDetailsV5 = async (
-  order: {
-    id: string;
-    kind: OrderKind;
-    rawData: any;
-  },
-  token: {
-    kind: "erc721" | "erc1155";
-    contract: string;
-    tokenId: string;
-    amount?: number;
-  }
-): Promise<SdkTypesV5.BidDetails> => {
-  const common = {
-    contractKind: token.kind,
-    contract: token.contract,
-    tokenId: token.tokenId,
-    amount: token.amount ?? 1,
-  };
-
-  switch (order.kind) {
-    case "seaport": {
-      const extraArgs: any = {};
-
-      const sdkOrder = new Sdk.SeaportV11.Order(config.chainId, order.rawData);
-      if (sdkOrder.params.kind?.includes("token-list")) {
-        // When filling a "token-list" order, we also need to pass in the
-        // full list of tokens the order was made on (in order to be able
-        // to generate a valid merkle proof)
-        const tokens = await idb.manyOrNone(
-          `
-            SELECT
-              token_sets_tokens.token_id
-            FROM token_sets_tokens
-            WHERE token_sets_tokens.token_set_id = (
-              SELECT
-                orders.token_set_id
-              FROM orders
-              WHERE orders.id = $/id/
-            )
-          `,
-          { id: sdkOrder.hash() }
-        );
-        extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
-      }
-
-      return {
-        kind: "seaport",
-        ...common,
-        extraArgs,
-        order: sdkOrder,
-      };
-    }
-
-    case "zeroex-v4-erc721":
-    case "zeroex-v4-erc1155": {
-      const sdkOrder = new Sdk.ZeroExV4.Order(config.chainId, order.rawData);
-      return {
-        kind: "zeroex-v4",
-        ...common,
-        order: sdkOrder,
-      };
-    }
-
-    case "x2y2": {
-      const sdkOrder = new Sdk.X2Y2.Order(config.chainId, order.rawData);
-      return {
-        kind: "x2y2",
-        ...common,
-        order: sdkOrder,
-      };
-    }
-
-    case "sudoswap": {
-      const sdkOrder = new Sdk.Sudoswap.Order(config.chainId, order.rawData);
-      return {
-        kind: "sudoswap",
-        ...common,
-        order: sdkOrder,
-      };
-    }
-
-    case "rarible": {
-      const sdkOrder = new Sdk.Rarible.Order(config.chainId, order.rawData);
-      return {
-        kind: "rarible",
-        ...common,
-        order: sdkOrder,
-      };
-    }
-
-    default: {
-      throw new Error("Unsupported order kind");
-    }
-  }
-};
-
 // Check collection's blacklist, override the `orderKind` and `orderbook` in params
 export const checkBlacklistAndFallback = async (
   collection: string,
@@ -1004,7 +804,8 @@ export const checkBlacklistAndFallback = async (
     const blocked = await checkMarketplaceIsFiltered(collection, [
       Sdk.SeaportV15.Addresses.Exchange[config.chainId],
       new Sdk.SeaportBase.ConduitController(config.chainId).deriveConduit(
-        Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
+        // Default to cover chains where there's no OpenSea conduit
+        Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId] ?? HashZero
       ),
     ]);
     if (blocked) {

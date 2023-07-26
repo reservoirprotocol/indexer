@@ -179,7 +179,7 @@ export const getExecuteBidV5Options: RouteOptions = {
           nonce: Joi.string().pattern(regex.number).description("Optional. Set a custom nonce"),
           currency: Joi.string()
             .pattern(regex.address)
-            .default(Sdk.Common.Addresses.Weth[config.chainId]),
+            .default(Sdk.Common.Addresses.WNative[config.chainId]),
         })
           .or("token", "collection", "tokenSetId")
           .oxor("token", "collection", "tokenSetId")
@@ -471,7 +471,7 @@ export const getExecuteBidV5Options: RouteOptions = {
           }
 
           try {
-            const WETH = Sdk.Common.Addresses.Weth[config.chainId];
+            const WETH = Sdk.Common.Addresses.WNative[config.chainId];
             const BETH = Sdk.Blur.Addresses.Beth[config.chainId];
 
             // Default currency for Blur is BETH
@@ -504,7 +504,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                     orderIndex: i,
                   });
                 } else {
-                  const weth = new Sdk.Common.Helpers.Weth(baseProvider, config.chainId);
+                  const weth = new Sdk.Common.Helpers.WNative(baseProvider, config.chainId);
                   const wrapTx = weth.depositTransaction(maker, totalPrice.sub(currencyBalance));
 
                   steps[1].items.push({
@@ -1366,7 +1366,7 @@ export const getExecuteBidV5Options: RouteOptions = {
         steps[1].items = [];
         for (const [to, amount] of Object.entries(amounts)) {
           if (amount.gt(0)) {
-            const weth = new Sdk.Common.Helpers.Weth(baseProvider, config.chainId);
+            const weth = new Sdk.Common.Helpers.WNative(baseProvider, config.chainId);
             const wrapTx = weth.depositTransaction(maker, amount);
 
             steps[1].items.push({

@@ -1,6 +1,6 @@
 import { Log } from "@ethersproject/abstract-provider";
 
-import { idb } from "@/common/db";
+import { txdb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 
 export type TransactionLogs = {
@@ -9,7 +9,7 @@ export type TransactionLogs = {
 };
 
 export const saveTransactionLogs = async (transactionLogs: TransactionLogs) => {
-  await idb.none(
+  await txdb.none(
     `
       INSERT INTO transaction_logs (
         hash,
@@ -30,7 +30,7 @@ export const saveTransactionLogs = async (transactionLogs: TransactionLogs) => {
 };
 
 export const getTransactionLogs = async (hash: string): Promise<TransactionLogs> => {
-  const result = await idb.oneOrNone(
+  const result = await txdb.oneOrNone(
     `
       SELECT
         transaction_logs.hash,

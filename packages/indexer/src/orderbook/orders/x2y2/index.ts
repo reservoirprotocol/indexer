@@ -87,7 +87,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       // Check: sell order has Eth as payment token
       if (
         order.params.type === "sell" &&
-        order.params.currency !== Sdk.Common.Addresses.Eth[config.chainId]
+        order.params.currency !== Sdk.Common.Addresses.Native[config.chainId]
       ) {
         return results.push({
           id,
@@ -95,10 +95,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      // Check: buy order has Weth as payment token
+      // Check: buy order has WNative as payment token
       if (
         order.params.type === "buy" &&
-        order.params.currency !== Sdk.Common.Addresses.Weth[config.chainId]
+        order.params.currency !== Sdk.Common.Addresses.WNative[config.chainId]
       ) {
         return results.push({
           id,

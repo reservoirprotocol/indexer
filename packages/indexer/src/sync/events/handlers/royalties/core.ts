@@ -279,8 +279,8 @@ export async function extractRoyalties(
   // Some addresses we know for sure cannot be royalty recipients
   const notRoyaltyRecipients = new Set();
   // Common addresses
-  notRoyaltyRecipients.add(Sdk.Common.Addresses.Weth[config.chainId]);
-  notRoyaltyRecipients.add(Sdk.Common.Addresses.Eth[config.chainId]);
+  notRoyaltyRecipients.add(Sdk.Common.Addresses.WNative[config.chainId]);
+  notRoyaltyRecipients.add(Sdk.Common.Addresses.Native[config.chainId]);
   notRoyaltyRecipients.add(Sdk.BendDao.Addresses.BendWETH[config.chainId]);
   // Misc addresses
   // (BendDAO suspicious liquidator)
@@ -305,7 +305,7 @@ export async function extractRoyalties(
   // Iterate through all of the state changes of the (sub)call associated to the current fill event
   const state = getStateChange(subcallToAnalyze);
 
-  const ETH = Sdk.Common.Addresses.Eth[config.chainId];
+  const ETH = Sdk.Common.Addresses.Native[config.chainId];
   const BETH = Sdk.Blur.Addresses.Beth[config.chainId];
 
   // Check Paid on top

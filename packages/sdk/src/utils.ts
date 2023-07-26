@@ -103,12 +103,12 @@ export enum Network {
   Ethereum = 1,
   Optimism = 10,
   Bsc = 56,
-  Gnosis = 100,
   Polygon = 137,
   Base = 8453,
   Arbitrum = 42161,
   ArbitrumNova = 42170,
   Avalanche = 43114,
+  Linea = 59144,
   Zora = 7777777,
   // Testnets
   EthereumGoerli = 5,

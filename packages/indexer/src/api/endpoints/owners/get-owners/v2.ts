@@ -225,7 +225,7 @@ export const getOwnersV2Options: RouteOptions = {
                       nativeAmount: String(r.floor_sell_value),
                     },
                   },
-                  Sdk.Common.Addresses.Eth[config.chainId],
+                  Sdk.Common.Addresses.Native[config.chainId],
                   query.displayCurrency
                 )
               : null,
@@ -237,7 +237,7 @@ export const getOwnersV2Options: RouteOptions = {
                       nativeAmount: String(r.top_buy_value),
                     },
                   },
-                  Sdk.Common.Addresses.Eth[config.chainId],
+                  Sdk.Common.Addresses.Native[config.chainId],
                   query.displayCurrency
                 )
               : null,
@@ -249,7 +249,7 @@ export const getOwnersV2Options: RouteOptions = {
                       nativeAmount: String(r.total_buy_value),
                     },
                   },
-                  Sdk.Common.Addresses.Eth[config.chainId],
+                  Sdk.Common.Addresses.Native[config.chainId],
                   query.displayCurrency
                 )
               : null,

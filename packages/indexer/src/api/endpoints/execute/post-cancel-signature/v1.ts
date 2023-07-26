@@ -9,6 +9,7 @@ import Joi from "joi";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
+import { getNetworkName } from "@/config/network";
 import * as b from "@/utils/auth/blur";
 
 const version = "v1";
@@ -125,9 +126,7 @@ export const postCancelSignatureV1Options: RouteOptions = {
 
           try {
             await axios.post(
-              `https://seaport-oracle-${
-                config.chainId === 1 ? "mainnet" : "goerli"
-              }.up.railway.app/api/cancellations`,
+              `https://seaport-oracle-${getNetworkName()}.up.railway.app/api/cancellations`,
               {
                 signature,
                 orders: ordersResult.map((o) => o.raw_data),

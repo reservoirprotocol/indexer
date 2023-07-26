@@ -64,7 +64,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
                 c.normalized_floor_sell_value AS normalized_floor_sell_value,
                 c.floor_sell_value AS floor_sell_value,
                 c.non_flagged_floor_sell_value AS non_flagged_floor_sell_value,
-                  
+                c.top_buy_value AS top_buy_value,
                 COALESCE(((orders.value / (c.floor_sell_value * (1-((COALESCE(c.royalties_bps, 0)::float + 250) / 10000)))::numeric(78, 0) ) - 1) * 100, 0) AS floor_difference_percentage
               FROM orders
               JOIN LATERAL (
@@ -74,7 +74,8 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
                 c.normalized_floor_sell_value,
                 c.floor_sell_value,
                 c.non_flagged_floor_sell_value,
-                c.royalties_bps
+                c.royalties_bps,
+                c.top_buy_value
                 FROM token_sets_tokens
               	JOIN tokens
                   ON token_sets_tokens.contract = tokens.contract
@@ -242,6 +243,7 @@ export type EventInfo = {
 
 export type TopBidWebsocketEventInfo = {
   orderId: string;
+  validateCollectionTopBid: boolean;
 };
 
 export const addToQueue = async (events: EventInfo[]) => {

@@ -669,12 +669,6 @@ export const setupRoutes = (server: Server) => {
   // Execute
 
   server.route({
-    method: "GET",
-    path: "/execute/bid/v2",
-    options: executeEndpoints.getExecuteBidV2Options,
-  });
-
-  server.route({
     method: "POST",
     path: "/execute/bid/v4",
     options: executeEndpoints.getExecuteBidV4Options,
@@ -684,24 +678,6 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/execute/bid/v5",
     options: executeEndpoints.getExecuteBidV5Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/execute/buy/v2",
-    options: executeEndpoints.getExecuteBuyV2Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/execute/buy/v3",
-    options: executeEndpoints.getExecuteBuyV3Options,
-  });
-
-  server.route({
-    method: "POST",
-    path: "/execute/buy/v4",
-    options: executeEndpoints.getExecuteBuyV4Options,
   });
 
   server.route({
@@ -724,12 +700,6 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
-    path: "/execute/cancel/v1",
-    options: executeEndpoints.getExecuteCancelV1Options,
-  });
-
-  server.route({
-    method: "GET",
     path: "/execute/cancel/v2",
     options: executeEndpoints.getExecuteCancelV2Options,
   });
@@ -738,18 +708,6 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/execute/cancel/v3",
     options: executeEndpoints.getExecuteCancelV3Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/execute/list/v2",
-    options: executeEndpoints.getExecuteListV2Options,
-  });
-
-  server.route({
-    method: "POST",
-    path: "/execute/list/v3",
-    options: executeEndpoints.getExecuteListV3Options,
   });
 
   server.route({
@@ -762,24 +720,6 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/execute/list/v5",
     options: executeEndpoints.getExecuteListV5Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/execute/sell/v3",
-    options: executeEndpoints.getExecuteSellV3Options,
-  });
-
-  server.route({
-    method: "POST",
-    path: "/execute/sell/v4",
-    options: executeEndpoints.getExecuteSellV4Options,
-  });
-
-  server.route({
-    method: "POST",
-    path: "/execute/sell/v5",
-    options: executeEndpoints.getExecuteSellV5Options,
   });
 
   server.route({

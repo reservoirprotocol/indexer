@@ -328,7 +328,7 @@ export const getJoiDynamicPricingObject = async (
   currency?: string,
   missing_royalties?: []
 ) => {
-  const floorAskCurrency = currency ? currency : Sdk.Common.Addresses.Eth[config.chainId];
+  const floorAskCurrency = currency ? currency : Sdk.Common.Addresses.Native[config.chainId];
 
   // Add missing royalties on top of the raw prices
   const missingRoyalties = normalizeRoyalties
@@ -429,7 +429,7 @@ export const getJoiOrderDepthObject = async (
 ) => {
   // By default, show all prices in the native currency of the chain
   if (!displayCurrency) {
-    displayCurrency = Sdk.Common.Addresses.Eth[config.chainId];
+    displayCurrency = Sdk.Common.Addresses.Native[config.chainId];
   }
 
   const precisionDecimals = 4;
@@ -609,8 +609,8 @@ export const getJoiOrderObject = async (order: {
   const currency = order.prices.currency
     ? fromBuffer(order.prices.currency)
     : order.side === "sell"
-    ? Sdk.Common.Addresses.Eth[config.chainId]
-    : Sdk.Common.Addresses.Weth[config.chainId];
+    ? Sdk.Common.Addresses.Native[config.chainId]
+    : Sdk.Common.Addresses.WNative[config.chainId];
 
   return {
     id: order.id,

@@ -132,7 +132,7 @@ export const getExecuteBidV4Options: RouteOptions = {
           nonce: Joi.string().pattern(regex.number).description("Optional. Set a custom nonce"),
           currency: Joi.string()
             .pattern(regex.address)
-            .default(Sdk.Common.Addresses.Weth[config.chainId]),
+            .default(Sdk.Common.Addresses.WNative[config.chainId]),
         })
           .or("token", "collection", "tokenSetId")
           .oxor("token", "collection", "tokenSetId")
@@ -286,12 +286,12 @@ export const getExecuteBidV4Options: RouteOptions = {
         const currency = new Sdk.Common.Helpers.Erc20(baseProvider, params.currency);
         const currencyBalance = await currency.getBalance(maker);
         if (bn(currencyBalance).lt(params.weiPrice)) {
-          if (params.currency === Sdk.Common.Addresses.Weth[config.chainId]) {
+          if (params.currency === Sdk.Common.Addresses.WNative[config.chainId]) {
             const ethBalance = await baseProvider.getBalance(maker);
             if (bn(currencyBalance).add(ethBalance).lt(params.weiPrice)) {
               throw Boom.badData("Maker does not have sufficient balance");
             } else {
-              const weth = new Sdk.Common.Helpers.Weth(baseProvider, config.chainId);
+              const weth = new Sdk.Common.Helpers.WNative(baseProvider, config.chainId);
               wrapEthTx = weth.depositTransaction(maker, bn(params.weiPrice).sub(currencyBalance));
             }
           } else {
@@ -706,7 +706,7 @@ export const getExecuteBidV4Options: RouteOptions = {
         }
 
         if (amount.gt(0)) {
-          const weth = new Sdk.Common.Helpers.Weth(baseProvider, config.chainId);
+          const weth = new Sdk.Common.Helpers.WNative(baseProvider, config.chainId);
           const wethWrapTx = weth.depositTransaction(maker, amount);
 
           steps[1].items = [

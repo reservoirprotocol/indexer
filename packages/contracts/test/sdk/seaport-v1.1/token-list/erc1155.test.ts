@@ -7,12 +7,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
-import {
-  getChainId,
-  getCurrentTimestamp,
-  reset,
-  setupNFTs,
-} from "../../../utils";
+import { getChainId, getCurrentTimestamp, reset, setupNFTs } from "../../../utils";
 
 describe("SeaportV11 - TokenList ERC1155", () => {
   const chainId = getChainId();
@@ -46,7 +41,7 @@ describe("SeaportV11 - TokenList ERC1155", () => {
     const soldTokenId1 = 99;
     const soldTokenId2 = 999;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -72,25 +67,28 @@ describe("SeaportV11 - TokenList ERC1155", () => {
     const builder = new Builders.TokenList(chainId);
 
     // Build buy order
-    const buyOrder = builder.build({
-      offerer: buyer.address,
-      contract: erc1155.address,
-      amount,
-      tokenIds: boughtTokenIds,
-      tokenKind: "erc1155",
-      side: "buy",
-      price,
-      paymentToken: Common.Addresses.Weth[chainId],
-      fees: [
-        {
-          recipient: feeRecipient.address,
-          amount: price.mul(fee).div(10000),
-        },
-      ],
-      startTime: await getCurrentTimestamp(ethers.provider),
-      endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-      counter: await exchange.getCounter(ethers.provider, buyer.address),
-    }, SeaportV11.Order);
+    const buyOrder = builder.build(
+      {
+        offerer: buyer.address,
+        contract: erc1155.address,
+        amount,
+        tokenIds: boughtTokenIds,
+        tokenKind: "erc1155",
+        side: "buy",
+        price,
+        paymentToken: Common.Addresses.WNative[chainId],
+        fees: [
+          {
+            recipient: feeRecipient.address,
+            amount: price.mul(fee).div(10000),
+          },
+        ],
+        startTime: await getCurrentTimestamp(ethers.provider),
+        endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
+        counter: await exchange.getCounter(ethers.provider, buyer.address),
+      },
+      SeaportV11.Order
+    );
     await buyOrder.sign(buyer);
 
     buyOrder.checkValidity();
@@ -105,22 +103,16 @@ describe("SeaportV11 - TokenList ERC1155", () => {
 
       const buyerBalanceBefore = await weth.getBalance(buyer.address);
       const sellerBalanceBefore = await weth.getBalance(seller1.address);
-      const feeRecipientBalanceBefore = await weth.getBalance(
-        feeRecipient.address
-      );
+      const feeRecipientBalanceBefore = await weth.getBalance(feeRecipient.address);
 
       // Match orders
       await exchange.fillOrder(seller1, buyOrder, matchParams);
 
       const buyerBalanceAfter = await weth.getBalance(buyer.address);
       const sellerBalanceAfter = await weth.getBalance(seller1.address);
-      const feeRecipientBalanceAfter = await weth.getBalance(
-        feeRecipient.address
-      );
+      const feeRecipientBalanceAfter = await weth.getBalance(feeRecipient.address);
 
-      expect(buyerBalanceBefore.sub(buyerBalanceAfter)).to.eq(
-        price.sub(price.div(amount))
-      );
+      expect(buyerBalanceBefore.sub(buyerBalanceAfter)).to.eq(price.sub(price.div(amount)));
       expect(sellerBalanceAfter.sub(sellerBalanceBefore)).to.eq(
         price.div(amount).sub(price.div(amount).mul(fee).div(10000))
       );
@@ -138,22 +130,16 @@ describe("SeaportV11 - TokenList ERC1155", () => {
 
       const buyerBalanceBefore = await weth.getBalance(buyer.address);
       const sellerBalanceBefore = await weth.getBalance(seller2.address);
-      const feeRecipientBalanceBefore = await weth.getBalance(
-        feeRecipient.address
-      );
+      const feeRecipientBalanceBefore = await weth.getBalance(feeRecipient.address);
 
       // Match orders
       await exchange.fillOrder(seller2, buyOrder, matchParams);
 
       const buyerBalanceAfter = await weth.getBalance(buyer.address);
       const sellerBalanceAfter = await weth.getBalance(seller2.address);
-      const feeRecipientBalanceAfter = await weth.getBalance(
-        feeRecipient.address
-      );
+      const feeRecipientBalanceAfter = await weth.getBalance(feeRecipient.address);
 
-      expect(buyerBalanceBefore.sub(buyerBalanceAfter)).to.eq(
-        price.sub(price.div(amount))
-      );
+      expect(buyerBalanceBefore.sub(buyerBalanceAfter)).to.eq(price.sub(price.div(amount)));
       expect(sellerBalanceAfter.sub(sellerBalanceBefore)).to.eq(
         price.div(amount).sub(price.div(amount).mul(fee).div(10000))
       );

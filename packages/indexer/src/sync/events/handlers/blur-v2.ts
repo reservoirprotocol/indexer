@@ -128,7 +128,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           }
 
           // Handle: prices
-          const currency = Sdk.Common.Addresses.Eth[config.chainId];
+          const currency = Sdk.Common.Addresses.Native[config.chainId];
           const priceData = await getUSDAndNativePrices(
             currency,
             currencyPrice,

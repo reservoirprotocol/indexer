@@ -69,7 +69,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         throw new Error("Could not fetch pool details");
       }
 
-      if (pool.token !== Sdk.Common.Addresses.Eth[config.chainId]) {
+      if (pool.token !== Sdk.Common.Addresses.Native[config.chainId]) {
         throw new Error("Unsupported currency");
       }
 

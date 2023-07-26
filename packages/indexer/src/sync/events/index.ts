@@ -1,490 +1,514 @@
-import { Filter } from "@ethersproject/abstract-provider";
-import _, { now } from "lodash";
-import pLimit from "p-limit";
+/* eslint-disable  @typescript-eslint/no-explicit-any */
 
-import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { getNetworkSettings } from "@/config/network";
-import { baseProvider } from "@/common/provider";
 import { EventKind, getEventData } from "@/events-sync/data";
-import { EventsBatch, EventsByKind } from "@/events-sync/handlers";
+import { EventsBatch, EventsByKind, processEventsBatchV2 } from "@/events-sync/handlers";
 import { EnhancedEvent } from "@/events-sync/handlers/utils";
 import { parseEvent } from "@/events-sync/parser";
 import * as es from "@/events-sync/storage";
 import * as syncEventsUtils from "@/events-sync/utils";
 import * as blocksModel from "@/models/blocks";
 import getUuidByString from "uuid-by-string";
+import { BlockWithTransactions } from "@ethersproject/abstract-provider";
+import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
 
 import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
-import { eventsSyncProcessBackfillJob } from "@/jobs/events-sync/process/events-sync-process-backfill";
-import { blockCheckJob, BlockCheckJobPayload } from "@/jobs/events-sync/block-check-queue-job";
-import { eventsSyncProcessRealtimeJob } from "@/jobs/events-sync/process/events-sync-process-realtime";
+import { Block } from "@/models/blocks";
+import { saveTransactionLogs } from "@/models/transaction-logs";
+import { TransactionTrace, saveTransactionTraces } from "@/models/transaction-traces";
+import { TransactionReceipt } from "@ethersproject/providers";
+import {
+  supports_eth_getBlockReceipts,
+  supports_eth_getBlockTrace,
+} from "@/jobs/events-sync/events-sync-realtime-job";
+import { baseProvider } from "@/common/provider";
+import { redis } from "@/common/redis";
 
-export const extractEventsBatches = async (
-  enhancedEvents: EnhancedEvent[],
-  backfill: boolean
-): Promise<EventsBatch[]> => {
-  const limit = pLimit(50);
-
-  // First, associate each event to its corresponding tx
+export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBatch[] => {
   const txHashToEvents = new Map<string, EnhancedEvent[]>();
-  await Promise.all(
-    enhancedEvents.map((event) =>
-      limit(() => {
-        const txHash = event.baseEventParams.txHash;
-        if (!txHashToEvents.has(txHash)) {
-          txHashToEvents.set(txHash, []);
-        }
-        txHashToEvents.get(txHash)!.push(event);
-      })
-    )
-  );
 
-  // Then, for each tx split the events by their kind
+  enhancedEvents.forEach((event) => {
+    const txHash = event.baseEventParams.txHash;
+    if (!txHashToEvents.has(txHash)) {
+      txHashToEvents.set(txHash, []);
+    }
+    txHashToEvents.get(txHash)!.push(event);
+  });
+
   const txHashToEventsBatch = new Map<string, EventsBatch>();
-  await Promise.all(
-    [...txHashToEvents.entries()].map(([txHash, events]) =>
-      limit(() => {
-        const kindToEvents = new Map<EventKind, EnhancedEvent[]>();
-        let blockHash = "";
-        let logIndex = null;
-        let batchIndex = null;
 
-        for (const event of events) {
-          if (!kindToEvents.has(event.kind)) {
-            kindToEvents.set(event.kind, []);
-          }
+  [...txHashToEvents.entries()].forEach(([txHash, events]) => {
+    const kindToEvents = new Map<EventKind, EnhancedEvent[]>();
+    let blockHash = "";
+    let logIndex = null;
+    let batchIndex = null;
 
-          if (!blockHash) {
-            blockHash = event.baseEventParams.blockHash;
-            logIndex = event.baseEventParams.logIndex;
-            batchIndex = event.baseEventParams.batchIndex;
-          }
+    for (const event of events) {
+      if (!kindToEvents.has(event.kind)) {
+        kindToEvents.set(event.kind, []);
+      }
 
-          kindToEvents.get(event.kind)!.push(event);
-        }
+      if (!blockHash) {
+        blockHash = event.baseEventParams.blockHash;
+        logIndex = event.baseEventParams.logIndex;
+        batchIndex = event.baseEventParams.batchIndex;
+      }
+      kindToEvents.get(event.kind)!.push(event);
+    }
+    const eventsByKind: EventsByKind[] = [
+      {
+        kind: "erc20",
+        data: kindToEvents.get("erc20") ?? [],
+      },
+      {
+        kind: "erc721",
+        data: kindToEvents.get("erc721") ?? [],
+      },
+      {
+        kind: "erc1155",
+        data: kindToEvents.get("erc1155") ?? [],
+      },
+      {
+        kind: "blur",
+        data: kindToEvents.get("blur") ?? [],
+      },
+      {
+        kind: "cryptopunks",
+        data: kindToEvents.get("cryptopunks") ?? [],
+      },
+      {
+        kind: "decentraland",
+        data: kindToEvents.get("decentraland") ?? [],
+      },
+      {
+        kind: "element",
+        data: kindToEvents.get("element") ?? [],
+      },
+      {
+        kind: "foundation",
+        data: kindToEvents.get("foundation") ?? [],
+      },
+      {
+        kind: "looks-rare",
+        data: kindToEvents.has("looks-rare")
+          ? [
+              ...kindToEvents.get("looks-rare")!,
+              // To properly validate bids, we need some additional events
+              ...events.filter((e) => e.subKind === "erc20-transfer"),
+            ]
+          : [],
+      },
+      {
+        kind: "nftx",
+        data: kindToEvents.get("nftx") ?? [],
+      },
+      {
+        kind: "nouns",
+        data: kindToEvents.get("nouns") ?? [],
+      },
+      {
+        kind: "quixotic",
+        data: kindToEvents.get("quixotic") ?? [],
+      },
+      {
+        kind: "seaport",
+        data: kindToEvents.has("seaport")
+          ? [
+              ...kindToEvents.get("seaport")!,
+              // To properly validate bids, we need some additional events
+              ...events.filter((e) => e.subKind === "erc20-transfer"),
+            ]
+          : [],
+      },
+      {
+        kind: "sudoswap",
+        data: kindToEvents.get("sudoswap") ?? [],
+      },
+      {
+        kind: "sudoswap-v2",
+        data: kindToEvents.get("sudoswap-v2") ?? [],
+      },
+      {
+        kind: "caviar-v1",
+        data: kindToEvents.get("caviar-v1") ?? [],
+      },
+      {
+        kind: "wyvern",
+        data: kindToEvents.has("wyvern")
+          ? [
+              ...events.filter((e) => e.subKind === "erc721-transfer"),
+              ...kindToEvents.get("wyvern")!,
+              // To properly validate bids, we need some additional events
+              ...events.filter((e) => e.subKind === "erc20-transfer"),
+            ]
+          : [],
+      },
+      {
+        kind: "x2y2",
+        data: kindToEvents.has("x2y2")
+          ? [
+              ...kindToEvents.get("x2y2")!,
+              // To properly validate bids, we need some additional events
+              ...events.filter((e) => e.subKind === "erc20-transfer"),
+            ]
+          : [],
+      },
+      {
+        kind: "zeroex-v4",
+        data: kindToEvents.has("zeroex-v4")
+          ? [
+              ...kindToEvents.get("zeroex-v4")!,
+              // To properly validate bids, we need some additional events
+              ...events.filter((e) => e.subKind === "erc20-transfer"),
+            ]
+          : [],
+      },
+      {
+        kind: "zora",
+        data: kindToEvents.get("zora") ?? [],
+      },
+      {
+        kind: "rarible",
+        data: kindToEvents.has("rarible")
+          ? [
+              ...kindToEvents.get("rarible")!,
+              // To properly validate bids, we need some additional events
+              ...events.filter((e) => e.subKind === "erc20-transfer"),
+            ]
+          : [],
+      },
+      {
+        kind: "manifold",
+        data: kindToEvents.get("manifold") ?? [],
+      },
+      {
+        kind: "tofu",
+        data: kindToEvents.get("tofu") ?? [],
+      },
+      {
+        kind: "bend-dao",
+        data: kindToEvents.get("bend-dao") ?? [],
+      },
+      {
+        kind: "nft-trader",
+        data: kindToEvents.get("nft-trader") ?? [],
+      },
+      {
+        kind: "okex",
+        data: kindToEvents.get("okex") ?? [],
+      },
+      {
+        kind: "superrare",
+        data: kindToEvents.get("superrare") ?? [],
+      },
+      {
+        kind: "zeroex-v2",
+        data: kindToEvents.get("zeroex-v2") ?? [],
+      },
+      {
+        kind: "zeroex-v3",
+        data: kindToEvents.get("zeroex-v3") ?? [],
+      },
+      {
+        kind: "treasure",
+        data: kindToEvents.get("treasure") ?? [],
+      },
+      {
+        kind: "looks-rare-v2",
+        data: kindToEvents.get("looks-rare-v2") ?? [],
+      },
+      {
+        kind: "blend",
+        data: kindToEvents.get("blend") ?? [],
+      },
+      {
+        kind: "collectionxyz",
+        data: kindToEvents.get("collectionxyz") ?? [],
+      },
+      {
+        kind: "payment-processor",
+        data: kindToEvents.get("payment-processor") ?? [],
+      },
+      {
+        kind: "thirdweb",
+        data: kindToEvents.get("thirdweb") ?? [],
+      },
+      {
+        kind: "seadrop",
+        data: kindToEvents.get("seadrop") ?? [],
+      },
+      {
+        kind: "blur-v2",
+        data: kindToEvents.get("blur-v2") ?? [],
+      },
+    ];
 
-        const eventsByKind: EventsByKind[] = [
-          {
-            kind: "erc20",
-            data: kindToEvents.get("erc20") ?? [],
-          },
-          {
-            kind: "erc721",
-            data: kindToEvents.get("erc721") ?? [],
-          },
-          {
-            kind: "erc1155",
-            data: kindToEvents.get("erc1155") ?? [],
-          },
-          {
-            kind: "blur",
-            data: kindToEvents.get("blur") ?? [],
-          },
-          {
-            kind: "cryptopunks",
-            data: kindToEvents.get("cryptopunks") ?? [],
-          },
-          {
-            kind: "decentraland",
-            data: kindToEvents.get("decentraland") ?? [],
-          },
-          {
-            kind: "element",
-            data: kindToEvents.get("element") ?? [],
-          },
-          {
-            kind: "foundation",
-            data: kindToEvents.get("foundation") ?? [],
-          },
-          {
-            kind: "looks-rare",
-            data: kindToEvents.has("looks-rare")
-              ? [
-                  ...kindToEvents.get("looks-rare")!,
-                  // To properly validate bids, we need some additional events
-                  ...events.filter((e) => e.subKind === "erc20-transfer"),
-                ]
-              : [],
-          },
-          {
-            kind: "nftx",
-            data: kindToEvents.get("nftx") ?? [],
-          },
-          {
-            kind: "nouns",
-            data: kindToEvents.get("nouns") ?? [],
-          },
-          {
-            kind: "quixotic",
-            data: kindToEvents.get("quixotic") ?? [],
-          },
-          {
-            kind: "seaport",
-            data: kindToEvents.has("seaport")
-              ? [
-                  ...kindToEvents.get("seaport")!,
-                  // To properly validate bids, we need some additional events
-                  ...events.filter((e) => e.subKind === "erc20-transfer"),
-                ]
-              : [],
-          },
-          {
-            kind: "sudoswap",
-            data: kindToEvents.get("sudoswap") ?? [],
-          },
-          {
-            kind: "sudoswap-v2",
-            data: kindToEvents.get("sudoswap-v2") ?? [],
-          },
-          {
-            kind: "caviar-v1",
-            data: kindToEvents.get("caviar-v1") ?? [],
-          },
-          {
-            kind: "wyvern",
-            data: kindToEvents.has("wyvern")
-              ? [
-                  ...events.filter((e) => e.subKind === "erc721-transfer"),
-                  ...kindToEvents.get("wyvern")!,
-                  // To properly validate bids, we need some additional events
-                  ...events.filter((e) => e.subKind === "erc20-transfer"),
-                ]
-              : [],
-          },
-          {
-            kind: "x2y2",
-            data: kindToEvents.has("x2y2")
-              ? [
-                  ...kindToEvents.get("x2y2")!,
-                  // To properly validate bids, we need some additional events
-                  ...events.filter((e) => e.subKind === "erc20-transfer"),
-                ]
-              : [],
-          },
-          {
-            kind: "zeroex-v4",
-            data: kindToEvents.has("zeroex-v4")
-              ? [
-                  ...kindToEvents.get("zeroex-v4")!,
-                  // To properly validate bids, we need some additional events
-                  ...events.filter((e) => e.subKind === "erc20-transfer"),
-                ]
-              : [],
-          },
-          {
-            kind: "zora",
-            data: kindToEvents.get("zora") ?? [],
-          },
-          {
-            kind: "rarible",
-            data: kindToEvents.has("rarible")
-              ? [
-                  ...kindToEvents.get("rarible")!,
-                  // To properly validate bids, we need some additional events
-                  ...events.filter((e) => e.subKind === "erc20-transfer"),
-                ]
-              : [],
-          },
-          {
-            kind: "manifold",
-            data: kindToEvents.get("manifold") ?? [],
-          },
-          {
-            kind: "tofu",
-            data: kindToEvents.get("tofu") ?? [],
-          },
-          {
-            kind: "bend-dao",
-            data: kindToEvents.get("bend-dao") ?? [],
-          },
-          {
-            kind: "nft-trader",
-            data: kindToEvents.get("nft-trader") ?? [],
-          },
-          {
-            kind: "okex",
-            data: kindToEvents.get("okex") ?? [],
-          },
-          {
-            kind: "superrare",
-            data: kindToEvents.get("superrare") ?? [],
-          },
-          {
-            kind: "zeroex-v2",
-            data: kindToEvents.get("zeroex-v2") ?? [],
-          },
-          {
-            kind: "zeroex-v3",
-            data: kindToEvents.get("zeroex-v3") ?? [],
-          },
-          {
-            kind: "treasure",
-            data: kindToEvents.get("treasure") ?? [],
-          },
-          {
-            kind: "looks-rare-v2",
-            data: kindToEvents.get("looks-rare-v2") ?? [],
-          },
-          {
-            kind: "blend",
-            data: kindToEvents.get("blend") ?? [],
-          },
-          {
-            kind: "collectionxyz",
-            data: kindToEvents.get("collectionxyz") ?? [],
-          },
-          {
-            kind: "payment-processor",
-            data: kindToEvents.get("payment-processor") ?? [],
-          },
-          {
-            kind: "thirdweb",
-            data: kindToEvents.get("thirdweb") ?? [],
-          },
-          {
-            kind: "seadrop",
-            data: kindToEvents.get("seadrop") ?? [],
-          },
-          {
-            kind: "blur-v2",
-            data: kindToEvents.get("blur-v2") ?? [],
-          },
-        ];
-
-        txHashToEventsBatch.set(txHash, {
-          id: getUuidByString(`${txHash}:${logIndex}:${batchIndex}:${blockHash}`),
-          events: eventsByKind,
-          backfill,
-        });
-      })
-    )
-  );
+    txHashToEventsBatch.set(txHash, {
+      id: getUuidByString(`${txHash}:${logIndex}:${batchIndex}:${blockHash}`),
+      events: eventsByKind,
+    });
+  });
 
   return [...txHashToEventsBatch.values()];
 };
 
-export const syncEvents = async (
-  fromBlock: number,
-  toBlock: number,
-  options?: {
-    // When backfilling, certain processes will be disabled
-    backfill?: boolean;
-    syncDetails?:
-      | {
-          method: "events";
-          events: string[];
-        }
-      | {
-          method: "address";
-          // By default, ethers doesn't support filtering by multiple addresses.
-          // A workaround for that is included in the V2 indexer, but for now we
-          // simply skip it since there aren't many use-cases for filtering that
-          // includes multiple addresses:
-          // https://github.com/reservoirprotocol/indexer-v2/blob/main/src/syncer/base/index.ts
-          address: string;
+const _getTransactionTraces = async (Txs: { hash: string }[], block: number) => {
+  const timerStart = Date.now();
+  let traces;
+  if (supports_eth_getBlockTrace) {
+    traces = (await syncEventsUtils.getTracesFromBlock(block)) as TransactionTrace[];
+
+    // traces don't have the transaction hash, so we need to add it by using the txs array we are passing in by using the index of the trace
+    traces = traces.map((trace, index) => {
+      return {
+        ...trace,
+        hash: Txs[index].hash,
+      };
+    });
+  } else {
+    traces = await Promise.all(
+      Txs.map(async (tx) => {
+        const trace = await baseProvider.send("debug_traceTransaction", [
+          tx.hash,
+          { tracer: "callTracer" },
+        ]);
+        return {
+          ...trace,
+          hash: tx.hash,
         };
-  }
-) => {
-  // Cache the blocks for efficiency
-  const blocksCache = new Map<number, blocksModel.Block>();
-  // Keep track of all handled `${block}-${blockHash}` pairs
-  const blocksSet = new Set<string>();
-
-  const backfill = Boolean(options?.backfill);
-
-  // If the block range we're trying to sync is small enough, then fetch everything
-  // related to every of those blocks a priori for efficiency. Otherwise, it can be
-  // too inefficient to do it and in this case we just proceed (and let any further
-  // processes fetch those blocks as needed / if needed).
-  const startTimeFetchingBlocks = now();
-  if (!backfill && toBlock - fromBlock + 1 <= 32) {
-    const existingBlocks = await idb.manyOrNone(
-      `
-        SELECT blocks.number
-        FROM blocks
-        WHERE blocks.number IN ($/blocks:list/)
-      `,
-      { blocks: _.range(fromBlock, toBlock + 1) }
-    );
-
-    let blocksToFetch = _.range(fromBlock, toBlock + 1);
-    if (existingBlocks) {
-      blocksToFetch = _.difference(
-        blocksToFetch,
-        existingBlocks.map((block) => block.number)
-      );
-    }
-
-    const limit = pLimit(32);
-    await Promise.all(
-      blocksToFetch.map((block) => limit(() => syncEventsUtils.fetchBlock(block, true)))
+      })
     );
   }
-  const endTimeFetchingBlocks = now();
 
-  // Generate the events filter with one of the following options:
-  // - fetch all events
-  // - fetch a subset of events
-  // - fetch all events from a particular address
+  const timerEnd = Date.now();
 
-  // By default, we want to get all events
-
-  let eventFilter: Filter = {
-    topics: [[...new Set(getEventData().map(({ topic }) => topic))]],
-    fromBlock,
-    toBlock,
+  return {
+    traces,
+    getTransactionTracesTime: timerEnd - timerStart,
   };
-  if (options?.syncDetails?.method === "events") {
-    // Filter to a subset of events
-    eventFilter = {
-      // Remove any duplicate topics
-      topics: [[...new Set(getEventData(options.syncDetails.events).map(({ topic }) => topic))]],
-      fromBlock,
-      toBlock,
-    };
-  } else if (options?.syncDetails?.method === "address") {
-    // Filter to all events of a particular address
-    eventFilter = {
-      address: options.syncDetails.address,
-      fromBlock,
-      toBlock,
-    };
+};
+
+const _getTransactionReceiptsFromBlock = async (block: BlockWithTransactions) => {
+  const timerStart = Date.now();
+  let transactionReceipts;
+  if (supports_eth_getBlockReceipts) {
+    transactionReceipts = (await syncEventsUtils.getTransactionReceiptsFromBlock(
+      block.number
+    )) as TransactionReceipt[];
+  } else {
+    transactionReceipts = await Promise.all(
+      block.transactions.map((tx) => baseProvider.getTransactionReceipt(tx.hash))
+    );
   }
 
-  const enhancedEvents: EnhancedEvent[] = [];
-  const startTimeFetchingLogs = now();
-  await baseProvider.getLogs(eventFilter).then(async (logs) => {
-    const endTimeFetchingLogs = now();
-    const startTimeProcessingEvents = now();
-    const availableEventData = getEventData();
+  const timerEnd = Date.now();
+  return {
+    transactionReceipts,
+    getTransactionReceiptsTime: timerEnd - timerStart,
+  };
+};
 
-    for (const log of logs) {
+const _saveBlock = async (blockData: Block) => {
+  const timerStart = Date.now();
+  await blocksModel.saveBlock(blockData);
+  const timerEnd = Date.now();
+  return {
+    saveBlocksTime: timerEnd - timerStart,
+    endSaveBlocksTime: timerEnd,
+  };
+};
+
+const _saveTransactions = async (
+  blockData: BlockWithTransactions,
+  transactionReceipts: TransactionReceipt[]
+) => {
+  const timerStart = Date.now();
+  await syncEventsUtils.saveBlockTransactions(blockData, transactionReceipts);
+  const timerEnd = Date.now();
+  return timerEnd - timerStart;
+};
+
+const getBlockSyncData = async (blockData: BlockWithTransactions) => {
+  const [
+    { traces, getTransactionTracesTime },
+    { transactionReceipts, getTransactionReceiptsTime },
+    { saveBlocksTime, endSaveBlocksTime },
+  ] = await Promise.all([
+    _getTransactionTraces(blockData.transactions, blockData.number),
+    _getTransactionReceiptsFromBlock(blockData),
+    _saveBlock({
+      number: blockData.number,
+      hash: blockData.hash,
+      timestamp: blockData.timestamp,
+    }),
+  ]);
+
+  return {
+    traces,
+    transactionReceipts,
+    getTransactionReceiptsTime,
+    getTransactionTracesTime,
+    saveBlocksTime,
+    endSaveBlocksTime,
+  };
+};
+
+const saveLogsAndTracesAndTransactions = async (
+  blockData: BlockWithTransactions,
+  transactionReceipts: TransactionReceipt[],
+  traces: TransactionTrace[]
+) => {
+  const transactionLogs: {
+    hash: string;
+    logs: any[];
+  }[] = [];
+
+  const logs = transactionReceipts.map((tx) => tx.logs).flat();
+
+  transactionReceipts.forEach((tx) => {
+    const logs = tx.logs.map((log) => ({
+      ...log,
+      address: log.address.toLowerCase(),
+    }));
+    transactionLogs.push({
+      hash: tx.transactionHash,
+      logs,
+    });
+  });
+
+  const startTime = Date.now();
+
+  await Promise.all([
+    ...transactionLogs.map((txLogs) => saveTransactionLogs(txLogs)),
+    saveTransactionTraces(traces),
+    _saveTransactions(blockData, transactionReceipts),
+    syncEventsUtils.processContractAddresses(traces),
+  ]);
+
+  const endTime = Date.now();
+
+  return {
+    saveLogsAndTracesAndTransactionsTime: endTime - startTime,
+    logs,
+  };
+};
+
+const processEvents = async (logs: any[], blockData: BlockWithTransactions) => {
+  const availableEventData = getEventData();
+  let enhancedEvents = logs
+    .map((log) => {
       try {
-        const baseEventParams = await parseEvent(log, blocksCache);
-
-        // Cache the block data
-        if (!blocksCache.has(baseEventParams.block)) {
-          // It's very important from a performance perspective to have
-          // the block data available before proceeding with the events
-          // (otherwise we might have to perform too many db reads)
-          blocksCache.set(
-            baseEventParams.block,
-            await blocksModel.saveBlock({
-              number: baseEventParams.block,
-              hash: baseEventParams.blockHash,
-              timestamp: baseEventParams.timestamp,
-            })
-          );
-        }
-
-        // Keep track of the block
-        blocksSet.add(`${log.blockNumber}-${log.blockHash}`);
-
-        // Find matching events:
-        // - matching topic
-        // - matching number of topics (eg. indexed fields)
-        // - matching address
-        const matchingEventDatas = availableEventData.filter(
-          ({ addresses, numTopics, topic }) =>
-            log.topics[0] === topic &&
-            log.topics.length === numTopics &&
-            (addresses ? addresses[log.address.toLowerCase()] : true)
-        );
-        for (const eventData of matchingEventDatas) {
-          enhancedEvents.push({
+        const baseEventParams = parseEvent(log, blockData.timestamp);
+        return availableEventData
+          .filter(
+            ({ addresses, numTopics, topic }) =>
+              log.topics[0] === topic &&
+              log.topics.length === numTopics &&
+              (addresses ? addresses[log.address.toLowerCase()] : true)
+          )
+          .map((eventData) => ({
             kind: eventData.kind,
             subKind: eventData.subKind,
             baseEventParams,
             log,
-          });
-        }
+          }));
       } catch (error) {
-        logger.info("sync-events", `Failed to handle events: ${error}`);
+        logger.error("sync-events-v2", `Failed to handle events: ${error}`);
         throw error;
       }
+    })
+    .flat();
+
+  enhancedEvents = enhancedEvents.filter((e) => e) as EnhancedEvent[];
+
+  const eventsBatches = extractEventsBatches(enhancedEvents as EnhancedEvent[]);
+  const startProcessLogs = Date.now();
+  const processEventsLatencies = await processEventsBatchV2(eventsBatches);
+  const endProcessLogs = Date.now();
+
+  return {
+    processEventsLatencies,
+    processLogsTime: endProcessLogs - startProcessLogs,
+  };
+};
+
+export const syncEvents = async (block: number) => {
+  try {
+    logger.info("sync-events-v2", `Events realtime syncing block ${block}`);
+    const startSyncTime = Date.now();
+    const blockData = await syncEventsUtils.fetchBlock(block);
+
+    if (!blockData) {
+      logger.warn("sync-events-v2", `Block ${block} not found`);
+      throw new Error(`Block ${block} not found`);
     }
 
-    // Process the retrieved events asynchronously
-    const eventsBatches = await extractEventsBatches(enhancedEvents, backfill);
+    const endGetBlockTime = Date.now();
 
-    const startTimeAddToProcessQueue = now();
-    if (backfill) {
-      await eventsSyncProcessBackfillJob.addToQueue(eventsBatches);
-    } else {
-      await eventsSyncProcessRealtimeJob.addToQueue(eventsBatches, true);
-    }
-    const endTimeAddToProcessQueue = now();
+    const {
+      traces,
+      transactionReceipts,
+      getTransactionReceiptsTime,
+      getTransactionTracesTime,
+      saveBlocksTime,
+      endSaveBlocksTime,
+    } = await getBlockSyncData(blockData);
 
-    // Make sure to recheck the ingested blocks with a delay in order to undo any reorgs
-    const ns = getNetworkSettings();
-    if (!backfill && ns.enableReorgCheck) {
-      for (const blockData of blocksSet.values()) {
-        const block = Number(blockData.split("-")[0]);
-        const blockHash = blockData.split("-")[1];
+    const { saveLogsAndTracesAndTransactionsTime, logs } = await saveLogsAndTracesAndTransactions(
+      blockData,
+      transactionReceipts,
+      traces
+    );
+    const { processEventsLatencies, processLogsTime } = await processEvents(logs, blockData);
 
-        // Act right away if the current block is a duplicate
-        if ((await blocksModel.getBlocks(block)).length > 1) {
-          await blockCheckJob.addToQueue({ block, blockHash, delay: 10 });
-          await blockCheckJob.addToQueue({ block, blockHash, delay: 30 });
-        }
-      }
+    const endSyncTime = Date.now();
 
-      const blocksToCheck: BlockCheckJobPayload[] = [];
-      let blockNumbersArray = _.range(fromBlock, toBlock + 1);
+    const timings = {
+      transactions: {
+        count: blockData.transactions.length,
+        saveLogsAndTracesAndTransactionsTime,
+      },
+      blocks: {
+        count: 1,
+        getBlockTime: endGetBlockTime - startSyncTime,
+        saveBlocksTime,
+        saveLogsAndTracesAndTransactionsTime,
+        blockMinedTimestamp: blockData.timestamp,
+        startJobTimestamp: startSyncTime,
+        getBlockTimestamp: endGetBlockTime,
+      },
+      receipts: {
+        count: transactionReceipts.length,
+        getTransactionReceiptsTime,
+      },
+      traces: {
+        count: traces.length,
+        getTransactionTracesTime,
+        saveLogsAndTracesAndTransactionsTime,
+      },
+      logs: {
+        count: logs.length,
+        getTransactionReceiptsTime,
+        processLogsTime,
+        saveLogsAndTracesAndTransactionsTime,
+      },
+      processEventsLatencies: processEventsLatencies,
+      totalSyncTime: endSyncTime - startSyncTime,
+      blockSyncTime: endSaveBlocksTime - startSyncTime,
+    };
 
-      // Put all fetched blocks on a delayed queue
-      [...blocksSet.values()].map(async (blockData) => {
-        const block = Number(blockData.split("-")[0]);
-        const blockHash = blockData.split("-")[1];
-        blockNumbersArray = _.difference(blockNumbersArray, [block]);
-
-        ns.reorgCheckFrequency.map((frequency) =>
-          blocksToCheck.push({
-            block,
-            blockHash,
-            delay: frequency * 60,
-          })
-        );
-      });
-
-      // Log blocks for which no logs were fetched from the RPC provider
-      if (!_.isEmpty(blockNumbersArray)) {
-        logger.debug(
-          "sync-events",
-          `[${fromBlock}, ${toBlock}] No logs fetched for ${JSON.stringify(blockNumbersArray)}`
-        );
-      }
-
-      await blockCheckJob.addBulk(blocksToCheck);
-    }
-
-    const endTimeProcessingEvents = now();
-
-    if (!backfill) {
-      logger.info(
-        "sync-events-timing-2",
-        JSON.stringify({
-          message: `Events realtime syncing block range [${fromBlock}, ${toBlock}]`,
-          blocks: {
-            count: blocksSet.size,
-            time: endTimeFetchingBlocks - startTimeFetchingBlocks,
-          },
-          logs: {
-            count: logs.length,
-            time: endTimeFetchingLogs - startTimeFetchingLogs,
-          },
-          events: {
-            count: enhancedEvents.length,
-            time: endTimeProcessingEvents - startTimeProcessingEvents,
-          },
-          queue: {
-            time: endTimeAddToProcessQueue - startTimeAddToProcessQueue,
-          },
-        })
-      );
-    }
-  });
+    logger.info(
+      "sync-events-timing-v2",
+      JSON.stringify({
+        message: `Events realtime syncing block ${block}`,
+        block,
+        ...timings,
+      })
+    );
+  } catch (error) {
+    logger.warn("sync-events-v2", `Events realtime syncing failed: ${error}, block: ${block}`);
+    throw error;
+  }
 };
 
 export const unsyncEvents = async (block: number, blockHash: string) => {
@@ -498,4 +522,49 @@ export const unsyncEvents = async (block: number, blockHash: string) => {
     es.nftTransfers.removeEvents(block, blockHash),
     removeUnsyncedEventsActivitiesJob.addToQueue(blockHash),
   ]);
+};
+
+export const checkForMissingBlocks = async (block: number) => {
+  // lets set the latest block to the block we are syncing if it is higher than the current latest block by 1. If it is higher than 1, we create a job to sync the missing blocks
+  // if its lower than the current latest block, we dont update the latest block in redis, but we still sync the block (this is for when we are catching up on missed blocks, or when we are syncing a block that is older than the current latest block)
+  const latestBlock = await redis.get("latest-block-realtime");
+  if (latestBlock) {
+    const latestBlockNumber = Number(latestBlock);
+    if (block > latestBlockNumber) {
+      await redis.set("latest-block-realtime", block);
+      if (block - latestBlockNumber > 1) {
+        // if we are missing more than 1 block, we need to sync the missing blocks
+        for (let i = latestBlockNumber + 1; i < block; i++) {
+          logger.info("sync-events-v2", `Found missing block: ${i}`);
+          await eventsSyncRealtimeJob.addToQueue({ block: i });
+        }
+      }
+    }
+  } else {
+    await redis.set("latest-block-realtime", block);
+  }
+};
+
+export const checkForOrphanedBlock = async (block: number) => {
+  // Check if block number / hash does not match up (orphaned block)
+  const upstreamBlockHash = (await baseProvider.getBlock(block)).hash.toLowerCase();
+
+  // get block from db that has number = block and hash != upstreamBlockHash
+  const orphanedBlock = await blocksModel.getBlockWithNumber(block, upstreamBlockHash);
+
+  if (!orphanedBlock) return;
+
+  logger.info(
+    "events-sync-catchup",
+    `Detected orphaned block ${block} with hash ${orphanedBlock.hash} (upstream hash ${upstreamBlockHash})`
+  );
+
+  // delete the orphaned block data
+  await unsyncEvents(block, orphanedBlock.hash);
+
+  // TODO: add block hash to transactions table and delete transactions associated to the orphaned block
+  // await deleteBlockTransactions(block);
+
+  // delete the block data
+  await blocksModel.deleteBlock(block, orphanedBlock.hash);
 };

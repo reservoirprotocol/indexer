@@ -174,7 +174,7 @@ export class NormalizedFloorQueueJob extends AbstractRabbitMqJobHandler {
         await collectionNormalizedJob.addToQueue([sellOrderResult]);
 
         if (kind === "revalidation") {
-          logger.error(this.queueName, `StaleCache: ${JSON.stringify(sellOrderResult)}`);
+          logger.warn(this.queueName, `StaleCache: ${JSON.stringify(sellOrderResult)}`);
         }
       }
     } catch (error) {

@@ -3,6 +3,7 @@ import { config } from "@/config/index";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import _ from "lodash";
 import { Tokens } from "@/models/tokens";
+import crypto from "crypto";
 
 export type RefreshActivitiesTokenMetadataJobPayload = {
   contract: string;
@@ -13,7 +14,7 @@ export type RefreshActivitiesTokenMetadataJobPayload = {
 export class RefreshActivitiesTokenMetadataJob extends AbstractRabbitMqJobHandler {
   queueName = "refresh-activities-token-metadata-queue";
   maxRetries = 10;
-  concurrency = 5;
+  concurrency = 1;
   persistent = true;
   lazyMode = true;
 
@@ -31,17 +32,28 @@ export class RefreshActivitiesTokenMetadataJob extends AbstractRabbitMqJobHandle
       );
 
       if (keepGoing) {
-        await this.addToQueue({ contract, tokenId, tokenUpdateData });
+        await this.addToQueue({ contract, tokenId, tokenUpdateData }, true);
       }
     }
   }
 
-  public async addToQueue(payload: RefreshActivitiesTokenMetadataJobPayload) {
+  public async addToQueue(payload: RefreshActivitiesTokenMetadataJobPayload, force = false) {
     if (!config.doElasticsearchWork) {
       return;
     }
 
-    await this.send({ payload });
+    const jobId = force
+      ? undefined
+      : crypto
+          .createHash("sha256")
+          .update(
+            `${payload.contract.toLowerCase()}${payload.tokenId}${JSON.stringify(
+              payload.tokenUpdateData
+            )}`
+          )
+          .digest("hex");
+
+    await this.send({ payload, jobId });
   }
 }
 

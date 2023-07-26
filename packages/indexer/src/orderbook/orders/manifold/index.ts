@@ -70,7 +70,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      if (orderParams.details.erc20 !== Sdk.Common.Addresses.Eth[config.chainId]) {
+      if (orderParams.details.erc20 !== Sdk.Common.Addresses.Native[config.chainId]) {
         return results.push({
           id,
           status: "unsupported-payment-token",

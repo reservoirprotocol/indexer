@@ -17,7 +17,8 @@ export type CollectionMintStandard =
   | "seadrop-v1.0"
   | "thirdweb"
   | "zora"
-  | "decent";
+  | "decent"
+  | "foundation";
 
 export type CollectionMintDetails = {
   tx: MintTxSchema;

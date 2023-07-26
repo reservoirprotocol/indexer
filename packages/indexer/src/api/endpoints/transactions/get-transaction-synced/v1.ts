@@ -1,7 +1,7 @@
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
-import { idb } from "@/common/db";
+import { txdb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { toBuffer } from "@/common/utils";
 
@@ -36,7 +36,7 @@ export const getTransactionSyncedV1Options: RouteOptions = {
   handler: async (request: Request) => {
     const params = request.params as { txHash: string };
 
-    const result = await idb.oneOrNone(
+    const result = await txdb.oneOrNone(
       `
         SELECT 1 FROM transactions
         WHERE transactions.hash = $/txHash/

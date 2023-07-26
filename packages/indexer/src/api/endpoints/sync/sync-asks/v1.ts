@@ -240,8 +240,8 @@ export const getSyncOrdersAsksV1Options: RouteOptions = {
             r.currency
               ? fromBuffer(r.currency)
               : r.side === "sell"
-              ? Sdk.Common.Addresses.Eth[config.chainId]
-              : Sdk.Common.Addresses.Weth[config.chainId]
+              ? Sdk.Common.Addresses.Native[config.chainId]
+              : Sdk.Common.Addresses.WNative[config.chainId]
           ),
           normalizedPrice: await getJoiPriceObject(
             {
@@ -257,8 +257,8 @@ export const getSyncOrdersAsksV1Options: RouteOptions = {
             r.currency
               ? fromBuffer(r.currency)
               : r.side === "sell"
-              ? Sdk.Common.Addresses.Eth[config.chainId]
-              : Sdk.Common.Addresses.Weth[config.chainId]
+              ? Sdk.Common.Addresses.Native[config.chainId]
+              : Sdk.Common.Addresses.WNative[config.chainId]
           ),
           validFrom: Number(r.valid_from),
           validUntil: Number(r.valid_until),

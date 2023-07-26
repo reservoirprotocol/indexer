@@ -81,7 +81,7 @@ const dv = async (contractName: string, version: string, args: any[]) => {
     await new Promise((resolve) => setTimeout(resolve, 30000));
     await verify(contractName, version, args);
   } catch (error) {
-    console.log(`Failed to deploy ${contractName}: ${error}`);
+    console.log(`Failed to deploy/verify ${contractName}: ${error}`);
   }
 };
 
@@ -256,8 +256,15 @@ export const trigger = {
       dv("SwapModule", "v1", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
-        Sdk.Common.Addresses.Weth[chainId],
+        Sdk.Common.Addresses.WNative[chainId],
         Sdk.Common.Addresses.SwapRouter[chainId],
+      ]),
+    OneInchSwapModule: async (chainId: number) =>
+      dv("OneInchSwapModule", "v1", [
+        DEPLOYER,
+        Sdk.RouterV6.Addresses.Router[chainId],
+        Sdk.Common.Addresses.WNative[chainId],
+        Sdk.Common.Addresses.AggregationRouterV5[chainId],
       ]),
     X2Y2Module: async (chainId: number) =>
       dv("X2Y2Module", "v1", [
@@ -301,6 +308,32 @@ export const trigger = {
   // Utilities
   Utilities: {
     LiteRoyaltyEngine: async () => dv("LiteRoyaltyEngine", "v1", []),
+    OffChainCancellationZone: async (chainId: number) => {
+      if ([1, 5, 137, 80001].includes(chainId)) {
+        if (!(await readDeployment("SignedZoneController", "v1", chainId))) {
+          await dv("SignedZoneController", "v1", []);
+        }
+
+        const [deployer] = await ethers.getSigners();
+
+        const controller = new Contract(
+          await readDeployment("SignedZoneController", "v1", chainId).then((a) => a!),
+          new Interface([
+            "function createZone(string zoneName, string apiEndpoint, string documentationURI, address initialOwner, bytes32 salt)",
+            "function getZone(bytes32 salt) view returns (address)",
+          ]),
+          deployer
+        );
+
+        const salt = deployer.address.padEnd(66, "0");
+        const zoneAddress = await controller.getZone(salt);
+        const code = await ethers.provider.getCode(zoneAddress);
+        if (code === "0x") {
+          await controller.createZone("CancellationOracle", "", "", deployer.address, salt);
+          console.log(`Deployed cancellation zone at ${zoneAddress.toLowerCase()}`);
+        }
+      }
+    },
   },
   // Test NFTs
   TestNFTs: {

@@ -79,8 +79,8 @@ if (config.doBackgroundWork) {
       for (const { tx_hash, log_index, batch_index, currency, currency_price, price } of results) {
         if (!currency_price) {
           if (
-            fromBuffer(currency) === Sdk.Common.Addresses.Eth[config.chainId] ||
-            fromBuffer(currency) === Sdk.Common.Addresses.Weth[config.chainId]
+            fromBuffer(currency) === Sdk.Common.Addresses.Native[config.chainId] ||
+            fromBuffer(currency) === Sdk.Common.Addresses.WNative[config.chainId]
           ) {
             values.push({
               tx_hash,

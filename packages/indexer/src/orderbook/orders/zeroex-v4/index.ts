@@ -138,10 +138,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      // Check: buy order has Weth as payment token
+      // Check: buy order has WNative as payment token
       if (
         order.params.direction === Sdk.ZeroExV4.Types.TradeDirection.BUY &&
-        order.params.erc20Token !== Sdk.Common.Addresses.Weth[config.chainId]
+        order.params.erc20Token !== Sdk.Common.Addresses.WNative[config.chainId]
       ) {
         return results.push({
           id,
@@ -152,7 +152,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       // Check: sell order has Eth as payment token
       if (
         order.params.direction === Sdk.ZeroExV4.Types.TradeDirection.SELL &&
-        order.params.erc20Token !== Sdk.ZeroExV4.Addresses.Eth[config.chainId]
+        order.params.erc20Token !== Sdk.ZeroExV4.Addresses.Native[config.chainId]
       ) {
         return results.push({
           id,
@@ -347,9 +347,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       // Handle: currency
       let currency = order.params.erc20Token;
-      if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
+      if (currency === Sdk.ZeroExV4.Addresses.Native[config.chainId]) {
         // ZeroEx-like exchanges use a non-standard ETH address
-        currency = Sdk.Common.Addresses.Eth[config.chainId];
+        currency = Sdk.Common.Addresses.Native[config.chainId];
       }
 
       const validFrom = `date_trunc('seconds', to_timestamp(${currentTime}))`;

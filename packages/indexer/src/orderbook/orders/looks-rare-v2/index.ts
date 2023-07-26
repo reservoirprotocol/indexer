@@ -82,8 +82,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       // Check: order has (W)ETH as payment token
       if (
         ![
-          Sdk.Common.Addresses.Weth[config.chainId],
-          Sdk.Common.Addresses.Eth[config.chainId],
+          Sdk.Common.Addresses.WNative[config.chainId],
+          Sdk.Common.Addresses.Native[config.chainId],
         ].includes(order.params.currency)
       ) {
         return results.push({
