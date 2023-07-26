@@ -72,6 +72,7 @@
     "joi": "17.x",
     "json-stable-stringify": "^1.0.1",
     "kafkajs": "^2.2.4",
+    "kafkajs-metrics": "^1.0.0",
     "module-alias": "^2.2.2",
     "node-cron": "^3.0.0",
     "node-html-parser": "^5.3.3",
