@@ -52,7 +52,7 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue(params: EventsSyncRealtimeJobPayload) {
-    await this.send({ payload: params });
+    await this.send({ payload: params, jobId: `${params.block}` });
   }
 }
 
