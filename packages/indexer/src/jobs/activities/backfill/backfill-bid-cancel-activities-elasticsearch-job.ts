@@ -199,7 +199,7 @@ export class BackfillBidCancelActivitiesElasticsearchJob extends AbstractRabbitM
         payload: { cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
         jobId,
       },
-      keepGoing ? 1000 : 0
+      1000
     );
   }
 }

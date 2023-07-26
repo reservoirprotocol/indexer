@@ -6,7 +6,7 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 
-const BATCH_SIZE = 1000;
+const BATCH_SIZE = 2000;
 
 export type BackfillSavePendingActivitiesElasticsearchJobPayload = {
   indexName?: string;
@@ -58,9 +58,10 @@ export class BackfillSavePendingActivitiesElasticsearchJob extends AbstractRabbi
       } catch (error) {
         logger.error(
           this.queueName,
-          `failed to insert into activities. error=${error}, pendingActivities=${JSON.stringify(
-            pendingActivities
-          )}`
+          JSON.stringify({
+            message: `failed to insert into activities. error=${error}`,
+            error,
+          })
         );
 
         await pendingActivitiesQueue.add(pendingActivities);
