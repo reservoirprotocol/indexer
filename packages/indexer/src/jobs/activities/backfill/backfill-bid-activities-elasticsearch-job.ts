@@ -11,9 +11,10 @@ import {
   BackfillBaseActivitiesElasticsearchJobPayload,
 } from "@/jobs/activities/backfill/backfill-activities-elasticsearch-job";
 import { BidCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-created";
-import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
-import { backfillSavePendingActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-save-pending-activities-elasticsearch-job";
+// import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
+// import { backfillSavePendingActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-save-pending-activities-elasticsearch-job";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
+import { elasticsearch } from "@/common/elasticsearch";
 
 export class BackfillBidActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-bid-activities-elasticsearch-queue";
@@ -63,7 +64,7 @@ export class BackfillBidActivitiesElasticsearchJob extends AbstractRabbitMqJobHa
       });
 
       if (results.length) {
-        const pendingActivitiesQueue = new PendingActivitiesQueue(payload.indexName);
+        // const pendingActivitiesQueue = new PendingActivitiesQueue(payload.indexName);
 
         const activities = [];
 
@@ -79,50 +80,62 @@ export class BackfillBidActivitiesElasticsearchJob extends AbstractRabbitMqJobHa
           activities.push(activity);
         }
 
-        await pendingActivitiesQueue.add(activities);
-        await backfillSavePendingActivitiesElasticsearchJob.addToQueue(indexName);
+        const bulkResponse = await elasticsearch.bulk({
+          body: activities.flatMap((activity) => [
+            { index: { _index: payload.indexName, _id: activity.id } },
+            activity,
+          ]),
+        });
+
+        // await pendingActivitiesQueue.add(activities);
+        // await backfillSavePendingActivitiesElasticsearchJob.addToQueue(indexName);
 
         const lastResult = results[results.length - 1];
 
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "backfill-activities",
-            message: `Backfilled ${
-              results.length
-            } activities. fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, lastResultTimestamp=${new Date(
-              lastResult.updated_ts * 1000
-            ).toISOString()}`,
-            fromTimestamp,
-            toTimestamp,
-            cursor,
-            indexName,
-            keepGoing,
-            lastResult,
-          })
-        );
+        if (bulkResponse.errors) {
+          logger.warn(
+            this.queueName,
+            JSON.stringify({
+              topic: "backfill-activities",
+              message: `Backfilled ${
+                results.length
+              } activities. fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, lastResultTimestamp=${new Date(
+                lastResult.updated_ts * 1000
+              ).toISOString()}`,
+              fromTimestamp,
+              toTimestamp,
+              cursor,
+              indexName,
+              keepGoing,
+              lastResult,
+              errors: bulkResponse.items.filter((item) => item.index?.error),
+            })
+          );
+        } else {
+          addToQueue = true;
+          nextCursor = {
+            updatedAt: lastResult.updated_ts,
+            id: lastResult.order_id,
+          };
 
-        addToQueue = true;
-        nextCursor = {
-          updatedAt: lastResult.updated_ts,
-          id: lastResult.order_id,
-        };
-      } else if (keepGoing) {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "backfill-activities",
-            message: `KeepGoing. fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}`,
-            fromTimestamp,
-            toTimestamp,
-            cursor,
-            indexName,
-            keepGoing,
-          })
-        );
-
-        addToQueue = true;
-        nextCursor = cursor;
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              topic: "backfill-activities",
+              message: `Backfilled ${
+                results.length
+              } activities. fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, lastResultTimestamp=${new Date(
+                lastResult.updated_ts * 1000
+              ).toISOString()}`,
+              fromTimestamp,
+              toTimestamp,
+              cursor,
+              indexName,
+              keepGoing,
+              nextCursor,
+            })
+          );
+        }
       } else {
         logger.info(
           this.queueName,
