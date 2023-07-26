@@ -6,7 +6,7 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 
-const BATCH_SIZE = 1000;
+const BATCH_SIZE = 10000;
 
 export type BackillSavePendingActivitiesElasticsearchJobPayload = {
   indexName?: string;
@@ -35,14 +35,18 @@ export class BackillSavePendingActivitiesElasticsearchJob extends AbstractRabbit
           ]),
         });
 
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "save-conflicts",
-            message: `Saved ${pendingActivities.length} activities.`,
-            bulkResponse,
-          })
-        );
+        if (bulkResponse.errors) {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              topic: "save errors",
+              message: `Errors saving ${pendingActivities.length} activities.`,
+              bulkResponse,
+            })
+          );
+
+          await pendingActivitiesQueue.add(pendingActivities);
+        }
       } catch (error) {
         logger.error(
           this.queueName,
