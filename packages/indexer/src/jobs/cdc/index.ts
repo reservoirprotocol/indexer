@@ -4,17 +4,11 @@ import { config } from "@/config/index";
 import { TopicHandlers } from "@/jobs/cdc/topics";
 import { logger } from "@/common/logger";
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-// import { metricized } from "kafkajs-metrics";
-
 const kafka = new Kafka({
   clientId: config.kafkaClientId,
   brokers: config.kafkaBrokers,
   logLevel: logLevel.ERROR,
 });
-
-// metricized(kafka);
 
 export let producer: Producer;
 export const consumer = kafka.consumer({
@@ -75,19 +69,6 @@ export async function startKafkaConsumer(): Promise<void> {
 
     eachBatch: async ({ batch, resolveOffset, heartbeat }) => {
       const messagePromises = batch.messages.map(async (message) => {
-        try {
-          // log offset lag for each topic
-          const offsetLag = Number(batch.highWatermark) - Number(message.offset);
-          logger.info(
-            `kafka-consumer`,
-            `Topic=${batch.topic}, offset=${message.offset}, offsetLag=${offsetLag}`
-          );
-        } catch (error) {
-          logger.error(
-            `kafka-consumer`,
-            `Error logging offset lag for topic=${batch.topic}, error=${error}`
-          );
-        }
         try {
           if (!message?.value) {
             return;
