@@ -6,7 +6,7 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 
-const BATCH_SIZE = 1000;
+const BATCH_SIZE = 10000;
 
 export type BackillSavePendingActivitiesElasticsearchJobPayload = {
   indexName?: string;

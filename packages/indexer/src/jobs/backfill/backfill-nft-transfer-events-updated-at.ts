@@ -29,6 +29,24 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       let cursor = job.data.cursor as CursorInfo;
       let continuationFilter = "";
+      let updateAtFilter = "";
+
+      if (config.chainId === 1) {
+        updateAtFilter = `
+          WHERE updated_at <= '2023-06-27 13:03:01.118'
+          AND updated_at >= '2023-06-27 13:03:01.116'
+        `;
+      } else if (config.chainId === 137) {
+        updateAtFilter = `
+          WHERE updated_at <= '2023-06-27 13:11:48.003'
+          AND updated_at >= '2023-06-27 13:11:48.001'
+        `;
+      } else if (config.chainId === 10) {
+        updateAtFilter = `
+          WHERE updated_at <= '2023-06-27 13:08:38.464'
+          AND updated_at >= '2023-06-27 13:08:38.462'
+        `;
+      }
 
       const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 2500;
 
@@ -41,7 +59,9 @@ if (config.doBackgroundWork) {
       }
 
       if (cursor) {
-        continuationFilter = `WHERE (nft_transfer_events.tx_hash, nft_transfer_events.log_index, nft_transfer_events.batch_index) > ($/txHash/, $/logIndex/, $/batchIndex/)`;
+        continuationFilter = `${
+          updateAtFilter ? "AND" : "WHERE"
+        } (nft_transfer_events.tx_hash, nft_transfer_events.log_index, nft_transfer_events.batch_index) > ($/txHash/, $/logIndex/, $/batchIndex/)`;
       }
 
       const results = await idb.manyOrNone(
@@ -53,12 +73,13 @@ if (config.doBackgroundWork) {
               nft_transfer_events.batch_index,
               nft_transfer_events.created_at
             FROM nft_transfer_events
+            ${updateAtFilter}
             ${continuationFilter}
             ORDER BY nft_transfer_events.tx_hash, nft_transfer_events.log_index, nft_transfer_events.batch_index
             LIMIT $/limit/
           )
           UPDATE nft_transfer_events SET
-              updated_at = COALESCE(x.created_at, updated_at)
+              updated_at = COALESCE(x.created_at, NOW() - INTERVAL '30 DAYS')
           FROM x
           WHERE nft_transfer_events.tx_hash = x.tx_hash
           AND nft_transfer_events.log_index = x.log_index

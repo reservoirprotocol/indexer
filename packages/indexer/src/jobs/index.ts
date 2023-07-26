@@ -26,6 +26,7 @@ import amqplibConnectionManager, {
 
 import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders";
 import * as backfillRefreshCollectionMetadata from "@/jobs/backfill/backfill-refresh-collections-metadata";
+import * as backfillNftTransferUpdatedAt from "@/jobs/backfill/backfill-nft-transfer-events-updated-at";
 
 import * as askWebsocketEventsTriggerQueue from "@/jobs/websocket-events/ask-websocket-events-trigger-queue";
 import * as bidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/bid-websocket-events-trigger-queue";
@@ -44,6 +45,7 @@ import _ from "lodash";
 import getUuidByString from "uuid-by-string";
 import { getMachineId } from "@/common/machine-id";
 import { PausedRabbitMqQueues } from "@/models/paused-rabbit-mq-queues";
+import { RabbitMq, RabbitMQMessage } from "@/common/rabbit-mq";
 import { logger } from "@/common/logger";
 import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
@@ -118,7 +120,6 @@ import { mintsCheckJob } from "@/jobs/mints/mints-check-job";
 import { mintsExpiredJob } from "@/jobs/mints/cron/mints-expired-job";
 import { nftBalanceUpdateFloorAskJob } from "@/jobs/nft-balance-updates/update-floor-ask-price-job";
 import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
-import { RabbitMq, RabbitMQMessage } from "@/common/rabbit-mq";
 import { orderRevalidationsJob } from "@/jobs/order-fixes/order-revalidations-job";
 import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
 import { orderUpdatesDynamicOrderJob } from "@/jobs/order-updates/cron/dynamic-orders-job";
@@ -147,6 +148,7 @@ import { backillSavePendingActivitiesElasticsearchJob } from "@/jobs/activities/
 export const allJobQueues = [
   backfillExpiredOrders.queue,
   backfillRefreshCollectionMetadata.queue,
+  backfillNftTransferUpdatedAt.queue,
 
   askWebsocketEventsTriggerQueue.queue,
   bidWebsocketEventsTriggerQueue.queue,
