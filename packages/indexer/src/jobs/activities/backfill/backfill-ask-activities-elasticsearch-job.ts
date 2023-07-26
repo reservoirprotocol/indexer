@@ -150,6 +150,7 @@ export class BackfillAskActivitiesElasticsearchJob extends AbstractRabbitMqJobHa
           cursor,
           indexName,
           keepGoing,
+          error,
         })
       );
 

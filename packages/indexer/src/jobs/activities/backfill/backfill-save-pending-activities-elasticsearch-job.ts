@@ -37,13 +37,22 @@ export class BackillSavePendingActivitiesElasticsearchJob extends AbstractRabbit
         logger.info(
           this.queueName,
           JSON.stringify({
-            topic: "save errors",
-            message: `Errors saving ${pendingActivities.length} activities.`,
+            message: `Saved ${pendingActivities.length} activities.`,
             bulkResponse,
+            hasErrors: bulkResponse.errors,
           })
         );
 
         if (bulkResponse.errors) {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              message: `Errored activities.`,
+              bulkResponse,
+              errors: bulkResponse.items.filter((item) => item.index?.error),
+            })
+          );
+
           await pendingActivitiesQueue.add(pendingActivities);
         }
       } catch (error) {

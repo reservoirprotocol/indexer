@@ -150,6 +150,7 @@ export class BackfillBidCancelActivitiesElasticsearchJob extends AbstractRabbitM
           cursor,
           indexName,
           keepGoing,
+          error,
         })
       );
 

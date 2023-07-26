@@ -156,6 +156,7 @@ export class BackfillTransferActivitiesElasticsearchJob extends AbstractRabbitMq
           cursor,
           indexName,
           keepGoing,
+          error,
         })
       );
 
