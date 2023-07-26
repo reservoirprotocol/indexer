@@ -3,7 +3,7 @@
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
-import { idb, pgp } from "@/common/db";
+import { pgp, txdb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { redis } from "@/common/redis";
@@ -31,7 +31,7 @@ if (config.doBackgroundWork) {
       const { hash } = job.data;
       const limit = 200;
 
-      const results = await idb.manyOrNone(
+      const results = await txdb.manyOrNone(
         `
           SELECT
             transactions.hash,
@@ -65,7 +65,7 @@ if (config.doBackgroundWork) {
       }
 
       if (values.length) {
-        await idb.none(
+        await txdb.none(
           `
             UPDATE transactions SET
               block_number = x.block_number::INT,

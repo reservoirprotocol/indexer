@@ -3,7 +3,7 @@
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
-import { idb, pgp } from "@/common/db";
+import { idb, pgp, txdb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { baseProvider } from "@/common/provider";
@@ -79,7 +79,7 @@ if (config.doBackgroundWork) {
             WHERE fill_events_2.block = x.number::INT
               AND fill_events_2.timestamp != x.timestamp::INT
           `),
-          idb.none(`
+          txdb.none(`
             UPDATE blocks SET
               timestamp = x.timestamp::INT
             FROM (
