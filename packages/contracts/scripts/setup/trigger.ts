@@ -308,6 +308,32 @@ export const trigger = {
   // Utilities
   Utilities: {
     LiteRoyaltyEngine: async () => dv("LiteRoyaltyEngine", "v1", []),
+    OffChainCancellationZone: async (chainId: number) => {
+      if ([1, 5, 137, 80001].includes(chainId)) {
+        if (!(await readDeployment("SignedZoneController", "v1", chainId))) {
+          await dv("SignedZoneController", "v1", []);
+        }
+
+        const [deployer] = await ethers.getSigners();
+
+        const controller = new Contract(
+          await readDeployment("SignedZoneController", "v1", chainId).then((a) => a!),
+          new Interface([
+            "function createZone(string zoneName, string apiEndpoint, string documentationURI, address initialOwner, bytes32 salt)",
+            "function getZone(bytes32 salt) view returns (address)",
+          ]),
+          deployer
+        );
+
+        const salt = deployer.address.padEnd(66, "0");
+        const zoneAddress = await controller.getZone(salt);
+        const code = await ethers.provider.getCode(zoneAddress);
+        if (code === "0x") {
+          await controller.createZone("CancellationOracle", "", "", deployer.address, salt);
+          console.log(`Deployed cancellation zone at ${zoneAddress.toLowerCase()}`);
+        }
+      }
+    },
   },
   // Test NFTs
   TestNFTs: {

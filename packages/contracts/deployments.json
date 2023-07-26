@@ -270,5 +270,11 @@
       "137": "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
       "42161": "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d"
     }
+  },
+  "SignedZoneController": {
+    "v1": {
+      "137": "0x4ffa72942ea0651a17822c5eec0e0bf193334ecb",
+      "80001": "0x4ffa72942ea0651a17822c5eec0e0bf193334ecb"
+    }
   }
 }

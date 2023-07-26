@@ -1,10 +1,12 @@
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { logger } from "@/common/logger";
-import cron from "node-cron";
-import { redis, redlock } from "@/common/redis";
 import axios from "axios";
-import { config } from "@/config/index";
+import cron from "node-cron";
+
 import { idb, pgp } from "@/common/db";
+import { logger } from "@/common/logger";
+import { redis, redlock } from "@/common/redis";
+import { config } from "@/config/index";
+import { getNetworkName } from "@/config/network";
 import {
   orderUpdatesByIdJob,
   OrderUpdatesByIdJobPayload,
@@ -35,9 +37,7 @@ export class OrderUpdatesOracleOrderJob extends AbstractRabbitMqJobHandler {
     // Fetch any new cancellations
     const result = await axios
       .get(
-        `https://seaport-oracle-${
-          config.chainId === 1 ? "mainnet" : "goerli"
-        }.up.railway.app/api/cancellations?fromTimestamp=${cursor}`
+        `https://seaport-oracle-${getNetworkName()}.up.railway.app/api/cancellations?fromTimestamp=${cursor}`
       )
       .then((response) => response.data);
     const cancellations = result.cancellations;

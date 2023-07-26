@@ -25,8 +25,10 @@ import amqplibConnectionManager, {
 } from "amqp-connection-manager";
 
 import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders";
+import * as backfillExpiredOrders2 from "@/jobs/backfill/backfill-expired-orders-2";
 import * as backfillRefreshCollectionMetadata from "@/jobs/backfill/backfill-refresh-collections-metadata";
 import * as backfillNftTransferUpdatedAt from "@/jobs/backfill/backfill-nft-transfer-events-updated-at";
+import * as backfillSaleRoyalties from "@/jobs/backfill/backfill-sale-royalties";
 
 import * as askWebsocketEventsTriggerQueue from "@/jobs/websocket-events/ask-websocket-events-trigger-queue";
 import * as bidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/bid-websocket-events-trigger-queue";
@@ -143,12 +145,15 @@ import { countApiUsageJob } from "@/jobs/metrics/count-api-usage-job";
 import { tokenAttributeWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/token-attribute-websocket-events-trigger-job";
 import { topBidWebSocketEventsTriggerJob } from "@/jobs/websocket-events/top-bid-websocket-events-trigger-job";
 import { backfillDeleteExpiredBidsElasticsearchJob } from "@/jobs/activities/backfill/backfill-delete-expired-bids-elasticsearch-job";
-import { backillSavePendingActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-save-pending-activities-elasticsearch-job";
+import { backfillSavePendingActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-save-pending-activities-elasticsearch-job";
+import { transferUpdatesJob } from "@/jobs/transfer-updates/transfer-updates-job";
 
 export const allJobQueues = [
   backfillExpiredOrders.queue,
+  backfillExpiredOrders2.queue,
   backfillRefreshCollectionMetadata.queue,
   backfillNftTransferUpdatedAt.queue,
+  backfillSaleRoyalties.queue,
 
   askWebsocketEventsTriggerQueue.queue,
   bidWebsocketEventsTriggerQueue.queue,
@@ -272,7 +277,8 @@ export class RabbitMqJobsConsumer {
       backfillAskCancelActivitiesElasticsearchJob,
       backfillBidActivitiesElasticsearchJob,
       backfillBidCancelActivitiesElasticsearchJob,
-      backillSavePendingActivitiesElasticsearchJob,
+      backfillSavePendingActivitiesElasticsearchJob,
+      transferUpdatesJob,
     ];
   }
 

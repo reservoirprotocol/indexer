@@ -10,14 +10,14 @@ jest.setTimeout(1000 * 1000);
 
 describe("Payments", () => {
   it("wyvern", async () => {
-    const { hasMultiple, chunkedPayments, isReliable } = splitPayments(
+    const { hasMultiple, chunkedFillEvents, isReliable } = splitPayments(
       wyvern.fillEvents.map((c) => {
         return c as PartialFillEvent;
       }),
       wyvern.payments
     );
 
-    const firstPayment = chunkedPayments[0];
+    const firstPayment = chunkedFillEvents[0];
     const payment = firstPayment.relatedPayments.find(
       (c) => c.token === "erc721:0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d:6176"
     );

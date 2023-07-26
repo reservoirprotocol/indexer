@@ -161,7 +161,13 @@ export class Exchange extends SeaportBaseExchange {
         return axios
           .post(
             `https://seaport-oracle-${
-              this.chainId === 1 ? "mainnet" : "goerli"
+              this.chainId === 1
+                ? "mainnet"
+                : this.chainId === 5
+                ? "goerli"
+                : this.chainId === 137
+                ? "polygon"
+                : "mumbai"
             }.up.railway.app/api/signatures`,
             {
               orders: [

@@ -38,6 +38,8 @@ import {
   OrderUpdatesByMakerJobPayload,
 } from "@/jobs/order-updates/order-updates-by-maker-job";
 import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
+import _ from "lodash";
+import { transferUpdatesJob } from "@/jobs/transfer-updates/transfer-updates-job";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -114,6 +116,19 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   // Post-process fill events
 
   const allFillEvents = concat(data.fillEvents, data.fillEventsPartial, data.fillEventsOnChain);
+  const nonFillTransferEvents = _.filter(data.nftTransferEvents, (transfer) => {
+    return (
+      transfer.from !== AddressZero &&
+      !_.some(
+        allFillEvents,
+        (fillEvent) =>
+          fillEvent.baseEventParams.txHash === transfer.baseEventParams.txHash &&
+          fillEvent.baseEventParams.logIndex === transfer.baseEventParams.logIndex &&
+          fillEvent.baseEventParams.batchIndex === transfer.baseEventParams.batchIndex
+      )
+    );
+  });
+
   const startAssignSourceToFillEvents = Date.now();
   if (!backfill) {
     await Promise.all([assignSourceToFillEvents(allFillEvents)]);
@@ -216,6 +231,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   }
 
   // Mints and last sales
+  await transferUpdatesJob.addToQueue(nonFillTransferEvents);
   await mintQueueJob.addToQueue(data.mintInfos);
   await fillUpdatesJob.addToQueue(data.fillInfos);
   if (!backfill) {

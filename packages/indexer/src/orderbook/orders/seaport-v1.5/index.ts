@@ -13,7 +13,7 @@ import { acquireLock, redis } from "@/common/redis";
 import tracer from "@/common/tracer";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { getNetworkSettings } from "@/config/network";
+import { getNetworkName, getNetworkSettings } from "@/config/network";
 import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/config";
 import { addPendingData } from "@/jobs/arweave-relay";
 import { Collections } from "@/models/collections";
@@ -722,9 +722,7 @@ export const save = async (
             Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
         ) {
           await axios.post(
-            `https://seaport-oracle-${
-              config.chainId === 1 ? "mainnet" : "goerli"
-            }.up.railway.app/api/replacements`,
+            `https://seaport-oracle-${getNetworkName()}.up.railway.app/api/replacements`,
             {
               newOrders: [order.params],
               replacedOrders: [replacedOrderResult.raw_data],

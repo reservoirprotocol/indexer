@@ -9,7 +9,7 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { getNetworkSettings } from "@/config/network";
+import { getNetworkName, getNetworkSettings } from "@/config/network";
 import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/config";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
@@ -467,9 +467,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
         ) {
           await axios.post(
-            `https://seaport-oracle-${
-              config.chainId === 1 ? "mainnet" : "goerli"
-            }.up.railway.app/api/replacements`,
+            `https://seaport-oracle-${getNetworkName()}.up.railway.app/api/replacements`,
             {
               newOrders: [order.params],
               replacedOrders: [replacedOrderResult.raw_data],

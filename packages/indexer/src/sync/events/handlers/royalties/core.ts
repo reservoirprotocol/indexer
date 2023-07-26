@@ -1,6 +1,7 @@
 import { getStateChange, getPayments, searchForCall } from "@georgeroman/evm-tx-simulator";
 import { Payment } from "@georgeroman/evm-tx-simulator/dist/types";
 import * as Sdk from "@reservoir0x/sdk";
+
 import { redis } from "@/common/redis";
 import { bn } from "@/common/utils";
 import { config } from "@/config/index";
@@ -10,17 +11,14 @@ import {
   getFillEventsFromTx,
   getOrderInfos,
 } from "@/events-sync/handlers/royalties";
-import {
-  platformFeeRecipientsRegistry,
-  allPlatformFeeRecipients,
-  supportedExchanges,
-} from "@/events-sync/handlers/royalties/config";
+import { supportedExchanges } from "@/events-sync/handlers/royalties/config";
+import { splitPayments } from "@/events-sync/handlers/royalties/payments";
 import { getFillEventsFromTxOnChain } from "@/events-sync/handlers/royalties/utils";
 import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
+import { FeeRecipients } from "@/models/fee-recipients";
 import { TransactionTrace } from "@/models/transaction-traces";
 import { Royalty, getRoyalties } from "@/utils/royalties";
-import { splitPayments } from "./payments";
 
 const findMatchingPayment = (payments: Payment[], fillEvent: PartialFillEvent) =>
   payments.find((payment) => paymentMatches(payment, fillEvent));
@@ -69,8 +67,6 @@ export async function extractRoyalties(
     return null;
   }
 
-  //console.log(JSON.stringify(txTrace));
-
   // Fetch the current transaction's sales
   let fillEvents: PartialFillEvent[] | undefined;
   const cacheKeyEvents = `get-fill-events-from-tx:${txHash}`;
@@ -93,6 +89,8 @@ export async function extractRoyalties(
     fillEvents = (await getFillEventsFromTxOnChain(txHash)).fillEvents;
   }
 
+  const feeRecipient = await FeeRecipients.getInstance();
+
   // Extract the orders associated to the current fill events
   const orderIds: string[] = [];
   fillEvents.forEach((c) => {
@@ -100,7 +98,6 @@ export async function extractRoyalties(
       orderIds.push(c.orderId);
     }
   });
-  //console.log(`fillEvents: ${JSON.stringify(fillEvents)}`);
 
   // Get the infos of the orders associated to the current fill events
   const orderInfos = await getOrderInfos(orderIds);
@@ -135,7 +132,6 @@ export async function extractRoyalties(
 
   // The (sub)call where the current fill occured
   let subcallToAnalyze = txTrace.calls;
-  //console.log(`subcallToAnalyze: ${JSON.stringify(subcallToAnalyze)}`);
   const globalState = getStateChange(txTrace.calls);
   const routerCall = searchForCall(
     txTrace.calls,
@@ -147,7 +143,6 @@ export async function extractRoyalties(
   );
 
   const exchangeAddress = supportedExchanges.get(fillEvent.orderKind);
-  //console.log(`exchangeAddress: ${exchangeAddress}`);
   if (exchangeAddress) {
     // If the fill event is from a supported exchange then search
     // for any (sub)calls to that particular exchange
@@ -206,7 +201,6 @@ export async function extractRoyalties(
 
   // Extract the payments from the (sub)call we just found
   const paymentsToAnalyze = getPayments(subcallToAnalyze);
-  //console.log(`paymentsToAnalyze: ${JSON.stringify(paymentsToAnalyze[0])}`);
 
   // Extract any fill events that have the same contract and currency
   const sameContractFills = fillEvents.filter((e) => {
@@ -214,13 +208,12 @@ export async function extractRoyalties(
     const payment = findMatchingPayment(paymentsToAnalyze, e);
     return isMatch && payment;
   });
-  //console.log(`sameContractFills: ${JSON.stringify(sameContractFills)}`);
+
   // Compute total price for all above same-contract fills
   const sameContractTotalPrice = sameContractFills.reduce(
     (total, item) => total.add(bn(item.currencyPrice ?? item.price).mul(bn(item.amount))),
     bn(0)
   );
-  //console.log(`sameContractTotalPrice: ${JSON.stringify(sameContractTotalPrice)}`);
   // Extract any fill events that have the same order kind and currency
   const sameProtocolFills = fillEvents
     .filter((e) => {
@@ -242,8 +235,6 @@ export async function extractRoyalties(
       total.add(bn(item.event.currencyPrice ?? item.event.price).mul(bn(item.event.amount))),
     bn(0)
   );
-  //console.log(`sameProtocolFills: ${JSON.stringify(sameProtocolFills)}`);
-  //console.log(`sameProtocolTotalPrice: ${JSON.stringify(sameProtocolTotalPrice)}`);
 
   // Keep track of some details for every same-protocol sale
   const sameProtocolDetails: {
@@ -276,13 +267,11 @@ export async function extractRoyalties(
       )
       .flat();
   }
-  //console.log(`sameProtocolDetails: ${JSON.stringify(sameProtocolDetails)}`);
+
   const matchDefinition = fillEventsWithRoyaltyData.find(
     (_) => _.contract === contract && _.tokenId === tokenId && _.royalties
   );
-  //console.log(`matchDefinition: ${JSON.stringify(matchDefinition)}`);
   const royalties = matchDefinition ? matchDefinition.royalties : [];
-  //console.log(`royalties: ${JSON.stringify(royalties)}`);
   const royaltyRecipients: string[] = royalties
     .map((r) => r.map(({ recipient }) => recipient))
     .flat();
@@ -302,21 +291,16 @@ export async function extractRoyalties(
     notRoyaltyRecipients.add(fillEvent.taker);
   });
 
-  const payments = paymentsToAnalyze.filter((_) => {
-    return !platformFeeRecipientsRegistry.has(_.to);
-  });
-
   // Try to split the fill events and their associated payments
-  const { chunkedFillEvents, isReliable, hasMultiple } = splitPayments(fillEvents, payments);
-  //console.log(`chunkedFillEvents: ${JSON.stringify(chunkedFillEvents)}`);
+  const { chunkedFillEvents, isReliable, hasMultiple } = splitPayments(
+    fillEvents,
+    paymentsToAnalyze
+  );
   const currentFillEvent = chunkedFillEvents.find((c) => c.fillEvent.orderId === fillEvent.orderId);
 
   const sameContractFillsWithRoyaltyData = fillEventsWithRoyaltyData.filter((c) => {
     return c.contract != contract;
   });
-
-  // Get the know platform fee recipients for the current fill order kind
-  const knownPlatformFeeRecipients = platformFeeRecipientsRegistry.get(fillEvent.orderKind) ?? [];
 
   // Iterate through all of the state changes of the (sub)call associated to the current fill event
   const state = getStateChange(subcallToAnalyze);
@@ -327,9 +311,7 @@ export async function extractRoyalties(
   // Check Paid on top
   for (const address in globalState) {
     const globalChange = globalState[address];
-    // console.log(`globalChange: ${JSON.stringify(globalChange)}`);
     const exchangeChange = state[address];
-    // console.log(`exchangeChange: ${JSON.stringify(exchangeChange)}`);
     try {
       if (routerCall && globalChange && fillEvents.length === 1) {
         const { tokenBalanceState } = globalChange;
@@ -355,9 +337,7 @@ export async function extractRoyalties(
       // Skip errors
     }
   }
-  //console.log(`state: ${JSON.stringify(state)}`);
   for (const address in state) {
-    //console.log(`address: ${JSON.stringify(address)}`);
     const { tokenBalanceState } = state[address];
     const globalChange = globalState[address];
 
@@ -368,7 +348,6 @@ export async function extractRoyalties(
         : tokenBalanceState[`erc20:${currency}`];
 
     try {
-      //console.log(`routercall: ${routerCall}`);
       // Fees on the top, make sure it's a single-sale transaction
       if (routerCall && globalChange && fillEvents.length === 1) {
         const { tokenBalanceState } = globalChange;
@@ -403,16 +382,17 @@ export async function extractRoyalties(
 
     // If the balance change is positive that means a payment was received
     if (balanceChange && !balanceChange.startsWith("-")) {
-      //console.log(`balanceChange: ${balanceChange} and currencyPrice: ${currencyPrice}`);
       const bpsOfPrice = bn(balanceChange).mul(10000).div(bn(currencyPrice));
-      //console.log(`bpsOfPrice: ${bpsOfPrice}`);
       // Start with the assumption that this is a royalty/platform fee payment
       const royalty = {
         recipient: address,
         bps: bpsOfPrice.toNumber(),
       };
 
-      if (knownPlatformFeeRecipients.includes(address)) {
+      const feeRecipientPlatform = await feeRecipient.getByAddress(address, "marketplace");
+      // const feeRecipientPlatform = knownPlatformFeeRecipients.includes(address)
+
+      if (feeRecipientPlatform) {
         // This is a marketplace fee payment
         // Reset the bps
         royalty.bps = bn(balanceChange).mul(10000).div(sameProtocolTotalPrice).toNumber();
@@ -458,10 +438,11 @@ export async function extractRoyalties(
         );
 
         const excludeOtherRecipients = shareSameRecipient ? true : notInOtherDef;
+        const matchFee = feeRecipient.getByAddress(address, "marketplace");
         const recipientIsEligible =
           bps > 0 &&
           bps < 1500 &&
-          !allPlatformFeeRecipients.has(address) &&
+          !matchFee &&
           excludeOtherRecipients &&
           !notRoyaltyRecipients.has(address);
 
@@ -505,13 +486,10 @@ export async function extractRoyalties(
     });
   }
 
-  const creatorRoyaltyFeeBps = getTotalRoyaltyBps(creatorRoyaltyFeeBreakdown);
   const royaltyFeeBps = getTotalRoyaltyBps(royaltyFeeBreakdown);
   const creatorBps = Math.min(...royalties.map(getTotalRoyaltyBps));
+  const paidFullRoyalty = royaltyFeeBreakdown.length ? royaltyFeeBps >= creatorBps : false;
 
-  const paidFullRoyalty = creatorRoyaltyFeeBps >= creatorBps;
-  //console.log(`royaltyFeeBps: ${royaltyFeeBps}`);
-  //console.log(`royaltyFeeOnTop: ${JSON.stringify(royaltyFeeOnTop)}`);
   return {
     royaltyFeeOnTop,
     royaltyFeeBps,

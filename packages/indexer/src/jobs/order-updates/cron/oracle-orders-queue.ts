@@ -6,6 +6,7 @@ import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
+import { getNetworkName } from "@/config/network";
 import {
   orderUpdatesByIdJob,
   OrderUpdatesByIdJobPayload,
@@ -43,9 +44,7 @@ if (config.doBackgroundWork) {
       // Fetch any new cancellations
       const result = await axios
         .get(
-          `https://seaport-oracle-${
-            config.chainId === 1 ? "mainnet" : "goerli"
-          }.up.railway.app/api/cancellations?fromTimestamp=${cursor}`
+          `https://seaport-oracle-${getNetworkName()}.up.railway.app/api/cancellations?fromTimestamp=${cursor}`
         )
         .then((response) => response.data);
       const cancellations = result.cancellations;

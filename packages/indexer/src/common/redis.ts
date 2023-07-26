@@ -41,12 +41,6 @@ export const rateLimitRedis = new Redis(config.rateLimitRedisUrl, {
   commandTimeout: 600,
 });
 
-// Metric redis
-export const metricsRedis = new Redis(config.metricsRedisUrl, {
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-});
-
 // All chains sync redis
 export const allChainsSyncRedis = new Redis(config.allChainsSyncRedisUrl, {
   maxRetriesPerRequest: null,

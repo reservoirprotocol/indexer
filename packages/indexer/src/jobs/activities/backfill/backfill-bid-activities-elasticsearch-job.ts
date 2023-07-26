@@ -12,7 +12,7 @@ import {
 } from "@/jobs/activities/backfill/backfill-activities-elasticsearch-job";
 import { BidCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-created";
 import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
-import { backillSavePendingActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-save-pending-activities-elasticsearch-job";
+import { backfillSavePendingActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-save-pending-activities-elasticsearch-job";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 
 export class BackfillBidActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
@@ -80,7 +80,7 @@ export class BackfillBidActivitiesElasticsearchJob extends AbstractRabbitMqJobHa
         }
 
         await pendingActivitiesQueue.add(activities);
-        await backillSavePendingActivitiesElasticsearchJob.addToQueue(indexName);
+        await backfillSavePendingActivitiesElasticsearchJob.addToQueue(indexName);
 
         const lastResult = results[results.length - 1];
 

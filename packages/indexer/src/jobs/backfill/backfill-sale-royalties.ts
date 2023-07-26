@@ -39,8 +39,8 @@ if (config.doBackgroundWork) {
 
       const time1 = performance.now();
 
-      const blockRange = 10;
-      const timestampRange = 1000;
+      const blockRange = (details.data as any).blockRange ?? 10;
+      const timestampRange = (details.data as any).timestampRange ?? 1000;
 
       let results: any[] = [];
       if (details.kind === "all") {
@@ -284,7 +284,11 @@ if (config.doBackgroundWork) {
         if (nextBlock >= details.data.fromBlock) {
           await addToQueue({
             kind: "all",
-            data: { fromBlock: details.data.fromBlock, toBlock: nextBlock },
+            data: {
+              fromBlock: details.data.fromBlock,
+              toBlock: nextBlock,
+              blockRange: details.data.blockRange,
+            },
           });
         }
       } else if (details.kind === "contract") {
@@ -296,6 +300,7 @@ if (config.doBackgroundWork) {
               contract: details.data.contract,
               fromTimestamp: details.data.fromTimestamp,
               toTimestamp: nextTimestamp,
+              timestampRange: details.data.timestampRange,
             },
           });
         }
@@ -315,6 +320,7 @@ type Details =
       data: {
         fromBlock: number;
         toBlock: number;
+        blockRange: number;
       };
     }
   | {
@@ -323,6 +329,7 @@ type Details =
         contract: string;
         fromTimestamp: number;
         toTimestamp: number;
+        timestampRange: number;
       };
     }
   | {
