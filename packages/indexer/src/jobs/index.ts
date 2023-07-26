@@ -25,6 +25,7 @@ import amqplibConnectionManager, {
 } from "amqp-connection-manager";
 
 import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders";
+import * as backfillExpiredOrders2 from "@/jobs/backfill/backfill-expired-orders-2";
 import * as backfillRefreshCollectionMetadata from "@/jobs/backfill/backfill-refresh-collections-metadata";
 import * as backfillNftTransferUpdatedAt from "@/jobs/backfill/backfill-nft-transfer-events-updated-at";
 
@@ -148,6 +149,7 @@ import { transferUpdatesJob } from "@/jobs/transfer-updates/transfer-updates-job
 
 export const allJobQueues = [
   backfillExpiredOrders.queue,
+  backfillExpiredOrders2.queue,
   backfillRefreshCollectionMetadata.queue,
   backfillNftTransferUpdatedAt.queue,
 
