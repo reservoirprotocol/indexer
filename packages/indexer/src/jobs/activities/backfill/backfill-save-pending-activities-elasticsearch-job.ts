@@ -18,7 +18,6 @@ export class BackillSavePendingActivitiesElasticsearchJob extends AbstractRabbit
   concurrency = 1;
   persistent = true;
   lazyMode = true;
-  singleActiveConsumer = true;
 
   protected async process(payload: BackillSavePendingActivitiesElasticsearchJobPayload) {
     let addToQueue = false;
@@ -38,11 +37,15 @@ export class BackillSavePendingActivitiesElasticsearchJob extends AbstractRabbit
         logger.info(
           this.queueName,
           JSON.stringify({
-            topic: "save-conflicts",
-            message: `Saved ${pendingActivities.length} activities.`,
+            topic: "save errors",
+            message: `Errors saving ${pendingActivities.length} activities.`,
             bulkResponse,
           })
         );
+
+        if (bulkResponse.errors) {
+          await pendingActivitiesQueue.add(pendingActivities);
+        }
       } catch (error) {
         logger.error(
           this.queueName,
@@ -54,11 +57,7 @@ export class BackillSavePendingActivitiesElasticsearchJob extends AbstractRabbit
         await pendingActivitiesQueue.add(pendingActivities);
       }
 
-      const pendingActivitiesCount = await pendingActivitiesQueue.count();
-
-      if (pendingActivitiesCount > 0) {
-        addToQueue = true;
-      }
+      addToQueue = true;
     }
 
     return { addToQueue };
@@ -80,7 +79,7 @@ export class BackillSavePendingActivitiesElasticsearchJob extends AbstractRabbit
       return;
     }
 
-    return this.send({ payload: { indexName }, jobId: this.queueName });
+    return this.send({ payload: { indexName } });
   }
 }
 export const backillSavePendingActivitiesElasticsearchJob =
