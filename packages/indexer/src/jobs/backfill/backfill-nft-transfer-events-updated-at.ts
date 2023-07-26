@@ -1,13 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Job, Queue, QueueScheduler, Worker } from "bullmq";
+import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
-import _ from "lodash";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
 const QUEUE_NAME = "backfill-nft-transfer-events-updated-at-queue";
@@ -26,9 +24,7 @@ new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
-    async (job: Job) => {
-      let cursor = job.data.cursor as CursorInfo;
-      let continuationFilter = "";
+    async () => {
       let updateAtFilter = "";
 
       if (config.chainId === 1) {
@@ -50,20 +46,6 @@ if (config.doBackgroundWork) {
 
       const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 2500;
 
-      if (!cursor) {
-        const cursorJson = await redis.get(`${QUEUE_NAME}-next-cursor`);
-
-        if (cursorJson) {
-          cursor = JSON.parse(cursorJson);
-        }
-      }
-
-      if (cursor) {
-        continuationFilter = `${
-          updateAtFilter ? "AND" : "WHERE"
-        } (nft_transfer_events.tx_hash, nft_transfer_events.log_index, nft_transfer_events.batch_index) > ($/txHash/, $/logIndex/, $/batchIndex/)`;
-      }
-
       const results = await idb.manyOrNone(
         `
           WITH x AS (  
@@ -74,8 +56,6 @@ if (config.doBackgroundWork) {
               nft_transfer_events.created_at
             FROM nft_transfer_events
             ${updateAtFilter}
-            ${continuationFilter}
-            ORDER BY nft_transfer_events.tx_hash, nft_transfer_events.log_index, nft_transfer_events.batch_index
             LIMIT $/limit/
           )
           UPDATE nft_transfer_events SET
@@ -87,33 +67,15 @@ if (config.doBackgroundWork) {
           RETURNING x.tx_hash, x.log_index, x.batch_index
           `,
         {
-          txHash: cursor?.txHash ? toBuffer(cursor.txHash) : null,
-          logIndex: cursor?.logIndex,
-          batchIndex: cursor?.batchIndex,
           limit,
         }
       );
 
       if (results.length == limit) {
-        const lastResult = _.last(results);
-
-        const nextCursor = {
-          txHash: fromBuffer(lastResult.tx_hash),
-          logIndex: lastResult.log_index,
-          batchIndex: lastResult.batch_index,
-        };
-
-        await redis.set(`${QUEUE_NAME}-next-cursor`, JSON.stringify(nextCursor));
-
-        await addToQueue(nextCursor);
+        await addToQueue();
       }
 
-      logger.info(
-        QUEUE_NAME,
-        `Processed ${results.length} nft transfer events. limit=${limit}, cursor=${JSON.stringify(
-          cursor
-        )}`
-      );
+      logger.info(QUEUE_NAME, `Processed ${results.length} nft transfer events. limit=${limit}`);
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );
@@ -123,12 +85,6 @@ if (config.doBackgroundWork) {
   });
 }
 
-export type CursorInfo = {
-  txHash: string;
-  logIndex: number;
-  batchIndex: number;
-};
-
-export const addToQueue = async (cursor?: CursorInfo) => {
-  await queue.add(randomUUID(), { cursor }, { delay: 1000 });
+export const addToQueue = async () => {
+  await queue.add(randomUUID(), {});
 };
