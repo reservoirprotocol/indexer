@@ -6,7 +6,7 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 
-const BATCH_SIZE = 10000;
+const BATCH_SIZE = 1000;
 
 export type BackillSavePendingActivitiesElasticsearchJobPayload = {
   indexName?: string;
@@ -79,7 +79,7 @@ export class BackillSavePendingActivitiesElasticsearchJob extends AbstractRabbit
       return;
     }
 
-    return this.send({ payload: { indexName }, jobId: this.queueName });
+    return this.send({ payload: { indexName } });
   }
 }
 export const backillSavePendingActivitiesElasticsearchJob =
