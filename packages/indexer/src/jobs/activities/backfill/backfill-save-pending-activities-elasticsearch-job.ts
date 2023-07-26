@@ -34,16 +34,16 @@ export class BackillSavePendingActivitiesElasticsearchJob extends AbstractRabbit
           ]),
         });
 
-        if (bulkResponse.errors) {
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              topic: "save errors",
-              message: `Errors saving ${pendingActivities.length} activities.`,
-              bulkResponse,
-            })
-          );
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "save errors",
+            message: `Errors saving ${pendingActivities.length} activities.`,
+            bulkResponse,
+          })
+        );
 
+        if (bulkResponse.errors) {
           await pendingActivitiesQueue.add(pendingActivities);
         }
       } catch (error) {
