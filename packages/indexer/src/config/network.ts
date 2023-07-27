@@ -1006,6 +1006,14 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
         subDomain: "api-zora",
+        elasticsearch: {
+          indexes: {
+            activities: {
+              disableMappingsUpdate: true,
+              // configName: "CONFIG_1689873821",
+            },
+          },
+        },
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
