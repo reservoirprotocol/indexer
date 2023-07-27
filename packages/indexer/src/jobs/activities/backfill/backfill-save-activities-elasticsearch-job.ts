@@ -361,7 +361,7 @@ const getBidActivities = async (
 
   if (results.length) {
     for (const result of results) {
-      const eventHandler = new AskCreatedEventHandler(
+      const eventHandler = new BidCreatedEventHandler(
         result.order_id,
         result.event_tx_hash,
         result.event_log_index,
@@ -419,7 +419,7 @@ const getBidCancelActivities = async (
 
   if (results.length) {
     for (const result of results) {
-      const eventHandler = new AskCreatedEventHandler(
+      const eventHandler = new BidCancelledEventHandler(
         result.order_id,
         result.event_tx_hash,
         result.event_log_index,
