@@ -94,7 +94,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           this.queueName,
           JSON.stringify({
             topic: "backfill-activities",
-            message: `KeepGoing. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}`,
+            message: `KeepGoing. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}`,
             type,
             fromTimestamp,
             toTimestamp,
@@ -517,7 +517,7 @@ const getTransferActivities = async (
 
   const query = `
             ${NftTransferEventCreatedEventHandler.buildBaseQuery()}
-            WHERE  NOT EXISTS (
+            WHERE NOT EXISTS (
              SELECT 1
              FROM   fill_events_2 fe
              WHERE  fe.tx_hash = nft_transfer_events.tx_hash
@@ -543,7 +543,7 @@ const getTransferActivities = async (
 
   if (results.length) {
     for (const result of results) {
-      const eventHandler = new FillEventCreatedEventHandler(
+      const eventHandler = new NftTransferEventCreatedEventHandler(
         result.event_tx_hash,
         result.event_log_index,
         result.event_batch_index
