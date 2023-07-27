@@ -41,7 +41,7 @@ export const addEvents = async (events: Event[]) => {
       marketplace_fee_bps: event.marketplaceFeeBps || undefined,
       royalty_fee_breakdown: event.royaltyFeeBreakdown || undefined,
       marketplace_fee_breakdown: event.marketplaceFeeBreakdown || undefined,
-      paid_full_royalty: event.paidFullRoyalty || undefined,
+      paid_full_royalty: event.paidFullRoyalty ?? undefined,
     });
   }
 

@@ -159,13 +159,17 @@ export const constructOfferCounterOrderAndFulfillments = (
       recipient: string;
       amount: BigNumberish;
     }[];
-    amount?: BigNumberish;
     tokenId?: BigNumberish;
   }
 ): {
   order: Types.OrderWithCounter;
   fulfillments: Types.MatchOrdersFulfillment[];
 } => {
+  const quantity = params.consideration[0].startAmount;
+  for (const tip of details.tips) {
+    tip.amount = bn(tip.amount).mul(quantity).toString();
+  }
+
   const netAmount = bn(params.offer[0].startAmount).sub(
     params.consideration
       .slice(1)
@@ -203,12 +207,8 @@ export const constructOfferCounterOrderAndFulfillments = (
         itemType: params.offer[0].itemType,
         token: params.offer[0].token,
         identifierOrCriteria: params.offer[0].identifierOrCriteria,
-        startAmount: bn(t.amount)
-          .mul(details.amount ?? 1)
-          .toString(),
-        endAmount: bn(t.amount)
-          .mul(details.amount ?? 1)
-          .toString(),
+        startAmount: bn(t.amount).toString(),
+        endAmount: bn(t.amount).toString(),
         recipient: t.recipient,
       })),
     ],

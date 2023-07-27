@@ -1,7 +1,11 @@
-import { Interface } from "@ethersproject/abi";
-import { AddressZero } from "@ethersproject/constants";
+import { Interface, Result } from "@ethersproject/abi";
+import { hexZeroPad } from "@ethersproject/bytes";
+import { AddressZero, HashZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
+import { keccak256 } from "@ethersproject/keccak256";
+import { keccak256 as solidityKeccak256 } from "@ethersproject/solidity";
 import * as Sdk from "@reservoir0x/sdk";
+import { MerkleTree } from "merkletreejs";
 
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
@@ -12,7 +16,13 @@ import {
   getCollectionMints,
   simulateAndUpsertCollectionMint,
 } from "@/orderbook/mints";
-import { getStatus, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
+import {
+  AllowlistItem,
+  getAllowlist,
+  allowlistExists,
+  createAllowlist,
+} from "@/orderbook/mints/allowlists";
+import { fetchMetadata, getStatus, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
 
 const STANDARD = "foundation";
 
@@ -39,6 +49,7 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
 
   try {
     const result = await contract.getFixedPriceSale(collection);
+
     const editionConfig: {
       seller: string;
       price: string;
@@ -98,6 +109,79 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
           ? toSafeTimestamp(editionConfig.generalAvailabilityStartTime)
           : undefined,
     });
+
+    // Allowlist mint
+    if (result.earlyAccessStartTime != "0") {
+      const { merkleRoot, merkleTreeUri } = await getLatestMerkleRootData(collection);
+      if (merkleRoot && merkleRoot !== HashZero && merkleTreeUri && merkleTreeUri !== "") {
+        let allowlistCreated = true;
+        if (!(await allowlistExists(merkleRoot))) {
+          const contractMetadata: { unhashedLeaves: string[] } = await fetchMetadata(merkleTreeUri);
+          const items: AllowlistItem[] = contractMetadata.unhashedLeaves.map(
+            (e) =>
+              ({
+                address: e,
+                price: editionConfig.price,
+                actualPrice: editionConfig.price,
+              } as AllowlistItem)
+          );
+
+          if (generateMerkleTree(items).tree.getHexRoot() === merkleRoot) {
+            await createAllowlist(merkleRoot!, items);
+          } else {
+            allowlistCreated = false;
+          }
+        }
+
+        if (allowlistCreated) {
+          results.push({
+            collection,
+            contract: collection,
+            stage: "presale",
+            kind: "allowlist",
+            status: "open",
+            standard: STANDARD,
+            details: {
+              tx: {
+                to: Sdk.Foundation.Addresses.DropMarket[config.chainId],
+                data: {
+                  // `mintFromFixedPriceSaleWithEarlyAccessAllowlist`
+                  signature: "0xd782d491",
+                  params: [
+                    {
+                      kind: "contract",
+                      abiType: "address",
+                    },
+                    {
+                      kind: "quantity",
+                      abiType: "uint256",
+                    },
+                    {
+                      kind: "unknown",
+                      abiType: "address",
+                      abiValue: AddressZero,
+                    },
+                    {
+                      kind: "allowlist",
+                      abiType: "bytes32[]",
+                    },
+                  ],
+                },
+              },
+            },
+            currency: Sdk.Common.Addresses.Native[config.chainId],
+            price: editionConfig.price,
+            maxMintsPerWallet: editionConfig.limitPerAccount,
+            maxSupply: editionConfig.numberOfTokensAvailableToMint,
+            startTime:
+              editionConfig.earlyAccessStartTime != "0"
+                ? toSafeTimestamp(editionConfig.earlyAccessStartTime)
+                : undefined,
+            allowlistId: merkleRoot,
+          });
+        }
+      }
+    }
   } catch (error) {
     logger.error("mint-detector", JSON.stringify({ kind: STANDARD, error }));
   }
@@ -157,4 +241,100 @@ export const refreshByCollection = async (collection: string) => {
       });
     }
   }
+};
+
+const hashFn = (item: AllowlistItem) => solidityKeccak256(["address"], [item.address]);
+
+const generateMerkleTree = (
+  items: AllowlistItem[]
+): {
+  root: string;
+  tree: MerkleTree;
+} => {
+  const tree = new MerkleTree(items.map(hashFn), keccak256, {
+    sortPairs: true,
+  });
+  return {
+    root: tree.getHexRoot(),
+    tree,
+  };
+};
+
+type ProofValue = string[];
+
+export const generateProofValue = async (
+  collectionMint: CollectionMint,
+  address: string
+): Promise<ProofValue> => {
+  const items = await getAllowlist(collectionMint.allowlistId!);
+  const item = items.find((i) => i.address === address)!;
+  return generateMerkleTree(items).tree.getHexProof(hashFn(item));
+};
+
+const getLatestMerkleRootData = async (collection: string, maxRetry = 5, blockInterval = 10000) => {
+  const iface = new Interface([
+    `event CreateFixedPriceSale(
+      address indexed nftContract,
+      address indexed seller,
+      uint256 price,
+      uint256 limitPerAccount,
+      uint256 generalAvailabilityStartTime,
+      uint256 earlyAccessStartTime,
+      bytes32 merkleRoot,
+      string merkleTreeUri
+    )`,
+    `event AddMerkleRootToFixedPriceSale(
+      address indexed nftContract,
+      bytes32 merkleRoot,
+      string merkleTreeUri
+    )`,
+  ]);
+
+  const blockNumber = await baseProvider.getBlockNumber();
+  const topicsFilter = [
+    [
+      iface.getEventTopic("CreateFixedPriceSale"),
+      iface.getEventTopic("AddMerkleRootToFixedPriceSale"),
+    ],
+    hexZeroPad(collection, 32),
+  ];
+
+  let merkleRoot: string | undefined;
+  let merkleTreeUri: string | undefined;
+  for (let i = 0; i < maxRetry; i++) {
+    const relevantLogs = await baseProvider.getLogs({
+      fromBlock: blockNumber - blockInterval * (i + 1),
+      toBlock: blockNumber - blockInterval * i,
+      topics: topicsFilter,
+    });
+
+    if (relevantLogs.length) {
+      const mostRecentLog = relevantLogs[relevantLogs.length - 1];
+
+      let decodedLog: Result;
+      if (mostRecentLog.topics[0] === iface.getEventTopic("CreateFixedPriceSale")) {
+        decodedLog = iface.decodeEventLog(
+          "CreateFixedPriceSale",
+          mostRecentLog.data,
+          mostRecentLog.topics
+        );
+      } else {
+        decodedLog = iface.decodeEventLog(
+          "AddMerkleRootToFixedPriceSale",
+          mostRecentLog.data,
+          mostRecentLog.topics
+        );
+      }
+
+      merkleTreeUri = decodedLog.merkleTreeUri;
+      merkleRoot = decodedLog.merkleRoot;
+
+      break;
+    }
+  }
+
+  return {
+    merkleRoot,
+    merkleTreeUri,
+  };
 };

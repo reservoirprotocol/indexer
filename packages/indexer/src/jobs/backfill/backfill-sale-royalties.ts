@@ -254,7 +254,7 @@ if (config.doBackgroundWork) {
             marketplaceFeeBps: event.marketplaceFeeBps || undefined,
             royaltyFeeBreakdown: event.royaltyFeeBreakdown || undefined,
             marketplaceFeeBreakdown: event.marketplaceFeeBreakdown || undefined,
-            paidFullRoyalty: event.paidFullRoyalty || undefined,
+            paidFullRoyalty: event.paidFullRoyalty ?? undefined,
             netAmount: event.netAmount || undefined,
             txHash: toBuffer(event.baseEventParams.txHash),
             logIndex: event.baseEventParams.logIndex,

@@ -11,8 +11,7 @@ export type EventsSyncRealtimeJobPayload = {
 export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-realtime";
   maxRetries = 30;
-  concurrency = 5;
-  useSharedChannel = true;
+  concurrency = config.chainId === 11155111 ? 1 : 5;
   backoff = {
     type: "fixed",
     delay: 100,
@@ -52,7 +51,7 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue(params: EventsSyncRealtimeJobPayload) {
-    await this.send({ payload: params, jobId: `${params.block}` });
+    await this.send({ payload: params });
   }
 }
 

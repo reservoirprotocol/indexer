@@ -3334,7 +3334,6 @@ export class Router {
                     taker
                   ),
                   tips: fees,
-                  amount: detail.amount,
                   tokenId: result.data.criteriaResolvers[0]?.identifier,
                 });
 

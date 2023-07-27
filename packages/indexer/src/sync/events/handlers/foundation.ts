@@ -219,7 +219,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         break;
       }
 
-      case "foundation-created-fixed-price-sale": {
+      case "foundation-created-fixed-price-sale":
+      case "foundation-add-merkle-root-to-fixed-price-sale": {
         const parsedLog = eventData.abi.parseLog(log);
         const collection = parsedLog.args["nftContract"].toLowerCase();
 

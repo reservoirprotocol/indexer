@@ -173,6 +173,14 @@ export const generateCollectionMintTxData = async (
             break;
           }
 
+          case "foundation": {
+            if (allowlistItemIndex === 0) {
+              abiValue = await mints.foundation.generateProofValue(collectionMint, minter);
+            }
+
+            break;
+          }
+
           default: {
             throw new Error("Allowlist fields not supported");
           }
