@@ -1009,8 +1009,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         elasticsearch: {
           indexes: {
             activities: {
-              disableMappingsUpdate: true,
-              // configName: "CONFIG_1689873821",
+              configName: "CONFIG_1689873821",
             },
           },
         },
