@@ -81,6 +81,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
             fromTimestamp,
             toTimestamp,
             cursor,
+            nextCursor,
             indexName,
             keepGoing,
             hasErrors: bulkResponse.errors,
@@ -145,7 +146,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
       "onCompleted",
       async (
         message: RabbitMQMessage,
-        processResult: { addToQueue: boolean; nextCursor?: OrderCursorInfo }
+        processResult: { addToQueue: boolean; nextCursor?: OrderCursorInfo | EventCursorInfo }
       ) => {
         if (processResult.addToQueue) {
           await this.addToQueue(
@@ -163,7 +164,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
 
   public async addToQueue(
     type: "ask" | "ask-cancel" | "bid" | "bid-cancel" | "sale" | "transfer",
-    cursor?: OrderCursorInfo,
+    cursor?: OrderCursorInfo | EventCursorInfo,
     fromTimestamp?: number,
     toTimestamp?: number,
     indexName?: string,
