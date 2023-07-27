@@ -28,7 +28,8 @@ if (config.doBackgroundWork) {
       const results = await idb.result(
         `
             UPDATE nft_transfer_events nte SET
-                created_at = to_timestamp(x.timestamp)
+                created_at = to_timestamp(x.timestamp),
+                updated_at = to_timestamp(x.timestamp)
             FROM (
                 SELECT timestamp, tx_hash, log_index, batch_index
                 FROM nft_transfer_events

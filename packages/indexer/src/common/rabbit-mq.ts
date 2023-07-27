@@ -82,11 +82,11 @@ export class RabbitMq {
   }
 
   public static async send(queueName: string, content: RabbitMQMessage, delay = 0, priority = 0) {
-    const lockTime = delay ? _.toInteger(delay / 1000) : 5 * 60;
+    const lockTime = delay ? _.max([_.toInteger(delay / 1000), 0]) : 5 * 60;
 
     // For deduplication messages use redis lock, setting lock only if jobId is passed
     try {
-      if (content.jobId && !(await acquireLock(content.jobId, lockTime))) {
+      if (content.jobId && lockTime && !(await acquireLock(content.jobId, lockTime))) {
         return;
       }
     } catch (error) {
