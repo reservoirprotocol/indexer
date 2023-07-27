@@ -16,7 +16,7 @@ import { AskCancelledEventHandler } from "@/elasticsearch/indexes/activities/eve
 import { BidCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-created";
 import { BidCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-cancelled";
 import { FillEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/fill-event-created";
-import { toBuffer } from "@/common/utils";
+import { fromBuffer, toBuffer } from "@/common/utils";
 import { NftTransferEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/nft-transfer-event-created";
 
 export type BackfillSaveActivitiesElasticsearchJobPayload = {
@@ -81,9 +81,10 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
             fromTimestamp,
             toTimestamp,
             cursor,
-            nextCursor,
             indexName,
             keepGoing,
+            nextCursor,
+            hasNextCursor: !!nextCursor,
             hasErrors: bulkResponse.errors,
             errors: bulkResponse.items.filter((item) => item.index?.error),
           })
@@ -447,7 +448,7 @@ const getSaleActivities = async (
   cursor?: EventCursorInfo
 ) => {
   const activities = [];
-  let nextCursor: OrderCursorInfo | undefined;
+  let nextCursor: EventCursorInfo | undefined;
 
   let continuationFilter = "";
 
@@ -490,8 +491,10 @@ const getSaleActivities = async (
     const lastResult = results[results.length - 1];
 
     nextCursor = {
-      updatedAt: lastResult.updated_ts,
-      id: lastResult.order_id,
+      timestamp: lastResult.event_timestamp,
+      txHash: fromBuffer(lastResult.event_tx_hash),
+      logIndex: lastResult.event_log_index,
+      batchIndex: lastResult.event_batch_index,
     };
   }
 
@@ -504,7 +507,7 @@ const getTransferActivities = async (
   cursor?: EventCursorInfo
 ) => {
   const activities = [];
-  let nextCursor: OrderCursorInfo | undefined;
+  let nextCursor: EventCursorInfo | undefined;
 
   let continuationFilter = "";
 
@@ -554,8 +557,10 @@ const getTransferActivities = async (
     const lastResult = results[results.length - 1];
 
     nextCursor = {
-      updatedAt: lastResult.updated_ts,
-      id: lastResult.order_id,
+      timestamp: lastResult.event_timestamp,
+      txHash: fromBuffer(lastResult.event_tx_hash),
+      logIndex: lastResult.event_log_index,
+      batchIndex: lastResult.event_batch_index,
     };
   }
 
