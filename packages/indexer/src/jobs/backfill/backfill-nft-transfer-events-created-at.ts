@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Queue, QueueScheduler, Worker } from "bullmq";
+import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
@@ -23,7 +23,7 @@ new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
-    async () => {
+    async (job: Job) => {
       const limit = 1000;
       const results = await idb.result(
         `
@@ -41,13 +41,19 @@ if (config.doBackgroundWork) {
       );
 
       if (results.rowCount == limit) {
-        await addToQueue();
+        job.data.addToQueue = true;
       }
 
       logger.info(QUEUE_NAME, `Processed ${results.rowCount} events. limit=${limit}`);
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );
+
+  worker.on("completed", async (job) => {
+    if (job.data.addToQueue) {
+      await addToQueue();
+    }
+  });
 
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
