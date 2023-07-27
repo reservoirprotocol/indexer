@@ -84,12 +84,24 @@ export class RabbitMq {
   public static async send(queueName: string, content: RabbitMQMessage, delay = 0, priority = 0) {
     const lockTime = delay ? _.toInteger(delay / 1000) : 5 * 60;
 
+    // For deduplication messages use redis lock, setting lock only if jobId is passed
     try {
-      // For deduplication messages use redis lock, setting lock only if jobId is passed
       if (content.jobId && !(await acquireLock(content.jobId, lockTime))) {
         return;
       }
+    } catch (error) {
+      logger.warn(
+        `rabbit-publish-error`,
+        JSON.stringify({
+          message: `failed to set lock to ${queueName} error ${error} lockTime ${lockTime} content=${JSON.stringify(
+            content
+          )}`,
+          queueName: queueName.substring(_.indexOf(queueName, ".") + 1), // Remove chain name
+        })
+      );
+    }
 
+    try {
       const channelIndex = _.random(0, RabbitMq.maxPublisherChannelsCount - 1);
 
       content.publishTime = content.publishTime ?? _.now();
@@ -142,7 +154,7 @@ export class RabbitMq {
       logger.error(
         `rabbit-publish-error`,
         JSON.stringify({
-          message: `failed to publish to ${queueName} error ${error} content=${JSON.stringify(
+          message: `failed to publish to ${queueName} error ${error} lockTime ${lockTime} content=${JSON.stringify(
             content
           )}`,
           queueName: queueName.substring(_.indexOf(queueName, ".") + 1), // Remove chain name
