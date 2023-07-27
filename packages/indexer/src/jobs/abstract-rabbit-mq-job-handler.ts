@@ -10,6 +10,7 @@ import TypedEmitter from "typed-emitter";
 import { ConsumeMessage } from "amqplib";
 import { releaseLock } from "@/common/redis";
 import { ChannelWrapper } from "amqp-connection-manager";
+import { config } from "@/config/index";
 
 export type BackoffStrategy =
   | {
@@ -47,7 +48,7 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
   protected lazyMode = false;
   protected queueType: QueueType = "classic";
   protected consumerTimeout = 0;
-  protected disableConsuming = false;
+  protected disableConsuming = config.rabbitDisableQueuesConsuming;
 
   public async consume(channel: ChannelWrapper, consumeMessage: ConsumeMessage): Promise<void> {
     this.rabbitMqMessage = JSON.parse(consumeMessage.content.toString()) as RabbitMQMessage;

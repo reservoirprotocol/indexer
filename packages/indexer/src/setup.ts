@@ -27,10 +27,13 @@ const setup = async () => {
     return;
   }
 
+  if (config.doBackgroundWork || config.forceEnableRabbitJobsConsumer) {
+    await RabbitMqJobsConsumer.startRabbitJobsConsumer();
+  }
+
   if (config.doBackgroundWork) {
     await Sources.syncSources();
     await FeeRecipients.syncFeeRecipients();
-    await RabbitMqJobsConsumer.startRabbitJobsConsumer();
 
     const networkSettings = getNetworkSettings();
     if (networkSettings.onStartup) {
