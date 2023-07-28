@@ -333,6 +333,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
   public async addToQueue(
     createIndex = false,
     indexName = "",
+    indexConfig = "",
     keepGoing = false,
     backfillTransferActivities = true,
     backfillSaleActivities = true,
@@ -348,6 +349,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
       payload: {
         createIndex,
         indexName,
+        indexConfig,
         keepGoing,
         backfillTransferActivities,
         backfillSaleActivities,
@@ -402,6 +404,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
       await backfillActivitiesElasticsearchJob.addToQueue(
         true,
         `${ActivitiesIndex.getIndexName()}-1690489670764`,
+        "CONFIG_1689873821",
         true,
         true,
         true,
