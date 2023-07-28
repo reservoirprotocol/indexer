@@ -182,29 +182,6 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
             eventKind: WebsocketEventKind.SaleEvent,
           })
         ),
-
-        ...data.nftTransferEvents.map((event) =>
-          WebsocketEventRouter({
-            eventInfo: {
-              address: event.baseEventParams.address,
-              block: event.baseEventParams.block.toString(),
-              timestamp: event.baseEventParams.timestamp.toString(),
-              tx_hash: event.baseEventParams.txHash,
-              tx_index: event.baseEventParams.txIndex.toString(),
-              log_index: event.baseEventParams.logIndex.toString(),
-              batch_index: event.baseEventParams.batchIndex.toString(),
-              to: event.to,
-              from: event.from,
-              amount: event.amount.toString(),
-              token_id: event.tokenId.toString(),
-              created_at: new Date(event.baseEventParams.timestamp).toISOString(),
-              is_deleted: false,
-              offset: "",
-              trigger: "insert",
-            },
-            eventKind: WebsocketEventKind.TransferEvent,
-          })
-        ),
       ]);
     }
   } catch (error) {
