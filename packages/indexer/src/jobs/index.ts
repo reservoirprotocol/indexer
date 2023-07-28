@@ -142,6 +142,7 @@ import { topBidWebSocketEventsTriggerJob } from "@/jobs/websocket-events/top-bid
 import { backfillDeleteExpiredBidsElasticsearchJob } from "@/jobs/activities/backfill/backfill-delete-expired-bids-elasticsearch-job";
 import { transferUpdatesJob } from "@/jobs/transfer-updates/transfer-updates-job";
 import { backfillSaveActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-save-activities-elasticsearch-job";
+import { pendingExpiredOrdersCheckJob } from "@/jobs/orderbook/cron/pending-expired-orders-check-job";
 
 export const allJobQueues = [
   backfillExpiredOrders.queue,
@@ -269,6 +270,7 @@ export class RabbitMqJobsConsumer {
       backfillActivitiesElasticsearchJob,
       transferUpdatesJob,
       backfillSaveActivitiesElasticsearchJob,
+      pendingExpiredOrdersCheckJob,
     ];
   }
 

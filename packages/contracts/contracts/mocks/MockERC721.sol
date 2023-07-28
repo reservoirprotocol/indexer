@@ -8,6 +8,10 @@ contract MockERC721 is ERC721 {
   constructor() ERC721("Mock", "MOCK") {}
 
   function mint(uint256 tokenId) external {
-    _mint(msg.sender, tokenId);
+    _safeMint(msg.sender, tokenId);
+  }
+
+  function fail() external pure {
+    revert();
   }
 }

@@ -4,10 +4,11 @@ import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
 
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { redis } from "@/common/redis";
-import { bn } from "@/common/utils";
+import { bn, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Transaction } from "@/models/transactions";
 import {
@@ -17,6 +18,7 @@ import {
 } from "@/orderbook/mints";
 import { AllowlistItem, allowlistExists, createAllowlist } from "@/orderbook/mints/allowlists";
 import { getStatus, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
+import { getContractKind } from "@/orderbook/orders/common/helpers";
 
 const STANDARD = "zora";
 
@@ -273,7 +275,9 @@ export const extractByCollectionERC1155 = async (
             },
             currency: Sdk.Common.Addresses.Native[config.chainId],
             price,
-            maxMintsPerWallet: saleConfig.maxTokensPerAddress.toString(),
+            maxMintsPerWallet: bn(saleConfig.maxTokensPerAddress).gt(0)
+              ? saleConfig.maxTokensPerAddress.toString()
+              : undefined,
             tokenId,
             maxSupply: tokenInfo.maxSupply.toString(),
             startTime: toSafeTimestamp(saleConfig.saleStart),
@@ -428,7 +432,7 @@ export const refreshByCollection = async (collection: string) => {
     standard: STANDARD,
   });
 
-  for (const { tokenId } of existingCollectionMints) {
+  const refresh = async (tokenId?: string) => {
     // Fetch and save/update the currently available mints
     const latestCollectionMints = tokenId
       ? await extractByCollectionERC1155(collection, tokenId)
@@ -454,6 +458,25 @@ export const refreshByCollection = async (collection: string) => {
         });
       }
     }
+  };
+
+  const kind = await getContractKind(collection);
+  if (kind === "erc1155") {
+    const tokenIds = await idb.manyOrNone(
+      `
+        SELECT
+          tokens.token_id
+        FROM tokens
+        WHERE tokens.contract = $/contract/
+        LIMIT 1000
+      `,
+      {
+        contract: toBuffer(collection),
+      }
+    );
+    await Promise.all(tokenIds.map(async ({ token_id }) => refresh(token_id)));
+  } else {
+    await Promise.all(existingCollectionMints.map(async ({ tokenId }) => refresh(tokenId)));
   }
 };
 
