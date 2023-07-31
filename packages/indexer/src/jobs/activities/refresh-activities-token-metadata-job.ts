@@ -32,7 +32,7 @@ export class RefreshActivitiesTokenMetadataJob extends AbstractRabbitMqJobHandle
       );
 
       if (keepGoing) {
-        await this.addToQueue({ contract, tokenId, tokenUpdateData }, true);
+        await this.addToQueue({ contract, tokenId }, true);
       }
     }
   }
