@@ -23,7 +23,7 @@ process.on("unhandledRejection", (error: any) => {
 });
 
 const setup = async () => {
-  if (process.env.LOCAL_TESTING) {
+  if (Number(process.env.LOCAL_TESTING)) {
     return;
   }
 

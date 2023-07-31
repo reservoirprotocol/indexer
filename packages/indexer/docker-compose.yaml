@@ -21,7 +21,7 @@ services:
       - 6379:6379
 
   rabbitmq:
-    image: ipelegi/rabbitmq:latest
+    image: rabbitmq-custom
     container_name: 'rabbitmq'
     environment:
       - RABBITMQ_DEFAULT_USER=guest

@@ -7,7 +7,7 @@ import { RabbitMq } from "@/common/rabbit-mq";
 import { acquireLock, redis } from "@/common/redis";
 import { config } from "@/config/index";
 
-if (process.env.LOCAL_TESTING) {
+if (Number(process.env.LOCAL_TESTING)) {
   import("./setup");
 } else {
   RabbitMq.connect().then(async () => {
