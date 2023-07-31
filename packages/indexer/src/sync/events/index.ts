@@ -379,7 +379,7 @@ const saveLogsAndTracesAndTransactions = async (
   const startTime = Date.now();
 
   await Promise.all([
-    ...transactionLogs.map((txLogs) => saveTransactionLogs(txLogs)),
+    saveTransactionLogs(logs.flat()),
     saveTransactionTraces(traces),
     _saveTransactions(blockData, transactionReceipts),
     syncEventsUtils.processContractAddresses(traces),
