@@ -106,7 +106,11 @@ export const getOrdersAsksV5Options: RouteOptions = {
         ),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
       includePrivate: Joi.boolean()
-        .default(false)
+        .when("ids", {
+          is: Joi.exist(),
+          then: Joi.valid(true, false).default(true),
+          otherwise: Joi.valid(true, false).default(false),
+        })
         .description("If true, private orders are included in the response."),
       includeCriteriaMetadata: Joi.boolean()
         .default(false)

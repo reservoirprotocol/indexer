@@ -1,6 +1,3 @@
-import { config } from "@/config/index";
-import { logger } from "@/common/logger";
-
 import { Log } from "@ethersproject/abstract-provider";
 
 import { concat } from "@/common/utils";
@@ -16,10 +13,6 @@ import {
   RecalcOwnerCountQueueJobPayload,
 } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import { mintQueueJob, MintQueueJobPayload } from "@/jobs/token-updates/mint-queue-job";
-import {
-  WebsocketEventKind,
-  WebsocketEventRouter,
-} from "@/jobs/websocket-events/websocket-event-router";
 
 import {
   processActivityEventJob,
@@ -146,13 +139,6 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   ]);
   const endPersistEvents = Date.now();
 
-  // concat all fill events
-  const allFillEventsForWebsocket = concat(
-    data.fillEvents,
-    data.fillEventsPartial,
-    data.fillEventsOnChain
-  );
-
   // Persist other events
   const startPersistOtherEvents = Date.now();
   await Promise.all([
@@ -166,30 +152,6 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   ]);
 
   const endPersistOtherEvents = Date.now();
-
-  try {
-    if (config.doOldOrderWebsocketWork) {
-      await Promise.all([
-        ...allFillEventsForWebsocket.map((event) =>
-          WebsocketEventRouter({
-            eventInfo: {
-              tx_hash: event.baseEventParams.txHash,
-              log_index: event.baseEventParams.logIndex,
-              batch_index: event.baseEventParams.batchIndex,
-              trigger: "insert",
-              offset: "",
-            },
-            eventKind: WebsocketEventKind.SaleEvent,
-          })
-        ),
-      ]);
-    }
-  } catch (error) {
-    logger.error(
-      "processOnChainData",
-      `Error processing websocket event. error=${JSON.stringify(error)}`
-    );
-  }
 
   // Trigger further processes:
   // - revalidate potentially-affected orders

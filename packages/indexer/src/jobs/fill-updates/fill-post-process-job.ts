@@ -2,17 +2,11 @@ import pLimit from "p-limit";
 
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { idb, pgp, PgPromiseQuery } from "@/common/db";
-import { logger } from "@/common/logger";
 import { acquireLock } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
-import { config } from "@/config/index";
 import * as es from "@/events-sync/storage";
 import { assignRoyaltiesToFillEvents } from "@/events-sync/handlers/royalties";
 import { assignWashTradingScoreToFillEvents } from "@/events-sync/handlers/utils/fills";
-import {
-  WebsocketEventKind,
-  WebsocketEventRouter,
-} from "@/jobs/websocket-events/websocket-event-router";
 
 export class FillPostProcessJob extends AbstractRabbitMqJobHandler {
   queueName = "fill-post-process";
@@ -85,30 +79,6 @@ export class FillPostProcessJob extends AbstractRabbitMqJobHandler {
 
     if (queries.length) {
       await idb.none(pgp.helpers.concat(queries));
-    }
-
-    try {
-      if (config.doOldOrderWebsocketWork) {
-        await Promise.all(
-          allFillEvents.map(async (event) =>
-            WebsocketEventRouter({
-              eventInfo: {
-                tx_hash: event.baseEventParams.txHash,
-                log_index: event.baseEventParams.logIndex,
-                batch_index: event.baseEventParams.batchIndex,
-                trigger: "update",
-                offset: "",
-              },
-              eventKind: WebsocketEventKind.SaleEvent,
-            })
-          )
-        );
-      }
-    } catch (error) {
-      logger.error(
-        this.queueName,
-        `Failed to handle fill info for websocket event ${JSON.stringify(payload)}: ${error}`
-      );
     }
   }
 
