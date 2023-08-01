@@ -11,12 +11,12 @@ import {
   ActivityType,
   CollectionAggregation,
 } from "@/elasticsearch/indexes/activities/base";
-import { getNetworkName } from "@/config/network";
+import { getNetworkName, getNetworkSettings } from "@/config/network";
 import _ from "lodash";
 import { buildContinuation, splitContinuation } from "@/common/utils";
 import { backfillActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-activities-elasticsearch-job";
 
-import { CONFIG_DEFAULT } from "@/elasticsearch/indexes/activities/config";
+import * as CONFIG from "@/elasticsearch/indexes/activities/config";
 
 const INDEX_NAME = `${getNetworkName()}.activities`;
 
@@ -620,6 +620,13 @@ export const getIndexName = (): string => {
 
 export const initIndex = async (): Promise<void> => {
   try {
+    const indexConfigName =
+      getNetworkSettings().elasticsearch?.indexes?.activities?.configName ?? "CONFIG_DEFAULT";
+
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    const indexConfig = CONFIG[indexConfigName];
+
     if (await elasticsearch.indices.exists({ index: INDEX_NAME })) {
       logger.info(
         "elasticsearch-activities",
@@ -627,8 +634,23 @@ export const initIndex = async (): Promise<void> => {
           topic: "initIndex",
           message: "Index already exists.",
           indexName: INDEX_NAME,
+          indexConfig,
         })
       );
+
+      if (getNetworkSettings().elasticsearch?.indexes?.activities?.disableMappingsUpdate) {
+        logger.info(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "initIndex",
+            message: "Mappings update disabled.",
+            indexName: INDEX_NAME,
+            indexConfig,
+          })
+        );
+
+        return;
+      }
 
       const getIndexResponse = await elasticsearch.indices.get({ index: INDEX_NAME });
 
@@ -636,7 +658,7 @@ export const initIndex = async (): Promise<void> => {
 
       const putMappingResponse = await elasticsearch.indices.putMapping({
         index: indexName,
-        properties: CONFIG_DEFAULT.mappings.properties,
+        properties: indexConfig.mappings.properties,
       });
 
       logger.info(
@@ -645,7 +667,7 @@ export const initIndex = async (): Promise<void> => {
           topic: "initIndex",
           message: "Updated mappings.",
           indexName: INDEX_NAME,
-          mappings: CONFIG_DEFAULT.mappings.properties,
+          indexConfig,
           putMappingResponse,
         })
       );
@@ -656,6 +678,7 @@ export const initIndex = async (): Promise<void> => {
           topic: "initIndex",
           message: "Creating Index.",
           indexName: INDEX_NAME,
+          indexConfig,
         })
       );
 
@@ -664,7 +687,7 @@ export const initIndex = async (): Promise<void> => {
           [INDEX_NAME]: {},
         },
         index: `${INDEX_NAME}-${Date.now()}`,
-        ...CONFIG_DEFAULT,
+        ...indexConfig,
       };
 
       const createIndexResponse = await elasticsearch.indices.create(params);
@@ -675,6 +698,7 @@ export const initIndex = async (): Promise<void> => {
           topic: "initIndex",
           message: "Index Created!",
           indexName: INDEX_NAME,
+          indexConfig,
           params,
           createIndexResponse,
         })

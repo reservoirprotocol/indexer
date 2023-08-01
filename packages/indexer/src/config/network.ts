@@ -162,6 +162,8 @@ type NetworkSettings = {
 
 type ElasticsearchIndexSettings = {
   numberOfShards?: number;
+  disableMappingsUpdate?: boolean;
+  configName?: string;
 };
 
 export const getNetworkSettings = (): NetworkSettings => {
@@ -193,6 +195,13 @@ export const getNetworkSettings = (): NetworkSettings => {
     subDomain: "api",
     elasticsearch: {
       numberOfShards: 2,
+      indexes: {
+        activities: {
+          numberOfShards: 2,
+          disableMappingsUpdate: false,
+          configName: "CONFIG_DEFAULT",
+        },
+      },
     },
     isTestnet: false,
   };
@@ -444,6 +453,8 @@ export const getNetworkSettings = (): NetworkSettings => {
           indexes: {
             activities: {
               numberOfShards: 10,
+              disableMappingsUpdate: config.environment !== "prod",
+              configName: config.environment === "prod" ? "CONFIG_DEFAULT" : "CONFIG_1689873821",
             },
           },
         },
@@ -995,6 +1006,13 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
         subDomain: "api-zora",
+        elasticsearch: {
+          indexes: {
+            activities: {
+              configName: "CONFIG_1689873821",
+            },
+          },
+        },
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([

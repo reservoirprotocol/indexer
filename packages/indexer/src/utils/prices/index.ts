@@ -84,8 +84,28 @@ const getUpstreamUSDPrice = async (
       getNetworkSettings().whitelistedCurrencies.has(currencyAddress) ||
       isTestnetCurrency(currencyAddress)
     ) {
-      // Whitelisted currencies are 1:1 with USD
-      const value = "1";
+      // Whitelisted currencies don't have a price, so we just hardcode the minimum possible value
+      let value = "1";
+      if (
+        [
+          Sdk.Common.Addresses.Usdc[config.chainId],
+          // Only needed for Goerli
+          "0x68b7e050e6e2c7efe11439045c9d49813c1724b8",
+          "0x2f3a40a3db8a7e3d09b0adfefbce4f6f81927557",
+        ].includes(currencyAddress)
+      ) {
+        // 1:1 to USD
+        value = "1000000";
+      } else if (
+        // This will only nicely work for chains where ETH is the native currency
+        [
+          Sdk.Common.Addresses.Native[config.chainId],
+          Sdk.Common.Addresses.WNative[config.chainId],
+        ].includes(currencyAddress)
+      ) {
+        // 2000:1 to USD
+        value = "2000000000";
+      }
 
       await idb.none(
         `

@@ -304,6 +304,7 @@ export const trigger = {
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.PaymentProcessor.Addresses.Exchange[chainId],
       ]),
+    MintModule: async () => dv("MintModule", "v2", []),
   },
   // Utilities
   Utilities: {

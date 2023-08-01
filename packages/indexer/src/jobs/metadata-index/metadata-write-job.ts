@@ -136,11 +136,6 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       await refreshActivitiesTokenMetadataJob.addToQueue({
         contract,
         tokenId,
-        tokenUpdateData: {
-          name: name || null,
-          image: imageUrl || null,
-          media: mediaUrl || null,
-        },
       });
     }
 

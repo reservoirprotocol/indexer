@@ -10,6 +10,7 @@ import TypedEmitter from "typed-emitter";
 import { ConsumeMessage } from "amqplib";
 import { releaseLock } from "@/common/redis";
 import { ChannelWrapper } from "amqp-connection-manager";
+import { config } from "@/config/index";
 
 export type BackoffStrategy =
   | {
@@ -47,7 +48,7 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
   protected lazyMode = false;
   protected queueType: QueueType = "classic";
   protected consumerTimeout = 0;
-  protected disableConsuming = false;
+  protected disableConsuming = config.rabbitDisableQueuesConsuming;
 
   public async consume(channel: ChannelWrapper, consumeMessage: ConsumeMessage): Promise<void> {
     this.rabbitMqMessage = JSON.parse(consumeMessage.content.toString()) as RabbitMQMessage;
@@ -93,8 +94,20 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
         }`
       );
 
-      await channel.ack(consumeMessage); // Ack the message with rabbit
-      await RabbitMq.send(queueName, this.rabbitMqMessage, delay); // Trigger the retry / or send to dead letter queue
+      try {
+        await channel.ack(consumeMessage); // Ack the message with rabbit
+        await RabbitMq.send(queueName, this.rabbitMqMessage, delay); // Trigger the retry / or send to dead letter queue
+      } catch (error) {
+        // Log the error
+        logger.error(
+          this.queueName,
+          `Error handling catch: ${JSON.stringify(
+            error
+          )}, queueName=${queueName}, payload=${JSON.stringify(this.rabbitMqMessage)}, retryCount=${
+            this.rabbitMqMessage.retryCount
+          }`
+        );
+      }
     }
   }
 

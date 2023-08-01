@@ -48,6 +48,66 @@ const getEmittedEvents = async (txData: TxData) => {
   );
 };
 
+type NFTTransferEvent = {
+  contract: string;
+  from: string;
+  to: string;
+  tokenId: string;
+  amount: string;
+};
+
+export const getNFTTransferEvents = async (txData: TxData): Promise<NFTTransferEvent[]> => {
+  try {
+    const logs = await getEmittedEvents(txData);
+
+    const matchesEventData = (log: Log, eventData: EventData) =>
+      log.topics[0] === eventData.topic && log.topics.length === eventData.numTopics;
+
+    const events: NFTTransferEvent[] = [];
+    for (const log of logs) {
+      if (matchesEventData(log, erc721.transfer)) {
+        // ERC721 `Transfer`
+        const parsedLog = erc721.transfer.abi.parseLog(log);
+        events.push({
+          contract: log.address.toLowerCase(),
+          from: parsedLog.args["from"].toLowerCase(),
+          to: parsedLog.args["to"].toLowerCase(),
+          tokenId: parsedLog.args["tokenId"].toString(),
+          amount: "1",
+        });
+      } else if (matchesEventData(log, erc1155.transferSingle)) {
+        // ERC1155 `TransferSingle`
+        const parsedLog = erc1155.transferSingle.abi.parseLog(log);
+        events.push({
+          contract: log.address.toLowerCase(),
+          from: parsedLog.args["from"].toLowerCase(),
+          to: parsedLog.args["to"].toLowerCase(),
+          tokenId: parsedLog.args["tokenId"].toString(),
+          amount: parsedLog.args["amount"].toString(),
+        });
+      } else if (matchesEventData(log, erc1155.transferBatch)) {
+        // ERC1155 `TransferBatch`
+        const parsedLog = erc1155.transferBatch.abi.parseLog(log);
+        for (let i = 0; i < parsedLog.args["amounts"].length; i++) {
+          events.push({
+            contract: log.address.toLowerCase(),
+            from: parsedLog.args["from"].toLowerCase(),
+            to: parsedLog.args["to"].toLowerCase(),
+            tokenId: parsedLog.args["tokenIds"][i].toString(),
+            amount: parsedLog.args["amounts"][i].toString(),
+          });
+        }
+      }
+    }
+
+    return events;
+  } catch {
+    // Ignore errors
+  }
+
+  return [];
+};
+
 // Returns whether the simulation of a mint transaction was successful or not
 const simulateMintTxData = async (
   contract: string,
