@@ -758,6 +758,12 @@ export const setupRoutes = (server: Server) => {
     options: executeEndpoints.postPermitSignatureV1Options,
   });
 
+  server.route({
+    method: "POST",
+    path: "/execute/pre-signature/v1",
+    options: executeEndpoints.postPreSignatureV1Options,
+  });
+
   // Health
 
   // Both `/readyz` and `/livez` point to the same handler,
@@ -1349,8 +1355,20 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/transfers/v4",
+    options: transfersEndpoints.getTransfersV4Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/transfers/bulk/v1",
     options: transfersEndpoints.getTransfersBulkV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/transfers/bulk/v2",
+    options: transfersEndpoints.getTransfersBulkV2Options,
   });
 
   // sync

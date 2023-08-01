@@ -120,45 +120,47 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     }
   );
 
-  client.onItemMetadataUpdated("*", async (event) => {
-    try {
-      if (getSupportedChainName() != event.payload.item.chain.name) {
-        return;
+  if (config.chainId === 1) {
+    client.onItemMetadataUpdated("*", async (event) => {
+      try {
+        if (getSupportedChainName() != event.payload.item.chain.name) {
+          return;
+        }
+
+        if (await isDuplicateEvent(event)) {
+          return;
+        }
+
+        const [, contract, tokenId] = event.payload.item.nft_id.split("/");
+
+        const metadata = {
+          asset_contract: {
+            address: contract,
+          },
+          collection: {
+            slug: event.payload.collection.slug,
+          },
+          token_id: tokenId,
+          name: event.payload.item.metadata.name ?? undefined,
+          description: event.payload.item.metadata.description ?? undefined,
+          image_url: event.payload.item.metadata.image_url ?? undefined,
+          animation_url: event.payload.item.metadata.animation_url ?? undefined,
+          traits: event.payload.item.metadata.traits,
+        };
+
+        const parsedMetadata = await MetadataApi.parseTokenMetadata(metadata, "opensea");
+
+        if (parsedMetadata) {
+          await metadataIndexWriteJob.addToQueue([parsedMetadata]);
+        }
+      } catch (error) {
+        logger.error(
+          "opensea-websocket-item-metadata-update-event",
+          `Error. network=${network}, event=${JSON.stringify(event)}, error=${error}`
+        );
       }
-
-      if (await isDuplicateEvent(event)) {
-        return;
-      }
-
-      const [, contract, tokenId] = event.payload.item.nft_id.split("/");
-
-      const metadata = {
-        asset_contract: {
-          address: contract,
-        },
-        collection: {
-          slug: event.payload.collection.slug,
-        },
-        token_id: tokenId,
-        name: event.payload.item.metadata.name ?? undefined,
-        description: event.payload.item.metadata.description ?? undefined,
-        image_url: event.payload.item.metadata.image_url ?? undefined,
-        animation_url: event.payload.item.metadata.animation_url ?? undefined,
-        traits: event.payload.item.metadata.traits,
-      };
-
-      const parsedMetadata = await MetadataApi.parseTokenMetadata(metadata, "opensea");
-
-      if (parsedMetadata) {
-        await metadataIndexWriteJob.addToQueue([parsedMetadata]);
-      }
-    } catch (error) {
-      logger.error(
-        "opensea-websocket-item-metadata-update-event",
-        `Error. network=${network}, event=${JSON.stringify(event)}, error=${error}`
-      );
-    }
-  });
+    });
+  }
 }
 
 export const getEventHash = (event: BaseStreamMessage<unknown>): string => {

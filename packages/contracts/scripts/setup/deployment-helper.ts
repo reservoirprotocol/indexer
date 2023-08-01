@@ -74,7 +74,8 @@ export class DeploymentHelper {
       creationCode,
       // Overrides for some edge-cases
       {
-        // maxFeePerGas: "500000000",
+        // maxFeePerGas: "2000000000",
+        // maxPriorityFeePerGas: "500000000",
       }
     );
 

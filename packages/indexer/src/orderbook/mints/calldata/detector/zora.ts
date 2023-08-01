@@ -4,10 +4,11 @@ import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
 
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { redis } from "@/common/redis";
-import { bn } from "@/common/utils";
+import { bn, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Transaction } from "@/models/transactions";
 import {
@@ -17,6 +18,7 @@ import {
 } from "@/orderbook/mints";
 import { AllowlistItem, allowlistExists, createAllowlist } from "@/orderbook/mints/allowlists";
 import { getStatus, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
+import { getContractKind } from "@/orderbook/orders/common/helpers";
 
 const STANDARD = "zora";
 
@@ -27,22 +29,22 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
     collection,
     new Interface([
       `
-          function saleDetails() view returns (
-            (
-              bool publicSaleActive,
-              bool presaleActive,
-              uint256 publicSalePrice,
-              uint64 publicSaleStart,
-              uint64 publicSaleEnd,
-              uint64 presaleStart,
-              uint64 presaleEnd,
-              bytes32 presaleMerkleRoot,
-              uint256 maxSalePurchasePerAddress,
-              uint256 totalMinted,
-              uint256 maxSupply
-            )
+        function saleDetails() view returns (
+          (
+            bool publicSaleActive,
+            bool presaleActive,
+            uint256 publicSalePrice,
+            uint64 publicSaleStart,
+            uint64 publicSaleEnd,
+            uint64 presaleStart,
+            uint64 presaleEnd,
+            bytes32 presaleMerkleRoot,
+            uint256 maxSalePurchasePerAddress,
+            uint256 totalMinted,
+            uint256 maxSupply
           )
-        `,
+        )
+      `,
       "function zoraFeeForAmount(uint256 quantity) view returns (address recipient, uint256 fee)",
     ]),
     baseProvider
@@ -183,12 +185,12 @@ export const extractByCollectionERC1155 = async (
       "function getPermissions(uint256 tokenId, address user) view returns (uint256)",
       "function mintFee() external view returns(uint256)",
       `function getTokenInfo(uint256 tokenId) view returns (
-          (
-            string uri,
-            uint256 maxSupply,
-            uint256 totalMinted
-          )
-        )`,
+        (
+          string uri,
+          uint256 maxSupply,
+          uint256 totalMinted
+        )
+      )`,
     ]),
     baseProvider
   );
@@ -216,14 +218,14 @@ export const extractByCollectionERC1155 = async (
             minter,
             new Interface([
               `function sale(address tokenContract, uint256 tokenId) view returns (
-                  (
-                    uint64 saleStart,
-                    uint64 saleEnd,
-                    uint64 maxTokensPerAddress,
-                    uint96 pricePerToken,
-                    address fundsRecipient
-                  )
-                )`,
+                (
+                  uint64 saleStart,
+                  uint64 saleEnd,
+                  uint64 maxTokensPerAddress,
+                  uint96 pricePerToken,
+                  address fundsRecipient
+                )
+              )`,
             ]),
             baseProvider
           );
@@ -273,7 +275,9 @@ export const extractByCollectionERC1155 = async (
             },
             currency: Sdk.Common.Addresses.Native[config.chainId],
             price,
-            maxMintsPerWallet: saleConfig.maxTokensPerAddress.toString(),
+            maxMintsPerWallet: bn(saleConfig.maxTokensPerAddress).gt(0)
+              ? saleConfig.maxTokensPerAddress.toString()
+              : undefined,
             tokenId,
             maxSupply: tokenInfo.maxSupply.toString(),
             startTime: toSafeTimestamp(saleConfig.saleStart),
@@ -284,13 +288,13 @@ export const extractByCollectionERC1155 = async (
             minter,
             new Interface([
               `function sale(address tokenContract, uint256 tokenId) view returns (
-                  (
-                    uint64 presaleStart,
-                    uint64 presaleEnd,
-                    address fundsRecipient,
-                    bytes32 merkleRoot
-                  )
-                )`,
+                (
+                  uint64 presaleStart,
+                  uint64 presaleEnd,
+                  address fundsRecipient,
+                  bytes32 merkleRoot
+                )
+              )`,
             ]),
             baseProvider
           );
@@ -428,7 +432,7 @@ export const refreshByCollection = async (collection: string) => {
     standard: STANDARD,
   });
 
-  for (const { tokenId } of existingCollectionMints) {
+  const refresh = async (tokenId?: string) => {
     // Fetch and save/update the currently available mints
     const latestCollectionMints = tokenId
       ? await extractByCollectionERC1155(collection, tokenId)
@@ -454,6 +458,25 @@ export const refreshByCollection = async (collection: string) => {
         });
       }
     }
+  };
+
+  const kind = await getContractKind(collection);
+  if (kind === "erc1155") {
+    const tokenIds = await idb.manyOrNone(
+      `
+        SELECT
+          tokens.token_id
+        FROM tokens
+        WHERE tokens.contract = $/contract/
+        LIMIT 1000
+      `,
+      {
+        contract: toBuffer(collection),
+      }
+    );
+    await Promise.all(tokenIds.map(async ({ token_id }) => refresh(token_id)));
+  } else {
+    await Promise.all(existingCollectionMints.map(async ({ tokenId }) => refresh(tokenId)));
   }
 };
 

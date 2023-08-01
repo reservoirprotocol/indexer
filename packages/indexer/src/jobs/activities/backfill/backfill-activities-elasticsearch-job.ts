@@ -2,7 +2,9 @@ import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { ridb } from "@/common/db";
 import { elasticsearch } from "@/common/elasticsearch";
+import { redlock } from "@/common/redis";
 
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
 import { backfillSaveActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-save-activities-elasticsearch-job";
@@ -330,7 +332,8 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
 
   public async addToQueue(
     createIndex = false,
-    indexName = undefined,
+    indexName = "",
+    indexConfig = "",
     keepGoing = false,
     backfillTransferActivities = true,
     backfillSaleActivities = true,
@@ -346,6 +349,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
       payload: {
         createIndex,
         indexName,
+        indexConfig,
         keepGoing,
         backfillTransferActivities,
         backfillSaleActivities,
@@ -391,4 +395,26 @@ export interface EventCursorInfo {
   txHash: string;
   logIndex: number;
   batchIndex: string;
+}
+
+if (config.doBackgroundWork && config.doElasticsearchWork) {
+  redlock
+    .acquire([`${backfillActivitiesElasticsearchJob}-lock`], 60 * 60 * 24 * 30 * 1000)
+    .then(async () => {
+      await backfillActivitiesElasticsearchJob.addToQueue(
+        true,
+        `${ActivitiesIndex.getIndexName()}-1690489670764`,
+        "CONFIG_1689873821",
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      );
+    })
+    .catch(() => {
+      // Skip on any errors
+    });
 }

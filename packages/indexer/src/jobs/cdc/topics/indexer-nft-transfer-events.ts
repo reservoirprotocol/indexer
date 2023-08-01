@@ -16,7 +16,8 @@ export class IndexerTransferEventsHandler extends KafkaEventHandler {
 
     await WebsocketEventRouter({
       eventInfo: {
-        ...payload.after,
+        before: payload.before,
+        after: payload.after,
         trigger: "insert",
         offset,
       },
@@ -31,7 +32,8 @@ export class IndexerTransferEventsHandler extends KafkaEventHandler {
 
     await WebsocketEventRouter({
       eventInfo: {
-        ...payload.after,
+        before: payload.before,
+        after: payload.after,
         trigger: "update",
         offset,
       },

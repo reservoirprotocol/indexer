@@ -49,9 +49,9 @@ export const getCommonCollectionsOwnersV1Options: RouteOptions = {
       limit: Joi.number()
         .integer()
         .min(1)
-        .max(50)
+        .max(100)
         .default(20)
-        .description("Amount of collections returned in response. Max limit is 50."),
+        .description("Amount of collections returned in response. Max limit is 100."),
     }),
   },
   response: {

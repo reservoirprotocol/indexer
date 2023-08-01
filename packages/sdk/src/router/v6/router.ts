@@ -23,11 +23,14 @@ import {
   FTApproval,
   FillBidsResult,
   FillListingsResult,
+  FillMintsResult,
   ListingDetails,
+  MintDetails,
   NFTApproval,
   PerCurrencyListingDetails,
   PerPoolSwapDetails,
   SwapDetail,
+  PreSignature,
 } from "./types";
 import { generateSwapExecutions } from "./swap/index";
 import { generateFTApprovalTxData, generateNFTApprovalTxData, isETH, isWETH } from "./utils";
@@ -63,6 +66,8 @@ import SudoswapV2ModuleAbi from "./abis/SudoswapV2Module.json";
 import CaviarV1ModuleAbi from "./abis/CaviarV1Module.json";
 import CryptoPunksModuleAbi from "./abis/CryptoPunksModule.json";
 import PaymentProcessorModuleAbi from "./abis/PaymentProcessorModule.json";
+import MintModuleAbi from "./abis/MintModule.json";
+import MintProxyAbi from "./abis/MintProxy.json";
 // Exchanges
 import SeaportV15Abi from "../../seaport-v1.5/abis/Exchange.json";
 
@@ -211,7 +216,110 @@ export class Router {
         PermitProxyAbi,
         provider
       ),
+      mintModule: new Contract(
+        Addresses.MintModule[chainId] ?? AddressZero,
+        MintModuleAbi,
+        provider
+      ),
     };
+  }
+
+  public async fillMintsTx(
+    details: MintDetails[],
+    taker: string,
+    options?: {
+      source?: string;
+      // Will be split among all mints to get filled
+      globalFees?: Fee[];
+      // Skip any errors (either off-chain or on-chain)
+      partial?: boolean;
+      // Force direct filling
+      forceDirectFilling?: boolean;
+    }
+  ): Promise<FillMintsResult> {
+    const txs: {
+      txData: TxData;
+      orderIds: string[];
+    }[] = [];
+    const success: { [orderId: string]: boolean } = {};
+
+    if (
+      !Addresses.MintModule[this.chainId] ||
+      options?.forceDirectFilling ||
+      (details.length === 1 && !options?.globalFees?.length)
+    ) {
+      // Under some conditions, we simply return that transaction data back to the caller
+
+      for (const { txData, orderId } of details) {
+        txs.push({
+          txData: {
+            ...txData,
+            data: txData.data + generateSourceBytes(options?.source),
+          },
+          orderIds: [orderId],
+        });
+
+        success[orderId] = true;
+      }
+    } else {
+      // Otherwise, we wrap the mint transactions within a router execution
+
+      const proxyCalldata = new Interface(MintProxyAbi).encodeFunctionData("mintMultiple", [
+        details.map((d) => ({
+          to: d.txData.to,
+          data: d.txData.data,
+          value: d.txData.value ?? 0,
+          // Split the fees evenly across all mints
+          fees:
+            options?.globalFees?.map((f) => ({
+              amount: bn(f.amount).div(details.length),
+              recipient: f.recipient,
+            })) ?? [],
+        })),
+        {
+          refundTo: taker,
+          revertIfIncomplete: Boolean(!options?.partial),
+        },
+      ]);
+      const moduleCalldata = this.contracts.mintModule.interface.encodeFunctionData("mint", [
+        taker,
+        proxyCalldata,
+      ]);
+
+      const value = details
+        .map((d) => bn(d.txData.value ?? 0))
+        .reduce((a, b) => a.add(b), bn(0))
+        .add(
+          options?.globalFees?.length
+            ? options.globalFees.map((f) => bn(f.amount)).reduce((a, b) => a.add(b), bn(0))
+            : 0
+        )
+        .toHexString();
+      txs.push({
+        txData: {
+          from: taker,
+          to: this.contracts.router.address,
+          data:
+            this.contracts.router.interface.encodeFunctionData("execute", [
+              [
+                {
+                  module: this.contracts.mintModule.address,
+                  data: moduleCalldata,
+                  value,
+                },
+              ],
+            ]) + generateSourceBytes(options?.source),
+          value,
+        },
+        orderIds: details.map((d) => d.orderId),
+      });
+
+      for (const { orderId } of details) {
+        success[orderId] = true;
+      }
+    }
+
+    return { txs, success };
   }
 
   public async fillListingsTx(
@@ -254,6 +362,7 @@ export class Router {
     const txs: {
       approvals: FTApproval[];
       permits: { kind: "erc20"; data: PermitWithTransfers }[];
+      preSignatures: PreSignature[];
       txData: TxData;
       orderIds: string[];
     }[] = [];
@@ -283,6 +392,7 @@ export class Router {
         txs.push({
           approvals: [],
           permits: [],
+          preSignatures: [],
           txData: exchange.fillOrderTx(
             taker,
             Number(order.params.id),
@@ -395,6 +505,7 @@ export class Router {
             txs.push({
               approvals: [],
               permits: [],
+              preSignatures: [],
               txData: {
                 from: data.from,
                 to: data.to,
@@ -495,8 +606,10 @@ export class Router {
 
     const relayer = options?.relayer ?? taker;
 
-    // If all orders are Seaport, then fill on Seaport directly
-    // TODO: Directly fill for other exchanges as well
+    // Direct filling for:
+    // - seaport-1.5
+    // - alienswap
+    // - payment-processor
 
     if (
       details.every(
@@ -538,6 +651,7 @@ export class Router {
             {
               approvals: approval ? [approval] : [],
               permits: [],
+              preSignatures: [],
               txData: await exchange.fillOrderTx(
                 taker,
                 order,
@@ -559,6 +673,7 @@ export class Router {
             {
               approvals: approval ? [approval] : [],
               permits: [],
+              preSignatures: [],
               txData: await exchange.fillOrdersTx(
                 taker,
                 orders,
@@ -616,6 +731,7 @@ export class Router {
             {
               approvals: approval ? [approval] : [],
               permits: [],
+              preSignatures: [],
               txData: await exchange.fillOrderTx(
                 taker,
                 order,
@@ -637,6 +753,7 @@ export class Router {
             {
               approvals: approval ? [approval] : [],
               permits: [],
+              preSignatures: [],
               txData: await exchange.fillOrdersTx(
                 taker,
                 orders,
@@ -652,6 +769,71 @@ export class Router {
           success: Object.fromEntries(details.map((d) => [d.orderId, true])),
         };
       }
+    }
+
+    if (
+      details.every(
+        ({ kind, fees, currency }) =>
+          kind === "payment-processor" &&
+          buyInCurrency === currency &&
+          // All orders must have the same currency
+          currency === details[0].currency &&
+          !fees?.length
+      ) &&
+      !options?.globalFees?.length &&
+      !options?.forceRouter &&
+      !options?.relayer &&
+      !options?.usePermit
+    ) {
+      const exchange = new Sdk.PaymentProcessor.Exchange(this.chainId);
+      const operator = exchange.contract.address;
+
+      let approval: FTApproval | undefined;
+      if (!isETH(this.chainId, details[0].currency)) {
+        approval = {
+          currency: details[0].currency,
+          amount: details[0].price,
+          owner: taker,
+          operator,
+          txData: generateFTApprovalTxData(details[0].currency, taker, operator),
+        };
+      }
+
+      const orders: Sdk.PaymentProcessor.Order[] = [];
+      const takeOrders: Sdk.PaymentProcessor.Order[] = [];
+      const preSignatures: PreSignature[] = [];
+      for (const detail of details) {
+        const order = detail.order as Sdk.PaymentProcessor.Order;
+
+        const takerOrder = order.buildMatching({
+          taker,
+          takerMasterNonce: await exchange.getMasterNonce(this.provider, taker),
+        });
+
+        orders.push(order);
+        takeOrders.push(takerOrder);
+
+        const signData = takerOrder.getSignatureData();
+        preSignatures.push({
+          kind: "payment-processor-take-order",
+          signer: taker,
+          data: signData,
+          uniqueId: `${takerOrder.params.tokenAddress}-${takerOrder.params.tokenId}-${takerOrder.params.price}`,
+        });
+      }
+
+      return {
+        txs: [
+          {
+            approvals: approval ? [approval] : [],
+            permits: [],
+            preSignatures: preSignatures,
+            txData: exchange.fillOrdersTx(taker, orders, takeOrders),
+            orderIds: details.map((d) => d.orderId),
+          },
+        ],
+        success: Object.fromEntries(details.map((d) => [d.orderId, true])),
+      };
     }
 
     const numDetailsToConsider = details.filter((d) => !success[d.orderId]).length;
@@ -2745,6 +2927,7 @@ export class Router {
 
         txs.push({
           approvals: [],
+          preSignatures: [],
           permits: await new PermitHandler(this.chainId, this.provider)
             .generate(relayer, ftTransferItems)
             .then((permits) =>
@@ -2772,6 +2955,7 @@ export class Router {
         txs.push({
           approvals,
           permits: [],
+          preSignatures: [],
           txData: {
             from: relayer,
             ...(ftTransferItems.length

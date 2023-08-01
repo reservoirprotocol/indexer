@@ -112,7 +112,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             description: data.after.description,
             image: Assets.getLocalAssetsLink(data.after.image),
             media: data.after.media,
-            kind: r.kind,
+            kind: r?.kind,
             isFlagged: Boolean(Number(data.after.is_flagged)),
             lastFlagUpdate: data.after.last_flag_update
               ? new Date(data.after.last_flag_update).toISOString()
@@ -128,9 +128,9 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             rarityRank: data.after.rarity_rank,
             collection: {
               id: data.after.collection_id,
-              name: r.collection_name,
-              image: Assets.getLocalAssetsLink(r.collection_image),
-              slug: r.slug,
+              name: r?.collection_name,
+              image: r?.collection_image ? Assets.getLocalAssetsLink(r.collection_image) : null,
+              slug: r?.slug,
             },
           },
           market: {

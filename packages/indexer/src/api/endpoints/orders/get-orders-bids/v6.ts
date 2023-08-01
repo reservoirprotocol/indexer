@@ -127,6 +127,13 @@ export const getOrdersBidsV6Options: RouteOptions = {
           "Filter to sources by domain. Only active listed will be returned. Must set `includeRawData=true` to reveal individual bids when `sources=blur.io`. Example: `opensea.io`"
         ),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
+      includePrivate: Joi.boolean()
+        .when("ids", {
+          is: Joi.exist(),
+          then: Joi.valid(true, false).default(true),
+          otherwise: Joi.valid(true, false).default(false),
+        })
+        .description("If true, private orders are included in the response."),
       includeCriteriaMetadata: Joi.boolean()
         .default(false)
         .description("If true, criteria metadata is included in the response."),
@@ -612,6 +619,12 @@ export const getOrdersBidsV6Options: RouteOptions = {
 
       if (query.native) {
         conditions.push(`orders.is_reservoir`);
+      }
+
+      if (!query.includePrivate) {
+        conditions.push(
+          `orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL`
+        );
       }
 
       if (orderStatusFilter) {

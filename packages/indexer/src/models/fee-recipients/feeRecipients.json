@@ -63,5 +63,30 @@
     "address": "0x143ed32cd8c609a13dd73b3803d39e7a7544b1a4",
     "domain": "jungle.co",
     "kind": "marketplace"
+  },
+  {
+    "address": "0xe89b80d335a643495cfcf004037a381565edc130",
+    "domain": "godid.io",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0xe35450f17229010f416355c3acb5cd1d19bebeb6",
+    "domain": "v3.fabrica.land",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0xc888f5e3dd4fbeb37f6e1ba6fa68c83ab0cf7b2c",
+    "domain": "v3.fabrica.land",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0xe35450f17229010f416355c3acb5cd1d19bebeb6",
+    "domain": "fabrica.land",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0xc888f5e3dd4fbeb37f6e1ba6fa68c83ab0cf7b2c",
+    "domain": "fabrica.land",
+    "kind": "marketplace"
   }
 ]
