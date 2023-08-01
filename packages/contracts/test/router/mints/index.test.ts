@@ -85,22 +85,26 @@ describe("[ReservoirV6_0_1] Mints", () => {
       "function mint(address minter, bytes data)",
     ]);
 
-    const [tokenId1, amount1, revert1, fees1] = [
+    const [tokenId1, amount1, price1, revert1, fees1] = [
       0,
       2,
+      parseEther(getRandomFloat(0.001, 0.5).toFixed(6)),
       partial ? getRandomBoolean() : false,
       chargeFees ? [parseEther(getRandomFloat(0.0001, 0.1).toFixed(6))] : [],
     ];
-    const [tokenId2, amount2, revert2, fees2] = [
-      1,
+    const [tokenId2, amount2, price2, revert2, fees2] = [
+      revert1 ? 0 : 1,
       5,
+      parseEther(getRandomFloat(0.001, 0.5).toFixed(6)),
       partial ? getRandomBoolean() : false,
       chargeFees ? [parseEther(getRandomFloat(0.0001, 0.1).toFixed(6))] : [],
     ];
 
     const totalPrice = fees1
       .reduce((a, b) => a.add(b), bn(0))
-      .add(fees2.reduce((a, b) => a.add(b), bn(0)));
+      .add(fees2.reduce((a, b) => a.add(b), bn(0)))
+      .add(price1.mul(standard === "erc721" ? 1 : amount1))
+      .add(price2.mul(standard === "erc721" ? 1 : amount2));
 
     let moduleCalldata: string;
     if (standard === "erc721") {
@@ -110,8 +114,8 @@ describe("[ReservoirV6_0_1] Mints", () => {
             to: erc721.address,
             data: revert1
               ? erc721.interface.encodeFunctionData("fail", [])
-              : erc721.interface.encodeFunctionData("mint", [tokenId1]),
-            value: 0,
+              : erc721.interface.encodeFunctionData("mintWithPrice", [price1]),
+            value: price1,
             fees: fees1.map((fee) => ({
               recipient: bob.address,
               amount: fee,
@@ -121,8 +125,8 @@ describe("[ReservoirV6_0_1] Mints", () => {
             to: erc721.address,
             data: revert2
               ? erc721.interface.encodeFunctionData("fail", [])
-              : erc721.interface.encodeFunctionData("mint", [tokenId2]),
-            value: 0,
+              : erc721.interface.encodeFunctionData("mintWithPrice", [price2]),
+            value: price2,
             fees: fees2.map((fee) => ({
               recipient: bob.address,
               amount: fee,
@@ -141,8 +145,8 @@ describe("[ReservoirV6_0_1] Mints", () => {
             to: erc1155.address,
             data: revert1
               ? erc1155.interface.encodeFunctionData("fail", [])
-              : erc1155.interface.encodeFunctionData("mintMany", [tokenId1, amount1]),
-            value: 0,
+              : erc1155.interface.encodeFunctionData("mintWithPrice", [amount1, price1]),
+            value: price1.mul(amount1),
             fees: fees1.map((fee) => ({
               recipient: bob.address,
               amount: fee,
@@ -152,8 +156,8 @@ describe("[ReservoirV6_0_1] Mints", () => {
             to: erc1155.address,
             data: revert2
               ? erc1155.interface.encodeFunctionData("fail", [])
-              : erc1155.interface.encodeFunctionData("mintMany", [tokenId2, amount2]),
-            value: 0,
+              : erc1155.interface.encodeFunctionData("mintWithPrice", [amount2, price2]),
+            value: price2.mul(amount2),
             fees: fees2.map((fee) => ({
               recipient: bob.address,
               amount: fee,
@@ -228,6 +232,10 @@ describe("[ReservoirV6_0_1] Mints", () => {
         )
       );
     }
+
+    // Router is stateless
+    expect(ethBalancesAfter.router).to.eq(0);
+    expect(ethBalancesAfter.mintModule).to.eq(0);
   };
 
   for (const standard of ["erc721", "erc1155"]) {

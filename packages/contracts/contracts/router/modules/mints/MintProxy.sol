@@ -28,6 +28,8 @@ contract MintProxy is ReentrancyGuard {
   // --- Errors ---
 
   error AlreadyInitialized();
+  error Unauthorized();
+  error UnsuccessfulCall();
   error UnsuccessfulMint();
   error UnsuccessfulPayment();
 
@@ -79,6 +81,28 @@ contract MintProxy is ReentrancyGuard {
     uint256 leftover = address(this).balance;
     if (leftover > 0) {
       _sendETH(params.refundTo, leftover);
+    }
+  }
+
+  function makeCalls(
+    address[] calldata targets,
+    bytes[] calldata data,
+    uint256[] calldata values
+  ) external payable nonReentrant {
+    if (msg.sender != owner) {
+      revert Unauthorized();
+    }
+
+    uint256 length = targets.length;
+    for (uint256 i = 0; i < length; ) {
+      (bool success, ) = payable(targets[i]).call{value: values[i]}(data[i]);
+      if (!success) {
+        revert UnsuccessfulCall();
+      }
+
+      unchecked {
+        ++i;
+      }
     }
   }
 

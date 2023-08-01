@@ -23,6 +23,16 @@ addPlatformAddress("seaport-v1.4", [
   "0x0000a26b00c1f0df003000390027140000faa719",
 ]);
 
+addPlatformAddress("seaport-v1.5", [
+  "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073",
+  "0x8de9c5a032463c561423387a9648c5c7bcc5bc90",
+  "0x0000a26b00c1f0df003000390027140000faa719",
+  "0xe89b80d335a643495cfcf004037a381565edc130",
+  "0x143ed32cd8c609a13dd73b3803d39e7a7544b1a4",
+  "0xe35450f17229010f416355c3acb5cd1d19bebeb6",
+  "0xc888f5e3dd4fbeb37f6e1ba6fa68c83ab0cf7b2c",
+]);
+
 addPlatformAddress("alienswap", ["0x0b22c0359b550da6cf3766d8c0d7ffc00e28a136"]);
 
 addPlatformAddress("wyvern-v2", [
@@ -46,10 +56,6 @@ addPlatformAddress("sudoswap", [
   "0xb16c1342e617a5b6e4b631eb114483fdb289c0a4",
 ]);
 addPlatformAddress("bend-dao", ["0xf3ab1d58ce6b9e0d42b8958c918649305e1b1d26"]);
-
-addPlatformAddress("godid", ["0xe89b80d335a643495cfcf004037a381565edc130"]);
-
-addPlatformAddress("jungle", ["0x143ed32cd8c609a13dd73b3803d39e7a7544b1a4"]);
 
 // List of supported exchanges
 export const supportedExchanges: Map<OrderKind, string> = new Map();

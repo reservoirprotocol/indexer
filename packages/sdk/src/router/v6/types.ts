@@ -178,12 +178,22 @@ export type PerCurrencyListingDetails = {
   [currency: string]: ListingDetails[];
 };
 
+export type PreSignature = {
+  kind: "payment-processor-take-order";
+  signer: string;
+  signature?: string;
+  uniqueId: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: any;
+};
+
 export type FillListingsResult = {
   txs: {
     approvals: FTApproval[];
     txData: TxData;
     orderIds: string[];
     permits: Permit[];
+    preSignatures: PreSignature[];
   }[];
   success: { [orderId: string]: boolean };
 };
@@ -213,6 +223,22 @@ export type BidDetails = GenericOrder & BidFillDetails;
 export type FillBidsResult = {
   txs: {
     approvals: NFTApproval[];
+    txData: TxData;
+    orderIds: string[];
+  }[];
+  success: { [orderId: string]: boolean };
+};
+
+// Mints
+
+// Basic details for filling mints
+export type MintDetails = {
+  orderId: string;
+  txData: TxData;
+};
+
+export type FillMintsResult = {
+  txs: {
     txData: TxData;
     orderIds: string[];
   }[];

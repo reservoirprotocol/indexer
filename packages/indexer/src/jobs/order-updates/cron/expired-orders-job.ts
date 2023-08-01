@@ -22,11 +22,13 @@ export class OrderUpdatesExpiredOrderJob extends AbstractRabbitMqJobHandler {
   protected async process() {
     logger.info(this.queueName, "Invalidating expired orders");
 
+    const currentTime = now();
     const lastTimestampKey = "expired-orders-last-timestamp";
-    const lastTimestamp = await redis.get(lastTimestampKey).then((t) => (t ? Number(t) : now()));
+    const lastTimestamp = await redis
+      .get(lastTimestampKey)
+      .then((t) => (t ? Number(_.max([Number(t), currentTime - 60 * 60 * 24])) : now()));
 
     // Update the expired orders second by second
-    const currentTime = now();
     if (currentTime > lastTimestamp) {
       await backfillExpiredOrders.addToQueue(
         _.range(0, currentTime - lastTimestamp + 1).map((s) => currentTime - s)

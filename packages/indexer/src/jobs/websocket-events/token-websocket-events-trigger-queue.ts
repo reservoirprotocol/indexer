@@ -112,7 +112,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             description: data.after.description,
             image: Assets.getLocalAssetsLink(data.after.image),
             media: data.after.media,
-            kind: r.kind,
+            kind: r?.kind,
             isFlagged: Boolean(Number(data.after.is_flagged)),
             lastFlagUpdate: data.after.last_flag_update
               ? new Date(data.after.last_flag_update).toISOString()
@@ -128,9 +128,9 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             rarityRank: data.after.rarity_rank,
             collection: {
               id: data.after.collection_id,
-              name: r.collection_name,
-              image: Assets.getLocalAssetsLink(r.collection_image),
-              slug: r.slug,
+              name: r?.collection_name,
+              image: r?.collection_image ? Assets.getLocalAssetsLink(r.collection_image) : null,
+              slug: r?.slug,
             },
           },
           market: {
@@ -194,6 +194,8 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
               },
             },
           },
+          createdAt: new Date(data.after.created_at).toISOString(),
+          updatedAt: new Date(data.after.updated_at).toISOString(),
         };
 
         let eventType = "";
@@ -289,8 +291,8 @@ interface TokenInfo {
   last_buy_timestamp?: string;
   last_buy_value?: string;
   last_metadata_sync?: string;
-  created_at?: string;
-  updated_at?: string;
+  created_at: string;
+  updated_at: string;
   rarity_score: string;
   rarity_rank: string;
   is_flagged: string;

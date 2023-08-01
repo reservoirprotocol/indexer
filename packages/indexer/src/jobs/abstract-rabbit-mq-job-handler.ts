@@ -94,8 +94,20 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
         }`
       );
 
-      await channel.ack(consumeMessage); // Ack the message with rabbit
-      await RabbitMq.send(queueName, this.rabbitMqMessage, delay); // Trigger the retry / or send to dead letter queue
+      try {
+        await channel.ack(consumeMessage); // Ack the message with rabbit
+        await RabbitMq.send(queueName, this.rabbitMqMessage, delay); // Trigger the retry / or send to dead letter queue
+      } catch (error) {
+        // Log the error
+        logger.error(
+          this.queueName,
+          `Error handling catch: ${JSON.stringify(
+            error
+          )}, queueName=${queueName}, payload=${JSON.stringify(this.rabbitMqMessage)}, retryCount=${
+            this.rabbitMqMessage.retryCount
+          }`
+        );
+      }
     }
   }
 

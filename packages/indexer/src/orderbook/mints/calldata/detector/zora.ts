@@ -29,22 +29,22 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
     collection,
     new Interface([
       `
-          function saleDetails() view returns (
-            (
-              bool publicSaleActive,
-              bool presaleActive,
-              uint256 publicSalePrice,
-              uint64 publicSaleStart,
-              uint64 publicSaleEnd,
-              uint64 presaleStart,
-              uint64 presaleEnd,
-              bytes32 presaleMerkleRoot,
-              uint256 maxSalePurchasePerAddress,
-              uint256 totalMinted,
-              uint256 maxSupply
-            )
+        function saleDetails() view returns (
+          (
+            bool publicSaleActive,
+            bool presaleActive,
+            uint256 publicSalePrice,
+            uint64 publicSaleStart,
+            uint64 publicSaleEnd,
+            uint64 presaleStart,
+            uint64 presaleEnd,
+            bytes32 presaleMerkleRoot,
+            uint256 maxSalePurchasePerAddress,
+            uint256 totalMinted,
+            uint256 maxSupply
           )
-        `,
+        )
+      `,
       "function zoraFeeForAmount(uint256 quantity) view returns (address recipient, uint256 fee)",
     ]),
     baseProvider
@@ -185,12 +185,12 @@ export const extractByCollectionERC1155 = async (
       "function getPermissions(uint256 tokenId, address user) view returns (uint256)",
       "function mintFee() external view returns(uint256)",
       `function getTokenInfo(uint256 tokenId) view returns (
-          (
-            string uri,
-            uint256 maxSupply,
-            uint256 totalMinted
-          )
-        )`,
+        (
+          string uri,
+          uint256 maxSupply,
+          uint256 totalMinted
+        )
+      )`,
     ]),
     baseProvider
   );
@@ -218,14 +218,14 @@ export const extractByCollectionERC1155 = async (
             minter,
             new Interface([
               `function sale(address tokenContract, uint256 tokenId) view returns (
-                  (
-                    uint64 saleStart,
-                    uint64 saleEnd,
-                    uint64 maxTokensPerAddress,
-                    uint96 pricePerToken,
-                    address fundsRecipient
-                  )
-                )`,
+                (
+                  uint64 saleStart,
+                  uint64 saleEnd,
+                  uint64 maxTokensPerAddress,
+                  uint96 pricePerToken,
+                  address fundsRecipient
+                )
+              )`,
             ]),
             baseProvider
           );
@@ -288,13 +288,13 @@ export const extractByCollectionERC1155 = async (
             minter,
             new Interface([
               `function sale(address tokenContract, uint256 tokenId) view returns (
-                  (
-                    uint64 presaleStart,
-                    uint64 presaleEnd,
-                    address fundsRecipient,
-                    bytes32 merkleRoot
-                  )
-                )`,
+                (
+                  uint64 presaleStart,
+                  uint64 presaleEnd,
+                  address fundsRecipient,
+                  bytes32 merkleRoot
+                )
+              )`,
             ]),
             baseProvider
           );

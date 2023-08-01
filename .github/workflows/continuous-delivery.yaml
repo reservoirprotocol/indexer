@@ -327,6 +327,14 @@ jobs:
             ${{ github.sha }} \
             indexer-kafka-worker-polygon
           ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-bsc.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-bsc
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-goerli.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-goerli
+          ./utils/version_update.sh \
             ./prod/platform/indexer-kafka-worker-arbitrum.yaml \
             ${{ github.sha }} \
             indexer-kafka-worker-arbitrum
@@ -335,57 +343,57 @@ jobs:
             ${{ github.sha }} \
             indexer-kafka-worker-optimism
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-optimism-master.yaml \
+            ./prod/platform/indexer-worker-master-optimism.yaml \
             ${{ github.sha }} \
-            indexer-worker-optimism-master
+            indexer-worker-master-optimism
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-arbitrum-master.yaml \
+            ./prod/platform/indexer-worker-master-arbitrum.yaml \
             ${{ github.sha }} \
-            indexer-worker-arbitrum-master
+            indexer-worker-master-arbitrum
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-arbitrum-nova-master.yaml \
+            ./prod/platform/indexer-worker-master-arbitrum-nova.yaml \
             ${{ github.sha }} \
-            indexer-worker-arbitrum-nova-master
+            indexer-worker-master-arbitrum-nova
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-bsc-master.yaml \
+            ./prod/platform/indexer-worker-master-bsc.yaml \
             ${{ github.sha }} \
-            indexer-worker-bsc-master
+            indexer-worker-master-bsc
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-base-master.yaml \
+            ./prod/platform/indexer-worker-master-base.yaml \
             ${{ github.sha }} \
-            indexer-worker-base-master
+            indexer-worker-master-base
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-base-goerli-master.yaml \
+            ./prod/platform/indexer-worker-master-base-goerli.yaml \
             ${{ github.sha }} \
-            indexer-worker-goerli-goerli-master
+            indexer-worker-master-base-goerli
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-avalanche-master.yaml \
+            ./prod/platform/indexer-worker-master-avalanche.yaml \
             ${{ github.sha }} \
-            indexer-worker-avalanche-master
+            indexer-worker-master-avalanche
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-sepolia-master.yaml \
+            ./prod/platform/indexer-worker-master-sepolia.yaml \
             ${{ github.sha }} \
-            indexer-worker-sepolia-master
+            indexer-worker-master-sepolia
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-goerli-master.yaml \
+            ./prod/platform/indexer-worker-master-goerli.yaml \
             ${{ github.sha }} \
-            indexer-worker-goerli-master
+            indexer-worker-master-goerli
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-mumbai-master.yaml \
+            ./prod/platform/indexer-worker-master-mumbai.yaml \
             ${{ github.sha }} \
-            indexer-worker-mumbai-master
+            indexer-worker-master-mumbai
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-scroll-alpha-master.yaml \
+            ./prod/platform/indexer-worker-master-scroll-alpha.yaml \
             ${{ github.sha }} \
-            indexer-worker-scroll-alpha-master
+            indexer-worker-master-scroll-alpha
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-zora-master.yaml \
+            ./prod/platform/indexer-worker-master-zora.yaml \
             ${{ github.sha }} \
-            indexer-worker-zora-master
+            indexer-worker-master-zora
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-zora-testnet-master.yaml \
+            ./prod/platform/indexer-worker-master-zora-testnet.yaml \
             ${{ github.sha }} \
-            indexer-worker-zora-testnet-master
+            indexer-worker-master-zora-testnet
           ./utils/version_update.sh \
             ./prod/platform/indexer-api-linea.yaml \
             ${{ github.sha }} \
