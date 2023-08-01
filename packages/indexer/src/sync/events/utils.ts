@@ -72,6 +72,20 @@ export const fetchTransaction = async (hash: string) => {
   return tx;
 };
 
+export const getTransactionTraceFromRPC = async (hash: string, retryMax = 5) => {
+  let trace: TransactionTrace | undefined;
+  let retries = 0;
+  while (!trace && retries < retryMax) {
+    try {
+      trace = await baseProvider.send("debug_traceTransaction", [hash, { tracer: "callTracer" }]);
+    } catch (e) {
+      retries++;
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+  }
+  return trace;
+};
+
 export const fetchTransactionTrace = async (hash: string) => {
   const trace = await getTransactionTraces([hash]);
   return trace[0];

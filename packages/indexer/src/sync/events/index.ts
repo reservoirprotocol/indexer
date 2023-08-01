@@ -268,19 +268,16 @@ const _getTransactionTraces = async (Txs: { hash: string }[], block: number) => 
   } else {
     traces = await Promise.all(
       Txs.map(async (tx) => {
-        try {
-          const trace = await baseProvider.send("debug_traceTransaction", [
-            tx.hash,
-            { tracer: "callTracer" },
-          ]);
-          return {
-            ...trace,
-            hash: tx.hash,
-          };
-        } catch (error) {
-          logger.error("sync-events-v2", `Failed to get trace: ${error}`);
+        const trace = await syncEventsUtils.getTransactionTraceFromRPC(tx.hash);
+        if (!trace) {
+          logger.error("sync-events-v2", `Failed to get trace for tx: ${tx.hash}`);
           return null;
         }
+
+        return {
+          ...trace,
+          hash: tx.hash,
+        };
       })
     );
   }
