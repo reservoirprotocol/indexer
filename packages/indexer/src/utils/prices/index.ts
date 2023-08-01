@@ -175,7 +175,7 @@ const getCachedUSDPrice = async (
     .catch(() => undefined);
 
 const USD_PRICE_MEMORY_CACHE = new Map<string, Price>();
-const getAvailableUSDPrice = async (
+export const getAvailableUSDPrice = async (
   currencyAddress: string,
   timestamp: number,
   acceptStalePrice?: boolean

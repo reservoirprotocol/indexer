@@ -327,6 +327,14 @@ jobs:
             ${{ github.sha }} \
             indexer-kafka-worker-polygon
           ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-bsc.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-bsc
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-goerli.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-goerli
+          ./utils/version_update.sh \
             ./prod/platform/indexer-kafka-worker-arbitrum.yaml \
             ${{ github.sha }} \
             indexer-kafka-worker-arbitrum

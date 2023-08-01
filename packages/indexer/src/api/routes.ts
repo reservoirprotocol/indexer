@@ -27,6 +27,7 @@ import * as assetsEndpoints from "@/api/endpoints/assets";
 import * as sourcesEndpoints from "@/api/endpoints/sources";
 import * as chainEndpoints from "@/api/endpoints/chain";
 import * as debugEndpoints from "@/api/endpoints/debug";
+import * as currenciesEndpoints from "@/api/endpoints/currencies";
 
 export const setupRoutes = (server: Server) => {
   // Activity
@@ -1385,6 +1386,14 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/sources/v1",
     options: sourcesEndpoints.getSourcesV1Options,
+  });
+
+  // currencies
+
+  server.route({
+    method: "GET",
+    path: "/currencies/conversion/v1",
+    options: currenciesEndpoints.getCurrencyConversionV1Options,
   });
 
   // Debug APIs
