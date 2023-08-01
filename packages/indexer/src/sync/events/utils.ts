@@ -72,7 +72,7 @@ export const fetchTransaction = async (hash: string) => {
   return tx;
 };
 
-export const getTransactionTraceFromRPC = async (hash: string, retryMax = 5) => {
+export const getTransactionTraceFromRPC = async (hash: string, retryMax = 10) => {
   let trace: TransactionTrace | undefined;
   let retries = 0;
   while (!trace && retries < retryMax) {
