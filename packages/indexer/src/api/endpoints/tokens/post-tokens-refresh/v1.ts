@@ -148,6 +148,7 @@ export const postTokensRefreshV1Options: RouteOptions = {
               tokenId,
               collection: collection?.id || contract,
             },
+            context: "post-tokens-refresh-v1",
           },
         ],
         true

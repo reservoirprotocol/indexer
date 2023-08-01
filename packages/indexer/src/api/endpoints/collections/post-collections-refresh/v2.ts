@@ -231,6 +231,7 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
               method,
               collection: collection.id,
             },
+            context: "post-refresh-collection-v2",
           };
           if (method === "opensea" && collection.slug) {
             metadataIndexInfo = {
@@ -241,6 +242,7 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
                 slug: collection.slug,
                 collection: collection.id,
               },
+              context: "post-refresh-collection-v2",
             };
           }
 

@@ -161,6 +161,7 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
                   tokenId,
                   collection: collection.id,
                 },
+                context: this.queueName,
               },
             ],
             true,
