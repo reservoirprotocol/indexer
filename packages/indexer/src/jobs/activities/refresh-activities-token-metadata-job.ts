@@ -5,6 +5,7 @@ import _ from "lodash";
 import { Tokens } from "@/models/tokens";
 import crypto from "crypto";
 import { logger } from "@/common/logger";
+import { RabbitMQMessage } from "@/common/rabbit-mq";
 
 export type RefreshActivitiesTokenMetadataJobPayload = {
   contract: string;
@@ -20,6 +21,8 @@ export class RefreshActivitiesTokenMetadataJob extends AbstractRabbitMqJobHandle
   lazyMode = true;
 
   protected async process(payload: RefreshActivitiesTokenMetadataJobPayload) {
+    let addToQueue = false;
+
     const { contract, tokenId } = payload;
 
     const tokenUpdateData =
@@ -40,28 +43,35 @@ export class RefreshActivitiesTokenMetadataJob extends AbstractRabbitMqJobHandle
           )}`
         );
 
-        await this.addToQueue({ contract, tokenId }, true);
+        addToQueue = true;
       }
     }
+
+    return { addToQueue };
   }
 
-  public async addToQueue(payload: RefreshActivitiesTokenMetadataJobPayload, force = false) {
+  public events() {
+    this.once(
+      "onCompleted",
+      async (message: RabbitMQMessage, processResult: { addToQueue: boolean }) => {
+        if (processResult.addToQueue) {
+          await this.addToQueue(message.payload.contract, message.payload.tokenId);
+        }
+      }
+    );
+  }
+
+  public async addToQueue(contract: string, tokenId: string) {
     if (!config.doElasticsearchWork) {
       return;
     }
 
-    const jobId = force
-      ? undefined
-      : crypto
-          .createHash("sha256")
-          .update(
-            `${payload.contract.toLowerCase()}${payload.tokenId}${JSON.stringify(
-              payload.tokenUpdateData
-            )}`
-          )
-          .digest("hex");
+    const jobId = crypto
+      .createHash("sha256")
+      .update(`${contract.toLowerCase()}${tokenId}`)
+      .digest("hex");
 
-    await this.send({ payload, jobId });
+    await this.send({ payload: { contract, tokenId }, jobId });
   }
 }
 
