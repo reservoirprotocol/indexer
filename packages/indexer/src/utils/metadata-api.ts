@@ -84,8 +84,13 @@ export class MetadataApi {
         creator: null,
       };
     } else {
-      const indexingMethod =
+      let indexingMethod =
         options?.indexingMethod ?? MetadataApi.getCollectionIndexingMethod(community);
+
+      //TODO: Remove when adding proper support for overriding indexing method
+      if (config.chainId === 1 && contract === "0xd532b88607b1877fe20c181cba2550e3bbd6b31c") {
+        indexingMethod = "simplehash";
+      }
 
       let networkName = getNetworkName();
 
