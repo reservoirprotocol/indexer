@@ -21,10 +21,7 @@ import {
   saveTransactionTraces,
 } from "@/models/transaction-traces";
 import { TransactionReceipt } from "@ethersproject/providers";
-import {
-  supports_eth_getBlockReceipts,
-  supports_eth_getBlockTrace,
-} from "@/jobs/events-sync/events-sync-realtime-job";
+import { supports_eth_getBlockReceipts, supports_eth_getBlockTrace } from "./supports";
 import { baseProvider } from "@/common/provider";
 import { redis } from "@/common/redis";
 import { deleteBlockTransactions } from "@/models/transactions";
