@@ -6,7 +6,7 @@ import * as orders from "@/orderbook/orders";
 export class OpenseaBidsQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "orderbook-opensea-bids-queue";
   maxRetries = 10;
-  concurrency = 75;
+  concurrency = 100;
   lazyMode = true;
   consumerTimeout = 90000;
 
