@@ -31,6 +31,8 @@ export class BlockCheckJob extends AbstractRabbitMqJobHandler {
     try {
       // Generic method for handling an orphan block
       const handleOrphanBlock = async (block: { number: number; hash: string }) => {
+        logger.info(this.queueName, `Handle orphan block ${block} with hash ${blockHash} - Start`);
+
         // Resync the detected orphaned block
         await eventsSyncBackfillJob.addToQueue(block.number, block.number, {
           prioritized: true,
@@ -42,6 +44,8 @@ export class BlockCheckJob extends AbstractRabbitMqJobHandler {
 
         // TODO: Also delete transactions associated to the orphaned
         // block and fetch the transactions of the replacement block
+
+        logger.info(this.queueName, `Handle orphan block ${block} with hash ${blockHash} - End`);
       };
 
       // Fetch the latest upstream hash for the specified block

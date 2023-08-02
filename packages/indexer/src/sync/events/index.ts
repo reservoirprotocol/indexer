@@ -488,6 +488,11 @@ export const syncEvents = async (
 };
 
 export const unsyncEvents = async (block: number, blockHash: string) => {
+  logger.info(
+    "events-sync-block-check",
+    `unsyncEvents. block ${block} with hash ${blockHash} - Start`
+  );
+
   await Promise.all([
     es.fills.removeEvents(block, blockHash),
     es.bulkCancels.removeEvents(block, blockHash),
@@ -498,4 +503,9 @@ export const unsyncEvents = async (block: number, blockHash: string) => {
     es.nftTransfers.removeEvents(block, blockHash),
     removeUnsyncedEventsActivitiesJob.addToQueue(blockHash),
   ]);
+
+  logger.info(
+    "events-sync-block-check",
+    `unsyncEvents. block ${block} with hash ${blockHash} - End`
+  );
 };
