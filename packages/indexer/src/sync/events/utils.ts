@@ -51,6 +51,7 @@ export const saveBlockTransactions = async (
       value: tx.value.toString(),
       data: tx.data.toLowerCase(),
       blockNumber: blockData.number,
+      blockHash: blockData.hash.toLowerCase(),
       blockTimestamp: blockData.timestamp,
       gasPrice,
       gasUsed,

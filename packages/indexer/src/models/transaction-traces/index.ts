@@ -63,3 +63,26 @@ export const getTransactionTraces = async (hashes: string[]): Promise<Transactio
     calls: r.calls,
   }));
 };
+
+export const deleteTransactionTraces = async (blockHash: string) => {
+  // get transactions with block hash
+  const transactions = await txdb.manyOrNone(
+    `
+      SELECT
+        transactions.hash
+      FROM transactions
+      WHERE transactions.block_hash = $/blockHash/
+    `,
+    { blockHash: toBuffer(blockHash) }
+  );
+
+  // delete transaction traces with transaction hash
+  await txdb.none(
+    `
+      DELETE FROM transaction_traces
+      WHERE transaction_traces.hash IN ($/hashes:list/)
+    `,
+
+    { hashes: transactions.map((t) => t.hash) }
+  );
+};

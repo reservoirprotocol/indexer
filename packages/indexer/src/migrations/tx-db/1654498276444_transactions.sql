@@ -7,6 +7,7 @@ CREATE TABLE "transactions" (
   "value" NUMERIC NOT NULL,
   "data" BYTEA,
   "block_number" INT,
+  "block_hash" BYTEA,
   "block_timestamp" INT,
   "gas_used" NUMERIC,
   "gas_price" NUMERIC,

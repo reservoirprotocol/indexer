@@ -105,3 +105,15 @@ export const getTransactionLogs = async (hash: string): Promise<TransactionLogs>
     logs,
   };
 };
+
+export const deleteTransactionLogs = async (blockHash: string) => {
+  // set removed = true for all logs in block with blockHash
+  await txdb.none(
+    `
+      UPDATE transaction_logs
+      SET removed = true
+      WHERE transaction_logs.block_hash = $/blockHash/
+    `,
+    { blockHash: toBuffer(blockHash) }
+  );
+};

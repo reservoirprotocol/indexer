@@ -14,8 +14,12 @@ import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-j
 
 import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
 import { Block } from "@/models/blocks";
-import { saveTransactionLogs } from "@/models/transaction-logs";
-import { TransactionTrace, saveTransactionTraces } from "@/models/transaction-traces";
+import { deleteTransactionLogs, saveTransactionLogs } from "@/models/transaction-logs";
+import {
+  TransactionTrace,
+  deleteTransactionTraces,
+  saveTransactionTraces,
+} from "@/models/transaction-traces";
 import { TransactionReceipt } from "@ethersproject/providers";
 import {
   supports_eth_getBlockReceipts,
@@ -23,6 +27,7 @@ import {
 } from "@/jobs/events-sync/events-sync-realtime-job";
 import { baseProvider } from "@/common/provider";
 import { redis } from "@/common/redis";
+import { deleteBlockTransactions } from "@/models/transactions";
 
 export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBatch[] => {
   const txHashToEvents = new Map<string, EnhancedEvent[]>();
@@ -565,9 +570,9 @@ export const checkForOrphanedBlock = async (block: number) => {
 
   // delete the orphaned block data
   await unsyncEvents(block, orphanedBlock.hash);
-
-  // TODO: add block hash to transactions table and delete transactions associated to the orphaned block
-  // await deleteBlockTransactions(block);
+  await deleteTransactionTraces(orphanedBlock.hash);
+  await deleteTransactionLogs(orphanedBlock.hash);
+  await deleteBlockTransactions(orphanedBlock.hash);
 
   // delete the block data
   await blocksModel.deleteBlock(block, orphanedBlock.hash);

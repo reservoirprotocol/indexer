@@ -10,6 +10,7 @@ export type Transaction = {
   value: string;
   data: string;
   blockNumber: number;
+  blockHash: string;
   blockTimestamp: number;
   gasPrice?: string;
   gasUsed?: string;
@@ -96,6 +97,7 @@ export const saveTransactionsV2 = async (transactions: Transaction[]) => {
       "value",
       "data",
       "block_number",
+      "block_hash",
       "block_timestamp",
       "gas_price",
       "gas_used",
@@ -116,6 +118,7 @@ export const saveTransactionsV2 = async (transactions: Transaction[]) => {
     value: transaction.value,
     data: toBuffer(transaction.data),
     block_number: transaction.blockNumber,
+    block_hash: toBuffer(transaction.blockHash),
     block_timestamp: transaction.blockTimestamp,
     gas_price: transaction.gasPrice,
     gas_used: transaction.gasUsed,
@@ -141,6 +144,7 @@ export const saveTransactionsV2 = async (transactions: Transaction[]) => {
           value,
           data,
           block_number,
+          block_hash,
           block_timestamp,
           gas_price,
           gas_used,
@@ -165,11 +169,12 @@ export const getTransaction = async (hash: string): Promise<Transaction> => {
   const result = await txdb.oneOrNone(
     `
       SELECT
-        transactions.block_number,
         transactions.from,
         transactions.to,
         transactions.value,
         transactions.data,
+        transactions.block_number,
+        transactions.block_hash,
         transactions.block_timestamp,
         transactions.gas_price,
         transactions.gas_used,
@@ -187,11 +192,12 @@ export const getTransaction = async (hash: string): Promise<Transaction> => {
 
   return {
     hash,
-    blockNumber: result.block_number,
     from: fromBuffer(result.from),
     to: fromBuffer(result.to),
     value: result.value,
     data: fromBuffer(result.data),
+    blockNumber: result.block_number,
+    blockHash: result.block_hash,
     blockTimestamp: result.block_timestamp,
     gasPrice: result.gas_price,
     gasUsed: result.gas_used,
@@ -200,4 +206,14 @@ export const getTransaction = async (hash: string): Promise<Transaction> => {
     status: result.status,
     transactionIndex: result.transaction_index,
   };
+};
+
+export const deleteBlockTransactions = async (blockHash: string) => {
+  await txdb.none(
+    `
+      DELETE FROM transactions
+      WHERE transactions.block_hash = $/blockHash/
+    `,
+    { blockHash: toBuffer(blockHash) }
+  );
 };
