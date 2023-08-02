@@ -10,7 +10,7 @@ export const checkSupports = async () => {
 
   // try to call eth_getBlockReceipts
   try {
-    await baseProvider.send("eth_getBlockReceipts", [blockNumberToHex(latestBlock)]);
+    await baseProvider.send("eth_getBlockReceipts", [blockNumberToHex(latestBlock - 2)]);
     supports_eth_getBlockReceipts = true;
   } catch (error) {
     supports_eth_getBlockReceipts = false;
@@ -19,7 +19,7 @@ export const checkSupports = async () => {
   // try to call eth_getBlockTrace
   try {
     await baseProvider.send("debug_traceBlockByNumber", [
-      blockNumberToHex(latestBlock),
+      blockNumberToHex(latestBlock - 2),
       { tracer: "callTracer" },
     ]);
     supports_eth_getBlockTrace = true;
