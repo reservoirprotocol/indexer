@@ -110,8 +110,7 @@ export enum WebsocketEventKind {
 
 export type EventInfo =
   | TopBidWebsocketEventInfo
-  | askWebsocketEventsTriggerQueue.AskWebsocketEventInfo
-  | bidWebsocketEventsTriggerQueue.BidWebsocketEventInfo
+  | OrderWebsocketEventInfo
   | SaleWebsocketEventInfo
   | TransferWebsocketEventInfo
   | tokenWebsocketEventsTriggerQueue.TokenWebsocketEventInfo
