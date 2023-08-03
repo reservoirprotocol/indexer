@@ -27,6 +27,9 @@ export const getNetworkName = () => {
     case 137:
       return "polygon";
 
+    case 324:
+      return "zksync";
+
     case 42161:
       return "arbitrum";
 
@@ -84,6 +87,9 @@ export const getOpenseaNetworkName = () => {
 
     case 137:
       return "matic";
+
+    case 324:
+      return "zksync";
 
     case 42161:
       return "arbitrum";
@@ -648,6 +654,39 @@ export const getNetworkSettings = (): NetworkSettings => {
                   'MATIC',
                   18,
                   '{"coingeckoCurrencyId": "matic-network"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // ZKsync
+    case 324: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: true,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        subDomain: "api-zksync",
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
                 ) ON CONFLICT DO NOTHING
               `
             ),

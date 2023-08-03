@@ -402,6 +402,18 @@ jobs:
             ./prod/platform/indexer-worker-linea.yaml \
             ${{ github.sha }} \
             indexer-worker-linea
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-master-zksync.yaml \
+            ${{ github.sha }} \
+            indexer-worker-master-zksync
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-api-zksync.yaml \
+            ${{ github.sha }} \
+            indexer-api-zksync
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-zksync.yaml \
+            ${{ github.sha }} \
+            indexer-worker-zksync
       - name: Post to Slack
         if: ${{ always() }}
         id: slack-deploy-prod

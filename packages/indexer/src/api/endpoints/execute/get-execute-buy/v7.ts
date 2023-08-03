@@ -117,11 +117,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
         .lowercase()
         .pattern(regex.address)
         .required()
-        .description("Address of wallet filling."),
+        .description("Address of wallet filling (receiver of the NFT)."),
       relayer: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Address of wallet relaying the fill transaction."),
+        .description("Address of wallet relaying the fill transaction (paying for the NFT)."),
       onlyPath: Joi.boolean()
         .default(false)
         .description("If true, only the path will be returned."),
