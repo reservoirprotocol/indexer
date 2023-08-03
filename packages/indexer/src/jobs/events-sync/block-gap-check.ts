@@ -132,7 +132,7 @@ export const blockGapCheckJob = new BlockGapCheckJob();
 if (config.doBackgroundWork) {
   cron.schedule(
     // Every 10 minutes
-    "*/30 * * * *",
+    "*/10 * * * *",
     async () =>
       await redlock
         .acquire(["block-gap-check-lock"], (10 * 60 - 3) * 1000)
