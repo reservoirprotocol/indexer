@@ -112,6 +112,15 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
 
       const sources = await Sources.getInstance();
 
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          message: `Debug event. orderId=${data.after.id}`,
+          orderId: data.after.id,
+          rawResult,
+        })
+      );
+
       const feeBreakdown = rawResult.fee_breakdown;
       const feeBps = rawResult.fee_bps;
 
@@ -123,15 +132,6 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
       } else {
         source = sources.get(Number(rawResult.source_id_int));
       }
-
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `Debug event. orderId=${data.after.id}`,
-          orderId: data.after.id,
-          rawResult,
-        })
-      );
 
       const result = {
         id: rawResult.id,
