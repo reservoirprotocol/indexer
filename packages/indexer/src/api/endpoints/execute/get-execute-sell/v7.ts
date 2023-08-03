@@ -30,6 +30,7 @@ import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import { ExecutionsBuffer } from "@/utils/executions";
 import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
+import { getUSDAndCurrencyPrices } from "@/utils/prices";
 
 const version = "v7";
 
@@ -870,12 +871,32 @@ export const getExecuteSellV7Options: RouteOptions = {
         .filter((b) => !b.isProtected && b.source !== "blur.io")
         .map((b) => b.orderId);
 
-      const addGlobalFee = async (item: (typeof path)[0], fee: Sdk.RouterV6.Types.Fee) => {
+      const addGlobalFee = async (
+        detail: BidDetails,
+        item: (typeof path)[0],
+        fee: Sdk.RouterV6.Types.Fee
+      ) => {
         // The fees should be relative to a single quantity
         fee.amount = bn(fee.amount).div(item.quantity).toString();
 
         // Global fees get split across all eligible orders
-        const adjustedFeeAmount = bn(fee.amount).div(ordersEligibleForGlobalFees.length).toString();
+        let adjustedFeeAmount = bn(fee.amount).div(ordersEligibleForGlobalFees.length).toString();
+
+        // If the item's currency is not the same with the buy-in currency,
+        if (item.currency !== Sdk.Common.Addresses.Native[config.chainId]) {
+          fee.amount = await getUSDAndCurrencyPrices(
+            Sdk.Common.Addresses.Native[config.chainId],
+            item.currency,
+            fee.amount,
+            now()
+          ).then((p) => p.currencyPrice!);
+          adjustedFeeAmount = await getUSDAndCurrencyPrices(
+            Sdk.Common.Addresses.Native[config.chainId],
+            item.currency,
+            adjustedFeeAmount,
+            now()
+          ).then((p) => p.currencyPrice!);
+        }
 
         const amount = formatPrice(
           adjustedFeeAmount,
@@ -893,12 +914,23 @@ export const getExecuteSellV7Options: RouteOptions = {
 
         // item.quote -= amount;
         // item.rawQuote = bn(item.rawQuote).sub(rawAmount).toString();
+
+        if (!detail.fees) {
+          detail.fees = [];
+        }
+        detail.fees.push({
+          recipient: fee.recipient,
+          amount: rawAmount,
+        });
       };
 
       for (const item of path) {
         if (globalFees.length && ordersEligibleForGlobalFees.includes(item.orderId)) {
           for (const f of globalFees) {
-            await addGlobalFee(item, f);
+            const detail = bidDetails.find((d) => d.orderId === item.orderId);
+            if (detail) {
+              await addGlobalFee(detail, item, f);
+            }
           }
         }
       }
@@ -1120,7 +1152,6 @@ export const getExecuteSellV7Options: RouteOptions = {
         result = await router.fillBidsTx(bidDetails, payload.taker, {
           source: payload.source,
           partial: payload.partial,
-          globalFees,
           forceApprovalProxy,
           onError: async (kind, error, data) => {
             errors.push({

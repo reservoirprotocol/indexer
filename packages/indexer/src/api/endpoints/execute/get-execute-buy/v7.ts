@@ -6,7 +6,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
 import { PermitHandler, PermitWithTransfers } from "@reservoir0x/sdk/dist/router/v6/permit";
-import { FillListingsResult, ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
+import { Fee, FillListingsResult, ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
 import axios from "axios";
 import Joi from "joi";
 
@@ -474,6 +474,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       const mintTxs: {
         orderId: string;
         txData: TxData;
+        fees: Fee[];
       }[] = [];
 
       // Keep track of the maximum quantity available per item
@@ -739,6 +740,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                     mintTxs.push({
                       orderId,
                       txData,
+                      fees: [],
                     });
 
                     await addToPath(
@@ -924,6 +926,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                     mintTxs.push({
                       orderId,
                       txData,
+                      fees: [],
                     });
 
                     await addToPath(
@@ -1143,30 +1146,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
         }
       }
 
-      // Add the quotes in the "buy-in" currency to the path items
-      for (const item of path) {
-        if (item.currency !== buyInCurrency) {
-          const buyInPrices = await getUSDAndCurrencyPrices(
-            item.currency,
-            buyInCurrency,
-            item.rawQuote,
-            now(),
-            {
-              acceptStalePrice: true,
-            }
-          );
-
-          if (buyInPrices.currencyPrice) {
-            item.buyInQuote = formatPrice(
-              buyInPrices.currencyPrice,
-              (await getCurrency(buyInCurrency)).decimals,
-              true
-            );
-            item.buyInRawQuote = buyInPrices.currencyPrice;
-          }
-        }
-      }
-
       // Include the global fees in the path
 
       const globalFees = (payload.feesOnTop ?? []).map((fee: string) => {
@@ -1188,12 +1167,32 @@ export const getExecuteBuyV7Options: RouteOptions = {
         )
         .map((b) => b.orderId);
 
-      const addGlobalFee = async (item: (typeof path)[0], fee: Sdk.RouterV6.Types.Fee) => {
+      const addGlobalFee = async (
+        detail: ListingDetails,
+        item: (typeof path)[0],
+        fee: Sdk.RouterV6.Types.Fee
+      ) => {
         // The fees should be relative to a single quantity
         fee.amount = bn(fee.amount).div(item.quantity).toString();
 
         // Global fees get split across all eligible orders
-        const adjustedFeeAmount = bn(fee.amount).div(ordersEligibleForGlobalFees.length).toString();
+        let adjustedFeeAmount = bn(fee.amount).div(ordersEligibleForGlobalFees.length).toString();
+
+        // If the item's currency is not the same with the buy-in currency,
+        if (item.currency !== buyInCurrency) {
+          fee.amount = await getUSDAndCurrencyPrices(
+            buyInCurrency,
+            item.currency,
+            fee.amount,
+            now()
+          ).then((p) => p.currencyPrice!);
+          adjustedFeeAmount = await getUSDAndCurrencyPrices(
+            buyInCurrency,
+            item.currency,
+            adjustedFeeAmount,
+            now()
+          ).then((p) => p.currencyPrice!);
+        }
 
         const amount = formatPrice(
           adjustedFeeAmount,
@@ -1216,16 +1215,51 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
         // item.quote += amount;
         // item.rawQuote = bn(item.rawQuote).add(rawAmount).toString();
+
+        if (!detail.fees) {
+          detail.fees = [];
+        }
+        detail.fees.push({
+          recipient: fee.recipient,
+          amount: rawAmount,
+        });
       };
 
       for (const item of path) {
         if (globalFees.length && ordersEligibleForGlobalFees.includes(item.orderId)) {
           for (const f of globalFees) {
-            await addGlobalFee(item, f);
+            const detail = listingDetails.find((d) => d.orderId === item.orderId);
+            if (detail) {
+              await addGlobalFee(detail, item, f);
+            }
           }
         } else {
           item.totalPrice = item.quote;
           item.totalRawPrice = item.rawQuote;
+        }
+      }
+
+      // Add the quotes in the "buy-in" currency to the path items
+      for (const item of path) {
+        if (item.currency !== buyInCurrency) {
+          const buyInPrices = await getUSDAndCurrencyPrices(
+            item.currency,
+            buyInCurrency,
+            item.rawQuote,
+            now(),
+            {
+              acceptStalePrice: true,
+            }
+          );
+
+          if (buyInPrices.currencyPrice) {
+            item.buyInQuote = formatPrice(
+              buyInPrices.currencyPrice,
+              (await getCurrency(buyInCurrency)).decimals,
+              true
+            );
+            item.buyInRawQuote = buyInPrices.currencyPrice;
+          }
         }
       }
 
@@ -1370,7 +1404,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
           relayer: payload.relayer,
           usePermit: payload.usePermit,
           swapProvider: payload.swapProvider,
-          globalFees,
           blurAuth,
           onError: async (kind, error, data) => {
             errors.push({
@@ -1389,11 +1422,20 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
       // Add any mint transactions
       if (mintTxs.length) {
+        if (!result.txs.length) {
+          for (const tx of mintTxs) {
+            for (const fee of globalFees) {
+              tx.fees.push({
+                recipient: fee.recipient,
+                amount: bn(fee.amount).div(mintTxs.length).toString(),
+              });
+            }
+          }
+        }
+
         let mintsResult = await router.fillMintsTx(mintTxs, payload.taker, {
           source: payload.source,
           partial: payload.partial,
-          // The global fees will only be applied to the fills or the mints (but not both)
-          globalFees: result.txs.length ? [] : globalFees,
         });
 
         // Minting via a smart contract proxy is complicated.
