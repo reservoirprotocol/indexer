@@ -32,12 +32,14 @@ new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 const processBlockGapCheckJob = async () => {
   try {
+    const limit = config.chainId === 137 ? 500000 : 100000;
+
     const missingBlocks = await idb.query(
       `WITH last_blocks AS (
         SELECT number
         FROM blocks
         ORDER BY number DESC
-        LIMIT 100000
+        LIMIT ${limit}
         ),
         sequence AS (
         SELECT generate_series(
@@ -53,12 +55,22 @@ const processBlockGapCheckJob = async () => {
     );
 
     if (missingBlocks.length > 0) {
+      let delay = 0;
+
       logger.info(QUEUE_NAME, `Found missing blocks: ${missingBlocks.length}`);
       for (let i = 0; i < missingBlocks.length; i++) {
         logger.info(QUEUE_NAME, `Found missing block: ${missingBlocks[i].missing_block_number}`);
-        await eventsSyncRealtimeJob.addToQueue({
-          block: missingBlocks[i].missing_block_number,
-        });
+
+        await eventsSyncRealtimeJob.addToQueue(
+          {
+            block: missingBlocks[i].missing_block_number,
+          },
+          delay
+        );
+
+        if (config.chainId === 137) {
+          delay += 1000;
+        }
       }
     }
   } catch (error) {
@@ -120,7 +132,7 @@ export const blockGapCheckJob = new BlockGapCheckJob();
 if (config.doBackgroundWork) {
   cron.schedule(
     // Every 10 minutes
-    "*/30 * * * *",
+    "*/10 * * * *",
     async () =>
       await redlock
         .acquire(["block-gap-check-lock"], (10 * 60 - 3) * 1000)
