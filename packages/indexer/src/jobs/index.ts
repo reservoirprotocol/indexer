@@ -41,6 +41,7 @@ import * as collectionWebsocketEventsTriggerQueue from "@/jobs/websocket-events/
 
 import * as backfillDeleteExpiredBidsElasticsearch from "@/jobs/activities/backfill/backfill-delete-expired-bids-elasticsearch";
 import * as backfillSalePricingDecimalElasticsearch from "@/jobs/activities/backfill/backfill-sales-pricing-decimal-elasticsearch";
+import * as blockGapCheck from "@/jobs/events-sync/block-gap-check";
 
 import amqplib from "amqplib";
 import { config } from "@/config/index";
@@ -167,6 +168,7 @@ export const allJobQueues = [
 
   backfillDeleteExpiredBidsElasticsearch.queue,
   backfillSalePricingDecimalElasticsearch.queue,
+  blockGapCheck.queue,
 ];
 
 export class RabbitMqJobsConsumer {
