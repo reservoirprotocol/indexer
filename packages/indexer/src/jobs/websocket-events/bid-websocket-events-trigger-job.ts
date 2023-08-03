@@ -113,6 +113,15 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
 
       const sources = await Sources.getInstance();
 
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          message: `Debug event. orderId=${data.after.id}`,
+          orderId: data.after.id,
+          rawResult,
+        })
+      );
+
       const feeBreakdown = rawResult.fee_breakdown;
       const feeBps = rawResult?.fee_bps;
 

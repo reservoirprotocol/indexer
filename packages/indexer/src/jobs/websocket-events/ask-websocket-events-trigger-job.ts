@@ -124,6 +124,15 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         source = sources.get(Number(rawResult.source_id_int));
       }
 
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          message: `Debug event. orderId=${data.after.id}`,
+          orderId: data.after.id,
+          rawResult,
+        })
+      );
+
       const result = {
         id: rawResult.id,
         kind: rawResult.kind,
