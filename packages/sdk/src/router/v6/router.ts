@@ -19,7 +19,6 @@ import { PermitHandler, PermitWithTransfers } from "./permit";
 import {
   BidDetails,
   ExecutionInfo,
-  Fee,
   FTApproval,
   FillBidsResult,
   FillListingsResult,
@@ -229,8 +228,6 @@ export class Router {
     taker: string,
     options?: {
       source?: string;
-      // Will be split among all mints to get filled
-      globalFees?: Fee[];
       // Skip any errors (either off-chain or on-chain)
       partial?: boolean;
       // Force direct filling
@@ -246,7 +243,7 @@ export class Router {
     if (
       !Addresses.MintModule[this.chainId] ||
       options?.forceDirectFilling ||
-      (details.length === 1 && !options?.globalFees?.length)
+      (details.length === 1 && !details[0].fees?.length)
     ) {
       // Under some conditions, we simply return that transaction data back to the caller
 
@@ -269,12 +266,7 @@ export class Router {
           to: d.txData.to,
           data: d.txData.data,
           value: d.txData.value ?? 0,
-          // Split the fees evenly across all mints
-          fees:
-            options?.globalFees?.map((f) => ({
-              amount: bn(f.amount).div(details.length),
-              recipient: f.recipient,
-            })) ?? [],
+          fees: d.fees ?? [],
         })),
         {
           refundTo: taker,
@@ -287,13 +279,12 @@ export class Router {
       ]);
 
       const value = details
-        .map((d) => bn(d.txData.value ?? 0))
-        .reduce((a, b) => a.add(b), bn(0))
-        .add(
-          options?.globalFees?.length
-            ? options.globalFees.map((f) => bn(f.amount)).reduce((a, b) => a.add(b), bn(0))
-            : 0
+        .map((d) =>
+          bn(d.txData.value ?? 0).add(
+            d.fees?.length ? d.fees.map((f) => bn(f.amount)).reduce((a, b) => a.add(b)) : 0
+          )
         )
+        .reduce((a, b) => a.add(b), bn(0))
         .toHexString();
       txs.push({
         txData: {
@@ -328,8 +319,6 @@ export class Router {
     buyInCurrency = Sdk.Common.Addresses.Native[this.chainId],
     options?: {
       source?: string;
-      // Will be split among all listings to get filled
-      globalFees?: Fee[];
       // Force filling through the router (where possible)
       forceRouter?: boolean;
       // Skip any errors (either off-chain or on-chain)
@@ -379,7 +368,7 @@ export class Router {
       }
 
       for (const detail of details.filter(({ kind }) => kind === "manifold")) {
-        if (detail.fees?.length || options?.globalFees?.length) {
+        if (detail.fees?.length) {
           throw new Error("Fees not supported for Manifold orders");
         }
 
@@ -623,7 +612,6 @@ export class Router {
             (details[0].order as Sdk.SeaportV15.Order).params.conduitKey &&
           !fees?.length
       ) &&
-      !options?.globalFees?.length &&
       !options?.forceRouter &&
       !options?.relayer &&
       !options?.usePermit
@@ -703,7 +691,6 @@ export class Router {
             (details[0].order as Sdk.Alienswap.Order).params.conduitKey &&
           !fees?.length
       ) &&
-      !options?.globalFees?.length &&
       !options?.forceRouter &&
       !options?.relayer &&
       !options?.usePermit
@@ -780,7 +767,6 @@ export class Router {
           currency === details[0].currency &&
           !fees?.length
       ) &&
-      !options?.globalFees?.length &&
       !options?.forceRouter &&
       !options?.relayer &&
       !options?.usePermit
@@ -836,24 +822,15 @@ export class Router {
       };
     }
 
-    const numDetailsToConsider = details.filter((d) => !success[d.orderId]).length;
     const getFees = (ownDetails: ListingDetails[]) =>
-      [
-        // Global fees
-        ...(options?.globalFees ?? []).map(({ recipient, amount }) => ({
-          recipient,
-          // The global fees are averaged over the number of listings to fill
-          // TODO: Also take into account the quantity filled for ERC1155
-          amount: bn(amount).mul(ownDetails.length).div(numDetailsToConsider),
-        })),
-        // Local fees
-        // TODO: Should not split the local fees among all executions
-        ...ownDetails.flatMap(({ fees }) => fees ?? []),
-      ].filter(
-        ({ amount, recipient }) =>
-          // Skip zero amounts and/or recipients
-          bn(amount).gt(0) && recipient !== AddressZero
-      );
+      // TODO: Should not split the local fees among all executions
+      ownDetails
+        .flatMap(({ fees }) => fees ?? [])
+        .filter(
+          ({ amount, recipient }) =>
+            // Skip zero amounts and/or recipients
+            bn(amount).gt(0) && recipient !== AddressZero
+        );
 
     // Keep track of any approvals that might be needed
     const approvals: FTApproval[] = [];
@@ -3006,8 +2983,6 @@ export class Router {
       source?: string;
       // Skip any errors (either off-chain or on-chain)
       partial?: boolean;
-      // Will be split among all bids to get filled
-      globalFees?: Fee[];
       // Force filling via the approval proxy
       forceApprovalProxy?: boolean;
       // Needed for filling Blur orders
@@ -3282,19 +3257,8 @@ export class Router {
     // Step 2
     // Handle calldata generation
 
-    const numDetailsToConsider = details.filter((d) => !success[d.orderId]).length;
     const getFees = (ownDetail: BidDetails) =>
-      [
-        // Global fees
-        ...(options?.globalFees ?? []).map(({ recipient, amount }) => ({
-          recipient,
-          // The global fees are averaged over the number of bids to fill
-          // TODO: Also take into account the quantity filled for ERC1155
-          amount: bn(amount).div(numDetailsToConsider),
-        })),
-        // Local fees
-        ...(ownDetail.fees ?? []),
-      ].filter(
+      (ownDetail.fees ?? []).filter(
         ({ amount, recipient }) =>
           // Skip zero amounts and/or recipients
           bn(amount).gt(0) && recipient !== AddressZero
