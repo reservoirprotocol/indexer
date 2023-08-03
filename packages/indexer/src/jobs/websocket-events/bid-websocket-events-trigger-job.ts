@@ -17,8 +17,12 @@ export type BidWebsocketEventsTriggerQueueJobPayload = {
 };
 
 const changedMapping = {
-  status: "status",
-  price: "price",
+  fillability_status: "status",
+  approval_status: "status",
+  quantity_filled: "quantityFilled",
+  quantity_remaining: "quantityRemaining",
+  expiration: "expiration",
+  price: "price.gross.amount",
 };
 
 export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandler {
@@ -112,15 +116,6 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
       );
 
       const sources = await Sources.getInstance();
-
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `Debug event. orderId=${data.after.id}`,
-          orderId: data.after.id,
-          rawResult,
-        })
-      );
 
       const feeBreakdown = rawResult.fee_breakdown;
       const feeBps = rawResult?.fee_bps;
