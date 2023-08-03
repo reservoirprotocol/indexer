@@ -4,7 +4,7 @@ import { GenericOrderInfo, processOrder } from "@/jobs/orderbook/utils";
 export class OpenseaListingsJob extends AbstractRabbitMqJobHandler {
   queueName = "orderbook-opensea-listings-queue";
   maxRetries = 5;
-  concurrency = 30;
+  concurrency = 50;
   lazyMode = true;
   consumerTimeout = 30000;
   backoff = {
