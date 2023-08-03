@@ -229,6 +229,7 @@ export const isListingOffChainCancelled = async (
             AND nft_transfer_events.token_id = $/tokenId/
             AND nft_transfer_events.to != $/maker/
             AND nft_transfer_events.timestamp >= $/originatedAt/
+            AND nft_transfer_events.is_deleted = 0
         )
         OR EXISTS(
           SELECT

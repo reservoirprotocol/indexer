@@ -6,7 +6,7 @@ import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { bn, fromBuffer, toBuffer } from "@/common/utils";
+import { bn, fromBuffer, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
@@ -65,6 +65,10 @@ export const savePartialListings = async (
 
   const handleOrder = async ({ orderParams }: PartialListingOrderInfo) => {
     try {
+      if (!orderParams.collection.match(regex.address)) {
+        return;
+      }
+
       // Fetch current owner
       const owner = await idb
         .oneOrNone(
@@ -380,6 +384,10 @@ export const savePartialBids = async (
   const orderValues: DbOrder[] = [];
 
   const handleOrder = async ({ orderParams, fullUpdate }: PartialBidOrderInfo) => {
+    if (!orderParams.collection.match(regex.address)) {
+      return;
+    }
+
     if (!fullUpdate && !orderParams.pricePoints.length) {
       return;
     }
