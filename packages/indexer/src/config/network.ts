@@ -337,6 +337,15 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
+            "0x313408eb31939a9c33b40afe28dc378845d0992f",
+            {
+              contract: "0x313408eb31939A9c33B40AFE28Dc378845D0992F",
+              name: "BPX",
+              symbol: "BPX",
+              decimals: 18,
+            },
+          ],
+          [
             "0x4c7c1ec97279a6f3323eab9ab317202dee7ad922",
             {
               contract: "0x4c7c1ec97279a6f3323eab9ab317202dee7ad922",

@@ -73,7 +73,7 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
       this.emit("onError", this.rabbitMqMessage, error); // Emit error event
 
       this.rabbitMqMessage.retryCount += 1;
-      let queueName = this.getRetryQueue();
+      let queueName = this.getQueue();
 
       // Set the backoff strategy delay
       let delay = this.getBackoffDelay(this.rabbitMqMessage);

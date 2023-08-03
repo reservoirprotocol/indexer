@@ -6,7 +6,7 @@ import { EventsBatch, processEventsBatch } from "@/events-sync/handlers";
 export class EventsSyncProcessBackfillJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-process-backfill";
   maxRetries = 10;
-  concurrency = 15;
+  concurrency = 5;
   lazyMode = true;
   consumerTimeout = 120000;
 
