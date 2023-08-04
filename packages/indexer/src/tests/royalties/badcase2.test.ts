@@ -63,4 +63,65 @@ describe("Royalties", () => {
       }
     }
   });
+
+  it("extract-case3", async () => {
+    const { fillEvents } = await getFillEventsFromTx(
+      "0x3ed3019a036bd2c8cb3f6e7896417fe14851569d97814d919f9f8f80fbc0bb04"
+    );
+
+    const testCollectionRoyalties = [
+      {
+        collection: "0x880af717abba38f31ca21673843636a355fb45f3",
+        data: [
+          {
+            bps: 750,
+            recipient: "0x834cee2c58b212d37be016f303bc46e8184bd864",
+          },
+        ],
+      },
+    ];
+
+    mockGetRoyalties.mockImplementation(async (contract: string) => {
+      const matched = testCollectionRoyalties.find((c) => c.collection === contract);
+      return matched?.data ?? [];
+    });
+
+    const feesList = [
+      {
+        contract: "0x880af717abba38f31ca21673843636a355fb45f3",
+        tokenId: "878",
+        royaltyFeeBps: 750,
+        marketplaceFeeBps: 250,
+        paidFullRoyalty: true,
+      },
+      {
+        contract: "0x880af717abba38f31ca21673843636a355fb45f3",
+        tokenId: "684",
+        royaltyFeeBps: 50,
+        marketplaceFeeBps: 250,
+        paidFullRoyalty: false,
+      },
+      {
+        contract: "0x880af717abba38f31ca21673843636a355fb45f3",
+        tokenId: "49",
+        royaltyFeeBps: 0,
+        marketplaceFeeBps: 250,
+        paidFullRoyalty: false,
+      },
+    ];
+
+    await assignRoyaltiesToFillEvents(fillEvents, false, true);
+    for (let index = 0; index < fillEvents.length; index++) {
+      const fillEvent = fillEvents[index];
+      const matchFee = feesList.find(
+        (c) => c.contract === fillEvent.contract && c.tokenId === fillEvent.tokenId
+      );
+
+      if (matchFee) {
+        expect(fillEvent.royaltyFeeBps).toEqual(matchFee.royaltyFeeBps);
+        expect(fillEvent.marketplaceFeeBps).toEqual(matchFee.marketplaceFeeBps);
+        expect(fillEvent.paidFullRoyalty).toEqual(matchFee.paidFullRoyalty);
+      }
+    }
+  });
 });

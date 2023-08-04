@@ -605,7 +605,7 @@ export const getOrdersAsksV5Options: RouteOptions = {
           criteria: r.criteria,
           sourceIdInt: r.source_id_int,
           feeBps: r.fee_bps,
-          feeBreakdown: r.fee_breakdown,
+          feeBreakdown: r.fee_bps === 0 ? [] : r.fee_breakdown,
           expiration: r.expiration,
           isReservoir: r.is_reservoir,
           createdAt: r.created_at,

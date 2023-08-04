@@ -85,13 +85,14 @@ export class RabbitMq {
 
   public static async send(queueName: string, content: RabbitMQMessage, delay = 0, priority = 0) {
     content.publishRetryCount = content.publishRetryCount ?? 0;
-    const lockTime = delay ? _.max([_.toInteger(delay / 1000), 0]) : 5 * 60;
+    const msgConsumingBuffer = 5 * 60; // Time for the job to actually process, will be released on the job is done
+    const lockTime = delay ? _.max([_.toInteger(delay / 1000), 0]) : msgConsumingBuffer;
     let lockAcquired = false;
 
     // For deduplication messages use redis lock, setting lock only if jobId is passed
     try {
       if (content.jobId && lockTime) {
-        if (!(await acquireLock(content.jobId, lockTime))) {
+        if (!(await acquireLock(content.jobId, lockTime + msgConsumingBuffer))) {
           return;
         }
 

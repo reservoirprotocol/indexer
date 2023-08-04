@@ -1,6 +1,6 @@
 import * as Addresses from "./addresses";
 import { Builders } from "./builders";
-import { BaseBuildParams, BaseBuilder } from "./builders/base";
+import { BaseBuildParams, BaseBuilder, BaseOrderInfo } from "./builders/base";
 import { ConduitController } from "./conduit-controller";
 import { SeaportBaseExchange } from "./exchange";
 import { IOrder } from "./order";
@@ -14,5 +14,6 @@ export {
   ConduitController,
   IOrder,
   SeaportBaseExchange,
+  BaseOrderInfo,
   Types,
 };
