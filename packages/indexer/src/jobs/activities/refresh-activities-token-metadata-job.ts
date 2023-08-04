@@ -3,6 +3,9 @@ import { config } from "@/config/index";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import _ from "lodash";
 import { Tokens } from "@/models/tokens";
+import crypto from "crypto";
+import { logger } from "@/common/logger";
+import { RabbitMQMessage } from "@/common/rabbit-mq";
 
 export type RefreshActivitiesTokenMetadataJobPayload = {
   contract: string;
@@ -13,11 +16,13 @@ export type RefreshActivitiesTokenMetadataJobPayload = {
 export class RefreshActivitiesTokenMetadataJob extends AbstractRabbitMqJobHandler {
   queueName = "refresh-activities-token-metadata-queue";
   maxRetries = 10;
-  concurrency = 5;
+  concurrency = 1;
   persistent = true;
   lazyMode = true;
 
   protected async process(payload: RefreshActivitiesTokenMetadataJobPayload) {
+    let addToQueue = false;
+
     const { contract, tokenId } = payload;
 
     const tokenUpdateData =
@@ -31,17 +36,42 @@ export class RefreshActivitiesTokenMetadataJob extends AbstractRabbitMqJobHandle
       );
 
       if (keepGoing) {
-        await this.addToQueue({ contract, tokenId, tokenUpdateData });
+        logger.info(
+          this.queueName,
+          `KeepGoing. contract=${contract}, tokenId=${tokenId}, tokenUpdateData=${JSON.stringify(
+            tokenUpdateData
+          )}`
+        );
+
+        addToQueue = true;
       }
     }
+
+    return { addToQueue };
   }
 
-  public async addToQueue(payload: RefreshActivitiesTokenMetadataJobPayload) {
+  public events() {
+    this.once(
+      "onCompleted",
+      async (message: RabbitMQMessage, processResult: { addToQueue: boolean }) => {
+        if (processResult.addToQueue) {
+          await this.addToQueue(message.payload.contract, message.payload.tokenId);
+        }
+      }
+    );
+  }
+
+  public async addToQueue(contract: string, tokenId: string) {
     if (!config.doElasticsearchWork) {
       return;
     }
 
-    await this.send({ payload });
+    const jobId = crypto
+      .createHash("sha256")
+      .update(`${contract.toLowerCase()}${tokenId}`)
+      .digest("hex");
+
+    await this.send({ payload: { contract, tokenId }, jobId });
   }
 }
 

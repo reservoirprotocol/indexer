@@ -165,6 +165,7 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
                 tokenId,
                 collection: collection.id,
               },
+              context: this.queueName,
             },
           ],
           true,

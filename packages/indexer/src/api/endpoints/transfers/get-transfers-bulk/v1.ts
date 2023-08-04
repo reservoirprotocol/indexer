@@ -20,7 +20,7 @@ export const getTransfersBulkV1Options: RouteOptions = {
   description: "Bulk historical transfers",
   notes:
     "Note: this API is optimized for bulk access, and offers minimal filters/metadata. If you need more flexibility, try the `NFT API > Transfers` endpoint",
-  tags: ["api", "Transfers"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 10,

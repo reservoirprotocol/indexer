@@ -16,7 +16,7 @@ const version = "v3";
 export const getTransfersV3Options: RouteOptions = {
   description: "Historical token transfers",
   notes: "Get recent transfers for a contract or token.",
-  tags: ["api", "Transfers"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 10,

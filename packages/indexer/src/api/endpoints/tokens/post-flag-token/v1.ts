@@ -72,6 +72,7 @@ export const postFlagTokenV1Options: RouteOptions = {
                 tokenId,
                 collection: token.collectionId,
               },
+              context: "post-flag-token-v1",
             },
           ],
           true

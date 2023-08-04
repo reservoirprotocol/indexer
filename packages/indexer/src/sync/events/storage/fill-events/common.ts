@@ -1,12 +1,6 @@
 import { idb, pgp } from "@/common/db";
-import { logger } from "@/common/logger";
 import { toBuffer } from "@/common/utils";
-import { config } from "@/config/index";
 import { DbEvent, Event } from "@/events-sync/storage/fill-events";
-import {
-  WebsocketEventKind,
-  WebsocketEventRouter,
-} from "@/jobs/websocket-events/websocket-event-router";
 
 export const addEvents = async (events: Event[]) => {
   const fillValues: DbEvent[] = [];
@@ -41,7 +35,7 @@ export const addEvents = async (events: Event[]) => {
       marketplace_fee_bps: event.marketplaceFeeBps || undefined,
       royalty_fee_breakdown: event.royaltyFeeBreakdown || undefined,
       marketplace_fee_breakdown: event.marketplaceFeeBreakdown || undefined,
-      paid_full_royalty: event.paidFullRoyalty || undefined,
+      paid_full_royalty: event.paidFullRoyalty ?? undefined,
     });
   }
 
@@ -159,12 +153,13 @@ export const removeEvents = async (block: number, blockHash: string) => {
   // Mark fill events as deleted but skip reverting order status updates
   // since it is not possible to know what to revert to and even if
   // we knew, it might mess up other higher-level order processes.
-  const events = await idb.any(
+  await idb.any(
     `
       UPDATE fill_events_2
-      SET is_deleted = 1
+      SET is_deleted = 1, updated_at = now()
       WHERE block = $/block/
-      AND block_hash = $/blockHash/
+        AND block_hash = $/blockHash/
+        AND is_deleted = 0
       RETURNING tx_hash, log_index, batch_index
     `,
     {
@@ -172,31 +167,4 @@ export const removeEvents = async (block: number, blockHash: string) => {
       blockHash: toBuffer(blockHash),
     }
   );
-
-  try {
-    // trigger websocket event
-    if (config.doOldOrderWebsocketWork) {
-      await Promise.all(
-        events.map((event) =>
-          WebsocketEventRouter({
-            eventInfo: {
-              tx_hash: event.tx_hash,
-              log_index: event.log_index,
-              batch_index: event.batch_index,
-              trigger: "update",
-              offset: "",
-            },
-            eventKind: WebsocketEventKind.SaleEvent,
-          })
-        )
-      );
-    }
-  } catch (error) {
-    logger.error(
-      "removeEvents",
-      `Error processing websocket event. error=${JSON.stringify(
-        error
-      )}, block=${block}, blockHash=${blockHash}`
-    );
-  }
 };

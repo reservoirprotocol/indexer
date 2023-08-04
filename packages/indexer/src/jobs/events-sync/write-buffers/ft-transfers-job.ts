@@ -11,7 +11,7 @@ export type EventsSyncFtTransfersWriteBufferPayload = {
 export class EventsSyncFtTransfersWriteBufferJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-ft-transfers-write";
   maxRetries = 10;
-  concurrency = config.chainId === 43114 ? 1 : 15;
+  concurrency = [42161, 43114].includes(config.chainId) ? 1 : 15;
   lazyMode = true;
   consumerTimeout = 30000;
   backoff = {

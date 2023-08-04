@@ -3,6 +3,7 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 import { logger } from "@/common/logger";
 import { syncEvents, checkForOrphanedBlock, checkForMissingBlocks } from "@/events-sync/index";
 import { checkSupports } from "@/events-sync/supports";
+import { config } from "@/config/index";
 
 export type EventsSyncRealtimeJobPayload = {
   block: number;
@@ -11,11 +12,11 @@ export type EventsSyncRealtimeJobPayload = {
 export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-realtime";
   maxRetries = 30;
-  concurrency = 5;
-  useSharedChannel = true;
+  concurrency = [80001, 137].includes(config.chainId) ? 1 : 5;
+  consumerTimeout = 60 * 1000;
   backoff = {
     type: "fixed",
-    delay: 100,
+    delay: 1000,
   } as BackoffStrategy;
 
   constructor() {
@@ -36,8 +37,8 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
     }
   }
 
-  public async addToQueue(params: EventsSyncRealtimeJobPayload) {
-    await this.send({ payload: params });
+  public async addToQueue(params: EventsSyncRealtimeJobPayload, delay = 0) {
+    await this.send({ payload: params, jobId: `${params.block}` }, delay);
   }
 }
 

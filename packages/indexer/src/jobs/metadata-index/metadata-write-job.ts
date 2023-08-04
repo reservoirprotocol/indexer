@@ -133,15 +133,7 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       result.old_metadata.image != imageUrl ||
       result.old_metadata.media != mediaUrl
     ) {
-      await refreshActivitiesTokenMetadataJob.addToQueue({
-        contract,
-        tokenId,
-        tokenUpdateData: {
-          name: name || null,
-          image: imageUrl || null,
-          media: mediaUrl || null,
-        },
-      });
+      await refreshActivitiesTokenMetadataJob.addToQueue(contract, tokenId);
     }
 
     // If the new collection ID is different from the collection ID currently stored

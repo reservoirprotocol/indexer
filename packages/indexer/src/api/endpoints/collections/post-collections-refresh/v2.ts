@@ -78,6 +78,8 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
 
     try {
       let overrideCoolDown = false;
+      let isLargeCollection = false;
+
       if (payload.overrideCoolDown) {
         const apiKey = await ApiKeyManager.getApiKey(request.headers["x-api-key"]);
 
@@ -139,7 +141,7 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         // Refresh listings
         await OpenseaIndexerApi.fastContractSync(collection.contract);
       } else {
-        const isLargeCollection = collection.tokenCount > 30000;
+        isLargeCollection = collection.tokenCount > 30000;
 
         // Disable large collections refresh
         if (isLargeCollection) {
@@ -229,6 +231,7 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
               method,
               collection: collection.id,
             },
+            context: "post-refresh-collection-v2",
           };
           if (method === "opensea" && collection.slug) {
             metadataIndexInfo = {
@@ -239,6 +242,7 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
                 slug: collection.slug,
                 collection: collection.id,
               },
+              context: "post-refresh-collection-v2",
             };
           }
 
@@ -249,7 +253,7 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
 
       logger.info(
         `post-collections-refresh-${version}-handler`,
-        `Refresh collection=${payload.collection} at ${currentUtcTime}`
+        `Request accepted. collection=${payload.collection}, overrideCoolDown=${overrideCoolDown}, refreshTokens=${payload.refreshTokens}, isLargeCollection=${isLargeCollection}, currentUtcTime=${currentUtcTime}`
       );
 
       return { message: "Request accepted" };

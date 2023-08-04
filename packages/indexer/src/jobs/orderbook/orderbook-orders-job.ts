@@ -4,7 +4,7 @@ import { GenericOrderInfo, processOrder } from "@/jobs/orderbook/utils";
 export class OrderbookOrdersJob extends AbstractRabbitMqJobHandler {
   queueName = "orderbook-orders-queue";
   maxRetries = 5;
-  concurrency = 40;
+  concurrency = 75;
   lazyMode = true;
   consumerTimeout = 30000;
   backoff = {

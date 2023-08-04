@@ -8,6 +8,10 @@ import { ActivityDocument } from "@/elasticsearch/indexes/activities/base";
 export class PendingActivitiesQueue {
   public key = "pending-activities-queue";
 
+  public constructor(indexName?: string) {
+    this.key += indexName ? `:${indexName}` : "";
+  }
+
   public async add(activities: ActivityDocument[]) {
     if (_.isEmpty(activities)) {
       return;

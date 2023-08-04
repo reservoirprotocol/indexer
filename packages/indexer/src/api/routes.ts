@@ -27,6 +27,7 @@ import * as assetsEndpoints from "@/api/endpoints/assets";
 import * as sourcesEndpoints from "@/api/endpoints/sources";
 import * as chainEndpoints from "@/api/endpoints/chain";
 import * as debugEndpoints from "@/api/endpoints/debug";
+import * as currenciesEndpoints from "@/api/endpoints/currencies";
 
 export const setupRoutes = (server: Server) => {
   // Activity
@@ -758,6 +759,12 @@ export const setupRoutes = (server: Server) => {
     options: executeEndpoints.postPermitSignatureV1Options,
   });
 
+  server.route({
+    method: "POST",
+    path: "/execute/pre-signature/v1",
+    options: executeEndpoints.postPreSignatureV1Options,
+  });
+
   // Health
 
   // Both `/readyz` and `/livez` point to the same handler,
@@ -1349,8 +1356,20 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/transfers/v4",
+    options: transfersEndpoints.getTransfersV4Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/transfers/bulk/v1",
     options: transfersEndpoints.getTransfersBulkV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/transfers/bulk/v2",
+    options: transfersEndpoints.getTransfersBulkV2Options,
   });
 
   // sync
@@ -1367,6 +1386,14 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/sources/v1",
     options: sourcesEndpoints.getSourcesV1Options,
+  });
+
+  // currencies
+
+  server.route({
+    method: "GET",
+    path: "/currencies/conversion/v1",
+    options: currenciesEndpoints.getCurrencyConversionV1Options,
   });
 
   // Debug APIs

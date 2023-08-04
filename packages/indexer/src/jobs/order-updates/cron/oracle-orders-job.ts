@@ -1,10 +1,12 @@
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { logger } from "@/common/logger";
-import cron from "node-cron";
-import { redis, redlock } from "@/common/redis";
 import axios from "axios";
-import { config } from "@/config/index";
+import cron from "node-cron";
+
 import { idb, pgp } from "@/common/db";
+import { logger } from "@/common/logger";
+import { redis, redlock } from "@/common/redis";
+import { config } from "@/config/index";
+import { getNetworkName } from "@/config/network";
 import {
   orderUpdatesByIdJob,
   OrderUpdatesByIdJobPayload,
@@ -35,9 +37,7 @@ export class OrderUpdatesOracleOrderJob extends AbstractRabbitMqJobHandler {
     // Fetch any new cancellations
     const result = await axios
       .get(
-        `https://seaport-oracle-${
-          config.chainId === 1 ? "mainnet" : "goerli"
-        }.up.railway.app/api/cancellations?fromTimestamp=${cursor}`
+        `https://seaport-oracle-${getNetworkName()}.up.railway.app/api/cancellations?fromTimestamp=${cursor}`
       )
       .then((response) => response.data);
     const cancellations = result.cancellations;
@@ -52,14 +52,14 @@ export class OrderUpdatesOracleOrderJob extends AbstractRabbitMqJobHandler {
     if (values.length) {
       const updatedOrders = await idb.manyOrNone(
         `
-            UPDATE orders SET
-              fillability_status = 'cancelled',
-              updated_at = now()
-            FROM (VALUES ${pgp.helpers.values(values, columns)}) AS x(id)
-            WHERE orders.id = x.id::TEXT
-              AND orders.fillability_status != 'cancelled'
-            RETURNING orders.id
-          `
+          UPDATE orders SET
+            fillability_status = 'cancelled',
+            updated_at = now()
+          FROM (VALUES ${pgp.helpers.values(values, columns)}) AS x(id)
+          WHERE orders.id = x.id::TEXT
+            AND orders.fillability_status != 'cancelled'
+          RETURNING orders.id
+        `
       );
 
       await orderUpdatesByIdJob.addToQueue(
@@ -96,8 +96,10 @@ if (config.doBackgroundWork) {
       await redlock
         .acquire(["oracle-orders-check-lock"], (5 - 3) * 1000)
         .then(async () => {
-          logger.info(orderUpdatesOracleOrderJob.queueName, "Triggering oracle orders check");
-          await orderUpdatesOracleOrderJob.addToQueue();
+          if ([1, 5, 137, 80001].includes(config.chainId)) {
+            logger.info(orderUpdatesOracleOrderJob.queueName, "Triggering oracle orders check");
+            await orderUpdatesOracleOrderJob.addToQueue();
+          }
         })
         .catch(() => {
           // Skip any errors

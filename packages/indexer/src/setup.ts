@@ -4,6 +4,8 @@ import "@/config/polyfills";
 import "@/pubsub/index";
 import "@/websockets/index";
 
+import * as Sdk from "@reservoir0x/sdk";
+
 import { start } from "@/api/index";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
@@ -11,6 +13,7 @@ import { getNetworkSettings } from "@/config/network";
 import { initIndexes } from "@/elasticsearch/indexes";
 import { startKafkaConsumer } from "@/jobs/cdc";
 import { RabbitMqJobsConsumer } from "@/jobs/index";
+import { FeeRecipients } from "@/models/fee-recipients";
 import { Sources } from "@/models/sources";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -22,13 +25,20 @@ process.on("unhandledRejection", (error: any) => {
 });
 
 const setup = async () => {
+  // Configure the SDK
+  Sdk.Global.Config.aggregatorSource = "reservoir.tools";
+
   if (process.env.LOCAL_TESTING) {
     return;
   }
 
+  if (config.doBackgroundWork || config.forceEnableRabbitJobsConsumer) {
+    await RabbitMqJobsConsumer.startRabbitJobsConsumer();
+  }
+
   if (config.doBackgroundWork) {
     await Sources.syncSources();
-    await RabbitMqJobsConsumer.startRabbitJobsConsumer();
+    await FeeRecipients.syncFeeRecipients();
 
     const networkSettings = getNetworkSettings();
     if (networkSettings.onStartup) {

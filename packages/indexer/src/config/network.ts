@@ -16,7 +16,7 @@ export const getNetworkName = () => {
       return "mainnet";
 
     case 5:
-      return config.environment === "prod" ? "prod-goerli" : "goerli";
+      return "goerli";
 
     case 10:
       return "optimism";
@@ -26,6 +26,9 @@ export const getNetworkName = () => {
 
     case 137:
       return "polygon";
+
+    case 324:
+      return "zksync";
 
     case 42161:
       return "arbitrum";
@@ -85,8 +88,17 @@ export const getOpenseaNetworkName = () => {
     case 137:
       return "matic";
 
+    case 324:
+      return "zksync";
+
     case 42161:
       return "arbitrum";
+
+    case 80001:
+      return "mumbai";
+
+    case 11155111:
+      return "sepolia";
 
     default:
       return "ethereum";
@@ -96,6 +108,8 @@ export const getOpenseaNetworkName = () => {
 export const getOpenseaSubDomain = () => {
   switch (config.chainId) {
     case 5:
+    case 80001:
+    case 11155111:
       return "testnets-api";
 
     default:
@@ -106,6 +120,8 @@ export const getOpenseaSubDomain = () => {
 export const getOpenseaBaseUrl = () => {
   switch (config.chainId) {
     case 5:
+    case 80001:
+    case 11155111:
       return "https://testnets-api.opensea.io";
     default:
       return "https://api.opensea.io";
@@ -152,6 +168,8 @@ type NetworkSettings = {
 
 type ElasticsearchIndexSettings = {
   numberOfShards?: number;
+  disableMappingsUpdate?: boolean;
+  configName?: string;
 };
 
 export const getNetworkSettings = (): NetworkSettings => {
@@ -183,6 +201,13 @@ export const getNetworkSettings = (): NetworkSettings => {
     subDomain: "api",
     elasticsearch: {
       numberOfShards: 2,
+      indexes: {
+        activities: {
+          numberOfShards: 2,
+          disableMappingsUpdate: false,
+          configName: "CONFIG_DEFAULT",
+        },
+      },
     },
     isTestnet: false,
   };
@@ -312,6 +337,15 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
+            "0x313408eb31939a9c33b40afe28dc378845d0992f",
+            {
+              contract: "0x313408eb31939A9c33B40AFE28Dc378845D0992F",
+              name: "BPX",
+              symbol: "BPX",
+              decimals: 18,
+            },
+          ],
+          [
             "0x4c7c1ec97279a6f3323eab9ab317202dee7ad922",
             {
               contract: "0x4c7c1ec97279a6f3323eab9ab317202dee7ad922",
@@ -434,6 +468,8 @@ export const getNetworkSettings = (): NetworkSettings => {
           indexes: {
             activities: {
               numberOfShards: 10,
+              disableMappingsUpdate: config.environment !== "prod",
+              configName: config.environment === "prod" ? "CONFIG_DEFAULT" : "CONFIG_1689873821",
             },
           },
         },
@@ -627,6 +663,39 @@ export const getNetworkSettings = (): NetworkSettings => {
                   'MATIC',
                   18,
                   '{"coingeckoCurrencyId": "matic-network"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // ZKsync
+    case 324: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: true,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        subDomain: "api-zksync",
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
                 ) ON CONFLICT DO NOTHING
               `
             ),
@@ -985,6 +1054,13 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
         subDomain: "api-zora",
+        elasticsearch: {
+          indexes: {
+            activities: {
+              configName: "CONFIG_1689873821",
+            },
+          },
+        },
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([

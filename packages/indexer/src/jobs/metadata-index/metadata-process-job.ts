@@ -90,6 +90,11 @@ export class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler {
 
     const metadata = results.flat(1);
 
+    logger.info(
+      this.queueName,
+      `Debug. method=${method}, refreshTokensCount=${refreshTokens.length}, metadataCount=${metadata.length}, rateLimitExpiredIn=${rateLimitExpiredIn}`
+    );
+
     await metadataIndexWriteJob.addToQueue(
       metadata.map((m) => ({
         ...m,
@@ -98,8 +103,19 @@ export class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler {
 
     // If there are potentially more tokens to process trigger another job
     if (rateLimitExpiredIn || _.size(refreshTokens) == countTotal) {
-      await this.addToQueue({ method }, rateLimitExpiredIn * 1000);
+      return rateLimitExpiredIn || 1;
     }
+
+    return 0;
+  }
+
+  public events() {
+    this.once("onCompleted", async (rabbitMqMessage, processResult) => {
+      if (processResult) {
+        const { method } = rabbitMqMessage.payload;
+        await this.addToQueue({ method }, processResult * 1000);
+      }
+    });
   }
 
   public async addToQueue(params: MetadataIndexProcessJobPayload, delay = 0) {

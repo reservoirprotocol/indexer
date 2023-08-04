@@ -396,7 +396,7 @@ export const getOrdersAsksV2Options: RouteOptions = {
             url: source?.metadata.url,
           },
           feeBps: Number(r.fee_bps),
-          feeBreakdown: r.fee_breakdown,
+          feeBreakdown: Number(r.fee_bps) === 0 ? [] : r.fee_breakdown,
           expiration: Number(r.expiration),
           createdAt: new Date(r.created_at * 1000).toISOString(),
           updatedAt: new Date(r.updated_at).toISOString(),

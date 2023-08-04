@@ -810,9 +810,6 @@ export const getExecuteBuyV6Options: RouteOptions = {
       try {
         result = await router.fillListingsTx(listingDetails, payload.taker, buyInCurrency, {
           source: payload.source,
-          // TODO: Add support for buying any listing via any ERC20 token
-          globalFees:
-            buyInCurrency === Sdk.Common.Addresses.Native[config.chainId] ? feesOnTop : [],
           partial: payload.partial,
           forceRouter: payload.forceRouter,
           relayer: payload.relayer,

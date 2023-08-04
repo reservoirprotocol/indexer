@@ -19,6 +19,15 @@ export const checkMarketplaceIsFiltered = async (
   operators: string[],
   refresh?: boolean
 ) => {
+  // Custom rules
+  if (
+    config.chainId === 1 &&
+    contract === "0x0c86cdc978b7d191f11b36731107e924c699af10" &&
+    operators.includes(Sdk.BlurV2.Addresses.Delegate[config.chainId])
+  ) {
+    return true;
+  }
+
   let result: string[] | null = [];
   if (refresh) {
     result = await updateMarketplaceBlacklist(contract);

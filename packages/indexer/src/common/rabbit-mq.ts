@@ -9,9 +9,10 @@ import { config } from "@/config/index";
 import _ from "lodash";
 import { logger } from "@/common/logger";
 import { getNetworkName } from "@/config/network";
-import { acquireLock } from "@/common/redis";
+import { acquireLock, releaseLock } from "@/common/redis";
 import axios from "axios";
 import pLimit from "p-limit";
+import { FailedPublishMessages } from "@/models/failed-publish-messages-list";
 
 export type RabbitMQMessage = {
   payload: any;
@@ -21,6 +22,7 @@ export type RabbitMQMessage = {
   consumedTime?: number;
   completeTime?: number;
   retryCount?: number;
+  publishRetryCount?: number;
   persistent?: boolean;
   prioritized?: boolean;
 };
@@ -82,14 +84,33 @@ export class RabbitMq {
   }
 
   public static async send(queueName: string, content: RabbitMQMessage, delay = 0, priority = 0) {
-    const lockTime = delay ? _.toInteger(delay / 1000) : 5 * 60;
+    content.publishRetryCount = content.publishRetryCount ?? 0;
+    const msgConsumingBuffer = 5 * 60; // Time for the job to actually process, will be released on the job is done
+    const lockTime = delay ? _.max([_.toInteger(delay / 1000), 0]) : msgConsumingBuffer;
+    let lockAcquired = false;
+
+    // For deduplication messages use redis lock, setting lock only if jobId is passed
+    try {
+      if (content.jobId && lockTime) {
+        if (!(await acquireLock(content.jobId, lockTime + msgConsumingBuffer))) {
+          return;
+        }
+
+        lockAcquired = true;
+      }
+    } catch (error) {
+      logger.warn(
+        `rabbit-publish-error`,
+        JSON.stringify({
+          message: `failed to set lock to ${queueName} error ${error} lockTime ${lockTime} content=${JSON.stringify(
+            content
+          )}`,
+          queueName: queueName.substring(_.indexOf(queueName, ".") + 1), // Remove chain name
+        })
+      );
+    }
 
     try {
-      // For deduplication messages use redis lock, setting lock only if jobId is passed
-      if (content.jobId && !(await acquireLock(content.jobId, lockTime))) {
-        return;
-      }
-
       const channelIndex = _.random(0, RabbitMq.maxPublisherChannelsCount - 1);
 
       content.publishTime = content.publishTime ?? _.now();
@@ -138,16 +159,46 @@ export class RabbitMq {
           );
         }
       });
+
+      if (content.publishRetryCount > 0) {
+        logger.info(
+          `rabbit-message-republish`,
+          JSON.stringify({
+            message: `successfully republished to ${queueName} content=${JSON.stringify(content)}`,
+            queueName: queueName.substring(_.indexOf(queueName, ".") + 1), // Remove chain name
+          })
+        );
+      }
     } catch (error) {
-      logger.error(
-        `rabbit-publish-error`,
-        JSON.stringify({
-          message: `failed to publish to ${queueName} error ${error} content=${JSON.stringify(
-            content
-          )}`,
-          queueName: queueName.substring(_.indexOf(queueName, ".") + 1), // Remove chain name
-        })
-      );
+      if (`${error}`.includes("nacked")) {
+        if (lockAcquired && content.jobId) {
+          await releaseLock(content.jobId).catch();
+        }
+
+        logger.error(
+          `rabbit-publish-error`,
+          JSON.stringify({
+            message: `failed to publish and will be republish to ${queueName} error ${error} lockTime ${lockTime} content=${JSON.stringify(
+              content
+            )}`,
+            queueName: queueName.substring(_.indexOf(queueName, ".") + 1), // Remove chain name
+          })
+        );
+
+        ++content.publishRetryCount;
+        const failedPublishMessages = new FailedPublishMessages();
+        await failedPublishMessages.add([{ queue: queueName, payload: content }]);
+      } else {
+        logger.error(
+          `rabbit-publish-error`,
+          JSON.stringify({
+            message: `failed to publish to ${queueName} error ${error} lockTime ${lockTime} content=${JSON.stringify(
+              content
+            )}`,
+            queueName: queueName.substring(_.indexOf(queueName, ".") + 1), // Remove chain name
+          })
+        );
+      }
     }
   }
 

@@ -105,3 +105,18 @@ export const createFixedPriceSale: EventData = {
     )`,
   ]),
 };
+
+export const addMerkleRootToFixedPriceSale: EventData = {
+  kind: "foundation",
+  subKind: "foundation-add-merkle-root-to-fixed-price-sale",
+  addresses: { [Foundation.Addresses.DropMarket[config.chainId]?.toLowerCase()]: true },
+  topic: "0x7f11be7894109a714225fbb6c33d88a14582407d653ac3fc5abf07d9b3ce8914",
+  numTopics: 2,
+  abi: new Interface([
+    `event AddMerkleRootToFixedPriceSale(
+      address indexed nftContract,
+      bytes32 merkleRoot,
+      string merkleTreeUri
+    )`,
+  ]),
+};

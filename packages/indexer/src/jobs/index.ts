@@ -14,6 +14,7 @@ import "@/jobs/websocket-events";
 import "@/jobs/metrics";
 import "@/jobs/opensea-orders";
 import "@/jobs/monitoring";
+import "@/jobs/failed-messages";
 
 // Export all job queues for monitoring through the BullMQ UI
 
@@ -25,7 +26,11 @@ import amqplibConnectionManager, {
 } from "amqp-connection-manager";
 
 import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders";
+import * as backfillExpiredOrders2 from "@/jobs/backfill/backfill-expired-orders-2";
 import * as backfillRefreshCollectionMetadata from "@/jobs/backfill/backfill-refresh-collections-metadata";
+import * as backfillNftTransferUpdatedAt from "@/jobs/backfill/backfill-nft-transfer-events-updated-at";
+import * as backfillNftTransferCreatedAt from "@/jobs/backfill/backfill-nft-transfer-events-created-at";
+import * as backfillSaleRoyalties from "@/jobs/backfill/backfill-sale-royalties";
 
 import * as askWebsocketEventsTriggerQueue from "@/jobs/websocket-events/ask-websocket-events-trigger-queue";
 import * as bidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/bid-websocket-events-trigger-queue";
@@ -37,6 +42,7 @@ import * as collectionWebsocketEventsTriggerQueue from "@/jobs/websocket-events/
 
 import * as backfillDeleteExpiredBidsElasticsearch from "@/jobs/activities/backfill/backfill-delete-expired-bids-elasticsearch";
 import * as backfillSalePricingDecimalElasticsearch from "@/jobs/activities/backfill/backfill-sales-pricing-decimal-elasticsearch";
+import * as blockGapCheck from "@/jobs/events-sync/block-gap-check";
 
 import amqplib from "amqplib";
 import { config } from "@/config/index";
@@ -44,6 +50,7 @@ import _ from "lodash";
 import getUuidByString from "uuid-by-string";
 import { getMachineId } from "@/common/machine-id";
 import { PausedRabbitMqQueues } from "@/models/paused-rabbit-mq-queues";
+import { RabbitMq, RabbitMQMessage } from "@/common/rabbit-mq";
 import { logger } from "@/common/logger";
 import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
@@ -84,12 +91,6 @@ import { processActivityEventJob } from "@/jobs/activities/process-activity-even
 import { savePendingActivitiesJob } from "@/jobs/activities/save-pending-activities-job";
 import { deleteArchivedExpiredBidActivitiesJob } from "@/jobs/activities/delete-archived-expired-bid-activities-job";
 import { backfillActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-activities-elasticsearch-job";
-import { backfillTransferActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-transfer-activities-elasticsearch-job";
-import { backfillSaleActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-sale-activities-elasticsearch-job";
-import { backfillAskActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-ask-activities-elasticsearch-job";
-import { backfillAskCancelActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-ask-cancel-activities-elasticsearch-job";
-import { backfillBidActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-bid-activities-elasticsearch-job";
-import { backfillBidCancelActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-bid-cancel-activities-elasticsearch-job";
 import { eventsSyncFtTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/ft-transfers-job";
 import { eventsSyncNftTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
 import { eventsSyncProcessBackfillJob } from "@/jobs/events-sync/process/events-sync-process-backfill";
@@ -115,7 +116,6 @@ import { mintsCheckJob } from "@/jobs/mints/mints-check-job";
 import { mintsExpiredJob } from "@/jobs/mints/cron/mints-expired-job";
 import { nftBalanceUpdateFloorAskJob } from "@/jobs/nft-balance-updates/update-floor-ask-price-job";
 import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
-import { RabbitMq, RabbitMQMessage } from "@/common/rabbit-mq";
 import { orderRevalidationsJob } from "@/jobs/order-fixes/order-revalidations-job";
 import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
 import { orderUpdatesDynamicOrderJob } from "@/jobs/order-updates/cron/dynamic-orders-job";
@@ -132,17 +132,27 @@ import { openseaListingsJob } from "@/jobs/orderbook/opensea-listings-job";
 import { orderbookPostOrderExternalJob } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-job";
 import { orderbookPostOrderExternalOpenseaJob } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-job";
 import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
+import { saleWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/sale-websocket-events-trigger-job";
 import { openseaOrdersProcessJob } from "@/jobs/opensea-orders/opensea-orders-process-job";
 import { openseaOrdersFetchJob } from "@/jobs/opensea-orders/opensea-orders-fetch-job";
 import { saveBidEventsJob } from "@/jobs/order-updates/save-bid-events-job";
 import { countApiUsageJob } from "@/jobs/metrics/count-api-usage-job";
+import { transferWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/transfer-websocket-events-trigger-job";
 import { tokenAttributeWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/token-attribute-websocket-events-trigger-job";
 import { topBidWebSocketEventsTriggerJob } from "@/jobs/websocket-events/top-bid-websocket-events-trigger-job";
+import { collectionWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/collection-websocket-events-trigger-job";
 import { backfillDeleteExpiredBidsElasticsearchJob } from "@/jobs/activities/backfill/backfill-delete-expired-bids-elasticsearch-job";
+import { transferUpdatesJob } from "@/jobs/transfer-updates/transfer-updates-job";
+import { backfillSaveActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-save-activities-elasticsearch-job";
+import { pendingExpiredOrdersCheckJob } from "@/jobs/orderbook/cron/pending-expired-orders-check-job";
 
 export const allJobQueues = [
   backfillExpiredOrders.queue,
+  backfillExpiredOrders2.queue,
   backfillRefreshCollectionMetadata.queue,
+  backfillNftTransferUpdatedAt.queue,
+  backfillNftTransferCreatedAt.queue,
+  backfillSaleRoyalties.queue,
 
   askWebsocketEventsTriggerQueue.queue,
   bidWebsocketEventsTriggerQueue.queue,
@@ -154,6 +164,7 @@ export const allJobQueues = [
 
   backfillDeleteExpiredBidsElasticsearch.queue,
   backfillSalePricingDecimalElasticsearch.queue,
+  blockGapCheck.queue,
 ];
 
 export class RabbitMqJobsConsumer {
@@ -253,16 +264,16 @@ export class RabbitMqJobsConsumer {
       openseaOrdersFetchJob,
       saveBidEventsJob,
       countApiUsageJob,
+      collectionWebsocketEventsTriggerQueueJob,
+      saleWebsocketEventsTriggerQueueJob,
+      transferWebsocketEventsTriggerQueueJob,
       tokenAttributeWebsocketEventsTriggerQueueJob,
       topBidWebSocketEventsTriggerJob,
       backfillDeleteExpiredBidsElasticsearchJob,
       backfillActivitiesElasticsearchJob,
-      backfillTransferActivitiesElasticsearchJob,
-      backfillSaleActivitiesElasticsearchJob,
-      backfillAskActivitiesElasticsearchJob,
-      backfillAskCancelActivitiesElasticsearchJob,
-      backfillBidActivitiesElasticsearchJob,
-      backfillBidCancelActivitiesElasticsearchJob,
+      transferUpdatesJob,
+      backfillSaveActivitiesElasticsearchJob,
+      pendingExpiredOrdersCheckJob,
     ];
   }
 
@@ -272,13 +283,19 @@ export class RabbitMqJobsConsumer {
 
   public static async connect() {
     for (let i = 0; i < RabbitMqJobsConsumer.maxConsumerConnectionsCount; ++i) {
-      const connection = amqplibConnectionManager.connect(config.rabbitMqUrl);
+      const connection = amqplibConnectionManager.connect(config.rabbitMqUrl, {
+        reconnectTimeInSeconds: 5,
+        heartbeatIntervalInSeconds: 30,
+      });
+
       RabbitMqJobsConsumer.rabbitMqConsumerConnections.push(connection);
+
+      const sharedChannel = connection.createChannel({ confirm: false });
 
       // Create a shared channel for each connection
       RabbitMqJobsConsumer.sharedChannels.set(
         RabbitMqJobsConsumer.getSharedChannelName(i),
-        connection.createChannel({ confirm: false })
+        sharedChannel
       );
 
       connection.once("error", (error) => {
@@ -334,7 +351,14 @@ export class RabbitMqJobsConsumer {
       job.getQueue(),
       async (msg) => {
         if (!_.isNull(msg)) {
-          await _.clone(job).consume(channel, msg);
+          await _.clone(job)
+            .consume(channel, msg)
+            .catch((error) => {
+              logger.error(
+                "rabbit-consume",
+                `error consuming from ${job.queueName} error ${error}`
+              );
+            });
         }
       },
       {
@@ -349,7 +373,14 @@ export class RabbitMqJobsConsumer {
       job.getRetryQueue(),
       async (msg) => {
         if (!_.isNull(msg)) {
-          await _.clone(job).consume(channel, msg);
+          await _.clone(job)
+            .consume(channel, msg)
+            .catch((error) => {
+              logger.error(
+                "rabbit-consume",
+                `error consuming from ${job.queueName} error ${error}`
+              );
+            });
         }
       },
       {
@@ -358,35 +389,6 @@ export class RabbitMqJobsConsumer {
         noAck: false,
       }
     );
-
-    channel.once("error", async (error) => {
-      if (error.message.includes("timeout")) {
-        const jobs = RabbitMqJobsConsumer.channelsToJobs.get(channel);
-        if (jobs) {
-          // Resubscribe the jobs
-          for (const job of jobs) {
-            try {
-              await this.subscribe(job);
-            } catch (error) {
-              logger.error(
-                "rabbit-channel",
-                `Consumer channel failed to resubscribe to ${job.queueName} ${error}`
-              );
-            }
-          }
-
-          logger.info(
-            "rabbit-channel",
-            `Resubscribed to ${JSON.stringify(
-              jobs.map((job: AbstractRabbitMqJobHandler) => job.queueName)
-            )}`
-          );
-
-          // Clear the channel that closed
-          RabbitMqJobsConsumer.channelsToJobs.delete(channel);
-        }
-      }
-    });
   }
 
   /**

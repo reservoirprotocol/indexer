@@ -32,7 +32,7 @@ const version = "v6";
 export const getOrdersBidsV6Options: RouteOptions = {
   description: "Bids (offers)",
   notes:
-    "Get a list of bids (offers), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing.\n\n There are a different kind of bids than can be returned:\n\n- Inputting a 'contract' will return token and attribute bids.\n\n- Inputting a 'collection-id' will return collection wide bids./n/n Please mark `excludeEOA` as `true` to exclude Blur orders.",
+    "Get a list of bids (offers), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing.\n\n- There are a different kind of bids than can be returned:\n\n To get all orders unflitered, select `sortBy` to `updatedAt`. No need to pass any other param. This will return any orders for any collections, token, attribute, etc. \n\n- Inputting a 'contract' will return token and attribute bids.\n\n- Inputting a 'collection-id' will return collection wide bids./n/n- Please mark `excludeEOA` as `true` to exclude Blur orders.",
   tags: ["api", "Orders"],
   plugins: {
     "hapi-swagger": {
@@ -127,6 +127,13 @@ export const getOrdersBidsV6Options: RouteOptions = {
           "Filter to sources by domain. Only active listed will be returned. Must set `includeRawData=true` to reveal individual bids when `sources=blur.io`. Example: `opensea.io`"
         ),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
+      includePrivate: Joi.boolean()
+        .when("ids", {
+          is: Joi.exist(),
+          then: Joi.valid(true, false).default(true),
+          otherwise: Joi.valid(true, false).default(false),
+        })
+        .description("If true, private orders are included in the response."),
       includeCriteriaMetadata: Joi.boolean()
         .default(false)
         .description("If true, criteria metadata is included in the response."),
@@ -614,6 +621,12 @@ export const getOrdersBidsV6Options: RouteOptions = {
         conditions.push(`orders.is_reservoir`);
       }
 
+      if (!query.includePrivate) {
+        conditions.push(
+          `orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL`
+        );
+      }
+
       if (orderStatusFilter) {
         conditions.push(orderStatusFilter);
       }
@@ -723,7 +736,7 @@ export const getOrdersBidsV6Options: RouteOptions = {
           criteria: r.criteria,
           sourceIdInt: r.source_id_int,
           feeBps: r.fee_bps,
-          feeBreakdown: r.fee_breakdown,
+          feeBreakdown: r.fee_bps === 0 ? [] : r.fee_breakdown,
           expiration: r.expiration,
           isReservoir: r.is_reservoir,
           createdAt: r.created_at,

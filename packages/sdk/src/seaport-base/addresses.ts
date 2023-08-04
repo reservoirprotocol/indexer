@@ -10,6 +10,7 @@ export const OpenseaConduitKey: ChainIdToAddress = {
   [Network.Arbitrum]: "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000",
   [Network.ArbitrumNova]: "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000",
   [Network.Mumbai]: "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000",
+  [Network.Avalanche]: "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000",
 };
 
 export const ReservoirConduitKey: ChainIdToAddress = {
@@ -96,4 +97,6 @@ export const OpenSeaProtectedOffersZone: ChainIdToAddress = {
 export const ReservoirCancellationZone: ChainIdToAddress = {
   [Network.Ethereum]: "0xaa0e012d35cf7d6ecb6c2bf861e71248501d3226",
   [Network.EthereumGoerli]: "0x49b91d1d7b9896d28d370b75b92c2c78c1ac984a",
+  [Network.Polygon]: "0xfb2b693819e866ec87e574903f6e4943723c8ff7",
+  [Network.Mumbai]: "0xfb2b693819e866ec87e574903f6e4943723c8ff7",
 };

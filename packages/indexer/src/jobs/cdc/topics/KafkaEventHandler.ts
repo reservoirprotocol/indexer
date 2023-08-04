@@ -3,6 +3,7 @@
 import { logger } from "@/common/logger";
 // import { producer } from "..";
 import { base64ToHex, isBase64 } from "@/common/utils";
+import { config } from "@/config/index";
 import { getNetworkName } from "@/config/network";
 import { BigNumber } from "ethers";
 
@@ -13,6 +14,14 @@ export abstract class KafkaEventHandler {
   async handle(payload: any, offset: string): Promise<void> {
     try {
       // convert any hex strings to strings
+
+      if (
+        payload.op === "u" &&
+        config.chainId === 137 &&
+        this.topicName === "indexer.public.nft_transfer_events"
+      ) {
+        return;
+      }
 
       switch (payload.op) {
         case "c":
@@ -72,12 +81,18 @@ export abstract class KafkaEventHandler {
   }
 
   convertPayloadHexToString(payload: any) {
-    const numericKeys = ["amount", "token_id"];
+    const numericKeys = ["amount", "token_id", "price", "usd_price", "currency_price"];
+    const stringKeys = payload.source.table === "token_attributes" ? ["key", "value"] : [];
 
     // go through all the keys in the payload and convert any hex strings to strings
     // This is necessary because debeezium converts bytea values and other non string values to base64 strings
     for (const key in payload.after) {
-      if (isBase64(payload.after[key])) {
+      // For numbers which get converted to objects, convert them back to numbers
+      if (payload.after[key]?.value) {
+        payload.after[key] = payload.after[key]?.value;
+      }
+
+      if (isBase64(payload.after[key]) && !stringKeys.includes(key)) {
         payload.after[key] = base64ToHex(payload.after[key]);
         // if the key is a numeric key, convert the value to a number (hex -> number -> string)
         if (numericKeys.includes(key) && typeof payload.after[key] === "string") {
@@ -87,7 +102,12 @@ export abstract class KafkaEventHandler {
     }
 
     for (const key in payload.before) {
-      if (isBase64(payload.before[key])) {
+      // For numbers which get converted to objects, convert them back to numbers
+      if (payload.before[key]?.value) {
+        payload.before[key] = payload.before[key]?.value;
+      }
+
+      if (isBase64(payload.before[key]) && !stringKeys.includes(key)) {
         payload.before[key] = base64ToHex(payload.before[key]);
         // if the key is a numeric key, convert the value to a number (hex -> number -> string)
         if (numericKeys.includes(key) && typeof payload.before[key] === "string") {

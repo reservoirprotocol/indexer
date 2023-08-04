@@ -1,6 +1,3 @@
-import { config } from "@/config/index";
-import { logger } from "@/common/logger";
-
 import { Log } from "@ethersproject/abstract-provider";
 
 import { concat } from "@/common/utils";
@@ -16,10 +13,6 @@ import {
   RecalcOwnerCountQueueJobPayload,
 } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import { mintQueueJob, MintQueueJobPayload } from "@/jobs/token-updates/mint-queue-job";
-import {
-  WebsocketEventKind,
-  WebsocketEventRouter,
-} from "@/jobs/websocket-events/websocket-event-router";
 
 import {
   processActivityEventJob,
@@ -38,6 +31,8 @@ import {
   OrderUpdatesByMakerJobPayload,
 } from "@/jobs/order-updates/order-updates-by-maker-job";
 import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
+import _ from "lodash";
+import { transferUpdatesJob } from "@/jobs/transfer-updates/transfer-updates-job";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -114,6 +109,19 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   // Post-process fill events
 
   const allFillEvents = concat(data.fillEvents, data.fillEventsPartial, data.fillEventsOnChain);
+  const nonFillTransferEvents = _.filter(data.nftTransferEvents, (transfer) => {
+    return (
+      transfer.from !== AddressZero &&
+      !_.some(
+        allFillEvents,
+        (fillEvent) =>
+          fillEvent.baseEventParams.txHash === transfer.baseEventParams.txHash &&
+          fillEvent.baseEventParams.logIndex === transfer.baseEventParams.logIndex &&
+          fillEvent.baseEventParams.batchIndex === transfer.baseEventParams.batchIndex
+      )
+    );
+  });
+
   const startAssignSourceToFillEvents = Date.now();
   if (!backfill) {
     await Promise.all([assignSourceToFillEvents(allFillEvents)]);
@@ -131,13 +139,6 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   ]);
   const endPersistEvents = Date.now();
 
-  // concat all fill events
-  const allFillEventsForWebsocket = concat(
-    data.fillEvents,
-    data.fillEventsPartial,
-    data.fillEventsOnChain
-  );
-
   // Persist other events
   const startPersistOtherEvents = Date.now();
   await Promise.all([
@@ -151,53 +152,6 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   ]);
 
   const endPersistOtherEvents = Date.now();
-
-  try {
-    if (config.doOldOrderWebsocketWork) {
-      await Promise.all([
-        ...allFillEventsForWebsocket.map((event) =>
-          WebsocketEventRouter({
-            eventInfo: {
-              tx_hash: event.baseEventParams.txHash,
-              log_index: event.baseEventParams.logIndex,
-              batch_index: event.baseEventParams.batchIndex,
-              trigger: "insert",
-              offset: "",
-            },
-            eventKind: WebsocketEventKind.SaleEvent,
-          })
-        ),
-
-        ...data.nftTransferEvents.map((event) =>
-          WebsocketEventRouter({
-            eventInfo: {
-              address: event.baseEventParams.address,
-              block: event.baseEventParams.block.toString(),
-              timestamp: event.baseEventParams.timestamp.toString(),
-              tx_hash: event.baseEventParams.txHash,
-              tx_index: event.baseEventParams.txIndex.toString(),
-              log_index: event.baseEventParams.logIndex.toString(),
-              batch_index: event.baseEventParams.batchIndex.toString(),
-              to: event.to,
-              from: event.from,
-              amount: event.amount.toString(),
-              token_id: event.tokenId.toString(),
-              created_at: new Date(event.baseEventParams.timestamp).toISOString(),
-              is_deleted: false,
-              offset: "",
-              trigger: "insert",
-            },
-            eventKind: WebsocketEventKind.TransferEvent,
-          })
-        ),
-      ]);
-    }
-  } catch (error) {
-    logger.error(
-      "processOnChainData",
-      `Error processing websocket event. error=${JSON.stringify(error)}`
-    );
-  }
 
   // Trigger further processes:
   // - revalidate potentially-affected orders
@@ -216,6 +170,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   }
 
   // Mints and last sales
+  await transferUpdatesJob.addToQueue(nonFillTransferEvents);
   await mintQueueJob.addToQueue(data.mintInfos);
   await fillUpdatesJob.addToQueue(data.fillInfos);
   if (!backfill) {

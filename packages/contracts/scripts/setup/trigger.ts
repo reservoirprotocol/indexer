@@ -304,10 +304,48 @@ export const trigger = {
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.PaymentProcessor.Addresses.Exchange[chainId],
       ]),
+    MintModule: async () => dv("MintModule", "v2", []),
   },
   // Utilities
   Utilities: {
     LiteRoyaltyEngine: async () => dv("LiteRoyaltyEngine", "v1", []),
+    OffChainCancellationZone: async (chainId: number) => {
+      if ([1, 5, 137, 80001].includes(chainId)) {
+        if (!(await readDeployment("SignedZoneController", "v1", chainId))) {
+          await dv("SignedZoneController", "v1", []);
+        }
+
+        const [deployer] = await ethers.getSigners();
+
+        const controller = new Contract(
+          await readDeployment("SignedZoneController", "v1", chainId).then((a) => a!),
+          new Interface([
+            "function createZone(string zoneName, string apiEndpoint, string documentationURI, address initialOwner, bytes32 salt)",
+            "function getZone(bytes32 salt) view returns (address)",
+            "function getActiveSigners(address zone) view returns (address[])",
+            "function updateSigner(address zone, address signer, bool active)",
+          ]),
+          deployer
+        );
+
+        const salt = deployer.address.padEnd(66, "0");
+        const zoneAddress = await controller.getZone(salt).then((a: string) => a.toLowerCase());
+        const code = await ethers.provider.getCode(zoneAddress);
+        if (code === "0x") {
+          await controller.createZone("CancellationOracle", "", "", deployer.address, salt);
+          console.log(`Deployed cancellation zone at address ${zoneAddress}`);
+        }
+
+        const oracleSigner = "0x32da57e736e05f75aa4fae2e9be60fd904492726";
+        const activeSigners = await controller
+          .getActiveSigners(zoneAddress)
+          .then((signers: string[]) => signers.map((s) => s.toLowerCase()));
+        if (!activeSigners.includes(oracleSigner)) {
+          await controller.updateSigner(zoneAddress, oracleSigner, true);
+          console.log(`Signer ${oracleSigner} configured`);
+        }
+      }
+    },
   },
   // Test NFTs
   TestNFTs: {

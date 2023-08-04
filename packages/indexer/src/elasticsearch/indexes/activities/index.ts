@@ -11,12 +11,12 @@ import {
   ActivityType,
   CollectionAggregation,
 } from "@/elasticsearch/indexes/activities/base";
-import { getNetworkName } from "@/config/network";
+import { getNetworkName, getNetworkSettings } from "@/config/network";
 import _ from "lodash";
 import { buildContinuation, splitContinuation } from "@/common/utils";
 import { backfillActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-activities-elasticsearch-job";
 
-import { CONFIG_DEFAULT } from "@/elasticsearch/indexes/activities/config";
+import * as CONFIG from "@/elasticsearch/indexes/activities/config";
 
 const INDEX_NAME = `${getNetworkName()}.activities`;
 
@@ -620,6 +620,13 @@ export const getIndexName = (): string => {
 
 export const initIndex = async (): Promise<void> => {
   try {
+    const indexConfigName =
+      getNetworkSettings().elasticsearch?.indexes?.activities?.configName ?? "CONFIG_DEFAULT";
+
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    const indexConfig = CONFIG[indexConfigName];
+
     if (await elasticsearch.indices.exists({ index: INDEX_NAME })) {
       logger.info(
         "elasticsearch-activities",
@@ -627,8 +634,23 @@ export const initIndex = async (): Promise<void> => {
           topic: "initIndex",
           message: "Index already exists.",
           indexName: INDEX_NAME,
+          indexConfig,
         })
       );
+
+      if (getNetworkSettings().elasticsearch?.indexes?.activities?.disableMappingsUpdate) {
+        logger.info(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "initIndex",
+            message: "Mappings update disabled.",
+            indexName: INDEX_NAME,
+            indexConfig,
+          })
+        );
+
+        return;
+      }
 
       const getIndexResponse = await elasticsearch.indices.get({ index: INDEX_NAME });
 
@@ -636,7 +658,7 @@ export const initIndex = async (): Promise<void> => {
 
       const putMappingResponse = await elasticsearch.indices.putMapping({
         index: indexName,
-        properties: CONFIG_DEFAULT.mappings.properties,
+        properties: indexConfig.mappings.properties,
       });
 
       logger.info(
@@ -645,7 +667,7 @@ export const initIndex = async (): Promise<void> => {
           topic: "initIndex",
           message: "Updated mappings.",
           indexName: INDEX_NAME,
-          mappings: CONFIG_DEFAULT.mappings.properties,
+          indexConfig,
           putMappingResponse,
         })
       );
@@ -656,6 +678,7 @@ export const initIndex = async (): Promise<void> => {
           topic: "initIndex",
           message: "Creating Index.",
           indexName: INDEX_NAME,
+          indexConfig,
         })
       );
 
@@ -664,7 +687,7 @@ export const initIndex = async (): Promise<void> => {
           [INDEX_NAME]: {},
         },
         index: `${INDEX_NAME}-${Date.now()}`,
-        ...CONFIG_DEFAULT,
+        ...indexConfig,
       };
 
       const createIndexResponse = await elasticsearch.indices.create(params);
@@ -675,6 +698,7 @@ export const initIndex = async (): Promise<void> => {
           topic: "initIndex",
           message: "Index Created!",
           indexName: INDEX_NAME,
+          indexConfig,
           params,
           createIndexResponse,
         })
@@ -764,7 +788,7 @@ export const updateActivitiesMissingCollection = async (
         logger.error(
           "elasticsearch-activities",
           JSON.stringify({
-            topic: "updateActivitiesMissingCollectionV2",
+            topic: "updateActivitiesMissingCollection",
             message: `Errors in response`,
             data: {
               contract,
@@ -782,7 +806,7 @@ export const updateActivitiesMissingCollection = async (
         logger.info(
           "elasticsearch-activities",
           JSON.stringify({
-            topic: "updateActivitiesMissingCollectionV2",
+            topic: "updateActivitiesMissingCollection",
             message: `Success`,
             data: {
               contract,
@@ -805,7 +829,7 @@ export const updateActivitiesMissingCollection = async (
       logger.warn(
         "elasticsearch-activities",
         JSON.stringify({
-          topic: "updateActivitiesMissingCollectionV2",
+          topic: "updateActivitiesMissingCollection",
           message: `Unexpected error`,
           data: {
             contract,
@@ -821,7 +845,7 @@ export const updateActivitiesMissingCollection = async (
       logger.error(
         "elasticsearch-activities",
         JSON.stringify({
-          topic: "updateActivitiesMissingCollectionV2",
+          topic: "updateActivitiesMissingCollection",
           message: `Unexpected error`,
           data: {
             contract,
@@ -900,7 +924,7 @@ export const updateActivitiesCollection = async (
         logger.error(
           "elasticsearch-activities",
           JSON.stringify({
-            topic: "updateActivitiesCollectionV2",
+            topic: "updateActivitiesCollection",
             message: `Errors in response`,
             data: {
               contract,
@@ -918,7 +942,7 @@ export const updateActivitiesCollection = async (
         logger.info(
           "elasticsearch-activities",
           JSON.stringify({
-            topic: "updateActivitiesCollectionV2",
+            topic: "updateActivitiesCollection",
             message: `Success`,
             data: {
               contract,
@@ -942,7 +966,7 @@ export const updateActivitiesCollection = async (
       logger.warn(
         "elasticsearch-activities",
         JSON.stringify({
-          topic: "updateActivitiesCollectionV2",
+          topic: "updateActivitiesCollection",
           message: `Unexpected error`,
           data: {
             contract,
@@ -959,7 +983,7 @@ export const updateActivitiesCollection = async (
       logger.error(
         "elasticsearch-activities",
         JSON.stringify({
-          topic: "updateActivitiesCollectionV2",
+          topic: "updateActivitiesCollection",
           message: `Unexpected error`,
           data: {
             contract,
@@ -1074,13 +1098,16 @@ export const updateActivitiesTokenMetadata = async (
   };
 
   try {
-    const pendingUpdateActivities = await _search({
-      // This is needed due to issue with elasticsearch DSL.
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      query,
-      size: 1000,
-    });
+    const pendingUpdateActivities = await _search(
+      {
+        // This is needed due to issue with elasticsearch DSL.
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        query,
+        size: 1000,
+      },
+      0
+    );
 
     if (pendingUpdateActivities.length) {
       const bulkParams = {
@@ -1109,7 +1136,7 @@ export const updateActivitiesTokenMetadata = async (
         logger.error(
           "elasticsearch-activities",
           JSON.stringify({
-            topic: "updateActivitiesTokenMetadataV2",
+            topic: "updateActivitiesTokenMetadata",
             message: `Errors in response`,
             data: {
               contract,
@@ -1126,7 +1153,7 @@ export const updateActivitiesTokenMetadata = async (
         logger.info(
           "elasticsearch-activities",
           JSON.stringify({
-            topic: "updateActivitiesTokenMetadataV2",
+            topic: "updateActivitiesTokenMetadata",
             message: `Success`,
             data: {
               contract,
@@ -1149,7 +1176,7 @@ export const updateActivitiesTokenMetadata = async (
       logger.warn(
         "elasticsearch-activities",
         JSON.stringify({
-          topic: "updateActivitiesTokenMetadataV2",
+          topic: "updateActivitiesTokenMetadata",
           message: `Unexpected error`,
           data: {
             contract,
@@ -1165,7 +1192,7 @@ export const updateActivitiesTokenMetadata = async (
       logger.error(
         "elasticsearch-activities",
         JSON.stringify({
-          topic: "updateActivitiesTokenMetadataV2",
+          topic: "updateActivitiesTokenMetadata",
           message: `Unexpected error`,
           data: {
             contract,
@@ -1286,7 +1313,7 @@ export const updateActivitiesCollectionMetadata = async (
         logger.error(
           "elasticsearch-activities",
           JSON.stringify({
-            topic: "updateActivitiesCollectionMetadataV2",
+            topic: "updateActivitiesCollectionMetadata",
             message: `Errors in response`,
             data: {
               collectionId,
@@ -1303,7 +1330,7 @@ export const updateActivitiesCollectionMetadata = async (
         logger.info(
           "elasticsearch-activities",
           JSON.stringify({
-            topic: "updateActivitiesCollectionMetadataV2",
+            topic: "updateActivitiesCollectionMetadata",
             message: `Success`,
             data: {
               collectionId,
@@ -1325,7 +1352,7 @@ export const updateActivitiesCollectionMetadata = async (
       logger.warn(
         "elasticsearch-activities",
         JSON.stringify({
-          topic: "updateActivitiesCollectionMetadataV2",
+          topic: "updateActivitiesCollectionMetadata",
           message: `Unexpected error`,
           data: {
             collectionId,
@@ -1340,7 +1367,7 @@ export const updateActivitiesCollectionMetadata = async (
       logger.error(
         "elasticsearch-activities",
         JSON.stringify({
-          topic: "updateActivitiesCollectionMetadataV2",
+          topic: "updateActivitiesCollectionMetadata",
           message: `Unexpected error`,
           data: {
             collectionId,
@@ -1397,7 +1424,7 @@ export const deleteActivitiesByBlockHash = async (blockHash: string): Promise<bo
         logger.error(
           "elasticsearch-activities",
           JSON.stringify({
-            topic: "deleteActivitiesByBlockHashV2",
+            topic: "deleteActivitiesByBlockHash",
             message: `Errors in response`,
             data: {
               blockHash,
@@ -1413,7 +1440,7 @@ export const deleteActivitiesByBlockHash = async (blockHash: string): Promise<bo
         logger.info(
           "elasticsearch-activities",
           JSON.stringify({
-            topic: "deleteActivitiesByBlockHashV2",
+            topic: "deleteActivitiesByBlockHash",
             message: `Success`,
             data: {
               blockHash,
@@ -1434,7 +1461,7 @@ export const deleteActivitiesByBlockHash = async (blockHash: string): Promise<bo
       logger.warn(
         "elasticsearch-activities",
         JSON.stringify({
-          topic: "deleteActivitiesByBlockHashV2",
+          topic: "deleteActivitiesByBlockHash",
           message: `Unexpected error`,
           data: {
             blockHash,
@@ -1448,7 +1475,7 @@ export const deleteActivitiesByBlockHash = async (blockHash: string): Promise<bo
       logger.error(
         "elasticsearch-activities",
         JSON.stringify({
-          topic: "deleteActivitiesByBlockHashV2",
+          topic: "deleteActivitiesByBlockHash",
           message: `Unexpected error`,
           data: {
             blockHash,

@@ -25,6 +25,8 @@ const getUpstreamUSDPrice = async (
   timestamp: number
 ): Promise<Price | undefined> => {
   try {
+    currencyAddress = currencyAddress.toLowerCase();
+
     const date = new Date(timestamp * 1000);
     const truncatedTimestamp = Math.floor(date.valueOf() / 1000);
 
@@ -78,9 +80,32 @@ const getUpstreamUSDPrice = async (
           value,
         };
       }
-    } else if (getNetworkSettings().whitelistedCurrencies.has(currencyAddress.toLowerCase())) {
-      // Whitelisted currencies are 1:1 with USD
-      const value = "1";
+    } else if (
+      getNetworkSettings().whitelistedCurrencies.has(currencyAddress) ||
+      isTestnetCurrency(currencyAddress)
+    ) {
+      // Whitelisted currencies don't have a price, so we just hardcode the minimum possible value
+      let value = "1";
+      if (
+        [
+          Sdk.Common.Addresses.Usdc[config.chainId],
+          // Only needed for Goerli
+          "0x68b7e050e6e2c7efe11439045c9d49813c1724b8",
+          "0x2f3a40a3db8a7e3d09b0adfefbce4f6f81927557",
+        ].includes(currencyAddress)
+      ) {
+        // 1:1 to USD
+        value = "1000000";
+      } else if (
+        // This will only nicely work for chains where ETH is the native currency
+        [
+          Sdk.Common.Addresses.Native[config.chainId],
+          Sdk.Common.Addresses.WNative[config.chainId],
+        ].includes(currencyAddress)
+      ) {
+        // 2000:1 to USD
+        value = "2000000000";
+      }
 
       await idb.none(
         `
@@ -150,7 +175,7 @@ const getCachedUSDPrice = async (
     .catch(() => undefined);
 
 const USD_PRICE_MEMORY_CACHE = new Map<string, Price>();
-const getAvailableUSDPrice = async (
+export const getAvailableUSDPrice = async (
   currencyAddress: string,
   timestamp: number,
   acceptStalePrice?: boolean
@@ -192,15 +217,18 @@ const getAvailableUSDPrice = async (
   return USD_PRICE_MEMORY_CACHE.get(key);
 };
 
-const isTestnetCurrency = (currencyAddress: string) =>
-  config.chainId === 5 &&
-  [
-    Sdk.Common.Addresses.Native[config.chainId],
-    Sdk.Common.Addresses.WNative[config.chainId],
-    "0x07865c6e87b9f70255377e024ace6630c1eaa37f",
-    "0x68b7e050e6e2c7efe11439045c9d49813c1724b8",
-    "0x2f3a40a3db8a7e3d09b0adfefbce4f6f81927557",
-  ].includes(currencyAddress);
+const isTestnetCurrency = (currencyAddress: string) => {
+  if ([5, 11155111, 84531, 59140, 5001, 80001, 534353, 999].includes(config.chainId)) {
+    return [
+      Sdk.Common.Addresses.Native[config.chainId],
+      Sdk.Common.Addresses.WNative[config.chainId],
+      Sdk.Common.Addresses.Usdc[config.chainId],
+      // Only needed for Goerli
+      "0x68b7e050e6e2c7efe11439045c9d49813c1724b8",
+      "0x2f3a40a3db8a7e3d09b0adfefbce4f6f81927557",
+    ].includes(currencyAddress);
+  }
+};
 
 const areEquivalentCurrencies = (currencyAddress1: string, currencyAddress2: string) => {
   const equivalentCurrencySets = [

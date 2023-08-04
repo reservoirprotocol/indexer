@@ -13,8 +13,7 @@ import { acquireLock, redis } from "@/common/redis";
 import tracer from "@/common/tracer";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { getNetworkSettings } from "@/config/network";
-import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/config";
+import { getNetworkName, getNetworkSettings } from "@/config/network";
 import { Collections } from "@/models/collections";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
@@ -25,7 +24,7 @@ import { TokenSet } from "@/orderbook/token-sets/token-list";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
 import { isOpen } from "@/utils/seaport-conduits";
-
+import { FeeRecipients } from "@/models/fee-recipients";
 import { topBidsCache } from "@/models/top-bids-caching";
 import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
 import {
@@ -476,6 +475,8 @@ export const save = async (
         openSeaRoyalties = await royalties.getRoyaltiesByTokenSet(tokenSetId, "", true);
       }
 
+      const feeRecipients = await FeeRecipients.getInstance();
+
       let feeBps = 0;
       let knownFee = false;
       const feeBreakdown = info.fees.map(({ recipient, amount }) => {
@@ -490,8 +491,9 @@ export const save = async (
         feeBps += bps;
 
         // First check for opensea hardcoded recipients
-        const kind: "marketplace" | "royalty" = allPlatformFeeRecipients.has(
-          recipient.toLowerCase()
+        const kind: "marketplace" | "royalty" = feeRecipients.getByAddress(
+          recipient.toLowerCase(),
+          "marketplace"
         )
           ? "marketplace"
           : "royalty";
@@ -723,9 +725,7 @@ export const save = async (
             Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
         ) {
           await axios.post(
-            `https://seaport-oracle-${
-              config.chainId === 1 ? "mainnet" : "goerli"
-            }.up.railway.app/api/replacements`,
+            `https://seaport-oracle-${getNetworkName()}.up.railway.app/api/replacements`,
             {
               newOrders: [order.params],
               replacedOrders: [replacedOrderResult.raw_data],

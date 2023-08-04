@@ -102,6 +102,7 @@ export class MetadataIndexProcessBySlugJob extends AbstractRabbitMqJobHandler {
                   method,
                   collection: refreshTokenBySlug.contract,
                 },
+                context: "processSlug",
               },
             ],
             true
@@ -131,8 +132,10 @@ export class MetadataIndexProcessBySlugJob extends AbstractRabbitMqJobHandler {
 
     // If there are potentially more tokens to process trigger another job
     if (rateLimitExpiredIn || _.size(refreshTokensBySlug) == countTotal || retry) {
-      await this.addToQueue({ method }, rateLimitExpiredIn * 1000);
+      return rateLimitExpiredIn || 1;
     }
+
+    return 0;
   }
 
   public async addToTokenRefreshQueueAndUpdateCollectionMetadata(
@@ -158,6 +161,7 @@ export class MetadataIndexProcessBySlugJob extends AbstractRabbitMqJobHandler {
                 method,
                 collection: refreshTokenBySlug.collection,
               },
+              context: this.queueName,
             },
           ],
           true
@@ -174,6 +178,15 @@ export class MetadataIndexProcessBySlugJob extends AbstractRabbitMqJobHandler {
         ),
       ]);
     }
+  }
+
+  public events() {
+    this.once("onCompleted", async (rabbitMqMessage, processResult) => {
+      if (processResult) {
+        const { method } = rabbitMqMessage.payload;
+        await this.addToQueue({ method }, processResult * 1000);
+      }
+    });
   }
 
   public async addToQueue(

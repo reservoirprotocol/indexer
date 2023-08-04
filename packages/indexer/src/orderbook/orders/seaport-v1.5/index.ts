@@ -13,8 +13,8 @@ import { acquireLock, redis } from "@/common/redis";
 import tracer from "@/common/tracer";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { getNetworkSettings } from "@/config/network";
-import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/config";
+import { getNetworkName, getNetworkSettings } from "@/config/network";
+import { FeeRecipients } from "@/models/fee-recipients";
 import { addPendingData } from "@/jobs/arweave-relay";
 import { Collections } from "@/models/collections";
 import { Sources } from "@/models/sources";
@@ -34,6 +34,7 @@ import {
   OrderUpdatesByIdJobPayload,
 } from "@/jobs/order-updates/order-updates-by-id-job";
 import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
+import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 
 export type OrderInfo = {
   orderParams: Sdk.SeaportBase.Types.OrderComponents;
@@ -186,6 +187,17 @@ export const save = async (
         });
       }
 
+      const isFiltered = await checkMarketplaceIsFiltered(info.contract, [
+        new Sdk.SeaportV15.Exchange(config.chainId).deriveConduit(order.params.conduitKey),
+      ]);
+
+      if (isFiltered) {
+        return results.push({
+          id,
+          status: "filtered",
+        });
+      }
+
       // Check: buy order has a supported payment token
       if (info.side === "buy" && !getNetworkSettings().supportedBidCurrencies[info.paymentToken]) {
         return results.push({
@@ -277,6 +289,13 @@ export const save = async (
         } else if (error.message === "no-balance") {
           fillabilityStatus = "no-balance";
         } else {
+          if (config.chainId === 137) {
+            logger.info(
+              "orders-seaport-v1.5-save",
+              `not fillable order. orderId=${id}, contract=${info.contract}, error=${error}`
+            );
+          }
+
           return results.push({
             id,
             status: "not-fillable",
@@ -476,6 +495,8 @@ export const save = async (
         openSeaRoyalties = await royalties.getRoyaltiesByTokenSet(tokenSetId, "", true);
       }
 
+      const feeRecipients = await FeeRecipients.getInstance();
+
       let feeBps = 0;
       let knownFee = false;
       const feeBreakdown = info.fees.map(({ recipient, amount }) => {
@@ -489,8 +510,9 @@ export const save = async (
         feeBps += bps;
 
         // First check for opensea hardcoded recipients
-        const kind: "marketplace" | "royalty" = allPlatformFeeRecipients.has(
-          recipient.toLowerCase()
+        const kind: "marketplace" | "royalty" = feeRecipients.getByAddress(
+          recipient.toLowerCase(),
+          "marketplace"
         )
           ? "marketplace"
           : "royalty";
@@ -722,9 +744,7 @@ export const save = async (
             Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
         ) {
           await axios.post(
-            `https://seaport-oracle-${
-              config.chainId === 1 ? "mainnet" : "goerli"
-            }.up.railway.app/api/replacements`,
+            `https://seaport-oracle-${getNetworkName()}.up.railway.app/api/replacements`,
             {
               newOrders: [order.params],
               replacedOrders: [replacedOrderResult.raw_data],

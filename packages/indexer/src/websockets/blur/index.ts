@@ -64,6 +64,7 @@ if (config.doWebsocketWork && config.blurWsUrl && config.blurWsApiKey) {
             tokenId: t.tokenId,
             price: t.topAsk?.marketplace === "BLUR" ? t.topAsk.amount : undefined,
             createdAt: t.topAsk?.marketplace === "BLUR" ? t.topAsk.createdAt : undefined,
+            fromWebsocket: true,
           },
           metadata: {},
         },
