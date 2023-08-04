@@ -33,11 +33,6 @@ if (config.doBackgroundWork) {
       try {
         const { block } = job.data as { block: number };
         await syncEvents(block);
-
-        const latestBlock = await redis.get("latest-block-backfill");
-        if (!latestBlock || block > parseInt(latestBlock)) {
-          await redis.set("latest-block-backfill", block);
-        }
       } catch (error) {
         logger.warn(QUEUE_NAME, `Events backfill syncing failed: ${error}`);
         throw error;
