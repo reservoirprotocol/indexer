@@ -150,6 +150,13 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
           const delay = getNetworkSettings().metadataMintDelay;
           const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
 
+          if (contract === "0x47a91457a3a1f700097199fd63c039c4784384ab") {
+            logger.info(
+              this.queueName,
+              `Refreshing token metadata after mint. method=${method}, contract=${contract}, tokenId=${tokenId}, collection=${collection?.id}`
+            );
+          }
+
           await metadataIndexFetchJob.addToQueue(
             [
               {

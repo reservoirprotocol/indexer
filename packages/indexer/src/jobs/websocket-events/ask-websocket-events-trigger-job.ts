@@ -183,6 +183,11 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         rawData: rawResult.raw_data,
       };
 
+      logger.info(
+        this.queueName,
+        `Debug. eventType=${eventType}, result=${JSON.stringify(result)}`
+      );
+
       await publishWebsocketEvent({
         event: eventType,
         tags: {
@@ -191,6 +196,7 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
           maker: fromBuffer(rawResult.maker),
           taker: fromBuffer(rawResult.taker),
         },
+        changed,
         data: result,
         offset: data.offset,
       });
