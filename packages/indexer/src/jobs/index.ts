@@ -145,6 +145,7 @@ import { backfillDeleteExpiredBidsElasticsearchJob } from "@/jobs/activities/bac
 import { transferUpdatesJob } from "@/jobs/transfer-updates/transfer-updates-job";
 import { backfillSaveActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-save-activities-elasticsearch-job";
 import { pendingExpiredOrdersCheckJob } from "@/jobs/orderbook/cron/pending-expired-orders-check-job";
+import { eventsSyncHistoricalJob } from "./events-sync/historical-queue";
 
 export const allJobQueues = [
   backfillExpiredOrders.queue,
@@ -260,6 +261,7 @@ export class RabbitMqJobsConsumer {
       orderbookPostOrderExternalJob,
       orderbookPostOrderExternalOpenseaJob,
       eventsSyncRealtimeJob,
+      eventsSyncHistoricalJob,
       openseaOrdersProcessJob,
       openseaOrdersFetchJob,
       saveBidEventsJob,
