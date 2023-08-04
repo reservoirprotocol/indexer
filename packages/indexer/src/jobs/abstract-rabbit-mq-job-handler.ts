@@ -96,6 +96,12 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
 
       try {
         await channel.ack(consumeMessage); // Ack the message with rabbit
+
+        // Release lock if there's a job id with no delay
+        if (this.rabbitMqMessage.jobId && !this.rabbitMqMessage.delay) {
+          await releaseLock(this.rabbitMqMessage.jobId).catch();
+        }
+
         await RabbitMq.send(queueName, this.rabbitMqMessage, delay); // Trigger the retry / or send to dead letter queue
       } catch (error) {
         // Log the error

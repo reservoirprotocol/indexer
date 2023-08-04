@@ -568,7 +568,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
             url: source?.metadata.url,
           },
           feeBps: Number(feeBps.toString()),
-          feeBreakdown: feeBreakdown,
+          feeBreakdown: Number(feeBps.toString()) === 0 ? [] : feeBreakdown,
           expiration: Number(r.expiration),
           isReservoir: r.is_reservoir,
           isDynamic: Boolean(r.dynamic),
