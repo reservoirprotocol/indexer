@@ -515,6 +515,34 @@ export async function extractRoyalties(
     }
   }
 
+  if (linkedOrder) {
+    // In some case the fee recepient is contract and may forward to another address
+    // And this will cause it's not in the StateChange we need re-check them if it's in the payments logs
+    const missingInStateFees = linkedOrder.fees.filter((c) => !(c.recipient in state));
+    if (missingInStateFees.length) {
+      for (const missingInStateFee of missingInStateFees) {
+        const isInPayment = paymentsToAnalyze.find(
+          (c) => c.to === missingInStateFee.recipient && c.amount === missingInStateFee.amount
+        );
+        if (isInPayment) {
+          const royalty = {
+            recipient: missingInStateFee.recipient,
+            bps: bn(missingInStateFee.amount)
+              .mul(10000)
+              .div(fillEvent.currencyPrice ?? fillEvent.price)
+              .toNumber(),
+          };
+
+          if (royaltyRecipients.includes(missingInStateFee.recipient)) {
+            creatorRoyaltyFeeBreakdown.push(royalty);
+          }
+
+          royaltyFeeBreakdown.push(royalty);
+        }
+      }
+    }
+  }
+
   const getTotalRoyaltyBps = (royalties: Royalty[]) =>
     royalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
 

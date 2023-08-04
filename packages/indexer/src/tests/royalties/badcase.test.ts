@@ -637,8 +637,7 @@ describe("Royalties", () => {
       {
         contract: "0x1a92f7381b9f03921564a437210bb9396471050c",
         tokenId: "2220",
-        // royaltyFeeBps: 500,
-        royaltyFeeBps: 0,
+        royaltyFeeBps: 500,
         marketplaceFeeBps: 250,
         royaltyFeeBreakdown: [
           {
