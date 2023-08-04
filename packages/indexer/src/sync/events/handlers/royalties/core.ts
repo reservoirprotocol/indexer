@@ -461,6 +461,9 @@ export async function extractRoyalties(
               .mul(10000)
               .div(fillEvent.currencyPrice ?? fillEvent.price)
               .toNumber();
+          } else {
+            // Skip if not the in the fees
+            continue;
           }
         }
 

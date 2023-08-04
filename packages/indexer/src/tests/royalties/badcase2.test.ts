@@ -101,6 +101,13 @@ describe("Royalties", () => {
         marketplaceFeeBps: 250,
         paidFullRoyalty: false,
       },
+      {
+        contract: "0x880af717abba38f31ca21673843636a355fb45f3",
+        tokenId: "49",
+        royaltyFeeBps: 0,
+        marketplaceFeeBps: 250,
+        paidFullRoyalty: false,
+      },
     ];
 
     await assignRoyaltiesToFillEvents(fillEvents, false, true);

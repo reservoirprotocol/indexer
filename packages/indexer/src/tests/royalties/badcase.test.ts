@@ -637,7 +637,8 @@ describe("Royalties", () => {
       {
         contract: "0x1a92f7381b9f03921564a437210bb9396471050c",
         tokenId: "2220",
-        royaltyFeeBps: 500,
+        // royaltyFeeBps: 500,
+        royaltyFeeBps: 0,
         marketplaceFeeBps: 250,
         royaltyFeeBreakdown: [
           {
@@ -760,6 +761,7 @@ describe("Royalties", () => {
       const matchFee = feesList.find(
         (c) => c.contract === fillEvent.contract && c.tokenId === fillEvent.tokenId
       );
+
       if (matchFee) {
         expect(fillEvent.royaltyFeeBps).toEqual(matchFee.royaltyFeeBps);
         expect(fillEvent.marketplaceFeeBps).toEqual(matchFee.marketplaceFeeBps);
@@ -806,7 +808,7 @@ describe("Royalties", () => {
         (c) => c.contract === fillEvent.contract && c.tokenId === fillEvent.tokenId
       );
 
-      // console.log("fillEvent", fillEvent);
+      // console.log("fillEvent", fillEvent.contract, fillEvent.tokenId);
       if (matchFee) {
         expect(fillEvent.royaltyFeeBps).toEqual(matchFee.royaltyFeeBps);
         expect(fillEvent.marketplaceFeeBps).toEqual(matchFee.marketplaceFeeBps);
