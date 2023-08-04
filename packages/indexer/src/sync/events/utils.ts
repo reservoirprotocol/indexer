@@ -20,10 +20,22 @@ import { getRouters } from "@/utils/routers";
 import { Sources } from "@/models/sources";
 import { extractNestedTx } from "@/events-sync/handlers/attribution";
 import { getTransactionLogs } from "@/models/transaction-logs";
+import { supports_eth_getBlockReceipts, supports_eth_getBlockTrace } from "./supports";
+import { logger } from "@/common/logger";
 
 export const fetchBlock = async (blockNumber: number) => {
   const block = await baseProvider.getBlockWithTransactions(blockNumber);
   return block;
+};
+
+export const _saveBlockTransactions = async (
+  blockData: BlockWithTransactions,
+  transactionReceipts: TransactionReceipt[]
+) => {
+  const timerStart = Date.now();
+  await saveBlockTransactions(blockData, transactionReceipts);
+  const timerEnd = Date.now();
+  return timerEnd - timerStart;
 };
 
 export const saveBlockTransactions = async (
@@ -72,6 +84,45 @@ export const fetchTransaction = async (hash: string) => {
   const tx = await getTransaction(hash);
   return tx;
 };
+export const _getTransactionTraces = async (Txs: { hash: string }[], block: number) => {
+  const timerStart = Date.now();
+  let traces;
+  if (supports_eth_getBlockTrace) {
+    traces = (await getTracesFromBlock(block)) as TransactionTrace[];
+
+    // traces don't have the transaction hash, so we need to add it by using the txs array we are passing in by using the index of the trace
+    traces = traces.map((trace, index) => {
+      return {
+        ...trace,
+        hash: Txs[index].hash,
+      };
+    });
+  } else {
+    traces = await Promise.all(
+      Txs.map(async (tx) => {
+        const trace = await getTransactionTraceFromRPC(tx.hash);
+        if (!trace) {
+          logger.error("sync-events-v2", `Failed to get trace for tx: ${tx.hash}`);
+          return null;
+        }
+
+        return {
+          ...trace,
+          hash: tx.hash,
+        };
+      })
+    );
+  }
+
+  traces = traces.filter((trace) => trace !== null) as TransactionTrace[];
+
+  const timerEnd = Date.now();
+
+  return {
+    traces,
+    getTransactionTracesTime: timerEnd - timerStart,
+  };
+};
 
 export const getTransactionTraceFromRPC = async (hash: string, retryMax = 10) => {
   let trace: TransactionTrace | undefined;
@@ -107,6 +158,26 @@ export const getTracesFromBlock = async (blockNumber: number) => {
     { tracer: "callTracer" },
   ]);
   return traces;
+};
+
+export const _getTransactionReceiptsFromBlock = async (block: BlockWithTransactions) => {
+  const timerStart = Date.now();
+  let transactionReceipts;
+  if (supports_eth_getBlockReceipts) {
+    transactionReceipts = (await getTransactionReceiptsFromBlock(
+      block.number
+    )) as TransactionReceipt[];
+  } else {
+    transactionReceipts = await Promise.all(
+      block.transactions.map((tx) => baseProvider.getTransactionReceipt(tx.hash))
+    );
+  }
+
+  const timerEnd = Date.now();
+  return {
+    transactionReceipts,
+    getTransactionReceiptsTime: timerEnd - timerStart,
+  };
 };
 
 export const getTransactionReceiptsFromBlock = async (blockNumber: number) => {

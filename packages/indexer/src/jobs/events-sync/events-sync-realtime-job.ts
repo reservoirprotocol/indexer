@@ -1,7 +1,7 @@
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 
 import { logger } from "@/common/logger";
-import { syncEvents, checkForOrphanedBlock, checkForMissingBlocks } from "@/events-sync/index";
+import { syncEvents, checkForOrphanedBlock } from "@/events-sync/index";
 import { checkSupports } from "@/events-sync/supports";
 import { config } from "@/config/index";
 
@@ -28,7 +28,6 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
     try {
       const { block } = payload;
 
-      await checkForMissingBlocks(block);
       await syncEvents(block);
       await checkForOrphanedBlock(block);
     } catch (error) {

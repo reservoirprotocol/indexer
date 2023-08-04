@@ -13,7 +13,6 @@ import { BlockWithTransactions } from "@ethersproject/abstract-provider";
 import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
 
 import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
-import { Block } from "@/models/blocks";
 import { deleteTransactionLogs, saveTransactionLogs } from "@/models/transaction-logs";
 import {
   TransactionTrace,
@@ -21,7 +20,6 @@ import {
   saveTransactionTraces,
 } from "@/models/transaction-traces";
 import { TransactionReceipt } from "@ethersproject/providers";
-import { supports_eth_getBlockReceipts, supports_eth_getBlockTrace } from "./supports";
 import { baseProvider } from "@/common/provider";
 import { redis } from "@/common/redis";
 import { deleteBlockTransactions } from "@/models/transactions";
@@ -254,95 +252,15 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
   return [...txHashToEventsBatch.values()];
 };
 
-const _getTransactionTraces = async (Txs: { hash: string }[], block: number) => {
-  const timerStart = Date.now();
-  let traces;
-  if (supports_eth_getBlockTrace) {
-    traces = (await syncEventsUtils.getTracesFromBlock(block)) as TransactionTrace[];
-
-    // traces don't have the transaction hash, so we need to add it by using the txs array we are passing in by using the index of the trace
-    traces = traces.map((trace, index) => {
-      return {
-        ...trace,
-        hash: Txs[index].hash,
-      };
-    });
-  } else {
-    traces = await Promise.all(
-      Txs.map(async (tx) => {
-        const trace = await syncEventsUtils.getTransactionTraceFromRPC(tx.hash);
-        if (!trace) {
-          logger.error("sync-events-v2", `Failed to get trace for tx: ${tx.hash}`);
-          return null;
-        }
-
-        return {
-          ...trace,
-          hash: tx.hash,
-        };
-      })
-    );
-  }
-
-  traces = traces.filter((trace) => trace !== null) as TransactionTrace[];
-
-  const timerEnd = Date.now();
-
-  return {
-    traces,
-    getTransactionTracesTime: timerEnd - timerStart,
-  };
-};
-
-const _getTransactionReceiptsFromBlock = async (block: BlockWithTransactions) => {
-  const timerStart = Date.now();
-  let transactionReceipts;
-  if (supports_eth_getBlockReceipts) {
-    transactionReceipts = (await syncEventsUtils.getTransactionReceiptsFromBlock(
-      block.number
-    )) as TransactionReceipt[];
-  } else {
-    transactionReceipts = await Promise.all(
-      block.transactions.map((tx) => baseProvider.getTransactionReceipt(tx.hash))
-    );
-  }
-
-  const timerEnd = Date.now();
-  return {
-    transactionReceipts,
-    getTransactionReceiptsTime: timerEnd - timerStart,
-  };
-};
-
-const _saveBlock = async (blockData: Block) => {
-  const timerStart = Date.now();
-  await blocksModel.saveBlock(blockData);
-  const timerEnd = Date.now();
-  return {
-    saveBlocksTime: timerEnd - timerStart,
-    endSaveBlocksTime: timerEnd,
-  };
-};
-
-const _saveTransactions = async (
-  blockData: BlockWithTransactions,
-  transactionReceipts: TransactionReceipt[]
-) => {
-  const timerStart = Date.now();
-  await syncEventsUtils.saveBlockTransactions(blockData, transactionReceipts);
-  const timerEnd = Date.now();
-  return timerEnd - timerStart;
-};
-
 const getBlockSyncData = async (blockData: BlockWithTransactions) => {
   const [
     { traces, getTransactionTracesTime },
     { transactionReceipts, getTransactionReceiptsTime },
     { saveBlocksTime, endSaveBlocksTime },
   ] = await Promise.all([
-    _getTransactionTraces(blockData.transactions, blockData.number),
-    _getTransactionReceiptsFromBlock(blockData),
-    _saveBlock({
+    syncEventsUtils._getTransactionTraces(blockData.transactions, blockData.number),
+    syncEventsUtils._getTransactionReceiptsFromBlock(blockData),
+    blocksModel._saveBlock({
       number: blockData.number,
       hash: blockData.hash,
       timestamp: blockData.timestamp,
@@ -387,7 +305,7 @@ const saveLogsAndTracesAndTransactions = async (
   await Promise.all([
     saveTransactionLogs(logs.flat()),
     saveTransactionTraces(traces),
-    _saveTransactions(blockData, transactionReceipts),
+    syncEventsUtils._saveBlockTransactions(blockData, transactionReceipts),
     syncEventsUtils.processContractAddresses(traces),
   ]);
 

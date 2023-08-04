@@ -6,6 +6,7 @@ import { redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
+import { checkForMissingBlocks } from "@/events-sync/index";
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork && config.catchup) {
@@ -24,6 +25,7 @@ if (config.doBackgroundWork && config.catchup) {
 
         try {
           await eventsSyncRealtimeJob.addToQueue({ block });
+          await checkForMissingBlocks(block);
         } catch (error) {
           logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);
         }
@@ -47,6 +49,7 @@ if (config.doBackgroundWork && config.catchup) {
 
               const block = await baseProvider.getBlockNumber();
               await eventsSyncRealtimeJob.addToQueue({ block });
+              await checkForMissingBlocks(block);
 
               logger.info("events-sync-catchup", "Catching up events");
             } catch (error) {

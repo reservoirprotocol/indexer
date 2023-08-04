@@ -7,6 +7,16 @@ export type Block = {
   timestamp: number;
 };
 
+export const _saveBlock = async (blockData: Block) => {
+  const timerStart = Date.now();
+  await saveBlock(blockData);
+  const timerEnd = Date.now();
+  return {
+    saveBlocksTime: timerEnd - timerStart,
+    endSaveBlocksTime: timerEnd,
+  };
+};
+
 export const saveBlock = async (block: Block): Promise<Block> => {
   await txdb.none(
     `
