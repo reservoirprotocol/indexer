@@ -3,6 +3,7 @@ import { fromBuffer, toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { redis } from "@/common/redis";
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
+import { config } from "@/config/index";
 
 export type CollectionFloorJobPayload = {
   kind: string;
@@ -15,7 +16,7 @@ export type CollectionFloorJobPayload = {
 export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
   queueName = "collection-updates-floor-ask-queue";
   maxRetries = 10;
-  concurrency = 5;
+  concurrency = config.chainId == 137 ? 1 : 5;
   consumerTimeout = 60000;
   backoff = {
     type: "exponential",
