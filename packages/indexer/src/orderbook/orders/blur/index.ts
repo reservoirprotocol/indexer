@@ -116,7 +116,7 @@ export const savePartialListings = async (
       const invalidatedOrderIds = await idb.manyOrNone(
         `
           UPDATE orders SET
-            fillability_status = 'cancelled',
+            approval_status = 'disabled',
             expiration = now(),
             updated_at = now()
           WHERE orders.token_set_id = $/tokenSetId/
@@ -266,6 +266,7 @@ export const savePartialListings = async (
           `
             UPDATE orders SET
               fillability_status = 'fillable',
+              approval_status = 'approved',
               price = $/price/,
               currency_price = $/price/,
               value = $/price/,
