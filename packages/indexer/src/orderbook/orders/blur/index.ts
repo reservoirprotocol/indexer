@@ -22,7 +22,7 @@ type SaveResult = {
   id: string;
   status: string;
   unfillable?: boolean;
-  triggerKind?: "new-order" | "cancel" | "reprice";
+  triggerKind?: "new-order" | "reprice";
 };
 
 // Listings (partial)
@@ -142,7 +142,7 @@ export const savePartialListings = async (
         results.push({
           id,
           status: "success",
-          triggerKind: "cancel",
+          triggerKind: "reprice",
         });
       }
 
