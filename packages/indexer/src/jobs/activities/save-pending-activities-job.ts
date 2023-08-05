@@ -10,12 +10,12 @@ import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
 
-const BATCH_SIZE = 500;
+const BATCH_SIZE = config.chainId === 8453 ? 1000 : 500;
 
 export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
   queueName = "save-pending-activities-queue";
   maxRetries = 10;
-  concurrency = 1;
+  concurrency = config.chainId === 8453 ? 5 : 1;
   persistent = true;
   lazyMode = true;
 
@@ -26,6 +26,11 @@ export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
     if (pendingActivities.length > 0) {
       try {
         await ActivitiesIndex.save(pendingActivities, false);
+
+        logger.error(
+          this.queueName,
+          `saved activities. pendingActivitiesCount=${pendingActivities.length}`
+        );
 
         for (const activity of pendingActivities) {
           // If collection information is not available yet when a mint event
