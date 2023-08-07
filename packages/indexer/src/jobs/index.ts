@@ -369,28 +369,6 @@ export class RabbitMqJobsConsumer {
         noAck: false,
       }
     );
-
-    // Subscribe to the retry queue
-    await channel.consume(
-      job.getRetryQueue(),
-      async (msg) => {
-        if (!_.isNull(msg)) {
-          await _.clone(job)
-            .consume(channel, msg)
-            .catch((error) => {
-              logger.error(
-                "rabbit-consume",
-                `error consuming from ${job.queueName} error ${error}`
-              );
-            });
-        }
-      },
-      {
-        consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getRetryQueue()),
-        prefetch: _.max([_.toInteger(job.getConcurrency() / 4), 1]) ?? 1,
-        noAck: false,
-      }
-    );
   }
 
   /**
@@ -402,7 +380,6 @@ export class RabbitMqJobsConsumer {
 
     if (channel) {
       await channel.cancel(RabbitMqJobsConsumer.getConsumerTag(job.getQueue()));
-      await channel.cancel(RabbitMqJobsConsumer.getConsumerTag(job.getRetryQueue()));
     }
   }
 
@@ -454,7 +431,7 @@ export class RabbitMqJobsConsumer {
           async (msg) => {
             if (!_.isNull(msg)) {
               await RabbitMq.send(
-                job.getRetryQueue(),
+                job.getQueue(),
                 JSON.parse(msg.content.toString()) as RabbitMQMessage
               );
             }
