@@ -11,6 +11,7 @@ import {
   getFillEventsFromTx,
   getOrderInfos,
 } from "@/events-sync/handlers/royalties";
+import { extractOrdersFromCalldata } from "@/events-sync/handlers/royalties/calldata";
 import { supportedExchanges } from "@/events-sync/handlers/royalties/config";
 import { splitPayments } from "@/events-sync/handlers/royalties/payments";
 import { getFillEventsFromTxOnChain } from "@/events-sync/handlers/royalties/utils";
@@ -202,6 +203,14 @@ export async function extractRoyalties(
   // Extract the payments from the (sub)call we just found
   const paymentsToAnalyze = getPayments(subcallToAnalyze);
 
+  // Extract the orders from calldata when there have multiple fill events
+  const parsedOrders =
+    fillEvents.length > 1 ? await extractOrdersFromCalldata(subcallToAnalyze.input) : [];
+
+  const linkedOrder = parsedOrders.find(
+    (c) => c.contract === fillEvent.contract && c.tokenId === fillEvent.tokenId
+  );
+
   // Extract any fill events that have the same contract and currency
   const sameContractFills = fillEvents.filter((e) => {
     const isMatch = e.contract === contract && e.currency === fillEvent.currency;
@@ -389,13 +398,31 @@ export async function extractRoyalties(
         bps: bpsOfPrice.toNumber(),
       };
 
-      const feeRecipientPlatform = await feeRecipient.getByAddress(address, "marketplace");
-      // const feeRecipientPlatform = knownPlatformFeeRecipients.includes(address)
-
+      const feeRecipientPlatform = feeRecipient.getByAddress(address, "marketplace");
       if (feeRecipientPlatform) {
+        // Make sure current fee address in every order
+        let protocolFeeSum = sameProtocolTotalPrice;
+        if (linkedOrder) {
+          protocolFeeSum = sameProtocolFills.reduce((total, item) => {
+            const matchOrder = parsedOrders.find(
+              (c) => c.contract === item.event.contract && c.tokenId === item.event.tokenId
+            );
+            if (
+              matchOrder &&
+              matchOrder.fees.find((c) => c.recipient.toLowerCase() === address.toLowerCase())
+            ) {
+              return total.add(
+                bn(item.event.currencyPrice ?? item.event.price).mul(bn(item.event.amount))
+              );
+            } else {
+              return total;
+            }
+          }, bn(0));
+        }
+
         // This is a marketplace fee payment
         // Reset the bps
-        royalty.bps = bn(balanceChange).mul(10000).div(sameProtocolTotalPrice).toNumber();
+        royalty.bps = bn(balanceChange).mul(10000).div(protocolFeeSum).toNumber();
 
         // Calculate by matched payment amount in split payments
         if (matchRangePayment && isReliable && hasMultiple) {
@@ -411,6 +438,7 @@ export async function extractRoyalties(
         const sameRecipientDetails = sameProtocolDetails.filter((d) => d.recipient === address);
         const shareSameRecipient = sameRecipientDetails.length === sameProtocolFills.length;
 
+        // Make sure current fee address in every order
         let bps: number = bn(balanceChange).mul(10000).div(sameContractTotalPrice).toNumber();
 
         if (shareSameRecipient) {
@@ -420,6 +448,22 @@ export async function extractRoyalties(
           const isValid = configBPS === newBps;
           if (isValid) {
             bps = newBps;
+          }
+        }
+
+        // Re-calculate the bps based on the fee amount in the order
+        if (linkedOrder) {
+          const feeItem = linkedOrder.fees.find(
+            (c) => c.recipient.toLowerCase() === address.toLowerCase()
+          );
+          if (feeItem) {
+            bps = bn(feeItem.amount)
+              .mul(10000)
+              .div(fillEvent.currencyPrice ?? fillEvent.price)
+              .toNumber();
+          } else {
+            // Skip if not the in the fees
+            continue;
           }
         }
 
@@ -465,6 +509,34 @@ export async function extractRoyalties(
         if (recipientIsEligible && !isAMM && isInRange) {
           // Reset the bps
           royalty.bps = bps;
+          royaltyFeeBreakdown.push(royalty);
+        }
+      }
+    }
+  }
+
+  if (linkedOrder) {
+    // In some case the fee recepient is contract and may forward to another address
+    // And this will cause it's not in the StateChange we need re-check them if it's in the payments logs
+    const missingInStateFees = linkedOrder.fees.filter((c) => !(c.recipient in state));
+    if (missingInStateFees.length) {
+      for (const missingInStateFee of missingInStateFees) {
+        const isInPayment = paymentsToAnalyze.find(
+          (c) => c.to === missingInStateFee.recipient && c.amount === missingInStateFee.amount
+        );
+        if (isInPayment) {
+          const royalty = {
+            recipient: missingInStateFee.recipient,
+            bps: bn(missingInStateFee.amount)
+              .mul(10000)
+              .div(fillEvent.currencyPrice ?? fillEvent.price)
+              .toNumber(),
+          };
+
+          if (royaltyRecipients.includes(missingInStateFee.recipient)) {
+            creatorRoyaltyFeeBreakdown.push(royalty);
+          }
+
           royaltyFeeBreakdown.push(royalty);
         }
       }
