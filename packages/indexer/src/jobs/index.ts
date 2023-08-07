@@ -528,10 +528,10 @@ export class RabbitMqJobsConsumer {
     const job = _.find(RabbitMqJobsConsumer.getQueues(), (queue) => queue.getQueue() === queueName);
 
     if (job) {
-      let queueName = job.getQueue();
+      let deadLetterQueue = job.getDeadLetterQueue();
 
       if (vhost === "/") {
-        queueName = `${getNetworkName()}.${job.queueName}`;
+        deadLetterQueue = `${getNetworkName()}.${deadLetterQueue}`;
       }
 
       const deadLetterQueueSize = await RabbitMq.getQueueSize(`${queueName}-dead-letter`);
@@ -556,7 +556,7 @@ export class RabbitMqJobsConsumer {
       // Subscribe to the dead letter queue
       await new Promise<void>((resolve) =>
         channel.consume(
-          `${queueName}-dead-letter`,
+          `${deadLetterQueue}-dead-letter`,
           async (msg) => {
             if (!_.isNull(msg)) {
               await RabbitMq.send(queueName, JSON.parse(msg.content.toString()) as RabbitMQMessage);

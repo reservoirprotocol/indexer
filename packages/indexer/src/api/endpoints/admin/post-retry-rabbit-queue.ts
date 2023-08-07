@@ -6,8 +6,6 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-import _ from "lodash";
-import { getNetworkName } from "@/config/network";
 import { RabbitMqJobsConsumer } from "@/jobs/index";
 
 export const postRetryRabbitQueue: RouteOptions = {
@@ -31,9 +29,6 @@ export const postRetryRabbitQueue: RouteOptions = {
     }
 
     const payload = request.payload as any;
-    if (payload === "/" && !_.startsWith(payload.queueName, `${getNetworkName()}.`)) {
-      payload.queueName = `${getNetworkName()}.${payload.queueName}`;
-    }
 
     try {
       const retriedMessagesCount = await RabbitMqJobsConsumer.retryQueue(
