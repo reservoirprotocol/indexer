@@ -1,4 +1,4 @@
-import { idb } from "@/common/db";
+import { txdb } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
 
 export type Block = {
@@ -7,8 +7,18 @@ export type Block = {
   timestamp: number;
 };
 
+export const _saveBlock = async (blockData: Block) => {
+  const timerStart = Date.now();
+  await saveBlock(blockData);
+  const timerEnd = Date.now();
+  return {
+    saveBlocksTime: timerEnd - timerStart,
+    endSaveBlocksTime: timerEnd,
+  };
+};
+
 export const saveBlock = async (block: Block): Promise<Block> => {
-  await idb.none(
+  await txdb.none(
     `
       INSERT INTO blocks (
         hash,
@@ -32,7 +42,7 @@ export const saveBlock = async (block: Block): Promise<Block> => {
 };
 
 export const deleteBlock = async (number: number, hash: string) =>
-  idb.none(
+  txdb.none(
     `
       DELETE FROM blocks
       WHERE blocks.hash = $/hash/
@@ -45,7 +55,7 @@ export const deleteBlock = async (number: number, hash: string) =>
   );
 
 export const getBlocks = async (number: number): Promise<Block[]> =>
-  idb
+  txdb
     .manyOrNone(
       `
         SELECT
@@ -64,9 +74,8 @@ export const getBlocks = async (number: number): Promise<Block[]> =>
       }))
     );
 
-// get block with number=number and hash!=hash
 export const getBlockWithNumber = async (number: number, hash: string): Promise<Block | null> =>
-  idb
+  txdb
     .oneOrNone(
       `
         SELECT

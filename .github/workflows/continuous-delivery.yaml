@@ -151,6 +151,52 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
+  deploy-tx-prod:
+    name: Deploy to tx Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build]
+    environment: dev
+    # if: github.ref == 'refs/heads/development' && needs.build.outputs.version != ''
+    if: github.ref == 'refs/heads/tx-production'
+    steps:
+      - name: Checkout repository k8s-configs
+        uses: actions/checkout@v3
+        with:
+          repository: unevenlabs/k8s-configs
+          token: ${{ secrets.DEVOPSBOT_TOKEN }}
+          path: k8s-configs
+
+      - name: Deploy to Tx Production Environment
+        working-directory: k8s-configs
+        run: |
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-tx-goerli.yaml \
+            ${{ github.sha }} \
+            indexer-worker-tx-goerli
+      - name: Post to Slack
+        if: ${{ always() }}
+        id: slack-deploy-tx-prod
+        uses: unevenlabs/slack-github-action@v1.0.2
+        with:
+          channel-id: "ci"
+          update-ts: ${{ steps.slack-build.outputs.ts }}
+          payload: |
+            {
+              "text": "GitHub deploy tx-prod result: <status-${{ job.status }}-status>\nAuthor: <author-${{ github.actor }}-author>\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "GitHub deploy tx-prod result: <status-${{ job.status }}-status>\nAuthor: <author-${{ github.actor }}-author>\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
   deploy-prod:
     name: Deploy to Production
     runs-on: ubuntu-latest
