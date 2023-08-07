@@ -75,7 +75,7 @@ export class BlockCheckJob extends AbstractRabbitMqJobHandler {
               (SELECT
                 fill_events_2.block_hash
               FROM fill_events_2
-              WHERE fill_events_2.block = $/block/ AND nft_transfer_events.is_deleted = 0)
+              WHERE fill_events_2.block = $/block/ AND fill_events_2.is_deleted = 0)
 
               UNION
 
