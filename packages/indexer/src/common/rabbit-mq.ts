@@ -260,8 +260,8 @@ export class RabbitMq {
     });
   }
 
-  public static async getQueueSize(queueName: string) {
-    const url = `${config.rabbitHttpUrl}/api/queues/${getNetworkName()}/${queueName}`;
+  public static async getQueueSize(queueName: string, vhost = "%2F") {
+    const url = `${config.rabbitHttpUrl}/api/queues/${vhost}/${queueName}`;
     const queueData = await axios.get(url);
     return Number(queueData.data.messages);
   }
