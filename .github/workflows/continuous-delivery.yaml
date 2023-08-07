@@ -2,7 +2,7 @@ name: Continuous Delivery
 
 on:
   push:
-    branches: [main, development]
+    branches: [main, development, tx-production]
 
 env:
   NODE_VERSION: "18.x"
