@@ -140,7 +140,9 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
   }
 
   public getQueue(): string {
-    return `${getNetworkName()}.${this.queueName}`;
+    return RabbitMq.vhostMigratingChains.includes(config.chainId)
+      ? this.queueName
+      : `${getNetworkName()}.${this.queueName}`;
   }
 
   public getRetryQueue(queueName?: string): string {
