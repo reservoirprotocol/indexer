@@ -40,6 +40,7 @@ export const postRetryRabbitQueue: RouteOptions = {
         payload.queueName,
         payload.vhost
       );
+
       return {
         message: `${retriedMessagesCount} messages in ${payload.queueName} on vhost ${payload.vhost} sent to retry`,
       };

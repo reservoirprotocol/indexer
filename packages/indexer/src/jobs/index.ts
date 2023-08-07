@@ -528,7 +528,13 @@ export class RabbitMqJobsConsumer {
     const job = _.find(RabbitMqJobsConsumer.getQueues(), (queue) => queue.getQueue() === queueName);
 
     if (job) {
-      const deadLetterQueueSize = await RabbitMq.getQueueSize(job.getDeadLetterQueue());
+      let queueName = job.getQueue();
+
+      if (vhost === "/") {
+        queueName = `${getNetworkName()}.${job.queueName}`;
+      }
+
+      const deadLetterQueueSize = await RabbitMq.getQueueSize(`${queueName}-dead-letter`);
 
       // No messages in the dead letter queue
       if (deadLetterQueueSize === 0) {
@@ -550,13 +556,10 @@ export class RabbitMqJobsConsumer {
       // Subscribe to the dead letter queue
       await new Promise<void>((resolve) =>
         channel.consume(
-          job.getDeadLetterQueue(),
+          `${queueName}-dead-letter`,
           async (msg) => {
             if (!_.isNull(msg)) {
-              await RabbitMq.send(
-                job.getQueue(),
-                JSON.parse(msg.content.toString()) as RabbitMQMessage
-              );
+              await RabbitMq.send(queueName, JSON.parse(msg.content.toString()) as RabbitMQMessage);
             }
 
             ++counter;
