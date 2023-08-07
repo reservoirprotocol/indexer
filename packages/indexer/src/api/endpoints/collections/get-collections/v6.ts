@@ -214,7 +214,7 @@ export const getCollectionsV6Options: RouteOptions = {
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
           }).description(
-            "Total volume change X-days vs previous X-days. (e.g. 7day [days 1-7] vs 7day prior [days 8-14])"
+            "Total volume change X-days vs previous X-days. (e.g. 7day [days 1-7] vs 7day prior [days 8-14]). A value over 1 is a positive gain, under 1 is a negative loss. e.g. 1 means no change; 1.1 means 10% increase; 0.9 means 10% decrease."
           ),
           floorSale: Joi.object({
             "1day": Joi.number().unsafe().allow(null),
@@ -226,7 +226,7 @@ export const getCollectionsV6Options: RouteOptions = {
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
           }).description(
-            "Floor sale change from X-days vs X-days ago. (e.g. 7day floor sale vs floor sale 14 days ago)"
+            "Floor sale change from X-days vs X-days ago. (e.g. 7day floor sale vs floor sale 14 days ago). A value over 1 is a positive gain, under 1 is a negative loss. e.g. 1 means no change; 1.1 means 10% increase; 0.9 means 10% decrease."
           ),
           salesCount: Joi.object({
             "1day": Joi.number().unsafe().allow(null),
