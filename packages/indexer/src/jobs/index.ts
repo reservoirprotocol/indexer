@@ -555,6 +555,11 @@ export class RabbitMqJobsConsumer {
       const channel = await connection.createChannel();
       let counter = 0;
 
+      logger.info(
+        "rabbit-retry",
+        `retrying ${deadLetterQueueSize} messages from ${deadLetterQueue} to ${queueName}`
+      );
+
       await channel.prefetch(200);
 
       // Subscribe to the dead letter queue
