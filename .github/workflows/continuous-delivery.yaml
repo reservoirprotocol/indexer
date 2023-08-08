@@ -171,9 +171,9 @@ jobs:
         working-directory: k8s-configs
         run: |
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-tx-goerli.yaml \
+            ./prod/platform/indexer-worker-tx-arbitrum.yaml \
             ${{ github.sha }} \
-            indexer-worker-tx-goerli
+            indexer-worker-tx-arbitrum
       - name: Post to Slack
         if: ${{ always() }}
         id: slack-deploy-tx-prod
