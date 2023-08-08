@@ -27,6 +27,7 @@ export class EventsBackfillJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: EventsBackfillJobPayload) {
     try {
       let fromBlock, toBlock, maxBlock;
+      logger.info(this.queueName, `Processing payload: ${JSON.stringify(payload)}`);
 
       // initialize backfill
       if (payload.fromBlock && payload.toBlock && !payload.backfillId) {
