@@ -356,7 +356,7 @@ const processEvents = async (logs: any[], blockData: BlockWithTransactions) => {
   };
 };
 
-export const syncEvents = async (block: number) => {
+export const syncEvents = async (block: number, syncEventsToMainDB = true) => {
   try {
     logger.info("sync-events-v2", `Events realtime syncing block ${block}`);
     const startSyncTime = Date.now();
@@ -383,7 +383,11 @@ export const syncEvents = async (block: number) => {
       transactionReceipts,
       traces
     );
-    const { processEventsLatencies, processLogsTime } = await processEvents(logs, blockData);
+    let processEventLatencies;
+
+    if (syncEventsToMainDB) {
+      processEventLatencies = await processEvents(logs, blockData);
+    }
 
     const endSyncTime = Date.now();
 
@@ -413,10 +417,10 @@ export const syncEvents = async (block: number) => {
       logs: {
         count: logs.length,
         getTransactionReceiptsTime,
-        processLogsTime,
+        processLogsTime: processEventLatencies?.processLogsTime ?? 0,
         saveLogsAndTracesAndTransactionsTime,
       },
-      processEventsLatencies: processEventsLatencies,
+      processEventsLatencies: processEventLatencies?.processEventsLatencies ?? [],
       totalSyncTime: endSyncTime - startSyncTime,
       blockSyncTime: endSaveBlocksTime - startSyncTime,
     };
