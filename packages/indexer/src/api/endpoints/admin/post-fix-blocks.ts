@@ -6,7 +6,7 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-import * as historicalEventsSync from "@/jobs/events-sync/historical-queue";
+import { eventsSyncHistoricalJob } from "@/jobs/events-sync/historical-queue";
 
 export const postFixBlocksOptions: RouteOptions = {
   description: "Trigger fixing any orphaned block.",
@@ -36,7 +36,7 @@ export const postFixBlocksOptions: RouteOptions = {
 
       for (let block = fromBlock; block <= toBlock; block++) {
         // await blockCheckJob.addToQueue({ block });
-        await historicalEventsSync.addToQueue({ block: Number(block) });
+        await eventsSyncHistoricalJob.addToQueue({ block: Number(block) });
       }
 
       return { message: "Request triggered" };

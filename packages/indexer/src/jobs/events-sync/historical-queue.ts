@@ -7,6 +7,7 @@ import { checkSupports } from "@/events-sync/supports";
 
 export type EventsSyncHistoricalJobPayload = {
   block: number;
+  syncEventsToMainDB?: boolean;
 };
 
 export class EventsSyncHistoricalJob extends AbstractRabbitMqJobHandler {
@@ -25,9 +26,9 @@ export class EventsSyncHistoricalJob extends AbstractRabbitMqJobHandler {
   }
   protected async process(payload: EventsSyncHistoricalJobPayload) {
     try {
-      const { block } = payload;
+      const { block, syncEventsToMainDB } = payload;
 
-      await syncEvents(block);
+      await syncEvents(block, syncEventsToMainDB);
     } catch (error) {
       logger.warn(this.queueName, `Events historical syncing failed: ${error}`);
       throw error;

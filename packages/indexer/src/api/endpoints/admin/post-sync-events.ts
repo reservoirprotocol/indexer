@@ -7,7 +7,7 @@ import Joi from "joi";
 import { logger } from "@/common/logger";
 import { regex } from "@/common/utils";
 import { config } from "@/config/index";
-import * as backfillQueue from "@/jobs/events-sync/historical-queue";
+import { eventsBackfillJob } from "@/jobs/events-sync/backfill-queue";
 export const postSyncEventsOptions: RouteOptions = {
   description: "Trigger syncing of events.",
   tags: ["api", "x-admin"],
@@ -48,9 +48,11 @@ export const postSyncEventsOptions: RouteOptions = {
       const fromBlock = payload.fromBlock;
       const toBlock = payload.toBlock;
 
-      for (const block of [fromBlock, toBlock]) {
-        await backfillQueue.addToQueue({ block });
-      }
+      eventsBackfillJob.addToQueue({
+        fromBlock,
+        toBlock,
+        syncEventsToMainDB: payload?.syncEventsToMainDB ?? true,
+      });
 
       return { message: "Request accepted" };
     } catch (error) {

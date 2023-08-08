@@ -146,6 +146,7 @@ import { transferUpdatesJob } from "@/jobs/transfer-updates/transfer-updates-job
 import { backfillSaveActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-save-activities-elasticsearch-job";
 import { pendingExpiredOrdersCheckJob } from "@/jobs/orderbook/cron/pending-expired-orders-check-job";
 import { eventsSyncHistoricalJob } from "./events-sync/historical-queue";
+import { eventsBackfillJob } from "./events-sync/backfill-queue";
 
 export const allJobQueues = [
   backfillExpiredOrders.queue,
@@ -262,6 +263,7 @@ export class RabbitMqJobsConsumer {
       orderbookPostOrderExternalOpenseaJob,
       eventsSyncRealtimeJob,
       eventsSyncHistoricalJob,
+      eventsBackfillJob,
       openseaOrdersProcessJob,
       openseaOrdersFetchJob,
       saveBidEventsJob,
@@ -390,8 +392,15 @@ export class RabbitMqJobsConsumer {
     try {
       await RabbitMqJobsConsumer.connect(); // Create a connection for the consumer
 
+      // realtime events queues:
+      const queues = ["events-sync-realtime", "events-backfill-job", "events-sync-historical"];
+
       for (const queue of RabbitMqJobsConsumer.getQueues()) {
         try {
+          if (config.doTxWorkOnly && !_.includes(queues, queue.queueName)) {
+            continue;
+          }
+
           if (!queue.isDisableConsuming()) {
             await RabbitMqJobsConsumer.subscribe(queue);
           }
