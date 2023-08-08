@@ -32,7 +32,7 @@ new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 const processBlockGapCheckJob = async () => {
   try {
-    const limit = config.chainId === 137 ? 1000000 : 100000;
+    const limit = 100000;
 
     const missingBlocks = await idb.query(
       `WITH last_blocks AS (
