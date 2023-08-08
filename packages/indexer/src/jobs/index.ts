@@ -394,9 +394,7 @@ export class RabbitMqJobsConsumer {
       ? RabbitMqJobsConsumer.channelsToJobs.get(channel)?.push(job)
       : RabbitMqJobsConsumer.channelsToJobs.set(channel, [job]);
 
-    const queue = RabbitMq.vhostMigratingChains.includes(config.chainId)
-      ? `${getNetworkName()}.${job.queueName}`
-      : job.getQueue();
+    const queue = `${getNetworkName()}.${job.queueName}`;
 
     // Subscribe to the queue
     await channel.consume(
