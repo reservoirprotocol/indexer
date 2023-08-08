@@ -53,6 +53,7 @@ export const config = {
   doWebsocketServerWork: Boolean(Number(process.env.DO_WEBSOCKET_SERVER_WORK)),
   doEventsSyncBackfill: Boolean(Number(process.env.DO_EVENTS_SYNC_BACKFILL)),
   disableOrders: Boolean(Number(process.env.DISABLE_ORDERS)),
+  doTxWorkOnly: Boolean(Number(process.env.DO_TX_WORK_ONLY)),
 
   // for kafka
   doKafkaWork: Boolean(Number(process.env.DO_KAFKA_WORK)),
