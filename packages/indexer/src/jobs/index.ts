@@ -498,19 +498,13 @@ export class RabbitMqJobsConsumer {
   static async startRabbitJobsConsumer(): Promise<void> {
     try {
       await RabbitMqJobsConsumer.connect(); // Create a connection for the consumer
-
-      if (RabbitMq.vhostMigratingChains.includes(config.chainId)) {
-        await RabbitMqJobsConsumer.connectToVhost(); // Create a connection for the consumer
-      }
+      await RabbitMqJobsConsumer.connectToVhost(); // Create a connection for the consumer
 
       for (const queue of RabbitMqJobsConsumer.getQueues()) {
         try {
           if (!queue.isDisableConsuming()) {
             await RabbitMqJobsConsumer.subscribe(queue);
-
-            if (RabbitMq.vhostMigratingChains.includes(config.chainId)) {
-              await RabbitMqJobsConsumer.subscribeToVhost(queue);
-            }
+            await RabbitMqJobsConsumer.subscribeToVhost(queue);
           }
         } catch (error) {
           logger.error(
