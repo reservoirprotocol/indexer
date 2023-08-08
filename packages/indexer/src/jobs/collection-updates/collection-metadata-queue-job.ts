@@ -29,27 +29,20 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: MetadataQueueJobPayload) {
     const { contract, tokenId, community, forceRefresh } = payload;
 
-    if (config.chainId === 43114) {
-      logger.error(
-        this.queueName,
-        `Debug1. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}`
-      );
-    }
-
     if (forceRefresh || (await acquireLock(`${this.queueName}:${contract}`, 5 * 60))) {
       if (await acquireLock(this.queueName, 1)) {
-        if (config.chainId === 43114) {
-          logger.error(
-            this.queueName,
-            `Debug2. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}`
-          );
-        }
-
         try {
           if (isNaN(Number(tokenId)) || tokenId == null) {
             logger.error(
               this.queueName,
               `Invalid tokenId. contract=${contract}, tokenId=${tokenId}, community=${community}`
+            );
+          }
+
+          if (config.chainId === 43114 && forceRefresh) {
+            logger.info(
+              this.queueName,
+              `Debug. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}`
             );
           }
 
@@ -67,13 +60,6 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
           );
         }
       } else {
-        if (config.chainId === 43114) {
-          logger.error(
-            this.queueName,
-            `Debug3. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}`
-          );
-        }
-
         if (!forceRefresh) {
           await releaseLock(`${this.queueName}:${contract}`);
         }
