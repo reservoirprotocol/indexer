@@ -393,7 +393,7 @@ export class RabbitMqJobsConsumer {
       await RabbitMqJobsConsumer.connect(); // Create a connection for the consumer
 
       // realtime events queues:
-      const queues = ["events-sync-realtime", "events-backfill-job", "events-sync-historical"];
+      const queues = ["events-backfill-job", "events-sync-historical"];
 
       for (const queue of RabbitMqJobsConsumer.getQueues()) {
         try {
