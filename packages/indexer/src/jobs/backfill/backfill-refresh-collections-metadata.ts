@@ -42,14 +42,15 @@ if (config.doBackgroundWork) {
       }
 
       if (cursor) {
-        continuationFilter = `WHERE (collections.id) > ($/collectionId/)`;
+        continuationFilter = `AND (collections.id) > ($/collectionId/)`;
       }
 
       const results = await idb.manyOrNone(
         `
         SELECT collections.id
         FROM collections
-        --${continuationFilter}
+        WHERE collections.id  = collections.name
+        ${continuationFilter}
         ORDER BY all_time_volume DESC
         LIMIT $/limit/
           `,
