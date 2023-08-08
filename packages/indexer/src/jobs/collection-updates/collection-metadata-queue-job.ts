@@ -3,6 +3,7 @@ import { acquireLock, releaseLock } from "@/common/redis";
 import { logger } from "@/common/logger";
 import { Collections } from "@/models/collections";
 import _ from "lodash";
+import { config } from "@/config/index";
 
 export type CollectionMetadataInfo = {
   contract: string;
@@ -28,8 +29,22 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: MetadataQueueJobPayload) {
     const { contract, tokenId, community, forceRefresh } = payload;
 
+    if (config.chainId === 43114) {
+      logger.error(
+        this.queueName,
+        `Debug1. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}`
+      );
+    }
+
     if (forceRefresh || (await acquireLock(`${this.queueName}:${contract}`, 5 * 60))) {
       if (await acquireLock(this.queueName, 1)) {
+        if (config.chainId === 43114) {
+          logger.error(
+            this.queueName,
+            `Debug2. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}`
+          );
+        }
+
         try {
           if (isNaN(Number(tokenId)) || tokenId == null) {
             logger.error(
@@ -43,13 +58,22 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
           logger.error(
             this.queueName,
             JSON.stringify({
-              message: `updateCollectionCache error ${JSON.stringify(error)}`,
+              message: `updateCollectionCache error. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}, error=${JSON.stringify(
+                error
+              )}`,
               jobData: payload,
               error,
             })
           );
         }
       } else {
+        if (config.chainId === 43114) {
+          logger.error(
+            this.queueName,
+            `Debug3. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}`
+          );
+        }
+
         if (!forceRefresh) {
           await releaseLock(`${this.queueName}:${contract}`);
         }
