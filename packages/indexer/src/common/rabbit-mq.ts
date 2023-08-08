@@ -32,7 +32,6 @@ export type CreatePolicyPayload = {
   name: string;
   pattern: string;
   priority: number;
-  vhost?: string;
   definition: {
     "max-length"?: number;
     "max-length-bytes"?: number;
@@ -46,11 +45,14 @@ export type CreatePolicyPayload = {
 
 export type DeletePolicyPayload = {
   name: string;
-  vhost?: string;
 };
 
 export class RabbitMq {
   public static delayedExchangeName = `${getNetworkName()}.delayed`;
+  public static vhostMigratingChains = [
+    5, 10, 56, 999, 42161, 534353, 11155111, 80001, 84531, 42170, 137, 1, 8453, 59144, 7777777,
+    43114,
+  ];
 
   private static rabbitMqPublisherConnection: AmqpConnectionManager;
 
@@ -58,7 +60,12 @@ export class RabbitMq {
   private static rabbitMqPublisherChannels: ChannelWrapper[] = [];
 
   public static async connect() {
-    RabbitMq.rabbitMqPublisherConnection = amqplibConnectionManager.connect(config.rabbitMqUrl);
+    RabbitMq.rabbitMqPublisherConnection = amqplibConnectionManager.connect({
+      hostname: config.rabbitHostname,
+      username: config.rabbitUsername,
+      password: config.rabbitPassword,
+      vhost: getNetworkName(),
+    });
 
     for (let index = 0; index < RabbitMq.maxPublisherChannelsCount; ++index) {
       const channel = this.rabbitMqPublisherConnection.createChannel();
@@ -223,8 +230,7 @@ export class RabbitMq {
   }
 
   public static async createOrUpdatePolicy(policy: CreatePolicyPayload) {
-    policy.vhost = policy.vhost ?? "/";
-    const url = `${config.rabbitHttpUrl}/api/policies/%2F/${policy.name}`;
+    const url = `${config.rabbitHttpUrl}/api/policies/${getNetworkName()}/${policy.name}`;
 
     await axios.put(url, {
       "apply-to": policy.applyTo,
@@ -232,25 +238,27 @@ export class RabbitMq {
       name: policy.name,
       pattern: policy.pattern,
       priority: policy.priority,
-      vhost: policy.vhost,
     });
   }
 
+  public static async createVhost() {
+    const url = `${config.rabbitHttpUrl}/api/vhosts/${getNetworkName()}`;
+    await axios.put(url);
+  }
+
   public static async deletePolicy(policy: DeletePolicyPayload) {
-    policy.vhost = policy.vhost ?? "/";
-    const url = `${config.rabbitHttpUrl}/api/policies/%2F/${policy.name}`;
+    const url = `${config.rabbitHttpUrl}/api/policies/${getNetworkName()}/${policy.name}`;
 
     await axios.delete(url, {
       data: {
         component: "policy",
         name: policy.name,
-        vhost: policy.vhost,
       },
     });
   }
 
-  public static async getQueueSize(queueName: string) {
-    const url = `${config.rabbitHttpUrl}/api/queues/%2F/${queueName}`;
+  public static async getQueueSize(queueName: string, vhost = "%2F") {
+    const url = `${config.rabbitHttpUrl}/api/queues/${vhost}/${queueName}`;
     const queueData = await axios.get(url);
     return Number(queueData.data.messages);
   }
@@ -259,7 +267,13 @@ export class RabbitMq {
     const abstract = await import("@/jobs/abstract-rabbit-mq-job-handler");
     const jobsIndex = await import("@/jobs/index");
 
-    const connection = await amqplib.connect(config.rabbitMqUrl);
+    const connection = await amqplib.connect({
+      hostname: config.rabbitHostname,
+      username: config.rabbitUsername,
+      password: config.rabbitPassword,
+      vhost: getNetworkName(),
+    });
+
     const channel = await connection.createChannel();
 
     // Assert the exchange for delayed messages
@@ -296,7 +310,6 @@ export class RabbitMq {
       ) {
         await this.createOrUpdatePolicy({
           name: `${queue.getDeadLetterQueue()}-policy`,
-          vhost: "/",
           priority: 10,
           pattern: `^${queue.getDeadLetterQueue()}$`,
           applyTo: "queues",
@@ -321,9 +334,8 @@ export class RabbitMq {
       if (!_.isEmpty(definition)) {
         await this.createOrUpdatePolicy({
           name: `${queue.getQueue()}-policy`,
-          vhost: "/",
           priority: 10,
-          pattern: `^${queue.getQueue()}$|^${queue.getRetryQueue()}$`,
+          pattern: `^${queue.getQueue()}$`,
           applyTo: "queues",
           definition,
         });
@@ -332,10 +344,9 @@ export class RabbitMq {
 
     // Create general rule for all dead letters queues
     await this.createOrUpdatePolicy({
-      name: `${getNetworkName()}.dead-letter-queues-policy`,
-      vhost: "/",
+      name: "dead-letter-queues-policy",
       priority: 1,
-      pattern: `^${getNetworkName()}.+-dead-letter$`,
+      pattern: "dead-letter$",
       applyTo: "queues",
       definition: {
         "max-length": abstract.AbstractRabbitMqJobHandler.defaultMaxDeadLetterQueue,
