@@ -60,16 +60,12 @@ export class RabbitMq {
   private static rabbitMqPublisherChannels: ChannelWrapper[] = [];
 
   public static async connect() {
-    if (RabbitMq.vhostMigratingChains.includes(config.chainId)) {
-      RabbitMq.rabbitMqPublisherConnection = amqplibConnectionManager.connect({
-        hostname: config.rabbitHostname,
-        username: config.rabbitUsername,
-        password: config.rabbitPassword,
-        vhost: getNetworkName(),
-      });
-    } else {
-      RabbitMq.rabbitMqPublisherConnection = amqplibConnectionManager.connect(config.rabbitMqUrl);
-    }
+    RabbitMq.rabbitMqPublisherConnection = amqplibConnectionManager.connect({
+      hostname: config.rabbitHostname,
+      username: config.rabbitUsername,
+      password: config.rabbitPassword,
+      vhost: getNetworkName(),
+    });
 
     for (let index = 0; index < RabbitMq.maxPublisherChannelsCount; ++index) {
       const channel = this.rabbitMqPublisherConnection.createChannel();
@@ -246,10 +242,8 @@ export class RabbitMq {
   }
 
   public static async createVhost() {
-    if (RabbitMq.vhostMigratingChains.includes(config.chainId)) {
-      const url = `${config.rabbitHttpUrl}/api/vhosts/${getNetworkName()}`;
-      await axios.put(url);
-    }
+    const url = `${config.rabbitHttpUrl}/api/vhosts/${getNetworkName()}`;
+    await axios.put(url);
   }
 
   public static async deletePolicy(policy: DeletePolicyPayload) {
