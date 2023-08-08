@@ -53,7 +53,7 @@ export const postSyncEventsOptions: RouteOptions = {
       eventsBackfillJob.addToQueue({
         fromBlock,
         toBlock,
-        syncEventsToMainDB: payload?.syncEventsToMainDB ?? true,
+        syncEventsToMainDB: payload?.syncEventsToMainDB,
       });
 
       return { message: "Request accepted" };
