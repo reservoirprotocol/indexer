@@ -331,6 +331,10 @@ jobs:
             ${{ github.sha }} \
             indexer-websocket-arbitrum
           ./utils/version_update.sh \
+            ./prod/platform/indexer-websocket-optimism.yaml \
+            ${{ github.sha }} \
+            indexer-websocket-optimism
+          ./utils/version_update.sh \
             ./prod/platform/indexer-kafka-worker-mainnet.yaml \
             ${{ github.sha }} \
             indexer-kafka-worker-mainnet
