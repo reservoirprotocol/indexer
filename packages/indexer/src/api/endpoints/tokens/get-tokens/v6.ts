@@ -167,7 +167,7 @@ export const getTokensV6Options: RouteOptions = {
       includeTopBid: Joi.boolean()
         .default(false)
         .description("If true, top bid will be returned in the response."),
-      excludeEoa: Joi.boolean()
+      excludeEOA: Joi.boolean()
         .default(false)
         .description("If true, blur bids will be excluded from top bid / asks."),
       includeAttributes: Joi.boolean()
@@ -417,7 +417,7 @@ export const getTokensV6Options: RouteOptions = {
     }
 
     let sourceCte = "";
-    if (query.nativeSource || query.excludeEoa) {
+    if (query.nativeSource || query.excludeEOA) {
       const sourceConditions: string[] = [];
 
       if (query.nativeSource) {
@@ -447,7 +447,7 @@ export const getTokensV6Options: RouteOptions = {
         `taker = '\\x0000000000000000000000000000000000000000' OR taker IS NULL`
       );
 
-      if (query.excludeEoa) {
+      if (query.excludeEOA) {
         sourceConditions.push(`kind NOT IN ('blur')`);
       }
 
@@ -912,7 +912,7 @@ export const getTokensV6Options: RouteOptions = {
               AND o.side = 'buy'
               AND o.fillability_status = 'fillable'
               AND o.approval_status = 'approved'
-              ${query.excludeEoa ? `AND o.kind NOT IN ('blur')` : ""}
+              ${query.excludeEOA ? `AND o.kind NOT IN ('blur')` : ""}
               AND EXISTS(
                 SELECT FROM nft_balances nb
                   WHERE nb.contract = x.t_contract
