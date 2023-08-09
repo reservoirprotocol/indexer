@@ -24,6 +24,8 @@ export const getSupportedChainName = () => {
       return "mumbai";
     case 8453:
       return "base";
+    case 324:
+      return "zksync";
     default:
       return "unknown";
   }

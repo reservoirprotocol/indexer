@@ -71,7 +71,8 @@ export class ContractWideBuilder extends BaseBuilder {
       sellerAcceptedOffer: true,
       marketplace: orderParams.marketplace,
       marketplaceFeeNumerator: orderParams.marketplaceFeeNumerator,
-      maxRoyaltyFeeNumerator: options?.maxRoyaltyFeeNumerator?.toString() ?? "0",
+      maxRoyaltyFeeNumerator:
+        options?.maxRoyaltyFeeNumerator?.toString() ?? order.params.maxRoyaltyFeeNumerator,
       privateBuyerOrDelegatedPurchaser: AddressZero,
       sellerOrBuyer: options.taker,
       tokenAddress: orderParams.tokenAddress,

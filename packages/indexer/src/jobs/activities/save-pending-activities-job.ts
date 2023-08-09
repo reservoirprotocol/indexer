@@ -10,7 +10,7 @@ import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
 
-const BATCH_SIZE = 500;
+const BATCH_SIZE = 1000;
 
 export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
   queueName = "save-pending-activities-queue";

@@ -14,6 +14,7 @@ import { BlockWithTransactions } from "@ethersproject/abstract-provider";
 
 import { Block } from "@/models/blocks";
 import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
+import { blockCheckJob } from "@/jobs/events-sync/block-check-queue-job";
 
 export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBatch[] => {
   const txHashToEvents = new Map<string, EnhancedEvent[]>();
@@ -378,6 +379,9 @@ export const syncEvents = async (block: number) => {
         processEventsLatencies: processEventsLatencies,
       })
     );
+
+    await blockCheckJob.addToQueue({ block: block, blockHash: blockData.hash, delay: 1 * 60 });
+    await blockCheckJob.addToQueue({ block: block, blockHash: blockData.hash, delay: 5 * 60 });
   } catch (error) {
     logger.warn("sync-events-v2", `Events realtime syncing failed: ${error}, block: ${block}`);
     throw error;

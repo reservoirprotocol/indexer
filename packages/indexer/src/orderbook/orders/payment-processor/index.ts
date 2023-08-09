@@ -114,19 +114,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      // Check: order has ETH as payment token
-      if (
-        ![
-          Sdk.Common.Addresses.Native[config.chainId],
-          Sdk.Common.Addresses.WNative[config.chainId],
-        ].includes(order.params.coin)
-      ) {
-        return results.push({
-          id,
-          status: "unsupported-payment-token",
-        });
-      }
-
       // Check: order is valid
       try {
         order.checkValidity();

@@ -864,6 +864,11 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
+        supportedBidCurrencies: {
+          ...defaultNetworkSettings.supportedBidCurrencies,
+          // PaymentProcessor WETH
+          "0xfff9976782d46cc05630d1f6ebab18b2324d6b14": true,
+        },
         subDomain: "api-sepolia",
         onStartup: async () => {
           // Insert the native currency

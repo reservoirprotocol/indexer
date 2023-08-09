@@ -75,7 +75,8 @@ export class SingleTokenBuilder extends BaseBuilder {
         sellerAcceptedOffer: false,
         marketplace: orderParams.marketplace,
         marketplaceFeeNumerator: orderParams.marketplaceFeeNumerator,
-        maxRoyaltyFeeNumerator: options?.maxRoyaltyFeeNumerator?.toString() ?? "0",
+        maxRoyaltyFeeNumerator:
+          options?.maxRoyaltyFeeNumerator?.toString() ?? order.params.maxRoyaltyFeeNumerator,
         privateBuyerOrDelegatedPurchaser: orderParams.privateBuyerOrDelegatedPurchaser,
         sellerOrBuyer: options.taker,
         tokenAddress: orderParams.tokenAddress,
@@ -95,7 +96,8 @@ export class SingleTokenBuilder extends BaseBuilder {
         sellerAcceptedOffer: true,
         marketplace: orderParams.marketplace,
         marketplaceFeeNumerator: orderParams.marketplaceFeeNumerator,
-        maxRoyaltyFeeNumerator: options?.maxRoyaltyFeeNumerator?.toString() ?? "0",
+        maxRoyaltyFeeNumerator:
+          options?.maxRoyaltyFeeNumerator?.toString() ?? order.params.maxRoyaltyFeeNumerator,
         privateBuyerOrDelegatedPurchaser: orderParams.privateBuyerOrDelegatedPurchaser,
         sellerOrBuyer: options.taker,
         tokenAddress: orderParams.tokenAddress,

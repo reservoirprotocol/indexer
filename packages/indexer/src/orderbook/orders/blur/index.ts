@@ -22,7 +22,7 @@ type SaveResult = {
   id: string;
   status: string;
   unfillable?: boolean;
-  triggerKind?: "new-order" | "cancel" | "reprice";
+  triggerKind?: "new-order" | "reprice" | "revalidation";
 };
 
 // Listings (partial)
@@ -116,7 +116,7 @@ export const savePartialListings = async (
       const invalidatedOrderIds = await idb.manyOrNone(
         `
           UPDATE orders SET
-            fillability_status = 'cancelled',
+            approval_status = 'disabled',
             expiration = now(),
             updated_at = now()
           WHERE orders.token_set_id = $/tokenSetId/
@@ -142,7 +142,7 @@ export const savePartialListings = async (
         results.push({
           id,
           status: "success",
-          triggerKind: "cancel",
+          triggerKind: "revalidation",
         });
       }
 
@@ -266,6 +266,7 @@ export const savePartialListings = async (
           `
             UPDATE orders SET
               fillability_status = 'fillable',
+              approval_status = 'approved',
               price = $/price/,
               currency_price = $/price/,
               value = $/price/,
@@ -290,7 +291,7 @@ export const savePartialListings = async (
           results.push({
             id,
             status: "success",
-            triggerKind: "reprice",
+            triggerKind: "revalidation",
           });
         }
       }

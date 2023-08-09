@@ -116,6 +116,10 @@ jobs:
             ${{ github.sha }} \
             indexer-worker-goerli
           ./utils/version_update.sh \
+            ./dev/platform/indexer-worker-goerli-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-goerli-master
+          ./utils/version_update.sh \
             ./dev/platform/indexer-websocket-goerli.yaml \
             ${{ github.sha }} \
             indexer-websocket-goerli

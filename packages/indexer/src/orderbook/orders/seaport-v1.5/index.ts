@@ -573,12 +573,16 @@ export const save = async (
 
       // Handle: source
       const sources = await Sources.getInstance();
-      let source: SourcesEntity | undefined;
 
-      const sourceHash = bn(order.params.salt)._hex.slice(0, 10);
-      const matchedSource = sources.getByDomainHash(sourceHash);
-      if (matchedSource) {
-        source = matchedSource;
+      let source: SourcesEntity | undefined;
+      if (metadata.source) {
+        source = await sources.getOrInsert(metadata.source);
+      } else {
+        const sourceHash = bn(order.params.salt)._hex.slice(0, 10);
+        const matchedSource = sources.getByDomainHash(sourceHash);
+        if (matchedSource) {
+          source = matchedSource;
+        }
       }
 
       if (isOpenSea) {

@@ -283,10 +283,12 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         for (let i = 0; i < tokenIds.length; i++) {
           if (!unsuccessfulFills[i]) {
+            const amount = subKind.endsWith("erc1155")
+              ? parsedLog.args["amounts"][i].toString()
+              : "1";
+
             const tokenId = tokenIds[i];
-            const currencyPrice = parsedLog.args["salePrices"][i]
-              .div(parsedLog.args["amounts"][i])
-              .toString();
+            const currencyPrice = parsedLog.args["salePrices"][i].div(amount).toString();
             const seller = parsedLog.args["sellers"][i].toLowerCase();
 
             const priceData = await getUSDAndNativePrices(
@@ -306,7 +308,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               orderKind
             );
 
-            const amount = parsedLog.args["amounts"][i].toString();
             onChainData.fillEvents.push({
               orderKind: "payment-processor",
               orderSide: "sell",
@@ -322,7 +323,10 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               orderSourceId: attributionData.orderSource?.id,
               aggregatorSourceId: attributionData.aggregatorSource?.id,
               fillSourceId: attributionData.fillSource?.id,
-              baseEventParams,
+              baseEventParams: {
+                ...baseEventParams,
+                batchIndex: baseEventParams.batchIndex + i,
+              },
             });
           }
         }

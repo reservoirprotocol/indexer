@@ -471,11 +471,11 @@ export const getExecuteBidV5Options: RouteOptions = {
           }
 
           try {
-            const WETH = Sdk.Common.Addresses.WNative[config.chainId];
+            const WNATIVE = Sdk.Common.Addresses.WNative[config.chainId];
             const BETH = Sdk.Blur.Addresses.Beth[config.chainId];
 
             // Default currency for Blur is BETH
-            if (params.orderKind === "blur" && params.currency === WETH) {
+            if (params.orderKind === "blur" && params.currency === WNATIVE) {
               params.currency = BETH;
             }
 
@@ -496,7 +496,7 @@ export const getExecuteBidV5Options: RouteOptions = {
             const currency = new Sdk.Common.Helpers.Erc20(baseProvider, params.currency);
             const currencyBalance = await currency.getBalance(maker);
             if (bn(currencyBalance).lt(totalPrice)) {
-              if ([WETH, BETH].includes(params.currency)) {
+              if ([WNATIVE, BETH].includes(params.currency)) {
                 const ethBalance = await baseProvider.getBalance(maker);
                 if (bn(currencyBalance).add(ethBalance).lt(totalPrice)) {
                   return errors.push({
@@ -504,13 +504,15 @@ export const getExecuteBidV5Options: RouteOptions = {
                     orderIndex: i,
                   });
                 } else {
-                  const weth = new Sdk.Common.Helpers.WNative(baseProvider, config.chainId);
-                  const wrapTx = weth.depositTransaction(maker, totalPrice.sub(currencyBalance));
+                  const wnative = new Sdk.Common.Helpers.WNative(baseProvider, config.chainId);
+                  const wrapTx = wnative.depositTransaction(maker, totalPrice.sub(currencyBalance));
 
                   steps[1].items.push({
                     status: "incomplete",
                     data:
-                      params.currency === BETH ? { ...wrapTx, to: BETH } : { ...wrapTx, to: WETH },
+                      params.currency === BETH
+                        ? { ...wrapTx, to: BETH }
+                        : { ...wrapTx, to: WNATIVE },
                     orderIndexes: [i],
                   });
                 }
@@ -882,12 +884,14 @@ export const getExecuteBidV5Options: RouteOptions = {
 
                 // Check the maker's approval
                 let approvalTx: TxData | undefined;
-                const wethApproval = await currency.getAllowance(
+                const currencyApproval = await currency.getAllowance(
                   maker,
                   Sdk.ZeroExV4.Addresses.Exchange[config.chainId]
                 );
                 if (
-                  bn(wethApproval).lt(bn(order.params.erc20TokenAmount).add(order.getFeeAmount()))
+                  bn(currencyApproval).lt(
+                    bn(order.params.erc20TokenAmount).add(order.getFeeAmount())
+                  )
                 ) {
                   approvalTx = currency.approveTransaction(
                     maker,
@@ -976,11 +980,11 @@ export const getExecuteBidV5Options: RouteOptions = {
 
                 // Check the maker's approval
                 let approvalTx: TxData | undefined;
-                const wethApproval = await currency.getAllowance(
+                const currencyApproval = await currency.getAllowance(
                   maker,
                   Sdk.LooksRareV2.Addresses.Exchange[config.chainId]
                 );
-                if (bn(wethApproval).lt(bn(order.params.price))) {
+                if (bn(currencyApproval).lt(bn(order.params.price))) {
                   approvalTx = currency.approveTransaction(
                     maker,
                     Sdk.LooksRareV2.Addresses.Exchange[config.chainId]
@@ -1065,11 +1069,11 @@ export const getExecuteBidV5Options: RouteOptions = {
 
                 // Check the maker's approval
                 let approvalTx: TxData | undefined;
-                const wethApproval = await currency.getAllowance(
+                const currencyApproval = await currency.getAllowance(
                   maker,
                   Sdk.X2Y2.Addresses.Exchange[config.chainId]
                 );
-                if (bn(wethApproval).lt(bn(upstreamOrder.params.price))) {
+                if (bn(currencyApproval).lt(bn(upstreamOrder.params.price))) {
                   approvalTx = currency.approveTransaction(
                     maker,
                     Sdk.X2Y2.Addresses.Exchange[config.chainId]
@@ -1149,11 +1153,11 @@ export const getExecuteBidV5Options: RouteOptions = {
 
                 // Check the maker's approval
                 let approvalTx: TxData | undefined;
-                const wethApproval = await currency.getAllowance(
+                const currencyApproval = await currency.getAllowance(
                   maker,
                   Sdk.PaymentProcessor.Addresses.Exchange[config.chainId]
                 );
-                if (bn(wethApproval).lt(bn(order.params.price))) {
+                if (bn(currencyApproval).lt(bn(order.params.price))) {
                   approvalTx = currency.approveTransaction(
                     maker,
                     Sdk.PaymentProcessor.Addresses.Exchange[config.chainId]
@@ -1366,8 +1370,8 @@ export const getExecuteBidV5Options: RouteOptions = {
         steps[1].items = [];
         for (const [to, amount] of Object.entries(amounts)) {
           if (amount.gt(0)) {
-            const weth = new Sdk.Common.Helpers.WNative(baseProvider, config.chainId);
-            const wrapTx = weth.depositTransaction(maker, amount);
+            const wnative = new Sdk.Common.Helpers.WNative(baseProvider, config.chainId);
+            const wrapTx = wnative.depositTransaction(maker, amount);
 
             steps[1].items.push({
               status: "incomplete",
