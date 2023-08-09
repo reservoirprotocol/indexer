@@ -225,6 +225,7 @@ export type FillBidsResult = {
     approvals: NFTApproval[];
     txData: TxData;
     orderIds: string[];
+    preSignatures: PreSignature[];
   }[];
   success: { [orderId: string]: boolean };
 };

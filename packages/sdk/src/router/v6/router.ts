@@ -774,6 +774,9 @@ export class Router {
       const exchange = new Sdk.PaymentProcessor.Exchange(this.chainId);
       const operator = exchange.contract.address;
 
+      // Use the gas-efficient sweep method when all listings are from the same collection
+      const useSweepCollection = details.every((c) => c.contract === details[0].contract);
+
       let approval: FTApproval | undefined;
       if (!isETH(this.chainId, details[0].currency)) {
         approval = {
@@ -785,41 +788,71 @@ export class Router {
         };
       }
 
-      const orders: Sdk.PaymentProcessor.Order[] = [];
-      const takeOrders: Sdk.PaymentProcessor.Order[] = [];
       const preSignatures: PreSignature[] = [];
-      for (const detail of details) {
-        const order = detail.order as Sdk.PaymentProcessor.Order;
+      const orders: Sdk.PaymentProcessor.Order[] = details.map(
+        (c) => c.order as Sdk.PaymentProcessor.Order
+      );
 
-        const takerOrder = order.buildMatching({
+      if (useSweepCollection) {
+        const bundledOrder = Sdk.PaymentProcessor.Order.createBundledOfferOrder(orders, {
           taker,
           takerMasterNonce: await exchange.getMasterNonce(this.provider, taker),
         });
 
-        orders.push(order);
-        takeOrders.push(takerOrder);
-
-        const signData = takerOrder.getSignatureData();
+        const signData = bundledOrder.getSignatureData();
         preSignatures.push({
           kind: "payment-processor-take-order",
           signer: taker,
           data: signData,
-          uniqueId: `${takerOrder.params.tokenAddress}-${takerOrder.params.tokenId}-${takerOrder.params.price}`,
+          uniqueId: `${bundledOrder.params.tokenAddress}-${bundledOrder.params.tokenIds?.join(
+            "-"
+          )}-${bundledOrder.params.price}`,
         });
-      }
 
-      return {
-        txs: [
-          {
-            approvals: approval ? [approval] : [],
-            permits: [],
-            preSignatures: preSignatures,
-            txData: exchange.fillOrdersTx(taker, orders, takeOrders),
-            orderIds: details.map((d) => d.orderId),
-          },
-        ],
-        success: Object.fromEntries(details.map((d) => [d.orderId, true])),
-      };
+        return {
+          txs: [
+            {
+              approvals: approval ? [approval] : [],
+              permits: [],
+              preSignatures: preSignatures,
+              txData: exchange.sweepCollectionTx(taker, bundledOrder, orders),
+              orderIds: details.map((d) => d.orderId),
+            },
+          ],
+          success: Object.fromEntries(details.map((d) => [d.orderId, true])),
+        };
+      } else {
+        const takeOrders: Sdk.PaymentProcessor.Order[] = [];
+        for (const order of orders) {
+          const takerOrder = order.buildMatching({
+            taker,
+            takerMasterNonce: await exchange.getMasterNonce(this.provider, taker),
+          });
+
+          takeOrders.push(takerOrder);
+
+          const signData = takerOrder.getSignatureData();
+          preSignatures.push({
+            kind: "payment-processor-take-order",
+            signer: taker,
+            data: signData,
+            uniqueId: `${takerOrder.params.tokenAddress}-${takerOrder.params.tokenId}-${takerOrder.params.price}`,
+          });
+        }
+
+        return {
+          txs: [
+            {
+              approvals: approval ? [approval] : [],
+              permits: [],
+              preSignatures: preSignatures,
+              txData: exchange.fillOrdersTx(taker, orders, takeOrders),
+              orderIds: details.map((d) => d.orderId),
+            },
+          ],
+          success: Object.fromEntries(details.map((d) => [d.orderId, true])),
+        };
+      }
     }
 
     const getFees = (ownDetails: ListingDetails[]) =>
@@ -3014,16 +3047,12 @@ export class Router {
       approvals: NFTApproval[];
       txData: TxData;
       orderIds: string[];
+      preSignatures: PreSignature[];
     }[] = [];
     const success: { [orderId: string]: boolean } = {};
 
     // CASE 1
-    // Handle exchanges which don't have a router module implemented by filling directly
-
-    // Nothing here
-
-    // CASE 2
-    // Handle orders which require special handling such as direct filling
+    // Handle orders which require/support special handling such as direct filling
 
     const blurDetails = details.filter((d) => d.source === "blur.io");
     if (blurDetails.length) {
@@ -3093,6 +3122,7 @@ export class Router {
                 data: data.data + generateSourceBytes(options?.source),
                 value: data.value,
               },
+              preSignatures: [],
               orderIds,
             });
           }
@@ -3122,7 +3152,56 @@ export class Router {
       }
     }
 
-    // CASE 3
+    // Fill PaymentProcessor offers directly
+    const paymentProcessorDetails = details.filter((d) => d.kind === "payment-processor");
+    if (paymentProcessorDetails.length) {
+      const exchange = new Sdk.PaymentProcessor.Exchange(this.chainId);
+      const operator = exchange.contract.address;
+
+      const orders: Sdk.PaymentProcessor.Order[] = [];
+      const takeOrders: Sdk.PaymentProcessor.Order[] = [];
+      const preSignatures: PreSignature[] = [];
+
+      const approvals: NFTApproval[] = [];
+      for (const detail of details) {
+        const order = detail.order as Sdk.PaymentProcessor.Order;
+        const takerOrder = order.buildMatching({
+          taker,
+          takerMasterNonce: await exchange.getMasterNonce(this.provider, taker),
+        });
+
+        orders.push(order);
+        takeOrders.push(takerOrder);
+
+        const signData = takerOrder.getSignatureData();
+        preSignatures.push({
+          kind: "payment-processor-take-order",
+          signer: taker,
+          data: signData,
+          uniqueId: `${takerOrder.params.tokenAddress}-${takerOrder.params.tokenId}-${takerOrder.params.price}`,
+        });
+
+        // Generate approval
+        approvals.push({
+          orderIds: [detail.orderId],
+          contract: takerOrder.params.tokenAddress,
+          owner: taker,
+          operator,
+          txData: generateNFTApprovalTxData(takerOrder.params.tokenAddress, taker, operator),
+        });
+
+        success[detail.orderId] = true;
+      }
+
+      txs.push({
+        approvals: uniqBy(approvals, ({ txData: { from, to, data } }) => `${from}-${to}-${data}`),
+        preSignatures,
+        txData: exchange.fillOrdersTx(taker, orders, takeOrders),
+        orderIds: details.map((d) => d.orderId),
+      });
+    }
+
+    // CASE 2
     // Handle exchanges which do have a router module implemented by filling through the router
 
     // Step 1
@@ -3136,6 +3215,9 @@ export class Router {
 
     for (let i = 0; i < details.length; i++) {
       const detail = details[i];
+      if (success[detail.orderId]) {
+        continue;
+      }
 
       const contract = detail.contract;
       const owner = taker;
@@ -3272,6 +3354,10 @@ export class Router {
 
     for (let i = 0; i < details.length; i++) {
       const detail = details[i];
+      if (success[detail.orderId]) {
+        continue;
+      }
+
       const fees = getFees(detail);
 
       switch (detail.kind) {
@@ -3529,6 +3615,7 @@ export class Router {
                     txData: generateNFTApprovalTxData(contract, owner, operator),
                   },
                 ],
+                preSignatures: [],
                 orderIds: [detail.orderId],
               });
             } else {
@@ -4081,6 +4168,7 @@ export class Router {
               ) + generateSourceBytes(options?.source),
           },
           approvals: [],
+          preSignatures: [],
           orderIds: [detail.orderId],
         });
       } else {
@@ -4095,6 +4183,7 @@ export class Router {
               ) + generateSourceBytes(options?.source),
           },
           approvals: [],
+          preSignatures: [],
           orderIds: [detail.orderId],
         });
       }
@@ -4116,6 +4205,7 @@ export class Router {
           approvals,
           ({ txData: { from, to, data } }) => `${from}-${to}-${data}`
         ),
+        preSignatures: [],
         orderIds: executionsWithDetails.map(({ detail }) => detail.orderId),
       });
     }
