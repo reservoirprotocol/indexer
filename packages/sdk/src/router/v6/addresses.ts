@@ -149,6 +149,9 @@ export const AlienswapModule: ChainIdToAddress = {
   [Network.ScrollAlpha]: "0x60275b726b9ab1fdc6c2d3d8072f234fab5ddaeb",
   [Network.MantleTestnet]: "0xf94d47c742c97f37424db1c27817a0697d49f461",
   [Network.LineaTestnet]: "0xeb09b04d38d809c2dd5f33dda7208d0b299eda5a",
+  [Network.Linea]: "0x25210757f799423c908e4dbf8141dd10d51afbc6",
+  [Network.BaseGoerli]: "0x527534529577b57548a1dbc0d7fb0088705a1965",
+  [Network.Base]: "0x25210757f799423c908e4dbf8141dd10d51afbc6",
 };
 
 export const SudoswapModule: ChainIdToAddress = {

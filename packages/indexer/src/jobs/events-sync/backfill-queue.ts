@@ -29,6 +29,9 @@ export class EventsBackfillJob extends AbstractRabbitMqJobHandler {
       let fromBlock, toBlock, maxBlock;
       let backfillId;
 
+      logger.info(this.queueName, `Processing payload: ${JSON.stringify(payload)}`);
+
+
       // initialize backfill
       if (payload.fromBlock && payload.toBlock && !payload.backfillId) {
         let range = payload.range;

@@ -39,7 +39,6 @@ const setup = async () => {
   if (config.doBackgroundWork) {
     await Sources.syncSources();
     await FeeRecipients.syncFeeRecipients();
-
     const networkSettings = getNetworkSettings();
     if (networkSettings.onStartup) {
       await networkSettings.onStartup();

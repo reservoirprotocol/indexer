@@ -35,6 +35,7 @@ export const postSyncEventsOptions: RouteOptions = {
       blocksPerBatch: Joi.number().integer().positive(),
       skipNonFillWrites: Joi.boolean().default(false),
       backfill: Joi.boolean().default(true),
+      syncEventsToMainDB: Joi.boolean().default(true),
     }),
   },
   handler: async (request: Request) => {
@@ -48,10 +49,11 @@ export const postSyncEventsOptions: RouteOptions = {
       const fromBlock = payload.fromBlock;
       const toBlock = payload.toBlock;
 
+      logger.info("post-sync-events-handler", `Request received: ${JSON.stringify(payload)}`);
       eventsBackfillJob.addToQueue({
         fromBlock,
         toBlock,
-        syncEventsToMainDB: payload?.syncEventsToMainDB ?? true,
+        syncEventsToMainDB: payload?.syncEventsToMainDB,
       });
 
       return { message: "Request accepted" };
