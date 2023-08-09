@@ -115,9 +115,9 @@ export class OrderUpdatesByMakerJob extends AbstractRabbitMqJobHandler {
               FROM orders
               JOIN ft_balances
                 ON orders.maker = ft_balances.owner
+                AND orders.currency = ft_balances.contract
               WHERE orders.maker = $/maker/
                 AND orders.side = 'buy'
-                AND orders.currency = $/contract/
                 AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
                 AND ft_balances.contract = $/contract/
             `,
