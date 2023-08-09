@@ -121,7 +121,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     }
   );
 
-  if (config.chainId === 1) {
+  if (config.metadataIndexingMethod === "opensea") {
     client.onItemMetadataUpdated("*", async (event) => {
       try {
         if (getSupportedChainName() != event.payload.item.chain.name) {
