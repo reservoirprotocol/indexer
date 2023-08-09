@@ -319,6 +319,14 @@ jobs:
             ${{ github.sha }} \
             indexer-websocket-goerli
           ./utils/version_update.sh \
+            ./prod/platform/indexer-websocket-sepolia.yaml \
+            ${{ github.sha }} \
+            indexer-websocket-sepolia
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-websocket-bsc.yaml \
+            ${{ github.sha }} \
+            indexer-websocket-bsc
+          ./utils/version_update.sh \
             ./prod/platform/indexer-kafka-worker-mainnet.yaml \
             ${{ github.sha }} \
             indexer-kafka-worker-mainnet
