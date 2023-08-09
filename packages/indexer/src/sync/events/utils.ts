@@ -55,8 +55,8 @@ export const saveBlockTransactions = async (
     const gasPrice = tx.gasPrice?.toString();
     const gasUsed = txRaw?.gas ? bn(txRaw.gas).toString() : undefined;
     const gasFee = gasPrice && gasUsed ? bn(gasPrice).mul(gasUsed).toString() : undefined;
-    const maxFeePerGas = tx.maxFeePerGas?.toString();
-    const maxPriorityFeePerGas = tx.maxPriorityFeePerGas?.toString();
+    const maxFeePerGas = tx.maxFeePerGas?.toString() || undefined;
+    const maxPriorityFeePerGas = tx.maxPriorityFeePerGas?.toString() || undefined;
 
     return {
       hash: tx.hash.toLowerCase(),
@@ -92,30 +92,21 @@ export const _getTransactionTraces = async (Txs: { hash: string }[], block: numb
   const timerStart = Date.now();
   let traces;
   if (supports_eth_getBlockTrace) {
-    traces = (await getTracesFromBlock(block)) as TransactionTrace[];
+    try {
+      traces = (await getTracesFromBlock(block)) as TransactionTrace[];
 
-    // traces don't have the transaction hash, so we need to add it by using the txs array we are passing in by using the index of the trace
-    traces = traces.map((trace, index) => {
-      return {
-        ...trace,
-        hash: Txs[index].hash,
-      };
-    });
-  } else {
-    traces = await Promise.all(
-      Txs.map(async (tx) => {
-        const trace = await getTransactionTraceFromRPC(tx.hash);
-        if (!trace) {
-          logger.error("sync-events-v2", `Failed to get trace for tx: ${tx.hash}`);
-          return null;
-        }
-
+      // traces don't have the transaction hash, so we need to add it by using the txs array we are passing in by using the index of the trace
+      traces = traces.map((trace, index) => {
         return {
           ...trace,
-          hash: tx.hash,
+          hash: Txs[index].hash,
         };
-      })
-    );
+      });
+    } catch (e) {
+      traces = await getTracesFromHashes(Txs.map((tx) => tx.hash));
+    }
+  } else {
+    traces = await getTracesFromHashes(Txs.map((tx) => tx.hash));
   }
 
   traces = traces.filter((trace) => trace !== null) as TransactionTrace[];
@@ -161,6 +152,24 @@ export const getTracesFromBlock = async (blockNumber: number) => {
     blockNumberToHex(blockNumber),
     { tracer: "callTracer" },
   ]);
+  return traces;
+};
+
+export const getTracesFromHashes = async (txHashes: string[]) => {
+  const traces = await Promise.all(
+    txHashes.map(async (txHash) => {
+      const trace = await getTransactionTraceFromRPC(txHash);
+      if (!trace) {
+        logger.error("sync-events-v2", `Failed to get trace for tx: ${txHash}`);
+        return null;
+      }
+
+      return {
+        ...trace,
+        hash: txHash,
+      };
+    })
+  );
   return traces;
 };
 
