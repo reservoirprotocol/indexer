@@ -50,7 +50,7 @@ export class EventsBackfillJob extends AbstractRabbitMqJobHandler {
         await redis.set(`backfill:range:${backfillId}`, `${range}`);
       } else if (payload.backfillId) {
         // backfillId exists, continue backfill by checking if the previous portion is finished, if not, continue backfill
-        const backfillId = payload.backfillId;
+        backfillId = payload.backfillId;
         const oldFromBlock = Number(await redis.get(`backfill:fromBlock:${backfillId}`));
         const oldToBlock = Number(await redis.get(`backfill:toBlock:${backfillId}`));
         maxBlock = Number(await redis.get(`backfill:maxBlock:${backfillId}`));
