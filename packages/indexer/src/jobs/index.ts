@@ -382,13 +382,20 @@ export class RabbitMqJobsConsumer {
       await channel.waitForConnect();
     }
 
+    const queue = `${getNetworkName()}.${job.queueName}`;
+
+    // Check if the queue exist
+    try {
+      await channel.checkQueue(queue);
+    } catch (error) {
+      return;
+    }
+
     RabbitMqJobsConsumer.queueToChannel.set(job.getQueue(), channel);
 
     RabbitMqJobsConsumer.channelsToJobs.get(channel)
       ? RabbitMqJobsConsumer.channelsToJobs.get(channel)?.push(job)
       : RabbitMqJobsConsumer.channelsToJobs.set(channel, [job]);
-
-    const queue = `${getNetworkName()}.${job.queueName}`;
 
     // Subscribe to the queue
     await channel.consume(
@@ -492,25 +499,26 @@ export class RabbitMqJobsConsumer {
       await RabbitMqJobsConsumer.connect(); // Create a connection for the consumer
       await RabbitMqJobsConsumer.connectToVhost(); // Create a connection for the consumer
 
-      // realtime events queues:
-      const queues = ["events-backfill-job", "events-sync-historical"];
+      const subscribePromises = [];
+      const subscribeToVhostPromises = [];
+      const txWorkQueues = ["events-backfill-job", "events-sync-historical"];
 
-      for (const queue of RabbitMqJobsConsumer.getQueues()) {
-        try {
-          if (config.doTxWorkOnly && !_.includes(queues, queue.queueName)) {
+      try {
+        for (const queue of RabbitMqJobsConsumer.getQueues()) {
+          if (config.doTxWorkOnly && !_.includes(txWorkQueues, queue.queueName)) {
             continue;
           }
 
           if (!queue.isDisableConsuming()) {
-            await RabbitMqJobsConsumer.subscribe(queue);
-            await RabbitMqJobsConsumer.subscribeToVhost(queue);
+            subscribePromises.push(RabbitMqJobsConsumer.subscribe(queue));
+            subscribeToVhostPromises.push(RabbitMqJobsConsumer.subscribeToVhost(queue));
           }
-        } catch (error) {
-          logger.error(
-            "rabbit-subscribe",
-            `failed to subscribe to ${queue.queueName} error ${error}`
-          );
         }
+
+        await Promise.all(subscribePromises);
+        await Promise.all(subscribeToVhostPromises);
+      } catch (error) {
+        logger.error("rabbit-subscribe", `failed to subscribe error ${error}`);
       }
     } catch (error) {
       logger.error("rabbit-subscribe-connection", `failed to open connections to consume ${error}`);
