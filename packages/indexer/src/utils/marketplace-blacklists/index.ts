@@ -3,7 +3,6 @@ import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk";
 
 import { idb, redb } from "@/common/db";
-import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
@@ -53,8 +52,6 @@ export const isBlockedByCustomLogic = async (contract: string, operators: string
   const cacheKey = `marketplace-blacklist-custom-logic:${contract}:${JSON.stringify(operators)}`;
   const cache = await redis.get(cacheKey);
   if (!cache) {
-    logger.info("debug-qn-usage", JSON.stringify({ contract, operators, kind: "custom" }));
-
     const iface = new Interface([
       "function registry() view returns (address)",
       "function getWhitelistedOperators() view returns (address[])",
