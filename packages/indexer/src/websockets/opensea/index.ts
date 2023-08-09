@@ -132,13 +132,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
           return;
         }
 
-        logger.debug(
-          "opensea-websocket",
-          `Processing onItemMetadataUpdated event. network=${network}, event=${JSON.stringify(
-            event
-          )}`
-        );
-
         const [, contract, tokenId] = event.payload.item.nft_id.split("/");
 
         const metadata = {
