@@ -1,5 +1,4 @@
 import { logger } from "@/common/logger";
-import { config } from "@/config/index";
 import { syncEvents } from "@/events-sync/index";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 
@@ -13,7 +12,7 @@ export type EventsSyncHistoricalJobPayload = {
 export class EventsSyncHistoricalJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-historical";
   maxRetries = 30;
-  concurrency = [80001, 137].includes(config.chainId) ? 1 : 5;
+  concurrency = 15;
   consumerTimeout = 60 * 1000;
   backoff = {
     type: "fixed",
