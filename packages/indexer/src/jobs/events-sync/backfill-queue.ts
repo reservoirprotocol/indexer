@@ -45,6 +45,8 @@ export class EventsBackfillJob extends AbstractRabbitMqJobHandler {
         toBlock =
           payload.fromBlock + range > payload.toBlock ? payload.toBlock : payload.fromBlock + range;
 
+        maxBlock = payload.toBlock;
+
         await redis.set(`backfill:fromBlock:${backfillId}`, `${fromBlock}`);
         await redis.set(`backfill:latestBlock:${backfillId}`, `${fromBlock}`);
         await redis.set(`backfill:toBlock:${backfillId}`, `${toBlock}`);
