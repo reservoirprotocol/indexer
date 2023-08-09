@@ -58,6 +58,7 @@ export const Usdc: ChainIdToAddress = {
   [Network.Arbitrum]: "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
   [Network.Avalanche]: "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",
   [Network.Zksync]: "0x3355df6d4c9c3035724fd0e3914de96a5a83aaf4",
+  [Network.Base]: "0x1833c6171e0a3389b156eaedb301cffbf328b463",
 };
 
 export const RoyaltyEngine: ChainIdToAddress = {
