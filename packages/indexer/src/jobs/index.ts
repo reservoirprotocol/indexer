@@ -31,15 +31,7 @@ import * as backfillRefreshCollectionMetadata from "@/jobs/backfill/backfill-ref
 import * as backfillNftTransferUpdatedAt from "@/jobs/backfill/backfill-nft-transfer-events-updated-at";
 import * as backfillNftTransferCreatedAt from "@/jobs/backfill/backfill-nft-transfer-events-created-at";
 import * as backfillSaleRoyalties from "@/jobs/backfill/backfill-sale-royalties";
-
-import * as askWebsocketEventsTriggerQueue from "@/jobs/websocket-events/ask-websocket-events-trigger-queue";
-import * as bidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/bid-websocket-events-trigger-queue";
-import * as transferWebsocketEventsTriggerQueue from "@/jobs/websocket-events/transfer-websocket-events-trigger-queue";
-import * as saleWebsocketEventsTriggerQueue from "@/jobs/websocket-events/sale-websocket-events-trigger-queue";
 import * as tokenWebsocketEventsTriggerQueue from "@/jobs/websocket-events/token-websocket-events-trigger-queue";
-import * as topBidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/top-bid-websocket-events-trigger-queue";
-import * as collectionWebsocketEventsTriggerQueue from "@/jobs/websocket-events/collection-websocket-events-trigger-queue";
-
 import * as backfillDeleteExpiredBidsElasticsearch from "@/jobs/activities/backfill/backfill-delete-expired-bids-elasticsearch";
 import * as backfillSalePricingDecimalElasticsearch from "@/jobs/activities/backfill/backfill-sales-pricing-decimal-elasticsearch";
 import * as blockGapCheck from "@/jobs/events-sync/block-gap-check";
@@ -159,15 +151,7 @@ export const allJobQueues = [
   backfillNftTransferUpdatedAt.queue,
   backfillNftTransferCreatedAt.queue,
   backfillSaleRoyalties.queue,
-
-  askWebsocketEventsTriggerQueue.queue,
-  bidWebsocketEventsTriggerQueue.queue,
-  transferWebsocketEventsTriggerQueue.queue,
-  saleWebsocketEventsTriggerQueue.queue,
   tokenWebsocketEventsTriggerQueue.queue,
-  topBidWebsocketEventsTriggerQueue.queue,
-  collectionWebsocketEventsTriggerQueue.queue,
-
   backfillDeleteExpiredBidsElasticsearch.queue,
   backfillSalePricingDecimalElasticsearch.queue,
   blockGapCheck.queue,

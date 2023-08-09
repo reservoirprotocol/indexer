@@ -22,7 +22,6 @@ const changedMapping = {
   quantity_filled: "quantityFilled",
   quantity_remaining: "quantityRemaining",
   expiration: "expiration",
-  price: "price.gross.amount",
 };
 
 export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandler {
