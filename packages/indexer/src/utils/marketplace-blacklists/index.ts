@@ -31,7 +31,6 @@ export const checkMarketplaceIsFiltered = async (
 
   let result: string[] | null = [];
   if (refresh) {
-    logger.info("debug-qn-usage", JSON.stringify({ contract, operators, kind: "regular" }));
     result = await updateMarketplaceBlacklist(contract);
   } else {
     const cacheKey = `marketplace-blacklist:${contract}`;
@@ -62,17 +61,22 @@ export const isBlockedByCustomLogic = async (contract: string, operators: string
     ]);
     const nft = new Contract(contract, iface, baseProvider);
 
+    let result = false;
+
     // `getWhitelistedOperators()` (ERC721-C)
     try {
       const whitelistedOperators = await nft
         .getWhitelistedOperators()
         .then((ops: string[]) => ops.map((o) => o.toLowerCase()));
-      const result = operators.some((o) => !whitelistedOperators.includes(o));
-
-      await redis.set(cacheKey, result ? "1" : "0", "EX", 24 * 3600);
-      return result;
+      result = operators.some((o) => !whitelistedOperators.includes(o));
     } catch {
       // Skip errors
+    }
+
+    // Positive case
+    if (result) {
+      await redis.set(cacheKey, "1", "EX", 24 * 3600);
+      return result;
     }
 
     // `registry()`
@@ -85,13 +89,19 @@ export const isBlockedByCustomLogic = async (contract: string, operators: string
         baseProvider
       );
       const allowed = await Promise.all(operators.map((c) => registry.isAllowedOperator(c)));
-      const result = allowed.some((c) => !c);
-
-      await redis.set(cacheKey, result ? "1" : "0", "EX", 24 * 3600);
-      return result;
+      result = allowed.some((c) => !c);
     } catch {
       // Skip errors
     }
+
+    // Positive case
+    if (result) {
+      await redis.set(cacheKey, "1", "EX", 24 * 3600);
+      return result;
+    }
+
+    // Negative case
+    await redis.set(cacheKey, "0", "EX", 24 * 3600);
   }
 
   return Boolean(Number(cache));
