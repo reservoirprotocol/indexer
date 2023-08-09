@@ -3,7 +3,7 @@ import { bn } from "@/common/utils";
 
 import { baseProvider } from "@/common/provider";
 
-import { Transaction, getTransaction, saveTransactionsV2 } from "@/models/transactions";
+import { Transaction, getTransaction, saveTransactions } from "@/models/transactions";
 import { TransactionReceipt } from "@ethersproject/providers";
 
 import { BlockWithTransactions } from "@ethersproject/abstract-provider";
@@ -55,6 +55,8 @@ export const saveBlockTransactions = async (
     const gasPrice = tx.gasPrice?.toString();
     const gasUsed = txRaw?.gas ? bn(txRaw.gas).toString() : undefined;
     const gasFee = gasPrice && gasUsed ? bn(gasPrice).mul(gasUsed).toString() : undefined;
+    const maxFeePerGas = tx.maxFeePerGas?.toString();
+    const maxPriorityFeePerGas = tx.maxPriorityFeePerGas?.toString();
 
     return {
       hash: tx.hash.toLowerCase(),
@@ -68,6 +70,8 @@ export const saveBlockTransactions = async (
       gasPrice,
       gasUsed,
       gasFee,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
       cumulativeGasUsed: txReceipt.cumulativeGasUsed.toString(),
       contractAddress: txReceipt.contractAddress?.toLowerCase(),
       logsBloom: txReceipt.logsBloom,
@@ -77,7 +81,7 @@ export const saveBlockTransactions = async (
   });
 
   // Save all transactions within the block
-  await saveTransactionsV2(transactions);
+  await saveTransactions(transactions);
 };
 
 export const fetchTransaction = async (hash: string) => {

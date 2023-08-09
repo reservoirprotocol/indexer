@@ -15,6 +15,8 @@ export type Transaction = {
   gasPrice?: string;
   gasUsed?: string;
   gasFee?: string;
+  maxFeePerGas?: string;
+  maxPriorityFeePerGas?: string;
   cumulativeGasUsed?: string;
   contractAddress?: string;
   logsBloom?: string;
@@ -22,64 +24,7 @@ export type Transaction = {
   transactionIndex?: number;
 };
 
-/**
- * Store batch transactions and return nothing
- * @param transactions
- */
 export const saveTransactions = async (transactions: Transaction[]) => {
-  if (_.isEmpty(transactions)) {
-    return;
-  }
-
-  const columns = new pgp.helpers.ColumnSet(
-    [
-      "hash",
-      "from",
-      "to",
-      "value",
-      "data",
-      "block_number",
-      "block_timestamp",
-      "gas_price",
-      "gas_used",
-      "gas_fee",
-    ],
-    { table: "transactions" }
-  );
-
-  const transactionsValues = _.map(transactions, (transaction) => ({
-    hash: toBuffer(transaction.hash),
-    from: toBuffer(transaction.from),
-    to: toBuffer(transaction.to),
-    value: transaction.value,
-    data: toBuffer(transaction.data),
-    block_number: transaction.blockNumber,
-    block_timestamp: transaction.blockTimestamp,
-    gas_price: transaction.gasPrice,
-    gas_used: transaction.gasUsed,
-    gas_fee: transaction.gasFee,
-  }));
-
-  await txdb.none(
-    `
-      INSERT INTO transactions (
-        hash,
-        "from",
-        "to",
-        value,
-        data,
-        block_number,
-        block_timestamp,
-        gas_price,
-        gas_used,
-        gas_fee
-      ) VALUES ${pgp.helpers.values(transactionsValues, columns)}
-      ON CONFLICT DO NOTHING
-    `
-  );
-};
-
-export const saveTransactionsV2 = async (transactions: Transaction[]) => {
   const CHUNK_SIZE = 10;
 
   // eslint-disable-next-line
@@ -102,6 +47,8 @@ export const saveTransactionsV2 = async (transactions: Transaction[]) => {
       "gas_price",
       "gas_used",
       "gas_fee",
+      "max_fee_per_gas",
+      "max_priority_fee_per_gas",
       "cumulative_gas_used",
       "contract_address",
       "logs_bloom",
@@ -123,6 +70,8 @@ export const saveTransactionsV2 = async (transactions: Transaction[]) => {
     gas_price: transaction.gasPrice,
     gas_used: transaction.gasUsed,
     gas_fee: transaction.gasFee,
+    max_fee_per_gas: transaction.maxFeePerGas,
+    max_priority_fee_per_gas: transaction.maxPriorityFeePerGas,
     cumulative_gas_used: transaction.cumulativeGasUsed,
     contract_address: transaction?.contractAddress ? toBuffer(transaction.contractAddress) : null,
     logs_bloom: transaction?.logsBloom ? toBuffer(transaction.logsBloom) : null,
@@ -179,6 +128,8 @@ export const getTransaction = async (hash: string): Promise<Transaction> => {
         transactions.gas_price,
         transactions.gas_used,
         transactions.gas_fee,
+        transactions.max_fee_per_gas,
+        transactions.max_priority_fee_per_gas,
         transactions.cumulative_gas_used,
         transactions.contract_address,
         transactions.logs_bloom,
@@ -202,6 +153,8 @@ export const getTransaction = async (hash: string): Promise<Transaction> => {
     gasPrice: result.gas_price,
     gasUsed: result.gas_used,
     gasFee: result.gas_fee,
+    maxFeePerGas: result.max_fee_per_gas,
+    maxPriorityFeePerGas: result.max_priority_fee_per_gas,
     cumulativeGasUsed: result.cumulative_gas_used,
     status: result.status,
     transactionIndex: result.transaction_index,
