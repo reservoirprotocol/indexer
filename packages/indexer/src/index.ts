@@ -7,6 +7,7 @@ import { RabbitMq } from "@/common/rabbit-mq";
 import { acquireLock, redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { logger } from "@/common/logger";
+import _ from "lodash";
 
 if (process.env.LOCAL_TESTING) {
   import("./setup");
@@ -16,7 +17,9 @@ if (process.env.LOCAL_TESTING) {
     .then(async () => {
       // Sync the pods so rabbit queues assertion will run only once per deployment by a single pod
       if (await acquireLock(config.imageTag, 75)) {
+        const start = _.now();
         await RabbitMq.assertQueuesAndExchanges();
+        logger.info("rabbit-timing", `rabbit assertion done in ${_.now() - start}ms`);
         await redis.set(config.imageTag, "DONE", "EX", 60 * 60 * 24); // Update the lock ttl
         import("./setup");
       } else {
