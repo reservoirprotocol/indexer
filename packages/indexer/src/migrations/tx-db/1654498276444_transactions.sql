@@ -12,6 +12,8 @@ CREATE TABLE "transactions" (
   "gas_used" NUMERIC,
   "gas_price" NUMERIC,
   "gas_fee" NUMERIC,
+  "max_fee_per_gas" NUMERIC,
+  "max_priority_fee_per_gas" NUMERIC,
   "cumulative_gas_used" NUMERIC(78, 0) NOT NULL DEFAULT 0,
   "contract_address" BYTEA,
   "logs_bloom" BYTEA,
