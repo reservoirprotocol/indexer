@@ -118,7 +118,6 @@ export const postOrderV4Options: RouteOptions = {
         collection?: string;
         tokenSetId?: string;
         isNonFlagged?: boolean;
-        source?: string;
         bulkData?: {
           kind: "seaport-v1.4" | "seaport-v1.5" | "alienswap";
           data: {
@@ -330,11 +329,6 @@ export const postOrderV4Options: RouteOptions = {
               let crossPostingOrder;
 
               let orderId: string;
-              if (order.kind === "seaport") {
-                orderId = new Sdk.SeaportV11.Order(config.chainId, order.data).hash();
-              } else if (order.kind === "seaport-v1.4") {
-                orderId = new Sdk.SeaportV14.Order(config.chainId, order.data).hash();
-              }
               if (order.kind === "seaport-v1.5") {
                 orderId = new Sdk.SeaportV15.Order(config.chainId, order.data).hash();
               } else {
@@ -360,35 +354,7 @@ export const postOrderV4Options: RouteOptions = {
                   orderbookApiKey,
                 });
               } else if (orderbook === "reservoir") {
-                if (order.kind === "seaport") {
-                  const [result] = await orders.seaport.save([
-                    {
-                      orderParams: order.data,
-                      isReservoir: true,
-                      metadata: {
-                        schema,
-                        source,
-                      },
-                    },
-                  ]);
-                  if (!["success", "already-exists"].includes(result.status)) {
-                    return results.push({ message: result.status, orderIndex: i, orderId });
-                  }
-                } else if (order.kind == "seaport-v1.4") {
-                  const [result] = await orders.seaportV14.save([
-                    {
-                      orderParams: order.data,
-                      isReservoir: true,
-                      metadata: {
-                        schema,
-                        source,
-                      },
-                    },
-                  ]);
-                  if (!["success", "already-exists"].includes(result.status)) {
-                    return results.push({ message: result.status, orderIndex: i, orderId });
-                  }
-                } else if (order.kind == "seaport-v1.5") {
+                if (order.kind == "seaport-v1.5") {
                   const [result] = await orders.seaportV15.save([
                     {
                       orderParams: order.data,
@@ -402,7 +368,7 @@ export const postOrderV4Options: RouteOptions = {
                   if (!["success", "already-exists"].includes(result.status)) {
                     return results.push({ message: result.status, orderIndex: i, orderId });
                   }
-                } else {
+                } else if (order.kind === "alienswap") {
                   const [result] = await orders.alienswap.save([
                     {
                       orderParams: order.data,

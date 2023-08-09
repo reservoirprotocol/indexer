@@ -3,6 +3,7 @@ import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk";
 
 import { idb, redb } from "@/common/db";
+import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
@@ -30,12 +31,11 @@ export const checkMarketplaceIsFiltered = async (
 
   let result: string[] | null = [];
   if (refresh) {
+    logger.info("debug-qn-usage", JSON.stringify({ contract, operators, kind: "regular" }));
     result = await updateMarketplaceBlacklist(contract);
   } else {
     const cacheKey = `marketplace-blacklist:${contract}`;
-    result = refresh
-      ? null
-      : await redis.get(cacheKey).then((r) => (r ? (JSON.parse(r) as string[]) : null));
+    result = await redis.get(cacheKey).then((r) => (r ? (JSON.parse(r) as string[]) : null));
     if (!result) {
       result = await getMarketplaceBlacklistFromDB(contract);
       await redis.set(cacheKey, JSON.stringify(result), "EX", 24 * 3600);
@@ -51,11 +51,11 @@ export const checkMarketplaceIsFiltered = async (
 };
 
 export const isBlockedByCustomLogic = async (contract: string, operators: string[]) => {
-  const cacheDuration = 24 * 3600;
-
   const cacheKey = `marketplace-blacklist-custom-logic:${contract}:${JSON.stringify(operators)}`;
   const cache = await redis.get(cacheKey);
   if (!cache) {
+    logger.info("debug-qn-usage", JSON.stringify({ contract, operators, kind: "custom" }));
+
     const iface = new Interface([
       "function registry() view returns (address)",
       "function getWhitelistedOperators() view returns (address[])",
@@ -69,7 +69,7 @@ export const isBlockedByCustomLogic = async (contract: string, operators: string
         .then((ops: string[]) => ops.map((o) => o.toLowerCase()));
       const result = operators.some((o) => !whitelistedOperators.includes(o));
 
-      await redis.set(cacheKey, result ? "1" : "0", "EX", cacheDuration);
+      await redis.set(cacheKey, result ? "1" : "0", "EX", 24 * 3600);
       return result;
     } catch {
       // Skip errors
@@ -87,7 +87,7 @@ export const isBlockedByCustomLogic = async (contract: string, operators: string
       const allowed = await Promise.all(operators.map((c) => registry.isAllowedOperator(c)));
       const result = allowed.some((c) => !c);
 
-      await redis.set(cacheKey, result ? "1" : "0", "EX", cacheDuration);
+      await redis.set(cacheKey, result ? "1" : "0", "EX", 24 * 3600);
       return result;
     } catch {
       // Skip errors
@@ -97,7 +97,7 @@ export const isBlockedByCustomLogic = async (contract: string, operators: string
   return Boolean(Number(cache));
 };
 
-export const getMarketplaceBlacklist = async (contract: string): Promise<string[]> => {
+const getMarketplaceBlacklist = async (contract: string): Promise<string[]> => {
   const iface = new Interface([
     "function filteredOperators(address registrant) external view returns (address[])",
   ]);
@@ -123,7 +123,7 @@ export const getMarketplaceBlacklist = async (contract: string): Promise<string[
   return Array.from(new Set(allOperatorsList));
 };
 
-export const getMarketplaceBlacklistFromDB = async (contract: string): Promise<string[]> => {
+const getMarketplaceBlacklistFromDB = async (contract: string): Promise<string[]> => {
   const result = await redb.oneOrNone(
     `
       SELECT
@@ -136,7 +136,7 @@ export const getMarketplaceBlacklistFromDB = async (contract: string): Promise<s
   return result?.filtered_operators || [];
 };
 
-export const updateMarketplaceBlacklist = async (contract: string) => {
+const updateMarketplaceBlacklist = async (contract: string) => {
   const blacklist = await getMarketplaceBlacklist(contract);
   await idb.none(
     `
