@@ -74,6 +74,10 @@ export class EventsBackfillJob extends AbstractRabbitMqJobHandler {
           return;
         } else if (oldFromBlock < oldToBlock) {
           // backfill not finished, add job to queue to check again later
+          logger.info(
+            this.queueName,
+            `Backfill not finished, add job to queue to check again later: ${backfillId}, fromBlock: ${oldFromBlock}, toBlock: ${oldToBlock}`
+          );
           await this.addToQueue(
             {
               backfillId,
@@ -96,6 +100,11 @@ export class EventsBackfillJob extends AbstractRabbitMqJobHandler {
         logger.warn(this.queueName, `Invalid payload: ${JSON.stringify(payload)}`);
         return;
       }
+
+      logger.info(
+        this.queueName,
+        `Backfilling events from block ${fromBlock} to ${toBlock} with backfillId ${backfillId}`
+      );
 
       for (let i = fromBlock; i <= toBlock; i++) {
         await eventsSyncHistoricalJob.addToQueue({
