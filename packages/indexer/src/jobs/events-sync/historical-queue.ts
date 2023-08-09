@@ -3,10 +3,12 @@ import { syncEvents } from "@/events-sync/index";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 
 import { checkSupports } from "@/events-sync/supports";
+import { redis } from "@/common/redis";
 
 export type EventsSyncHistoricalJobPayload = {
   block: number;
   syncEventsToMainDB?: boolean;
+  backfillId?: string;
 };
 
 export class EventsSyncHistoricalJob extends AbstractRabbitMqJobHandler {
@@ -28,6 +30,13 @@ export class EventsSyncHistoricalJob extends AbstractRabbitMqJobHandler {
       const { block, syncEventsToMainDB } = payload;
 
       await syncEvents(block, syncEventsToMainDB);
+
+      if (payload.backfillId) {
+        const latestBlock = Number(await redis.get(`backfill:latestBlock:${payload.backfillId}`));
+        if (block > latestBlock) {
+          await redis.set(`backfill:latestBlock:${payload.backfillId}`, `${block}`);
+        }
+      }
     } catch (error) {
       logger.warn(this.queueName, `Events historical syncing failed: ${error}`);
       throw error;

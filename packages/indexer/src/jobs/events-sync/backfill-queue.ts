@@ -57,6 +57,7 @@ export class EventsBackfillJob extends AbstractRabbitMqJobHandler {
         backfillId = payload.backfillId;
         const oldFromBlock = Number(await redis.get(`backfill:fromBlock:${backfillId}`));
         const oldToBlock = Number(await redis.get(`backfill:toBlock:${backfillId}`));
+        const latestBlock = Number(await redis.get(`backfill:latestBlock:${backfillId}`));
 
         maxBlock = Number(await redis.get(`backfill:maxBlock:${backfillId}`));
 
@@ -72,7 +73,7 @@ export class EventsBackfillJob extends AbstractRabbitMqJobHandler {
           // backfill finished
           logger.info(this.queueName, `Backfill finished: ${backfillId}`);
           return;
-        } else if (oldFromBlock < oldToBlock) {
+        } else if (latestBlock < oldToBlock) {
           // backfill not finished, add job to queue to check again later
           logger.info(
             this.queueName,
@@ -110,6 +111,7 @@ export class EventsBackfillJob extends AbstractRabbitMqJobHandler {
         await eventsSyncHistoricalJob.addToQueue({
           block: i,
           syncEventsToMainDB: payload.syncEventsToMainDB,
+          backfillId: backfillId,
         });
       }
 
