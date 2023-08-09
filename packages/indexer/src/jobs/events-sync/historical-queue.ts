@@ -12,7 +12,7 @@ export type EventsSyncHistoricalJobPayload = {
 export class EventsSyncHistoricalJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-historical";
   maxRetries = 30;
-  concurrency = 15;
+  concurrency = 100;
   consumerTimeout = 60 * 1000;
   backoff = {
     type: "fixed",
