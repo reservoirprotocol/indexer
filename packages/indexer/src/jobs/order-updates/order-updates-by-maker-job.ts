@@ -212,7 +212,7 @@ export class OrderUpdatesByMakerJob extends AbstractRabbitMqJobHandler {
                     x AS (
                       SELECT
                         orders.id,
-                        orders.price,
+                        orders.price
                       FROM orders
                       WHERE orders.maker = $/maker/
                         AND orders.side = 'buy'
