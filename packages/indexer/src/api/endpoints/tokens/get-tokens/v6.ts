@@ -542,9 +542,7 @@ export const getTokensV6Options: RouteOptions = {
         FROM tokens t
         ${
           sourceCte !== ""
-            ? `${
-                query.excludeEoa ? "LEFT" : ""
-              } JOIN filtered_orders s ON s.contract = t.contract AND s.token_id = t.token_id`
+            ? "JOIN filtered_orders s ON s.contract = t.contract AND s.token_id = t.token_id"
             : ""
         }
         ${includeQuantityQuery}
