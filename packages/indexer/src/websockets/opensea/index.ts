@@ -32,9 +32,10 @@ import MetadataApi from "@/utils/metadata-api";
 import { openseaBidsQueueJob } from "@/jobs/orderbook/opensea-bids-queue-job";
 import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
 import { openseaListingsJob } from "@/jobs/orderbook/opensea-listings-job";
+import { getNetworkSettings } from "@/config/network";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
-  const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
+  const network = getNetworkSettings().isTestnet ? Network.TESTNET : Network.MAINNET;
   const maxBidsSize = config.chainId === 1 ? 200 : 1;
   const bidsEvents: GenericOrderInfo[] = [];
 
