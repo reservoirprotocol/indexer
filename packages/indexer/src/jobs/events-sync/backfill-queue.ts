@@ -83,7 +83,7 @@ export class EventsBackfillJob extends AbstractRabbitMqJobHandler {
         await redis.set(`backfill:latestBlock:${backfillId}`, `${fromBlock}`);
         await redis.set(`backfill:toBlock:${backfillId}`, `${toBlock}`);
       } else {
-        logger.warn(this.queueName, `Invalid payload: ${payload}`);
+        logger.warn(this.queueName, `Invalid payload: ${JSON.stringify(payload)}`);
         return;
       }
 
