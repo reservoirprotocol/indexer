@@ -327,6 +327,10 @@ jobs:
             ${{ github.sha }} \
             indexer-websocket-bsc
           ./utils/version_update.sh \
+            ./prod/platform/indexer-websocket-arbitrum.yaml \
+            ${{ github.sha }} \
+            indexer-websocket-arbitrum
+          ./utils/version_update.sh \
             ./prod/platform/indexer-kafka-worker-mainnet.yaml \
             ${{ github.sha }} \
             indexer-kafka-worker-mainnet
