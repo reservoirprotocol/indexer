@@ -323,7 +323,10 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               orderSourceId: attributionData.orderSource?.id,
               aggregatorSourceId: attributionData.aggregatorSource?.id,
               fillSourceId: attributionData.fillSource?.id,
-              baseEventParams,
+              baseEventParams: {
+                ...baseEventParams,
+                batchIndex: baseEventParams.batchIndex + i,
+              },
             });
           }
         }
