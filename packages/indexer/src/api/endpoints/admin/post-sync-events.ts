@@ -36,6 +36,7 @@ export const postSyncEventsOptions: RouteOptions = {
       skipNonFillWrites: Joi.boolean().default(false),
       backfill: Joi.boolean().default(true),
       syncEventsToMainDB: Joi.boolean().default(true),
+      range: Joi.number().integer().positive(),
     }),
   },
   handler: async (request: Request) => {
@@ -54,6 +55,7 @@ export const postSyncEventsOptions: RouteOptions = {
         fromBlock,
         toBlock,
         syncEventsToMainDB: payload?.syncEventsToMainDB,
+        range: payload?.range,
       });
 
       return { message: "Request accepted" };
