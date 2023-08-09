@@ -331,9 +331,25 @@ jobs:
             ${{ github.sha }} \
             indexer-websocket-arbitrum
           ./utils/version_update.sh \
+            ./prod/platform/indexer-websocket-arbitrum-nova.yaml \
+            ${{ github.sha }} \
+            indexer-websocket-arbitrum-nova
+          ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-optimism.yaml \
             ${{ github.sha }} \
             indexer-websocket-optimism
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-websocket-base.yaml \
+            ${{ github.sha }} \
+            indexer-websocket-base
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-websocket-zora.yaml \
+            ${{ github.sha }} \
+            indexer-websocket-zora
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-websocket-avalanche.yaml \
+            ${{ github.sha }} \
+            indexer-websocket-avalanche
           ./utils/version_update.sh \
             ./prod/platform/indexer-kafka-worker-mainnet.yaml \
             ${{ github.sha }} \
