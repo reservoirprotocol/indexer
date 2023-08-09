@@ -70,15 +70,15 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
           return;
         }
 
-        logger.debug(
-          "opensea-websocket",
-          `Processing event. network=${network}, event=${JSON.stringify(event)}`
-        );
-
-        // await saveEvent(event);
-
         const eventType = event.event_type as EventType;
         const openSeaOrderParams = await handleEvent(eventType, event.payload);
+
+        logger.debug(
+          "opensea-websocket",
+          `Processing event. network=${network}, event=${JSON.stringify(
+            event
+          )}, isSupported=${!!openSeaOrderParams}`
+        );
 
         if (openSeaOrderParams) {
           const protocolData = parseProtocolData(event.payload);
@@ -131,13 +131,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
         if (await isDuplicateEvent(event)) {
           return;
         }
-
-        logger.debug(
-          "opensea-websocket",
-          `Processing onItemMetadataUpdated event. network=${network}, event=${JSON.stringify(
-            event
-          )}`
-        );
 
         const [, contract, tokenId] = event.payload.item.nft_id.split("/");
 
