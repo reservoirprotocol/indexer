@@ -93,6 +93,9 @@ export const getOpenApiOptions: RouteOptions = {
         {
           url: "https://api-zora-testnet.reservoir.tools",
         },
+        {
+          url: "https://api-linea.reservoir.tools",
+        },
       ];
 
       // Preset list of tags.
