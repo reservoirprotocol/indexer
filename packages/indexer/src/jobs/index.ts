@@ -505,18 +505,21 @@ export class RabbitMqJobsConsumer {
       await RabbitMqJobsConsumer.connect(); // Create a connection for the consumer
       await RabbitMqJobsConsumer.connectToVhost(); // Create a connection for the consumer
 
-      for (const queue of RabbitMqJobsConsumer.getQueues()) {
-        try {
+      const subscribePromises = [];
+      const subscribeToVhostPromises = [];
+
+      try {
+        for (const queue of RabbitMqJobsConsumer.getQueues()) {
           if (!queue.isDisableConsuming()) {
-            await RabbitMqJobsConsumer.subscribe(queue);
-            await RabbitMqJobsConsumer.subscribeToVhost(queue);
+            subscribePromises.push(RabbitMqJobsConsumer.subscribe(queue));
+            subscribeToVhostPromises.push(RabbitMqJobsConsumer.subscribeToVhost(queue));
           }
-        } catch (error) {
-          logger.error(
-            "rabbit-subscribe",
-            `failed to subscribe to ${queue.queueName} error ${error}`
-          );
         }
+
+        await Promise.all(subscribePromises);
+        await Promise.all(subscribeToVhostPromises);
+      } catch (error) {
+        logger.error("rabbit-subscribe", `failed to subscribe error ${error}`);
       }
     } catch (error) {
       logger.error("rabbit-subscribe-connection", `failed to open connections to consume ${error}`);
