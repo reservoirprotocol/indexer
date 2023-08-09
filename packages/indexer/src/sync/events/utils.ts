@@ -55,8 +55,8 @@ export const saveBlockTransactions = async (
     const gasPrice = tx.gasPrice?.toString();
     const gasUsed = txRaw?.gas ? bn(txRaw.gas).toString() : undefined;
     const gasFee = gasPrice && gasUsed ? bn(gasPrice).mul(gasUsed).toString() : undefined;
-    const maxFeePerGas = tx.maxFeePerGas?.toString();
-    const maxPriorityFeePerGas = tx.maxPriorityFeePerGas?.toString();
+    const maxFeePerGas = tx.maxFeePerGas?.toString() || undefined;
+    const maxPriorityFeePerGas = tx.maxPriorityFeePerGas?.toString() || undefined;
 
     return {
       hash: tx.hash.toLowerCase(),
