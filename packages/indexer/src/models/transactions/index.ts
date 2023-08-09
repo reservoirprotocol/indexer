@@ -98,6 +98,8 @@ export const saveTransactions = async (transactions: Transaction[]) => {
           gas_price,
           gas_used,
           gas_fee,
+          max_fee_per_gas,
+          max_priority_fee_per_gas,
           cumulative_gas_used,
           contract_address,
           logs_bloom,
