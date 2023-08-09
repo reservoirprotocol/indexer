@@ -225,7 +225,7 @@ export class Collections {
     await marketplaceFees.updateMarketplaceFeeSpec(collection.id, "opensea", openseaFees);
 
     // Refresh any contract blacklists
-    await marketplaceBlacklist.updateMarketplaceBlacklist(collection.contract);
+    await marketplaceBlacklist.checkMarketplaceIsFiltered(collection.contract, [], true);
   }
 
   public static async update(collectionId: string, fields: CollectionsEntityUpdateParams) {

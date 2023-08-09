@@ -28,28 +28,21 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      let cursor = job.data.cursor as CursorInfo;
+      const cursor = job.data.cursor as CursorInfo;
       let continuationFilter = "";
 
-      const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 10000;
-
-      if (!cursor) {
-        const cursorJson = await redis.get(`${QUEUE_NAME}-next-cursor`);
-
-        if (cursorJson) {
-          cursor = JSON.parse(cursorJson);
-        }
-      }
+      const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 1000;
 
       if (cursor) {
-        continuationFilter = `WHERE (collections.id) > ($/collectionId/)`;
+        continuationFilter = `AND (collections.id) > ($/collectionId/)`;
       }
 
       const results = await idb.manyOrNone(
         `
         SELECT collections.id
         FROM collections
-        --${continuationFilter}
+        WHERE collections.id  = collections.name
+        ${continuationFilter}
         ORDER BY all_time_volume DESC
         LIMIT $/limit/
           `,
@@ -62,6 +55,11 @@ if (config.doBackgroundWork) {
       let nextCursor;
       const collectionMetadataInfos = [];
 
+      logger.info(
+        QUEUE_NAME,
+        `Worker debug. results=${results.length}, cursor=${JSON.stringify(cursor)}`
+      );
+
       if (results.length) {
         for (const result of results) {
           const tokenId = await Tokens.getSingleToken(result.id);
@@ -69,6 +67,7 @@ if (config.doBackgroundWork) {
             contract: result.id,
             tokenId,
             community: "",
+            forceRefresh: true,
           });
         }
 
@@ -82,9 +81,14 @@ if (config.doBackgroundWork) {
           collectionId: lastResult.id,
         };
 
-        await redis.set(`${QUEUE_NAME}-next-cursor`, JSON.stringify(nextCursor));
+        logger.info(
+          QUEUE_NAME,
+          `Worker debug. results=${results.length}, cursor=${JSON.stringify(
+            cursor
+          )}, nextCursor=${JSON.stringify(nextCursor)}`
+        );
 
-        // await addToQueue(nextCursor);
+        await addToQueue(nextCursor);
       }
     },
     { connection: redis.duplicate(), concurrency: 1 }
