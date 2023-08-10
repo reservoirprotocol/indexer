@@ -351,6 +351,18 @@ jobs:
             ${{ github.sha }} \
             indexer-websocket-avalanche
           ./utils/version_update.sh \
+            ./prod/platform/indexer-websocket-mumbai.yaml \
+            ${{ github.sha }} \
+            indexer-websocket-mumbai
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-websocket-base-goerli.yaml \
+            ${{ github.sha }} \
+            indexer-websocket-base-goerli   
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-websocket-zora-testnet.yaml \
+            ${{ github.sha }} \
+            indexer-websocket-zora-testnet
+          ./utils/version_update.sh \
             ./prod/platform/indexer-kafka-worker-mainnet.yaml \
             ${{ github.sha }} \
             indexer-kafka-worker-mainnet
