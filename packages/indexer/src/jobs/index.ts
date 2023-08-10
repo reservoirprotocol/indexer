@@ -175,16 +175,16 @@ export class RabbitMqJobsConsumer {
   private static maxConsumerConnectionsCount = 5;
 
   private static rabbitMqConsumerConnections: AmqpConnectionManager[] = [];
-
   private static queueToChannel: Map<string, ChannelWrapper> = new Map();
   private static sharedChannels: Map<string, ChannelWrapper> = new Map();
   private static channelsToJobs: Map<ChannelWrapper, AbstractRabbitMqJobHandler[]> = new Map();
-  private static sharedChannelName = "shared-channel";
 
-  private static vhostQueueToChannel: Map<string, ChannelWrapper> = new Map();
-  private static sharedVhostChannels: Map<string, ChannelWrapper> = new Map();
   private static rabbitMqConsumerVhostConnections: AmqpConnectionManager[] = [];
+  private static vhostQueueToChannel: Map<string, ChannelWrapper> = new Map();
+  private static vhostSharedChannels: Map<string, ChannelWrapper> = new Map();
   private static vhostChannelsToJobs: Map<ChannelWrapper, AbstractRabbitMqJobHandler[]> = new Map();
+
+  private static sharedChannelName = "shared-channel";
 
   /**
    * Return array of all jobs classes, any new job MUST be added here
@@ -337,7 +337,7 @@ export class RabbitMqJobsConsumer {
       const sharedChannel = connection.createChannel({ confirm: false });
 
       // Create a shared channel for each connection
-      RabbitMqJobsConsumer.sharedVhostChannels.set(
+      RabbitMqJobsConsumer.vhostSharedChannels.set(
         RabbitMqJobsConsumer.getSharedChannelName(i),
         sharedChannel
       );
@@ -436,7 +436,7 @@ export class RabbitMqJobsConsumer {
 
     let channel: ChannelWrapper;
     const connectionIndex = _.random(0, RabbitMqJobsConsumer.maxConsumerConnectionsCount - 1);
-    const sharedChannel = RabbitMqJobsConsumer.sharedVhostChannels.get(
+    const sharedChannel = RabbitMqJobsConsumer.vhostSharedChannels.get(
       RabbitMqJobsConsumer.getSharedChannelName(connectionIndex)
     );
 
@@ -486,7 +486,7 @@ export class RabbitMqJobsConsumer {
    * @param job
    */
   static async unsubscribe(job: AbstractRabbitMqJobHandler) {
-    const channel = RabbitMqJobsConsumer.queueToChannel.get(job.getQueue());
+    const channel = RabbitMqJobsConsumer.vhostQueueToChannel.get(job.getQueue());
 
     if (channel) {
       await channel.cancel(RabbitMqJobsConsumer.getConsumerTag(job.getQueue()));

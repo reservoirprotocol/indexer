@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { BigNumberish } from "@ethersproject/bignumber";
+import { MaxUint256 } from "@ethersproject/constants";
 import { parseEther } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk";
 import crypto from "crypto";
 import Joi from "joi";
-
 import { bn, formatEth, formatPrice, formatUsd, fromBuffer, now, regex } from "@/common/utils";
 import { config } from "@/config/index";
 import { FeeRecipients } from "@/models/fee-recipients";
@@ -321,18 +321,18 @@ export const getJoiDynamicPricingObject = async (
   dynamic: boolean,
   kind: OrderKind,
   normalizeRoyalties: boolean,
-  raw_data:
+  rawData:
     | Sdk.SeaportBase.Types.OrderComponents
     | Sdk.Sudoswap.OrderParams
     | Sdk.Nftx.Types.OrderParams,
   currency?: string,
-  missing_royalties?: []
+  missingRoyalties?: []
 ) => {
   const floorAskCurrency = currency ? currency : Sdk.Common.Addresses.Native[config.chainId];
 
   // Add missing royalties on top of the raw prices
-  const missingRoyalties = normalizeRoyalties
-    ? ((missing_royalties ?? []) as any[])
+  const totalMissingRoyalties = normalizeRoyalties
+    ? ((missingRoyalties ?? []) as any[])
         .map((mr: any) => bn(mr.amount))
         .reduce((a, b) => a.add(b), bn(0))
     : bn(0);
@@ -340,7 +340,7 @@ export const getJoiDynamicPricingObject = async (
   if (dynamic && (kind === "seaport" || kind === "seaport-v1.4" || kind === "seaport-v1.5")) {
     const order = new Sdk.SeaportV14.Order(
       config.chainId,
-      raw_data as Sdk.SeaportBase.Types.OrderComponents
+      rawData as Sdk.SeaportBase.Types.OrderComponents
     );
 
     // Dutch auction
@@ -352,7 +352,7 @@ export const getJoiDynamicPricingObject = async (
             {
               gross: {
                 amount: bn(order.getMatchingPrice(order.params.startTime))
-                  .add(missingRoyalties)
+                  .add(totalMissingRoyalties)
                   .toString(),
               },
             },
@@ -362,7 +362,7 @@ export const getJoiDynamicPricingObject = async (
             {
               gross: {
                 amount: bn(order.getMatchingPrice(order.params.endTime))
-                  .add(missingRoyalties)
+                  .add(totalMissingRoyalties)
                   .toString(),
               },
             },
@@ -380,13 +380,13 @@ export const getJoiDynamicPricingObject = async (
     return {
       kind: "pool",
       data: {
-        pool: (raw_data as Sdk.Sudoswap.OrderParams).pair,
+        pool: (rawData as Sdk.Sudoswap.OrderParams).pair,
         prices: await Promise.all(
-          ((raw_data as Sdk.Sudoswap.OrderParams).extra.prices as string[]).map((price) =>
+          ((rawData as Sdk.Sudoswap.OrderParams).extra.prices as string[]).map((price) =>
             getJoiPriceObject(
               {
                 gross: {
-                  amount: bn(price).add(missingRoyalties).toString(),
+                  amount: bn(price).add(totalMissingRoyalties).toString(),
                 },
               },
               floorAskCurrency
@@ -395,23 +395,34 @@ export const getJoiDynamicPricingObject = async (
         ),
       },
     };
-  } else if (kind === "collectionxyz" || kind === "nftx" || kind === "caviar-v1") {
+  } else if (
+    kind === "collectionxyz" ||
+    kind === "nftx" ||
+    kind === "caviar-v1" ||
+    kind === "midaswap"
+  ) {
     // Pool orders
     return {
       kind: "pool",
       data: {
-        pool: (raw_data as Sdk.Nftx.Types.OrderParams).pool,
+        pool: (rawData as Sdk.Midaswap.Types.OrderParams).pool,
         prices: await Promise.all(
-          ((raw_data as Sdk.Nftx.Types.OrderParams).extra.prices as string[]).map((price) =>
-            getJoiPriceObject(
-              {
-                gross: {
-                  amount: bn(price).add(missingRoyalties).toString(),
-                },
-              },
-              floorAskCurrency
+          (rawData as Sdk.Midaswap.Types.OrderParams).extra.prices
+            .filter((price) =>
+              bn(price).lte(
+                bn((rawData as Sdk.Midaswap.Types.OrderParams).extra.floorPrice || MaxUint256)
+              )
             )
-          )
+            .map((price) =>
+              getJoiPriceObject(
+                {
+                  gross: {
+                    amount: bn(price).add(totalMissingRoyalties).toString(),
+                  },
+                },
+                floorAskCurrency
+              )
+            )
         ),
       },
     };
@@ -561,7 +572,8 @@ export const getJoiOrderObject = async (order: {
   rawData:
     | Sdk.SeaportBase.Types.OrderComponents
     | Sdk.Sudoswap.OrderParams
-    | Sdk.Nftx.Types.OrderParams;
+    | Sdk.Nftx.Types.OrderParams
+    | Sdk.Midaswap.Types.OrderParams;
   normalizeRoyalties: boolean;
   missingRoyalties: any;
   includeDynamicPricing?: boolean;

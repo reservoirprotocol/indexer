@@ -139,6 +139,14 @@ export type GenericOrderInfo =
       ingestDelay?: number;
     }
   | {
+      kind: "midaswap";
+      info: orders.midaswap.OrderInfo;
+      relayToArweave?: boolean;
+      validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
+    }
+  | {
       kind: "caviar-v1";
       info: orders.caviarV1.OrderInfo;
       relayToArweave?: boolean;
@@ -200,6 +208,11 @@ export const processOrder = async (job: AbstractRabbitMqJobHandler, payload: Gen
 
       case "sudoswap-v2": {
         result = await orders.sudoswapV2.save([info]);
+        break;
+      }
+
+      case "midaswap": {
+        result = await orders.midaswap.save([info]);
         break;
       }
 

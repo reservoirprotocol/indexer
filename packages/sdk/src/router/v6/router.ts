@@ -62,6 +62,7 @@ import ZeroExV4ModuleAbi from "./abis/ZeroExV4Module.json";
 import ZoraModuleAbi from "./abis/ZoraModule.json";
 import PermitProxyAbi from "./abis/PermitProxy.json";
 import SudoswapV2ModuleAbi from "./abis/SudoswapV2Module.json";
+import MidaswapModuleAbi from "./abis/MidaswapModule.json";
 import CaviarV1ModuleAbi from "./abis/CaviarV1Module.json";
 import CryptoPunksModuleAbi from "./abis/CryptoPunksModule.json";
 import PaymentProcessorModuleAbi from "./abis/PaymentProcessorModule.json";
@@ -144,6 +145,10 @@ export class Router {
         Addresses.SudoswapV2Module[chainId] ?? AddressZero,
         SudoswapV2ModuleAbi,
         provider
+      ),
+      midaswapModule: new Contract(
+        Addresses.MidaswapModule[chainId] ?? AddressZero,
+        MidaswapModuleAbi
       ),
       caviarV1Module: new Contract(
         Addresses.CaviarV1Module[chainId] ?? AddressZero,
@@ -886,6 +891,7 @@ export class Router {
     const alienswapDetails: PerCurrencyListingDetails = {};
     const sudoswapDetails: ListingDetails[] = [];
     const sudoswapV2Details: ListingDetails[] = [];
+    const midaswapDetails: ListingDetails[] = [];
     const caviarV1Details: ListingDetails[] = [];
     const collectionXyzDetails: ListingDetails[] = [];
     const x2y2Details: ListingDetails[] = [];
@@ -966,6 +972,9 @@ export class Router {
           detailsRef = sudoswapV2Details;
           break;
 
+        case "midaswap":
+          detailsRef = midaswapDetails;
+          break;
         case "caviar-v1":
           detailsRef = caviarV1Details;
           break;
@@ -1973,6 +1982,71 @@ export class Router {
 
       // Mark the listings as successfully handled
       for (const { orderId } of sudoswapV2Details) {
+        success[orderId] = true;
+        orderIds.push(orderId);
+      }
+    }
+
+    // Handle Midaswap listings
+    if (midaswapDetails.length) {
+      const orders = midaswapDetails.map((d) => ({
+        order: d.order as Sdk.Midaswap.Order,
+        amount: d.amount,
+        contractKind: d.contractKind,
+      }));
+      const module = this.contracts.midaswapModule;
+
+      const fees = getFees(midaswapDetails);
+
+      // Group orders by LP token id
+      const lpTokenIdsMap: { [lpTokenId: string]: Sdk.Midaswap.Order[] } = {};
+      for (const { order } of orders) {
+        if (!lpTokenIdsMap[order.params.lpTokenId]) {
+          lpTokenIdsMap[order.params.lpTokenId] = [];
+        }
+        lpTokenIdsMap[order.params.lpTokenId].push(order);
+      }
+
+      // Accumulate
+      let price = bn(0);
+      Object.keys(lpTokenIdsMap).forEach((lpTokenId) => {
+        price = lpTokenIdsMap[lpTokenId][0].params.extra.prices
+          .slice(0, lpTokenIdsMap[lpTokenId].length)
+          .reduce((a, b) => bn(a).add(bn(b)), bn(0))
+          .add(price);
+      });
+      const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+      const totalPrice = price.add(feeAmount);
+
+      executions.push({
+        module: module.address,
+        data: module.interface.encodeFunctionData("buyWithETH", [
+          midaswapDetails.map((d) => (d.order as Sdk.Midaswap.Order).params.tokenX),
+          midaswapDetails.map((d) => d.tokenId),
+          {
+            fillTo: taker,
+            refundTo: relayer,
+            revertIfIncomplete: Boolean(!options?.partial),
+            amount: price,
+          },
+          fees,
+        ]),
+        value: totalPrice,
+      });
+
+      // Track any possibly required swap
+      swapDetails.push({
+        tokenIn: buyInCurrency,
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
+        tokenOutAmount: totalPrice,
+        recipient: module.address,
+        refundTo: relayer,
+        details: midaswapDetails,
+        executionIndex: executions.length - 1,
+      });
+
+      // Mark the listings as successfully handled
+      for (const { orderId } of midaswapDetails) {
         success[orderId] = true;
         orderIds.push(orderId);
       }
@@ -3275,6 +3349,10 @@ export class Router {
           break;
         }
 
+        case "midaswap": {
+          module = this.contracts.midaswapModule;
+          break;
+        }
         case "caviar-v1": {
           module = this.contracts.caviarV1Module;
           break;
@@ -3763,6 +3841,35 @@ export class Router {
                   // Take into account the protocol fee of 0.5%
                   bn(order.params.extra.prices[0]).mul(50).div(10000)
                 ),
+                {
+                  fillTo: taker,
+                  refundTo: taker,
+                  revertIfIncomplete: Boolean(!options?.partial),
+                },
+                fees,
+              ]),
+              value: 0,
+            },
+          });
+
+          success[detail.orderId] = true;
+
+          break;
+        }
+
+        case "midaswap": {
+          const order = detail.order as Sdk.Midaswap.Order;
+          const module = this.contracts.midaswapModule;
+
+          executionsWithDetails.push({
+            detail,
+            execution: {
+              module: module.address,
+              data: module.interface.encodeFunctionData("sell", [
+                order.params.tokenX,
+                Sdk.Common.Addresses.Native[this.chainId],
+                detail.tokenId,
+                bn(order.params.extra.prices[0]),
                 {
                   fillTo: taker,
                   refundTo: taker,
