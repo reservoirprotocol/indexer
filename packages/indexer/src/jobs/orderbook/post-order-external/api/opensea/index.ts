@@ -4,7 +4,7 @@ import axios, { AxiosRequestConfig } from "axios";
 import { logger } from "@/common/logger";
 import { bn, now } from "@/common/utils";
 import { config } from "@/config/index";
-import { getOpenseaBaseUrl, getOpenseaNetworkName } from "@/config/network";
+import { getNetworkSettings, getOpenseaBaseUrl, getOpenseaNetworkName } from "@/config/network";
 import {
   RequestWasThrottledError,
   InvalidRequestError,
@@ -38,16 +38,15 @@ export const postOrder = async (order: Sdk.SeaportV15.Order, apiKey: string) => 
   const options: AxiosRequestConfig = {
     method: "POST",
     url: config.openSeaApiUrl || url,
-    headers:
-      config.chainId !== 5
-        ? {
-            url,
-            "Content-Type": "application/json",
-            "X-Api-Key": apiKey || config.openSeaApiKey,
-          }
-        : {
-            "Content-Type": "application/json",
-          },
+    headers: !getNetworkSettings().isTestnet
+      ? {
+          url,
+          "Content-Type": "application/json",
+          "X-Api-Key": apiKey || config.openSeaApiKey,
+        }
+      : {
+          "Content-Type": "application/json",
+        },
     data: {
       parameters: {
         ...order.params,
@@ -99,16 +98,15 @@ export const buildCollectionOffer = async (
   const options: AxiosRequestConfig = {
     method: "post",
     url: config.openSeaApiUrl || url,
-    headers:
-      config.chainId !== 5
-        ? {
-            url,
-            "Content-Type": "application/json",
-            "X-Api-Key": apiKey || config.openSeaApiKey,
-          }
-        : {
-            "Content-Type": "application/json",
-          },
+    headers: !getNetworkSettings().isTestnet
+      ? {
+          url,
+          "Content-Type": "application/json",
+          "X-Api-Key": apiKey || config.openSeaApiKey,
+        }
+      : {
+          "Content-Type": "application/json",
+        },
     data: {
       offerer,
       quantity,
@@ -158,16 +156,15 @@ export const buildTraitOffer = async (
   const options: AxiosRequestConfig = {
     method: "post",
     url: config.openSeaApiUrl || url,
-    headers:
-      config.chainId !== 5
-        ? {
-            url,
-            "Content-Type": "application/json",
-            "X-Api-Key": apiKey || config.openSeaApiKey,
-          }
-        : {
-            "Content-Type": "application/json",
-          },
+    headers: !getNetworkSettings().isTestnet
+      ? {
+          url,
+          "Content-Type": "application/json",
+          "X-Api-Key": apiKey || config.openSeaApiKey,
+        }
+      : {
+          "Content-Type": "application/json",
+        },
     data: {
       offerer,
       quantity,
@@ -223,16 +220,15 @@ export const postCollectionOffer = async (
   const options: AxiosRequestConfig = {
     method: "post",
     url: config.openSeaApiUrl || url,
-    headers:
-      config.chainId !== 5
-        ? {
-            url,
-            "Content-Type": "application/json",
-            "X-Api-Key": apiKey || config.openSeaApiKey,
-          }
-        : {
-            "Content-Type": "application/json",
-          },
+    headers: !getNetworkSettings().isTestnet
+      ? {
+          url,
+          "Content-Type": "application/json",
+          "X-Api-Key": apiKey || config.openSeaApiKey,
+        }
+      : {
+          "Content-Type": "application/json",
+        },
     data: {
       criteria: {
         collection: {
@@ -284,16 +280,15 @@ export const postTraitOffer = async (
   const options: AxiosRequestConfig = {
     method: "post",
     url: config.openSeaApiUrl || url,
-    headers:
-      config.chainId !== 5
-        ? {
-            url,
-            "Content-Type": "application/json",
-            "X-Api-Key": apiKey || config.openSeaApiKey,
-          }
-        : {
-            "Content-Type": "application/json",
-          },
+    headers: !getNetworkSettings().isTestnet
+      ? {
+          url,
+          "Content-Type": "application/json",
+          "X-Api-Key": apiKey || config.openSeaApiKey,
+        }
+      : {
+          "Content-Type": "application/json",
+        },
     data: {
       criteria: {
         collection: {
