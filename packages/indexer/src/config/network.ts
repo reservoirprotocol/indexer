@@ -474,8 +474,8 @@ export const getNetworkSettings = (): NetworkSettings => {
           indexes: {
             activities: {
               numberOfShards: 10,
-              disableMappingsUpdate: config.environment !== "prod",
-              configName: config.environment === "prod" ? "CONFIG_DEFAULT" : "CONFIG_1689873821",
+              disableMappingsUpdate: true,
+              configName: "CONFIG_1689873821",
             },
           },
         },

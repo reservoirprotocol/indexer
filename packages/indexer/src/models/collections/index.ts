@@ -135,6 +135,7 @@ export class Collections {
           contract,
           tokenId,
           community,
+          collection,
         })
       );
     }
