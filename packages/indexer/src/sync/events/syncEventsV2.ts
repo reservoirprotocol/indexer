@@ -279,7 +279,7 @@ export const syncEvents = async (block: number) => {
   const startGetBlockTime = Date.now();
   const blockData = await syncEventsUtils.fetchBlock(block);
   if (!blockData) {
-    throw new Error(`Block ${block} not found`);
+    throw new Error(`Block ${block} not found with RPC provider`);
   }
 
   const endGetBlockTime = Date.now();

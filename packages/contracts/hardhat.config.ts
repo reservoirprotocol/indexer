@@ -39,6 +39,9 @@ const getNetworkConfig = (chainId?: number) => {
       case 42170:
         url = "";
         break;
+      case 43114:
+        url = "https://avalanche-c-chain.publicnode.com";
+        break;
       case 59144:
         url = "";
         break;
@@ -123,6 +126,7 @@ const config: HardhatUserConfig = {
     base: getNetworkConfig(8453),
     arbitrum: getNetworkConfig(42161),
     arbitrumNova: getNetworkConfig(42170),
+    avalanche: getNetworkConfig(43114),
     linea: getNetworkConfig(59144),
     zora: getNetworkConfig(7777777),
     // Testnets
