@@ -73,12 +73,21 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
         const eventType = event.event_type as EventType;
         const openSeaOrderParams = await handleEvent(eventType, event.payload);
 
-        logger.debug(
-          "opensea-websocket",
-          `Processing event. network=${network}, event=${JSON.stringify(
-            event
-          )}, isSupported=${!!openSeaOrderParams}`
-        );
+        if (config.chainId === 1) {
+          logger.debug(
+            "opensea-websocket",
+            `Processing event. network=${network}, event=${JSON.stringify(
+              event
+            )}, isSupported=${!!openSeaOrderParams}`
+          );
+        } else if (openSeaOrderParams) {
+          logger.debug(
+            "opensea-websocket",
+            `Processing event. network=${network}, event=${JSON.stringify(
+              event
+            )}, isSupported=${!!openSeaOrderParams}`
+          );
+        }
 
         if (openSeaOrderParams) {
           const protocolData = parseProtocolData(event.payload);
