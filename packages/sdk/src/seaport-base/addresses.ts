@@ -28,6 +28,7 @@ export const ReservoirConduitKey: ChainIdToAddress = {
   [Network.Zora]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.Base]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.Linea]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
+  [Network.Avalanche]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
 };
 
 export const ConduitController: ChainIdToAddress = {
@@ -80,6 +81,7 @@ export const OperatorFilterRegistry: ChainIdToAddress = {
   [Network.Optimism]: "0x000000000000aaeb6d7670e522a718067333cd4e",
   [Network.Polygon]: "0x000000000000aaeb6d7670e522a718067333cd4e",
   [Network.Arbitrum]: "0x000000000000aaeb6d7670e522a718067333cd4e",
+  [Network.Avalanche]: "0x000000000000aaeb6d7670e522a718067333cd4e",
 };
 
 // Zones
@@ -91,6 +93,7 @@ export const OpenSeaProtectedOffersZone: ChainIdToAddress = {
   [Network.Optimism]: "0x000000e7ec00e7b300774b00001314b8610022b8",
   [Network.Polygon]: "0x000000e7ec00e7b300774b00001314b8610022b8",
   [Network.Arbitrum]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.Avalanche]: "0x000000e7ec00e7b300774b00001314b8610022b8",
 };
 
 // TODO: Deploy to all other supported networks
