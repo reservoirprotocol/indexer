@@ -28,14 +28,20 @@ export class Order {
   public static getSellPrice = (bin: number, freeRate = 0, royalty = 0) => {
     const price = Order.binToPriceFixed(bin);
     return parseEther(
-      (+price * (1 + (freeRate + royalty) / 10000)).toFixed(18).toString()
+      new Decimal(price)
+        .mul(1 + (freeRate + royalty) / 10000)
+        .toFixed(18)
+        .toString()
     ).toString();
   };
 
   public static getBuyPrice = (bin: number, freeRate = 0, royalty = 0) => {
     const price = Order.binToPriceFixed(bin);
     return parseEther(
-      (+price / (1 + (freeRate + royalty) / 10000)).toFixed(18).toString()
+      new Decimal(price)
+        .div(1 + (freeRate + royalty) / 10000)
+        .toFixed(18)
+        .toString()
     ).toString();
   };
 }
