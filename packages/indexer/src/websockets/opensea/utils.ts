@@ -26,10 +26,14 @@ export const getSupportedChainName = () => {
       return "mumbai";
     case 8453:
       return "base";
+    case 84531:
+      return "base_goerli";
     case 324:
       return "zksync";
     case 7777777:
       return "zora";
+    case 999:
+      return "zora_testnet";
     default:
       return "unknown";
   }
