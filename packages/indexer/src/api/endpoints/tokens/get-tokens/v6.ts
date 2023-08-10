@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { MaxUint256 } from "@ethersproject/constants";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
@@ -1069,9 +1070,14 @@ export const getTokensV6Options: RouteOptions = {
                 },
               };
             } else if (
-              ["sudoswap", "sudoswap-v2", "nftx", "collectionxyz", "caviar-v1"].includes(
-                r.floor_sell_order_kind
-              )
+              [
+                "sudoswap",
+                "sudoswap-v2",
+                "nftx",
+                "collectionxyz",
+                "caviar-v1",
+                "midaswap",
+              ].includes(r.floor_sell_order_kind)
             ) {
               // Pool orders
               dynamicPricing = {
@@ -1079,17 +1085,21 @@ export const getTokensV6Options: RouteOptions = {
                 data: {
                   pool: r.floor_sell_raw_data.pair ?? r.floor_sell_raw_data.pool,
                   prices: await Promise.all(
-                    (r.floor_sell_raw_data.extra.prices as string[]).map((price) =>
-                      getJoiPriceObject(
-                        {
-                          gross: {
-                            amount: bn(price).add(missingRoyalties).toString(),
-                          },
-                        },
-                        floorAskCurrency,
-                        query.displayCurrency
+                    (r.floor_sell_raw_data.extra.prices as string[])
+                      .filter((price) =>
+                        bn(price).lte(bn(r.floor_sell_raw_data.extra.floorPrice || MaxUint256))
                       )
-                    )
+                      .map((price) =>
+                        getJoiPriceObject(
+                          {
+                            gross: {
+                              amount: bn(price).add(missingRoyalties).toString(),
+                            },
+                          },
+                          floorAskCurrency,
+                          query.displayCurrency
+                        )
+                      )
                   ),
                 },
               };
