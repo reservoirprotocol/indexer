@@ -244,7 +244,7 @@ export const trigger = {
         : undefined,
     MidaswapModule: async (chainId: number) =>
       [1, 5].includes(chainId)
-        ? dv("MidaswapModule", "v1", [
+        ? dv("MidaswapModule", "v2", [
             DEPLOYER,
             Sdk.RouterV6.Addresses.Router[chainId],
             Sdk.Midaswap.Addresses.PairFactory[chainId],

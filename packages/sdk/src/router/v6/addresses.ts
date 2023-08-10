@@ -209,7 +209,9 @@ export const SuperRareModule: ChainIdToAddress = {
   [Network.Ethereum]: "0x512a6a1a74f1f08aac8155605b9da8ace46b3d9c",
 };
 
-export const MidaswapModule: ChainIdToAddress = {};
+export const MidaswapModule: ChainIdToAddress = {
+  [Network.EthereumGoerli]: "0xfe1aaded2702e7976ac6c2e7dca7708a04232396",
+};
 
 export const CryptoPunksModule: ChainIdToAddress = {
   [Network.Ethereum]: "0x8be240e8689547f1068a835d14f1d943958095dc",

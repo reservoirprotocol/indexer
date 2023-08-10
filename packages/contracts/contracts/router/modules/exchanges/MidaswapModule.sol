@@ -30,10 +30,7 @@ contract MidaswapModule is BaseExchangeModule {
 
   // --- Fallback ---
 
-  receive() external payable {
-    // Only accept ETH via fallback from the WETH contract
-    assert(msg.sender == address(WETH));
-  }
+  receive() external payable {}
 
   // --- Multiple ETH listings ---
 
