@@ -3869,7 +3869,6 @@ export class Router {
                 order.params.tokenX,
                 Sdk.Common.Addresses.Native[this.chainId],
                 detail.tokenId,
-                bn(order.params.extra.prices[0]),
                 {
                   fillTo: taker,
                   refundTo: taker,
