@@ -18,7 +18,8 @@
       "tokenUrlMumbai": "https://testnets.opensea.io/assets/mumbai/${contract}/${tokenId}",
       "tokenUrlBaseGoerli": "https://testnets.opensea.io/assets/base-goerli/${contract}/${tokenId}",
       "tokenUrlArbitrumNova": "https://opensea.io/assets/arbitrum-nova/${contract}/${tokenId}",
-      "tokenUrlAvalanche": "https://opensea.io/assets/avalanche/${contract}/${tokenId}"
+      "tokenUrlAvalanche": "https://opensea.io/assets/avalanche/${contract}/${tokenId}",
+      "tokenUrlBase": "https://opensea.io/assets/base/${contract}/${tokenId}"
     }
   },
   "2": {

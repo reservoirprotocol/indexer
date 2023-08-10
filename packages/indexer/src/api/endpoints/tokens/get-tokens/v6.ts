@@ -170,7 +170,9 @@ export const getTokensV6Options: RouteOptions = {
         .description("If true, top bid will be returned in the response."),
       excludeEOA: Joi.boolean()
         .default(false)
-        .description("If true, blur bids will be excluded from top bid / asks."),
+        .description(
+          "Exclude orders that can only be filled by EOAs, to support filling with smart contracts. defaults to false"
+        ),
       includeAttributes: Joi.boolean()
         .default(false)
         .description("If true, attributes will be returned in the response."),
