@@ -1675,7 +1675,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         steps = steps.filter((s) => s.id !== "pre-signatures");
       }
 
-      if (steps.find((s) => s.id === "currency-permit")!.items.length) {
+      if (steps.find((s) => s.id === "currency-permit")?.items.length) {
         // Return early since any next steps are dependent on the permits
         return {
           steps,
