@@ -21,6 +21,7 @@ export * as superrare from "@/orderbook/orders/superrare";
 export * as looksRareV2 from "@/orderbook/orders/looks-rare-v2";
 export * as collectionxyz from "@/orderbook/orders/collectionxyz";
 export * as sudoswapV2 from "@/orderbook/orders/sudoswap-v2";
+export * as midaswap from "@/orderbook/orders/midaswap";
 export * as caviarV1 from "@/orderbook/orders/caviar-v1";
 export * as paymentProcessor from "@/orderbook/orders/payment-processor";
 
@@ -79,6 +80,7 @@ export type OrderKind =
   | "blend"
   | "collectionxyz"
   | "sudoswap-v2"
+  | "midaswap"
   | "caviar-v1"
   | "payment-processor"
   | "blur-v2";
@@ -160,6 +162,8 @@ export const getOrderSourceByOrderKind = async (
       case "sudoswap":
       case "sudoswap-v2":
         return sources.getOrInsert("sudoswap.xyz");
+      case "midaswap":
+        return sources.getOrInsert("midaswap.org");
       case "caviar-v1":
         return sources.getOrInsert("caviar.sh");
       case "nftx":
@@ -407,6 +411,14 @@ export const generateListingDetailsV6 = (
         kind: "sudoswap-v2",
         ...common,
         order: new Sdk.SudoswapV2.Order(config.chainId, order.rawData),
+      };
+    }
+
+    case "midaswap": {
+      return {
+        kind: "midaswap",
+        ...common,
+        order: new Sdk.Midaswap.Order(config.chainId, order.rawData),
       };
     }
 
@@ -732,6 +744,15 @@ export const generateBidDetailsV6 = async (
       const sdkOrder = new Sdk.SudoswapV2.Order(config.chainId, order.rawData);
       return {
         kind: "sudoswap-v2",
+        ...common,
+        order: sdkOrder,
+      };
+    }
+
+    case "midaswap": {
+      const sdkOrder = new Sdk.Midaswap.Order(config.chainId, order.rawData);
+      return {
+        kind: "midaswap",
         ...common,
         order: sdkOrder,
       };

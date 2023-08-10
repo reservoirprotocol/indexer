@@ -123,6 +123,10 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
         data: kindToEvents.get("sudoswap-v2") ?? [],
       },
       {
+        kind: "midaswap",
+        data: kindToEvents.get("midaswap") ?? [],
+      },
+      {
         kind: "wyvern",
         data: kindToEvents.has("wyvern")
           ? [
