@@ -1658,13 +1658,21 @@ export const getExecuteBuyV7Options: RouteOptions = {
       // same index.
       if (buyInCurrency === Sdk.Common.Addresses.Native[config.chainId]) {
         // Buying in ETH will never require an approval
-        steps = [steps[0], ...steps.slice(2)];
+        steps = steps.filter((s) => s.id !== "currency-approval");
+      }
+      if (!payload.usePermit) {
+        // Permits are only used when explicitly requested
+        steps = steps.filter((s) => s.id !== "currency-permit");
       }
       if (!blurAuth) {
         // If we reached this point and the Blur auth is missing then we
         // can be sure that no Blur orders were requested and it is safe
         // to remove the auth step
-        steps = steps.slice(1);
+        steps = steps.filter((s) => s.id !== "auth");
+      }
+      if (!listingDetails.some((d) => d.kind === "payment-processor")) {
+        // For now, pre-signatures are only needed for `payment-processor` orders
+        steps = steps.filter((s) => s.id !== "pre-signatures");
       }
 
       if (steps.find((s) => s.id === "currency-permit")!.items.length) {
