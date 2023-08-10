@@ -1338,6 +1338,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/sales/v6",
+    options: transfersEndpoints.getSalesV6Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/sales/bulk/v1",
     options: transfersEndpoints.getSalesBulkV1Options,
   });

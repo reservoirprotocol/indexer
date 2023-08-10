@@ -10,13 +10,13 @@ import { getJoiSaleObject, JoiSale } from "@/common/joi";
 import { buildContinuation, regex, splitContinuation, toBuffer } from "@/common/utils";
 import * as Boom from "@hapi/boom";
 
-const version = "v5";
+const version = "v6";
 
-export const getSalesV5Options: RouteOptions = {
+export const getSalesV6Options: RouteOptions = {
   description: "Sales",
   notes:
     "Get recent sales for a contract or token. Paid mints are returned in this `sales` endpoint, free mints can be found in the `/activities/` endpoints. Array of contracts max limit is 20.",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Sales"],
   plugins: {
     "hapi-swagger": {
       order: 8,
@@ -64,10 +64,10 @@ export const getSalesV5Options: RouteOptions = {
         .description(
           "Filter to a particular attribute. Attributes are case sensitive. Note: Our docs do not support this parameter correctly. To test, you can use the following URL in your browser. Example: `https://api.reservoir.tools/sales/v4?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original` or `https://api.reservoir.tools/sales/v4?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original&attributes[Type]=Sibling`"
         ),
-      orderBy: Joi.string()
-        .valid("price", "time", "updated_at")
+      sortBy: Joi.string()
+        .valid("price", "time", "updatedAt")
         .description(
-          "Order the items are returned in the response. Options are `price`, `time`, and `updated_at`. Default is `time`."
+          "Order the items are returned in the response. Options are `price`, `time`, and `updatedAt`. Default is `time`."
         ),
       sortDirection: Joi.string()
         .lowercase()
@@ -81,10 +81,10 @@ export const getSalesV5Options: RouteOptions = {
           "Filter to a particular transaction. Example: `0x04654cc4c81882ed4d20b958e0eeb107915d75730110cce65333221439de6afc`"
         ),
       startTimestamp: Joi.number().description(
-        "Get events after a particular unix timestamp (inclusive). Relative to the orderBy time filters."
+        "Get events after a particular unix timestamp (inclusive). Relative to the sortBy time filters."
       ),
       endTimestamp: Joi.number().description(
-        "Get events before a particular unix timestamp (inclusive). Relative to the orderBy time filters."
+        "Get events before a particular unix timestamp (inclusive). Relative to the sortBy time filters."
       ),
       limit: Joi.number()
         .integer()
@@ -211,11 +211,11 @@ export const getSalesV5Options: RouteOptions = {
       (query as any).batchIndex = contArr[2];
       (query as any).price = contArr[3];
       const inequalitySymbol = query.sortDirection === "asc" ? ">" : "<";
-      if (query.orderBy && query.orderBy === "price") {
+      if (query.sortBy && query.sortBy === "price") {
         paginationFilter = `
         AND (fill_events_2.price) ${inequalitySymbol} ($/price/)
       `;
-      } else if (query.orderBy && query.orderBy === "updated_at") {
+      } else if (query.sortBy && query.sortBy === "updatedAt") {
         paginationFilter = `
         AND (extract(epoch from fill_events_2.updated_at), fill_events_2.log_index, fill_events_2.batch_index) ${inequalitySymbol} ($/timestamp/, $/logIndex/, $/batchIndex/)
         `;
@@ -241,9 +241,9 @@ export const getSalesV5Options: RouteOptions = {
       fill_events_2.timestamp <= $/endTimestamp/)
     `;
 
-    if (query.orderBy && query.orderBy === "price") {
+    if (query.sortBy && query.sortBy === "price") {
       queryOrderBy = `ORDER BY fill_events_2.price ${query.sortDirection}`;
-    } else if (query.orderBy && query.orderBy === "updated_at") {
+    } else if (query.sortBy && query.sortBy === "updatedAt") {
       queryOrderBy = `ORDER BY fill_events_2.updated_at ${query.sortDirection}`;
       timestampFilter = `
         AND fill_events_2.updated_at >= to_timestamp($/startTimestamp/) AND
@@ -338,7 +338,7 @@ export const getSalesV5Options: RouteOptions = {
       if (rawResult.length === query.limit) {
         const result = rawResult[rawResult.length - 1];
         const timestamp =
-          query.orderBy && query.orderBy === "updated_at" ? result.updated_ts : result.timestamp;
+          query.sortBy && query.sortBy === "updatedAt" ? result.updated_ts : result.timestamp;
 
         continuation = buildContinuation(
           timestamp + "_" + result.log_index + "_" + result.batch_index + "_" + result.price
