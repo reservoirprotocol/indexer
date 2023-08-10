@@ -73,19 +73,16 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
         const eventType = event.event_type as EventType;
         const openSeaOrderParams = await handleEvent(eventType, event.payload);
 
-        if (config.chainId === 1) {
+        // Reduce amount of logs by only total the amount of events received from Ethereum mainnet.
+        if (openSeaOrderParams || config.chainId === 1) {
           logger.debug(
             "opensea-websocket",
-            `Processing event. network=${network}, event=${JSON.stringify(
-              event
-            )}, isSupported=${!!openSeaOrderParams}`
-          );
-        } else if (openSeaOrderParams) {
-          logger.debug(
-            "opensea-websocket",
-            `Processing event. network=${network}, event=${JSON.stringify(
-              event
-            )}, isSupported=${!!openSeaOrderParams}`
+            JSON.stringify({
+              message: "Processing event.",
+              network,
+              event,
+              isSupported: !!openSeaOrderParams,
+            })
           );
         }
 
