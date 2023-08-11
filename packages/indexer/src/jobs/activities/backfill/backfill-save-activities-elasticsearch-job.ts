@@ -178,7 +178,9 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
     return this.send(
       {
         payload: { type, cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
-        jobId: `${type}:${fromTimestamp}:${toTimestamp}:${keepGoing}:${indexName}`,
+        jobId: `${type}:${JSON.stringify(
+          cursor
+        )}${fromTimestamp}:${toTimestamp}:${indexName}:${keepGoing}`,
       },
       keepGoing ? 5000 : 1000
     );
