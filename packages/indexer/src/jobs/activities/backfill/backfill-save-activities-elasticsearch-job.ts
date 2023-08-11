@@ -256,7 +256,6 @@ const getAskActivities = async (
   const query = `
             ${AskCreatedEventHandler.buildBaseQuery()}
             WHERE side = 'sell'
-            AND kind != 'element-erc1155'
             ${timestampFilter}
             ${continuationFilter}
             ORDER BY updated_at, id
