@@ -49,6 +49,7 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
       // if the error is block not found, add back to queue
       if (error?.message.includes("not found with RPC provider")) {
         await this.addToQueue({ block }, 500);
+        return;
       } else {
         throw error;
       }
