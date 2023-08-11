@@ -3036,8 +3036,17 @@ export class Router {
           orderIds,
         });
       } else {
+        // Filter out any duplicate approvals
+        const uniqueApprovals: { [id: string]: FTApproval } = {};
+        for (const approval of approvals) {
+          const id = approval.owner + approval.currency + approval.txData;
+          if (!uniqueApprovals[id]) {
+            uniqueApprovals[id] = approval;
+          }
+        }
+
         txs.push({
-          approvals,
+          approvals: Object.values(uniqueApprovals),
           permits: [],
           preSignatures: [],
           txData: {
