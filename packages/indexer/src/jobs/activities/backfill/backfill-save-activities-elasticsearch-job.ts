@@ -128,7 +128,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           })
         );
 
-        await redis.incrby(`backfill-activities-elasticsearch-${type}-job-count`, -1);
+        await redis.decr(`backfill-activities-elasticsearch-job-count:${type}`);
       }
     } catch (error) {
       logger.error(
