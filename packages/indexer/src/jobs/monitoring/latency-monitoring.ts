@@ -9,7 +9,7 @@ if (config.doBackgroundWork) {
     // Log sales latency for all fill events in last minute
     const results = await redb.manyOrNone(
       `
-            SELECT EXTRACT(epoch FROM created_at) - "timestamp" AS latency, tx_hash, log_index, batch_index, block, block_hash
+            SELECT EXTRACT(epoch FROM created_at) - "timestamp" AS latency, tx_hash, log_index, batch_index, block, block_hash, order_kind
             FROM fill_events_2
             WHERE created_at > NOW() - INTERVAL '1 minute'
             LIMIT 1000
@@ -26,6 +26,7 @@ if (config.doBackgroundWork) {
           batch_index: result.batch_index,
           block: result.block,
           block_hash: fromBuffer(result.block_hash),
+          order_kind: result.order_kind,
         })
       );
     }
