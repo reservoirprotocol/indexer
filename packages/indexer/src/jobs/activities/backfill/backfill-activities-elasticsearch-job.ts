@@ -4,7 +4,6 @@ import { ridb } from "@/common/db";
 import { elasticsearch } from "@/common/elasticsearch";
 import { redis, redlock } from "@/common/redis";
 
-import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
 import { backfillSaveActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-save-activities-elasticsearch-job";
@@ -415,62 +414,6 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
     }
 
     await Promise.all(promises);
-
-    cron.schedule(
-      "*/30 * * * * *",
-      async () =>
-        await redlock
-          .acquire(["backfill-activities-lock"], (30 - 1) * 1000)
-          .then(async () => {
-            const transferJobCount = Number(
-              await redis.get(`backfill-activities-elasticsearch-job-count:transfer`)
-            );
-
-            const saleJobCount = Number(
-              await redis.get(`backfill-activities-elasticsearch-job-count:sale`)
-            );
-            const askJobCount = Number(
-              await redis.get(`backfill-activities-elasticsearch-job-count:ask`)
-            );
-            const askCancelJobCount = Number(
-              await redis.get(`backfill-activities-elasticsearch-job-count:ask-cancel`)
-            );
-            const bidJobCount = Number(
-              await redis.get(`backfill-activities-elasticsearch-job-count:bid`)
-            );
-            const bidCancelJobCount = Number(
-              await redis.get(`backfill-activities-elasticsearch-job-count:bid-cancel`)
-            );
-
-            const totalJobCount =
-              transferJobCount +
-              saleJobCount +
-              askJobCount +
-              askCancelJobCount +
-              bidJobCount +
-              bidCancelJobCount;
-
-            logger.info(
-              this.queueName,
-              JSON.stringify({
-                topic: "backfill-activities",
-                message: `jobCounts update.`,
-                totalJobCount,
-                jobCounts: {
-                  transferJobCount,
-                  saleJobCount,
-                  askJobCount,
-                  askCancelJobCount,
-                  bidJobCount,
-                  bidCancelJobCount,
-                },
-              })
-            );
-          })
-          .catch(() => {
-            // Skip on any errors
-          })
-    );
   }
 
   public async addToQueue(
@@ -544,23 +487,59 @@ export interface EventCursorInfo {
 }
 
 if (config.doBackgroundWork && config.doElasticsearchWork) {
-  redlock
-    .acquire([`${backfillActivitiesElasticsearchJob}-lock`], 60 * 60 * 24 * 30 * 1000)
-    .then(async () => {
-      await backfillActivitiesElasticsearchJob.addToQueue(
-        true,
-        `${ActivitiesIndex.getIndexName()}-1690489670764`,
-        "CONFIG_1689873821",
-        true,
-        true,
-        true,
-        true,
-        true,
-        true,
-        true
-      );
-    })
-    .catch(() => {
-      // Skip on any errors
-    });
+  cron.schedule(
+    "*/30 * * * * *",
+    async () =>
+      await redlock
+        .acquire(["backfill-activities-lock"], (30 - 1) * 1000)
+        .then(async () => {
+          const transferJobCount = Number(
+            await redis.get(`backfill-activities-elasticsearch-job-count:transfer`)
+          );
+
+          const saleJobCount = Number(
+            await redis.get(`backfill-activities-elasticsearch-job-count:sale`)
+          );
+          const askJobCount = Number(
+            await redis.get(`backfill-activities-elasticsearch-job-count:ask`)
+          );
+          const askCancelJobCount = Number(
+            await redis.get(`backfill-activities-elasticsearch-job-count:ask-cancel`)
+          );
+          const bidJobCount = Number(
+            await redis.get(`backfill-activities-elasticsearch-job-count:bid`)
+          );
+          const bidCancelJobCount = Number(
+            await redis.get(`backfill-activities-elasticsearch-job-count:bid-cancel`)
+          );
+
+          const totalJobCount =
+            transferJobCount +
+            saleJobCount +
+            askJobCount +
+            askCancelJobCount +
+            bidJobCount +
+            bidCancelJobCount;
+
+          logger.info(
+            backfillActivitiesElasticsearchJob.queueName,
+            JSON.stringify({
+              topic: "backfill-activities",
+              message: `jobCounts update.`,
+              totalJobCount,
+              jobCounts: {
+                transferJobCount,
+                saleJobCount,
+                askJobCount,
+                askCancelJobCount,
+                bidJobCount,
+                bidCancelJobCount,
+              },
+            })
+          );
+        })
+        .catch(() => {
+          // Skip on any errors
+        })
+  );
 }
