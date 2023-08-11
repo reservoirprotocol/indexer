@@ -58,9 +58,6 @@ CREATE INDEX "tokens_contract_token_id_index"
 CREATE INDEX "tokens_updated_at_contract_token_id_index"
   ON "tokens" ("updated_at", "contract", "token_id");
 
-CREATE INDEX "tokens_contract_floor_sell_value_floor_sell_currency_index"
-  ON "tokens" ("contract", "floor_sell_value", "floor_sell_currency");
-
 CREATE INDEX "tokens_contract_floor_sell_value_token_id_index"
   ON "tokens" ("contract", "floor_sell_value", "token_id");
 
