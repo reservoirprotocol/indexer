@@ -474,8 +474,8 @@ export const getNetworkSettings = (): NetworkSettings => {
           indexes: {
             activities: {
               numberOfShards: 10,
-              disableMappingsUpdate: config.environment !== "prod",
-              configName: config.environment === "prod" ? "CONFIG_DEFAULT" : "CONFIG_1689873821",
+              disableMappingsUpdate: true,
+              configName: "CONFIG_1689873821",
             },
           },
         },
@@ -1100,6 +1100,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 43114: {
       return {
         ...defaultNetworkSettings,
+        metadataMintDelay: 240,
         enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
