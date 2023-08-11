@@ -2,7 +2,7 @@ import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { ridb } from "@/common/db";
 import { elasticsearch } from "@/common/elasticsearch";
-import { redlock } from "@/common/redis";
+import { redis, redlock } from "@/common/redis";
 
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
@@ -65,6 +65,8 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
 
       let loop = new Date(start);
 
+      let jobCount = 0;
+
       while (loop <= end) {
         const fromTimestamp = Math.floor(loop.getTime() / 1000);
         const newDate = loop.setDate(loop.getDate() + 1);
@@ -78,8 +80,20 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           indexName
         );
 
+        jobCount++;
+
         loop = new Date(newDate);
       }
+
+      await redis.incrby(`backfill-activities-elasticsearch-transfer-job-count`, jobCount);
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "backfill-activities",
+          message: `transfer jobCount=${jobCount}`,
+        })
+      );
 
       if (keepGoing) {
         const fromTimestamp = Math.floor(end.getTime() / 1000);
@@ -107,6 +121,8 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
 
       let loop = new Date(start);
 
+      let jobCount = 0;
+
       while (loop <= end) {
         const fromTimestamp = Math.floor(loop.getTime() / 1000);
         const newDate = loop.setDate(loop.getDate() + 1);
@@ -120,8 +136,20 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           indexName
         );
 
+        jobCount++;
+
         loop = new Date(newDate);
       }
+
+      await redis.incrby(`backfill-activities-elasticsearch-sale-job-count`, jobCount);
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "backfill-activities",
+          message: `sale jobCount=${jobCount}`,
+        })
+      );
 
       if (keepGoing) {
         const fromTimestamp = Math.floor(end.getTime() / 1000);
@@ -149,6 +177,8 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
 
       let loop = new Date(start);
 
+      let jobCount = 0;
+
       while (loop <= end) {
         const fromTimestamp = Math.floor(loop.getTime() / 1000);
         const newDate = loop.setDate(loop.getDate() + 1);
@@ -162,8 +192,20 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           indexName
         );
 
+        jobCount++;
+
         loop = new Date(newDate);
       }
+
+      await redis.incrby(`backfill-activities-elasticsearch-ask-job-count`, jobCount);
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "backfill-activities",
+          message: `ask jobCount=${jobCount}`,
+        })
+      );
 
       if (keepGoing) {
         const fromTimestamp = Math.floor(end.getTime() / 1000);
@@ -191,6 +233,8 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
 
       let loop = new Date(start);
 
+      let jobCount = 0;
+
       while (loop <= end) {
         const fromTimestamp = Math.floor(loop.getTime() / 1000);
         const newDate = loop.setDate(loop.getDate() + 1);
@@ -204,8 +248,20 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           indexName
         );
 
+        jobCount++;
+
         loop = new Date(newDate);
       }
+
+      await redis.incrby(`backfill-activities-elasticsearch-ask-cancel-job-count`, jobCount);
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "backfill-activities",
+          message: `ask cancel jobCount=${jobCount}`,
+        })
+      );
 
       if (keepGoing) {
         const fromTimestamp = Math.floor(end.getTime() / 1000);
@@ -233,6 +289,8 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
 
       let loop = new Date(start);
 
+      let jobCount = 0;
+
       while (loop <= end) {
         const fromTimestamp = Math.floor(loop.getTime() / 1000);
         const newDate = loop.setDate(loop.getDate() + 1);
@@ -246,8 +304,20 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           indexName
         );
 
+        jobCount++;
+
         loop = new Date(newDate);
       }
+
+      await redis.incrby(`backfill-activities-elasticsearch-bid-job-count`, jobCount);
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "backfill-activities",
+          message: `bid jobCount=${jobCount}`,
+        })
+      );
 
       if (keepGoing) {
         const fromTimestamp = Math.floor(end.getTime() / 1000);
@@ -275,6 +345,8 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
 
       let loop = new Date(start);
 
+      let jobCount = 0;
+
       while (loop <= end) {
         const fromTimestamp = Math.floor(loop.getTime() / 1000);
         const newDate = loop.setDate(loop.getDate() + 1);
@@ -288,8 +360,20 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           indexName
         );
 
+        jobCount++;
+
         loop = new Date(newDate);
       }
+
+      await redis.incrby(`backfill-activities-elasticsearch-bid-cancel-job-count`, jobCount);
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "backfill-activities",
+          message: `bid cancel jobCount=${jobCount}`,
+        })
+      );
 
       if (keepGoing) {
         const fromTimestamp = Math.floor(end.getTime() / 1000);
