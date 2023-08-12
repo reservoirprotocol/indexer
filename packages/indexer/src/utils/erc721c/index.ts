@@ -147,6 +147,9 @@ export const refreshERC721COperatorWhitelist = async (transferValidator: string,
         $/id/,
         $/whitelist:json/
       )
+      ON CONFLICT (transfer_validator, id)
+      DO UPDATE SET
+        whitelist = $/whitelist:json/
     `,
     {
       transferValidator: toBuffer(transferValidator),
@@ -185,6 +188,9 @@ export const refreshERC721CPermittedContractReceiverAllowlist = async (
         $/id/,
         $/allowlist:json/
       )
+      ON CONFLICT (transfer_validator, id)
+      DO UPDATE SET
+        allowlist = $/allowlist:json/
     `,
     {
       transferValidator: toBuffer(transferValidator),
