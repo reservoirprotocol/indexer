@@ -98,20 +98,25 @@ const getMarketplaceBlacklist = async (contract: string): Promise<string[]> => {
     "function filteredOperators(address registrant) external view returns (address[])",
   ]);
 
-  const opensea = new Contract(
-    Sdk.SeaportBase.Addresses.OperatorFilterRegistry[config.chainId],
-    iface,
-    baseProvider
-  );
-  const blur = new Contract(
-    Sdk.Blur.Addresses.OperatorFilterRegistry[config.chainId],
-    iface,
-    baseProvider
-  );
-  const [openseaOperators, blurOperators] = await Promise.all([
-    opensea.filteredOperators(contract),
-    blur.filteredOperators(contract),
-  ]);
+  let openseaOperators: string[] = [];
+  if (Sdk.SeaportBase.Addresses.OperatorFilterRegistry[config.chainId]) {
+    const opensea = new Contract(
+      Sdk.SeaportBase.Addresses.OperatorFilterRegistry[config.chainId],
+      iface,
+      baseProvider
+    );
+    openseaOperators = await opensea.filteredOperators(contract);
+  }
+
+  let blurOperators: string[] = [];
+  if (Sdk.Blur.Addresses.OperatorFilterRegistry[config.chainId]) {
+    const blur = new Contract(
+      Sdk.Blur.Addresses.OperatorFilterRegistry[config.chainId],
+      iface,
+      baseProvider
+    );
+    blurOperators = await blur.filteredOperators(contract);
+  }
 
   const allOperatorsList = openseaOperators
     .concat(blurOperators)
