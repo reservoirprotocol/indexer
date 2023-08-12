@@ -12,6 +12,7 @@ import {
 } from "@/models/collections/collections-entity";
 import { Tokens } from "@/models/tokens";
 import { updateBlurRoyalties } from "@/utils/blur";
+import * as erc721c from "@/utils/erc721c";
 import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import MetadataApi from "@/utils/metadata-api";
@@ -241,6 +242,9 @@ export class Collections {
 
     // Refresh any contract blacklists
     await marketplaceBlacklist.checkMarketplaceIsFiltered(collection.contract, [], true);
+
+    // Refresh ERC721C config
+    await erc721c.getERC721CConfig(collection.contract);
   }
 
   public static async update(collectionId: string, fields: CollectionsEntityUpdateParams) {
