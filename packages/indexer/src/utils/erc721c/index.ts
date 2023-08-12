@@ -60,15 +60,15 @@ export const getERC721CConfigFromDB = async (
     `
       SELECT
         erc721c_configs.*,
-        erc721_operator_whitelists.whitelist,
-        erc721_permitted_contract_receiver_allowlists.allowlist
+        erc721c_operator_whitelists.whitelist,
+        erc721c_permitted_contract_receiver_allowlists.allowlist
       FROM erc721c_configs
-      LEFT JOIN erc721_operator_whitelists
-        ON erc721_configs.transfer_validator = erc721_operator_whitelists.transfer_validator
-        AND erc721_configs.operator_whitelist_id = erc721_operator_whitelists.id
-      LEFT JOIN erc721_permitted_contract_receiver_allowlists
-        ON erc721_configs.transfer_validator = erc721_permitted_contract_receiver_allowlists.transfer_validator
-        AND erc721_configs.permitted_contract_receiver_allowlist_id = erc721_permitted_contract_receiver_allowlists.id
+      LEFT JOIN erc721c_operator_whitelists
+        ON erc721c_configs.transfer_validator = erc721c_operator_whitelists.transfer_validator
+        AND erc721c_configs.operator_whitelist_id = erc721c_operator_whitelists.id
+      LEFT JOIN erc721c_permitted_contract_receiver_allowlists
+        ON erc721c_configs.transfer_validator = erc721c_permitted_contract_receiver_allowlists.transfer_validator
+        AND erc721c_configs.permitted_contract_receiver_allowlist_id = erc721c_permitted_contract_receiver_allowlists.id
       WHERE erc721c_configs.contract = $/contract/
     `,
     { contract: toBuffer(contract) }
