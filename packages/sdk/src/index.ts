@@ -1,4 +1,5 @@
 import * as Common from "./common";
+import * as Global from "./global";
 
 import * as RouterV6 from "./router/v6";
 
@@ -40,6 +41,7 @@ import * as Zora from "./zora";
 import * as LooksRareV2 from "./looks-rare-v2";
 import * as Blend from "./blend";
 import * as SudoswapV2 from "./sudoswap-v2";
+import * as Midaswap from "./midaswap";
 import * as CaviarV1 from "./caviar-v1";
 import * as PaymentProcessor from "./payment-processor";
 import * as Seadrop from "./seadrop";
@@ -70,6 +72,8 @@ if (process.env.APPROVAL_PROXY_OVERRIDE) {
 export {
   // Common
   Common,
+  // Global
+  Global,
   // Routers
   RouterV6,
   // Contracts / Protocols
@@ -111,6 +115,7 @@ export {
   LooksRareV2,
   Blend,
   SudoswapV2,
+  Midaswap,
   CaviarV1,
   PaymentProcessor,
   Seadrop,

@@ -45,7 +45,7 @@ export class AskCancelledEventHandler extends AskCreatedEventHandler {
           extract(epoch from orders.updated_at) AS "updated_ts",
           t.*,
           x.*,
-          COALESCE(x.cancel_event_created_ts, extract(epoch from orders.updated_at)) AS "created_ts"
+          x.event_created_ts AS "created_ts"
         FROM orders
         LEFT JOIN LATERAL (
                     SELECT
@@ -62,13 +62,13 @@ export class AskCancelledEventHandler extends AskCreatedEventHandler {
                     AND (split_part(orders.token_set_id, ':', 3)::NUMERIC(78, 0)) = tokens.token_id
                     LIMIT 1
                  ) t ON TRUE
-        LEFT JOIN LATERAL (
+        JOIN LATERAL (
                     SELECT
                         cancel_events."timestamp" AS "event_timestamp",
                         cancel_events.tx_hash AS "event_tx_hash",
                         cancel_events.log_index AS "event_log_index",
                         cancel_events.block_hash AS "event_block_hash",
-                        extract(epoch from cancel_events.created_at) AS "cancel_event_created_ts"
+                        extract(epoch from cancel_events.created_at) AS "event_created_ts"
                     FROM cancel_events WHERE cancel_events.order_id = orders.id
                     LIMIT 1
                  ) x ON TRUE`;

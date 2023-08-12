@@ -537,7 +537,6 @@ export const getExecuteBuyV5Options: RouteOptions = {
         payload.currency,
         {
           source: payload.source,
-          globalFees: feesOnTop,
           partial: payload.partial,
           forceRouter: payload.forceRouter,
         }

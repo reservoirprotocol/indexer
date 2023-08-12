@@ -174,11 +174,11 @@ export const getTransfersBulkV2Options: RouteOptions = {
 
           if (query.contract || query.token) {
             conditions.push(
-              `(nft_transfer_events.address, nft_transfer_events.token_id, extract(epoch from nft_transfer_events.updated_at), tx_hash, log_index, batch_index) ${sign} ($/address/, $/tokenId/, $/updatedAt/, $/txHash/, $/logIndex/, $/batchIndex/)`
+              `(nft_transfer_events.address, nft_transfer_events.token_id, nft_transfer_events.updated_at, tx_hash, log_index, batch_index) ${sign} ($/address/, $/tokenId/, to_timestamp($/updatedAt/), $/txHash/, $/logIndex/, $/batchIndex/)`
             );
           } else {
             conditions.push(
-              `(extract(epoch from nft_transfer_events.updated_at), nft_transfer_events.address, nft_transfer_events.token_id, tx_hash, log_index, batch_index) ${sign} ($/updatedAt/, $/address/, $/tokenId/, $/txHash/, $/logIndex/, $/batchIndex/)`
+              `(nft_transfer_events.updated_at, nft_transfer_events.address, nft_transfer_events.token_id, tx_hash, log_index, batch_index) ${sign} (to_timestamp($/updatedAt/), $/address/, $/tokenId/, $/txHash/, $/logIndex/, $/batchIndex/)`
             );
           }
         }

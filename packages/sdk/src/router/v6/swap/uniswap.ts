@@ -48,12 +48,16 @@ export const generateSwapExecutions = async (
 
   // Uniswap's core SDK doesn't support MATIC -> WMATIC conversion
   // https://github.com/Uniswap/sdk-core/issues/39
+
   let fromToken = await getToken(chainId, provider, fromTokenAddress);
   if (chainId === Network.Polygon && isETH(chainId, fromTokenAddress)) {
     fromToken = await getToken(chainId, provider, WNative[chainId]);
   }
 
-  const toToken = await getToken(chainId, provider, toTokenAddress);
+  let toToken = await getToken(chainId, provider, toTokenAddress);
+  if (chainId === Network.Polygon && isETH(chainId, toTokenAddress)) {
+    toToken = await getToken(chainId, provider, WNative[chainId]);
+  }
 
   const route = await router.route(
     CurrencyAmount.fromRawAmount(toToken, toTokenAmount.toString()),

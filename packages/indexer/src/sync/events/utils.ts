@@ -226,33 +226,17 @@ export const extractAttributionData = async (
 
   // Reference: https://github.com/reservoirprotocol/core/issues/22#issuecomment-1191040945
   if (source) {
-    // TODO: Properly handle aggregator detection
-    if (
-      source !== "opensea.io" &&
-      source !== "gem.xyz" &&
-      source !== "blur.io" &&
-      source !== "alphasharks.io" &&
-      source !== "magically.gg"
-    ) {
-      aggregatorSource = await sources.getOrInsert("reservoir.tools");
-    } else if (source === "gem.xyz") {
-      // Associate Gem direct fills to Gem
+    if (source === "gem.xyz") {
       aggregatorSource = await sources.getOrInsert("gem.xyz");
     } else if (source === "blur.io") {
-      // Associate Blur direct fills to Blur
       aggregatorSource = await sources.getOrInsert("blur.io");
     } else if (source === "alphasharks.io") {
-      // Associate Alphasharks direct fills to Alphasharks
       aggregatorSource = await sources.getOrInsert("alphasharks.io");
     } else if (source === "magically.gg") {
-      // Associate Magically direct fills to Magically
       aggregatorSource = await sources.getOrInsert("magically.gg");
     }
     fillSource = await sources.getOrInsert(source);
-  } else if (router?.domain === "reservoir.tools") {
-    aggregatorSource = router;
   } else if (router) {
-    aggregatorSource = router;
     fillSource = router;
   } else {
     fillSource = orderSource;

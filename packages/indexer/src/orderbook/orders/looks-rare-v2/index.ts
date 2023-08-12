@@ -18,6 +18,7 @@ import {
   orderUpdatesByIdJob,
   OrderUpdatesByIdJobPayload,
 } from "@/jobs/order-updates/order-updates-by-id-job";
+import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 
 export type OrderInfo = {
   orderParams: Sdk.LooksRareV2.Types.MakerOrderParams;
@@ -47,6 +48,18 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         return results.push({
           id,
           status: "already-exists",
+        });
+      }
+
+      const isFiltered = await checkMarketplaceIsFiltered(orderParams.collection, [
+        Sdk.LooksRareV2.Addresses.Exchange[config.chainId],
+        Sdk.LooksRareV2.Addresses.TransferManager[config.chainId],
+      ]);
+
+      if (isFiltered) {
+        return results.push({
+          id,
+          status: "filtered",
         });
       }
 

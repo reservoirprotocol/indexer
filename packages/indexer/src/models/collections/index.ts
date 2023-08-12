@@ -25,6 +25,7 @@ import {
   topBidCollectionJob,
   TopBidCollectionJobPayload,
 } from "@/jobs/collection-updates/top-bid-collection-job";
+import { config } from "@/config/index";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -124,6 +125,20 @@ export class Collections {
     }
 
     const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, community);
+
+    if (config.chainId === 43114) {
+      logger.info(
+        "updateCollectionCache",
+        JSON.stringify({
+          topic: "debugAvalancheCollectionMetadataMissing",
+          message: `Collection metadata debug. contract=${contract}, tokenId=${tokenId}, community=${community}`,
+          contract,
+          tokenId,
+          community,
+          collection,
+        })
+      );
+    }
 
     if (collection.isCopyrightInfringement) {
       collection.name = collection.id;
@@ -225,7 +240,7 @@ export class Collections {
     await marketplaceFees.updateMarketplaceFeeSpec(collection.id, "opensea", openseaFees);
 
     // Refresh any contract blacklists
-    await marketplaceBlacklist.updateMarketplaceBlacklist(collection.contract);
+    await marketplaceBlacklist.checkMarketplaceIsFiltered(collection.contract, [], true);
   }
 
   public static async update(collectionId: string, fields: CollectionsEntityUpdateParams) {

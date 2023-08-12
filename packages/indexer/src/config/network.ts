@@ -16,7 +16,7 @@ export const getNetworkName = () => {
       return "mainnet";
 
     case 5:
-      return config.environment === "prod" ? "prod-goerli" : "goerli";
+      return "goerli";
 
     case 10:
       return "optimism";
@@ -26,6 +26,9 @@ export const getNetworkName = () => {
 
     case 137:
       return "polygon";
+
+    case 324:
+      return "zksync";
 
     case 42161:
       return "arbitrum";
@@ -73,29 +76,38 @@ export const getNetworkName = () => {
 
 export const getOpenseaNetworkName = () => {
   switch (config.chainId) {
+    case 1:
+      return "ethereum";
     case 5:
       return "goerli";
-
-    case 10:
-      return "optimism";
-
-    case 56:
-      return "bsc";
-
     case 137:
       return "matic";
-
+    case 10:
+      return "optimism";
     case 42161:
       return "arbitrum";
-
-    case 80001:
-      return "mumbai";
-
+    case 42170:
+      return "arbitrum_nova";
+    case 56:
+      return "bsc";
+    case 43114:
+      return "avalanche";
     case 11155111:
       return "sepolia";
-
+    case 80001:
+      return "mumbai";
+    case 8453:
+      return "base";
+    case 84531:
+      return "base_goerli";
+    case 324:
+      return "zksync";
+    case 7777777:
+      return "zora";
+    case 999:
+      return "zora_testnet";
     default:
-      return "ethereum";
+      return null;
   }
 };
 
@@ -331,6 +343,15 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
+            "0x313408eb31939a9c33b40afe28dc378845d0992f",
+            {
+              contract: "0x313408eb31939A9c33B40AFE28Dc378845D0992F",
+              name: "BPX",
+              symbol: "BPX",
+              decimals: 18,
+            },
+          ],
+          [
             "0x4c7c1ec97279a6f3323eab9ab317202dee7ad922",
             {
               contract: "0x4c7c1ec97279a6f3323eab9ab317202dee7ad922",
@@ -453,8 +474,8 @@ export const getNetworkSettings = (): NetworkSettings => {
           indexes: {
             activities: {
               numberOfShards: 10,
-              disableMappingsUpdate: config.environment !== "prod",
-              configName: config.environment === "prod" ? "CONFIG_DEFAULT" : "CONFIG_1689873821",
+              disableMappingsUpdate: true,
+              configName: "CONFIG_1689873821",
             },
           },
         },
@@ -655,6 +676,39 @@ export const getNetworkSettings = (): NetworkSettings => {
         },
       };
     }
+    // ZKsync
+    case 324: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: true,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        subDomain: "api-zksync",
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
     // Arbitrum
     case 42161: {
       return {
@@ -816,6 +870,11 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
+        supportedBidCurrencies: {
+          ...defaultNetworkSettings.supportedBidCurrencies,
+          // PaymentProcessor WETH
+          "0xfff9976782d46cc05630d1f6ebab18b2324d6b14": true,
+        },
         subDomain: "api-sepolia",
         onStartup: async () => {
           // Insert the native currency
@@ -1041,6 +1100,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 43114: {
       return {
         ...defaultNetworkSettings,
+        metadataMintDelay: 300,
         enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,

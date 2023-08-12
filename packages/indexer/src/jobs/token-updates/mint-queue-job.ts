@@ -68,7 +68,6 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
                 updated_at = now()
               WHERE tokens.contract = $/contract/
                 AND tokens.token_id = $/tokenId/
-                AND tokens.collection_id IS NULL
             `,
           values: {
             contract: toBuffer(contract),
@@ -161,6 +160,7 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
                   tokenId,
                   collection: collection.id,
                 },
+                context: this.queueName,
               },
             ],
             true,

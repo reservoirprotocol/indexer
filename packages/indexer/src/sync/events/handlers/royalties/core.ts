@@ -11,6 +11,7 @@ import {
   getFillEventsFromTx,
   getOrderInfos,
 } from "@/events-sync/handlers/royalties";
+import { extractOrdersFromCalldata } from "@/events-sync/handlers/royalties/calldata";
 import { supportedExchanges } from "@/events-sync/handlers/royalties/config";
 import { splitPayments } from "@/events-sync/handlers/royalties/payments";
 import { getFillEventsFromTxOnChain } from "@/events-sync/handlers/royalties/utils";
@@ -38,7 +39,6 @@ export async function extractRoyalties(
   useCache?: boolean,
   forceOnChain?: boolean
 ) {
-  const creatorRoyaltyFeeBreakdown: Royalty[] = [];
   const marketplaceFeeBreakdown: Royalty[] = [];
   const royaltyFeeBreakdown: Royalty[] = [];
   const royaltyFeeOnTop: Royalty[] = [];
@@ -202,6 +202,14 @@ export async function extractRoyalties(
   // Extract the payments from the (sub)call we just found
   const paymentsToAnalyze = getPayments(subcallToAnalyze);
 
+  // Extract the orders from calldata when there have multiple fill events
+  const parsedOrders =
+    fillEvents.length > 1 ? await extractOrdersFromCalldata(subcallToAnalyze.input) : [];
+
+  const linkedOrder = parsedOrders.find(
+    (c) => c.contract === fillEvent.contract && c.tokenId === fillEvent.tokenId
+  );
+
   // Extract any fill events that have the same contract and currency
   const sameContractFills = fillEvents.filter((e) => {
     const isMatch = e.contract === contract && e.currency === fillEvent.currency;
@@ -272,9 +280,6 @@ export async function extractRoyalties(
     (_) => _.contract === contract && _.tokenId === tokenId && _.royalties
   );
   const royalties = matchDefinition ? matchDefinition.royalties : [];
-  const royaltyRecipients: string[] = royalties
-    .map((r) => r.map(({ recipient }) => recipient))
-    .flat();
 
   // Some addresses we know for sure cannot be royalty recipients
   const notRoyaltyRecipients = new Set();
@@ -308,6 +313,9 @@ export async function extractRoyalties(
   const ETH = Sdk.Common.Addresses.Native[config.chainId];
   const BETH = Sdk.Blur.Addresses.Beth[config.chainId];
 
+  const PRECISION_BASE = 100000;
+  const BPS_LIMIT = 15000;
+
   // Check Paid on top
   for (const address in globalState) {
     const globalChange = globalState[address];
@@ -323,7 +331,9 @@ export async function extractRoyalties(
 
         if (globalBalanceChange && !globalBalanceChange.startsWith("-") && !exchangeChange) {
           const paidOnTop = bn(globalBalanceChange);
-          const topFeeBps = paidOnTop.gt(0) ? paidOnTop.mul(10000).div(bn(currencyPrice)) : bn(0);
+          const topFeeBps = paidOnTop.gt(0)
+            ? paidOnTop.mul(PRECISION_BASE).div(bn(currencyPrice))
+            : bn(0);
 
           if (topFeeBps.gt(0)) {
             royaltyFeeOnTop.push({
@@ -361,7 +371,9 @@ export async function extractRoyalties(
           const balanceChangeAmount =
             balanceChange && !balanceChange.startsWith("-") ? bn(balanceChange) : bn(0);
           const paidOnTop = bn(globalBalanceChange).sub(balanceChangeAmount);
-          const topFeeBps = paidOnTop.gt(0) ? paidOnTop.mul(10000).div(bn(currencyPrice)) : bn(0);
+          const topFeeBps = paidOnTop.gt(0)
+            ? paidOnTop.mul(PRECISION_BASE).div(bn(currencyPrice))
+            : bn(0);
 
           if (topFeeBps.gt(0)) {
             royaltyFeeOnTop.push({
@@ -382,25 +394,43 @@ export async function extractRoyalties(
 
     // If the balance change is positive that means a payment was received
     if (balanceChange && !balanceChange.startsWith("-")) {
-      const bpsOfPrice = bn(balanceChange).mul(10000).div(bn(currencyPrice));
+      const bpsOfPrice = bn(balanceChange).mul(PRECISION_BASE).div(bn(currencyPrice));
       // Start with the assumption that this is a royalty/platform fee payment
       const royalty = {
         recipient: address,
         bps: bpsOfPrice.toNumber(),
       };
 
-      const feeRecipientPlatform = await feeRecipient.getByAddress(address, "marketplace");
-      // const feeRecipientPlatform = knownPlatformFeeRecipients.includes(address)
-
+      const feeRecipientPlatform = feeRecipient.getByAddress(address, "marketplace");
       if (feeRecipientPlatform) {
+        // Make sure current fee address in every order
+        let protocolFeeSum = sameProtocolTotalPrice;
+        if (linkedOrder) {
+          protocolFeeSum = sameProtocolFills.reduce((total, item) => {
+            const matchOrder = parsedOrders.find(
+              (c) => c.contract === item.event.contract && c.tokenId === item.event.tokenId
+            );
+            if (
+              matchOrder &&
+              matchOrder.fees.find((c) => c.recipient.toLowerCase() === address.toLowerCase())
+            ) {
+              return total.add(
+                bn(item.event.currencyPrice ?? item.event.price).mul(bn(item.event.amount))
+              );
+            } else {
+              return total;
+            }
+          }, bn(0));
+        }
+
         // This is a marketplace fee payment
         // Reset the bps
-        royalty.bps = bn(balanceChange).mul(10000).div(sameProtocolTotalPrice).toNumber();
+        royalty.bps = bn(balanceChange).mul(PRECISION_BASE).div(protocolFeeSum).toNumber();
 
         // Calculate by matched payment amount in split payments
         if (matchRangePayment && isReliable && hasMultiple) {
           royalty.bps = bn(matchRangePayment.amount)
-            .mul(10000)
+            .mul(PRECISION_BASE)
             .div(fillEvent.currencyPrice ?? fillEvent.price)
             .toNumber();
         }
@@ -411,11 +441,18 @@ export async function extractRoyalties(
         const sameRecipientDetails = sameProtocolDetails.filter((d) => d.recipient === address);
         const shareSameRecipient = sameRecipientDetails.length === sameProtocolFills.length;
 
-        let bps: number = bn(balanceChange).mul(10000).div(sameContractTotalPrice).toNumber();
+        // Make sure current fee address in every order
+        let bps: number = bn(balanceChange)
+          .mul(PRECISION_BASE)
+          .div(sameContractTotalPrice)
+          .toNumber();
 
         if (shareSameRecipient) {
           const configBPS = sameRecipientDetails[0].bps;
-          const newBps = bn(balanceChange).mul(10000).div(sameProtocolTotalPrice).toNumber();
+          const newBps = bn(balanceChange)
+            .mul(PRECISION_BASE)
+            .div(sameProtocolTotalPrice)
+            .toNumber();
           // Make sure the bps is same with the config
           const isValid = configBPS === newBps;
           if (isValid) {
@@ -423,10 +460,20 @@ export async function extractRoyalties(
           }
         }
 
-        if (royaltyRecipients.includes(address)) {
-          // Reset the bps
-          royalty.bps = bps;
-          creatorRoyaltyFeeBreakdown.push(royalty);
+        // Re-calculate the bps based on the fee amount in the order
+        if (linkedOrder) {
+          const feeItem = linkedOrder.fees.find(
+            (c) => c.recipient.toLowerCase() === address.toLowerCase()
+          );
+          if (feeItem) {
+            bps = bn(feeItem.amount)
+              .mul(PRECISION_BASE)
+              .div(fillEvent.currencyPrice ?? fillEvent.price)
+              .toNumber();
+          } else {
+            // Skip if not the in the fees
+            continue;
+          }
         }
 
         // Conditions:
@@ -441,7 +488,7 @@ export async function extractRoyalties(
         const matchFee = feeRecipient.getByAddress(address, "marketplace");
         const recipientIsEligible =
           bps > 0 &&
-          bps < 1500 &&
+          bps < BPS_LIMIT &&
           !matchFee &&
           excludeOtherRecipients &&
           !notRoyaltyRecipients.has(address);
@@ -471,6 +518,30 @@ export async function extractRoyalties(
     }
   }
 
+  if (linkedOrder) {
+    // In some case the fee recepient is contract and may forward to another address
+    // And this will cause it's not in the StateChange we need re-check them if it's in the payments logs
+    const missingInStateFees = linkedOrder.fees.filter((c) => !(c.recipient in state));
+    if (missingInStateFees.length) {
+      for (const missingInStateFee of missingInStateFees) {
+        const isInPayment = paymentsToAnalyze.find(
+          (c) => c.to === missingInStateFee.recipient && c.amount === missingInStateFee.amount
+        );
+        if (isInPayment) {
+          const royalty = {
+            recipient: missingInStateFee.recipient,
+            bps: bn(missingInStateFee.amount)
+              .mul(PRECISION_BASE)
+              .div(fillEvent.currencyPrice ?? fillEvent.price)
+              .toNumber(),
+          };
+
+          royaltyFeeBreakdown.push(royalty);
+        }
+      }
+    }
+  }
+
   const getTotalRoyaltyBps = (royalties: Royalty[]) =>
     royalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
 
@@ -486,14 +557,29 @@ export async function extractRoyalties(
     });
   }
 
-  const royaltyFeeBps = getTotalRoyaltyBps(royaltyFeeBreakdown);
+  const normalizeBps = (c: number) => Math.round(c / 10);
+  const normalizeBreakdown = (c: Royalty) => {
+    const newBps = normalizeBps(c.bps);
+    c.bps = newBps;
+    return c;
+  };
+
+  const royaltyFeeBpsRaw = getTotalRoyaltyBps(royaltyFeeBreakdown);
+  const marketplaceFeeBpsRaw = getTotalRoyaltyBps(marketplaceFeeBreakdown);
+
+  const royaltyFeeBps = normalizeBps(royaltyFeeBpsRaw);
+  const marketplaceFeeBps = normalizeBps(marketplaceFeeBpsRaw);
+
   const creatorBps = Math.min(...royalties.map(getTotalRoyaltyBps));
   const paidFullRoyalty = royaltyFeeBreakdown.length ? royaltyFeeBps >= creatorBps : false;
+
+  royaltyFeeBreakdown.map(normalizeBreakdown);
+  marketplaceFeeBreakdown.map(normalizeBreakdown);
 
   return {
     royaltyFeeOnTop,
     royaltyFeeBps,
-    marketplaceFeeBps: getTotalRoyaltyBps(marketplaceFeeBreakdown),
+    marketplaceFeeBps,
     royaltyFeeBreakdown,
     marketplaceFeeBreakdown,
     paidFullRoyalty,

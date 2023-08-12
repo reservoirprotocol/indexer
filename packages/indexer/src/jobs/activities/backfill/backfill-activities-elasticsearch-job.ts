@@ -2,14 +2,14 @@ import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { ridb } from "@/common/db";
 import { elasticsearch } from "@/common/elasticsearch";
-import { redlock } from "@/common/redis";
+import { redis, redlock } from "@/common/redis";
 
-import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
 import { backfillSaveActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-save-activities-elasticsearch-job";
 
 import * as CONFIG from "@/elasticsearch/indexes/activities/config";
+import cron from "node-cron";
 
 export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-activities-elasticsearch-queue";
@@ -58,11 +58,14 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         "SELECT min(timestamp) AS min_timestamp, MAX(timestamp) AS max_timestamp from nft_transfer_events;";
 
       const timestamps = await ridb.oneOrNone(query);
+      const minTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
 
-      const start = new Date(timestamps.min_timestamp * 1000);
+      const start = new Date(minTimestamp * 1000);
       const end = new Date(timestamps.max_timestamp * 1000);
 
       let loop = new Date(start);
+
+      let jobCount = 0;
 
       while (loop <= end) {
         const fromTimestamp = Math.floor(loop.getTime() / 1000);
@@ -77,8 +80,20 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           indexName
         );
 
+        jobCount++;
+
         loop = new Date(newDate);
       }
+
+      await redis.set(`backfill-activities-elasticsearch-job-count:transfer`, jobCount);
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "backfill-activities",
+          message: `transfer jobCount=${jobCount}`,
+        })
+      );
 
       if (keepGoing) {
         const fromTimestamp = Math.floor(end.getTime() / 1000);
@@ -99,11 +114,14 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         "SELECT min(timestamp) AS min_timestamp, MAX(timestamp) AS max_timestamp from fill_events_2;";
 
       const timestamps = await ridb.oneOrNone(query);
+      const minTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
 
-      const start = new Date(timestamps.min_timestamp * 1000);
+      const start = new Date(minTimestamp * 1000);
       const end = new Date(timestamps.max_timestamp * 1000);
 
       let loop = new Date(start);
+
+      let jobCount = 0;
 
       while (loop <= end) {
         const fromTimestamp = Math.floor(loop.getTime() / 1000);
@@ -118,8 +136,20 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           indexName
         );
 
+        jobCount++;
+
         loop = new Date(newDate);
       }
+
+      await redis.set(`backfill-activities-elasticsearch-job-count:sale`, jobCount);
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "backfill-activities",
+          message: `sale jobCount=${jobCount}`,
+        })
+      );
 
       if (keepGoing) {
         const fromTimestamp = Math.floor(end.getTime() / 1000);
@@ -140,11 +170,14 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         "SELECT extract(epoch from min(updated_at)) AS min_timestamp, extract(epoch from max(updated_at)) AS max_timestamp from orders WHERE side = 'sell';";
 
       const timestamps = await ridb.oneOrNone(query);
+      const minTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
 
-      const start = new Date(timestamps.min_timestamp * 1000);
+      const start = new Date(minTimestamp * 1000);
       const end = new Date(timestamps.max_timestamp * 1000);
 
       let loop = new Date(start);
+
+      let jobCount = 0;
 
       while (loop <= end) {
         const fromTimestamp = Math.floor(loop.getTime() / 1000);
@@ -159,8 +192,20 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           indexName
         );
 
+        jobCount++;
+
         loop = new Date(newDate);
       }
+
+      await redis.set(`backfill-activities-elasticsearch-job-count:ask`, jobCount);
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "backfill-activities",
+          message: `ask jobCount=${jobCount}`,
+        })
+      );
 
       if (keepGoing) {
         const fromTimestamp = Math.floor(end.getTime() / 1000);
@@ -181,11 +226,14 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         "SELECT extract(epoch from min(updated_at)) AS min_timestamp, extract(epoch from max(updated_at)) AS max_timestamp from orders WHERE side = 'sell' AND fillability_status = 'cancelled';";
 
       const timestamps = await ridb.oneOrNone(query);
+      const minTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
 
-      const start = new Date(timestamps.min_timestamp * 1000);
+      const start = new Date(minTimestamp * 1000);
       const end = new Date(timestamps.max_timestamp * 1000);
 
       let loop = new Date(start);
+
+      let jobCount = 0;
 
       while (loop <= end) {
         const fromTimestamp = Math.floor(loop.getTime() / 1000);
@@ -200,8 +248,20 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           indexName
         );
 
+        jobCount++;
+
         loop = new Date(newDate);
       }
+
+      await redis.set(`backfill-activities-elasticsearch-job-count:ask-cancel`, jobCount);
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "backfill-activities",
+          message: `ask cancel jobCount=${jobCount}`,
+        })
+      );
 
       if (keepGoing) {
         const fromTimestamp = Math.floor(end.getTime() / 1000);
@@ -222,11 +282,14 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         "SELECT extract(epoch from min(updated_at)) AS min_timestamp, extract(epoch from max(updated_at)) AS max_timestamp from orders WHERE side = 'buy';";
 
       const timestamps = await ridb.oneOrNone(query);
+      const minTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
 
-      const start = new Date(timestamps.min_timestamp * 1000);
+      const start = new Date(minTimestamp * 1000);
       const end = new Date(timestamps.max_timestamp * 1000);
 
       let loop = new Date(start);
+
+      let jobCount = 0;
 
       while (loop <= end) {
         const fromTimestamp = Math.floor(loop.getTime() / 1000);
@@ -241,8 +304,20 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           indexName
         );
 
+        jobCount++;
+
         loop = new Date(newDate);
       }
+
+      await redis.set(`backfill-activities-elasticsearch-job-count:bid`, jobCount);
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "backfill-activities",
+          message: `bid jobCount=${jobCount}`,
+        })
+      );
 
       if (keepGoing) {
         const fromTimestamp = Math.floor(end.getTime() / 1000);
@@ -263,11 +338,14 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         "SELECT extract(epoch from min(updated_at)) AS min_timestamp, extract(epoch from max(updated_at)) AS max_timestamp from orders WHERE side = 'buy' AND fillability_status = 'cancelled';";
 
       const timestamps = await ridb.oneOrNone(query);
+      const minTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
 
-      const start = new Date(timestamps.min_timestamp * 1000);
+      const start = new Date(minTimestamp * 1000);
       const end = new Date(timestamps.max_timestamp * 1000);
 
       let loop = new Date(start);
+
+      let jobCount = 0;
 
       while (loop <= end) {
         const fromTimestamp = Math.floor(loop.getTime() / 1000);
@@ -282,8 +360,20 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           indexName
         );
 
+        jobCount++;
+
         loop = new Date(newDate);
       }
+
+      await redis.set(`backfill-activities-elasticsearch-job-count:bid-cancel`, jobCount);
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "backfill-activities",
+          message: `bid cancel jobCount=${jobCount}`,
+        })
+      );
 
       if (keepGoing) {
         const fromTimestamp = Math.floor(end.getTime() / 1000);
@@ -305,10 +395,6 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
 
     if (payload.backfillSaleActivities) {
       promises.push(backfillSaleActivities());
-    }
-
-    if (payload.backfillTransferActivities) {
-      promises.push(backfillTransferActivities());
     }
 
     if (payload.backfillAskActivities) {
@@ -340,7 +426,8 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
     backfillAskActivities = true,
     backfillAskCancelActivities = true,
     backfillBidActivities = true,
-    backfillBidCancelActivities = true
+    backfillBidCancelActivities = true,
+    fromTimestamp?: number
   ) {
     if (!config.doElasticsearchWork) {
       return;
@@ -357,6 +444,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         backfillAskCancelActivities,
         backfillBidActivities,
         backfillBidCancelActivities,
+        fromTimestamp,
       },
     });
   }
@@ -375,6 +463,7 @@ export type BackfillActivitiesElasticsearchJobPayload = {
   backfillAskCancelActivities?: boolean;
   backfillBidActivities?: boolean;
   backfillBidCancelActivities?: boolean;
+  fromTimestamp?: number;
 };
 
 export type BackfillBaseActivitiesElasticsearchJobPayload = {
@@ -398,23 +487,59 @@ export interface EventCursorInfo {
 }
 
 if (config.doBackgroundWork && config.doElasticsearchWork) {
-  redlock
-    .acquire([`${backfillActivitiesElasticsearchJob}-lock`], 60 * 60 * 24 * 30 * 1000)
-    .then(async () => {
-      await backfillActivitiesElasticsearchJob.addToQueue(
-        true,
-        `${ActivitiesIndex.getIndexName()}-1690489670764`,
-        "CONFIG_1689873821",
-        true,
-        true,
-        true,
-        true,
-        true,
-        true,
-        true
-      );
-    })
-    .catch(() => {
-      // Skip on any errors
-    });
+  cron.schedule(
+    "*/30 * * * * *",
+    async () =>
+      await redlock
+        .acquire(["backfill-activities-lock"], (30 - 1) * 1000)
+        .then(async () => {
+          const transferJobCount = Number(
+            await redis.get(`backfill-activities-elasticsearch-job-count:transfer`)
+          );
+
+          const saleJobCount = Number(
+            await redis.get(`backfill-activities-elasticsearch-job-count:sale`)
+          );
+          const askJobCount = Number(
+            await redis.get(`backfill-activities-elasticsearch-job-count:ask`)
+          );
+          const askCancelJobCount = Number(
+            await redis.get(`backfill-activities-elasticsearch-job-count:ask-cancel`)
+          );
+          const bidJobCount = Number(
+            await redis.get(`backfill-activities-elasticsearch-job-count:bid`)
+          );
+          const bidCancelJobCount = Number(
+            await redis.get(`backfill-activities-elasticsearch-job-count:bid-cancel`)
+          );
+
+          const totalJobCount =
+            transferJobCount +
+            saleJobCount +
+            askJobCount +
+            askCancelJobCount +
+            bidJobCount +
+            bidCancelJobCount;
+
+          logger.info(
+            backfillActivitiesElasticsearchJob.queueName,
+            JSON.stringify({
+              topic: "backfill-activities",
+              message: `jobCounts update.`,
+              totalJobCount,
+              jobCounts: {
+                transferJobCount,
+                saleJobCount,
+                askJobCount,
+                askCancelJobCount,
+                bidJobCount,
+                bidCancelJobCount,
+              },
+            })
+          );
+        })
+        .catch(() => {
+          // Skip on any errors
+        })
+  );
 }

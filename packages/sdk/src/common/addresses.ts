@@ -22,6 +22,7 @@ export const Native: ChainIdToAddress = {
   [Network.Base]: AddressZero,
   [Network.BaseGoerli]: AddressZero,
   [Network.Linea]: AddressZero,
+  [Network.Zksync]: AddressZero,
 };
 
 // Wrapped native currency
@@ -44,6 +45,7 @@ export const WNative: ChainIdToAddress = {
   [Network.LineaTestnet]: "0x2c1b868d6596a18e32e61b901e4060c872647b6c",
   [Network.ScrollAlpha]: "0x7160570bb153edd0ea1775ec2b2ac9b65f1ab61b",
   [Network.MantleTestnet]: "0xbaafec4b6ef4f5e0bafa850cbc48364b953efcf9",
+  [Network.Zksync]: "0x5aea5775959fbc2557cc8789bc1bf90a239d9a91",
 };
 
 export const Usdc: ChainIdToAddress = {
@@ -55,6 +57,8 @@ export const Usdc: ChainIdToAddress = {
   [Network.Mumbai]: "0x0fa8781a83e46826621b3bc094ea2a0212e71b23",
   [Network.Arbitrum]: "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
   [Network.Avalanche]: "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",
+  [Network.Zksync]: "0x3355df6d4c9c3035724fd0e3914de96a5a83aaf4",
+  [Network.Base]: "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
 };
 
 export const RoyaltyEngine: ChainIdToAddress = {
@@ -73,6 +77,7 @@ export const RoyaltyEngine: ChainIdToAddress = {
   [Network.Zora]: "0x8755310f937528173e7c5a106131d79a3601c9d9",
   [Network.Base]: "0x8755310f937528173e7c5a106131d79a3601c9d9",
   [Network.Linea]: "0x8755310f937528173e7c5a106131d79a3601c9d9",
+  [Network.Avalanche]: "0x60b433ee91680189deb2c94b0b062ea283f6b4dd",
 };
 
 // Uniswap SwapRouter

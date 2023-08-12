@@ -340,5 +340,12 @@ type Details =
     };
 
 export const addToQueue = async (details: Details) => {
-  await queue.add(randomUUID(), details);
+  await queue.add(randomUUID(), details, {
+    jobId:
+      details.kind === "contract"
+        ? `${details.data.fromTimestamp}-${details.data.toTimestamp}`
+        : details.kind === "all"
+        ? `${details.data.fromBlock}-${details.data.toBlock}`
+        : undefined,
+  });
 };

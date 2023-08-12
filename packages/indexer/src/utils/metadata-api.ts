@@ -84,16 +84,17 @@ export class MetadataApi {
         creator: null,
       };
     } else {
-      const indexingMethod =
+      let indexingMethod =
         options?.indexingMethod ?? MetadataApi.getCollectionIndexingMethod(community);
 
-      let networkName = getNetworkName();
-
-      if (networkName === "prod-goerli") {
-        networkName = "goerli";
+      //TODO: Remove when adding proper support for overriding indexing method
+      if (config.chainId === 1 && contract === "0xd532b88607b1877fe20c181cba2550e3bbd6b31c") {
+        indexingMethod = "simplehash";
       }
 
-      let url = `${config.metadataApiBaseUrl}/v4/${networkName}/metadata/collection?method=${indexingMethod}&token=${contract}:${tokenId}`;
+      let url = `${
+        config.metadataApiBaseUrl
+      }/v4/${getNetworkName()}/metadata/collection?method=${indexingMethod}&token=${contract}:${tokenId}`;
       if (options?.additionalQueryParams) {
         for (const [key, value] of Object.entries(options.additionalQueryParams)) {
           url += `&${key}=${value}`;
@@ -140,15 +141,9 @@ export class MetadataApi {
 
     method = method === "" ? config.metadataIndexingMethod : method;
 
-    let networkName = getNetworkName();
-
-    if (networkName === "prod-goerli") {
-      networkName = "goerli";
-    }
-
     const url = `${
       config.metadataApiBaseUrl
-    }/v4/${networkName}/metadata/token?method=${method}&${queryParams.toString()}`;
+    }/v4/${getNetworkName()}/metadata/token?method=${method}&${queryParams.toString()}`;
 
     const { data } = await axios.get(url);
 

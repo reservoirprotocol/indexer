@@ -18,6 +18,7 @@ import {
   orderUpdatesByIdJob,
   OrderUpdatesByIdJobPayload,
 } from "@/jobs/order-updates/order-updates-by-id-job";
+import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 
 export type OrderInfo = {
   orderParams: Sdk.PaymentProcessor.Types.BaseOrder;
@@ -80,6 +81,17 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       //   });
       // }
 
+      const isFiltered = await checkMarketplaceIsFiltered(order.params.tokenAddress, [
+        Sdk.PaymentProcessor.Addresses.Exchange[config.chainId],
+      ]);
+
+      if (isFiltered) {
+        return results.push({
+          id,
+          status: "filtered",
+        });
+      }
+
       // Check: order doesn't already exist
       const orderExists = await idb.oneOrNone(`SELECT 1 FROM "orders" "o" WHERE "o"."id" = $/id/`, {
         id,
@@ -99,19 +111,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         return results.push({
           id,
           status: "expired",
-        });
-      }
-
-      // Check: order has ETH as payment token
-      if (
-        ![
-          Sdk.Common.Addresses.Native[config.chainId],
-          Sdk.Common.Addresses.WNative[config.chainId],
-        ].includes(order.params.coin)
-      ) {
-        return results.push({
-          id,
-          status: "unsupported-payment-token",
         });
       }
 

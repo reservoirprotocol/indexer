@@ -54,7 +54,7 @@ export class BlockCheckJob extends AbstractRabbitMqJobHandler {
               (SELECT
                 nft_transfer_events.block_hash
               FROM nft_transfer_events
-              WHERE nft_transfer_events.block = $/block/)
+              WHERE nft_transfer_events.block = $/block/ AND nft_transfer_events.is_deleted = 0)
 
               UNION
 
@@ -75,7 +75,7 @@ export class BlockCheckJob extends AbstractRabbitMqJobHandler {
               (SELECT
                 fill_events_2.block_hash
               FROM fill_events_2
-              WHERE fill_events_2.block = $/block/)
+              WHERE fill_events_2.block = $/block/ AND fill_events_2.is_deleted = 0)
 
               UNION
 
@@ -97,13 +97,19 @@ export class BlockCheckJob extends AbstractRabbitMqJobHandler {
         for (const { block_hash } of result) {
           const blockHash = fromBuffer(block_hash);
           if (blockHash.toLowerCase() !== upstreamBlockHash.toLowerCase()) {
-            logger.info(this.queueName, `Detected orphan block ${block} with hash ${blockHash}}`);
+            logger.info(
+              this.queueName,
+              `Detected orphan block ${block} with hash ${blockHash}}, upstream hash: ${upstreamBlockHash}, delay=${payload.delay}`
+            );
             await handleOrphanBlock({ number: block, hash: blockHash });
           }
         }
       } else {
         if (upstreamBlockHash.toLowerCase() !== blockHash.toLowerCase()) {
-          logger.info(this.queueName, `Detected orphan block ${block} with hash ${blockHash}}`);
+          logger.info(
+            this.queueName,
+            `Detected orphan block ${block} with hash ${blockHash}}, upstream hash: ${upstreamBlockHash}, delay=${payload.delay}`
+          );
           await handleOrphanBlock({ number: block, hash: blockHash });
         }
       }

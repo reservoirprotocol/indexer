@@ -18,6 +18,7 @@ export type MetadataIndexFetchJobPayload =
         collection: string;
         continuation?: string;
       };
+      context?: string;
     }
   | {
       kind: "full-collection-by-slug";
@@ -27,6 +28,7 @@ export type MetadataIndexFetchJobPayload =
         collection: string;
         slug: string;
       };
+      context?: string;
     }
   | {
       kind: "single-token";
@@ -36,6 +38,7 @@ export type MetadataIndexFetchJobPayload =
         contract: string;
         tokenId: string;
       };
+      context?: string;
     };
 
 export class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
@@ -54,6 +57,16 @@ export class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
     if (config.liquidityOnly) {
       return;
     }
+
+    // if ([5, 137].includes(config.chainId)) {
+    //   logger.info(
+    //     this.queueName,
+    //     JSON.stringify({
+    //       message: `Start. payload=${JSON.stringify(payload)}`,
+    //       payload,
+    //     })
+    //   );
+    // }
 
     const { kind, data } = payload;
     const prioritized = !_.isUndefined(this.rabbitMqMessage?.prioritized);

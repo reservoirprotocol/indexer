@@ -89,6 +89,7 @@ export const getTokenStatusOracleV3Options: RouteOptions = {
                 FROM nft_transfer_events
                 WHERE nft_transfer_events.address = tokens.contract
                   AND nft_transfer_events.token_id = tokens.token_id
+                  AND nft_transfer_events.is_deleted = 0
                 ORDER BY nft_transfer_events.timestamp DESC
                 LIMIT 1
               ),

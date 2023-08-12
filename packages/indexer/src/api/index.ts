@@ -122,7 +122,9 @@ export const start = async (): Promise<void> => {
           },
         },
         schemes: ["https", "http"],
-        host: `${config.chainId === 1 ? "api" : `api-${getNetworkName()}`}.reservoir.tools`,
+        host: `${config.chainId === 1 ? "api" : `api-${getNetworkName()}`}.${
+          config.environment === "dev" ? "dev." : ""
+        }reservoir.tools`,
         cors: true,
         tryItOutEnabled: true,
         documentationPath: "/",

@@ -102,6 +102,7 @@ export class MetadataIndexProcessBySlugJob extends AbstractRabbitMqJobHandler {
                   method,
                   collection: refreshTokenBySlug.contract,
                 },
+                context: "processSlug",
               },
             ],
             true
@@ -160,6 +161,7 @@ export class MetadataIndexProcessBySlugJob extends AbstractRabbitMqJobHandler {
                 method,
                 collection: refreshTokenBySlug.collection,
               },
+              context: this.queueName,
             },
           ],
           true

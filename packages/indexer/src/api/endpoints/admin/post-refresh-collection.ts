@@ -156,6 +156,7 @@ export const postRefreshCollectionOptions: RouteOptions = {
             method,
             collection: collection.id,
           },
+          context: "post-refresh-collection",
         };
 
         if (method === "opensea") {
@@ -170,6 +171,7 @@ export const postRefreshCollectionOptions: RouteOptions = {
                 slug: collection.slug,
                 collection: collection.id,
               },
+              context: "post-refresh-collection",
             };
           }
         }

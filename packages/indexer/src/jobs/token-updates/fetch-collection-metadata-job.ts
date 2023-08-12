@@ -38,6 +38,18 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
     const { contract, tokenId, mintedTimestamp, newCollection, oldCollectionId } = payload;
 
     try {
+      if (config.chainId === 43114) {
+        logger.info(
+          "updateCollectionCache",
+          JSON.stringify({
+            topic: "debugAvalancheCollectionMetadataMissing",
+            message: `FetchCollectionMetadataJob debug. contract=${contract}, tokenId=${tokenId}, newCollection=${newCollection}`,
+            contract,
+            tokenId,
+          })
+        );
+      }
+
       // Fetch collection metadata
       const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, "", {
         allowFallback: !newCollection,
@@ -165,6 +177,7 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
                 tokenId,
                 collection: collection.id,
               },
+              context: this.queueName,
             },
           ],
           true,

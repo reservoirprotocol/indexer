@@ -10,7 +10,7 @@ import { baseProvider } from "@/common/provider";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkName, getNetworkSettings } from "@/config/network";
-import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/config";
+import { FeeRecipients } from "@/models/fee-recipients";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
@@ -304,6 +304,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       let feeBps = 0;
       let knownFee = false;
+      const feeRecipients = await FeeRecipients.getInstance();
       const feeBreakdown = info.fees.map(({ recipient, amount }) => {
         const bps = price.eq(0)
           ? 0
@@ -316,8 +317,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         feeBps += bps;
 
         // First check for opensea hardcoded recipients
-        const kind: "marketplace" | "royalty" = allPlatformFeeRecipients.has(
-          recipient.toLowerCase()
+        const kind: "marketplace" | "royalty" = feeRecipients.getByAddress(
+          recipient.toLowerCase(),
+          "marketplace"
         )
           ? "marketplace"
           : "royalty";
