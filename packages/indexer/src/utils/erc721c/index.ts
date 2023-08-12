@@ -63,7 +63,7 @@ export const getERC721CConfigFromDB = async (
         erc721_operator_whitelists.whitelist,
         erc721_permitted_contract_receiver_allowlists.allowlist
       FROM erc721c_configs
-      LEFT JOIN erc721_operator_whitelists,
+      LEFT JOIN erc721_operator_whitelists
         ON erc721_configs.transfer_validator = erc721_operator_whitelists.transfer_validator
         AND erc721_configs.operator_whitelist_id = erc721_operator_whitelists.id
       LEFT JOIN erc721_permitted_contract_receiver_allowlists

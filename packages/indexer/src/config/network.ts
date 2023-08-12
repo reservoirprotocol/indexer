@@ -1100,7 +1100,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 43114: {
       return {
         ...defaultNetworkSettings,
-        metadataMintDelay: 240,
+        metadataMintDelay: 300,
         enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,

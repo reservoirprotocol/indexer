@@ -154,6 +154,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       switch (order.orderKind()) {
         case "contract-wide": {
+          if (side === "sell") {
+            break;
+          }
+
           [{ id: tokenSetId }] = await tokenSet.contractWide.save([
             {
               id: `contract:${order.params.nft}`,
