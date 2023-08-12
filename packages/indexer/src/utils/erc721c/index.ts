@@ -107,15 +107,15 @@ export const refreshERC721CConfig = async (contract: string) => {
       )
       ON CONFLICT (contract)
       DO UPDATE SET
-        transfer_validator = $/validator/,
+        transfer_validator = $/transferValidator/,
         transfer_security_level = $/transferSecurityLevel/,
         operator_whitelist_id = $/operatorWhitelistId/,
-        permitted_contract_receiver_allowlist_id = $/permittedContractReceiverAllowlistId/
+        permitted_contract_receiver_allowlist_id = $/permittedContractReceiverAllowlistId/,
         updated_at = now()
     `,
     {
-      collection: toBuffer(contract),
-      validator: toBuffer(config.transferValidator),
+      contract: toBuffer(contract),
+      transferValidator: toBuffer(config.transferValidator),
       transferSecurityLevel: config.transferSecurityLevel,
       operatorWhitelistId: config.operatorWhitelistId,
       permittedContractReceiverAllowlistId: config.permittedContractReceiverAllowlistId,

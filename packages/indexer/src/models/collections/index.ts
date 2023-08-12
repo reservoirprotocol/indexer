@@ -244,7 +244,7 @@ export class Collections {
     await marketplaceBlacklist.checkMarketplaceIsFiltered(collection.contract, [], true);
 
     // Refresh ERC721C config
-    await erc721c.getERC721CConfig(collection.contract);
+    await erc721c.refreshERC721CConfig(collection.contract);
   }
 
   public static async update(collectionId: string, fields: CollectionsEntityUpdateParams) {
