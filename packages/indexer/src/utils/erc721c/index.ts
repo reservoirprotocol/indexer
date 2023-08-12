@@ -33,9 +33,9 @@ export const getERC721CConfig = async (contract: string): Promise<ERC721CConfig>
     token.getSecurityPolicy(),
   ]);
 
-  const operatorWhitelistId = securityPolicy.operatorWhitelistId.toLowerCase();
+  const operatorWhitelistId = securityPolicy.operatorWhitelistId.toString();
   const permittedContractReceiverAllowlistId =
-    securityPolicy.permittedContractReceiverAllowlistId.toLowerCase();
+    securityPolicy.permittedContractReceiverAllowlistId.toString();
 
   return {
     transferValidator: transferValidator.toLowerCase(),
@@ -43,7 +43,7 @@ export const getERC721CConfig = async (contract: string): Promise<ERC721CConfig>
     operatorWhitelistId,
     operatorWhitelist: await refreshERC721COperatorWhitelist(
       transferValidator,
-      operatorWhitelistId.toString
+      operatorWhitelistId
     ),
     permittedContractReceiverAllowlistId,
     permittedContractReceiverAllowlist: await refreshERC721CPermittedContractReceiverAllowlist(
