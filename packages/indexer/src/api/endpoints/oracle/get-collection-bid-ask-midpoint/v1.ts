@@ -19,7 +19,7 @@ import { config } from "@/config/index";
 const version = "v1";
 
 export const getCollectionBidAskMidpointOracleV1Options: RouteOptions = {
-  description: "Collection mid-ask midpoint",
+  description: "Collection bid-ask midpoint",
   notes:
     "Get a signed message of any collection's bid-ask midpoint (spot or twap). This is approximation of the colletion price. The oracle's address is 0xAeB1D03929bF87F69888f381e73FBf75753d75AF. The address is the same for all chains.",
   tags: ["api", "Oracle"],

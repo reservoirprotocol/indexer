@@ -42,6 +42,7 @@ if (config.doBackgroundWork) {
                             WHERE nft_transfer_events.address = nft_balances.contract
                             AND nft_transfer_events.token_id = nft_balances.token_id
                             AND nft_transfer_events.to = nft_balances.owner
+                            AND nft_transfer_events.is_deleted = 0
                             ORDER BY nft_transfer_events.timestamp DESC
                             LIMIT 1
                         ) y ON TRUE

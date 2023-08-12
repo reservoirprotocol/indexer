@@ -11,6 +11,7 @@ import { getRoyalties } from "@/utils/royalties";
 export interface BaseOrderBuildOptions {
   maker: string;
   contract?: string;
+  currency?: string;
   weiPrice: string;
   listingTime?: number;
   expirationTime?: number;
@@ -61,9 +62,10 @@ export const getBuildInfo = async (
     price: options.weiPrice,
     expiration: options.expirationTime!,
     coin:
-      side === "sell"
+      options.currency ??
+      (side === "sell"
         ? Sdk.Common.Addresses.Native[config.chainId]
-        : Sdk.Common.Addresses.WNative[config.chainId],
+        : Sdk.Common.Addresses.WNative[config.chainId]),
     masterNonce: await commonHelpers.getMinNonce("payment-processor", options.maker),
   };
 

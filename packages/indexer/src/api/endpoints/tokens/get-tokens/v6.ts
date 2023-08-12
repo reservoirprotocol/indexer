@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { MaxUint256 } from "@ethersproject/constants";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
@@ -167,9 +168,11 @@ export const getTokensV6Options: RouteOptions = {
       includeTopBid: Joi.boolean()
         .default(false)
         .description("If true, top bid will be returned in the response."),
-      excludeEoa: Joi.boolean()
+      excludeEOA: Joi.boolean()
         .default(false)
-        .description("If true, blur bids will be excluded from top bid / asks."),
+        .description(
+          "Exclude orders that can only be filled by EOAs, to support filling with smart contracts. defaults to false"
+        ),
       includeAttributes: Joi.boolean()
         .default(false)
         .description("If true, attributes will be returned in the response."),
@@ -417,7 +420,7 @@ export const getTokensV6Options: RouteOptions = {
     }
 
     let sourceCte = "";
-    if (query.nativeSource || query.excludeEoa) {
+    if (query.nativeSource || query.excludeEOA) {
       const sourceConditions: string[] = [];
 
       if (query.nativeSource) {
@@ -447,7 +450,7 @@ export const getTokensV6Options: RouteOptions = {
         `taker = '\\x0000000000000000000000000000000000000000' OR taker IS NULL`
       );
 
-      if (query.excludeEoa) {
+      if (query.excludeEOA) {
         sourceConditions.push(`kind NOT IN ('blur')`);
       }
 
@@ -542,9 +545,7 @@ export const getTokensV6Options: RouteOptions = {
         FROM tokens t
         ${
           sourceCte !== ""
-            ? `${
-                query.excludeEoa ? "LEFT" : ""
-              } JOIN filtered_orders s ON s.contract = t.contract AND s.token_id = t.token_id`
+            ? "JOIN filtered_orders s ON s.contract = t.contract AND s.token_id = t.token_id"
             : ""
         }
         ${includeQuantityQuery}
@@ -914,7 +915,7 @@ export const getTokensV6Options: RouteOptions = {
               AND o.side = 'buy'
               AND o.fillability_status = 'fillable'
               AND o.approval_status = 'approved'
-              ${query.excludeEoa ? `AND o.kind NOT IN ('blur')` : ""}
+              ${query.excludeEOA ? `AND o.kind NOT IN ('blur')` : ""}
               AND EXISTS(
                 SELECT FROM nft_balances nb
                   WHERE nb.contract = x.t_contract
@@ -1071,9 +1072,14 @@ export const getTokensV6Options: RouteOptions = {
                 },
               };
             } else if (
-              ["sudoswap", "sudoswap-v2", "nftx", "collectionxyz", "caviar-v1"].includes(
-                r.floor_sell_order_kind
-              )
+              [
+                "sudoswap",
+                "sudoswap-v2",
+                "nftx",
+                "collectionxyz",
+                "caviar-v1",
+                "midaswap",
+              ].includes(r.floor_sell_order_kind)
             ) {
               // Pool orders
               dynamicPricing = {
@@ -1081,17 +1087,21 @@ export const getTokensV6Options: RouteOptions = {
                 data: {
                   pool: r.floor_sell_raw_data.pair ?? r.floor_sell_raw_data.pool,
                   prices: await Promise.all(
-                    (r.floor_sell_raw_data.extra.prices as string[]).map((price) =>
-                      getJoiPriceObject(
-                        {
-                          gross: {
-                            amount: bn(price).add(missingRoyalties).toString(),
-                          },
-                        },
-                        floorAskCurrency,
-                        query.displayCurrency
+                    (r.floor_sell_raw_data.extra.prices as string[])
+                      .filter((price) =>
+                        bn(price).lte(bn(r.floor_sell_raw_data.extra.floorPrice || MaxUint256))
                       )
-                    )
+                      .map((price) =>
+                        getJoiPriceObject(
+                          {
+                            gross: {
+                              amount: bn(price).add(missingRoyalties).toString(),
+                            },
+                          },
+                          floorAskCurrency,
+                          query.displayCurrency
+                        )
+                      )
                   ),
                 },
               };

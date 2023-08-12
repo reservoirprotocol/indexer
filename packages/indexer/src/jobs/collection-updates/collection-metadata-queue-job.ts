@@ -3,6 +3,7 @@ import { acquireLock, releaseLock } from "@/common/redis";
 import { logger } from "@/common/logger";
 import { Collections } from "@/models/collections";
 import _ from "lodash";
+import { config } from "@/config/index";
 
 export type CollectionMetadataInfo = {
   contract: string;
@@ -38,12 +39,21 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
             );
           }
 
+          if (config.chainId === 43114 && forceRefresh) {
+            logger.info(
+              this.queueName,
+              `Debug. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}`
+            );
+          }
+
           await Collections.updateCollectionCache(contract, tokenId, community);
         } catch (error) {
           logger.error(
             this.queueName,
             JSON.stringify({
-              message: `updateCollectionCache error ${JSON.stringify(error)}`,
+              message: `updateCollectionCache error. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}, error=${JSON.stringify(
+                error
+              )}`,
               jobData: payload,
               error,
             })

@@ -470,7 +470,7 @@ export const getExecuteSellV6Options: RouteOptions = {
 
         const contracts = _.uniqBy(path, (p) => p.contract).map((p) => p.contract);
         for (const contract of contracts) {
-          const operator = Sdk.Blur.Addresses.ExecutionDelegate[config.chainId];
+          const operator = Sdk.BlurV2.Addresses.Delegate[config.chainId];
           const isApproved = await commonHelpers.getNftApproval(contract, payload.taker, operator);
           if (!isApproved) {
             missingApprovals.push({

@@ -41,6 +41,8 @@ export class TransferWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobH
         logIndex: data.after.log_index,
         batchIndex: data.after.batch_index,
         timestamp: data.after.timestamp,
+        createdAt: new Date(data.after.created_at).toISOString(),
+        updatedAt: new Date(data.after.updated_at).toISOString(),
       };
 
       let eventType = "";
@@ -121,6 +123,7 @@ interface TransferInfo {
   token_id: string;
   amount: string;
   created_at: string;
+  updated_at: string;
   is_deleted: boolean;
 }
 

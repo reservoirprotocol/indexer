@@ -24,7 +24,7 @@ export class Exchange extends SeaportBaseExchange {
 
   constructor(chainId: number) {
     super(chainId);
-    this.exchangeAddress = Addresses.Exchange[chainId];
+    this.exchangeAddress = Addresses.Exchange[chainId] ?? AddressZero;
     this.cancellationZoneAddress = BaseAddresses.ReservoirCancellationZone[chainId];
     this.contract = new Contract(this.exchangeAddress, ExchangeAbi);
   }

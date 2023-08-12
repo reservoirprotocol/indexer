@@ -32,9 +32,10 @@ import MetadataApi from "@/utils/metadata-api";
 import { openseaBidsQueueJob } from "@/jobs/orderbook/opensea-bids-queue-job";
 import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
 import { openseaListingsJob } from "@/jobs/orderbook/opensea-listings-job";
+import { getNetworkSettings } from "@/config/network";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
-  const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
+  const network = getNetworkSettings().isTestnet ? Network.TESTNET : Network.MAINNET;
   const maxBidsSize = config.chainId === 1 ? 200 : 1;
   const bidsEvents: GenericOrderInfo[] = [];
 
@@ -69,15 +70,21 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
           return;
         }
 
-        logger.debug(
-          "opensea-websocket",
-          `Processing event. network=${network}, event=${JSON.stringify(event)}`
-        );
-
-        // await saveEvent(event);
-
         const eventType = event.event_type as EventType;
         const openSeaOrderParams = await handleEvent(eventType, event.payload);
+
+        // Reduce amount of logs by only total the amount of events received from Ethereum mainnet.
+        if (openSeaOrderParams || config.chainId === 1) {
+          logger.debug(
+            "opensea-websocket",
+            JSON.stringify({
+              message: "Processing event.",
+              network,
+              event,
+              isSupported: !!openSeaOrderParams,
+            })
+          );
+        }
 
         if (openSeaOrderParams) {
           const protocolData = parseProtocolData(event.payload);
@@ -120,7 +127,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     }
   );
 
-  if (config.chainId === 1) {
+  if (config.metadataIndexingMethod === "opensea") {
     client.onItemMetadataUpdated("*", async (event) => {
       try {
         if (getSupportedChainName() != event.payload.item.chain.name) {

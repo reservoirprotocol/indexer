@@ -37,6 +37,7 @@ import * as zora from "@/events-sync/data/zora";
 import * as looksRareV2 from "@/events-sync/data/looks-rare-v2";
 import * as blend from "@/events-sync/data/blend";
 import * as sudoswapV2 from "@/events-sync/data/sudoswap-v2";
+import * as midaswap from "@/events-sync/data/midaswap";
 import * as caviarV1 from "@/events-sync/data/caviar-v1";
 import * as paymentProcessor from "@/events-sync/data/payment-processor";
 import * as thirdweb from "@/events-sync/data/thirdweb";
@@ -82,6 +83,7 @@ export type EventKind =
   | "looks-rare-v2"
   | "blend"
   | "sudoswap-v2"
+  | "midaswap"
   | "caviar-v1"
   | "payment-processor"
   | "thirdweb"
@@ -260,6 +262,12 @@ export type EventSubKind =
   | "sudoswap-v2-delta-update"
   | "sudoswap-v2-new-erc721-pair"
   | "sudoswap-v2-new-erc1155-pair"
+  | "midaswap-new-erc721-pair"
+  | "midaswap-erc20-deposit"
+  | "midaswap-erc721-deposit"
+  | "midaswap-sell-erc721"
+  | "midaswap-buy-erc721"
+  | "midaswap-position-burned"
   | "caviar-v1-create"
   | "caviar-v1-add"
   | "caviar-v1-remove"
@@ -457,6 +465,12 @@ const allEventData = [
   sudoswapV2.deltaUpdate,
   sudoswapV2.newERC721Pair,
   sudoswapV2.newERC1155Pair,
+  midaswap.newERC721Pair,
+  midaswap.erc20Deposit,
+  midaswap.erc721Deposit,
+  midaswap.buyERC721,
+  midaswap.sellERC721,
+  midaswap.positionBurned,
   treasure.bidAccepted,
   caviarV1.create,
   caviarV1.add,

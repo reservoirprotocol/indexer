@@ -156,9 +156,10 @@ export const removeEvents = async (block: number, blockHash: string) => {
   await idb.any(
     `
       UPDATE fill_events_2
-      SET is_deleted = 1
+      SET is_deleted = 1, updated_at = now()
       WHERE block = $/block/
-      AND block_hash = $/blockHash/
+        AND block_hash = $/blockHash/
+        AND is_deleted = 0
       RETURNING tx_hash, log_index, batch_index
     `,
     {

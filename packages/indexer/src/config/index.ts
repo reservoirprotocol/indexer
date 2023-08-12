@@ -127,6 +127,9 @@ export const config = {
   // RabbitMq
   rabbitMqUrl: `amqp://${String(process.env.RABBIT_URL)}:5672`,
   rabbitHttpUrl: `http://${String(process.env.RABBIT_URL)}:15672`,
+  rabbitHostname: String(process.env.RABBIT_HOSTNAME),
+  rabbitUsername: String(process.env.RABBIT_USERNAME),
+  rabbitPassword: String(process.env.RABBIT_PASSWORD),
   rabbitDisableQueuesConsuming: Boolean(Number(process.env.RABBIT_DISABLE_QUEUES_CONSUMING)),
   forceEnableRabbitJobsConsumer: Boolean(Number(process.env.FORCE_ENABLE_RABBIT_JOBS_CONSUMER)),
 };

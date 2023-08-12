@@ -73,6 +73,7 @@ export class RefreshContractCollectionsMetadataQueueJob extends AbstractRabbitMq
               tokenId: contractToken.token_id,
               collection: contract,
             },
+            context: this.queueName,
           },
         ]);
       }

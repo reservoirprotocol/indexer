@@ -30,6 +30,8 @@ import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import { ExecutionsBuffer } from "@/utils/executions";
 import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
+import { getPreSignatureId, getPreSignature, savePreSignature } from "@/utils/pre-signatures";
+import { getUSDAndCurrencyPrices } from "@/utils/prices";
 
 const version = "v7";
 
@@ -870,12 +872,32 @@ export const getExecuteSellV7Options: RouteOptions = {
         .filter((b) => !b.isProtected && b.source !== "blur.io")
         .map((b) => b.orderId);
 
-      const addGlobalFee = async (item: (typeof path)[0], fee: Sdk.RouterV6.Types.Fee) => {
+      const addGlobalFee = async (
+        detail: BidDetails,
+        item: (typeof path)[0],
+        fee: Sdk.RouterV6.Types.Fee
+      ) => {
         // The fees should be relative to a single quantity
         fee.amount = bn(fee.amount).div(item.quantity).toString();
 
         // Global fees get split across all eligible orders
-        const adjustedFeeAmount = bn(fee.amount).div(ordersEligibleForGlobalFees.length).toString();
+        let adjustedFeeAmount = bn(fee.amount).div(ordersEligibleForGlobalFees.length).toString();
+
+        // If the item's currency is not the same with the buy-in currency,
+        if (item.currency !== Sdk.Common.Addresses.Native[config.chainId]) {
+          fee.amount = await getUSDAndCurrencyPrices(
+            Sdk.Common.Addresses.Native[config.chainId],
+            item.currency,
+            fee.amount,
+            now()
+          ).then((p) => p.currencyPrice!);
+          adjustedFeeAmount = await getUSDAndCurrencyPrices(
+            Sdk.Common.Addresses.Native[config.chainId],
+            item.currency,
+            adjustedFeeAmount,
+            now()
+          ).then((p) => p.currencyPrice!);
+        }
 
         const amount = formatPrice(
           adjustedFeeAmount,
@@ -893,12 +915,23 @@ export const getExecuteSellV7Options: RouteOptions = {
 
         // item.quote -= amount;
         // item.rawQuote = bn(item.rawQuote).sub(rawAmount).toString();
+
+        if (!detail.fees) {
+          detail.fees = [];
+        }
+        detail.fees.push({
+          recipient: fee.recipient,
+          amount: rawAmount,
+        });
       };
 
       for (const item of path) {
         if (globalFees.length && ordersEligibleForGlobalFees.includes(item.orderId)) {
           for (const f of globalFees) {
-            await addGlobalFee(item, f);
+            const detail = bidDetails.find((d) => d.orderId === item.orderId);
+            if (detail) {
+              await addGlobalFee(detail, item, f);
+            }
           }
         }
       }
@@ -933,6 +966,13 @@ export const getExecuteSellV7Options: RouteOptions = {
           description:
             "Each NFT collection you want to trade requires a one-time approval transaction",
           kind: "transaction",
+          items: [],
+        },
+        {
+          id: "pre-signatures",
+          action: "Sign orders",
+          description: "Some marketplaces require signing additional orders before filling",
+          kind: "signature",
           items: [],
         },
         {
@@ -1120,7 +1160,6 @@ export const getExecuteSellV7Options: RouteOptions = {
         result = await router.fillBidsTx(bidDetails, payload.taker, {
           source: payload.source,
           partial: payload.partial,
-          globalFees,
           forceApprovalProxy,
           onError: async (kind, error, data) => {
             errors.push({
@@ -1165,15 +1204,59 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
       }
 
-      for (const { txData, orderIds } of txs) {
-        steps[2].items.push({
+      for (const { txData, orderIds, preSignatures } of txs) {
+        // Handle pre-signatures
+        const signaturesPaymentProcessor: string[] = [];
+        for (const preSignature of preSignatures) {
+          if (preSignature.kind === "payment-processor-take-order") {
+            const id = getPreSignatureId(request.payload as object, {
+              uniqueId: preSignature.uniqueId,
+            });
+
+            const cachedSignature = await getPreSignature(id);
+            if (cachedSignature) {
+              preSignature.signature = cachedSignature.signature;
+            } else {
+              await savePreSignature(id, preSignature);
+            }
+
+            const hasSignature = preSignature.signature;
+            if (hasSignature) {
+              signaturesPaymentProcessor.push(preSignature.signature!);
+              continue;
+            }
+
+            steps[2].items.push({
+              status: "incomplete",
+              data: {
+                sign: preSignature.data,
+                post: {
+                  endpoint: "/execute/pre-signature/v1",
+                  method: "POST",
+                  body: {
+                    id,
+                  },
+                },
+              },
+            });
+          }
+        }
+
+        if (signaturesPaymentProcessor.length && !steps[2].items.length) {
+          const exchange = new Sdk.PaymentProcessor.Exchange(config.chainId);
+          txData.data = exchange.attachTakerSignatures(txData.data, signaturesPaymentProcessor);
+        }
+
+        steps[3].items.push({
           status: "incomplete",
           orderIds,
-          data: {
-            ...txData,
-            maxFeePerGas,
-            maxPriorityFeePerGas,
-          },
+          data: !steps[2].items.length
+            ? {
+                ...txData,
+                maxFeePerGas,
+                maxPriorityFeePerGas,
+              }
+            : undefined,
         });
       }
 
@@ -1185,7 +1268,11 @@ export const getExecuteSellV7Options: RouteOptions = {
         // If we reached this point and the Blur auth is missing then we
         // can be sure that no Blur orders were requested and it is safe
         // to remove the auth step
-        steps = steps.slice(1);
+        steps = steps.filter((s) => s.id !== "auth");
+      }
+      if (!bidDetails.some((d) => d.kind === "payment-processor")) {
+        // For now, pre-signatures are only needed for `payment-processor` orders
+        steps = steps.filter((s) => s.id !== "pre-signatures");
       }
 
       const executionsBuffer = new ExecutionsBuffer();

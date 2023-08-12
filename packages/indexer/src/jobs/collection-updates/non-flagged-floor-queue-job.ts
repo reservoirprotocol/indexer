@@ -162,6 +162,7 @@ export class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler {
               tokenId: payload.tokenId,
               collection: collectionResult.collection_id,
             },
+            context: this.queueName,
           },
         ],
         true

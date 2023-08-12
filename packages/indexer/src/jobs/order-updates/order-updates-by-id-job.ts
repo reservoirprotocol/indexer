@@ -78,36 +78,36 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
         // Fetch the order's associated data
         order = await idb.oneOrNone(
           `
-              SELECT
-                orders.id,
-                orders.side,
-                orders.token_set_id AS "tokenSetId",
-                orders.source_id_int AS "sourceIdInt",
-                orders.valid_between AS "validBetween",
-                COALESCE(orders.quantity_remaining, 1) AS "quantityRemaining",
-                orders.nonce,
-                orders.maker,
-                orders.price,
-                orders.value,
-                orders.fillability_status AS "fillabilityStatus",
-                orders.approval_status AS "approvalStatus",
-                orders.kind,
-                orders.dynamic,
-                orders.currency,
-                orders.currency_price,
-                orders.normalized_value,
-                orders.currency_normalized_value,
-                orders.raw_data,
-                orders.originated_at AS "originatedAt",
-                orders.created_at AS "createdAt",
-                token_sets_tokens.contract,
-                token_sets_tokens.token_id AS "tokenId"
-              FROM orders
-              JOIN token_sets_tokens
-                ON orders.token_set_id = token_sets_tokens.token_set_id
-              WHERE orders.id = $/id/
-              LIMIT 1
-            `,
+            SELECT
+              orders.id,
+              orders.side,
+              orders.token_set_id AS "tokenSetId",
+              orders.source_id_int AS "sourceIdInt",
+              orders.valid_between AS "validBetween",
+              COALESCE(orders.quantity_remaining, 1) AS "quantityRemaining",
+              orders.nonce,
+              orders.maker,
+              orders.price,
+              orders.value,
+              orders.fillability_status AS "fillabilityStatus",
+              orders.approval_status AS "approvalStatus",
+              orders.kind,
+              orders.dynamic,
+              orders.currency,
+              orders.currency_price,
+              orders.normalized_value,
+              orders.currency_normalized_value,
+              orders.raw_data,
+              orders.originated_at AS "originatedAt",
+              orders.created_at AS "createdAt",
+              token_sets_tokens.contract,
+              token_sets_tokens.token_id AS "tokenId"
+            FROM orders
+            JOIN token_sets_tokens
+              ON orders.token_set_id = token_sets_tokens.token_set_id
+            WHERE orders.id = $/id/
+            LIMIT 1
+          `,
           { id }
         );
 
@@ -151,63 +151,63 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
             // Insert a corresponding order event
             await idb.none(
               `
-                  INSERT INTO order_events (
-                    kind,
-                    status,
-                    contract,
-                    token_id,
-                    order_id,
-                    order_source_id_int,
-                    order_valid_between,
-                    order_quantity_remaining,
-                    order_nonce,
-                    maker,
-                    price,
-                    tx_hash,
-                    tx_timestamp,
-                    order_kind,
-                    order_token_set_id,
-                    order_dynamic,
-                    order_currency,
-                    order_currency_price,
-                    order_normalized_value,
-                    order_currency_normalized_value,
-                    order_raw_data
-                  )
-                  VALUES (
-                    $/kind/,
-                    (
-                      CASE
-                        WHEN $/fillabilityStatus/ = 'filled' THEN 'filled'
-                        WHEN $/fillabilityStatus/ = 'cancelled' THEN 'cancelled'
-                        WHEN $/fillabilityStatus/ = 'expired' THEN 'expired'
-                        WHEN $/fillabilityStatus/ = 'no-balance' THEN 'inactive'
-                        WHEN $/approvalStatus/ = 'no-approval' THEN 'inactive'
-                        WHEN $/approvalStatus/ = 'disabled' THEN 'inactive'
-                        ELSE 'active'
-                      END
-                    )::order_event_status_t,
-                    $/contract/,
-                    $/tokenId/,
-                    $/id/,
-                    $/sourceIdInt/,
-                    $/validBetween/,
-                    $/quantityRemaining/,
-                    $/nonce/,
-                    $/maker/,
-                    $/value/,
-                    $/txHash/,
-                    $/txTimestamp/,
-                    $/orderKind/,
-                    $/orderTokenSetId/,
-                    $/orderDynamic/,
-                    $/orderCurrency/,
-                    $/orderCurrencyPrice/,
-                    $/orderNormalizedValue/,
-                    $/orderCurrencyNormalizedValue/,
-                    $/orderRawData/
-                  )
-                `,
+                INSERT INTO order_events (
+                  kind,
+                  status,
+                  contract,
+                  token_id,
+                  order_id,
+                  order_source_id_int,
+                  order_valid_between,
+                  order_quantity_remaining,
+                  order_nonce,
+                  maker,
+                  price,
+                  tx_hash,
+                  tx_timestamp,
+                  order_kind,
+                  order_token_set_id,
+                  order_dynamic,
+                  order_currency,
+                  order_currency_price,
+                  order_normalized_value,
+                  order_currency_normalized_value,
+                  order_raw_data
+                )
+                VALUES (
+                  $/kind/,
+                  (
+                    CASE
+                      WHEN $/fillabilityStatus/ = 'filled' THEN 'filled'
+                      WHEN $/fillabilityStatus/ = 'cancelled' THEN 'cancelled'
+                      WHEN $/fillabilityStatus/ = 'expired' THEN 'expired'
+                      WHEN $/fillabilityStatus/ = 'no-balance' THEN 'inactive'
+                      WHEN $/approvalStatus/ = 'no-approval' THEN 'inactive'
+                      WHEN $/approvalStatus/ = 'disabled' THEN 'inactive'
+                      ELSE 'active'
+                    END
+                  )::order_event_status_t,
+                  $/contract/,
+                  $/tokenId/,
+                  $/id/,
+                  $/sourceIdInt/,
+                  $/validBetween/,
+                  $/quantityRemaining/,
+                  $/nonce/,
+                  $/maker/,
+                  $/value/,
+                  $/txHash/,
+                  $/txTimestamp/,
+                  $/orderKind/,
+                  $/orderTokenSetId/,
+                  $/orderDynamic/,
+                  $/orderCurrency/,
+                  $/orderCurrencyPrice/,
+                  $/orderNormalizedValue/,
+                  $/orderCurrencyNormalizedValue/,
+                  $/orderRawData/
+                )
+              `,
               {
                 fillabilityStatus: order.fillabilityStatus,
                 approvalStatus: order.approvalStatus,

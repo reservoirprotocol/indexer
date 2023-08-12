@@ -52,6 +52,8 @@ interface CollectionInfo {
   top_buy_maker: string;
   top_buy_valid_between: string;
   top_buy_source_id_int: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export type CollectionWebsocketEventInfo = {
@@ -303,6 +305,8 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
                 }
               : null,
           },
+          createdAt: new Date(data.after.created_at).toISOString(),
+          updatedAt: new Date(data.after.updated_at).toISOString(),
         },
       });
     } catch (error) {

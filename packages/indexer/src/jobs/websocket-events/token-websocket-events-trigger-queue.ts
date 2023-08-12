@@ -194,6 +194,8 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
               },
             },
           },
+          createdAt: new Date(data.after.created_at).toISOString(),
+          updatedAt: new Date(data.after.updated_at).toISOString(),
         };
 
         let eventType = "";
@@ -289,8 +291,8 @@ interface TokenInfo {
   last_buy_timestamp?: string;
   last_buy_value?: string;
   last_metadata_sync?: string;
-  created_at?: string;
-  updated_at?: string;
+  created_at: string;
+  updated_at: string;
   rarity_score: string;
   rarity_rank: string;
   is_flagged: string;
