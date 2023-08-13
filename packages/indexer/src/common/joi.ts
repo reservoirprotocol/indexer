@@ -652,8 +652,8 @@ export const getJoiOrderObject = async (order: {
       currency,
       order.displayCurrency
     ),
-    validFrom: Number(order.validFrom),
-    validUntil: Number(order.validUntil),
+    validFrom: Math.floor(Number(order.validFrom)),
+    validUntil: Math.floor(Number(order.validUntil)),
     quantityFilled: Number(order.quantityFilled),
     quantityRemaining: Number(order.quantityRemaining),
     dynamicPricing: order.includeDynamicPricing
@@ -678,7 +678,7 @@ export const getJoiOrderObject = async (order: {
     },
     feeBps: Number(feeBps.toString()),
     feeBreakdown: feeBreakdown,
-    expiration: Number(order.expiration),
+    expiration: Math.floor(Number(order.expiration)),
     isReservoir: order.isReservoir,
     isDynamic:
       order.dynamic !== undefined ? Boolean(order.dynamic || order.kind === "sudoswap") : undefined,
