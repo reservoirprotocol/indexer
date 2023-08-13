@@ -5,6 +5,7 @@ import "@/pubsub/index";
 import "@/websockets/index";
 
 import * as Sdk from "@reservoir0x/sdk";
+import _ from "lodash";
 
 import { start } from "@/api/index";
 import { logger } from "@/common/logger";
@@ -15,7 +16,6 @@ import { startKafkaConsumer } from "@/jobs/cdc";
 import { RabbitMqJobsConsumer } from "@/jobs/index";
 import { FeeRecipients } from "@/models/fee-recipients";
 import { Sources } from "@/models/sources";
-import _ from "lodash";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 process.on("unhandledRejection", (error: any) => {

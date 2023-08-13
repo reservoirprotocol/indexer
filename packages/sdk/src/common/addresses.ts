@@ -80,7 +80,7 @@ export const RoyaltyEngine: ChainIdToAddress = {
   [Network.Avalanche]: "0x60b433ee91680189deb2c94b0b062ea283f6b4dd",
 };
 
-// Uniswap SwapRouter
+// Uniswap's `SwapRouter02`
 export const SwapRouter: ChainIdToAddress = {
   [Network.Ethereum]: "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
   [Network.EthereumGoerli]: "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
@@ -88,9 +88,10 @@ export const SwapRouter: ChainIdToAddress = {
   [Network.Polygon]: "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
   [Network.Arbitrum]: "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
   [Network.Bsc]: "0xb971ef87ede563556b2ed4b1c0b0019111dd85d2",
+  [Network.Base]: "0x2626664c2603336e57b271c5c0b26f421741e481",
 };
 
-// 1inch AggregationRouter
+// 1inch's `AggregationRouter`
 export const AggregationRouterV5: ChainIdToAddress = {
   [Network.Ethereum]: "0x1111111254eeb25477b68fb85ed929f73a960582",
   [Network.EthereumGoerli]: "0x1111111254eeb25477b68fb85ed929f73a960582",
@@ -98,6 +99,7 @@ export const AggregationRouterV5: ChainIdToAddress = {
   [Network.Polygon]: "0x1111111254eeb25477b68fb85ed929f73a960582",
   [Network.Arbitrum]: "0x1111111254eeb25477b68fb85ed929f73a960582",
   [Network.Bsc]: "0x1111111254eeb25477b68fb85ed929f73a960582",
+  [Network.Avalanche]: "0x1111111254eeb25477b68fb85ed929f73a960582",
 };
 
 export const Create3Factory: ChainIdToAddress = {

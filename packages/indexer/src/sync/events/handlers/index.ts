@@ -45,6 +45,7 @@ import * as paymentProcessor from "@/events-sync/handlers/payment-processor";
 import * as thirdweb from "@/events-sync/handlers/thirdweb";
 import * as seadrop from "@/events-sync/handlers/seadrop";
 import * as blurV2 from "@/events-sync/handlers/blur-v2";
+import * as erc721c from "@/events-sync/handlers/erc721c";
 
 // A list of events having the same high-level kind
 export type EventsByKind = {
@@ -102,6 +103,7 @@ export const eventKindToHandler = new Map<
   ["thirdweb", (e, d) => thirdweb.handleEvents(e, d)],
   ["seadrop", (e, d) => seadrop.handleEvents(e, d)],
   ["blur-v2", (e, d) => blurV2.handleEvents(e, d)],
+  ["erc721c", (e) => erc721c.handleEvents(e)],
 ]);
 
 export const processEventsBatch = async (batch: EventsBatch, skipProcessing?: boolean) => {
