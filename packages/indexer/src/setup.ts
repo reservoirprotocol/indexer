@@ -26,14 +26,10 @@ process.on("unhandledRejection", (error: any) => {
 });
 
 const setup = async () => {
-<<<<<<< HEAD
-  if (Number(process.env.LOCAL_TESTING)) {
-=======
-  // Configure the SDK
+
   Sdk.Global.Config.aggregatorSource = "reservoir.tools";
 
-  if (process.env.LOCAL_TESTING) {
->>>>>>> 31d6f7b2d78ad53b957121a391e70d1cb5f64f40
+  if (Number(process.env.LOCAL_TESTING)) {
     return;
   }
 
