@@ -32,7 +32,6 @@ import * as backfillNftTransferUpdatedAt from "@/jobs/backfill/backfill-nft-tran
 import * as backfillNftTransferCreatedAt from "@/jobs/backfill/backfill-nft-transfer-events-created-at";
 import * as backfillSaleRoyalties from "@/jobs/backfill/backfill-sale-royalties";
 import * as tokenWebsocketEventsTriggerQueue from "@/jobs/websocket-events/token-websocket-events-trigger-queue";
-import * as backfillDeleteExpiredBidsElasticsearch from "@/jobs/activities/backfill/backfill-delete-expired-bids-elasticsearch";
 import * as backfillSalePricingDecimalElasticsearch from "@/jobs/activities/backfill/backfill-sales-pricing-decimal-elasticsearch";
 import * as blockGapCheck from "@/jobs/events-sync/block-gap-check";
 
@@ -152,7 +151,6 @@ export const allJobQueues = [
   backfillNftTransferCreatedAt.queue,
   backfillSaleRoyalties.queue,
   tokenWebsocketEventsTriggerQueue.queue,
-  backfillDeleteExpiredBidsElasticsearch.queue,
   backfillSalePricingDecimalElasticsearch.queue,
   blockGapCheck.queue,
 ];
@@ -161,16 +159,16 @@ export class RabbitMqJobsConsumer {
   private static maxConsumerConnectionsCount = 5;
 
   private static rabbitMqConsumerConnections: AmqpConnectionManager[] = [];
-
   private static queueToChannel: Map<string, ChannelWrapper> = new Map();
   private static sharedChannels: Map<string, ChannelWrapper> = new Map();
   private static channelsToJobs: Map<ChannelWrapper, AbstractRabbitMqJobHandler[]> = new Map();
-  private static sharedChannelName = "shared-channel";
 
-  private static vhostQueueToChannel: Map<string, ChannelWrapper> = new Map();
-  private static sharedVhostChannels: Map<string, ChannelWrapper> = new Map();
   private static rabbitMqConsumerVhostConnections: AmqpConnectionManager[] = [];
+  private static vhostQueueToChannel: Map<string, ChannelWrapper> = new Map();
+  private static vhostSharedChannels: Map<string, ChannelWrapper> = new Map();
   private static vhostChannelsToJobs: Map<ChannelWrapper, AbstractRabbitMqJobHandler[]> = new Map();
+
+  private static sharedChannelName = "shared-channel";
 
   /**
    * Return array of all jobs classes, any new job MUST be added here
@@ -325,7 +323,7 @@ export class RabbitMqJobsConsumer {
       const sharedChannel = connection.createChannel({ confirm: false });
 
       // Create a shared channel for each connection
-      RabbitMqJobsConsumer.sharedVhostChannels.set(
+      RabbitMqJobsConsumer.vhostSharedChannels.set(
         RabbitMqJobsConsumer.getSharedChannelName(i),
         sharedChannel
       );
@@ -424,7 +422,7 @@ export class RabbitMqJobsConsumer {
 
     let channel: ChannelWrapper;
     const connectionIndex = _.random(0, RabbitMqJobsConsumer.maxConsumerConnectionsCount - 1);
-    const sharedChannel = RabbitMqJobsConsumer.sharedVhostChannels.get(
+    const sharedChannel = RabbitMqJobsConsumer.vhostSharedChannels.get(
       RabbitMqJobsConsumer.getSharedChannelName(connectionIndex)
     );
 
@@ -474,7 +472,7 @@ export class RabbitMqJobsConsumer {
    * @param job
    */
   static async unsubscribe(job: AbstractRabbitMqJobHandler) {
-    const channel = RabbitMqJobsConsumer.queueToChannel.get(job.getQueue());
+    const channel = RabbitMqJobsConsumer.vhostQueueToChannel.get(job.getQueue());
 
     if (channel) {
       await channel.cancel(RabbitMqJobsConsumer.getConsumerTag(job.getQueue()));

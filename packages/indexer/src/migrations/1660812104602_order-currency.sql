@@ -12,9 +12,14 @@ CREATE INDEX "orders_conversion_index"
   ON "orders" ("id")
   WHERE ("needs_conversion" AND "fillability_status" = 'fillable' AND "approval_status" = 'approved');
 
+CREATE INDEX "tokens_contract_floor_sell_value_floor_sell_currency_index"
+  ON "tokens" ("contract", "floor_sell_value", "floor_sell_currency");
+
 -- Down Migration
 
 DROP INDEX "orders_conversion_index";
+
+DROP INDEX "tokens_contract_floor_sell_value_floor_sell_currency_index";
 
 ALTER TABLE "tokens" DROP COLUMN "floor_sell_currency_value";
 ALTER TABLE "tokens" DROP COLUMN "floor_sell_currency";

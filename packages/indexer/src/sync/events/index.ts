@@ -138,6 +138,10 @@ export const extractEventsBatches = async (
             data: kindToEvents.get("sudoswap-v2") ?? [],
           },
           {
+            kind: "midaswap",
+            data: kindToEvents.get("midaswap") ?? [],
+          },
+          {
             kind: "caviar-v1",
             data: kindToEvents.get("caviar-v1") ?? [],
           },
@@ -249,6 +253,10 @@ export const extractEventsBatches = async (
           {
             kind: "blur-v2",
             data: kindToEvents.get("blur-v2") ?? [],
+          },
+          {
+            kind: "erc721c",
+            data: kindToEvents.get("erc721c") ?? [],
           },
         ];
 

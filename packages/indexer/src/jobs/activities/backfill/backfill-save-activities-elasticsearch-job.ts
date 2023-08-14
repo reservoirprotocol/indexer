@@ -18,6 +18,7 @@ import { BidCancelledEventHandler } from "@/elasticsearch/indexes/activities/eve
 import { FillEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/fill-event-created";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { NftTransferEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/nft-transfer-event-created";
+import { redis } from "@/common/redis";
 
 export type BackfillSaveActivitiesElasticsearchJobPayload = {
   type: "ask" | "ask-cancel" | "bid" | "bid-cancel" | "sale" | "transfer";
@@ -31,7 +32,7 @@ export type BackfillSaveActivitiesElasticsearchJobPayload = {
 export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-save-activities-elasticsearch-queue";
   maxRetries = 10;
-  concurrency = 1;
+  concurrency = 2;
   persistent = true;
   lazyMode = true;
   backoff = {
@@ -72,6 +73,12 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           ]),
         });
 
+        await redis.hincrby(
+          `backfill-activities-elasticsearch-job:${type}`,
+          `${fromTimestamp}:${toTimestamp}`,
+          activities.length
+        );
+
         logger.info(
           this.queueName,
           JSON.stringify({
@@ -79,7 +86,9 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
             message: `Backfilled ${activities.length} activities. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}`,
             type,
             fromTimestamp,
+            fromTimestampISO,
             toTimestamp,
+            toTimestampISO,
             cursor,
             indexName,
             keepGoing,
@@ -97,7 +106,9 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
             message: `KeepGoing. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}`,
             type,
             fromTimestamp,
+            fromTimestampISO,
             toTimestamp,
+            toTimestampISO,
             cursor,
             indexName,
             keepGoing,
@@ -114,12 +125,20 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
             message: `End. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}`,
             type,
             fromTimestamp,
+            fromTimestampISO,
             toTimestamp,
+            toTimestampISO,
             cursor,
             indexName,
             keepGoing,
           })
         );
+
+        await redis.hdel(
+          `backfill-activities-elasticsearch-job:${type}`,
+          `${fromTimestamp}:${toTimestamp}`
+        );
+        await redis.decr(`backfill-activities-elasticsearch-job-count:${type}`);
       }
     } catch (error) {
       logger.error(
@@ -129,7 +148,9 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           message: `Error. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}, error=${error}`,
           type,
           fromTimestamp,
+          fromTimestampISO,
           toTimestamp,
+          toTimestampISO,
           cursor,
           indexName,
           keepGoing,
@@ -172,13 +193,29 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
     keepGoing?: boolean
   ) {
     if (!config.doElasticsearchWork) {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "backfill-activities",
+          message: `addToQueue Disabled`,
+          type,
+          fromTimestamp,
+          toTimestamp,
+          cursor,
+          indexName,
+          keepGoing,
+        })
+      );
+
       return;
     }
 
     return this.send(
       {
         payload: { type, cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
-        jobId: `${type}:${fromTimestamp}:${toTimestamp}:${keepGoing}:${indexName}`,
+        jobId: `${type}:${JSON.stringify(
+          cursor
+        )}${fromTimestamp}:${toTimestamp}:${indexName}:${keepGoing}`,
       },
       keepGoing ? 5000 : 1000
     );

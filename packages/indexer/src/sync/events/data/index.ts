@@ -37,11 +37,13 @@ import * as zora from "@/events-sync/data/zora";
 import * as looksRareV2 from "@/events-sync/data/looks-rare-v2";
 import * as blend from "@/events-sync/data/blend";
 import * as sudoswapV2 from "@/events-sync/data/sudoswap-v2";
+import * as midaswap from "@/events-sync/data/midaswap";
 import * as caviarV1 from "@/events-sync/data/caviar-v1";
 import * as paymentProcessor from "@/events-sync/data/payment-processor";
 import * as thirdweb from "@/events-sync/data/thirdweb";
 import * as blurV2 from "@/events-sync/data/blur-v2";
 import * as seadrop from "@/events-sync/data/seadrop";
+import * as erc721c from "@/events-sync/data/erc721c";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -82,11 +84,13 @@ export type EventKind =
   | "looks-rare-v2"
   | "blend"
   | "sudoswap-v2"
+  | "midaswap"
   | "caviar-v1"
   | "payment-processor"
   | "thirdweb"
   | "seadrop"
-  | "blur-v2";
+  | "blur-v2"
+  | "erc721c";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -260,6 +264,12 @@ export type EventSubKind =
   | "sudoswap-v2-delta-update"
   | "sudoswap-v2-new-erc721-pair"
   | "sudoswap-v2-new-erc1155-pair"
+  | "midaswap-new-erc721-pair"
+  | "midaswap-erc20-deposit"
+  | "midaswap-erc721-deposit"
+  | "midaswap-sell-erc721"
+  | "midaswap-buy-erc721"
+  | "midaswap-position-burned"
   | "caviar-v1-create"
   | "caviar-v1-add"
   | "caviar-v1-remove"
@@ -278,7 +288,10 @@ export type EventSubKind =
   | "blur-v2-execution"
   | "blur-v2-execution-721-packed"
   | "blur-v2-execution-721-taker-fee-packed"
-  | "blur-v2-execution-721-maker-fee-packed";
+  | "blur-v2-execution-721-maker-fee-packed"
+  | "erc721c-verified-eoa-signature"
+  | "erc721c-added-to-allowlist"
+  | "erc721c-removed-from-allowlist";
 
 export type EventData = {
   kind: EventKind;
@@ -457,6 +470,12 @@ const allEventData = [
   sudoswapV2.deltaUpdate,
   sudoswapV2.newERC721Pair,
   sudoswapV2.newERC1155Pair,
+  midaswap.newERC721Pair,
+  midaswap.erc20Deposit,
+  midaswap.erc721Deposit,
+  midaswap.buyERC721,
+  midaswap.sellERC721,
+  midaswap.positionBurned,
   treasure.bidAccepted,
   caviarV1.create,
   caviarV1.add,
@@ -477,6 +496,9 @@ const allEventData = [
   blurV2.execution721Packed,
   blurV2.execution721TakerFeePacked,
   seadrop.publicDropUpdated,
+  erc721c.verifiedEOASignature,
+  erc721c.addedToAllowlist,
+  erc721c.removedFromAllowlist,
 ];
 
 export const getEventData = (events?: string[]) => {

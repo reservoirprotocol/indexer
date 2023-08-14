@@ -186,6 +186,7 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
                     onChainApprovalRecheck: true,
                     checkFilledOrCancelled: true,
                     quantityRemaining: result.quantity_remaining,
+                    singleTokenERC721ApprovalCheck: true,
                   });
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 } catch (error: any) {
@@ -216,6 +217,7 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
                     onChainApprovalRecheck: true,
                     checkFilledOrCancelled: true,
                     quantityRemaining: result.quantity_remaining,
+                    singleTokenERC721ApprovalCheck: true,
                   });
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 } catch (error: any) {
@@ -246,6 +248,7 @@ export class OrderFixesJob extends AbstractRabbitMqJobHandler {
                     onChainApprovalRecheck: true,
                     checkFilledOrCancelled: true,
                     quantityRemaining: result.quantity_remaining,
+                    singleTokenERC721ApprovalCheck: true,
                   });
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 } catch (error: any) {

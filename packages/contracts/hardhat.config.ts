@@ -25,7 +25,7 @@ const getNetworkConfig = (chainId?: number) => {
         url = `https://opt-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
         break;
       case 56:
-        url = "";
+        url = "https://bsc.meowrpc.com";
         break;
       case 137:
         url = `https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
@@ -37,10 +37,13 @@ const getNetworkConfig = (chainId?: number) => {
         url = `https://arb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
         break;
       case 42170:
-        url = "";
+        url = "https://arbitrum-nova.publicnode.com";
+        break;
+      case 43114:
+        url = "https://avalanche-c-chain.publicnode.com";
         break;
       case 59144:
-        url = "";
+        url = "https://rpc.linea.build";
         break;
       case 7777777:
         url = "https://rpc.zora.co";
@@ -123,6 +126,7 @@ const config: HardhatUserConfig = {
     base: getNetworkConfig(8453),
     arbitrum: getNetworkConfig(42161),
     arbitrumNova: getNetworkConfig(42170),
+    avalanche: getNetworkConfig(43114),
     linea: getNetworkConfig(59144),
     zora: getNetworkConfig(7777777),
     // Testnets

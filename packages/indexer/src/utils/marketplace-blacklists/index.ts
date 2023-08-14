@@ -8,6 +8,7 @@ import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { OrderKind } from "@/orderbook/orders";
+import * as erc721c from "@/utils/erc721c";
 
 export type Operator = {
   address: string;
@@ -45,6 +46,11 @@ export const checkMarketplaceIsFiltered = async (
     return customCheck;
   }
 
+  const erc721cCheck = await erc721c.checkMarketplaceIsFiltered(contract, operators);
+  if (erc721cCheck) {
+    return erc721cCheck;
+  }
+
   return operators.some((c) => result!.includes(c));
 };
 
@@ -57,24 +63,7 @@ export const isBlockedByCustomLogic = async (contract: string, operators: string
       "function getWhitelistedOperators() view returns (address[])",
     ]);
     const nft = new Contract(contract, iface, baseProvider);
-
     let result = false;
-
-    // `getWhitelistedOperators()` (ERC721-C)
-    try {
-      const whitelistedOperators = await nft
-        .getWhitelistedOperators()
-        .then((ops: string[]) => ops.map((o) => o.toLowerCase()));
-      result = operators.some((o) => !whitelistedOperators.includes(o));
-    } catch {
-      // Skip errors
-    }
-
-    // Positive case
-    if (result) {
-      await redis.set(cacheKey, "1", "EX", 24 * 3600);
-      return result;
-    }
 
     // `registry()`
     try {
@@ -109,20 +98,25 @@ const getMarketplaceBlacklist = async (contract: string): Promise<string[]> => {
     "function filteredOperators(address registrant) external view returns (address[])",
   ]);
 
-  const opensea = new Contract(
-    Sdk.SeaportBase.Addresses.OperatorFilterRegistry[config.chainId],
-    iface,
-    baseProvider
-  );
-  const blur = new Contract(
-    Sdk.Blur.Addresses.OperatorFilterRegistry[config.chainId],
-    iface,
-    baseProvider
-  );
-  const [openseaOperators, blurOperators] = await Promise.all([
-    opensea.filteredOperators(contract),
-    blur.filteredOperators(contract),
-  ]);
+  let openseaOperators: string[] = [];
+  if (Sdk.SeaportBase.Addresses.OperatorFilterRegistry[config.chainId]) {
+    const opensea = new Contract(
+      Sdk.SeaportBase.Addresses.OperatorFilterRegistry[config.chainId],
+      iface,
+      baseProvider
+    );
+    openseaOperators = await opensea.filteredOperators(contract);
+  }
+
+  let blurOperators: string[] = [];
+  if (Sdk.Blur.Addresses.OperatorFilterRegistry[config.chainId]) {
+    const blur = new Contract(
+      Sdk.Blur.Addresses.OperatorFilterRegistry[config.chainId],
+      iface,
+      baseProvider
+    );
+    blurOperators = await blur.filteredOperators(contract);
+  }
 
   const allOperatorsList = openseaOperators
     .concat(blurOperators)

@@ -42,7 +42,24 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
       }
     }
 
-    await syncEvents(block);
+    try {
+      await syncEvents(block);
+      //eslint-disable-next-line
+    } catch (error: any) {
+      // if the error is block not found, add back to queue
+      if (error?.message.includes("not found with RPC provider")) {
+        logger.info(
+          this.queueName,
+          `Block ${block} not found with RPC provider, adding back to queue`
+        );
+
+        await this.addToQueue({ block }, 500);
+        return;
+      } else {
+        throw error;
+      }
+    }
+
     await checkForOrphanedBlock(block);
   }
 

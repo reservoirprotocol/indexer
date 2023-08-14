@@ -9,7 +9,12 @@ import getUuidByString from "uuid-by-string";
 export const baseProvider = new StaticJsonRpcProvider(
   {
     url: config.baseNetworkHttpUrl,
-    headers: { "x-session-hash": getUuidByString(`${config.baseNetworkHttpUrl}${config.chainId}`) },
+    headers:
+      config.chainId === 324
+        ? {}
+        : {
+            "x-session-hash": getUuidByString(`${config.baseNetworkHttpUrl}${config.chainId}`),
+          },
   },
   config.chainId
 );

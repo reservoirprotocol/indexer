@@ -218,6 +218,10 @@ export class ApiKeyManager {
       log.query = request.query;
     }
 
+    if (request.headers["user-agent"]) {
+      log.userAgent = request.headers["user-agent"];
+    }
+
     if (request.headers["x-forwarded-for"]) {
       log.remoteAddress = request.headers["x-forwarded-for"];
     }
