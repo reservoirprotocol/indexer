@@ -53,33 +53,35 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
 
     const promises = [];
 
-    await redis.del(`backfill-activities-elasticsearch-job:transfer`);
-    await redis.del(`backfill-activities-elasticsearch-job:sale`);
-    await redis.del(`backfill-activities-elasticsearch-job:ask`);
-    await redis.del(`backfill-activities-elasticsearch-job:ask-cancel`);
-    await redis.del(`backfill-activities-elasticsearch-job:bid`);
-    await redis.del(`backfill-activities-elasticsearch-job:bid-cancel`);
+    if (!fromLastBackfill) {
+      await redis.del(`backfill-activities-elasticsearch-job:transfer`);
+      await redis.del(`backfill-activities-elasticsearch-job:sale`);
+      await redis.del(`backfill-activities-elasticsearch-job:ask`);
+      await redis.del(`backfill-activities-elasticsearch-job:ask-cancel`);
+      await redis.del(`backfill-activities-elasticsearch-job:bid`);
+      await redis.del(`backfill-activities-elasticsearch-job:bid-cancel`);
 
-    await redis.del(`backfill-activities-elasticsearch-job-count:transfer`);
-    await redis.del(`backfill-activities-elasticsearch-job-count:sale`);
-    await redis.del(`backfill-activities-elasticsearch-job-count:ask`);
-    await redis.del(`backfill-activities-elasticsearch-job-count:ask-cancel`);
-    await redis.del(`backfill-activities-elasticsearch-job-count:bid`);
-    await redis.del(`backfill-activities-elasticsearch-job-count:bid-cancel`);
+      await redis.del(`backfill-activities-elasticsearch-job-count:transfer`);
+      await redis.del(`backfill-activities-elasticsearch-job-count:sale`);
+      await redis.del(`backfill-activities-elasticsearch-job-count:ask`);
+      await redis.del(`backfill-activities-elasticsearch-job-count:ask-cancel`);
+      await redis.del(`backfill-activities-elasticsearch-job-count:bid`);
+      await redis.del(`backfill-activities-elasticsearch-job-count:bid-cancel`);
 
-    await redis.del(`backfill-activities-elasticsearch-job-backfilled:transfer`);
-    await redis.del(`backfill-activities-elasticsearch-job-backfilled:sale`);
-    await redis.del(`backfill-activities-elasticsearch-job-backfilled:ask`);
-    await redis.del(`backfill-activities-elasticsearch-job-backfilled:ask-cancel`);
-    await redis.del(`backfill-activities-elasticsearch-job-backfilled:bid`);
-    await redis.del(`backfill-activities-elasticsearch-job-backfilled:bid-cancel`);
+      await redis.del(`backfill-activities-elasticsearch-job-backfilled:transfer`);
+      await redis.del(`backfill-activities-elasticsearch-job-backfilled:sale`);
+      await redis.del(`backfill-activities-elasticsearch-job-backfilled:ask`);
+      await redis.del(`backfill-activities-elasticsearch-job-backfilled:ask-cancel`);
+      await redis.del(`backfill-activities-elasticsearch-job-backfilled:bid`);
+      await redis.del(`backfill-activities-elasticsearch-job-backfilled:bid-cancel`);
 
-    await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:transfer`);
-    await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:sale`);
-    await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:ask`);
-    await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:ask-cancel`);
-    await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:bid`);
-    await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:bid-cancel`);
+      await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:transfer`);
+      await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:sale`);
+      await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:ask`);
+      await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:ask-cancel`);
+      await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:bid`);
+      await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:bid-cancel`);
+    }
 
     const backfillTransferActivities = async (fromLastBackfill?: boolean) => {
       if (fromLastBackfill) {
