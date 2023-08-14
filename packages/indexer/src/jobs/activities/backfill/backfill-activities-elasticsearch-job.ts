@@ -83,6 +83,11 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         jobCount++;
 
         loop = new Date(newDate);
+
+        await redis.lpush(
+          `backfill-activities-elasticsearch-job:transfer`,
+          JSON.stringify({ fromTimestamp, toTimestamp })
+        );
       }
 
       await redis.set(`backfill-activities-elasticsearch-job-count:transfer`, jobCount);
@@ -139,6 +144,11 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         jobCount++;
 
         loop = new Date(newDate);
+
+        await redis.lpush(
+          `backfill-activities-elasticsearch-job:sale`,
+          JSON.stringify({ fromTimestamp, toTimestamp })
+        );
       }
 
       await redis.set(`backfill-activities-elasticsearch-job-count:sale`, jobCount);
@@ -195,6 +205,11 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         jobCount++;
 
         loop = new Date(newDate);
+
+        await redis.lpush(
+          `backfill-activities-elasticsearch-job:ask`,
+          JSON.stringify({ fromTimestamp, toTimestamp })
+        );
       }
 
       await redis.set(`backfill-activities-elasticsearch-job-count:ask`, jobCount);
@@ -251,6 +266,11 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         jobCount++;
 
         loop = new Date(newDate);
+
+        await redis.lpush(
+          `backfill-activities-elasticsearch-job:ask-cancel`,
+          JSON.stringify({ fromTimestamp, toTimestamp })
+        );
       }
 
       await redis.set(`backfill-activities-elasticsearch-job-count:ask-cancel`, jobCount);
@@ -307,6 +327,11 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         jobCount++;
 
         loop = new Date(newDate);
+
+        await redis.lpush(
+          `backfill-activities-elasticsearch-job:bid`,
+          JSON.stringify({ fromTimestamp, toTimestamp })
+        );
       }
 
       await redis.set(`backfill-activities-elasticsearch-job-count:bid`, jobCount);
@@ -363,6 +388,12 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         jobCount++;
 
         loop = new Date(newDate);
+
+        await redis.hset(
+          `backfill-activities-elasticsearch-job:bid-cancel`,
+          `${fromTimestamp}:${toTimestamp}`,
+          JSON.stringify({ fromTimestamp, toTimestamp })
+        );
       }
 
       await redis.set(`backfill-activities-elasticsearch-job-count:bid-cancel`, jobCount);
