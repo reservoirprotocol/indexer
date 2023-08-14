@@ -39,7 +39,7 @@ export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
 
     await Tokens.update(contract, tokenId, {
       supply: totalSupply,
-      remainingSupply: totalRemainingSupply,
+      remainingSupply: Math.min(totalSupply, totalRemainingSupply),
     });
   }
 

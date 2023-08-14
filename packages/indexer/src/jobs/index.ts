@@ -32,7 +32,6 @@ import * as backfillNftTransferUpdatedAt from "@/jobs/backfill/backfill-nft-tran
 import * as backfillNftTransferCreatedAt from "@/jobs/backfill/backfill-nft-transfer-events-created-at";
 import * as backfillSaleRoyalties from "@/jobs/backfill/backfill-sale-royalties";
 import * as tokenWebsocketEventsTriggerQueue from "@/jobs/websocket-events/token-websocket-events-trigger-queue";
-import * as backfillDeleteExpiredBidsElasticsearch from "@/jobs/activities/backfill/backfill-delete-expired-bids-elasticsearch";
 import * as backfillSalePricingDecimalElasticsearch from "@/jobs/activities/backfill/backfill-sales-pricing-decimal-elasticsearch";
 import * as blockGapCheck from "@/jobs/events-sync/block-gap-check";
 
@@ -152,7 +151,6 @@ export const allJobQueues = [
   backfillNftTransferCreatedAt.queue,
   backfillSaleRoyalties.queue,
   tokenWebsocketEventsTriggerQueue.queue,
-  backfillDeleteExpiredBidsElasticsearch.queue,
   backfillSalePricingDecimalElasticsearch.queue,
   blockGapCheck.queue,
 ];
