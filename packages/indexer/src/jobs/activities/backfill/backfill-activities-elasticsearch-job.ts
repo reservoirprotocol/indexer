@@ -84,8 +84,9 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
 
         loop = new Date(newDate);
 
-        await redis.lpush(
+        await redis.hset(
           `backfill-activities-elasticsearch-job:transfer`,
+          `${fromTimestamp}:${toTimestamp}`,
           JSON.stringify({ fromTimestamp, toTimestamp })
         );
       }
@@ -145,8 +146,9 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
 
         loop = new Date(newDate);
 
-        await redis.lpush(
+        await redis.hset(
           `backfill-activities-elasticsearch-job:sale`,
+          `${fromTimestamp}:${toTimestamp}`,
           JSON.stringify({ fromTimestamp, toTimestamp })
         );
       }
@@ -206,8 +208,9 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
 
         loop = new Date(newDate);
 
-        await redis.lpush(
+        await redis.hset(
           `backfill-activities-elasticsearch-job:ask`,
+          `${fromTimestamp}:${toTimestamp}`,
           JSON.stringify({ fromTimestamp, toTimestamp })
         );
       }
@@ -267,8 +270,9 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
 
         loop = new Date(newDate);
 
-        await redis.lpush(
+        await redis.hset(
           `backfill-activities-elasticsearch-job:ask-cancel`,
+          `${fromTimestamp}:${toTimestamp}`,
           JSON.stringify({ fromTimestamp, toTimestamp })
         );
       }
@@ -328,8 +332,9 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
 
         loop = new Date(newDate);
 
-        await redis.lpush(
+        await redis.hset(
           `backfill-activities-elasticsearch-job:bid`,
+          `${fromTimestamp}:${toTimestamp}`,
           JSON.stringify({ fromTimestamp, toTimestamp })
         );
       }
