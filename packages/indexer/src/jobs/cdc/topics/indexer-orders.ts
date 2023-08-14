@@ -5,7 +5,6 @@ import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
-import { config } from "@/config/index";
 
 export class IndexerOrdersHandler extends KafkaEventHandler {
   topicName = "indexer.public.orders";
@@ -15,41 +14,32 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
       return;
     }
 
-    if (!config.doOldOrderWebsocketWork) {
-      let eventKind;
-      if (payload.after.side === "sell") {
-        eventKind = WebsocketEventKind.SellOrder;
-      } else if (payload.after.side === "buy") {
-        eventKind = WebsocketEventKind.BuyOrder;
-      } else {
-        logger.warn(
-          "kafka-event-handler",
-          `${this.topicName}: Unknown order kind, skipping websocket event router for order=${
-            JSON.stringify(payload.after) || "null"
-          }`
-        );
-        return;
-      }
+    let eventKind;
 
-      await WebsocketEventRouter({
-        eventInfo: {
-          kind: payload.after.kind,
-          orderId: payload.after.id,
-          trigger: "insert",
-          offset,
-        },
-        eventKind,
-      });
+    if (payload.after.side === "sell") {
+      eventKind = WebsocketEventKind.SellOrder;
+    } else if (payload.after.side === "buy") {
+      eventKind = WebsocketEventKind.BuyOrder;
     } else {
-      logger.info(
+      logger.warn(
         "kafka-event-handler",
-        `${
-          this.topicName
-        }: Old order websocket work is enabled, skipping websocket event router for order=${
+        `${this.topicName}: Unknown order kind, skipping websocket event router for order=${
           JSON.stringify(payload.after) || "null"
         }`
       );
+
+      return;
     }
+
+    await WebsocketEventRouter({
+      eventInfo: {
+        before: payload.before,
+        after: payload.after,
+        trigger: "insert",
+        offset,
+      },
+      eventKind,
+    });
   }
 
   protected async handleUpdate(payload: any, offset: string): Promise<void> {
@@ -57,41 +47,32 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
       return;
     }
 
-    if (!config.doOldOrderWebsocketWork) {
-      let eventKind;
-      if (payload.after.side === "sell") {
-        eventKind = WebsocketEventKind.SellOrder;
-      } else if (payload.after.side === "buy") {
-        eventKind = WebsocketEventKind.BuyOrder;
-      } else {
-        logger.warn(
-          "kafka-event-handler",
-          `${this.topicName}: Unknown order kind, skipping websocket event router for order=${
-            JSON.stringify(payload.after) || "null"
-          }`
-        );
-        return;
-      }
+    let eventKind;
 
-      await WebsocketEventRouter({
-        eventInfo: {
-          kind: payload.after.kind,
-          orderId: payload.after.id,
-          trigger: "update",
-          offset,
-        },
-        eventKind: eventKind,
-      });
+    if (payload.after.side === "sell") {
+      eventKind = WebsocketEventKind.SellOrder;
+    } else if (payload.after.side === "buy") {
+      eventKind = WebsocketEventKind.BuyOrder;
     } else {
-      logger.info(
+      logger.warn(
         "kafka-event-handler",
-        `${
-          this.topicName
-        }: Old order websocket work is enabled, skipping websocket event router for order=${
+        `${this.topicName}: Unknown order kind, skipping websocket event router for order=${
           JSON.stringify(payload.after) || "null"
         }`
       );
+
+      return;
     }
+
+    await WebsocketEventRouter({
+      eventInfo: {
+        before: payload.before,
+        after: payload.after,
+        trigger: "update",
+        offset,
+      },
+      eventKind,
+    });
   }
 
   protected async handleDelete(): Promise<void> {

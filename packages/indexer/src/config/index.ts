@@ -61,9 +61,6 @@ export const config = {
   kafkaClientId: String(process.env.KAFKA_CLIENT_ID),
   kafkaMaxBytesPerPartition: Number(process.env.KAFKA_MAX_BYTES_PER_PARTITION),
 
-  // for testing order websocket triggers
-  doOldOrderWebsocketWork: Boolean(Number(process.env.DO_OLD_ORDER_WEBSOCKET_WORK)),
-
   maxTokenSetSize: 100000,
 
   awsAccessKeyId: String(process.env.AWS_ACCESS_KEY_ID || process.env.FC_AWS_ACCESS_KEY_ID),

@@ -74,7 +74,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
         });
 
         await redis.hincrby(
-          `backfill-activities-elasticsearch-job:${type}`,
+          `backfill-activities-elasticsearch-job-backfilled:${type}`,
           `${fromTimestamp}:${toTimestamp}`,
           activities.length
         );
