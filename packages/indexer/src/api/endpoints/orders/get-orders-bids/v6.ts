@@ -116,7 +116,7 @@ export const getOrdersBidsV6Options: RouteOptions = {
           otherwise: Joi.valid("active"),
         })
         .description(
-          "activeª^º = currently valid\ninactiveª^ = temporarily invalid\nexpiredª^, canceledª^, filledª^ = permanently invalid\nanyªº = any status\nª when an `id` is passed\n^ when a `maker` is passed\nº when a `contract` is passed"
+          "activeª^º = currently valid\ninactiveª^ = temporarily invalid\nexpiredª^, cancelledª^, filledª^ = permanently invalid\nanyªº = any status\nª when an `id` is passed\n^ when a `maker` is passed\nº when a `contract` is passed"
         ),
       sources: Joi.alternatives()
         .try(
