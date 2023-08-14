@@ -87,7 +87,7 @@ export const postRefreshTokenOptions: RouteOptions = {
       await tokenRefreshCacheJob.addToQueue({ contract, tokenId, checkTopBid: true });
 
       // Recalc supply
-      await tokenReclacSupplyJob.addToQueue([{ contract, tokenId }]);
+      await tokenReclacSupplyJob.addToQueue([{ contract, tokenId }], 0);
 
       return { message: "Request accepted" };
     } catch (error) {

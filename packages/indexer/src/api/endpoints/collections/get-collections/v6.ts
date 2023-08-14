@@ -64,6 +64,7 @@ export const getCollectionsV6Options: RouteOptions = {
         .description(
           "Array of contracts. Max amount is 20. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
+      creator: Joi.string().lowercase().pattern(regex.address).description("Filter by creator"),
       name: Joi.string()
         .lowercase()
         .description("Search for collections that match a string. Example: `bored`"),
@@ -473,6 +474,10 @@ export const getCollectionsV6Options: RouteOptions = {
         }
         query.contract = query.contract.map((contract: string) => toBuffer(contract));
         conditions.push(`collections.contract IN ($/contract:csv/)`);
+      }
+      if (query.creator) {
+        query.creator = toBuffer(query.creator);
+        conditions.push(`collections.creator = $/creator/`);
       }
       if (query.name) {
         query.name = `%${query.name}%`;
