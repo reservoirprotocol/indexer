@@ -336,6 +336,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               ],
               "bin"
             ).reverse();
+
             const order = new Sdk.Midaswap.Order(config.chainId, {
               pair: pool.address,
               tokenX: pool.nft,
@@ -470,7 +471,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       } else if (binAmount) {
         // Add NFT/FT liquidity
 
-        if (!binLower || !binstep) {
+        if (binLower === undefined || binstep === undefined) {
           return;
         }
 

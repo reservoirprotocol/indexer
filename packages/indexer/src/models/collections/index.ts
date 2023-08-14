@@ -12,6 +12,7 @@ import {
 } from "@/models/collections/collections-entity";
 import { Tokens } from "@/models/tokens";
 import { updateBlurRoyalties } from "@/utils/blur";
+import * as erc721c from "@/utils/erc721c";
 import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import MetadataApi from "@/utils/metadata-api";
@@ -25,6 +26,7 @@ import {
   topBidCollectionJob,
   TopBidCollectionJobPayload,
 } from "@/jobs/collection-updates/top-bid-collection-job";
+import { config } from "@/config/index";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -124,6 +126,20 @@ export class Collections {
     }
 
     const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, community);
+
+    if (config.chainId === 43114) {
+      logger.info(
+        "updateCollectionCache",
+        JSON.stringify({
+          topic: "debugAvalancheCollectionMetadataMissing",
+          message: `Collection metadata debug. contract=${contract}, tokenId=${tokenId}, community=${community}`,
+          contract,
+          tokenId,
+          community,
+          collection,
+        })
+      );
+    }
 
     if (collection.isCopyrightInfringement) {
       collection.name = collection.id;
@@ -226,6 +242,9 @@ export class Collections {
 
     // Refresh any contract blacklists
     await marketplaceBlacklist.checkMarketplaceIsFiltered(collection.contract, [], true);
+
+    // Refresh ERC721C config
+    await erc721c.refreshERC721CConfig(collection.contract);
   }
 
   public static async update(collectionId: string, fields: CollectionsEntityUpdateParams) {

@@ -13,11 +13,6 @@ import {
   processActivityEventJob,
   ProcessActivityEventJobPayload,
 } from "@/jobs/activities/process-activity-event-job";
-import { config } from "@/config/index";
-import {
-  WebsocketEventKind,
-  WebsocketEventRouter,
-} from "@/jobs/websocket-events/websocket-event-router";
 import { Sources } from "@/models/sources";
 import { logger } from "@/common/logger";
 import { TriggerKind } from "@/jobs/order-updates/types";
@@ -307,17 +302,6 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
 
           if (eventInfo) {
             await processActivityEventJob.addToQueue([eventInfo as ProcessActivityEventJobPayload]);
-          }
-
-          if (config.doOldOrderWebsocketWork) {
-            await WebsocketEventRouter({
-              eventInfo: {
-                kind: trigger.kind,
-                orderId: order.id,
-              },
-              eventKind:
-                order.side === "sell" ? WebsocketEventKind.SellOrder : WebsocketEventKind.BuyOrder,
-            });
           }
         }
       }

@@ -96,6 +96,9 @@ export const getOpenApiOptions: RouteOptions = {
         {
           url: "https://api-linea.reservoir.tools",
         },
+        {
+          url: "https://api-avalanche.reservoir.tools",
+        },
       ];
 
       // Preset list of tags.
