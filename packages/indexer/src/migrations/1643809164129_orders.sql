@@ -147,6 +147,9 @@ CREATE INDEX "orders_bids_updated_at_asc_id_index"
   ON "orders" ("updated_at" ASC, "id" ASC)
   WHERE ("side" = 'buy');
 
+CREATE INDEX "orders_side_contract_updated_at_index"
+  ON "orders" ("side", "contract", "updated_at" DESC, "id" DESC);
+
 -- Down Migration
 
 DROP TABLE "orders";
