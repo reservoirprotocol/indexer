@@ -242,6 +242,8 @@ export const getTokensV6Options: RouteOptions = {
               name: Joi.string().allow("", null),
               image: Joi.string().allow("", null),
               slug: Joi.string().allow("", null),
+              creator: Joi.string().lowercase().pattern(regex.address).allow("", null),
+              tokenCount: Joi.number().allow(null),
             }),
             lastSale: JoiSale.optional(),
             owner: Joi.string().allow(null),
@@ -528,6 +530,8 @@ export const getTokensV6Options: RouteOptions = {
           t.supply,
           t.remaining_supply,
           c.slug,
+          c.creator,
+          c.token_count,
           (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
           (
             SELECT
@@ -1137,6 +1141,8 @@ export const getTokensV6Options: RouteOptions = {
               name: r.collection_name,
               image: Assets.getLocalAssetsLink(r.collection_image),
               slug: r.slug,
+              creator: r.creator ? fromBuffer(r.creator) : null,
+              tokenCount: r.token_count,
             },
             lastSale:
               query.includeLastSale && r.last_sale_currency
