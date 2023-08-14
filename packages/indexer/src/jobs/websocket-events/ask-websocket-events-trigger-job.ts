@@ -183,11 +183,6 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         rawData: rawResult.raw_data,
       };
 
-      logger.info(
-        this.queueName,
-        `Debug. eventType=${eventType}, result=${JSON.stringify(result)}`
-      );
-
       await publishWebsocketEvent({
         event: eventType,
         tags: {
