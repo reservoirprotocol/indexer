@@ -153,7 +153,7 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         createdAt: new Date(data.after.created_at).toISOString(),
         updatedAt: new Date(data.after.updated_at).toISOString(),
         originatedAt: new Date(data.after.originated_at).toISOString(),
-        rawData: data.after.raw_data,
+        rawData: data.after.raw_data ? JSON.parse(data.after.raw_data) : undefined,
       };
 
       await publishWebsocketEvent({
