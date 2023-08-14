@@ -78,7 +78,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
     await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:sale`);
     await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:ask`);
     await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:ask-cancel`);
-    await redis.del(`backfill-activities-elasticsearch-job-backfilledv:bid`);
+    await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:bid`);
     await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:bid-cancel`);
 
     const backfillTransferActivities = async () => {
