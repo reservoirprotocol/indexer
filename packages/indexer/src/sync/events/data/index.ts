@@ -43,6 +43,7 @@ import * as paymentProcessor from "@/events-sync/data/payment-processor";
 import * as thirdweb from "@/events-sync/data/thirdweb";
 import * as blurV2 from "@/events-sync/data/blur-v2";
 import * as seadrop from "@/events-sync/data/seadrop";
+import * as erc721c from "@/events-sync/data/erc721c";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -88,7 +89,8 @@ export type EventKind =
   | "payment-processor"
   | "thirdweb"
   | "seadrop"
-  | "blur-v2";
+  | "blur-v2"
+  | "erc721c";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -286,7 +288,10 @@ export type EventSubKind =
   | "blur-v2-execution"
   | "blur-v2-execution-721-packed"
   | "blur-v2-execution-721-taker-fee-packed"
-  | "blur-v2-execution-721-maker-fee-packed";
+  | "blur-v2-execution-721-maker-fee-packed"
+  | "erc721c-verified-eoa-signature"
+  | "erc721c-added-to-allowlist"
+  | "erc721c-removed-from-allowlist";
 
 export type EventData = {
   kind: EventKind;
@@ -491,6 +496,9 @@ const allEventData = [
   blurV2.execution721Packed,
   blurV2.execution721TakerFeePacked,
   seadrop.publicDropUpdated,
+  erc721c.verifiedEOASignature,
+  erc721c.addedToAllowlist,
+  erc721c.removedFromAllowlist,
 ];
 
 export const getEventData = (events?: string[]) => {

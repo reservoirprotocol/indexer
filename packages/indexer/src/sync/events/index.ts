@@ -254,6 +254,10 @@ export const extractEventsBatches = async (
             kind: "blur-v2",
             data: kindToEvents.get("blur-v2") ?? [],
           },
+          {
+            kind: "erc721c",
+            data: kindToEvents.get("erc721c") ?? [],
+          },
         ];
 
         txHashToEventsBatch.set(txHash, {
