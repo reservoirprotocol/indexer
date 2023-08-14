@@ -79,6 +79,11 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           activities.length
         );
 
+        await redis.incrby(
+          `backfill-activities-elasticsearch-job-backfilled-total:${type}`,
+          activities.length
+        );
+
         logger.info(
           this.queueName,
           JSON.stringify({

@@ -53,9 +53,37 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
 
     const promises = [];
 
+    await redis.del(`backfill-activities-elasticsearch-job:transfer`);
+    await redis.del(`backfill-activities-elasticsearch-job:sale`);
+    await redis.del(`backfill-activities-elasticsearch-job:ask`);
+    await redis.del(`backfill-activities-elasticsearch-job:ask-cancel`);
+    await redis.del(`backfill-activities-elasticsearch-job:bid`);
+    await redis.del(`backfill-activities-elasticsearch-job:bid-cancel`);
+
+    await redis.del(`backfill-activities-elasticsearch-job-count:transfer`);
+    await redis.del(`backfill-activities-elasticsearch-job-count:sale`);
+    await redis.del(`backfill-activities-elasticsearch-job-count:ask`);
+    await redis.del(`backfill-activities-elasticsearch-job-count:ask-cancel`);
+    await redis.del(`backfill-activities-elasticsearch-job-count:bid`);
+    await redis.del(`backfill-activities-elasticsearch-job-count:bid-cancel`);
+
+    await redis.del(`backfill-activities-elasticsearch-job-backfilled:transfer`);
+    await redis.del(`backfill-activities-elasticsearch-job-backfilled:sale`);
+    await redis.del(`backfill-activities-elasticsearch-job-backfilled:ask`);
+    await redis.del(`backfill-activities-elasticsearch-job-backfilled:ask-cancel`);
+    await redis.del(`backfill-activities-elasticsearch-job-backfilled:bid`);
+    await redis.del(`backfill-activities-elasticsearch-job-backfilled:bid-cancel`);
+
+    await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:transfer`);
+    await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:sale`);
+    await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:ask`);
+    await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:ask-cancel`);
+    await redis.del(`backfill-activities-elasticsearch-job-backfilledv:bid`);
+    await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:bid-cancel`);
+
     const backfillTransferActivities = async () => {
       const query =
-        "SELECT min(timestamp) AS min_timestamp, MAX(timestamp) AS max_timestamp from nft_transfer_events;";
+        "SELECT min(timestamp) AS min_timestamp, MAX(timestamp) AS max_timestamp from nft_transfer_events where is_deleted = 0;";
 
       const timestamps = await ridb.oneOrNone(query);
       const minTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
@@ -117,7 +145,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
 
     const backfillSaleActivities = async () => {
       const query =
-        "SELECT min(timestamp) AS min_timestamp, MAX(timestamp) AS max_timestamp from fill_events_2;";
+        "SELECT min(timestamp) AS min_timestamp, MAX(timestamp) AS max_timestamp from fill_events_2 where is_deleted = 0;";
 
       const timestamps = await ridb.oneOrNone(query);
       const minTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
