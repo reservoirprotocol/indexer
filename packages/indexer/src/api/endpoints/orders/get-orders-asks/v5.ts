@@ -481,35 +481,58 @@ export const getOrdersAsksV5Options: RouteOptions = {
       }
 
       if (query.continuation) {
-        const [priceOrCreatedAtOrUpdatedAt, id] = splitContinuation(
-          query.continuation,
-          /^\d+(.\d+)?_0x[a-f0-9]{64}$/
-        );
-        (query as any).priceOrCreatedAtOrUpdatedAt = priceOrCreatedAtOrUpdatedAt;
-        (query as any).id = id;
-
         if (query.sortBy === "price") {
-          if (query.normalizeRoyalties) {
-            conditions.push(
-              `(orders.normalized_value, orders.id) > ($/priceOrCreatedAtOrUpdatedAt/, $/id/)`
-            );
+          let contArr = splitContinuation(query.continuation, /^\d+(.\d+)?_(\d+)_0x[a-f0-9]{64}$/);
+
+          if (contArr.length === 3) {
+            (query as any).price = contArr[0];
+            (query as any).feeBps = contArr[1];
+            (query as any).id = contArr[2];
+
+            if (query.normalizeRoyalties) {
+              conditions.push(
+                `(orders.normalized_value, orders.fee_bps, orders.id) > ($/price/, $/feeBps/, $/id/)`
+              );
+            } else {
+              conditions.push(
+                `(orders.price, orders.fee_bps, orders.id) > ($/price/, $/feeBps/, $/id/)`
+              );
+            }
           } else {
-            conditions.push(`(orders.price, orders.id) > ($/priceOrCreatedAtOrUpdatedAt/, $/id/)`);
-          }
-        } else if (query.sortBy === "updatedAt") {
-          if (query.sortDirection === "asc") {
-            conditions.push(
-              `(orders.updated_at, orders.id) > (to_timestamp($/priceOrCreatedAtOrUpdatedAt/), $/id/)`
-            );
-          } else {
-            conditions.push(
-              `(orders.updated_at, orders.id) < (to_timestamp($/priceOrCreatedAtOrUpdatedAt/), $/id/)`
-            );
+            contArr = splitContinuation(query.continuation, /^\d+(.\d+)?_0x[a-f0-9]{64}$/);
+
+            (query as any).price = contArr[0];
+            (query as any).id = contArr[1];
+
+            if (query.normalizeRoyalties) {
+              conditions.push(`(orders.normalized_value, orders.id) > ($/price/, $/id/)`);
+            } else {
+              conditions.push(`(orders.price, orders.id) > ($/price/, $/id/)`);
+            }
           }
         } else {
-          conditions.push(
-            `(orders.created_at, orders.id) < (to_timestamp($/priceOrCreatedAtOrUpdatedAt/), $/id/)`
+          const [createdAtOrUpdatedAt, id] = splitContinuation(
+            query.continuation,
+            /^\d+(.\d+)?_0x[a-f0-9]{64}$/
           );
+          (query as any).createdAtOrUpdatedAt = createdAtOrUpdatedAt;
+          (query as any).id = id;
+
+          if (query.sortBy === "updatedAt") {
+            if (query.sortDirection === "asc") {
+              conditions.push(
+                `(orders.updated_at, orders.id) > (to_timestamp($/createdAtOrUpdatedAt/), $/id/)`
+              );
+            } else {
+              conditions.push(
+                `(orders.updated_at, orders.id) < (to_timestamp($/createdAtOrUpdatedAt/), $/id/)`
+              );
+            }
+          } else {
+            conditions.push(
+              `(orders.created_at, orders.id) < (to_timestamp($/createdAtOrUpdatedAt/), $/id/)`
+            );
+          }
         }
       }
 
@@ -525,7 +548,7 @@ export const getOrdersAsksV5Options: RouteOptions = {
         if (query.normalizeRoyalties) {
           baseQuery += ` ORDER BY orders.normalized_value, orders.id`;
         } else {
-          baseQuery += ` ORDER BY orders.price, orders.id`;
+          baseQuery += ` ORDER BY orders.price, orders.fee_bps, orders.id`;
         }
       } else if (query.sortBy === "updatedAt") {
         if (query.sortDirection === "asc") {
@@ -548,11 +571,19 @@ export const getOrdersAsksV5Options: RouteOptions = {
           if (query.normalizeRoyalties) {
             continuation = buildContinuation(
               rawResult[rawResult.length - 1].normalized_value ??
-                rawResult[rawResult.length - 1].price + "_" + rawResult[rawResult.length - 1].id
+                rawResult[rawResult.length - 1].price +
+                  "_" +
+                  rawResult[rawResult.length - 1].fee_bps +
+                  "_" +
+                  rawResult[rawResult.length - 1].id
             );
           } else {
             continuation = buildContinuation(
-              rawResult[rawResult.length - 1].price + "_" + rawResult[rawResult.length - 1].id
+              rawResult[rawResult.length - 1].price +
+                "_" +
+                rawResult[rawResult.length - 1].fee_bps +
+                "_" +
+                rawResult[rawResult.length - 1].id
             );
           }
         } else if (query.sortBy === "updatedAt") {
