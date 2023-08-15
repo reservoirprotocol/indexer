@@ -73,6 +73,17 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           ]),
         });
 
+        await redis.hincrby(
+          `backfill-activities-elasticsearch-job-backfilled:${type}`,
+          `${fromTimestamp}:${toTimestamp}`,
+          activities.length
+        );
+
+        await redis.incrby(
+          `backfill-activities-elasticsearch-job-backfilled-total:${type}`,
+          activities.length
+        );
+
         logger.info(
           this.queueName,
           JSON.stringify({
@@ -128,6 +139,10 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           })
         );
 
+        await redis.hdel(
+          `backfill-activities-elasticsearch-job:${type}`,
+          `${fromTimestamp}:${toTimestamp}`
+        );
         await redis.decr(`backfill-activities-elasticsearch-job-count:${type}`);
       }
     } catch (error) {

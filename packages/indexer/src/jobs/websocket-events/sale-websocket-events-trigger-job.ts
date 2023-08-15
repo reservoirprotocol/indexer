@@ -101,7 +101,9 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
       result.id = crypto
         .createHash("sha256")
         .update(
-          `${data.after.tx_hash}${data.after.maker}${data.after.taker}${data.after.contract}${data.after.token_id}${data.after.price}`
+          `${data.after.tx_hash}${toBuffer(data.after.maker)}${toBuffer(
+            data.after.taker
+          )}${toBuffer(data.after.contract)}${data.after.token_id}${data.after.price}`
         )
         .digest("hex");
 

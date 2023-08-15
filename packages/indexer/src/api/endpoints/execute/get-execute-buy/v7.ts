@@ -222,6 +222,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
           currencyDecimals: Joi.number().optional().allow(null),
           quote: Joi.number().unsafe(),
           rawQuote: Joi.string().pattern(regex.number),
+          buyInCurrency: Joi.string().lowercase().pattern(regex.address),
+          buyInCurrencySymbol: Joi.string().optional().allow(null),
+          buyInCurrencyDecimals: Joi.number().optional().allow(null),
           buyInQuote: Joi.number().unsafe(),
           buyInRawQuote: Joi.string().pattern(regex.number),
           totalPrice: Joi.number().unsafe(),
@@ -273,6 +276,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
         // Gross price (without fees on top) = price
         quote: number;
         rawQuote: string;
+        buyInCurrency?: string;
+        buyInCurrencySymbol?: string;
+        buyInCurrencyDecimals?: number;
         buyInQuote?: number;
         buyInRawQuote?: string;
         // Total price (with fees on top) = price + feesOnTop
@@ -1253,11 +1259,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
           );
 
           if (buyInPrices.currencyPrice) {
-            item.buyInQuote = formatPrice(
-              buyInPrices.currencyPrice,
-              (await getCurrency(buyInCurrency)).decimals,
-              true
-            );
+            const c = await getCurrency(buyInCurrency);
+            item.buyInCurrency = c.contract;
+            item.buyInCurrencyDecimals = c.decimals;
+            item.buyInCurrencySymbol = c.symbol;
+            item.buyInQuote = formatPrice(buyInPrices.currencyPrice, c.decimals, true);
             item.buyInRawQuote = buyInPrices.currencyPrice;
           }
         }
