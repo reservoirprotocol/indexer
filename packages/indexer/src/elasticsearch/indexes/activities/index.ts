@@ -201,7 +201,7 @@ const mapBucketToCollection = (bucket: any, includeRecentSales: boolean) => {
 
   return {
     volume: bucket?.total_volume?.value,
-    count: bucket?.total_transactions?.value,
+    count: bucket?.total_sales.value,
     id: collectionData?.id,
     name: collectionData?.name,
     image: collectionData?.image,
@@ -218,6 +218,8 @@ export const getTopSellingCollections = async (params: {
   includeRecentSales: boolean;
 }): Promise<CollectionAggregation[]> => {
   const { startTime, endTime, fillType, limit } = params;
+
+  const { trendingExcludedContracts } = getNetworkSettings();
 
   const salesQuery = {
     bool: {
@@ -236,6 +238,15 @@ export const getTopSellingCollections = async (params: {
           },
         },
       ],
+      ...(trendingExcludedContracts && {
+        must_not: [
+          {
+            terms: {
+              "collection.id": trendingExcludedContracts,
+            },
+          },
+        ],
+      }),
     },
   } as any;
 
@@ -247,9 +258,14 @@ export const getTopSellingCollections = async (params: {
         order: { total_transactions: "desc" },
       },
       aggs: {
-        total_transactions: {
+        total_sales: {
           value_count: {
             field: "id",
+          },
+        },
+        total_transactions: {
+          cardinality: {
+            field: "event.txHash",
           },
         },
 
