@@ -49,10 +49,17 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
 
           try {
             if (Array.isArray(value)) {
-              for (let i = 0; i < value.length; i++) {
-                const beforeArray = JSON.parse(data.before[key as keyof OrderInfo] as string);
-                const afterArray = JSON.parse(data.after[key as keyof OrderInfo] as string);
+              logger.info(
+                this.queueName,
+                `changedMapping - Array. key=${key}, value=${value}, before=${
+                  data.before[key as keyof OrderInfo]
+                }, after=${data.after[key as keyof OrderInfo]}`
+              );
 
+              const beforeArray = JSON.parse(data.before[key as keyof OrderInfo] as string);
+              const afterArray = JSON.parse(data.after[key as keyof OrderInfo] as string);
+
+              for (let i = 0; i < value.length; i++) {
                 if (beforeArray[i] !== afterArray[i]) {
                   changed.push(value[i]);
 
@@ -70,7 +77,9 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
           } catch (error) {
             logger.error(
               this.queueName,
-              `changedMapping - Error. key=${key}, value=${value}, error=${JSON.stringify(error)}`
+              `changedMapping - Error. key=${key}, value=${value}, error=${JSON.stringify(
+                error
+              )}, data=${JSON.stringify(data)}`
             );
           }
         }
