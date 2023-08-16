@@ -22,6 +22,7 @@ const changedMapping = {
   quantity_filled: "quantityFilled",
   quantity_remaining: "quantityRemaining",
   expiration: "expiration",
+  valid_between: ["validFrom", "validUntil"],
 };
 
 export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandler {
@@ -44,8 +45,33 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
 
       if (data.trigger === "update" && data.before) {
         for (const key in changedMapping) {
-          if (data.before[key as keyof OrderInfo] !== data.after[key as keyof OrderInfo]) {
-            changed.push(changedMapping[key as keyof typeof changedMapping]);
+          const value = changedMapping[key as keyof typeof changedMapping];
+
+          if (Array.isArray(value)) {
+            logger.info(this.queueName, `IsArray debug1. key=${key}, value=${value}`);
+
+            for (let i = 0; i < value.length; i++) {
+              const beforeArray = JSON.parse(data.before[key as keyof OrderInfo] as string);
+              const afterArray = JSON.parse(data.after[key as keyof OrderInfo] as string);
+
+              logger.info(
+                this.queueName,
+                `IsArray debug2. key=${key}, value=${value}, beforeArray=${JSON.stringify(
+                  afterArray
+                )}, beforeArray=${JSON.stringify(afterArray)}`
+              );
+
+              if (beforeArray[i] !== afterArray[i]) {
+                changed.push(value[i]);
+
+                logger.info(
+                  this.queueName,
+                  `IsArray debug3. key=${key}, value=${value}, beforeArray[i]=${beforeArray[i]}, afterArray[i]=${afterArray[i]}`
+                );
+              }
+            }
+          } else if (data.before[key as keyof OrderInfo] !== data.after[key as keyof OrderInfo]) {
+            changed.push(value);
           }
         }
 
