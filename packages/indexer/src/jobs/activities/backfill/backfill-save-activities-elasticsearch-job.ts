@@ -91,7 +91,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           this.queueName,
           JSON.stringify({
             topic: "backfill-activities",
-            message: `Backfilled ${activities.length} activities. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}`,
+            message: `Backfilled ${activities.length} activities. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}, limit=${limit}`,
             type,
             fromTimestamp,
             fromTimestampISO,
@@ -111,7 +111,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           this.queueName,
           JSON.stringify({
             topic: "backfill-activities",
-            message: `KeepGoing. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}`,
+            message: `KeepGoing. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, limit=${limit}`,
             type,
             fromTimestamp,
             fromTimestampISO,
@@ -130,7 +130,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           this.queueName,
           JSON.stringify({
             topic: "backfill-activities",
-            message: `End. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}`,
+            message: `End. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}, limit=${limit}`,
             type,
             fromTimestamp,
             fromTimestampISO,
