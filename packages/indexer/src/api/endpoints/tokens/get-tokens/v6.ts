@@ -774,7 +774,7 @@ export const getTokensV6Options: RouteOptions = {
               conditions.push(
                 `(t.updated_at, t.contract, t.token_id) ${sign} ($/contUpdatedAt/, $/contContract/, $/contTokenId/)`
               );
-              (query as any).contUpdatedAt = new Date(contArr[0]).toISOString();
+              (query as any).contUpdatedAt = contArr[0];
               (query as any).contContract = toBuffer(contArr[1]);
               (query as any).contTokenId = contArr[2];
 
@@ -993,7 +993,8 @@ export const getTokensV6Options: RouteOptions = {
               break;
 
             case "updatedAt":
-              continuation = rawResult[rawResult.length - 1].t_updated_at || "null";
+              continuation =
+                new Date(rawResult[rawResult.length - 1].t_updated_at).toISOString() || "null";
               break;
 
             case "floorAskPrice":
