@@ -10,6 +10,7 @@ import { getNetAmount } from "@/common/utils";
 import { getJoiPriceObject } from "@/common/joi";
 import _ from "lodash";
 import * as Sdk from "@reservoir0x/sdk";
+import { formatStatus, formatValidBetween } from "@/utils/websockets";
 
 export type AskWebsocketEventsTriggerQueueJobPayload = {
   data: OrderWebsocketEventInfo;
@@ -84,26 +85,11 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         source = sources.get(Number(data.after.source_id_int));
       }
 
-      const formatValidBetween = (validBetween: string) => {
-        try {
-          const parsed = JSON.parse(validBetween.replace("infinity", "null"));
-          return {
-            validFrom: new Date(parsed[0]).getTime(),
-            validUntil: new Date(parsed[1]).getTime(),
-          };
-        } catch (error) {
-          return {
-            validFrom: null,
-            validUntil: null,
-          };
-        }
-      };
-
       const result = {
         id: data.after.id,
         kind: data.after.kind,
         side: data.after.side,
-        status: data.after.status,
+        status: formatStatus(data.after.fillability_status),
         tokenSetId: data.after.token_set_id,
         tokenSetSchemaHash: data.after.token_set_schema_hash,
         nonce: data.after.nonce,

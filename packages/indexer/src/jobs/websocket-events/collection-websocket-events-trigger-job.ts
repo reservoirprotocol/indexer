@@ -7,6 +7,7 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 import { idb } from "@/common/db";
 import { redis } from "@/common/redis";
 import { Sources } from "@/models/sources";
+import { formatValidBetween } from "@/utils/websockets";
 
 interface CollectionInfo {
   id: string;
@@ -158,21 +159,6 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           return;
         }
       }
-
-      const formatValidBetween = (validBetween: string) => {
-        try {
-          const parsed = JSON.parse(validBetween.replace("infinity", "null"));
-          return {
-            validFrom: new Date(parsed[0]).getTime(),
-            validUntil: new Date(parsed[1]).getTime(),
-          };
-        } catch (error) {
-          return {
-            validFrom: null,
-            validUntil: null,
-          };
-        }
-      };
 
       const r = data.after;
       const metadata = JSON.parse(r.metadata);
