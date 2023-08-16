@@ -47,31 +47,31 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         for (const key in changedMapping) {
           const value = changedMapping[key as keyof typeof changedMapping];
 
-          if (Array.isArray(value)) {
-            logger.info(this.queueName, `IsArray debug1. key=${key}, value=${value}`);
+          try {
+            if (Array.isArray(value)) {
+              for (let i = 0; i < value.length; i++) {
+                const beforeArray = JSON.parse(data.before[key as keyof OrderInfo] as string);
+                const afterArray = JSON.parse(data.after[key as keyof OrderInfo] as string);
 
-            for (let i = 0; i < value.length; i++) {
-              const beforeArray = JSON.parse(data.before[key as keyof OrderInfo] as string);
-              const afterArray = JSON.parse(data.after[key as keyof OrderInfo] as string);
+                if (beforeArray[i] !== afterArray[i]) {
+                  changed.push(value[i]);
 
-              logger.info(
-                this.queueName,
-                `IsArray debug2. key=${key}, value=${value}, beforeArray=${JSON.stringify(
-                  afterArray
-                )}, beforeArray=${JSON.stringify(afterArray)}`
-              );
-
-              if (beforeArray[i] !== afterArray[i]) {
-                changed.push(value[i]);
-
-                logger.info(
-                  this.queueName,
-                  `IsArray debug3. key=${key}, value=${value}, beforeArray[i]=${beforeArray[i]}, afterArray[i]=${afterArray[i]}`
-                );
+                  logger.info(
+                    this.queueName,
+                    `changedMapping - Array. key=${key}, value=${value}, beforeArray[i]=${
+                      beforeArray[i]
+                    }, afterArray[i]=${afterArray[i]}, changed=${JSON.stringify(changed)}`
+                  );
+                }
               }
+            } else if (data.before[key as keyof OrderInfo] !== data.after[key as keyof OrderInfo]) {
+              changed.push(value);
             }
-          } else if (data.before[key as keyof OrderInfo] !== data.after[key as keyof OrderInfo]) {
-            changed.push(value);
+          } catch (error) {
+            logger.error(
+              this.queueName,
+              `changedMapping - Error. key=${key}, value=${value}, error=${JSON.stringify(error)}`
+            );
           }
         }
 
