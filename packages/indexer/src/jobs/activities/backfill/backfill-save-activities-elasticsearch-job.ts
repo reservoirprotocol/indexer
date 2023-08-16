@@ -401,7 +401,6 @@ const getBidActivities = async (
   const query = `
             ${BidCreatedEventHandler.buildBaseQuery()}
             WHERE side = 'buy'
-            AND kind != 'element-erc1155'
             ${timestampFilter}
             ${continuationFilter}
             ORDER BY updated_at, id
