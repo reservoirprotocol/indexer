@@ -163,7 +163,9 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         isDynamic: Boolean(data.after.dynamic || data.after.kind === "sudoswap"),
         createdAt: new Date(data.after.created_at).toISOString(),
         updatedAt: new Date(data.after.updated_at).toISOString(),
-        originatedAt: new Date(data.after.originated_at).toISOString(),
+        originatedAt: data.after.originated_at
+          ? new Date(data.after.originated_at).toISOString()
+          : null,
         rawData: data.after.raw_data ? JSON.parse(data.after.raw_data) : {},
       };
 
