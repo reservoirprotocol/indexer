@@ -56,8 +56,11 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
                 }, after=${data.after[key as keyof OrderInfo]}`
               );
 
-              const beforeArray = JSON.parse(data.before[key as keyof OrderInfo] as string);
-              const afterArray = JSON.parse(data.after[key as keyof OrderInfo] as string);
+              const beforeArrayJSON = data.before[key as keyof OrderInfo] as string;
+              const afterArrayJSON = data.after[key as keyof OrderInfo] as string;
+
+              const beforeArray = JSON.parse(beforeArrayJSON.replace("infinity", "null"));
+              const afterArray = JSON.parse(afterArrayJSON.replace("infinity", "null"));
 
               for (let i = 0; i < value.length; i++) {
                 if (beforeArray[i] !== afterArray[i]) {
