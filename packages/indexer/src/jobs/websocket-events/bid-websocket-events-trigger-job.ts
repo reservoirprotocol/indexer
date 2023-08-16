@@ -47,36 +47,20 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         for (const key in changedMapping) {
           const value = changedMapping[key as keyof typeof changedMapping];
 
-          try {
-            if (Array.isArray(value)) {
-              const beforeArrayJSON = data.before[key as keyof OrderInfo] as string;
-              const afterArrayJSON = data.after[key as keyof OrderInfo] as string;
+          if (Array.isArray(value)) {
+            const beforeArrayJSON = data.before[key as keyof OrderInfo] as string;
+            const afterArrayJSON = data.after[key as keyof OrderInfo] as string;
 
-              const beforeArray = JSON.parse(beforeArrayJSON.replace("infinity", "null"));
-              const afterArray = JSON.parse(afterArrayJSON.replace("infinity", "null"));
+            const beforeArray = JSON.parse(beforeArrayJSON.replace("infinity", "null"));
+            const afterArray = JSON.parse(afterArrayJSON.replace("infinity", "null"));
 
-              for (let i = 0; i < value.length; i++) {
-                if (beforeArray[i] !== afterArray[i]) {
-                  changed.push(value[i]);
-
-                  logger.info(
-                    this.queueName,
-                    `changedMapping - Array. key=${key}, value=${value}, beforeArray[i]=${
-                      beforeArray[i]
-                    }, afterArray[i]=${afterArray[i]}, changed=${JSON.stringify(changed)}`
-                  );
-                }
+            for (let i = 0; i < value.length; i++) {
+              if (beforeArray[i] !== afterArray[i]) {
+                changed.push(value[i]);
               }
-            } else if (data.before[key as keyof OrderInfo] !== data.after[key as keyof OrderInfo]) {
-              changed.push(value);
             }
-          } catch (error) {
-            logger.error(
-              this.queueName,
-              `changedMapping - Error. key=${key}, value=${value}, error=${JSON.stringify(
-                error
-              )}, data=${JSON.stringify(data)}`
-            );
+          } else if (data.before[key as keyof OrderInfo] !== data.after[key as keyof OrderInfo]) {
+            changed.push(value);
           }
         }
 
