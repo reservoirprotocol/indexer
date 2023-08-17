@@ -727,21 +727,6 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
             await redis.get(`backfill-activities-elasticsearch-job-count:bid-cancel`)
           );
 
-          const lastQueueSize = Number(
-            await redis.get(`${backfillSaveActivitiesElasticsearchJob.queueName}-queue-size`)
-          );
-
-          const queueSize = await RabbitMq.getQueueSize(
-            backfillSaveActivitiesElasticsearchJob.getQueue()
-          );
-
-          await redis.set(
-            `${backfillSaveActivitiesElasticsearchJob.queueName}-queue-size`,
-            queueSize,
-            "EX",
-            600
-          );
-
           const totalJobCount =
             transferJobCount +
             saleJobCount +
@@ -756,7 +741,6 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
               topic: "backfill-activities",
               message: `jobCounts - update.`,
               totalJobCount,
-              queueSize,
               jobCounts: {
                 transferJobCount,
                 saleJobCount,
@@ -766,6 +750,21 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
                 bidCancelJobCount,
               },
             })
+          );
+
+          const lastQueueSize = Number(
+            await redis.get(`${backfillSaveActivitiesElasticsearchJob.queueName}-queue-size`)
+          );
+
+          const queueSize = await RabbitMq.getQueueSize(
+            backfillSaveActivitiesElasticsearchJob.getQueue()
+          );
+
+          await redis.set(
+            `${backfillSaveActivitiesElasticsearchJob.queueName}-queue-size`,
+            queueSize,
+            "EX",
+            600
           );
 
           if (queueSize === 0 && lastQueueSize === 0) {
@@ -803,8 +802,15 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
             );
           }
         })
-        .catch(() => {
-          // Skip on any errors
+        .catch((error) => {
+          logger.error(
+            backfillActivitiesElasticsearchJob.queueName,
+            JSON.stringify({
+              topic: "backfill-activities",
+              message: `jobCounts - error. error=${error}`,
+              error,
+            })
+          );
         })
   );
 }
