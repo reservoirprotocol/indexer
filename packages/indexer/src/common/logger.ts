@@ -26,12 +26,7 @@ const log = (level: "error" | "info" | "warn" | "debug") => {
   const logger = createLogger({
     exitOnError: false,
     level: "debug",
-    format: format.combine(
-      format.timestamp({
-        format: "YYYY-MM-DD HH:mm:ss",
-      }),
-      format.json()
-    ),
+    format: format.json(),
     transports: [
       process.env.DATADOG_API_KEY
         ? new transports.Http({
