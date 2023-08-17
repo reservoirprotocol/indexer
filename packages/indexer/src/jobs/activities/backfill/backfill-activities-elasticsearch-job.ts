@@ -804,15 +804,8 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
             );
           }
         })
-        .catch((error) => {
-          logger.error(
-            backfillActivitiesElasticsearchJob.queueName,
-            JSON.stringify({
-              topic: "backfill-activities",
-              message: `jobCounts - error. error=${error}`,
-              error,
-            })
-          );
+        .catch(() => {
+          // Skip any errors
         })
   );
 }
