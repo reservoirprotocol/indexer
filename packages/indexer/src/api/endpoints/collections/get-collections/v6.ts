@@ -548,9 +548,15 @@ export const getCollectionsV6Options: RouteOptions = {
 
         case "floorAskPrice": {
           if (query.continuation) {
-            conditions.push(
-              `(collections.floor_sell_value, collections.id) > ($/contParam/, $/contId/)`
-            );
+            if (query.contParam !== "null") {
+              conditions.push(
+                `(collections.floor_sell_value, collections.id) > ($/contParam/, $/contId/) OR (collections.floor_sell_value IS null)`
+              );
+            } else {
+              conditions.push(
+                `(collections.id) > ($/contId/) AND (collections.floor_sell_value IS null)`
+              );
+            }
           }
 
           orderBy = ` ORDER BY collections.floor_sell_value, collections.id`;
