@@ -11,6 +11,7 @@ import { backfillSaveActivitiesElasticsearchJob } from "@/jobs/activities/backfi
 import * as CONFIG from "@/elasticsearch/indexes/activities/config";
 import cron from "node-cron";
 import { RabbitMq } from "@/common/rabbit-mq";
+import { getNetworkName } from "@/config/network";
 
 export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-activities-elasticsearch-queue";
@@ -757,7 +758,8 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           );
 
           const queueSize = await RabbitMq.getQueueSize(
-            backfillSaveActivitiesElasticsearchJob.getQueue()
+            backfillSaveActivitiesElasticsearchJob.getQueue(),
+            getNetworkName()
           );
 
           await redis.set(
