@@ -69,6 +69,42 @@ export const savePartialListings = async (
         return;
       }
 
+      const sources = await Sources.getInstance();
+
+      // There is a subtle bug in the Blur ingestion service where sometimes
+      // OpenSea orders get marked as coming from Blur and so we ingest them
+      // as Blur orders while also having the original OpenSea orders. A fix
+      // for this is to check the existence of a matching OpenSea order, and
+      // if that's the case then we simply skip processing the Blur order in
+      // this method (since with high likelyhood it's not coming from Blur).
+      if (orderParams.createdAt?.endsWith("000Z")) {
+        const existsMatchingOpenSeaOrder = await idb.oneOrNone(
+          `
+            SELECT
+              1
+            FROM orders
+            WHERE orders.token_set_id = $/tokenSetId/
+              AND orders.side = 'sell'
+              AND orders.fillability_status = 'fillable'
+              AND orders.approval_status = 'approved'
+              AND lower(orders.valid_between) = $/createdAt/
+              AND orders.source_id_int = $/sourceId/
+            LIMIT 1
+          `,
+          {
+            tokenSetId: `token:${orderParams.collection}:${orderParams.tokenId}`,
+            createdAt: orderParams.createdAt,
+            sourceId: (await sources.getOrInsert("opensea.io")).id,
+          }
+        );
+        if (existsMatchingOpenSeaOrder) {
+          return results.push({
+            id: "unknown",
+            status: "redundant",
+          });
+        }
+      }
+
       // Fetch current owner
       const owner = await idb
         .oneOrNone(
@@ -101,14 +137,39 @@ export const savePartialListings = async (
       }
 
       // Handle: source
-      const sources = await Sources.getInstance();
       const source = await sources.getOrInsert("blur.io");
 
       const isFiltered = await checkMarketplaceIsFiltered(orderParams.collection, [
         Sdk.BlurV2.Addresses.Delegate[config.chainId],
       ]);
       if (isFiltered) {
+        // Force remove any orders
         orderParams.price = undefined;
+      }
+
+      // Check if there is any transfer after the order's `createdAt`.
+      // If yes, then we treat the order as an `invalidation` message.
+      if (orderParams.createdAt) {
+        const existsNewerTransfer = await idb.oneOrNone(
+          `
+            SELECT
+              1
+            FROM nft_transfer_events
+            WHERE address = $/contract/
+              AND token_id = $/tokenId/
+              AND timestamp > $/createdAt/
+            LIMIT 1
+          `,
+          {
+            contract: toBuffer(orderParams.collection),
+            tokenId: orderParams.tokenId,
+            createdAt: Math.floor(new Date(orderParams.createdAt).getTime() / 1000),
+          }
+        );
+        if (existsNewerTransfer) {
+          // Force remove any older orders
+          orderParams.price = undefined;
+        }
       }
 
       // Invalidate any old orders
