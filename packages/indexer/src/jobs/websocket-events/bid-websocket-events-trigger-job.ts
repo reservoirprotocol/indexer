@@ -49,26 +49,15 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
           const value = changedMapping[key as keyof typeof changedMapping];
 
           if (Array.isArray(value)) {
-            logger.info(this.queueName, `IsArray debug1. key=${key}, value=${value}`);
+            const beforeArrayJSON = data.before[key as keyof OrderInfo] as string;
+            const afterArrayJSON = data.after[key as keyof OrderInfo] as string;
+
+            const beforeArray = JSON.parse(beforeArrayJSON.replace("infinity", "null"));
+            const afterArray = JSON.parse(afterArrayJSON.replace("infinity", "null"));
 
             for (let i = 0; i < value.length; i++) {
-              const beforeArray = JSON.parse(data.before[key as keyof OrderInfo] as string);
-              const afterArray = JSON.parse(data.after[key as keyof OrderInfo] as string);
-
-              logger.info(
-                this.queueName,
-                `IsArray debug2. key=${key}, value=${value}, beforeArray=${JSON.stringify(
-                  afterArray
-                )}, beforeArray=${JSON.stringify(afterArray)}`
-              );
-
               if (beforeArray[i] !== afterArray[i]) {
                 changed.push(value[i]);
-
-                logger.info(
-                  this.queueName,
-                  `IsArray debug3. key=${key}, value=${value}, beforeArray[i]=${beforeArray[i]}, afterArray[i]=${afterArray[i]}`
-                );
               }
             }
           } else if (data.before[key as keyof OrderInfo] !== data.after[key as keyof OrderInfo]) {

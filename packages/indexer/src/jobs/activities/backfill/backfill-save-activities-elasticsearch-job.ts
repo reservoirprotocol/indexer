@@ -281,6 +281,7 @@ const getAskActivities = async (
   const query = `
             ${AskCreatedEventHandler.buildBaseQuery()}
             WHERE side = 'sell'
+            AND kind != 'element-erc1155'
             ${timestampFilter}
             ${continuationFilter}
             ORDER BY updated_at, id
@@ -340,6 +341,7 @@ const getAskCancelActivities = async (
   const query = `
             ${AskCancelledEventHandler.buildBaseQuery()}
             WHERE side = 'sell' AND fillability_status = 'cancelled'
+            AND kind != 'element-erc1155'
             ${timestampFilter}
             ${continuationFilter}
             ORDER BY updated_at, id
