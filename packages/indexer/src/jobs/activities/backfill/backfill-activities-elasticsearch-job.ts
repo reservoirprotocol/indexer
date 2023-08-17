@@ -727,6 +727,21 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
             await redis.get(`backfill-activities-elasticsearch-job-count:bid-cancel`)
           );
 
+          const lastQueueSize = Number(
+            await redis.get(`${backfillSaveActivitiesElasticsearchJob.queueName}-queue-size`)
+          );
+
+          const queueSize = await RabbitMq.getQueueSize(
+            backfillSaveActivitiesElasticsearchJob.getQueue()
+          );
+
+          await redis.set(
+            `${backfillSaveActivitiesElasticsearchJob.queueName}-queue-size`,
+            queueSize,
+            "EX",
+            600
+          );
+
           const totalJobCount =
             transferJobCount +
             saleJobCount +
@@ -741,6 +756,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
               topic: "backfill-activities",
               message: `jobCounts - update.`,
               totalJobCount,
+              queueSize,
               jobCounts: {
                 transferJobCount,
                 saleJobCount,
