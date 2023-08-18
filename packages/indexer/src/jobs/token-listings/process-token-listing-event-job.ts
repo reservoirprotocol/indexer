@@ -114,20 +114,12 @@ export class ProcessTokenListingEventJob extends AbstractRabbitMqJobHandler {
           order_quantity: data.quantity_filled + data.quantity_remaining,
           order_pricing_currency: toBuffer(data.currency),
           order_pricing_fee_bps: data.fee_bps,
-          order_pricing_price: Number(data.price),
-          order_pricing_currency_price: data.currency_price
-            ? Number(data.currency_price)
-            : undefined,
-          order_pricing_value: Number(data.value),
-          order_pricing_currency_value: data.currency_value
-            ? Number(data.currency_value)
-            : undefined,
-          order_pricing_normalized_value: data.normalized_value
-            ? Number(data.normalized_value)
-            : undefined,
-          order_pricing_currency_normalized_value: data.currency_normalized_value
-            ? Number(data.currency_normalized_value)
-            : undefined,
+          order_pricing_price: data.price,
+          order_pricing_currency_price: data.currency_price,
+          order_pricing_value: data.value,
+          order_pricing_currency_value: data.currency_value,
+          order_pricing_normalized_value: data.normalized_value,
+          order_pricing_currency_normalized_value: data.currency_normalized_value,
         });
       }
     } catch (error) {

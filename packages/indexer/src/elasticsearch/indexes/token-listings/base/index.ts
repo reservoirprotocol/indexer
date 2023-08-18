@@ -83,14 +83,14 @@ export interface BuildTokenListingData extends BuildDocumentData {
     kind: string;
     data: Record<string, unknown>;
   };
-  order_pricing_price?: number;
-  order_pricing_currency_price?: number;
+  order_pricing_price?: string;
+  order_pricing_currency_price?: string;
   order_pricing_fee_bps?: number;
   order_pricing_currency?: Buffer;
-  order_pricing_value?: number;
-  order_pricing_currency_value?: number;
-  order_pricing_normalized_value?: number;
-  order_pricing_currency_normalized_value?: number;
+  order_pricing_value?: string;
+  order_pricing_currency_value?: string;
+  order_pricing_normalized_value?: string;
+  order_pricing_currency_normalized_value?: string;
 }
 
 export class TokenListingBuilder extends DocumentBuilder {
