@@ -5,7 +5,6 @@ import _ from "lodash";
 import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { toBuffer, now } from "@/common/utils";
-import { config } from "@/config/index";
 import {
   CollectionsEntity,
   CollectionsEntityParams,
@@ -126,20 +125,6 @@ export class Collections {
     }
 
     const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, community);
-
-    if (config.chainId === 43114) {
-      logger.info(
-        "updateCollectionCache",
-        JSON.stringify({
-          topic: "debugAvalancheCollectionMetadataMissing",
-          message: `Collection metadata debug. contract=${contract}, tokenId=${tokenId}, community=${community}`,
-          contract,
-          tokenId,
-          community,
-          collection,
-        })
-      );
-    }
 
     if (collection.isCopyrightInfringement) {
       collection.name = collection.id;

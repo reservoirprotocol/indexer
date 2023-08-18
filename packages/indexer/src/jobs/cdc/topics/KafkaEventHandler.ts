@@ -91,7 +91,11 @@ export abstract class KafkaEventHandler {
       "quantity_remaining",
       "nonce",
     ];
+
     const stringKeys = payload.source.table === "token_attributes" ? ["key", "value"] : [];
+    if (payload.source.table === "orders") {
+      stringKeys.push("kind");
+    }
 
     // go through all the keys in the payload and convert any hex strings to strings
     // This is necessary because debeezium converts bytea values and other non string values to base64 strings

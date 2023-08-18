@@ -845,11 +845,9 @@ export const getTokensV6Options: RouteOptions = {
             }`;
           }
           case "updatedAt": {
-            return ` ORDER BY t_updated_at ${
+            return ` ORDER BY t_updated_at ${query.sortDirection || "ASC"}, t_contract ${
               query.sortDirection || "ASC"
-            } NULLS ${nullsPosition}, t_contract ${query.sortDirection || "ASC"}, t_token_id ${
-              query.sortDirection || "ASC"
-            }`;
+            }, t_token_id ${query.sortDirection || "ASC"}`;
           }
           case "floorAskPrice":
           default: {
@@ -993,7 +991,7 @@ export const getTokensV6Options: RouteOptions = {
               break;
 
             case "updatedAt":
-              continuation = rawResult[rawResult.length - 1].t_updated_at || "null";
+              continuation = rawResult[rawResult.length - 1].t_updated_at;
               break;
 
             case "floorAskPrice":

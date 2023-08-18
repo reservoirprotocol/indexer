@@ -150,6 +150,10 @@ CREATE INDEX "orders_bids_updated_at_asc_id_index"
 CREATE INDEX "orders_side_contract_updated_at_index"
   ON "orders" ("side", "contract", "updated_at" DESC, "id" DESC);
 
+-- CREATE INDEX "orders_side_contract_updated_at_id_index"
+--   ON "orders" ("side", "contract", "updated_at" DESC, "id" DESC)
+--   WHERE ("fillability_status" = 'fillable' AND "approval_status" = 'approved');
+
 -- Down Migration
 
 DROP TABLE "orders";

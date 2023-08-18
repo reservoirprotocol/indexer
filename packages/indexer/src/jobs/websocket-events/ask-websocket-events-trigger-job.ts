@@ -10,7 +10,7 @@ import { getNetAmount } from "@/common/utils";
 import { getJoiPriceObject } from "@/common/joi";
 import _ from "lodash";
 import * as Sdk from "@reservoir0x/sdk";
-import { formatStatus, formatValidBetween } from "@/utils/websockets";
+import { formatStatus, formatValidBetween } from "@/jobs/websocket-events/utils";
 
 export type AskWebsocketEventsTriggerQueueJobPayload = {
   data: OrderWebsocketEventInfo;

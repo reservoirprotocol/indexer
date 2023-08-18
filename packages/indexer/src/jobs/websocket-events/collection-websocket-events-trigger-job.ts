@@ -7,7 +7,7 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 import { idb } from "@/common/db";
 import { redis } from "@/common/redis";
 import { Sources } from "@/models/sources";
-import { formatValidBetween } from "@/utils/websockets";
+import { formatValidBetween } from "@/jobs/websocket-events/utils";
 
 interface CollectionInfo {
   id: string;
