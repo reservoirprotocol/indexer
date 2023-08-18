@@ -139,10 +139,10 @@ export const getTokensV6Options: RouteOptions = {
           "Allowed only with collection and tokens filtering!\n-1 = All tokens (default)\n0 = Non flagged tokens\n1 = Flagged tokens"
         ),
       sortBy: Joi.string()
-        .valid("floorAskPrice", "tokenId", "rarity")
+        .valid("floorAskPrice", "tokenId", "rarity", "updatedAt")
         .default("floorAskPrice")
         .description(
-          "Order the items are returned in the response. Options are `floorAskPrice`, `tokenId`, and `rarity`. No rarity rank for collections over 100k."
+          "Order the items are returned in the response. Options are `floorAskPrice`, `tokenId`, `rarity`, and `updatedAt`. No rarity rank for collections over 100k."
         ),
       sortDirection: Joi.string().lowercase().valid("asc", "desc"),
       currencies: Joi.alternatives().try(
@@ -296,6 +296,7 @@ export const getTokensV6Options: RouteOptions = {
                 .description("Can be null if no active bids"),
             }).optional(),
           }),
+          updatedAt: Joi.string(),
         })
       ),
       continuation: Joi.string().pattern(regex.base64).allow(null),
@@ -529,6 +530,7 @@ export const getTokensV6Options: RouteOptions = {
           t.last_flag_change,
           t.supply,
           t.remaining_supply,
+          extract(epoch from t.updated_at) AS t_updated_at,
           c.slug,
           c.creator,
           c.token_count,
@@ -764,6 +766,21 @@ export const getTokensV6Options: RouteOptions = {
               break;
             }
 
+            case "updatedAt": {
+              if (contArr.length !== 3) {
+                throw new Error("Invalid continuation string used");
+              }
+              const sign = query.sortDirection == "desc" ? "<" : ">";
+              conditions.push(
+                `(t.updated_at, t.contract, t.token_id) ${sign} (to_timestamp($/contUpdatedAt/), $/contContract/, $/contTokenId/)`
+              );
+              (query as any).contUpdatedAt = contArr[0];
+              (query as any).contContract = toBuffer(contArr[1]);
+              (query as any).contTokenId = contArr[2];
+
+              break;
+            }
+
             case "floorAskPrice":
             default:
               {
@@ -826,6 +843,11 @@ export const getTokensV6Options: RouteOptions = {
             return ` ORDER BY t_contract ${query.sortDirection || "ASC"}, t_token_id ${
               query.sortDirection || "ASC"
             }`;
+          }
+          case "updatedAt": {
+            return ` ORDER BY t_updated_at ${query.sortDirection || "ASC"}, t_contract ${
+              query.sortDirection || "ASC"
+            }, t_token_id ${query.sortDirection || "ASC"}`;
           }
           case "floorAskPrice":
           default: {
@@ -966,6 +988,10 @@ export const getTokensV6Options: RouteOptions = {
           switch (query.sortBy) {
             case "rarity":
               continuation = rawResult[rawResult.length - 1].rarity_rank || "null";
+              break;
+
+            case "updatedAt":
+              continuation = rawResult[rawResult.length - 1].t_updated_at;
               break;
 
             case "floorAskPrice":
@@ -1257,6 +1283,7 @@ export const getTokensV6Options: RouteOptions = {
                 }
               : undefined,
           },
+          updatedAt: new Date(r.t_updated_at * 1000).toISOString(),
         };
       });
 
