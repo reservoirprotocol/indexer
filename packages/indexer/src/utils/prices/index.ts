@@ -100,6 +100,8 @@ const getUpstreamUSDPrice = async (
         [
           Sdk.Common.Addresses.Native[config.chainId],
           Sdk.Common.Addresses.WNative[config.chainId],
+          // Only needed for Mumbai
+          "0xa6fa4fb5f76172d178d61b04b0ecd319c5d1c0aa",
         ].includes(currencyAddress)
       ) {
         // 2000:1 to USD

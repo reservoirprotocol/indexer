@@ -5,6 +5,7 @@ import _ from "lodash";
 import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { toBuffer, now } from "@/common/utils";
+import { config } from "@/config/index";
 import {
   CollectionsEntity,
   CollectionsEntityParams,
@@ -26,7 +27,6 @@ import {
   topBidCollectionJob,
   TopBidCollectionJobPayload,
 } from "@/jobs/collection-updates/top-bid-collection-job";
-import { config } from "@/config/index";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
