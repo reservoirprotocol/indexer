@@ -6,7 +6,7 @@ import * as tokenListingsIndex from "@/elasticsearch/indexes/token-listings";
 import { TokenListingBuilder } from "@/elasticsearch/indexes/token-listings/base";
 import { Orders } from "@/utils/orders";
 import { idb } from "@/common/db";
-import { toBuffer } from "@/common/utils";
+import { fromBuffer, toBuffer } from "@/common/utils";
 
 export enum EventKind {
   newSellOrder = "newSellOrder",
@@ -44,7 +44,7 @@ export class ProcessTokenListingEventJob extends AbstractRabbitMqJobHandler {
 
       const rawResult = await idb.oneOrNone(
         `
-            SELECT
+            SELECT           
               (${criteriaBuildQuery}) AS order_criteria,
               nb.*,
               t.*
@@ -80,37 +80,56 @@ export class ProcessTokenListingEventJob extends AbstractRabbitMqJobHandler {
         { orderId: data.id }
       );
 
-      tokenListing = new TokenListingBuilder().buildDocument({
-        id: `${rawResult.ownership_owner}:${data.contract}:${rawResult.token_id}:${data.id}`,
-        timestamp: Math.floor(new Date(data.created_at).getTime() / 1000),
-        contract: toBuffer(data.contract),
-        ownership_address: rawResult.ownership_owner,
-        ownership_amount: rawResult.ownership_amount,
-        ownership_acquired_at: new Date(rawResult.ownership_acquired_at),
-        token_id: rawResult.token_id,
-        token_name: rawResult.token_name,
-        token_image: rawResult.token_image,
-        token_media: rawResult.token_media,
-        collection_id: rawResult.collection_id,
-        collection_name: rawResult.collection_name,
-        collection_image: rawResult.collection_image,
-        order_id: data.id,
-        order_source_id_int: data.source_id_int,
-        order_criteria: rawResult.order_criteria,
-        order_quantity: data.quantity_filled + data.quantity_remaining,
-        order_pricing_currency: toBuffer(data.currency),
-        order_pricing_fee_bps: data.fee_bps,
-        order_pricing_price: Number(data.price),
-        order_pricing_currency_price: data.currency_price ? Number(data.currency_price) : undefined,
-        order_pricing_value: Number(data.value),
-        order_pricing_currency_value: data.currency_value ? Number(data.currency_value) : undefined,
-        order_pricing_normalized_value: data.normalized_value
-          ? Number(data.normalized_value)
-          : undefined,
-        order_pricing_currency_normalized_value: data.currency_normalized_value
-          ? Number(data.currency_normalized_value)
-          : undefined,
-      });
+      if (rawResult) {
+        const id = `${fromBuffer(rawResult.ownership_owner)}:${data.contract}:${
+          rawResult.token_id
+        }:${data.id}`;
+
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `Debug. kind=${kind}, id=${id}`,
+            kind,
+            data,
+          })
+        );
+
+        tokenListing = new TokenListingBuilder().buildDocument({
+          id,
+          timestamp: Math.floor(new Date(data.created_at).getTime() / 1000),
+          contract: toBuffer(data.contract),
+          ownership_address: rawResult.ownership_owner,
+          ownership_amount: rawResult.ownership_amount,
+          ownership_acquired_at: new Date(rawResult.ownership_acquired_at),
+          token_id: rawResult.token_id,
+          token_name: rawResult.token_name,
+          token_image: rawResult.token_image,
+          token_media: rawResult.token_media,
+          collection_id: rawResult.collection_id,
+          collection_name: rawResult.collection_name,
+          collection_image: rawResult.collection_image,
+          order_id: data.id,
+          order_source_id_int: data.source_id_int,
+          order_criteria: rawResult.order_criteria,
+          order_quantity: data.quantity_filled + data.quantity_remaining,
+          order_pricing_currency: toBuffer(data.currency),
+          order_pricing_fee_bps: data.fee_bps,
+          order_pricing_price: Number(data.price),
+          order_pricing_currency_price: data.currency_price
+            ? Number(data.currency_price)
+            : undefined,
+          order_pricing_value: Number(data.value),
+          order_pricing_currency_value: data.currency_value
+            ? Number(data.currency_value)
+            : undefined,
+          order_pricing_normalized_value: data.normalized_value
+            ? Number(data.normalized_value)
+            : undefined,
+          order_pricing_currency_normalized_value: data.currency_normalized_value
+            ? Number(data.currency_normalized_value)
+            : undefined,
+        });
+      }
     } catch (error) {
       logger.error(
         this.queueName,
