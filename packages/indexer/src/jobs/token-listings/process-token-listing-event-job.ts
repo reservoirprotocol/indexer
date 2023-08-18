@@ -45,6 +45,16 @@ export class ProcessTokenListingEventJob extends AbstractRabbitMqJobHandler {
       const rawResult = await idb.oneOrNone(
         `
             SELECT           
+              orders.price AS "order_pricing_price",
+              orders.currency AS "order_pricing_currency",
+              orders.currency_price AS "order_pricing_currency_price",
+              orders.value AS "order_pricing_value",
+              orders.currency_value AS "order_pricing_currency_value",
+              orders.normalized_value AS "order_pricing_normalized_value",
+              orders.currency_normalized_value AS "order_pricing_currency_normalized_value",
+              (orders.quantity_filled + orders.quantity_remaining) AS "order_quantity",
+              orders.fee_bps AS "order_pricing_fee_bps",
+              orders.source_id_int AS "order_source_id_int",
               (${criteriaBuildQuery}) AS order_criteria,
               nb.*,
               t.*
@@ -109,17 +119,18 @@ export class ProcessTokenListingEventJob extends AbstractRabbitMqJobHandler {
           collection_name: rawResult.collection_name,
           collection_image: rawResult.collection_image,
           order_id: data.id,
-          order_source_id_int: data.source_id_int,
+          order_source_id_int: rawResult.order_source_id_int,
           order_criteria: rawResult.order_criteria,
-          order_quantity: data.quantity_filled + data.quantity_remaining,
-          order_pricing_currency: toBuffer(data.currency),
-          order_pricing_fee_bps: data.fee_bps,
-          order_pricing_price: data.price,
-          order_pricing_currency_price: data.currency_price,
-          order_pricing_value: data.value,
-          order_pricing_currency_value: data.currency_value,
-          order_pricing_normalized_value: data.normalized_value,
-          order_pricing_currency_normalized_value: data.currency_normalized_value,
+          order_quantity: rawResult.order_quantity,
+          order_pricing_currency: rawResult.order_pricing_currency,
+          order_pricing_fee_bps: rawResult.order_pricing_fee_bps,
+          order_pricing_price: rawResult.order_pricing_price,
+          order_pricing_currency_price: rawResult.order_pricing_currency_price,
+          order_pricing_value: rawResult.order_pricing_value,
+          order_pricing_currency_value: rawResult.order_pricing_currency_value,
+          order_pricing_normalized_value: rawResult.order_pricing_normalized_value,
+          order_pricing_currency_normalized_value:
+            rawResult.order_pricing_currency_normalized_value,
         });
       }
     } catch (error) {
