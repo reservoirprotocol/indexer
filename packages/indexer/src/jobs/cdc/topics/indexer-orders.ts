@@ -5,6 +5,10 @@ import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
+import {
+  EventKind,
+  processTokenListingEventJob,
+} from "@/jobs/token-listings/process-token-listing-event-job";
 
 export class IndexerOrdersHandler extends KafkaEventHandler {
   topicName = "indexer.public.orders";
@@ -40,6 +44,13 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
       },
       eventKind,
     });
+
+    await processTokenListingEventJob.addToQueue([
+      {
+        kind: EventKind.newSellOrder,
+        data: payload.after,
+      },
+    ]);
   }
 
   protected async handleUpdate(payload: any, offset: string): Promise<void> {
