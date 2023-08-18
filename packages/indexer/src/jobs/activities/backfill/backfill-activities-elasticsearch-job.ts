@@ -529,17 +529,6 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
             parsedValue.toTimestamp,
             indexName
           );
-
-          const { fromTimestamp, toTimestamp, cursor } = JSON.parse(value);
-
-          await backfillSaveActivitiesElasticsearchJob.addToQueue(
-            "bid-cancel",
-            undefined,
-            fromTimestamp,
-            toTimestamp,
-            indexName,
-            cursor
-          );
         }
 
         logger.info(
