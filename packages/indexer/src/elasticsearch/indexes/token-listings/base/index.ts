@@ -5,6 +5,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 
 import { BuildDocumentData, BaseDocument, DocumentBuilder } from "@/elasticsearch/indexes/base";
+import { logger } from "@/common/logger";
 
 export interface TokenListingDocument extends BaseDocument {
   timestamp: number;
@@ -95,6 +96,14 @@ export interface BuildTokenListingData extends BuildDocumentData {
 export class TokenListingBuilder extends DocumentBuilder {
   public buildDocument(data: BuildTokenListingData): TokenListingDocument {
     const baseDocument = super.buildDocument(data);
+
+    logger.info(
+      "process-token-listing-event-queue",
+      JSON.stringify({
+        message: `buildDocument`,
+        data,
+      })
+    );
 
     return {
       ...baseDocument,
