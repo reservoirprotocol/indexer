@@ -33,7 +33,7 @@ export class ResyncAttributeValueCountsJob extends AbstractRabbitMqJobHandler {
           const orders = await redb.manyOrNone(
             `
               SELECT 
-                id 
+                orders.id 
               FROM 
                 orders 
                 JOIN token_sets ON orders.token_set_id = token_sets.id 
