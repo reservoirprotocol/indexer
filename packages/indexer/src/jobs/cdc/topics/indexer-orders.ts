@@ -22,6 +22,13 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
 
     if (payload.after.side === "sell") {
       eventKind = WebsocketEventKind.SellOrder;
+
+      await processTokenListingEventJob.addToQueue([
+        {
+          kind: EventKind.newSellOrder,
+          data: payload.after,
+        },
+      ]);
     } else if (payload.after.side === "buy") {
       eventKind = WebsocketEventKind.BuyOrder;
     } else {
@@ -44,13 +51,6 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
       },
       eventKind,
     });
-
-    await processTokenListingEventJob.addToQueue([
-      {
-        kind: EventKind.newSellOrder,
-        data: payload.after,
-      },
-    ]);
   }
 
   protected async handleUpdate(payload: any, offset: string): Promise<void> {
