@@ -4,7 +4,7 @@ import { processTopBid, topBidPayload } from "@/jobs/token-set-updates/utils";
 export class TopBidSingleTokenQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "token-set-updates-top-bid-single-token-queue";
   maxRetries = 10;
-  concurrency = 30;
+  concurrency = 20;
   backoff = {
     type: "exponential",
     delay: 20000,

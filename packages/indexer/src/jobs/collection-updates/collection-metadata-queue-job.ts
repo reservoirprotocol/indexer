@@ -3,7 +3,6 @@ import { acquireLock, releaseLock } from "@/common/redis";
 import { logger } from "@/common/logger";
 import { Collections } from "@/models/collections";
 import _ from "lodash";
-import { config } from "@/config/index";
 
 export type CollectionMetadataInfo = {
   contract: string;
@@ -36,13 +35,6 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
             logger.error(
               this.queueName,
               `Invalid tokenId. contract=${contract}, tokenId=${tokenId}, community=${community}`
-            );
-          }
-
-          if (config.chainId === 43114 && forceRefresh) {
-            logger.info(
-              this.queueName,
-              `Debug. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}`
             );
           }
 

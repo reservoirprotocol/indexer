@@ -315,13 +315,6 @@ export const getOrdersAsksV5Options: RouteOptions = {
         );
       }
 
-      // TODO Remove this restriction once an index is created for updatedAt and contracts
-      if (query.sortBy === "updatedAt" && query.contracts && query.status === "any") {
-        throw Boom.badRequest(
-          `Cannot filter by contracts while sortBy = "updatedAt" and status = "any"`
-        );
-      }
-
       switch (query.status) {
         case "active": {
           orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;

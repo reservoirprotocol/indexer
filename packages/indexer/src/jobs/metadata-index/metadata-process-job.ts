@@ -75,7 +75,7 @@ export class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler {
               this.queueName,
               `Error. method=${method}, status=${error.response?.status}, error=${JSON.stringify(
                 error.response?.data
-              )}, refreshTokensChunk=${JSON.stringify(refreshTokensChunk)}`
+              )}`
             );
 
             if (error.response?.data.error === "Request failed with status code 403") {
