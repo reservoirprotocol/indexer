@@ -81,7 +81,16 @@ export abstract class KafkaEventHandler {
   }
 
   convertPayloadHexToString(payload: any) {
-    const numericKeys = ["amount", "token_id", "price", "usd_price", "currency_price"];
+    const numericKeys = [
+      "amount",
+      "token_id",
+      "price",
+      "usd_price",
+      "currency_price",
+      "quantity_filled",
+      "quantity_remaining",
+      "nonce",
+    ];
     const stringKeys = payload.source.table === "token_attributes" ? ["key", "value"] : [];
 
     // go through all the keys in the payload and convert any hex strings to strings

@@ -14,43 +14,49 @@ export type ERC721CConfig = {
   permittedContractReceiverAllowlist: string[];
 };
 
-export const getERC721CConfig = async (contract: string): Promise<ERC721CConfig> => {
-  const token = new Contract(
-    contract,
-    new Interface([
-      "function getTransferValidator() public view returns (address)",
-      `function getSecurityPolicy() public view returns (
+export const getERC721CConfig = async (contract: string): Promise<ERC721CConfig | undefined> => {
+  try {
+    const token = new Contract(
+      contract,
+      new Interface([
+        "function getTransferValidator() public view returns (address)",
+        `function getSecurityPolicy() public view returns (
         uint8 transferSecurityLevel,
         uint120 operatorWhitelistId,
         uint120 permittedContractReceiverAllowlistId
       )`,
-    ]),
-    baseProvider
-  );
+      ]),
+      baseProvider
+    );
 
-  const [transferValidator, securityPolicy] = await Promise.all([
-    token.getTransferValidator(),
-    token.getSecurityPolicy(),
-  ]);
+    const [transferValidator, securityPolicy] = await Promise.all([
+      token.getTransferValidator(),
+      token.getSecurityPolicy(),
+    ]);
 
-  const operatorWhitelistId = securityPolicy.operatorWhitelistId.toString();
-  const permittedContractReceiverAllowlistId =
-    securityPolicy.permittedContractReceiverAllowlistId.toString();
+    const operatorWhitelistId = securityPolicy.operatorWhitelistId.toString();
+    const permittedContractReceiverAllowlistId =
+      securityPolicy.permittedContractReceiverAllowlistId.toString();
 
-  return {
-    transferValidator: transferValidator.toLowerCase(),
-    transferSecurityLevel: securityPolicy.transferSecurityLevel,
-    operatorWhitelistId,
-    operatorWhitelist: await refreshERC721COperatorWhitelist(
-      transferValidator,
-      operatorWhitelistId
-    ),
-    permittedContractReceiverAllowlistId,
-    permittedContractReceiverAllowlist: await refreshERC721CPermittedContractReceiverAllowlist(
-      transferValidator,
-      permittedContractReceiverAllowlistId
-    ),
-  };
+    return {
+      transferValidator: transferValidator.toLowerCase(),
+      transferSecurityLevel: securityPolicy.transferSecurityLevel,
+      operatorWhitelistId,
+      operatorWhitelist: await refreshERC721COperatorWhitelist(
+        transferValidator,
+        operatorWhitelistId
+      ),
+      permittedContractReceiverAllowlistId,
+      permittedContractReceiverAllowlist: await refreshERC721CPermittedContractReceiverAllowlist(
+        transferValidator,
+        permittedContractReceiverAllowlistId
+      ),
+    };
+  } catch {
+    // Skip errors
+  }
+
+  return undefined;
 };
 
 export const getERC721CConfigFromDB = async (
@@ -90,39 +96,43 @@ export const getERC721CConfigFromDB = async (
 
 export const refreshERC721CConfig = async (contract: string) => {
   const config = await getERC721CConfig(contract);
-  await idb.none(
-    `
-      INSERT INTO erc721c_configs (
-        contract,
-        transfer_validator,
-        transfer_security_level,
-        operator_whitelist_id,
-        permitted_contract_receiver_allowlist_id
-      ) VALUES (
-        $/contract/,
-        $/transferValidator/,
-        $/transferSecurityLevel/,
-        $/operatorWhitelistId/,
-        $/permittedContractReceiverAllowlistId/
-      )
-      ON CONFLICT (contract)
-      DO UPDATE SET
-        transfer_validator = $/transferValidator/,
-        transfer_security_level = $/transferSecurityLevel/,
-        operator_whitelist_id = $/operatorWhitelistId/,
-        permitted_contract_receiver_allowlist_id = $/permittedContractReceiverAllowlistId/,
-        updated_at = now()
-    `,
-    {
-      contract: toBuffer(contract),
-      transferValidator: toBuffer(config.transferValidator),
-      transferSecurityLevel: config.transferSecurityLevel,
-      operatorWhitelistId: config.operatorWhitelistId,
-      permittedContractReceiverAllowlistId: config.permittedContractReceiverAllowlistId,
-    }
-  );
+  if (config) {
+    await idb.none(
+      `
+        INSERT INTO erc721c_configs (
+          contract,
+          transfer_validator,
+          transfer_security_level,
+          operator_whitelist_id,
+          permitted_contract_receiver_allowlist_id
+        ) VALUES (
+          $/contract/,
+          $/transferValidator/,
+          $/transferSecurityLevel/,
+          $/operatorWhitelistId/,
+          $/permittedContractReceiverAllowlistId/
+        )
+        ON CONFLICT (contract)
+        DO UPDATE SET
+          transfer_validator = $/transferValidator/,
+          transfer_security_level = $/transferSecurityLevel/,
+          operator_whitelist_id = $/operatorWhitelistId/,
+          permitted_contract_receiver_allowlist_id = $/permittedContractReceiverAllowlistId/,
+          updated_at = now()
+      `,
+      {
+        contract: toBuffer(contract),
+        transferValidator: toBuffer(config.transferValidator),
+        transferSecurityLevel: config.transferSecurityLevel,
+        operatorWhitelistId: config.operatorWhitelistId,
+        permittedContractReceiverAllowlistId: config.permittedContractReceiverAllowlistId,
+      }
+    );
 
-  return config;
+    return config;
+  }
+
+  return undefined;
 };
 
 export const refreshERC721COperatorWhitelist = async (transferValidator: string, id: string) => {

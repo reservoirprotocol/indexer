@@ -1,12 +1,13 @@
-import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import axios from "axios";
+
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import axios from "axios";
-import { config } from "@/config/index";
-import { updateBlurRoyalties } from "@/utils/blur";
-import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
+import { config } from "@/config/index";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
+import { updateBlurRoyalties } from "@/utils/blur";
 
 export type BlurListingsRefreshJobPayload = {
   collection: string;
@@ -68,16 +69,16 @@ export class BlurListingsRefreshJob extends AbstractRabbitMqJobHandler {
       // Then fetch any own listings
       const ownListings = await idb.manyOrNone(
         `
-            SELECT
-              orders.raw_data
-            FROM orders
-            WHERE orders.contract = $/contract/
-              AND orders.kind = 'blur'
-              AND orders.side = 'sell'
-              AND orders.fillability_status = 'fillable'
-              AND orders.approval_status = 'approved'
-              AND orders.raw_data->>'createdAt' IS NOT NULL
-          `,
+          SELECT
+            orders.raw_data
+          FROM orders
+          WHERE orders.contract = $/contract/
+            AND orders.kind = 'blur'
+            AND orders.side = 'sell'
+            AND orders.fillability_status = 'fillable'
+            AND orders.approval_status = 'approved'
+            AND orders.raw_data->>'createdAt' IS NOT NULL
+        `,
         {
           contract: toBuffer(collection),
         }

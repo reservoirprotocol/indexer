@@ -10,6 +10,8 @@ import { backfillSaveActivitiesElasticsearchJob } from "@/jobs/activities/backfi
 
 import * as CONFIG from "@/elasticsearch/indexes/activities/config";
 import cron from "node-cron";
+import { RabbitMq } from "@/common/rabbit-mq";
+import { getNetworkName } from "@/config/network";
 
 export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-activities-elasticsearch-queue";
@@ -637,7 +639,8 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
     backfillAskCancelActivities = true,
     backfillBidActivities = true,
     backfillBidCancelActivities = true,
-    fromTimestamp?: number
+    fromTimestamp?: number,
+    fromLastBackfill?: boolean
   ) {
     if (!config.doElasticsearchWork) {
       return;
@@ -655,6 +658,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         backfillBidActivities,
         backfillBidCancelActivities,
         fromTimestamp,
+        fromLastBackfill,
       },
     });
   }
@@ -699,10 +703,10 @@ export interface EventCursorInfo {
 
 if (config.doBackgroundWork && config.doElasticsearchWork) {
   cron.schedule(
-    "*/30 * * * * *",
+    "*/5 * * * *",
     async () =>
       await redlock
-        .acquire(["backfill-activities-lock"], (30 - 1) * 1000)
+        .acquire(["backfill-activities-lock"], (5 * 60 - 5) * 1000)
         .then(async () => {
           const transferJobCount = Number(
             await redis.get(`backfill-activities-elasticsearch-job-count:transfer`)
@@ -736,7 +740,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
             backfillActivitiesElasticsearchJob.queueName,
             JSON.stringify({
               topic: "backfill-activities",
-              message: `jobCounts update.`,
+              message: `jobCounts - update.`,
               totalJobCount,
               jobCounts: {
                 transferJobCount,
@@ -748,9 +752,60 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
               },
             })
           );
+
+          const lastQueueSize = Number(
+            await redis.get(`${backfillSaveActivitiesElasticsearchJob.queueName}-queue-size`)
+          );
+
+          const queueSize = await RabbitMq.getQueueSize(
+            backfillSaveActivitiesElasticsearchJob.getQueue(),
+            getNetworkName()
+          );
+
+          await redis.set(
+            `${backfillSaveActivitiesElasticsearchJob.queueName}-queue-size`,
+            queueSize,
+            "EX",
+            600
+          );
+
+          if (queueSize === 0 && lastQueueSize === 0) {
+            logger.info(
+              backfillActivitiesElasticsearchJob.queueName,
+              JSON.stringify({
+                topic: "backfill-activities",
+                message: `jobCounts - Trigger backfill.`,
+                totalJobCount,
+                queueSize,
+                jobCounts: {
+                  transferJobCount,
+                  saleJobCount,
+                  askJobCount,
+                  askCancelJobCount,
+                  bidJobCount,
+                  bidCancelJobCount,
+                },
+              })
+            );
+
+            await backfillActivitiesElasticsearchJob.addToQueue(
+              false,
+              "mainnet.activities-1690489670764",
+              undefined,
+              false,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              undefined,
+              true
+            );
+          }
         })
         .catch(() => {
-          // Skip on any errors
+          // Skip any errors
         })
   );
 }
