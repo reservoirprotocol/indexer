@@ -917,6 +917,11 @@ export const getNetworkSettings = (): NetworkSettings => {
         enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
+        supportedBidCurrencies: {
+          ...defaultNetworkSettings.supportedBidCurrencies,
+          // OpenSea WETH
+          "0xa6fa4fb5f76172d178d61b04b0ecd319c5d1c0aa": true,
+        },
         lastBlockLatency: 5,
         subDomain: "api-mumbai",
         elasticsearch: {
