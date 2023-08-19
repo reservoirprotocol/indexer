@@ -50,6 +50,7 @@ export class BackfillTokenListingsElasticsearchJob extends AbstractRabbitMqJobHa
       const rawResults = await idb.manyOrNone(
         `
             SELECT        
+              orders.contract AS "contract",     
               orders.id AS "order_id",     
               orders.price AS "order_pricing_price",
               orders.currency AS "order_pricing_currency",
