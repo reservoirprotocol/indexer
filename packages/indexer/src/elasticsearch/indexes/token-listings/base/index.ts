@@ -8,7 +8,6 @@ import { BuildDocumentData, BaseDocument, DocumentBuilder } from "@/elasticsearc
 import { logger } from "@/common/logger";
 
 export interface TokenListingDocument extends BaseDocument {
-  timestamp: number;
   ownership: {
     address: string;
     amount: number;
@@ -62,7 +61,7 @@ export interface TokenListingDocument extends BaseDocument {
 
 export interface BuildTokenListingData extends BuildDocumentData {
   id: string;
-  timestamp: number;
+  created_at: Date;
   contract: Buffer;
   collection_id: string;
   token_id?: string;
@@ -73,7 +72,7 @@ export interface BuildTokenListingData extends BuildDocumentData {
   collection_name?: string;
   collection_image?: string;
   ownership_address: Buffer;
-  ownership_amount?: number;
+  ownership_amount: number;
   ownership_acquired_at: Date;
   order_id?: string | null;
   order_quantity: number;
@@ -107,10 +106,10 @@ export class TokenListingBuilder extends DocumentBuilder {
 
     return {
       ...baseDocument,
-      timestamp: data.timestamp,
+      createdAt: data.created_at,
       ownership: {
         address: fromBuffer(data.ownership_address),
-        amount: data.ownership_amount,
+        amount: Number(data.ownership_amount),
         acquiredAt: data.ownership_acquired_at,
       },
       token: data.token_id
@@ -133,7 +132,7 @@ export class TokenListingBuilder extends DocumentBuilder {
             kind: data.order_kind,
             sourceId: data.order_source_id_int,
             criteria: data.order_criteria,
-            quantity: data.order_quantity,
+            quantity: Number(data.order_quantity),
             pricing: data.order_pricing_price
               ? {
                   price: String(data.order_pricing_price),

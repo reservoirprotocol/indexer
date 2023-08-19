@@ -8,7 +8,6 @@ export const CONFIG_DEFAULT = {
       id: { type: "keyword" },
       createdAt: { type: "date" },
       indexedAt: { type: "date" },
-      timestamp: { type: "date", format: "epoch_second" },
       contract: { type: "keyword" },
       token: {
         properties: {
@@ -27,7 +26,7 @@ export const CONFIG_DEFAULT = {
       order: {
         properties: {
           id: { type: "keyword" },
-          quantity: { type: "integer" },
+          quantity: { type: "long" },
           sourceId: { type: "integer" },
           criteria: {
             properties: {
@@ -75,7 +74,7 @@ export const CONFIG_DEFAULT = {
       ownership: {
         properties: {
           address: { type: "keyword" },
-          amount: { type: "integer" },
+          amount: { type: "long" },
           acquiredAt: { type: "date" },
         },
       },
