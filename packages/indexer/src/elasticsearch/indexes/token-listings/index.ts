@@ -5,7 +5,7 @@ import { logger } from "@/common/logger";
 
 import { getNetworkName, getNetworkSettings } from "@/config/network";
 
-import * as CONFIG from "@/elasticsearch/indexes/activities/config";
+import * as CONFIG from "@/elasticsearch/indexes/token-listings/config";
 import { TokenListingDocument } from "@/elasticsearch/indexes/token-listings/base";
 
 const INDEX_NAME = `${getNetworkName()}.token-listings`;
