@@ -96,7 +96,7 @@ export class BackfillTokenListingsElasticsearchJob extends AbstractRabbitMqJobHa
                   WHERE orders.side = 'sell'
                   AND orders.fillability_status = 'fillable'
                   AND orders.approval_status = 'approved'
-                  AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+                  AND (orders.taker = '\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
                   ${continuationFilter}
                   ${fromTimestampFilter}
                   ORDER BY updated_at, id
