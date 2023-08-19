@@ -8,6 +8,7 @@ import { BuildDocumentData, BaseDocument, DocumentBuilder } from "@/elasticsearc
 import { logger } from "@/common/logger";
 
 export interface TokenListingDocument extends BaseDocument {
+  contract: string;
   ownership: {
     address: string;
     amount: number;
@@ -107,6 +108,7 @@ export class TokenListingBuilder extends DocumentBuilder {
     return {
       ...baseDocument,
       createdAt: data.created_at,
+      contract: fromBuffer(data.contract),
       ownership: {
         address: fromBuffer(data.ownership_address),
         amount: Number(data.ownership_amount),
