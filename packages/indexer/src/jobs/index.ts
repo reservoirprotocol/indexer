@@ -143,6 +143,7 @@ import { pendingExpiredOrdersCheckJob } from "@/jobs/orderbook/cron/pending-expi
 import { askWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/ask-websocket-events-trigger-job";
 import { bidWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/bid-websocket-events-trigger-job";
 import { processTokenListingEventJob } from "@/jobs/token-listings/process-token-listing-event-job";
+import { backfillTokenListingsElasticsearchJob } from "@/jobs/token-listings/backfill-token-listings-elasticsearch-job";
 
 export const allJobQueues = [
   backfillExpiredOrders.queue,
@@ -275,6 +276,7 @@ export class RabbitMqJobsConsumer {
       askWebsocketEventsTriggerQueueJob,
       bidWebsocketEventsTriggerQueueJob,
       processTokenListingEventJob,
+      backfillTokenListingsElasticsearchJob,
     ];
   }
 
