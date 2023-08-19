@@ -87,6 +87,12 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           activities.length
         );
 
+        await redis.hset(
+          `backfill-activities-elasticsearch-job:${type}`,
+          `${fromTimestamp}:${toTimestamp}`,
+          JSON.stringify({ fromTimestamp, toTimestamp, cursor: nextCursor })
+        );
+
         logger.info(
           this.queueName,
           JSON.stringify({

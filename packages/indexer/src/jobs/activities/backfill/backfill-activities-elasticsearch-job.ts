@@ -90,13 +90,13 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         const values = await redis.hvals(`backfill-activities-elasticsearch-job:transfer`);
 
         for (const value of values) {
-          const { fromTimestamp, toTimestamp } = JSON.parse(value);
+          const parsedValue = JSON.parse(value);
 
           await backfillSaveActivitiesElasticsearchJob.addToQueue(
             "transfer",
-            undefined,
-            fromTimestamp,
-            toTimestamp,
+            parsedValue.cursor ?? undefined,
+            parsedValue.fromTimestamp,
+            parsedValue.toTimestamp,
             indexName
           );
         }
@@ -176,13 +176,13 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         const values = await redis.hvals(`backfill-activities-elasticsearch-job:sale`);
 
         for (const value of values) {
-          const { fromTimestamp, toTimestamp } = JSON.parse(value);
+          const parsedValue = JSON.parse(value);
 
           await backfillSaveActivitiesElasticsearchJob.addToQueue(
             "sale",
-            undefined,
-            fromTimestamp,
-            toTimestamp,
+            parsedValue.cursor ?? undefined,
+            parsedValue.fromTimestamp,
+            parsedValue.toTimestamp,
             indexName
           );
         }
@@ -262,13 +262,13 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         const values = await redis.hvals(`backfill-activities-elasticsearch-job:ask`);
 
         for (const value of values) {
-          const { fromTimestamp, toTimestamp } = JSON.parse(value);
+          const parsedValue = JSON.parse(value);
 
           await backfillSaveActivitiesElasticsearchJob.addToQueue(
             "ask",
-            undefined,
-            fromTimestamp,
-            toTimestamp,
+            parsedValue.cursor ?? undefined,
+            parsedValue.fromTimestamp,
+            parsedValue.toTimestamp,
             indexName
           );
         }
@@ -348,13 +348,13 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         const values = await redis.hvals(`backfill-activities-elasticsearch-job:ask-cancel`);
 
         for (const value of values) {
-          const { fromTimestamp, toTimestamp } = JSON.parse(value);
+          const parsedValue = JSON.parse(value);
 
           await backfillSaveActivitiesElasticsearchJob.addToQueue(
             "ask-cancel",
-            undefined,
-            fromTimestamp,
-            toTimestamp,
+            parsedValue.cursor ?? undefined,
+            parsedValue.fromTimestamp,
+            parsedValue.toTimestamp,
             indexName
           );
         }
@@ -434,13 +434,13 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         const values = await redis.hvals(`backfill-activities-elasticsearch-job:bid`);
 
         for (const value of values) {
-          const { fromTimestamp, toTimestamp } = JSON.parse(value);
+          const parsedValue = JSON.parse(value);
 
           await backfillSaveActivitiesElasticsearchJob.addToQueue(
             "bid",
-            undefined,
-            fromTimestamp,
-            toTimestamp,
+            parsedValue.cursor ?? undefined,
+            parsedValue.fromTimestamp,
+            parsedValue.toTimestamp,
             indexName
           );
         }
@@ -520,13 +520,13 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         const values = await redis.hvals(`backfill-activities-elasticsearch-job:bid-cancel`);
 
         for (const value of values) {
-          const { fromTimestamp, toTimestamp } = JSON.parse(value);
+          const parsedValue = JSON.parse(value);
 
           await backfillSaveActivitiesElasticsearchJob.addToQueue(
             "bid-cancel",
-            undefined,
-            fromTimestamp,
-            toTimestamp,
+            parsedValue.cursor ?? undefined,
+            parsedValue.fromTimestamp,
+            parsedValue.toTimestamp,
             indexName
           );
         }

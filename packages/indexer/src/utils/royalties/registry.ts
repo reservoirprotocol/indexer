@@ -44,6 +44,18 @@ export const refreshRegistryRoyalties = async (collection: string) => {
   const token = fromBuffer(collectionResult.contract);
   const tokenId = tokenResult.token_id;
 
+  const latestRoyalties = await getRegistryRoyalties(token, tokenId);
+
+  // Save the retrieved royalty spec
+  await updateRoyaltySpec(
+    collection,
+    "onchain",
+    latestRoyalties.length ? latestRoyalties : undefined
+  );
+};
+
+export const getRegistryRoyalties = async (token: string, tokenId: string) => {
+  const latestRoyalties: Royalty[] = [];
   if (Sdk.Common.Addresses.RoyaltyEngine[config.chainId]) {
     const royaltyEngine = new Contract(
       Sdk.Common.Addresses.RoyaltyEngine[config.chainId],
@@ -70,26 +82,19 @@ export const refreshRegistryRoyalties = async (collection: string) => {
         .getRoyaltyView(token, tokenId, DEFAULT_PRICE)
         .catch(() => ({ recipients: [], amounts: [] }));
 
-      const latestRoyalties: Royalty[] = [];
       for (let i = 0; i < amounts.length; i++) {
         const recipient = recipients[i].toLowerCase();
         const amount = amounts[i];
         if (bn(amount).gte(DEFAULT_PRICE)) {
           throw new Error("Royalty exceeds price");
         }
-
         const bps = Math.round(bn(amount).mul(10000).div(DEFAULT_PRICE).toNumber());
         latestRoyalties.push({ recipient, bps });
       }
-
-      // Save the retrieved royalty spec
-      await updateRoyaltySpec(
-        collection,
-        "onchain",
-        latestRoyalties.length ? latestRoyalties : undefined
-      );
     } catch {
       // Skip errors
     }
   }
+
+  return latestRoyalties;
 };
