@@ -63,7 +63,7 @@ export class TopBidWebSocketEventsTriggerJob extends AbstractRabbitMqJobHandler 
                 c.top_buy_value AS top_buy_value,
                 CASE WHEN c.floor_sell_value = 0 THEN 0 ELSE
                 COALESCE(((orders.value / (c.floor_sell_value * (1-((COALESCE(c.royalties_bps, 0)::float + 250) / 10000)))::numeric(78, 0) ) - 1) * 100, 0) 
-                END AS floor_sell_value_percentage,
+                END AS floor_sell_value_percentage
               FROM orders
               JOIN LATERAL (
                 SELECT c.id,
