@@ -30,7 +30,11 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
       })
     );
 
-    const { createIndex, indexName, indexConfig, keepGoing, fromLastBackfill } = payload;
+    const { createIndex, indexConfig, keepGoing, fromLastBackfill } = payload;
+
+    let indexName = payload.indexName;
+
+    indexName = `${getNetworkName()}.${indexName}`;
 
     if (createIndex) {
       const params = {
@@ -69,20 +73,6 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
       await redis.del(`backfill-activities-elasticsearch-job-count:ask-cancel`);
       await redis.del(`backfill-activities-elasticsearch-job-count:bid`);
       await redis.del(`backfill-activities-elasticsearch-job-count:bid-cancel`);
-
-      await redis.del(`backfill-activities-elasticsearch-job-backfilled:transfer`);
-      await redis.del(`backfill-activities-elasticsearch-job-backfilled:sale`);
-      await redis.del(`backfill-activities-elasticsearch-job-backfilled:ask`);
-      await redis.del(`backfill-activities-elasticsearch-job-backfilled:ask-cancel`);
-      await redis.del(`backfill-activities-elasticsearch-job-backfilled:bid`);
-      await redis.del(`backfill-activities-elasticsearch-job-backfilled:bid-cancel`);
-
-      await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:transfer`);
-      await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:sale`);
-      await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:ask`);
-      await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:ask-cancel`);
-      await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:bid`);
-      await redis.del(`backfill-activities-elasticsearch-job-backfilled-total:bid-cancel`);
     }
 
     const backfillTransferActivities = async (fromLastBackfill?: boolean) => {
@@ -736,11 +726,22 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
             bidJobCount +
             bidCancelJobCount;
 
+          const lastQueueSize = Number(
+            await redis.get(`${backfillSaveActivitiesElasticsearchJob.queueName}-queue-size`)
+          );
+
+          const queueSize = await RabbitMq.getQueueSize(
+            backfillSaveActivitiesElasticsearchJob.getQueue(),
+            getNetworkName()
+          );
+
           logger.info(
             backfillActivitiesElasticsearchJob.queueName,
             JSON.stringify({
               topic: "backfill-activities",
               message: `jobCounts - update.`,
+              queueSize,
+              lastQueueSize,
               totalJobCount,
               jobCounts: {
                 transferJobCount,
@@ -753,15 +754,6 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
             })
           );
 
-          const lastQueueSize = Number(
-            await redis.get(`${backfillSaveActivitiesElasticsearchJob.queueName}-queue-size`)
-          );
-
-          const queueSize = await RabbitMq.getQueueSize(
-            backfillSaveActivitiesElasticsearchJob.getQueue(),
-            getNetworkName()
-          );
-
           await redis.set(
             `${backfillSaveActivitiesElasticsearchJob.queueName}-queue-size`,
             queueSize,
@@ -769,14 +761,15 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
             600
           );
 
-          if (queueSize === 0 && lastQueueSize === 0) {
+          if (queueSize === 0 && lastQueueSize === 0 && totalJobCount > 0) {
             logger.info(
               backfillActivitiesElasticsearchJob.queueName,
               JSON.stringify({
                 topic: "backfill-activities",
                 message: `jobCounts - Trigger backfill.`,
-                totalJobCount,
                 queueSize,
+                lastQueueSize,
+                totalJobCount,
                 jobCounts: {
                   transferJobCount,
                   saleJobCount,
@@ -790,7 +783,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
 
             await backfillActivitiesElasticsearchJob.addToQueue(
               false,
-              "mainnet.activities-1690489670764",
+              "activities-1690489670764",
               undefined,
               false,
               true,
