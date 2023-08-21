@@ -15,8 +15,8 @@ export const formatValidBetween = (validBetween: string) => {
   }
 };
 
-export const formatStatus = (status: string) => {
-  switch (status) {
+export const formatStatus = (fillabilityStatus: string, approvalStatus: string) => {
+  switch (fillabilityStatus) {
     case "filled":
       return "filled";
     case "cancelled":
@@ -24,9 +24,14 @@ export const formatStatus = (status: string) => {
     case "expired":
       return "expired";
     case "no-balance":
-    case "no-approval":
       return "inactive";
-    default:
-      return "active";
   }
+
+  switch (approvalStatus) {
+    case "no-approval":
+    case "disabled":
+      return "inactive";
+  }
+
+  return "active";
 };
