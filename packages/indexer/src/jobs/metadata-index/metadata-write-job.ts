@@ -49,7 +49,7 @@ export type MetadataIndexWriteJobPayload = {
 export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
   queueName = "metadata-index-write-queue";
   maxRetries = 10;
-  concurrency = 30;
+  concurrency = 40;
   lazyMode = true;
   consumerTimeout = 60000;
   backoff = {
