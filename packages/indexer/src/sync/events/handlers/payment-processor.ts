@@ -270,16 +270,64 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         break;
       }
 
-      // TODO: Add support for detecting the filled order ids
-      // (or else the filled listings will be stale)
       case "payment-processor-sweep-collection-erc721":
       case "payment-processor-sweep-collection-erc1155": {
+        const txHash = baseEventParams.txHash;
+        const tx = await utils.fetchTransaction(txHash);
+
+        const exchange = new Sdk.PaymentProcessor.Exchange(config.chainId);
+        const exchangeAddress = exchange.contract.address;
+
+        let relevantCalldata: string | undefined;
+        const methods = [
+          {
+            selector: "0xd3055dde",
+            name: "sweepCollection",
+          },
+        ];
+
+        const txTrace = await utils.fetchTransactionTrace(txHash);
+        if (txTrace) {
+          try {
+            const tradeRank = trades.order.get(`${txHash}-${exchangeAddress}`) ?? 0;
+            const executeCallTrace = searchForCall(
+              txTrace.calls,
+              {
+                to: exchangeAddress,
+                type: "CALL",
+                sigHashes: methods.map((c) => c.selector),
+              },
+              tradeRank
+            );
+
+            if (executeCallTrace) {
+              relevantCalldata = executeCallTrace.input;
+              trades.order.set(`${txHash}-${exchangeAddress}`, tradeRank + 1);
+            }
+          } catch {
+            relevantCalldata = tx.data;
+          }
+        } else {
+          relevantCalldata = tx.data;
+        }
+
+        const matchedMethod = methods.find((c) => relevantCalldata!.includes(c.selector));
+        if (!matchedMethod) {
+          break;
+        }
+
+        const inputData = exchange.contract.interface.decodeFunctionData(
+          matchedMethod.name,
+          relevantCalldata!
+        );
+
         const parsedLog = eventData.abi.parseLog(log);
         const tokenAddress = parsedLog.args["tokenAddress"].toLowerCase();
         const tokenIds = parsedLog.args["tokenIds"].map(String);
         const currency = parsedLog.args["paymentCoin"].toLowerCase();
         const buyer = parsedLog.args["buyer"].toLowerCase();
         const unsuccessfulFills = parsedLog.args["unsuccessfulFills"];
+        const bundleDetails = inputData.bundleDetails;
 
         for (let i = 0; i < tokenIds.length; i++) {
           if (!unsuccessfulFills[i]) {
@@ -290,6 +338,46 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             const tokenId = tokenIds[i];
             const currencyPrice = parsedLog.args["salePrices"][i].div(amount).toString();
             const seller = parsedLog.args["sellers"][i].toLowerCase();
+            const bundleItem = inputData.bundleItems[i];
+            const signedListing = inputData.signedListings[i];
+
+            const singleBuilder = new Sdk.PaymentProcessor.Builders.SingleToken(config.chainId);
+            const sellerMinNonce = await commonHelpers.getMinNonce(
+              "payment-processor",
+              bundleItem["seller"].toLowerCase()
+            );
+
+            const order = singleBuilder.build({
+              protocol: bundleDetails["protocol"],
+              sellerAcceptedOffer: false,
+              marketplace: bundleDetails["marketplace"],
+              marketplaceFeeNumerator: bundleDetails["marketplaceFeeNumerator"],
+              tokenAddress: bundleDetails["tokenAddress"],
+              maxRoyaltyFeeNumerator: bundleItem["maxRoyaltyFeeNumerator"],
+              coin: bundleDetails["paymentCoin"],
+              masterNonce: sellerMinNonce,
+              trader: bundleItem["seller"],
+              amount: bundleItem["amount"],
+              tokenId: bundleItem["tokenId"],
+              price: bundleItem["itemPrice"],
+              expiration: bundleItem["listingExpiration"],
+              nonce: bundleItem["listingNonce"],
+              ...signedListing,
+            });
+
+            let isValidated = false;
+            for (let nonce = Number(order.params.masterNonce); nonce >= 0; nonce--) {
+              order.params.masterNonce = nonce.toString();
+              try {
+                order.checkSignature();
+                isValidated = true;
+                break;
+              } catch {
+                // Skip errors
+              }
+            }
+
+            const orderId = isValidated ? order.hash() : undefined;
 
             const priceData = await getUSDAndNativePrices(
               currency,
@@ -305,10 +393,14 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             const orderKind = "payment-processor";
             const attributionData = await utils.extractAttributionData(
               baseEventParams.txHash,
-              orderKind
+              orderKind,
+              {
+                orderId,
+              }
             );
 
             onChainData.fillEvents.push({
+              orderId,
               orderKind: "payment-processor",
               orderSide: "sell",
               maker: seller,

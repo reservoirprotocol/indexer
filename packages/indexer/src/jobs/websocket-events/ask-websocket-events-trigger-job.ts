@@ -133,7 +133,7 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         },
         feeBps: Number(data.after.fee_bps.toString()),
         feeBreakdown: data.after.fee_breakdown ? JSON.parse(data.after.fee_breakdown) : undefined,
-        expiration: data.after.expiration,
+        expiration: new Date(data.after.expiration).getTime() / 1000,
         isReservoir: data.after.is_reservoir,
         isDynamic: Boolean(data.after.dynamic || data.after.kind === "sudoswap"),
         createdAt: new Date(data.after.created_at).toISOString(),
