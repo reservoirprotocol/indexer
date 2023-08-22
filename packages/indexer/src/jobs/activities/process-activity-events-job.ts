@@ -7,7 +7,7 @@ import { PendingActivityEventsQueue } from "@/elasticsearch/indexes/activities/p
 
 import { config } from "@/config/index";
 import cron from "node-cron";
-import { redlock } from "@/common/redis";
+import { redis, redlock } from "@/common/redis";
 import { EventKind } from "@/jobs/activities/process-activity-event-job";
 
 export type ProcessActivityEventsJobPayload = {
@@ -27,7 +27,9 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
     const pendingActivitiesQueue = new PendingActivitiesQueue();
     const pendingActivityEventsQueue = new PendingActivityEventsQueue(eventKind);
 
-    const pendingActivityEvents = await pendingActivityEventsQueue.get(50);
+    const limit = Number(await redis.get(`${this.queueName}-limit`)) || 50;
+
+    const pendingActivityEvents = await pendingActivityEventsQueue.get(limit);
 
     if (pendingActivityEvents.length > 0) {
       try {
@@ -44,6 +46,7 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
           JSON.stringify({
             message: `Generated ${activities.length} activities`,
             activities,
+            limit,
             latency: endGenerateActivities - startGenerateActivities,
           })
         );
