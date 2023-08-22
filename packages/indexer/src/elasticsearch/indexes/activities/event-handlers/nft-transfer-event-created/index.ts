@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { fromBuffer, toBuffer } from "@/common/utils";
-import { idb, pgp } from "@/common/db";
+import { idb } from "@/common/db";
 
 import { ActivityDocument, ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { getActivityHash } from "@/elasticsearch/indexes/activities/utils";
@@ -100,16 +100,21 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
   static async generateActivities(events: NftTransferEventInfo[]): Promise<ActivityDocument[]> {
     const activities: ActivityDocument[] = [];
 
-    const data = events.map((event) => ({
-      txHash: `'${_.replace(event.txHash, "0x", "\\x")}'`,
-      logIndex: event.logIndex.toString(),
-      batchIndex: event.batchIndex.toString(),
-    }));
-    const values = pgp.helpers.values(data, ["txHash", "logIndex", "batchIndex"]);
+    const eventsFilter = [];
+
+    for (const event of events) {
+      eventsFilter.push(
+        `('${_.replace(
+          event.txHash,
+          "0x",
+          "\\x"
+        )}', '${event.logIndex.toString()}', '${event.batchIndex.toString()}')`
+      );
+    }
 
     const query = `
                 ${NftTransferEventCreatedEventHandler.buildBaseQuery()}
-                WHERE (tx_hash,log_index, batch_index) IN (${values});  
+                WHERE (tx_hash,log_index, batch_index) IN ($/eventsFilter:raw/);  
                 `;
 
     logger.info(
@@ -121,7 +126,7 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
       })
     );
 
-    const results = await idb.manyOrNone(query);
+    const results = await idb.manyOrNone(query, { eventsFilter: _.join(eventsFilter, ",") });
 
     for (const result of results) {
       const eventHandler = new NftTransferEventCreatedEventHandler(
