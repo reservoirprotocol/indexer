@@ -2,13 +2,12 @@ import { logger } from "@/common/logger";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
-import { FillEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/fill-event-created";
-import { NftTransferEventInfo } from "@/elasticsearch/indexes/activities/event-handlers/nft-transfer-event-created";
 import { AskCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-created";
 import { BidCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-created";
 import { BidCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-cancelled";
 import { AskCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-cancelled";
 import { PendingActivityEventsQueue } from "@/elasticsearch/indexes/activities/pending-activity-events-queue";
+import { NftTransferEventInfo } from "@/elasticsearch/indexes/activities/event-handlers/base";
 
 export enum EventKind {
   fillEvent = "fillEvent",
@@ -95,12 +94,18 @@ export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
 
     switch (kind) {
       case EventKind.fillEvent:
-        eventHandler = new FillEventCreatedEventHandler(
-          data.transactionHash,
-          data.logIndex,
-          data.batchIndex
-        );
-        break;
+        await new PendingActivityEventsQueue(EventKind.fillEvent).add([
+          {
+            kind: EventKind.fillEvent,
+            data: {
+              txHash: data.transactionHash,
+              logIndex: data.logIndex,
+              batchIndex: data.batchIndex,
+            } as NftTransferEventInfo,
+          },
+        ]);
+
+        return;
       case EventKind.nftTransferEvent:
         await new PendingActivityEventsQueue(EventKind.nftTransferEvent).add([
           {
