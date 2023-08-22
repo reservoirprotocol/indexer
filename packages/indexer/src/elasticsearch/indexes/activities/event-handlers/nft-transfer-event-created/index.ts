@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { fromBuffer, toBuffer } from "@/common/utils";
-import { idb } from "@/common/db";
+import { idb, pgp } from "@/common/db";
 
 import { ActivityDocument, ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { getActivityHash } from "@/elasticsearch/indexes/activities/utils";
@@ -99,15 +99,16 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
   static async generateActivities(events: NftTransferEventInfo[]): Promise<ActivityDocument[]> {
     const activities: ActivityDocument[] = [];
 
-    const values = events.map((event) => ({
+    const data = events.map((event) => ({
       txHash: toBuffer(event.txHash),
       logIndex: event.logIndex.toString(),
       batchIndex: event.batchIndex.toString(),
     }));
+    const values = pgp.helpers.values(data, ["txHash", "logIndex", "batchIndex"]);
 
     const query = `
                 ${NftTransferEventCreatedEventHandler.buildBaseQuery()}
-                WHERE (tx_hash,log_index, batch_index) IN ($/values:list/);  
+                WHERE (tx_hash,log_index, batch_index) IN ($/values/);  
                 `;
 
     logger.info(
