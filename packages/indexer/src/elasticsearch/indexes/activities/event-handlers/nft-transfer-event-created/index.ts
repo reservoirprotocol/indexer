@@ -8,6 +8,7 @@ import { getActivityHash } from "@/elasticsearch/indexes/activities/utils";
 import { BaseActivityEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/base";
 import { getNetworkSettings } from "@/config/network";
 import { logger } from "@/common/logger";
+import PgPromise from "pg-promise";
 
 export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandler {
   public txHash: string;
@@ -103,6 +104,7 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
       logIndex: event.logIndex.toString(),
       batchIndex: event.batchIndex.toString(),
     }));
+
     const values = pgp.helpers.values(data, ["txHash", "logIndex", "batchIndex"]);
     const query = `
                 ${NftTransferEventCreatedEventHandler.buildBaseQuery()}
@@ -114,9 +116,7 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
       JSON.stringify({
         method: "generateActivities",
         events,
-        data,
-        values,
-        query,
+        query: PgPromise.as.format(query, { values }),
       })
     );
 
