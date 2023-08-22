@@ -10,6 +10,9 @@ import cron from "node-cron";
 import { redis, redlock } from "@/common/redis";
 import { EventKind } from "@/jobs/activities/process-activity-event-job";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
+import { NftTransferEventInfo } from "@/elasticsearch/indexes/activities/event-handlers/base";
+import { FillEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/fill-event-created";
+import { ActivityDocument } from "@/elasticsearch/indexes/activities/base";
 
 export type ProcessActivityEventsJobPayload = {
   eventKind: EventKind;
@@ -38,22 +41,35 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
       try {
         const startGenerateActivities = Date.now();
 
-        const activities = await NftTransferEventCreatedEventHandler.generateActivities(
-          pendingActivityEvents.map((event) => event.data)
-        );
+        let activities: ActivityDocument[] = [];
+
+        switch (eventKind) {
+          case EventKind.nftTransferEvent:
+            activities = await NftTransferEventCreatedEventHandler.generateActivities(
+              pendingActivityEvents.map((event) => event.data as NftTransferEventInfo)
+            );
+            break;
+          case EventKind.fillEvent:
+            activities = await FillEventCreatedEventHandler.generateActivities(
+              pendingActivityEvents.map((event) => event.data as NftTransferEventInfo)
+            );
+            break;
+        }
 
         const endGenerateActivities = Date.now();
 
         logger.info(
           this.queueName,
           JSON.stringify({
-            message: `Generated ${activities.length} activities`,
+            message: `Generated ${activities?.length} activities`,
+            activities,
+            eventKind,
             limit,
             latency: endGenerateActivities - startGenerateActivities,
           })
         );
 
-        if (activities.length) {
+        if (activities?.length) {
           await pendingActivitiesQueue.add(activities);
         }
       } catch (error) {
@@ -96,7 +112,11 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
     async () =>
       await redlock
         .acquire([`${processActivityEventsJob.queueName}-cron-lock`], (5 - 1) * 1000)
-        .then(async () => processActivityEventsJob.addToQueue(EventKind.nftTransferEvent))
+        .then(async () => {
+          for (const eventKind of Object.values(EventKind)) {
+            await processActivityEventsJob.addToQueue(eventKind);
+          }
+        })
         .catch(() => {
           // Skip on any errors
         })

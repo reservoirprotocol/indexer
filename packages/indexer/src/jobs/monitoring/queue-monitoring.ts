@@ -40,19 +40,19 @@ if (config.doBackgroundWork) {
             })
           );
 
-          const pendingActivityEventsQueue = new PendingActivityEventsQueue(
-            EventKind.nftTransferEvent
-          );
-          const pendingActivityEventsQueueCount = await pendingActivityEventsQueue.count();
+          for (const eventKind of Object.values(EventKind)) {
+            const pendingActivityEventsQueue = new PendingActivityEventsQueue(eventKind);
+            const pendingActivityEventsQueueCount = await pendingActivityEventsQueue.count();
 
-          logger.info(
-            "pending-activity-events-queue-metric",
-            JSON.stringify({
-              topic: "queue-monitoring",
-              eventKind: EventKind.nftTransferEvent,
-              pendingActivityEventsQueueCount,
-            })
-          );
+            logger.info(
+              "pending-activity-events-queue-metric",
+              JSON.stringify({
+                topic: "queue-monitoring",
+                eventKind,
+                pendingActivityEventsQueueCount,
+              })
+            );
+          }
         })
         .catch(() => {
           // Skip on any errors

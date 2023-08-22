@@ -22,3 +22,16 @@ export abstract class BaseActivityEventHandler {
     return new ActivityBuilder().buildDocument(data);
   }
 }
+
+export interface NftTransferEventInfo {
+  txHash: string;
+  logIndex: number;
+  batchIndex: number;
+}
+
+export interface OrderEventInfo {
+  orderId: string;
+  txHash?: string;
+  logIndex?: number;
+  batchIndex?: number;
+}
