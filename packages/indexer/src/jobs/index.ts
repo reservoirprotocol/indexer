@@ -34,6 +34,7 @@ import * as backfillSaleRoyalties from "@/jobs/backfill/backfill-sale-royalties"
 import * as tokenWebsocketEventsTriggerQueue from "@/jobs/websocket-events/token-websocket-events-trigger-queue";
 import * as backfillSalePricingDecimalElasticsearch from "@/jobs/activities/backfill/backfill-sales-pricing-decimal-elasticsearch";
 import * as blockGapCheck from "@/jobs/events-sync/block-gap-check";
+import * as backfillRefreshCollectionsCreator from "@/jobs/backfill/backfill-refresh-collections-creator";
 
 import amqplib from "amqplib";
 import { config } from "@/config/index";
@@ -155,6 +156,7 @@ export const allJobQueues = [
   tokenWebsocketEventsTriggerQueue.queue,
   backfillSalePricingDecimalElasticsearch.queue,
   blockGapCheck.queue,
+  backfillRefreshCollectionsCreator.queue,
 ];
 
 export class RabbitMqJobsConsumer {

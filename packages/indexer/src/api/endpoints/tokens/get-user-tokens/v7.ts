@@ -94,7 +94,7 @@ export const getUserTokensV7Options: RouteOptions = {
         .valid("acquiredAt", "lastAppraisalValue")
         .default("acquiredAt")
         .description(
-          "Order the items are returned in the response. Options are `acquiredAt` and `lastAppraisalValue`."
+          "Order the items are returned in the response. Options are `acquiredAt` and `lastAppraisalValue`. `lastAppraisalValue` is the value of the last sale."
         ),
       sortDirection: Joi.string()
         .lowercase()
@@ -182,7 +182,7 @@ export const getUserTokensV7Options: RouteOptions = {
             })
               .optional()
               .description("Can be null if not active bids."),
-            lastAppraisalValue: Joi.number().unsafe().allow(null).description("Can be null."),
+            lastAppraisalValue: Joi.number().unsafe().allow(null).description("The value of the last sale.Can be null."),
             attributes: Joi.array()
               .items(
                 Joi.object({
