@@ -162,11 +162,6 @@ export const allJobQueues = [
 export class RabbitMqJobsConsumer {
   private static maxConsumerConnectionsCount = 5;
 
-  private static rabbitMqConsumerConnections: AmqpConnectionManager[] = [];
-  private static queueToChannel: Map<string, ChannelWrapper> = new Map();
-  private static sharedChannels: Map<string, ChannelWrapper> = new Map();
-  private static channelsToJobs: Map<ChannelWrapper, AbstractRabbitMqJobHandler[]> = new Map();
-
   private static rabbitMqConsumerVhostConnections: AmqpConnectionManager[] = [];
   private static vhostQueueToChannel: Map<string, ChannelWrapper> = new Map();
   private static vhostSharedChannels: Map<string, ChannelWrapper> = new Map();
@@ -285,29 +280,6 @@ export class RabbitMqJobsConsumer {
     return `${RabbitMqJobsConsumer.sharedChannelName}:${connectionIndex}`;
   }
 
-  public static async connect() {
-    for (let i = 0; i < RabbitMqJobsConsumer.maxConsumerConnectionsCount; ++i) {
-      const connection = amqplibConnectionManager.connect(config.rabbitMqUrl, {
-        reconnectTimeInSeconds: 5,
-        heartbeatIntervalInSeconds: 30,
-      });
-
-      RabbitMqJobsConsumer.rabbitMqConsumerConnections.push(connection);
-
-      const sharedChannel = connection.createChannel({ confirm: false });
-
-      // Create a shared channel for each connection
-      RabbitMqJobsConsumer.sharedChannels.set(
-        RabbitMqJobsConsumer.getSharedChannelName(i),
-        sharedChannel
-      );
-
-      connection.once("error", (error) => {
-        logger.error("rabbit-error", `Consumer connection error ${error}`);
-      });
-    }
-  }
-
   public static async connectToVhost() {
     for (let i = 0; i < RabbitMqJobsConsumer.maxConsumerConnectionsCount; ++i) {
       const connection = amqplibConnectionManager.connect(
@@ -345,72 +317,6 @@ export class RabbitMqJobsConsumer {
    */
   public static getConsumerTag(queueName: string) {
     return getUuidByString(`${getMachineId()}${queueName}`);
-  }
-
-  /**
-   * Subscribing to a given job
-   * @param job
-   */
-  public static async subscribe(job: AbstractRabbitMqJobHandler) {
-    // Check if the queue is paused
-    const pausedQueues = await PausedRabbitMqQueues.getPausedQueues();
-    if (_.indexOf(pausedQueues, job.getQueue()) !== -1) {
-      logger.warn("rabbit-subscribe", `${job.getQueue()} is paused`);
-      return;
-    }
-
-    let channel: ChannelWrapper;
-    const connectionIndex = _.random(0, RabbitMqJobsConsumer.maxConsumerConnectionsCount - 1);
-    const sharedChannel = RabbitMqJobsConsumer.sharedChannels.get(
-      RabbitMqJobsConsumer.getSharedChannelName(connectionIndex)
-    );
-
-    // Some queues can use a shared channel as they are less important with low traffic
-    if (job.getUseSharedChannel() && sharedChannel) {
-      channel = sharedChannel;
-    } else {
-      channel = RabbitMqJobsConsumer.rabbitMqConsumerConnections[connectionIndex].createChannel({
-        confirm: false,
-      });
-      await channel.waitForConnect();
-    }
-
-    const queue = `${getNetworkName()}.${job.queueName}`;
-
-    // Check if the queue exist
-    try {
-      await channel.checkQueue(queue);
-    } catch (error) {
-      return;
-    }
-
-    RabbitMqJobsConsumer.queueToChannel.set(job.getQueue(), channel);
-
-    RabbitMqJobsConsumer.channelsToJobs.get(channel)
-      ? RabbitMqJobsConsumer.channelsToJobs.get(channel)?.push(job)
-      : RabbitMqJobsConsumer.channelsToJobs.set(channel, [job]);
-
-    // Subscribe to the queue
-    await channel.consume(
-      queue,
-      async (msg) => {
-        if (!_.isNull(msg)) {
-          await _.clone(job)
-            .consume(channel, msg)
-            .catch((error) => {
-              logger.error(
-                "rabbit-consume",
-                `error consuming from ${job.queueName} error ${error}`
-              );
-            });
-        }
-      },
-      {
-        consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getQueue()),
-        prefetch: job.getConcurrency(),
-        noAck: false,
-      }
-    );
   }
 
   /**
@@ -489,21 +395,17 @@ export class RabbitMqJobsConsumer {
    */
   static async startRabbitJobsConsumer(): Promise<void> {
     try {
-      await RabbitMqJobsConsumer.connect(); // Create a connection for the consumer
       await RabbitMqJobsConsumer.connectToVhost(); // Create a connection for the consumer
 
-      const subscribePromises = [];
       const subscribeToVhostPromises = [];
 
       try {
         for (const queue of RabbitMqJobsConsumer.getQueues()) {
           if (!queue.isDisableConsuming()) {
-            subscribePromises.push(RabbitMqJobsConsumer.subscribe(queue));
             subscribeToVhostPromises.push(RabbitMqJobsConsumer.subscribeToVhost(queue));
           }
         }
 
-        await Promise.all(subscribePromises);
         await Promise.all(subscribeToVhostPromises);
       } catch (error) {
         logger.error("rabbit-subscribe", `failed to subscribe error ${error}`);
@@ -513,19 +415,15 @@ export class RabbitMqJobsConsumer {
     }
   }
 
-  static async retryQueue(queueName: string, vhost = "/") {
+  static async retryQueue(queueName: string) {
     const job = _.find(RabbitMqJobsConsumer.getQueues(), (queue) => queue.getQueue() === queueName);
 
     if (job) {
-      let deadLetterQueue = job.getDeadLetterQueue();
-
-      if (vhost === "/") {
-        deadLetterQueue = `${getNetworkName()}.${deadLetterQueue}`;
-      }
+      const deadLetterQueue = job.getDeadLetterQueue();
 
       const deadLetterQueueSize = await RabbitMq.getQueueSize(
         `${deadLetterQueue}`,
-        vhost === "/" ? undefined : vhost
+        getNetworkName()
       );
 
       // No messages in the dead letter queue
@@ -537,7 +435,7 @@ export class RabbitMqJobsConsumer {
         hostname: config.rabbitHostname,
         username: config.rabbitUsername,
         password: config.rabbitPassword,
-        vhost,
+        vhost: getNetworkName(),
       });
 
       const channel = await connection.createChannel();

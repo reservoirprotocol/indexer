@@ -20,7 +20,6 @@ export const postRetryRabbitQueue: RouteOptions = {
     }).options({ allowUnknown: true }),
     payload: Joi.object({
       queueName: Joi.string().description("The queue name to retry").required(),
-      vhost: Joi.string().default("/"),
     }),
   },
   handler: async (request: Request) => {
@@ -31,10 +30,7 @@ export const postRetryRabbitQueue: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      const retriedMessagesCount = await RabbitMqJobsConsumer.retryQueue(
-        payload.queueName,
-        payload.vhost
-      );
+      const retriedMessagesCount = await RabbitMqJobsConsumer.retryQueue(payload.queueName);
 
       return {
         message: `${retriedMessagesCount} messages in ${payload.queueName} on vhost ${payload.vhost} sent to retry`,
