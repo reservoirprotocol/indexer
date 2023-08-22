@@ -24,43 +24,15 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: ProcessActivityEventsJobPayload) {
     const { eventKind } = payload;
 
-    logger.info(
-      this.queueName,
-      JSON.stringify({
-        message: `Start. eventKind=${eventKind}`,
-        eventKind,
-      })
-    );
-
     const pendingActivitiesQueue = new PendingActivitiesQueue();
     const pendingActivityEventsQueue = new PendingActivityEventsQueue(eventKind);
 
     const pendingActivityEvents = await pendingActivityEventsQueue.get(50);
 
-    logger.info(
-      this.queueName,
-      JSON.stringify({
-        message: `Pending activity events. eventKind=${eventKind}`,
-        eventKind,
-        pendingActivityEvents,
-        pendingActivityEventsCount: pendingActivityEvents?.length,
-      })
-    );
-
     if (pendingActivityEvents.length > 0) {
       try {
         const activities = await NftTransferEventCreatedEventHandler.generateActivities(
           pendingActivityEvents.map((event) => event.data)
-        );
-
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            message: `activities. eventKind=${eventKind}`,
-            eventKind,
-            activities,
-            activitiesCount: activities?.length,
-          })
         );
 
         if (activities.length) {
@@ -75,6 +47,8 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue(eventKind: EventKind) {
+    return;
+
     if (!config.doElasticsearchWork) {
       return;
     }
