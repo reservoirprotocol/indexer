@@ -76,16 +76,13 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           ]),
         });
 
-        await redis.hincrby(
-          `backfill-activities-elasticsearch-job-backfilled:${type}`,
-          `${fromTimestamp}:${toTimestamp}`,
-          activities.length
-        );
-
-        await redis.incrby(
-          `backfill-activities-elasticsearch-job-backfilled-total:${type}`,
-          activities.length
-        );
+        if (!keepGoing) {
+          await redis.hset(
+            `backfill-activities-elasticsearch-job:${type}`,
+            `${fromTimestamp}:${toTimestamp}`,
+            JSON.stringify({ fromTimestamp, toTimestamp, cursor: nextCursor })
+          );
+        }
 
         logger.info(
           this.queueName,

@@ -105,6 +105,12 @@ export const CONFIG_1689873821 = {
   mappings: {
     dynamic: "false",
     properties: {
+      chain: {
+        properties: {
+          id: { type: "integer" },
+          name: { type: "keyword" },
+        },
+      },
       id: { type: "keyword" },
       createdAt: { type: "date" },
       indexedAt: { type: "date" },

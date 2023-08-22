@@ -93,25 +93,27 @@ export const postRefreshCollectionOptions: RouteOptions = {
         await Collections.update(payload.collection, { lastMetadataSync: currentUtcTime });
 
         // Update the collection id of any missing tokens
-        await edb.none(
-          `
-          WITH x AS (
-            SELECT
-              collections.contract,
-              collections.token_id_range
-            FROM collections
-            WHERE collections.id = $/collection/
-          )
-          UPDATE tokens SET
-            collection_id = $/collection/,
-            updated_at = now()
-          FROM x
-          WHERE tokens.contract = x.contract
-            AND tokens.token_id <@ x.token_id_range
-            AND tokens.collection_id IS NULL
-        `,
-          { collection: payload.collection }
-        );
+        if (collection.tokenIdRange !== null) {
+          await edb.none(
+            `
+            WITH x AS (
+              SELECT
+                collections.contract,
+                collections.token_id_range
+              FROM collections
+              WHERE collections.id = $/collection/
+            )
+            UPDATE tokens SET
+              collection_id = $/collection/,
+              updated_at = now()
+            FROM x
+            WHERE tokens.contract = x.contract
+              AND tokens.token_id <@ x.token_id_range
+              AND tokens.collection_id IS NULL
+          `,
+            { collection: payload.collection }
+          );
+        }
 
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);

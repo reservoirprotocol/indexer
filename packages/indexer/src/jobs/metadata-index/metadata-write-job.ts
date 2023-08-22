@@ -49,7 +49,7 @@ export type MetadataIndexWriteJobPayload = {
 export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
   queueName = "metadata-index-write-queue";
   maxRetries = 10;
-  concurrency = 30;
+  concurrency = 40;
   lazyMode = true;
   consumerTimeout = 60000;
   backoff = {
@@ -58,6 +58,8 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
   } as BackoffStrategy;
 
   protected async process(payload: MetadataIndexWriteJobPayload) {
+    // const startTime = Date.now();
+
     const tokenAttributeCounter = {};
 
     const {
@@ -77,6 +79,8 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       isCopyrightInfringement,
       attributes,
     } = payload;
+
+    // const startSaveTokenMetadataTime = Date.now();
 
     // Update the token's metadata
     const result = await idb.oneOrNone(
@@ -121,6 +125,8 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
         media: mediaUrl || null,
       }
     );
+
+    // const endSaveTokenMetadataTime = Date.now();
 
     // Skip if there is no associated entry in the `tokens` table
     if (!result) {
@@ -190,6 +196,8 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
         },
       ]);
     }
+
+    // const startHandleTokenAttributesTime = Date.now();
 
     // Fetch all existing keys
     const addedTokenAttributes = [];
@@ -433,6 +441,8 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       }
     );
 
+    // const endHandleTokenAttributesTime = Date.now();
+
     // Schedule attribute refresh
     _.forEach(removedTokenAttributes, (attribute) => {
       (tokenAttributeCounter as any)[attribute.attribute_id] = -1;
@@ -458,11 +468,32 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
     if (!_.isEmpty(tokenAttributeCounter)) {
       await resyncAttributeCountsJob.addToQueue({ tokenAttributeCounter });
     }
+
+    // const endTime = Date.now();
+    //
+    // if (config.chainId === 8453) {
+    //   logger.info(
+    //     this.queueName,
+    //     JSON.stringify({
+    //       message: `Latencies`,
+    //       payload,
+    //       times: {
+    //         saveTokenMetadataTime: endSaveTokenMetadataTime - startSaveTokenMetadataTime,
+    //         handleTokenAttributesTime: endHandleTokenAttributesTime - startHandleTokenAttributesTime,
+    //         totalTime: endTime - startTime,
+    //       }
+    //     })
+    //   );
+    // }
   }
 
   public updateActivities(contract: string) {
     if (config.chainId === 1) {
       return _.indexOf(["0x82c7a8f707110f5fbb16184a5933e9f78a34c6ab"], contract) === -1;
+    }
+
+    if (config.chainId === 137) {
+      return _.indexOf(["0x2953399124f0cbb46d2cbacd8a89cf0599974963"], contract) === -1;
     }
 
     return true;

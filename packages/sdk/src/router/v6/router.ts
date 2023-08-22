@@ -780,7 +780,8 @@ export class Router {
       const operator = exchange.contract.address;
 
       // Use the gas-efficient sweep method when all listings are from the same collection
-      const useSweepCollection = details.every((c) => c.contract === details[0].contract);
+      const useSweepCollection =
+        details.length > 1 && details.every((c) => c.contract === details[0].contract);
 
       let approval: FTApproval | undefined;
       if (!isETH(this.chainId, details[0].currency)) {
