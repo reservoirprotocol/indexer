@@ -80,6 +80,8 @@ import { dailyVolumeJob } from "@/jobs/daily-volumes/daily-volumes-job";
 import { processArchiveDataJob } from "@/jobs/data-archive/process-archive-data-job";
 import { exportDataJob } from "@/jobs/data-export/export-data-job";
 import { processActivityEventJob } from "@/jobs/activities/process-activity-event-job";
+import { processActivityEventsJob } from "@/jobs/activities/process-activity-events-job";
+
 import { savePendingActivitiesJob } from "@/jobs/activities/save-pending-activities-job";
 import { deleteArchivedExpiredBidActivitiesJob } from "@/jobs/activities/delete-archived-expired-bid-activities-job";
 import { backfillActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-activities-elasticsearch-job";
@@ -211,6 +213,7 @@ export class RabbitMqJobsConsumer {
       processArchiveDataJob,
       exportDataJob,
       processActivityEventJob,
+      processActivityEventsJob,
       savePendingActivitiesJob,
       eventsSyncFtTransfersWriteBufferJob,
       eventsSyncNftTransfersWriteBufferJob,
