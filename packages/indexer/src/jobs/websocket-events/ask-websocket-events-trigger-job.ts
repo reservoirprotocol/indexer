@@ -85,6 +85,18 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         source = sources.get(Number(data.after.source_id_int));
       }
 
+      // Debugging blur orders
+      if (data.after.kind == "blur" && data.trigger === "update") {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            fillabilityStatus: data.after.fillability_status,
+            approvalStatus: data.after.approval_status,
+            status: formatStatus(data.after.fillability_status, data.after.approval_status),
+          })
+        );
+      }
+
       const result = {
         id: data.after.id,
         kind: data.after.kind,
@@ -133,7 +145,7 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         },
         feeBps: Number(data.after.fee_bps.toString()),
         feeBreakdown: data.after.fee_breakdown ? JSON.parse(data.after.fee_breakdown) : undefined,
-        expiration: new Date(data.after.expiration).getTime() / 1000,
+        expiration: Math.floor(new Date(data.after.expiration).getTime() / 1000),
         isReservoir: data.after.is_reservoir,
         isDynamic: Boolean(data.after.dynamic || data.after.kind === "sudoswap"),
         createdAt: new Date(data.after.created_at).toISOString(),

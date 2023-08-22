@@ -4,8 +4,8 @@ export const formatValidBetween = (validBetween: string) => {
   try {
     const parsed = JSON.parse(validBetween.replace("infinity", "null"));
     return {
-      validFrom: new Date(parsed[0]).getTime() / 1000,
-      validUntil: new Date(parsed[1]).getTime() / 1000,
+      validFrom: Math.floor(new Date(parsed[0]).getTime() / 1000),
+      validUntil: Math.floor(new Date(parsed[1]).getTime() / 1000),
     };
   } catch (error) {
     return {
