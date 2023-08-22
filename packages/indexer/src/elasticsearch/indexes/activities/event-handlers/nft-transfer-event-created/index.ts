@@ -1,15 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import _ from "lodash";
 
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { idb } from "@/common/db";
+import { logger } from "@/common/logger";
 
 import { ActivityDocument, ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { getActivityHash } from "@/elasticsearch/indexes/activities/utils";
 import { BaseActivityEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/base";
 import { getNetworkSettings } from "@/config/network";
-import { logger } from "@/common/logger";
-import PgPromise from "pg-promise";
-import _ from "lodash";
 
 export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandler {
   public txHash: string;
@@ -108,32 +107,36 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
       );
     }
 
-    const query = `
+    const results = await idb.manyOrNone(
+      `
                 ${NftTransferEventCreatedEventHandler.buildBaseQuery()}
                 WHERE (tx_hash,log_index, batch_index) IN ($/eventsFilter:raw/);  
-                `;
-
-    logger.info(
-      "NftTransferEventCreatedEventHandler",
-      JSON.stringify({
-        method: "generateActivities",
-        events,
-        query: PgPromise.as.format(query),
-      })
+                `,
+      { eventsFilter: _.join(eventsFilter, ",") }
     );
 
-    const results = await idb.manyOrNone(query, { eventsFilter: _.join(eventsFilter, ",") });
-
     for (const result of results) {
-      const eventHandler = new NftTransferEventCreatedEventHandler(
-        result.event_tx_hash,
-        result.event_log_index,
-        result.event_batch_index
-      );
+      try {
+        const eventHandler = new NftTransferEventCreatedEventHandler(
+          result.event_tx_hash,
+          result.event_log_index,
+          result.event_batch_index
+        );
 
-      const activity = eventHandler.buildDocument(result);
+        const activity = eventHandler.buildDocument(result);
 
-      activities.push(activity);
+        activities.push(activity);
+      } catch (error) {
+        logger.error(
+          "nft-transfer-event-created-event-handler",
+          JSON.stringify({
+            topic: "generate-activities",
+            message: `Error build document. error=${error}`,
+            result,
+            error,
+          })
+        );
+      }
     }
 
     return activities;

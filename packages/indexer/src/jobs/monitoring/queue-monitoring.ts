@@ -23,6 +23,7 @@ if (config.doBackgroundWork) {
           logger.info(
             "pending-refresh-tokens-metric",
             JSON.stringify({
+              topic: "queue-monitoring",
               metadataIndexingMethod: config.metadataIndexingMethod,
               pendingRefreshTokensCount,
             })
@@ -34,6 +35,7 @@ if (config.doBackgroundWork) {
           logger.info(
             "pending-activities-queue-metric",
             JSON.stringify({
+              topic: "queue-monitoring",
               pendingActivitiesQueueCount,
             })
           );
@@ -46,6 +48,8 @@ if (config.doBackgroundWork) {
           logger.info(
             "pending-activity-events-queue-metric",
             JSON.stringify({
+              topic: "queue-monitoring",
+              eventKind: EventKind.nftTransferEvent,
               pendingActivityEventsQueueCount,
             })
           );
