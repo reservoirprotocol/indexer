@@ -9,6 +9,7 @@ import { BaseActivityEventHandler } from "@/elasticsearch/indexes/activities/eve
 import { getNetworkSettings } from "@/config/network";
 import { logger } from "@/common/logger";
 import PgPromise from "pg-promise";
+import _ from "lodash";
 
 export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandler {
   public txHash: string;
@@ -100,7 +101,7 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
     const activities: ActivityDocument[] = [];
 
     const data = events.map((event) => ({
-      txHash: toBuffer(event.txHash),
+      txHash: `'${_.replace(event.txHash, "0x", "\\x")}'`,
       logIndex: event.logIndex.toString(),
       batchIndex: event.batchIndex.toString(),
     }));
@@ -108,7 +109,7 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
 
     const query = `
                 ${NftTransferEventCreatedEventHandler.buildBaseQuery()}
-                WHERE (tx_hash,log_index, batch_index) IN ($/values/);  
+                WHERE (tx_hash,log_index, batch_index) IN (${values});  
                 `;
 
     logger.info(
@@ -116,13 +117,11 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
       JSON.stringify({
         method: "generateActivities",
         events,
-        query: PgPromise.as.format(query, { values }),
+        query: PgPromise.as.format(query),
       })
     );
 
-    const results = await idb.manyOrNone(query, {
-      values,
-    });
+    const results = await idb.manyOrNone(query);
 
     for (const result of results) {
       const eventHandler = new NftTransferEventCreatedEventHandler(
