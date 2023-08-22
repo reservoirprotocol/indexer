@@ -103,7 +103,7 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         id: data.after.id,
         kind: data.after.kind,
         side: data.after.side,
-        status: formatStatus(data.after.fillability_status),
+        status: formatStatus(data.after.fillability_status, data.after.approval_status),
         tokenSetId: data.after.token_set_id,
         tokenSetSchemaHash: data.after.token_set_schema_hash,
         nonce: data.after.nonce,
