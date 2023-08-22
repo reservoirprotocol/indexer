@@ -74,12 +74,12 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
     }
   }
 
-  public async addToQueue() {
+  public async addToQueue(eventKind: EventKind) {
     if (!config.doElasticsearchWork) {
       return;
     }
 
-    await this.send();
+    await this.send({ payload: { eventKind } });
   }
 }
 
@@ -91,7 +91,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
     async () =>
       await redlock
         .acquire([`${processActivityEventsJob.queueName}-cron-lock`], (5 - 1) * 1000)
-        .then(async () => processActivityEventsJob.addToQueue())
+        .then(async () => processActivityEventsJob.addToQueue(EventKind.nftTransferEvent))
         .catch(() => {
           // Skip on any errors
         })
