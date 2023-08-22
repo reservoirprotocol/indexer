@@ -98,17 +98,31 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
   static async generateActivities(events: NftTransferEventInfo[]): Promise<ActivityDocument[]> {
     const activities: ActivityDocument[] = [];
 
-    const values = pgp.helpers.values(events, ["txHash", "logIndex", "batchIndex"]);
-
-    const results = await idb.manyOrNone(
-      `
+    const data = events.map((event) => ({
+      txHash: toBuffer(event.txHash),
+      logIndex: event.logIndex.toString(),
+      batchIndex: event.batchIndex.toString(),
+    }));
+    const values = pgp.helpers.values(data, ["txHash", "logIndex", "batchIndex"]);
+    const query = `
                 ${NftTransferEventCreatedEventHandler.buildBaseQuery()}
                 WHERE (tx_hash,log_index, batch_index) IN ($/values:list/);  
-                `,
-      {
+                `;
+
+    logger.info(
+      "NftTransferEventCreatedEventHandler",
+      JSON.stringify({
+        method: "generateActivities",
+        events,
+        data,
         values,
-      }
+        query,
+      })
     );
+
+    const results = await idb.manyOrNone(query, {
+      values,
+    });
 
     for (const result of results) {
       const eventHandler = new NftTransferEventCreatedEventHandler(
