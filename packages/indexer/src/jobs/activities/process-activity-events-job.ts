@@ -9,6 +9,7 @@ import { config } from "@/config/index";
 import cron from "node-cron";
 import { redis, redlock } from "@/common/redis";
 import { EventKind } from "@/jobs/activities/process-activity-event-job";
+import { RabbitMQMessage } from "@/common/rabbit-mq";
 
 export type ProcessActivityEventsJobPayload = {
   eventKind: EventKind;
@@ -24,6 +25,8 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: ProcessActivityEventsJobPayload) {
     const { eventKind } = payload;
 
+    let addToQueue = false;
+
     const pendingActivitiesQueue = new PendingActivitiesQueue();
     const pendingActivityEventsQueue = new PendingActivityEventsQueue(eventKind);
 
@@ -32,6 +35,8 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
     const pendingActivityEvents = await pendingActivityEventsQueue.get(limit);
 
     if (pendingActivityEvents.length > 0) {
+      const pendingActivityEventsCount = await pendingActivityEventsQueue.count();
+
       try {
         const startGenerateActivities = Date.now();
 
@@ -45,7 +50,7 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
           this.queueName,
           JSON.stringify({
             message: `Generated ${activities.length} activities`,
-            activities,
+            pendingActivityEventsCount,
             limit,
             latency: endGenerateActivities - startGenerateActivities,
           })
@@ -59,7 +64,22 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
 
         await pendingActivityEventsQueue.add(pendingActivityEvents);
       }
+
+      addToQueue = pendingActivityEventsCount > pendingActivityEvents.length;
     }
+
+    return { addToQueue };
+  }
+
+  public events() {
+    this.once(
+      "onCompleted",
+      async (message: RabbitMQMessage, processResult: { addToQueue: boolean }) => {
+        if (processResult.addToQueue) {
+          await this.addToQueue(message.payload.eventKind);
+        }
+      }
+    );
   }
 
   public async addToQueue(eventKind: EventKind) {
@@ -67,7 +87,7 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
-    await this.send({ payload: { eventKind } });
+    await this.send({ payload: { eventKind }, jobId: eventKind });
   }
 }
 
