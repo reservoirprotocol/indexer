@@ -75,8 +75,6 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue(eventKind: EventKind) {
-    return;
-
     if (!config.doElasticsearchWork) {
       return;
     }
