@@ -182,7 +182,10 @@ export const getUserTokensV7Options: RouteOptions = {
             })
               .optional()
               .description("Can be null if not active bids."),
-            lastAppraisalValue: Joi.number().unsafe().allow(null).description("The value of the last sale.Can be null."),
+            lastAppraisalValue: Joi.number()
+              .unsafe()
+              .allow(null)
+              .description("The value of the last sale.Can be null."),
             attributes: Joi.array()
               .items(
                 Joi.object({
