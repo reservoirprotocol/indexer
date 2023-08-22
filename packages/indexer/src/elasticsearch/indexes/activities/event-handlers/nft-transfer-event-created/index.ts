@@ -104,11 +104,7 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
 
     for (const event of events) {
       eventsFilter.push(
-        `('${_.replace(
-          event.txHash,
-          "0x",
-          "\\x"
-        )}', '${event.logIndex.toString()}', '${event.batchIndex.toString()}')`
+        `('${_.replace(event.txHash, "0x", "\\x")}', '${event.logIndex}', '${event.batchIndex}')`
       );
     }
 
