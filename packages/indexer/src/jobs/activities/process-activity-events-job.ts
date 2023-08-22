@@ -31,8 +31,21 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
 
     if (pendingActivityEvents.length > 0) {
       try {
+        const startGenerateActivities = Date.now();
+
         const activities = await NftTransferEventCreatedEventHandler.generateActivities(
           pendingActivityEvents.map((event) => event.data)
+        );
+
+        const endGenerateActivities = Date.now();
+
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `Generated ${activities.length} activities`,
+            activities,
+            latency: endGenerateActivities - startGenerateActivities,
+          })
         );
 
         if (activities.length) {
