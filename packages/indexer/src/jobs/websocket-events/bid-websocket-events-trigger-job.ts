@@ -135,8 +135,8 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
           undefined
         ),
         ...formatValidBetween(data.after.valid_between),
-        quantityFilled: data.after.quantity_filled,
-        quantityRemaining: data.after.quantity_remaining,
+        quantityFilled: Number(data.after.quantity_filled),
+        quantityRemaining: Number(data.after.quantity_remaining),
         criteria: rawResult.criteria,
         source: {
           id: source?.address,
