@@ -67,39 +67,41 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      const exchange = new Contract(
-        Sdk.PaymentProcessor.Addresses.Exchange[config.chainId],
-        new Interface([
-          "function getTokenSecurityPolicyId(address collectionAddress) public view returns (uint256)",
-          `function getSecurityPolicy(uint256 securityPolicyId) public view returns (
-            (
-              bool enforceExchangeWhitelist,
-              bool enforcePaymentMethodWhitelist,
-              bool enforcePricingConstraints,
-              bool disablePrivateListings,
-              bool disableDelegatedPurchases,
-              bool disableEIP1271Signatures,
-              bool disableExchangeWhitelistEOABypass,
-              uint32 pushPaymentGasLimit,
-              address policyOwner
-            ) securityPolicy
-          )`,
-          "function isPaymentMethodApproved(uint256 securityPolicyId, address coin) public view returns (bool)",
-        ]),
-        baseProvider
-      );
-      const securityPolicyId = await exchange.getTokenSecurityPolicyId(order.params.tokenAddress);
-      const securityPolicy = await exchange.getSecurityPolicy(securityPolicyId);
-      if (securityPolicy.enforcePaymentMethodWhitelist) {
-        const isWhitelisted = await exchange.isPaymentMethodApproved(
-          securityPolicyId,
-          order.params.coin
+      if (order.params.coin !== Sdk.Common.Addresses.Native[config.chainId]) {
+        const exchange = new Contract(
+          Sdk.PaymentProcessor.Addresses.Exchange[config.chainId],
+          new Interface([
+            "function getTokenSecurityPolicyId(address collectionAddress) public view returns (uint256)",
+            `function getSecurityPolicy(uint256 securityPolicyId) public view returns (
+              (
+                bool enforceExchangeWhitelist,
+                bool enforcePaymentMethodWhitelist,
+                bool enforcePricingConstraints,
+                bool disablePrivateListings,
+                bool disableDelegatedPurchases,
+                bool disableEIP1271Signatures,
+                bool disableExchangeWhitelistEOABypass,
+                uint32 pushPaymentGasLimit,
+                address policyOwner
+              ) securityPolicy
+            )`,
+            "function isPaymentMethodApproved(uint256 securityPolicyId, address coin) public view returns (bool)",
+          ]),
+          baseProvider
         );
-        if (!isWhitelisted) {
-          return results.push({
-            id,
-            status: "payment-token-not-whitelisted",
-          });
+        const securityPolicyId = await exchange.getTokenSecurityPolicyId(order.params.tokenAddress);
+        const securityPolicy = await exchange.getSecurityPolicy(securityPolicyId);
+        if (securityPolicy.enforcePaymentMethodWhitelist) {
+          const isWhitelisted = await exchange.isPaymentMethodApproved(
+            securityPolicyId,
+            order.params.coin
+          );
+          if (!isWhitelisted) {
+            return results.push({
+              id,
+              status: "payment-token-not-whitelisted",
+            });
+          }
         }
       }
 
@@ -347,10 +349,13 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         status: "success",
         unfillable,
       });
-    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
       logger.error(
         "payment-processor",
-        `Failed to handle order with params ${JSON.stringify(orderParams)}: ${error}`
+        `Failed to handle order with params ${JSON.stringify(orderParams)}: ${error} (${
+          error.stack
+        })`
       );
     }
   };
