@@ -93,6 +93,7 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
             fillabilityStatus: data.after.fillability_status,
             approvalStatus: data.after.approval_status,
             status: formatStatus(data.after.fillability_status, data.after.approval_status),
+            orderId: data.after.id,
           })
         );
       }

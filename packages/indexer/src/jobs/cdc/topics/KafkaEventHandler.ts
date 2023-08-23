@@ -94,7 +94,7 @@ export abstract class KafkaEventHandler {
 
     const stringKeys = payload.source.table === "token_attributes" ? ["key", "value"] : [];
     if (payload.source.table === "orders") {
-      stringKeys.push("kind");
+      stringKeys.push("kind", "fillability_status", "approval_status");
     }
 
     // go through all the keys in the payload and convert any hex strings to strings
