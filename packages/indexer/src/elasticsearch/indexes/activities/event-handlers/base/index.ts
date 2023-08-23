@@ -27,6 +27,7 @@ export interface NftTransferEventInfo {
   txHash: string;
   logIndex: number;
   batchIndex: number;
+  transactionHash?: string;
 }
 
 export interface OrderEventInfo {
@@ -34,4 +35,5 @@ export interface OrderEventInfo {
   txHash?: string;
   logIndex?: number;
   batchIndex?: number;
+  transactionHash?: string;
 }

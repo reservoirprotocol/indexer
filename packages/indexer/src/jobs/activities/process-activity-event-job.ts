@@ -17,60 +17,32 @@ export enum EventKind {
 export type ProcessActivityEventJobPayload =
   | {
       kind: EventKind.newSellOrder;
-      data: {
-        orderId: string;
-        transactionHash?: string;
-        logIndex?: number;
-        batchIndex?: number;
-      };
+      data: OrderEventInfo;
       context?: string;
     }
   | {
       kind: EventKind.newBuyOrder;
-      data: {
-        orderId: string;
-        transactionHash?: string;
-        logIndex?: number;
-        batchIndex?: number;
-      };
+      data: OrderEventInfo;
       context?: string;
     }
   | {
       kind: EventKind.nftTransferEvent;
-      data: {
-        transactionHash: string;
-        logIndex: number;
-        batchIndex: number;
-      };
+      data: NftTransferEventInfo;
       context?: string;
     }
   | {
       kind: EventKind.fillEvent;
-      data: {
-        transactionHash: string;
-        logIndex: number;
-        batchIndex: number;
-      };
+      data: NftTransferEventInfo;
       context?: string;
     }
   | {
       kind: EventKind.sellOrderCancelled;
-      data: {
-        orderId: string;
-        transactionHash: string;
-        logIndex: number;
-        batchIndex: number;
-      };
+      data: OrderEventInfo;
       context?: string;
     }
   | {
       kind: EventKind.buyOrderCancelled;
-      data: {
-        orderId: string;
-        transactionHash: string;
-        logIndex: number;
-        batchIndex: number;
-      };
+      data: OrderEventInfo;
       context?: string;
     };
 
@@ -90,7 +62,7 @@ export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
           {
             kind: EventKind.fillEvent,
             data: {
-              txHash: data.transactionHash,
+              txHash: data.txHash ?? data.transactionHash,
               logIndex: data.logIndex,
               batchIndex: data.batchIndex,
             } as NftTransferEventInfo,
@@ -103,7 +75,7 @@ export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
           {
             kind: EventKind.nftTransferEvent,
             data: {
-              txHash: data.transactionHash,
+              txHash: data.txHash ?? data.transactionHash,
               logIndex: data.logIndex,
               batchIndex: data.batchIndex,
             } as NftTransferEventInfo,
@@ -117,7 +89,7 @@ export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
             kind: EventKind.newSellOrder,
             data: {
               orderId: data.orderId,
-              txHash: data.transactionHash,
+              txHash: data.txHash ?? data.transactionHash,
               logIndex: data.logIndex,
               batchIndex: data.batchIndex,
             } as OrderEventInfo,
@@ -131,7 +103,7 @@ export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
             kind: EventKind.newBuyOrder,
             data: {
               orderId: data.orderId,
-              txHash: data.transactionHash,
+              txHash: data.txHash ?? data.transactionHash,
               logIndex: data.logIndex,
               batchIndex: data.batchIndex,
             } as OrderEventInfo,
@@ -145,7 +117,7 @@ export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
             kind: EventKind.buyOrderCancelled,
             data: {
               orderId: data.orderId,
-              txHash: data.transactionHash,
+              txHash: data.txHash ?? data.transactionHash,
               logIndex: data.logIndex,
               batchIndex: data.batchIndex,
             } as OrderEventInfo,
@@ -159,7 +131,7 @@ export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
             kind: EventKind.sellOrderCancelled,
             data: {
               orderId: data.orderId,
-              txHash: data.transactionHash,
+              txHash: data.txHash ?? data.transactionHash,
               logIndex: data.logIndex,
               batchIndex: data.batchIndex,
             } as OrderEventInfo,

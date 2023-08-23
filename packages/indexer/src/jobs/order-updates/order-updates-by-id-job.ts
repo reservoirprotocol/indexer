@@ -255,7 +255,7 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
           if (trigger.kind == "cancel") {
             const eventData = {
               orderId: order.id,
-              transactionHash: trigger.txHash,
+              txHash: trigger.txHash,
               logIndex: trigger.logIndex,
               batchIndex: trigger.batchIndex,
             };
@@ -278,7 +278,7 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
           ) {
             const eventData = {
               orderId: order.id,
-              transactionHash: trigger.txHash,
+              txHash: trigger.txHash,
               logIndex: trigger.logIndex,
               batchIndex: trigger.batchIndex,
             };
