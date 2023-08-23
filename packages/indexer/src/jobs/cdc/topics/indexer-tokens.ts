@@ -63,6 +63,8 @@ export class IndexerTokensHandler extends KafkaEventHandler {
             topic: "token-cache",
             message: `Set cache for token ${payload.after.contract}:${payload.after.token_id}`,
             payloadAfter: payload.after,
+            contract: payload.after.contract,
+            tokenId: payload.after.token_id,
           })
         );
       }

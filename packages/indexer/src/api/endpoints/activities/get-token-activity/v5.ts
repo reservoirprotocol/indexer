@@ -228,6 +228,16 @@ export const getTokenActivityV5Options: RouteOptions = {
                 `token-cache:${tokenResultContract}:${tokenResult.token_id}`,
                 60 * 60 * 24
               );
+
+              logger.info(
+                `get-token-activity-${version}-handler`,
+                JSON.stringify({
+                  topic: "token-cache",
+                  message: `Set cache for token ${tokenResultContract}:${tokenResult.token_id}`,
+                  contract: tokenResultContract,
+                  tokenId: tokenResult.token_id,
+                })
+              );
             }
 
             await redisMulti.exec();
