@@ -1,13 +1,9 @@
-import { logger } from "@/common/logger";
-
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
-import { AskCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-created";
-import { BidCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-created";
-import { BidCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-cancelled";
-import { AskCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-cancelled";
 import { PendingActivityEventsQueue } from "@/elasticsearch/indexes/activities/pending-activity-events-queue";
-import { NftTransferEventInfo } from "@/elasticsearch/indexes/activities/event-handlers/base";
+import {
+  NftTransferEventInfo,
+  OrderEventInfo,
+} from "@/elasticsearch/indexes/activities/event-handlers/base";
 
 export enum EventKind {
   fillEvent = "fillEvent",
@@ -88,10 +84,6 @@ export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: ProcessActivityEventJobPayload) {
     const { kind, data } = payload;
 
-    const pendingActivitiesQueue = new PendingActivitiesQueue();
-
-    let eventHandler;
-
     switch (kind) {
       case EventKind.fillEvent:
         await new PendingActivityEventsQueue(EventKind.fillEvent).add([
@@ -105,7 +97,7 @@ export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
           },
         ]);
 
-        return;
+        break;
       case EventKind.nftTransferEvent:
         await new PendingActivityEventsQueue(EventKind.nftTransferEvent).add([
           {
@@ -118,60 +110,63 @@ export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
           },
         ]);
 
-        return;
+        break;
       case EventKind.newSellOrder:
-        eventHandler = new AskCreatedEventHandler(
-          data.orderId,
-          data.transactionHash,
-          data.logIndex,
-          data.batchIndex
-        );
+        await new PendingActivityEventsQueue(EventKind.newSellOrder).add([
+          {
+            kind: EventKind.newSellOrder,
+            data: {
+              orderId: data.orderId,
+              txHash: data.transactionHash,
+              logIndex: data.logIndex,
+              batchIndex: data.batchIndex,
+            } as OrderEventInfo,
+          },
+        ]);
+
         break;
       case EventKind.newBuyOrder:
-        eventHandler = new BidCreatedEventHandler(
-          data.orderId,
-          data.transactionHash,
-          data.logIndex,
-          data.batchIndex
-        );
+        await new PendingActivityEventsQueue(EventKind.newBuyOrder).add([
+          {
+            kind: EventKind.newBuyOrder,
+            data: {
+              orderId: data.orderId,
+              txHash: data.transactionHash,
+              logIndex: data.logIndex,
+              batchIndex: data.batchIndex,
+            } as OrderEventInfo,
+          },
+        ]);
+
         break;
       case EventKind.buyOrderCancelled:
-        eventHandler = new BidCancelledEventHandler(
-          data.orderId,
-          data.transactionHash,
-          data.logIndex,
-          data.batchIndex
-        );
+        await new PendingActivityEventsQueue(EventKind.buyOrderCancelled).add([
+          {
+            kind: EventKind.buyOrderCancelled,
+            data: {
+              orderId: data.orderId,
+              txHash: data.transactionHash,
+              logIndex: data.logIndex,
+              batchIndex: data.batchIndex,
+            } as OrderEventInfo,
+          },
+        ]);
+
         break;
       case EventKind.sellOrderCancelled:
-        eventHandler = new AskCancelledEventHandler(
-          data.orderId,
-          data.transactionHash,
-          data.logIndex,
-          data.batchIndex
-        );
+        await new PendingActivityEventsQueue(EventKind.sellOrderCancelled).add([
+          {
+            kind: EventKind.sellOrderCancelled,
+            data: {
+              orderId: data.orderId,
+              txHash: data.transactionHash,
+              logIndex: data.logIndex,
+              batchIndex: data.batchIndex,
+            } as OrderEventInfo,
+          },
+        ]);
+
         break;
-    }
-
-    let activity;
-
-    try {
-      activity = await eventHandler.generateActivity();
-    } catch (error) {
-      logger.error(
-        this.queueName,
-        JSON.stringify({
-          message: `Error generating activity. kind=${kind}, error=${error}`,
-          error,
-          data,
-        })
-      );
-
-      throw error;
-    }
-
-    if (activity) {
-      await pendingActivitiesQueue.add([activity]);
     }
   }
 

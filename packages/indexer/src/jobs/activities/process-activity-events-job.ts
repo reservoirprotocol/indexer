@@ -1,18 +1,25 @@
+import cron from "node-cron";
+
 import { logger } from "@/common/logger";
+import { config } from "@/config/index";
+import { redis, redlock } from "@/common/redis";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
-import { NftTransferEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/nft-transfer-event-created";
 import { PendingActivityEventsQueue } from "@/elasticsearch/indexes/activities/pending-activity-events-queue";
-
-import { config } from "@/config/index";
-import cron from "node-cron";
-import { redis, redlock } from "@/common/redis";
 import { EventKind } from "@/jobs/activities/process-activity-event-job";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
-import { NftTransferEventInfo } from "@/elasticsearch/indexes/activities/event-handlers/base";
-import { FillEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/fill-event-created";
+import {
+  NftTransferEventInfo,
+  OrderEventInfo,
+} from "@/elasticsearch/indexes/activities/event-handlers/base";
 import { ActivityDocument } from "@/elasticsearch/indexes/activities/base";
+import { NftTransferEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/nft-transfer-event-created";
+import { FillEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/fill-event-created";
+import { AskCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-created";
+import { BidCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-created";
+import { AskCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-cancelled";
+import { BidCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-cancelled";
 
 export type ProcessActivityEventsJobPayload = {
   eventKind: EventKind;
@@ -52,6 +59,26 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
           case EventKind.fillEvent:
             activities = await FillEventCreatedEventHandler.generateActivities(
               pendingActivityEvents.map((event) => event.data as NftTransferEventInfo)
+            );
+            break;
+          case EventKind.newSellOrder:
+            activities = await AskCreatedEventHandler.generateActivities(
+              pendingActivityEvents.map((event) => event.data as OrderEventInfo)
+            );
+            break;
+          case EventKind.newBuyOrder:
+            activities = await BidCreatedEventHandler.generateActivities(
+              pendingActivityEvents.map((event) => event.data as OrderEventInfo)
+            );
+            break;
+          case EventKind.sellOrderCancelled:
+            activities = await AskCancelledEventHandler.generateActivities(
+              pendingActivityEvents.map((event) => event.data as OrderEventInfo)
+            );
+            break;
+          case EventKind.buyOrderCancelled:
+            activities = await BidCancelledEventHandler.generateActivities(
+              pendingActivityEvents.map((event) => event.data as OrderEventInfo)
             );
             break;
         }
