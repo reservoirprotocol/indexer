@@ -168,7 +168,7 @@ export const getOrdersBidsV6Options: RouteOptions = {
       sortBy: Joi.string()
         .valid("createdAt", "price", "updatedAt")
         .default("createdAt")
-        .description("Order the items are returned in the response."),
+        .description("Order the items are returned in the response. Sorting by `price` defaults sorting direction to descending. "),
       sortDirection: Joi.string()
         .lowercase()
         .when("sortBy", {
