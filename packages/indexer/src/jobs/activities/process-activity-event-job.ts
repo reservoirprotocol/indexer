@@ -9,6 +9,7 @@ import { BidCreatedEventHandler } from "@/elasticsearch/indexes/activities/event
 import { BidCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-cancelled";
 import { AskCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-cancelled";
 import { PendingActivityEventsQueue } from "@/elasticsearch/indexes/activities/pending-activity-events-queue";
+import { config } from "@/config/index";
 
 export enum EventKind {
   fillEvent = "fillEvent",
@@ -171,6 +172,10 @@ export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue(payloads: ProcessActivityEventJobPayload[]) {
+    if (!config.doElasticsearchWork) {
+      return;
+    }
+
     await this.sendBatch(payloads.map((payload) => ({ payload })));
   }
 }
