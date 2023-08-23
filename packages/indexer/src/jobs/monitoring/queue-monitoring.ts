@@ -1,12 +1,13 @@
 import cron from "node-cron";
+
 import { config } from "@/config/index";
 import { logger } from "@/common/logger";
-import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
-import { eventsSyncProcessRealtimeJob } from "@/jobs/events-sync/process/events-sync-process-realtime";
-import { RabbitMq } from "@/common/rabbit-mq";
-import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
-import { openseaBidsQueueJob } from "@/jobs/orderbook/opensea-bids-queue-job";
 import { redlock } from "@/common/redis";
+
+import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
+import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
+import { PendingActivityEventsQueue } from "@/elasticsearch/indexes/activities/pending-activity-events-queue";
+import { EventKind } from "@/jobs/activities/process-activity-event-job";
 
 if (config.doBackgroundWork) {
   cron.schedule(
@@ -22,24 +23,36 @@ if (config.doBackgroundWork) {
           logger.info(
             "pending-refresh-tokens-metric",
             JSON.stringify({
+              topic: "queue-monitoring",
               metadataIndexingMethod: config.metadataIndexingMethod,
               pendingRefreshTokensCount,
             })
           );
 
-          for (const queue of [
-            eventsSyncProcessRealtimeJob,
-            eventsSyncRealtimeJob,
-            openseaBidsQueueJob,
-          ]) {
-            const queueSize = await RabbitMq.getQueueSize(queue.getQueue());
-            const retryQueueSize = await RabbitMq.getQueueSize(queue.getRetryQueue());
+          const pendingActivitiesQueue = new PendingActivitiesQueue(config.metadataIndexingMethod);
+          const pendingActivitiesQueueCount = await pendingActivitiesQueue.count();
 
-            logger.info(
-              "queue-monitoring",
-              JSON.stringify({ queue: queue.queueName, jobCount: queueSize + retryQueueSize })
-            );
-          }
+          logger.info(
+            "pending-activities-queue-metric",
+            JSON.stringify({
+              topic: "queue-monitoring",
+              pendingActivitiesQueueCount,
+            })
+          );
+
+          const pendingActivityEventsQueue = new PendingActivityEventsQueue(
+            EventKind.nftTransferEvent
+          );
+          const pendingActivityEventsQueueCount = await pendingActivityEventsQueue.count();
+
+          logger.info(
+            "pending-activity-events-queue-metric",
+            JSON.stringify({
+              topic: "queue-monitoring",
+              eventKind: EventKind.nftTransferEvent,
+              pendingActivityEventsQueueCount,
+            })
+          );
         })
         .catch(() => {
           // Skip on any errors

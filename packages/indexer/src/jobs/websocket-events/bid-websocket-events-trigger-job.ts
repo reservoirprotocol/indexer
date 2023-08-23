@@ -103,7 +103,7 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         id: data.after.id,
         kind: data.after.kind,
         side: data.after.side,
-        status: formatStatus(data.after.fillability_status),
+        status: formatStatus(data.after.fillability_status, data.after.approval_status),
         tokenSetId: data.after.token_set_id,
         tokenSetSchemaHash: data.after.token_set_schema_hash,
         nonce: data.after.nonce,
@@ -135,8 +135,8 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
           undefined
         ),
         ...formatValidBetween(data.after.valid_between),
-        quantityFilled: data.after.quantity_filled,
-        quantityRemaining: data.after.quantity_remaining,
+        quantityFilled: Number(data.after.quantity_filled),
+        quantityRemaining: Number(data.after.quantity_remaining),
         criteria: rawResult.criteria,
         source: {
           id: source?.address,
@@ -147,7 +147,7 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         },
         feeBps: data.after.fee_bps || 0,
         feeBreakdown: data.after.fee_breakdown ? JSON.parse(data.after.fee_breakdown) : [],
-        expiration: new Date(data.after.expiration).getTime() / 1000,
+        expiration: Math.floor(new Date(data.after.expiration).getTime() / 1000),
         isReservoir: data.after.is_reservoir,
         isDynamic: Boolean(data.after.dynamic || data.after.kind === "sudoswap"),
         createdAt: new Date(data.after.created_at).toISOString(),

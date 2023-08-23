@@ -1,24 +1,27 @@
+import { Interface } from "@ethersproject/abi";
 import { BigNumber } from "@ethersproject/bignumber";
 import { AddressZero } from "@ethersproject/constants";
+import { Contract } from "@ethersproject/contracts";
 import { keccak256 } from "@ethersproject/solidity";
 import * as Sdk from "@reservoir0x/sdk";
+import _ from "lodash";
 import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
+import { baseProvider } from "@/common/provider";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
+import {
+  OrderUpdatesByIdJobPayload,
+  orderUpdatesByIdJob,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 import { offChainCheck } from "@/orderbook/orders/payment-processor/check";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
-import * as royalties from "@/utils/royalties";
-import _ from "lodash";
-import {
-  orderUpdatesByIdJob,
-  OrderUpdatesByIdJobPayload,
-} from "@/jobs/order-updates/order-updates-by-id-job";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
+import * as royalties from "@/utils/royalties";
 
 export type OrderInfo = {
   orderParams: Sdk.PaymentProcessor.Types.BaseOrder;
@@ -64,27 +67,47 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      // const exchange = new Contract(
-      //   Sdk.PaymentProcessor.Addresses.Exchange[config.chainId],
-      //   new Interface([
-      //     "function getTokenSecurityPolicyId(address collectionAddress) public view returns (uint256)",
-      //   ]),
-      //   baseProvider
-      // );
-      // const securityId = await exchange.getTokenSecurityPolicyId(order.params.tokenAddress);
-
-      // // For now, only the default security policy is supported
-      // if (securityId.toString() != "0") {
-      //   return results.push({
-      //     id,
-      //     status: "unsupported-security-policy",
-      //   });
-      // }
+      if (order.params.coin !== Sdk.Common.Addresses.Native[config.chainId]) {
+        const exchange = new Contract(
+          Sdk.PaymentProcessor.Addresses.Exchange[config.chainId],
+          new Interface([
+            "function getTokenSecurityPolicyId(address collectionAddress) public view returns (uint256)",
+            `function getSecurityPolicy(uint256 securityPolicyId) public view returns (
+              (
+                bool enforceExchangeWhitelist,
+                bool enforcePaymentMethodWhitelist,
+                bool enforcePricingConstraints,
+                bool disablePrivateListings,
+                bool disableDelegatedPurchases,
+                bool disableEIP1271Signatures,
+                bool disableExchangeWhitelistEOABypass,
+                uint32 pushPaymentGasLimit,
+                address policyOwner
+              ) securityPolicy
+            )`,
+            "function isPaymentMethodApproved(uint256 securityPolicyId, address coin) public view returns (bool)",
+          ]),
+          baseProvider
+        );
+        const securityPolicyId = await exchange.getTokenSecurityPolicyId(order.params.tokenAddress);
+        const securityPolicy = await exchange.getSecurityPolicy(securityPolicyId);
+        if (securityPolicy.enforcePaymentMethodWhitelist) {
+          const isWhitelisted = await exchange.isPaymentMethodApproved(
+            securityPolicyId,
+            order.params.coin
+          );
+          if (!isWhitelisted) {
+            return results.push({
+              id,
+              status: "payment-token-not-whitelisted",
+            });
+          }
+        }
+      }
 
       const isFiltered = await checkMarketplaceIsFiltered(order.params.tokenAddress, [
         Sdk.PaymentProcessor.Addresses.Exchange[config.chainId],
       ]);
-
       if (isFiltered) {
         return results.push({
           id,
@@ -326,10 +349,13 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         status: "success",
         unfillable,
       });
-    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
       logger.error(
         "payment-processor",
-        `Failed to handle order with params ${JSON.stringify(orderParams)}: ${error}`
+        `Failed to handle order with params ${JSON.stringify(orderParams)}: ${error} (${
+          error.stack
+        })`
       );
     }
   };
