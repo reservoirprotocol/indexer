@@ -42,26 +42,31 @@ export class IndexerTokensHandler extends KafkaEventHandler {
       eventKind: WebsocketEventKind.TokenEvent,
     });
 
-    await redis.set(
-      `token-cache:${payload.after.contract}:${payload.after.token_id}`,
-      JSON.stringify({
-        contract: payload.after.contract,
-        token_id: payload.after.token_id,
-        name: payload.after.name,
-        image: payload.after.image,
-      }),
-      "EX",
-      60 * 60 * 24
-    );
+    if (payload.after.name || payload.after.image) {
+      const setResult = await redis.set(
+        `token-cache:${payload.after.contract}:${payload.after.token_id}`,
+        JSON.stringify({
+          contract: payload.after.contract,
+          token_id: payload.after.token_id,
+          name: payload.after.name,
+          image: payload.after.image,
+        }),
+        "EX",
+        60 * 60 * 24,
+        "XX"
+      );
 
-    logger.info(
-      `indexer-tokens-handler`,
-      JSON.stringify({
-        topic: "token-cache",
-        message: `Set cache for token ${payload.after.contract}:${payload.after.token_id}`,
-        payloadAfter: payload.after,
-      })
-    );
+      if (setResult) {
+        logger.info(
+          `indexer-tokens-handler`,
+          JSON.stringify({
+            topic: "token-cache",
+            message: `Set cache for token ${payload.after.contract}:${payload.after.token_id}`,
+            payloadAfter: payload.after,
+          })
+        );
+      }
+    }
   }
 
   protected async handleDelete(): Promise<void> {
