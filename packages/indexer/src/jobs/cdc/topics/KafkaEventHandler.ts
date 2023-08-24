@@ -92,9 +92,13 @@ export abstract class KafkaEventHandler {
       "nonce",
     ];
 
+    // Handling for fields that should not be converted
     const stringKeys = payload.source.table === "token_attributes" ? ["key", "value"] : [];
     if (payload.source.table === "orders") {
       stringKeys.push("kind", "fillability_status", "approval_status");
+    }
+    if (payload.source.table === "collections") {
+      stringKeys.push("name", "slug");
     }
 
     // go through all the keys in the payload and convert any hex strings to strings
