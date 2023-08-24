@@ -87,41 +87,54 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
   }
 
   async handleSellOrder(payload: any): Promise<void> {
-    if (
-      payload.after.fillability_status === "fillable" &&
-      payload.after.approval_status === "approved"
-    ) {
-      const [, contract, tokenId] = payload.after.token_set_id.split(":");
+    try {
+      if (
+        payload.after.fillability_status === "fillable" &&
+        payload.after.approval_status === "approved"
+      ) {
+        const [, contract, tokenId] = payload.after.token_set_id.split(":");
 
-      logger.info(
+        logger.info(
+          "kafka-event-handler",
+          JSON.stringify({
+            topic: "handleSellOrder",
+            message: "Refreshing token metadata.",
+            payload,
+            contract,
+            tokenId,
+          })
+        );
+
+        if (config.chainId === 5) {
+          const collection = await Collections.getByContractAndTokenId(contract, tokenId);
+
+          await metadataIndexFetchJob.addToQueue(
+            [
+              {
+                kind: "single-token",
+                data: {
+                  method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
+                  contract,
+                  tokenId,
+                  collection: collection?.id || contract,
+                },
+                context: "kafka-event-handler",
+              },
+            ],
+            true
+          );
+        }
+      }
+    } catch (error) {
+      logger.error(
         "kafka-event-handler",
         JSON.stringify({
-          message: "Refreshing token metadata.",
+          topic: "handleSellOrder",
+          message: "Handle sell order error. error=${error}",
           payload,
-          contract,
-          tokenId,
+          error,
         })
       );
-
-      if (config.chainId === 5) {
-        const collection = await Collections.getByContractAndTokenId(contract, tokenId);
-
-        await metadataIndexFetchJob.addToQueue(
-          [
-            {
-              kind: "single-token",
-              data: {
-                method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
-                contract,
-                tokenId,
-                collection: collection?.id || contract,
-              },
-              context: "post-flag-token-v1",
-            },
-          ],
-          true
-        );
-      }
     }
   }
 }
