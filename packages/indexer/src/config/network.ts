@@ -1017,7 +1017,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         subDomain: "api-arbitrum-nova",
         coingecko: {
           networkId: "arbitrum-nova",
-        }
+        },
         elasticsearch: {
           indexes: {
             activities: {
