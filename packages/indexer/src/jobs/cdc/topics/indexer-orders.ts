@@ -5,8 +5,9 @@ import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
-// import { Collections } from "@/models/collections";
-// import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { Collections } from "@/models/collections";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { config } from "@/config/index";
 
 export class IndexerOrdersHandler extends KafkaEventHandler {
   topicName = "indexer.public.orders";
@@ -102,23 +103,25 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
         })
       );
 
-      // const collection = await Collections.getByContractAndTokenId(contract, tokenId);
-      //
-      // await metadataIndexFetchJob.addToQueue(
-      //     [
-      //       {
-      //         kind: "single-token",
-      //         data: {
-      //           method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
-      //           contract,
-      //           tokenId,
-      //           collection: collection?.id || contract,
-      //         },
-      //         context: "post-flag-token-v1",
-      //       },
-      //     ],
-      //     true
-      // );
+      if (config.chainId === 5) {
+        const collection = await Collections.getByContractAndTokenId(contract, tokenId);
+
+        await metadataIndexFetchJob.addToQueue(
+          [
+            {
+              kind: "single-token",
+              data: {
+                method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
+                contract,
+                tokenId,
+                collection: collection?.id || contract,
+              },
+              context: "post-flag-token-v1",
+            },
+          ],
+          true
+        );
+      }
     }
   }
 }
