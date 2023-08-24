@@ -85,19 +85,6 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         source = sources.get(Number(data.after.source_id_int));
       }
 
-      // Debugging blur orders
-      if (data.after.kind == "blur" && data.trigger === "update") {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            fillabilityStatus: data.after.fillability_status,
-            approvalStatus: data.after.approval_status,
-            status: formatStatus(data.after.fillability_status, data.after.approval_status),
-            orderId: data.after.id,
-          })
-        );
-      }
-
       const result = {
         id: data.after.id,
         kind: data.after.kind,
