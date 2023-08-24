@@ -46,8 +46,6 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
 
     if (pendingActivityEvents.length > 0) {
       try {
-        const startGenerateActivities = Date.now();
-
         let activities: ActivityDocument[] = [];
 
         switch (eventKind) {
@@ -82,19 +80,6 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
             );
             break;
         }
-
-        const endGenerateActivities = Date.now();
-
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            message: `Generated ${activities?.length} activities`,
-            activities,
-            eventKind,
-            limit,
-            latency: endGenerateActivities - startGenerateActivities,
-          })
-        );
 
         if (activities?.length) {
           await pendingActivitiesQueue.add(activities);
