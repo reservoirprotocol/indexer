@@ -263,14 +263,14 @@ export const trigger = {
         Sdk.SuperRare.Addresses.Bazaar[chainId],
       ]),
     SwapModule: async (chainId: number) =>
-      dv("SwapModule", "v2", [
+      dv("SwapModule", "v3", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.Common.Addresses.WNative[chainId],
         Sdk.Common.Addresses.SwapRouter[chainId],
       ]),
     OneInchSwapModule: async (chainId: number) =>
-      dv("OneInchSwapModule", "v1", [
+      dv("OneInchSwapModule", "v2", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.Common.Addresses.WNative[chainId],

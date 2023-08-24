@@ -69,6 +69,15 @@
       "137": "0x66d061360207e5231c6d442a099ce49da0516725",
       "8453": "0xd4d65f7d4f7a744b14e9088bc2d6fcd051134bf0",
       "42161": "0x66d061360207e5231c6d442a099ce49da0516725"
+    },
+    "v3": {
+      "1": "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+      "5": "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+      "10": "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+      "56": "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+      "137": "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+      "8453": "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+      "42161": "0x34acff419b262f3400d6aa17bd5b99a8c81e9726"
     }
   },
   "FoundationModule": {
@@ -280,6 +289,15 @@
       "137": "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
       "42161": "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
       "43114": "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d"
+    },
+    "v2": {
+      "1": "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
+      "5": "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
+      "10": "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
+      "56": "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
+      "137": "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
+      "42161": "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
+      "43114": "0xa34a25b433597ecab5cad6d740a25dadec252d7d"
     }
   },
   "SignedZoneController": {

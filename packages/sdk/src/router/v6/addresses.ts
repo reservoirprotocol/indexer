@@ -59,23 +59,23 @@ export const PermitProxy: ChainIdToAddress = {
 // Utility modules
 
 export const SwapModule: ChainIdToAddress = {
-  [Network.Ethereum]: "0x66d061360207e5231c6d442a099ce49da0516725",
-  [Network.EthereumGoerli]: "0x66d061360207e5231c6d442a099ce49da0516725",
-  [Network.Polygon]: "0x66d061360207e5231c6d442a099ce49da0516725",
-  [Network.Optimism]: "0x66d061360207e5231c6d442a099ce49da0516725",
-  [Network.Arbitrum]: "0x66d061360207e5231c6d442a099ce49da0516725",
-  [Network.Bsc]: "0x66d061360207e5231c6d442a099ce49da0516725",
-  [Network.Base]: "0xd4d65f7d4f7a744b14e9088bc2d6fcd051134bf0",
+  [Network.Ethereum]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+  [Network.EthereumGoerli]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+  [Network.Polygon]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+  [Network.Optimism]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+  [Network.Arbitrum]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+  [Network.Bsc]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+  [Network.Base]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
 };
 
 export const OneInchSwapModule: ChainIdToAddress = {
-  [Network.Ethereum]: "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
-  [Network.EthereumGoerli]: "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
-  [Network.Polygon]: "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
-  [Network.Optimism]: "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
-  [Network.Arbitrum]: "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
-  [Network.Bsc]: "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
-  [Network.Avalanche]: "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
+  [Network.Ethereum]: "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
+  [Network.EthereumGoerli]: "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
+  [Network.Polygon]: "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
+  [Network.Optimism]: "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
+  [Network.Arbitrum]: "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
+  [Network.Bsc]: "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
+  [Network.Avalanche]: "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
 };
 
 // Exchange modules
