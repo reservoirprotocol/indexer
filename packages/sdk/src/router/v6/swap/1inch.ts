@@ -2,13 +2,13 @@ import { BigNumberish } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
 import axios from "axios";
 
-import { ExecutionInfo } from "../types";
 import { isETH } from "../utils";
 import { Common, ZeroExV4 } from "../../../index";
 import { bn } from "../../../utils";
 import { TransferDetail, SwapInfo } from "./index";
 
-const API_1INCH_ENDPOINT = "https://api.1inch.io";
+const API_1INCH_ENDPOINT = "https://api.1inch.dev";
+const API_1INCH_KEY = "HcGeL2tXZQ8kNtzn2BYSjIX2rkKNKwN0";
 
 export const generateSwapExecutions = async (
   chainId: number,
@@ -19,6 +19,7 @@ export const generateSwapExecutions = async (
     module: Contract;
     transfers: TransferDetail[];
     refundTo: string;
+    revertIfIncomplete: boolean;
   }
 ): Promise<SwapInfo> => {
   const fromToken = isETH(chainId, fromTokenAddress)
@@ -29,53 +30,67 @@ export const generateSwapExecutions = async (
     : toTokenAddress;
 
   const slippage = 10; // 0.01%
-  const { data: quoteData } = await axios.get(`${API_1INCH_ENDPOINT}/v5.0/${chainId}/quote`, {
+  const { data: quoteData } = await axios.get(`${API_1INCH_ENDPOINT}/swap/v5.2/${chainId}/quote`, {
     params: {
-      toTokenAddress: fromToken,
-      fromTokenAddress: toToken,
+      src: toToken,
+      dst: fromToken,
       amount: bn(toTokenAmount)
         .add(bn(toTokenAmount).mul(slippage).div(bn(1000)))
         .toString(),
     },
+    headers: {
+      Authorization: `Bearer ${API_1INCH_KEY}`,
+    },
   });
 
-  const { data: swapData } = await axios.get(`${API_1INCH_ENDPOINT}/v5.0/${chainId}/swap`, {
+  // Wait 1 second to avoid rate-limiting
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  const fromAmount = quoteData.toAmount;
+  const { data: swapData } = await axios.get(`${API_1INCH_ENDPOINT}/swap/v5.2/${chainId}/swap`, {
     params: {
-      fromTokenAddress: fromToken,
-      toTokenAddress: toToken,
-      amount: quoteData.toTokenAmount,
+      src: fromToken,
+      dst: toToken,
+      amount: fromAmount,
       disableEstimate: true,
-      fromAddress: options.module.address,
+      from: options.module.address,
       slippage: slippage / 10,
+    },
+    headers: {
+      Authorization: `Bearer ${API_1INCH_KEY}`,
     },
   });
 
   const fromETH = isETH(chainId, fromToken);
-
-  const executions: ExecutionInfo[] = [];
-  executions.push({
+  const execution = {
     module: options.module.address,
     data: options.module.interface.encodeFunctionData(
       fromETH ? "ethToExactOutput" : "erc20ToExactOutput",
       [
-        {
-          params: {
-            tokenIn: fromToken,
-            tokenOut: toToken,
-            amountOut: swapData.toTokenAmount,
-            amountInMaximum: swapData.fromTokenAmount,
-            data: swapData.tx.data,
+        [
+          {
+            params: {
+              tokenIn: fromToken,
+              tokenOut: toToken,
+              amountOut: swapData.toAmount,
+              amountInMaximum: fromAmount,
+              data: swapData.tx.data,
+            },
+            transfers: options.transfers,
           },
-          transfers: options.transfers,
-        },
+        ],
         options.refundTo,
+        options.revertIfIncomplete,
       ]
     ),
-    value: fromETH ? swapData.fromTokenAmount : 0,
-  });
+    value: fromETH ? fromAmount : 0,
+  };
 
   return {
-    amountIn: swapData.fromTokenAmount.toString(),
-    executions,
+    tokenIn: fromTokenAddress,
+    amountIn: fromAmount,
+    module: options.module,
+    execution,
+    kind: "swap",
   };
 };

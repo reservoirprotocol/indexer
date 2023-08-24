@@ -86,20 +86,42 @@ contract OneInchSwapModule is BaseExchangeModule {
   // --- Swaps ---
 
   function ethToExactOutput(
-    Swap calldata swap,
-    address refundTo
+    // Assumes all swaps have the same token in
+    Swap[] calldata swaps,
+    address refundTo,
+    bool revertIfIncomplete
   ) external payable nonReentrant refundETHLeftover(refundTo) {
-    // Execute the swap
-    _makeCall(AGGREGATION_ROUTER, swap.params.data, msg.value);
+    uint256 swapsLength = swaps.length;
+    for (uint256 i; i < swapsLength; ) {
+      Swap calldata swap = swaps[i];
 
-    uint256 length = swap.transfers.length;
-    for (uint256 i = 0; i < length; ) {
-      TransferDetail calldata transferDetail = swap.transfers[i];
-      if (transferDetail.toETH) {
-        WETH.withdraw(transferDetail.amount);
-        _sendETH(transferDetail.recipient, transferDetail.amount);
+      // Execute the swap
+      (bool success, ) = AGGREGATION_ROUTER.call{value: swap.params.amountInMaximum}(
+        swap.params.data
+      );
+      if (success) {
+        uint256 length = swap.transfers.length;
+        for (uint256 j = 0; j < length; ) {
+          TransferDetail calldata transferDetail = swap.transfers[j];
+          if (transferDetail.toETH) {
+            WETH.withdraw(transferDetail.amount);
+            _sendETH(transferDetail.recipient, transferDetail.amount);
+          } else {
+            _sendERC20(
+              transferDetail.recipient,
+              transferDetail.amount,
+              IERC20(swap.params.tokenOut)
+            );
+          }
+
+          unchecked {
+            ++j;
+          }
+        }
       } else {
-        _sendERC20(transferDetail.recipient, transferDetail.amount, IERC20(swap.params.tokenOut));
+        if (revertIfIncomplete) {
+          revert UnsuccessfulFill();
+        }
       }
 
       unchecked {
@@ -109,23 +131,43 @@ contract OneInchSwapModule is BaseExchangeModule {
   }
 
   function erc20ToExactOutput(
-    Swap calldata swap,
-    address refundTo
-  ) external nonReentrant refundERC20Leftover(refundTo, swap.params.tokenIn) {
-    // Approve the router if needed
-    _approveERC20IfNeeded(swap.params.tokenIn, AGGREGATION_ROUTER, swap.params.amountInMaximum);
+    // Assumes all swaps have the same token in
+    Swap[] calldata swaps,
+    address refundTo,
+    bool revertIfIncomplete
+  ) external nonReentrant refundERC20Leftover(refundTo, swaps[0].params.tokenIn) {
+    uint256 swapsLength = swaps.length;
+    for (uint256 i; i < swapsLength; ) {
+      Swap calldata swap = swaps[i];
 
-    // Execute the swap
-    _makeCall(AGGREGATION_ROUTER, swap.params.data, 0);
+      // Approve the router if needed
+      _approveERC20IfNeeded(swap.params.tokenIn, AGGREGATION_ROUTER, swap.params.amountInMaximum);
 
-    uint256 length = swap.transfers.length;
-    for (uint256 i = 0; i < length; ) {
-      TransferDetail calldata transferDetail = swap.transfers[i];
-      if (transferDetail.toETH) {
-        WETH.withdraw(transferDetail.amount);
-        _sendETH(transferDetail.recipient, transferDetail.amount);
+      // Execute the swap
+      (bool success, ) = AGGREGATION_ROUTER.call(swap.params.data);
+      if (success) {
+        uint256 transfersLength = swap.transfers.length;
+        for (uint256 j = 0; j < transfersLength; ) {
+          TransferDetail calldata transferDetail = swap.transfers[j];
+          if (transferDetail.toETH) {
+            WETH.withdraw(transferDetail.amount);
+            _sendETH(transferDetail.recipient, transferDetail.amount);
+          } else {
+            _sendERC20(
+              transferDetail.recipient,
+              transferDetail.amount,
+              IERC20(swap.params.tokenOut)
+            );
+          }
+
+          unchecked {
+            ++j;
+          }
+        }
       } else {
-        _sendERC20(transferDetail.recipient, transferDetail.amount, IERC20(swap.params.tokenOut));
+        if (revertIfIncomplete) {
+          revert UnsuccessfulFill();
+        }
       }
 
       unchecked {

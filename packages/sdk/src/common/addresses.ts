@@ -61,6 +61,10 @@ export const Usdc: ChainIdToAddress = {
   [Network.Base]: "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
 };
 
+export const Dai: ChainIdToAddress = {
+  [Network.Ethereum]: "0x6b175474e89094c44da98b954eedeac495271d0f",
+};
+
 export const RoyaltyEngine: ChainIdToAddress = {
   [Network.Ethereum]: "0x0385603ab55642cb4dd5de3ae9e306809991804f",
   [Network.EthereumGoerli]: "0xe7c9cb6d966f76f3b5142167088927bf34966a1f",

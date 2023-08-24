@@ -1,3 +1,5 @@
+import { config } from "@/config/index";
+
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { PendingActivityEventsQueue } from "@/elasticsearch/indexes/activities/pending-activity-events-queue";
 import {
@@ -143,6 +145,10 @@ export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue(payloads: ProcessActivityEventJobPayload[]) {
+    if (!config.doElasticsearchWork) {
+      return;
+    }
+
     await this.sendBatch(payloads.map((payload) => ({ payload })));
   }
 }
