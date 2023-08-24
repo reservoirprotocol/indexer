@@ -40,7 +40,7 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
     const pendingActivitiesQueue = new PendingActivitiesQueue();
     const pendingActivityEventsQueue = new PendingActivityEventsQueue(eventKind);
 
-    const limit = Number(await redis.get(`${this.queueName}-limit`)) || 50;
+    const limit = Number(await redis.get(`${this.queueName}-limit`)) || 100;
 
     const pendingActivityEvents = await pendingActivityEventsQueue.get(limit);
 
