@@ -45,9 +45,9 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
       eventKind,
     });
 
-    if (payload.after.side === "sell") {
-      await this.handleSellOrder(payload);
-    }
+    // if (payload.after.side === "sell") {
+    //   await this.handleSellOrder(payload);
+    // }
   }
 
   protected async handleUpdate(payload: any, offset: string): Promise<void> {
