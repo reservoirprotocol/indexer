@@ -5,6 +5,8 @@ import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
+// import { Collections } from "@/models/collections";
+// import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 
 export class IndexerOrdersHandler extends KafkaEventHandler {
   topicName = "indexer.public.orders";
@@ -40,6 +42,10 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
       },
       eventKind,
     });
+
+    if (payload.after.side === "sell") {
+      await this.handleSellOrder(payload);
+    }
   }
 
   protected async handleUpdate(payload: any, offset: string): Promise<void> {
@@ -77,5 +83,42 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
 
   protected async handleDelete(): Promise<void> {
     // probably do nothing here
+  }
+
+  async handleSellOrder(payload: any): Promise<void> {
+    if (
+      payload.after.fillability_status === "fillable" &&
+      payload.after.approval_status === "approved"
+    ) {
+      const [, contract, tokenId] = payload.after.token_set_id.split(":");
+
+      logger.info(
+        "kafka-event-handler",
+        JSON.stringify({
+          message: "Refreshing token metadata.",
+          payload,
+          contract,
+          tokenId,
+        })
+      );
+
+      // const collection = await Collections.getByContractAndTokenId(contract, tokenId);
+      //
+      // await metadataIndexFetchJob.addToQueue(
+      //     [
+      //       {
+      //         kind: "single-token",
+      //         data: {
+      //           method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
+      //           contract,
+      //           tokenId,
+      //           collection: collection?.id || contract,
+      //         },
+      //         context: "post-flag-token-v1",
+      //       },
+      //     ],
+      //     true
+      // );
+    }
   }
 }
