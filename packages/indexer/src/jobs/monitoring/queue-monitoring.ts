@@ -29,7 +29,7 @@ if (config.doBackgroundWork) {
             })
           );
 
-          const pendingActivitiesQueue = new PendingActivitiesQueue(config.metadataIndexingMethod);
+          const pendingActivitiesQueue = new PendingActivitiesQueue();
           const pendingActivitiesQueueCount = await pendingActivitiesQueue.count();
 
           logger.info(
