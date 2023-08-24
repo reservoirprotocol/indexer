@@ -4,6 +4,7 @@ import {
   NftTransferEventInfo,
   OrderEventInfo,
 } from "@/elasticsearch/indexes/activities/event-handlers/base";
+import { config } from "@/config/index";
 
 export enum EventKind {
   fillEvent = "fillEvent",
@@ -143,6 +144,10 @@ export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue(payloads: ProcessActivityEventJobPayload[]) {
+    if (!config.doElasticsearchWork) {
+      return;
+    }
+
     await this.sendBatch(payloads.map((payload) => ({ payload })));
   }
 }

@@ -531,6 +531,8 @@ export const getNetworkSettings = (): NetworkSettings => {
           indexes: {
             activities: {
               numberOfShards: 10,
+              disableMappingsUpdate: true,
+              configName: "CONFIG_1689873821",
             },
           },
         },
@@ -883,6 +885,14 @@ export const getNetworkSettings = (): NetworkSettings => {
           ...defaultNetworkSettings.supportedBidCurrencies,
           // PaymentProcessor WETH
           "0xfff9976782d46cc05630d1f6ebab18b2324d6b14": true,
+        },
+        elasticsearch: {
+          indexes: {
+            activities: {
+              disableMappingsUpdate: true,
+              configName: "CONFIG_1689873821",
+            },
+          },
         },
         subDomain: "api-sepolia",
         onStartup: async () => {
