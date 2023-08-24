@@ -1,10 +1,11 @@
+import { config } from "@/config/index";
+
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { PendingActivityEventsQueue } from "@/elasticsearch/indexes/activities/pending-activity-events-queue";
 import {
   NftTransferEventInfo,
   OrderEventInfo,
 } from "@/elasticsearch/indexes/activities/event-handlers/base";
-import { config } from "@/config/index";
 
 export enum EventKind {
   fillEvent = "fillEvent",
