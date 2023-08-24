@@ -65,6 +65,7 @@ if (config.doBackgroundWork) {
         `,
         {
           limit,
+          startTimestamp,
           endTimestamp,
           txHash: toBuffer(txHash),
           logIndex,
