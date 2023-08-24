@@ -133,23 +133,21 @@ if (config.doBackgroundWork) {
           usd_price,
           timestamp,
         } of results) {
-          if (!usd_price) {
-            const prices = await getUSDAndNativePrices(fromBuffer(currency), price, timestamp, {
-              onlyUSD: true,
-            });
-            if (!prices.usdPrice && getNetworkSettings().coingecko) {
-              throw new Error("Missing USD price");
-            }
+          const prices = await getUSDAndNativePrices(fromBuffer(currency), price, timestamp, {
+            onlyUSD: true,
+          });
+          if (!prices.usdPrice && getNetworkSettings().coingecko) {
+            throw new Error("Missing USD price");
+          }
 
-            if (prices.usdPrice != usd_price) {
-              values.push({
-                tx_hash,
-                log_index,
-                batch_index,
-                currency_price: price,
-                usd_price: prices.usdPrice ?? null,
-              });
-            }
+          if (prices.usdPrice != usd_price) {
+            values.push({
+              tx_hash,
+              log_index,
+              batch_index,
+              currency_price: price,
+              usd_price: prices.usdPrice ?? null,
+            });
           }
         }
 
