@@ -291,7 +291,10 @@ export type EventSubKind =
   | "blur-v2-execution-721-maker-fee-packed"
   | "erc721c-verified-eoa-signature"
   | "erc721c-added-to-allowlist"
-  | "erc721c-removed-from-allowlist";
+  | "erc721c-removed-from-allowlist"
+  | "erc721c-set-allowlist"
+  | "erc721c-set-transfer-security-level"
+  | "erc721c-transfer-validator-updated";
 
 export type EventData = {
   kind: EventKind;
@@ -499,6 +502,9 @@ const allEventData = [
   erc721c.verifiedEOASignature,
   erc721c.addedToAllowlist,
   erc721c.removedFromAllowlist,
+  erc721c.transferValidatorUpdated,
+  erc721c.setTransferSecurityLevel,
+  erc721c.setAllowlist,
 ];
 
 export const getEventData = (events?: string[]) => {
