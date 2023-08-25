@@ -92,6 +92,10 @@ export class MetadataApi {
         indexingMethod = "simplehash";
       }
 
+      if (config.chainId === 137 && contract === "0x2953399124f0cbb46d2cbacd8a89cf0599974963") {
+        indexingMethod = "simplehash";
+      }
+
       let url = `${
         config.metadataApiBaseUrl
       }/v4/${getNetworkName()}/metadata/collection?method=${indexingMethod}&token=${contract}:${tokenId}`;
