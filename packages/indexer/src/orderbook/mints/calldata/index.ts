@@ -35,6 +35,10 @@ export type AbiParam =
   | {
       kind: "custom";
       abiType: string;
+    }
+  | {
+      kind: "referrer";
+      abiType: string;
     };
 
 export type MintTxSchema = {
@@ -50,7 +54,8 @@ export type CustomInfo = mints.manifold.Info;
 export const generateCollectionMintTxData = async (
   collectionMint: CollectionMint,
   minter: string,
-  quantity: number
+  quantity: number,
+  referrer?: string
 ): Promise<{ txData: TxData; price: string }> => {
   // For `allowlist` mints
   const allowlistData =
@@ -220,6 +225,14 @@ export const generateCollectionMintTxData = async (
           abiValue: abiValue,
         });
 
+        break;
+      }
+
+      case "referrer": {
+        abiData.push({
+          abiType: p.abiType,
+          abiValue: referrer ?? AddressZero,
+        });
         break;
       }
 

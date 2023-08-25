@@ -85,6 +85,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
               .description(
                 "Optionally specify a particular fill method. Only relevant when filling via `collection`."
               ),
+            referrer: Joi.string()
+              .pattern(regex.address)
+              .optional()
+              .description(
+                "Pass this param you can share the fees when minting with platforms like Zora"
+              ),
             preferredOrderSource: Joi.string()
               .lowercase()
               .pattern(regex.domain)
@@ -739,7 +745,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
                     const { txData, price } = await generateCollectionMintTxData(
                       mint,
                       payload.taker,
-                      quantityToMint
+                      quantityToMint,
+                      payload.referrer
                     );
 
                     const orderId = `mint:${item.collection}`;
@@ -925,7 +932,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
                     const { txData, price } = await generateCollectionMintTxData(
                       mint,
                       payload.taker,
-                      quantityToMint
+                      quantityToMint,
+                      payload.referrer
                     );
 
                     const orderId = `mint:${collectionData.id}`;
