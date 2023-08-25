@@ -12,16 +12,16 @@ export const takerAsk: EventData = {
   numTopics: 4,
   abi: new Interface([
     `event TakerAsk(
-        bytes32 orderHash,
-        uint256 orderNonce,
-        address indexed taker,
-        address indexed maker,
-        address indexed strategy,
-        address currency,
-        address collection,
-        uint256 tokenId,
-        uint256 amount,
-        uint256 price
+      bytes32 orderHash,
+      uint256 orderNonce,
+      address indexed taker,
+      address indexed maker,
+      address indexed strategy,
+      address currency,
+      address collection,
+      uint256 tokenId,
+      uint256 amount,
+      uint256 price
     )`,
   ]),
 };
@@ -34,16 +34,16 @@ export const takerBid: EventData = {
   numTopics: 4,
   abi: new Interface([
     `event TakerBid(
-        bytes32 orderHash,
-        uint256 orderNonce,
-        address indexed taker,
-        address indexed maker,
-        address indexed strategy,
-        address currency,
-        address collection,
-        uint256 tokenId,
-        uint256 amount,
-        uint256 price
+      bytes32 orderHash,
+      uint256 orderNonce,
+      address indexed taker,
+      address indexed maker,
+      address indexed strategy,
+      address currency,
+      address collection,
+      uint256 tokenId,
+      uint256 amount,
+      uint256 price
     )`,
   ]),
 };
