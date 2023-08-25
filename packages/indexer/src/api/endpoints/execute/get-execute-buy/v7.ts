@@ -85,12 +85,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
               .description(
                 "Optionally specify a particular fill method. Only relevant when filling via `collection`."
               ),
-            referrer: Joi.string()
-              .pattern(regex.address)
-              .optional()
-              .description(
-                "Pass this param you can share the fees when minting with platforms like Zora"
-              ),
             preferredOrderSource: Joi.string()
               .lowercase()
               .pattern(regex.domain)
@@ -176,6 +170,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
         .description(
           "Choose a specific swapping provider when buying in a different currency (defaults to `uniswap`)"
         ),
+      referrer: Joi.string()
+        .pattern(regex.address)
+        .optional()
+        .description("Referrer address where supported"),
       // Various authorization keys
       x2y2ApiKey: Joi.string().description("Optional X2Y2 API key used for filling."),
       openseaApiKey: Joi.string().description(
