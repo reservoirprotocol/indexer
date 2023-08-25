@@ -565,9 +565,17 @@ export const postOrderV4Options: RouteOptions = {
         })
       );
 
+      if (results.every((r) => r.message !== "success")) {
+        const error = Boom.badRequest("Could not create any order");
+        error.output.payload.results = results;
+        throw error;
+      }
+
       return { results };
     } catch (error) {
-      logger.error(`post-order-${version}-handler`, `Handler failure: ${error}`);
+      if (!(error instanceof Boom.Boom)) {
+        logger.error(`post-order-${version}-handler`, `Handler failure: ${error}`);
+      }
       throw error;
     }
   },
