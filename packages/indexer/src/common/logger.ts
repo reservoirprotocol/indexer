@@ -1,10 +1,9 @@
-// import { createLogger, format, Logger, transports } from "winston";
-// import { getServiceName } from "@/config/network";
-import { Logger } from "winston";
+import { createLogger, format, Logger, transports } from "winston";
+import { getServiceName } from "@/config/network";
 
 import { networkInterfaces } from "os";
 
-// import * as Transport from "winston-transport";
+import * as Transport from "winston-transport";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const nets: any = networkInterfaces();
@@ -23,46 +22,47 @@ for (const name of Object.keys(nets)) {
   }
 }
 
-// let _logger: Logger;
+let _logger: Logger;
 
-export let _logger: Logger;
+const log = (level: "error" | "info" | "warn" | "debug") => {
+  const getLogger = () => {
+    const service = getServiceName();
+    const _transports: Transport[] = [new transports.Console()];
 
-// eslint-disable-next-line
-const log = (_level: "error" | "info" | "warn" | "debug"): any => {
-  // const getLogger = () => {
-  //   const service = getServiceName();
-  //   const _transports: Transport[] = [new transports.Console()];
-  //   if (process.env.DATADOG_API_KEY) {
-  //     _transports.push(
-  //       new transports.Http({
-  //         host: "http-intake.logs.datadoghq.com",
-  //         path: `/api/v2/logs?dd-api-key=${process.env.DATADOG_API_KEY}&ddsource=nodejs&service=${service}`,
-  //         ssl: true,
-  //       })
-  //     );
-  //   }
-  //   return createLogger({
-  //     exitOnError: false,
-  //     level: "debug",
-  //     defaultMeta: {
-  //       service,
-  //     },
-  //     format: format.combine(
-  //       format.timestamp({
-  //         format: "YYYY-MM-DD HH:mm:ss",
-  //       }),
-  //       format.json()
-  //     ),
-  //     transports: _transports,
-  //   });
-  // };
-  // _logger = _logger || getLogger();
-  // return (component: string, message: string) =>
-  //   _logger.log(level, message, {
-  //     component,
-  //     version: process.env.npm_package_version,
-  //     networkInterfaces: results,
-  //   });
+    if (process.env.DATADOG_API_KEY) {
+      _transports.push(
+        new transports.Http({
+          host: "http-intake.logs.datadoghq.com",
+          path: `/api/v2/logs?dd-api-key=${process.env.DATADOG_API_KEY}&ddsource=nodejs&service=${service}`,
+          ssl: true,
+        })
+      );
+    }
+
+    return createLogger({
+      exitOnError: false,
+      level: "debug",
+      defaultMeta: {
+        service,
+      },
+      format: format.combine(
+        format.timestamp({
+          format: "YYYY-MM-DD HH:mm:ss",
+        }),
+        format.json()
+      ),
+      transports: _transports,
+    });
+  };
+
+  _logger = _logger || getLogger();
+
+  return (component: string, message: string) =>
+    _logger.log(level, message, {
+      component,
+      version: process.env.npm_package_version,
+      networkInterfaces: results,
+    });
 };
 
 export const logger = {
