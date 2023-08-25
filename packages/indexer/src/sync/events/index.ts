@@ -258,6 +258,10 @@ export const extractEventsBatches = async (
             kind: "erc721c",
             data: kindToEvents.get("erc721c") ?? [],
           },
+          {
+            kind: "joepeg",
+            data: kindToEvents.get("joepeg") ?? [],
+          },
         ];
 
         txHashToEventsBatch.set(txHash, {
