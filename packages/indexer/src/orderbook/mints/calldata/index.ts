@@ -186,6 +186,14 @@ export const generateCollectionMintTxData = async (
             break;
           }
 
+          case "lanyard": {
+            if (allowlistItemIndex === 0) {
+              abiValue = await mints.lanyard.generateProofValue(collectionMint, minter);
+            }
+
+            break;
+          }
+
           default: {
             throw new Error("Allowlist fields not supported");
           }
@@ -293,6 +301,8 @@ export const refreshMintsForCollection = async (collection: string) => {
         return mints.decent.refreshByCollection(collection);
       case "foundation":
         return mints.foundation.refreshByCollection(collection);
+      case "lanyard":
+        return mints.lanyard.refreshByCollection(collection);
       case "manifold":
         return mints.manifold.refreshByCollection(collection);
       case "seadrop-v1.0":

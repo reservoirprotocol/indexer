@@ -14,6 +14,8 @@ import { AbiParam } from "@/orderbook/mints/calldata";
 import { getMaxSupply } from "@/orderbook/mints/calldata/helpers";
 import { getMethodSignature } from "@/orderbook/mints/method-signatures";
 
+import * as lanyard from "@/orderbook/mints/calldata/detector/lanyard";
+
 const STANDARD = "unknown";
 
 export const extractByTx = async (
@@ -56,7 +58,10 @@ export const extractByTx = async (
   }
 
   // For now, we only support simple data types in the calldata
-  if (["(", ")", "[", "]", "bytes"].some((x) => methodSignature.params.includes(x))) {
+  let couldBeLanyardCompatible = false;
+  if (methodSignature.params.split(",").filter((p) => p === "bytes32[]").length === 1) {
+    couldBeLanyardCompatible = true;
+  } else if (["(", ")", "[", "]", "bytes"].some((x) => methodSignature.params.includes(x))) {
     return [];
   }
 
@@ -93,28 +98,38 @@ export const extractByTx = async (
     logger.error("mint-detector", JSON.stringify({ kind: STANDARD, error }));
   }
 
-  return [
-    {
-      collection,
-      contract: collection,
-      stage: "public-sale",
-      kind: "public",
-      status: "open",
-      standard: STANDARD,
-      details: {
-        tx: {
-          to: tx.to,
-          data: {
-            signature: methodSignature.signature,
-            params,
-          },
+  const collectionMint: CollectionMint = {
+    collection,
+    contract: collection,
+    stage: "public-sale",
+    kind: "public",
+    status: "open",
+    standard: STANDARD,
+    details: {
+      tx: {
+        to: tx.to,
+        data: {
+          signature: methodSignature.signature,
+          params,
         },
       },
-      currency: Sdk.Common.Addresses.Native[config.chainId],
-      price: pricePerAmountMinted.toString(),
-      maxSupply,
     },
-  ];
+    currency: Sdk.Common.Addresses.Native[config.chainId],
+    price: pricePerAmountMinted.toString(),
+    maxSupply,
+  };
+
+  const results = [collectionMint];
+
+  if (couldBeLanyardCompatible) {
+    const lanyardCollectionMints = await lanyard.extractByCollectionMint(
+      collectionMint,
+      methodSignature
+    );
+    results.push(...lanyardCollectionMints);
+  }
+
+  return results;
 };
 
 export const refreshByCollection = async (collection: string) => {
