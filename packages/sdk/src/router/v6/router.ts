@@ -3257,6 +3257,7 @@ export class Router {
       for (const detail of details) {
         const order = detail.order as Sdk.PaymentProcessor.Order;
         const takerOrder = order.buildMatching({
+          tokenId: detail.tokenId,
           taker,
           takerMasterNonce: await exchange.getMasterNonce(this.provider, taker),
         });
