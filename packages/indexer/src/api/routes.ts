@@ -755,6 +755,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/execute/transfer/v1",
+    options: executeEndpoints.postExecuteTransferV1Options,
+  });
+
+  server.route({
+    method: "POST",
     path: "/execute/permit-signature/v1",
     options: executeEndpoints.postPermitSignatureV1Options,
   });

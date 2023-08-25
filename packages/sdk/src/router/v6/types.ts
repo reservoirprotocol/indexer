@@ -251,6 +251,15 @@ export type FillMintsResult = {
   success: { [orderId: string]: boolean };
 };
 
+// Transfers
+
+export type TransfersResult = {
+  txs: {
+    approvals: NFTApproval[];
+    txData: TxData;
+  }[];
+};
+
 // Swaps
 
 export type PerPoolSwapDetails = {
