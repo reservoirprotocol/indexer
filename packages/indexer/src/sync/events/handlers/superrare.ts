@@ -107,8 +107,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
       case "superrare-sold": {
         const { args } = eventData.abi.parseLog(log);
         const contract = args["_originContract"].toLowerCase();
-        const maker = args["_buyer"].toLowerCase();
-        const taker = args["_seller"].toLowerCase();
+        const taker = args["_buyer"].toLowerCase();
+        const maker = args["_seller"].toLowerCase();
         const currency = args["_currencyAddress"].toLowerCase();
         const currencyPrice = args["_amount"].toString();
         const tokenId = args["_tokenId"].toString();
@@ -261,8 +261,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
       case "superrare-auction-settled": {
         const { args } = eventData.abi.parseLog(log);
         const contract = args["_contractAddress"].toLowerCase();
-        const maker = args["_bidder"].toLowerCase();
-        const taker = args["_seller"].toLowerCase();
+        const taker = args["_bidder"].toLowerCase();
+        const maker = args["_seller"].toLowerCase();
         const currency = args["_currencyAddress"].toLowerCase();
         const currencyPrice = args["_amount"].toString();
         const tokenId = args["_tokenId"].toString();
