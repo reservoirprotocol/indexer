@@ -91,6 +91,7 @@ export const OperatorFilterRegistry: ChainIdToAddress = {
 export const OpenSeaProtectedOffersZone: ChainIdToAddress = {
   [Network.Ethereum]: "0x000000e7ec00e7b300774b00001314b8610022b8",
   [Network.EthereumGoerli]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.EthereumSepolia]: "0x000000e7ec00e7b300774b00001314b8610022b8",
   [Network.Bsc]: "0x000000e7ec00e7b300774b00001314b8610022b8",
   [Network.Optimism]: "0x000000e7ec00e7b300774b00001314b8610022b8",
   [Network.Polygon]: "0x000000e7ec00e7b300774b00001314b8610022b8",
