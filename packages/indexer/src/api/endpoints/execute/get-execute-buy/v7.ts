@@ -81,7 +81,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
             }).description("Optional raw order to fill."),
             fillType: Joi.string()
               .valid("trade", "mint", "preferMint")
-              .default("fillType")
+              .default("trade")
               .description(
                 "Optionally specify a particular fill method. Only relevant when filling via `collection`."
               ),
