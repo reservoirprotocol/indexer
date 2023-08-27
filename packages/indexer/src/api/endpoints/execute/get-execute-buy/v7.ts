@@ -170,6 +170,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
         .description(
           "Choose a specific swapping provider when buying in a different currency (defaults to `uniswap`)"
         ),
+      referrer: Joi.string()
+        .pattern(regex.address)
+        .optional()
+        .description("Referrer address where supported"),
       // Various authorization keys
       x2y2ApiKey: Joi.string().description("Optional X2Y2 API key used for filling."),
       openseaApiKey: Joi.string().description(
@@ -739,7 +743,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
                     const { txData, price } = await generateCollectionMintTxData(
                       mint,
                       payload.taker,
-                      quantityToMint
+                      quantityToMint,
+                      payload.referrer
                     );
 
                     const orderId = `mint:${item.collection}`;
@@ -925,7 +930,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
                     const { txData, price } = await generateCollectionMintTxData(
                       mint,
                       payload.taker,
-                      quantityToMint
+                      quantityToMint,
+                      payload.referrer
                     );
 
                     const orderId = `mint:${collectionData.id}`;

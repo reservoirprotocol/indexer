@@ -83,7 +83,8 @@ export type OrderKind =
   | "midaswap"
   | "caviar-v1"
   | "payment-processor"
-  | "blur-v2";
+  | "blur-v2"
+  | "joepeg";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol

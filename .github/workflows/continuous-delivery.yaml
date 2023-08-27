@@ -391,6 +391,18 @@ jobs:
             ${{ github.sha }} \
             indexer-kafka-worker-optimism
           ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-sepolia.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-sepolia
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-base.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-base
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-mumbai.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-mumbai
+          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-optimism.yaml \
             ${{ github.sha }} \
             indexer-worker-master-optimism

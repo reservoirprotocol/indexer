@@ -37,12 +37,6 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: FetchCollectionMetadataJobPayload) {
     const { contract, tokenId, mintedTimestamp, newCollection, oldCollectionId } = payload;
 
-    // Debugging polygon shared storefront collection
-    if (config.chainId === 137 && contract == "0x2953399124f0cbb46d2cbacd8a89cf0599974963") {
-      logger.info(this.queueName, JSON.stringify(payload));
-      return;
-    }
-
     try {
       // Fetch collection metadata
       const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, "", {

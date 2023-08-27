@@ -16,6 +16,19 @@ export const handleEvents = async (events: EnhancedEvent[]) => {
         break;
       }
 
+      case "erc721c-set-allowlist":
+      case "erc721c-set-transfer-security-level": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const collection = parsedLog.args["collection"].toLowerCase();
+        await erc721c.refreshERC721CConfig(collection);
+        break;
+      }
+
+      case "erc721c-transfer-validator-updated": {
+        await erc721c.refreshERC721CConfig(baseEventParams.address);
+        break;
+      }
+
       case "erc721c-removed-from-allowlist":
       case "erc721c-added-to-allowlist": {
         const parsedLog = eventData.abi.parseLog(log);

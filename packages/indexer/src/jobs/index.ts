@@ -35,6 +35,9 @@ import * as tokenWebsocketEventsTriggerQueue from "@/jobs/websocket-events/token
 import * as backfillSalePricingDecimalElasticsearch from "@/jobs/activities/backfill/backfill-sales-pricing-decimal-elasticsearch";
 import * as blockGapCheck from "@/jobs/events-sync/block-gap-check";
 import * as backfillRefreshCollectionsCreator from "@/jobs/backfill/backfill-refresh-collections-creator";
+import * as backfillLooksrareSeaportOrders from "@/jobs/backfill/backfill-looksrare-seaport-orders";
+import * as backfillSalesUsdPrice from "@/jobs/backfill/backfill-sales-usd-price";
+import * as backfillSales from "@/jobs/backfill/backfill-sales";
 
 import amqplib from "amqplib";
 import { config } from "@/config/index";
@@ -157,6 +160,9 @@ export const allJobQueues = [
   backfillSalePricingDecimalElasticsearch.queue,
   blockGapCheck.queue,
   backfillRefreshCollectionsCreator.queue,
+  backfillLooksrareSeaportOrders.queue,
+  backfillSalesUsdPrice.queue,
+  backfillSales.queue,
 ];
 
 export class RabbitMqJobsConsumer {
