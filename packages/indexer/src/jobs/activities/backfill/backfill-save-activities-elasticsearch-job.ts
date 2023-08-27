@@ -18,7 +18,7 @@ import { BidCancelledEventHandler } from "@/elasticsearch/indexes/activities/eve
 import { FillEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/fill-event-created";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { NftTransferEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/nft-transfer-event-created";
-import { acquireLock, redis } from "@/common/redis";
+import { acquireLock, redis, releaseLock } from "@/common/redis";
 import crypto from "crypto";
 
 export type BackfillSaveActivitiesElasticsearchJobPayload = {
@@ -64,7 +64,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
       )
       .digest("hex");
 
-    const acquiredLock = await acquireLock(lockId, 60);
+    const acquiredLock = await acquireLock(lockId, 120);
 
     if (acquiredLock) {
       const limit = Number(await redis.get(`${this.queueName}-limit`)) || 1000;
@@ -179,8 +179,12 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           })
         );
 
+        await releaseLock(lockId);
+
         throw error;
       }
+
+      await releaseLock(lockId);
     } else {
       logger.info(
         this.queueName,
@@ -218,25 +222,6 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
             message.payload.toTimestamp,
             message.payload.indexName,
             message.payload.keepGoing
-          );
-        } else {
-          const fromTimestampISO = new Date(message.payload.fromTimestamp * 1000).toISOString();
-          const toTimestampISO = new Date(message.payload.toTimestamp * 1000).toISOString();
-
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              topic: "backfill-activities",
-              message: `onCompleted - Skip addToQueue. type=${message.payload.type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${message.payload.keepGoing}`,
-              type: message.payload.type,
-              fromTimestamp: message.payload.fromTimestamp,
-              fromTimestampISO,
-              toTimestamp: message.payload.toTimestamp,
-              toTimestampISO,
-              cursor: message.payload.cursor,
-              indexName: message.payload.indexName,
-              keepGoing: message.payload.keepGoing,
-            })
           );
         }
       }
