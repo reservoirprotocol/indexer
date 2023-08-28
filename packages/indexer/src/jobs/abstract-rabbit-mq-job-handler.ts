@@ -30,7 +30,7 @@ export type AbstractRabbitMqJobHandlerEvents = {
 };
 
 export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new () => TypedEmitter<AbstractRabbitMqJobHandlerEvents>) {
-  static defaultMaxDeadLetterQueue = 5000;
+  static defaultMaxDeadLetterQueue = 50000;
 
   abstract queueName: string;
   abstract maxRetries: number;
@@ -39,7 +39,7 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
 
   protected rabbitMqMessage: RabbitMQMessage | undefined; // Hold the rabbitmq message type with all the extra fields
   protected concurrency = 1;
-  protected maxDeadLetterQueue = 5000;
+  protected maxDeadLetterQueue = AbstractRabbitMqJobHandler.defaultMaxDeadLetterQueue;
   protected backoff: BackoffStrategy = null;
   protected singleActiveConsumer: boolean | undefined;
   protected persistent = true;
@@ -140,14 +140,6 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
 
   public getQueue(): string {
     return this.queueName;
-  }
-
-  public getRetryQueue(queueName?: string): string {
-    if (queueName) {
-      return `${queueName}-retry`;
-    }
-
-    return `${this.getQueue()}-retry`;
   }
 
   public getDeadLetterQueue(): string {
