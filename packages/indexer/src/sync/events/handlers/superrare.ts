@@ -1,3 +1,4 @@
+import { AddressZero } from "@ethersproject/constants";
 import { getStateChange } from "@georgeroman/evm-tx-simulator";
 import { Common } from "@reservoir0x/sdk";
 
@@ -6,8 +7,8 @@ import { bn } from "@/common/utils";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import * as utils from "@/events-sync/utils";
-import { getUSDAndNativePrices } from "@/utils/prices";
 import * as superrare from "@/orderbook/orders/superrare";
+import { getUSDAndNativePrices } from "@/utils/prices";
 
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // Handle the events
@@ -17,8 +18,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
       case "superrare-listing-filled": {
         const { args } = eventData.abi.parseLog(log);
         const contract = args["_originContract"].toLowerCase();
-        const maker = args["_buyer"].toLowerCase();
-        const taker = args["_seller"].toLowerCase();
+        const taker = args["_buyer"].toLowerCase();
+        const maker = args["_seller"].toLowerCase();
         const currencyPrice = args["_amount"].toString();
         const tokenId = args["_tokenId"].toString();
 
@@ -267,6 +268,11 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const currencyPrice = args["_amount"].toString();
         const tokenId = args["_tokenId"].toString();
 
+        // Skip empty auctions
+        if (maker === AddressZero || taker === AddressZero) {
+          break;
+        }
+
         const orderId = superrare.getOrderId(contract, tokenId);
 
         // Superrare works only with ERC721
@@ -278,7 +284,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           currencyPrice.toString(),
           baseEventParams.timestamp
         );
-
         if (!priceData.nativePrice) {
           // We must always have the native price
           break;

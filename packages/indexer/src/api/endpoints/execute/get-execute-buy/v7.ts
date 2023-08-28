@@ -807,7 +807,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   "Unable to mint requested quantity (max mints per wallet possibly exceeded)";
               }
 
-              if (!payload.partial) {
+              if (!payload.partial && mintAvailable) {
                 throw getExecuteError(lastError);
               }
             }
@@ -1008,7 +1008,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   "Unable to mint requested quantity (max mints per wallet possibly exceeded)";
               }
 
-              if (!payload.partial) {
+              if (!payload.partial && mintAvailable) {
                 throw getExecuteError(lastError);
               }
             }
