@@ -498,9 +498,14 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
-
     path: "/collections/top-selling/v1",
-    options: collectionsEndpoints.getTopSellingCollectionsOptions,
+    options: collectionsEndpoints.getTopSellingCollectionsV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/collections/top-selling/v2",
+    options: collectionsEndpoints.getTopSellingCollectionsV2Options,
   });
 
   server.route({
