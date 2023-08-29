@@ -10,7 +10,7 @@ import {
   EventCursorInfo,
 } from "@/jobs/activities/backfill/backfill-activities-elasticsearch-job";
 import { AskCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-created";
-import { RabbitMQMessage } from "@/common/rabbit-mq";
+// import { RabbitMQMessage } from "@/common/rabbit-mq";
 import { elasticsearch } from "@/common/elasticsearch";
 import { AskCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-cancelled";
 import { BidCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-created";
@@ -204,29 +204,58 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
       );
     }
 
-    return { addToQueue, nextCursor: addToQueueCursor };
+    if (addToQueue) {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "backfill-activities",
+          message: `addToQueue. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}`,
+          type,
+          fromTimestamp,
+          fromTimestampISO,
+          toTimestamp,
+          toTimestampISO,
+          cursor,
+          addToQueueCursor,
+          indexName,
+          keepGoing,
+          lockId,
+        })
+      );
+
+      await this.addToQueue(
+        type,
+        addToQueueCursor,
+        fromTimestamp,
+        toTimestamp,
+        indexName,
+        keepGoing
+      );
+    }
+
+    // return { addToQueue, nextCursor: addToQueueCursor };
   }
 
-  public events() {
-    this.once(
-      "onCompleted",
-      async (
-        message: RabbitMQMessage,
-        processResult: { addToQueue: boolean; nextCursor?: OrderCursorInfo | EventCursorInfo }
-      ) => {
-        if (processResult.addToQueue) {
-          await this.addToQueue(
-            message.payload.type,
-            processResult.nextCursor,
-            message.payload.fromTimestamp,
-            message.payload.toTimestamp,
-            message.payload.indexName,
-            message.payload.keepGoing
-          );
-        }
-      }
-    );
-  }
+  // public events() {
+  //   this.once(
+  //     "onCompleted",
+  //     async (
+  //       message: RabbitMQMessage,
+  //       processResult: { addToQueue: boolean; nextCursor?: OrderCursorInfo | EventCursorInfo }
+  //     ) => {
+  //       if (processResult.addToQueue) {
+  //         await this.addToQueue(
+  //           message.payload.type,
+  //           processResult.nextCursor,
+  //           message.payload.fromTimestamp,
+  //           message.payload.toTimestamp,
+  //           message.payload.indexName,
+  //           message.payload.keepGoing
+  //         );
+  //       }
+  //     }
+  //   );
+  // }
 
   public async addToQueue(
     type: "ask" | "ask-cancel" | "bid" | "bid-cancel" | "sale" | "transfer",
@@ -252,7 +281,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
         payload: { type, cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
         // jobId,
       },
-      keepGoing ? 5000 : 1000
+      1000
     );
   }
 }
