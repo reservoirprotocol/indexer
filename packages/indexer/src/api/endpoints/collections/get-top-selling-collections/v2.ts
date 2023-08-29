@@ -71,6 +71,7 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
           id: Joi.string().description("Collection id"),
           name: Joi.string().allow("", null),
           image: Joi.string().allow("", null),
+          banner: Joi.string().allow("", null),
           description: Joi.string().allow("", null),
           primaryContract: Joi.string().lowercase().pattern(regex.address),
           count: Joi.number().integer(),
@@ -122,7 +123,7 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
     },
   },
   handler: async (request: Request, h) => {
-    let cacheTime = 60 * 60;
+    let cacheTime = 60 * 5;
     const {
       period,
       fillType,
@@ -143,12 +144,10 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
         }
         case "30m": {
           startTime = now - 30 * 60;
-          cacheTime = 60 * 10;
           break;
         }
         case "1h": {
           startTime = now - 60 * 1 * 60;
-          cacheTime = 60 * 30;
           break;
         }
         case "6h": {
@@ -203,6 +202,7 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
         SELECT
           collections.id,
           collections.contract,
+          (collections.metadata ->> 'bannerImageUrl')::TEXT AS "banner",
           (collections.metadata ->> 'description')::TEXT AS "description",
           ${floorAskSelectQuery}
           FROM collections
@@ -272,11 +272,16 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
             };
           }
 
-          return { ...response, description: metadata.description, floorAsk };
+          return {
+            ...response,
+            banner: metadata.banner,
+            description: metadata.description,
+            floorAsk,
+          };
         })
       );
       const response = h.response({ collections });
-      response.header("cache-control", `${cacheTime}`);
+      response.header("cache-control", `${cacheTime}, public`);
       return response;
     } catch (error) {
       logger.error(`get-top-selling-collections-${version}-handler`, `Handler failure: ${error}`);

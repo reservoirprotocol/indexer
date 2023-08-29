@@ -1,11 +1,9 @@
-import cron from "node-cron";
-
 import { logger } from "@/common/logger";
-import { baseProvider, safeWebSocketSubscription } from "@/common/provider";
-import { redlock } from "@/common/redis";
+import { safeWebSocketSubscription } from "@/common/provider";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
+import { checkForMissingBlocks } from "@/events-sync/syncEventsV2";
 
 // For syncing events we have two separate job queues. One is for
 // handling backfilling of past event while the other one handles
@@ -22,32 +20,6 @@ import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-j
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork && config.catchup) {
   const networkSettings = getNetworkSettings();
-
-  // Keep up with the head of the blockchain by polling for new blocks every once in a while
-  cron.schedule(
-    `*/${networkSettings.realtimeSyncFrequencySeconds} * * * * *`,
-    async () =>
-      await redlock
-        .acquire(
-          ["events-sync-catchup-lock"],
-          (networkSettings.realtimeSyncFrequencySeconds - 1) * 1000
-        )
-        .then(async () => {
-          try {
-            if (!config.master || !networkSettings.enableWebSocket) {
-              const block = await baseProvider.getBlockNumber();
-              await eventsSyncRealtimeJob.addToQueue({ block });
-            }
-            logger.info("events-sync-catchup", "Catching up events");
-          } catch (error) {
-            logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);
-          }
-        })
-        .catch(() => {
-          // Skip on any errors
-        })
-  );
-
   // MASTER ONLY
   if (config.master && networkSettings.enableWebSocket) {
     // Besides the manual polling of events via the above cron job
@@ -61,6 +33,7 @@ if (config.doBackgroundWork && config.catchup) {
 
         try {
           await eventsSyncRealtimeJob.addToQueue({ block });
+          await checkForMissingBlocks(block);
         } catch (error) {
           logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);
         }
