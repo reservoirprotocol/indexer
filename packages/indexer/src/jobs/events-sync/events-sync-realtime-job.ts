@@ -67,7 +67,7 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
     this.once(
       "onCompleted",
       async (message: RabbitMQMessage, processResult: { addToQueue?: boolean; delay?: number }) => {
-        if (processResult.addToQueue) {
+        if (processResult?.addToQueue) {
           await this.addToQueue({ block: message.payload.block }, processResult.delay);
         }
       }

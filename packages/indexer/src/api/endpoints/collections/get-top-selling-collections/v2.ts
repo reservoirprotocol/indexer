@@ -123,7 +123,7 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
     },
   },
   handler: async (request: Request, h) => {
-    let cacheTime = 60 * 60;
+    let cacheTime = 60 * 5;
     const {
       period,
       fillType,
@@ -134,7 +134,7 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
     } = request.query;
     const now = Math.floor(new Date().getTime() / 1000);
     try {
-      let startTime = now - 60 * 6 * 60;
+      let startTime = now - 60 * 24 * 60;
 
       switch (period) {
         case "5m": {
@@ -144,12 +144,10 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
         }
         case "30m": {
           startTime = now - 30 * 60;
-          cacheTime = 60 * 10;
           break;
         }
         case "1h": {
           startTime = now - 60 * 1 * 60;
-          cacheTime = 60 * 30;
           break;
         }
         case "6h": {
@@ -283,7 +281,7 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
         })
       );
       const response = h.response({ collections });
-      response.header("cache-control", `${cacheTime}`);
+      response.header("cache-control", `${cacheTime}, public`);
       return response;
     } catch (error) {
       logger.error(`get-top-selling-collections-${version}-handler`, `Handler failure: ${error}`);
