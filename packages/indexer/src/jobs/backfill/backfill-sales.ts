@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { HashZero } from "@ethersproject/constants";
+import * as Sdk from "@reservoir0x/sdk";
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
@@ -9,9 +10,8 @@ import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
 import { fromBuffer, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { initOnChainData } from "@/events-sync/handlers/utils";
-import { handleEvents } from "@/events-sync/handlers/superrare";
-import { getEnhancedEventsFromTx } from "@/events-sync/handlers/royalties/utils";
+import { fetchTransaction } from "@/events-sync/utils";
+import { Sources } from "@/models/sources";
 
 const QUEUE_NAME = "backfill-sales";
 
@@ -40,9 +40,7 @@ if (config.doBackgroundWork) {
             fill_events_2.log_index,
             fill_events_2.batch_index,
             fill_events_2.timestamp,
-            fill_events_2.maker,
-            fill_events_2.taker,
-            fill_events_2.order_kind
+            fill_events_2.taker
           FROM fill_events_2
           WHERE (
             fill_events_2.timestamp,
@@ -55,7 +53,8 @@ if (config.doBackgroundWork) {
             $/logIndex/,
             $/batchIndex/
           )
-            AND fill_events_2.order_kind = 'superrare'
+            AND fill_events_2.order_kind = 'seaport-v1.5'
+            AND fill_events_2.order_side = 'buy'
           ORDER BY
             fill_events_2.timestamp DESC,
             fill_events_2.tx_hash DESC,
@@ -73,47 +72,35 @@ if (config.doBackgroundWork) {
       );
 
       const values: any[] = [];
-      const columns = new pgp.helpers.ColumnSet(
-        ["tx_hash", "log_index", "batch_index", "maker", "taker"],
-        {
-          table: "fill_events_2",
+      const columns = new pgp.helpers.ColumnSet(["tx_hash", "log_index", "batch_index", "taker"], {
+        table: "fill_events_2",
+      });
+
+      for (const r of results) {
+        if (fromBuffer(r.taker) === Sdk.RouterV6.Addresses.SeaportV15Module[config.chainId]) {
+          values.push({
+            tx_hash: r.tx_hash,
+            log_index: r.log_index,
+            batch_index: r.batch_index,
+            taker: toBuffer(await fetchTransaction(fromBuffer(r.tx_hash)).then((tx) => tx.from)),
+          });
         }
-      );
-
-      const uniqueTxHashes = new Set<string>(results.map((r) => fromBuffer(r.tx_hash)));
-      await Promise.all(
-        [...uniqueTxHashes.values()].map(async (txHash) => {
-          const events = await getEnhancedEventsFromTx(txHash);
-          const data = initOnChainData();
-          await handleEvents(events, data);
-
-          for (const fe of data.fillEventsOnChain) {
-            values.push({
-              tx_hash: toBuffer(fe.baseEventParams.txHash),
-              log_index: fe.baseEventParams.logIndex,
-              batch_index: fe.baseEventParams.batchIndex,
-              maker: toBuffer(fe.maker),
-              taker: toBuffer(fe.taker),
-            });
-          }
-        })
-      );
+      }
 
       if (values.length) {
         await idb.none(
           `
             UPDATE fill_events_2 SET
-              maker = x.maker::BYTEA,
               taker = x.taker::BYTEA,
               updated_at = now()
             FROM (
               VALUES ${pgp.helpers.values(values, columns)}
-            ) AS x(tx_hash, log_index, batch_index, maker, taker)
+            ) AS x(tx_hash, log_index, batch_index, taker)
             WHERE fill_events_2.tx_hash = x.tx_hash::BYTEA
               AND fill_events_2.log_index = x.log_index::INT
               AND fill_events_2.batch_index = x.batch_index::INT
               AND fill_events_2.is_deleted != 1
-              AND (fill_events_2.maker != x.maker::BYTEA OR fill_events_2.taker != x.taker::BYTEA)
+              AND fill_events_2.taker != x.taker::BYTEA
           `
         );
       }
@@ -136,8 +123,30 @@ if (config.doBackgroundWork) {
   });
 
   redlock
-    .acquire([`${QUEUE_NAME}-lock-1`], 60 * 60 * 24 * 30 * 1000)
-    .then(async () => (config.chainId === 1 ? await addToQueue(now(), HashZero, 0, 0) : undefined))
+    .acquire([`${QUEUE_NAME}-lock-999`], 60 * 60 * 24 * 30 * 1000)
+    .then(async () => {
+      if (Sdk.RouterV6.Addresses.SeaportV15Module[config.chainId]) {
+        await idb.none(
+          `
+            INSERT INTO routers (
+              address,
+              source_id
+            ) VALUES (
+              $/address/,
+              $/sourceId/
+            ) ON CONFLICT DO NOTHING
+          `,
+          {
+            address: toBuffer(Sdk.RouterV6.Addresses.SeaportV15Module[config.chainId]),
+            sourceId: await Sources.getInstance().then(
+              (sources) => sources.getByDomain("reservoir.tools")?.id
+            ),
+          }
+        );
+
+        await addToQueue(now(), HashZero, 0, 0);
+      }
+    })
     .catch(() => {
       // Skip on any errors
     });
