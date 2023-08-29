@@ -761,41 +761,41 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
             600
           );
 
-          if (queueSize === 0 && lastQueueSize === 0 && totalJobCount > 0) {
-            logger.info(
-              backfillActivitiesElasticsearchJob.queueName,
-              JSON.stringify({
-                topic: "backfill-activities",
-                message: `jobCounts - Trigger backfill.`,
-                queueSize,
-                lastQueueSize,
-                totalJobCount,
-                jobCounts: {
-                  transferJobCount,
-                  saleJobCount,
-                  askJobCount,
-                  askCancelJobCount,
-                  bidJobCount,
-                  bidCancelJobCount,
-                },
-              })
-            );
-
-            await backfillActivitiesElasticsearchJob.addToQueue(
-              false,
-              "activities-1690489670764",
-              undefined,
-              false,
-              true,
-              true,
-              true,
-              true,
-              true,
-              true,
-              undefined,
-              true
-            );
-          }
+          // if (queueSize === 0 && lastQueueSize === 0 && totalJobCount > 0) {
+          //   logger.info(
+          //     backfillActivitiesElasticsearchJob.queueName,
+          //     JSON.stringify({
+          //       topic: "backfill-activities",
+          //       message: `jobCounts - Trigger backfill.`,
+          //       queueSize,
+          //       lastQueueSize,
+          //       totalJobCount,
+          //       jobCounts: {
+          //         transferJobCount,
+          //         saleJobCount,
+          //         askJobCount,
+          //         askCancelJobCount,
+          //         bidJobCount,
+          //         bidCancelJobCount,
+          //       },
+          //     })
+          //   );
+          //
+          //   await backfillActivitiesElasticsearchJob.addToQueue(
+          //     false,
+          //     "activities-1690489670764",
+          //     undefined,
+          //     false,
+          //     true,
+          //     true,
+          //     true,
+          //     true,
+          //     true,
+          //     true,
+          //     undefined,
+          //     true
+          //   );
+          // }
         })
         .catch(() => {
           // Skip any errors
