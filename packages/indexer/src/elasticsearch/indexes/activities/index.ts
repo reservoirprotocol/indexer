@@ -123,11 +123,13 @@ export const getChainStatsFromActivity = async () => {
           aggs: {
             sales_by_type: {
               terms: {
-                field: "type",
+                field: !["optimism", "base"].includes(getNetworkName()) ? "type" : "type.keyword",
               },
               aggs: {
                 sales_count: {
-                  value_count: { field: "id" },
+                  value_count: {
+                    field: !["optimism", "base"].includes(getNetworkName()) ? "id" : "id.keyword",
+                  },
                 },
                 total_volume: {
                   sum: { field: "pricing.priceDecimal" },

@@ -3,6 +3,7 @@ import { config } from "@/config/index";
 import { redis } from "@/common/redis";
 import { logger } from "@/common/logger";
 import { checkForOrphanedBlock, syncEvents } from "@/events-sync/syncEventsV2";
+import { RabbitMQMessage } from "@/common/rabbit-mq";
 
 export type EventsSyncRealtimeJobPayload = {
   block: number;
@@ -53,14 +54,24 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
           `Block ${block} not found with RPC provider, adding back to queue`
         );
 
-        await this.addToQueue({ block }, 500);
-        return;
+        return { addToQueue: true, delay: 1000 };
       } else {
         throw error;
       }
     }
 
     await checkForOrphanedBlock(block);
+  }
+
+  public events() {
+    this.once(
+      "onCompleted",
+      async (message: RabbitMQMessage, processResult: { addToQueue?: boolean; delay?: number }) => {
+        if (processResult.addToQueue) {
+          await this.addToQueue({ block: message.payload.block }, processResult.delay);
+        }
+      }
+    );
   }
 
   public async addToQueue(params: EventsSyncRealtimeJobPayload, delay = 0) {

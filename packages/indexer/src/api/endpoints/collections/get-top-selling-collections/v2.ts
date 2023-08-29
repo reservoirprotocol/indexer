@@ -71,6 +71,7 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
           id: Joi.string().description("Collection id"),
           name: Joi.string().allow("", null),
           image: Joi.string().allow("", null),
+          banner: Joi.string().allow("", null),
           description: Joi.string().allow("", null),
           primaryContract: Joi.string().lowercase().pattern(regex.address),
           count: Joi.number().integer(),
@@ -133,7 +134,7 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
     } = request.query;
     const now = Math.floor(new Date().getTime() / 1000);
     try {
-      let startTime = now - 60 * 24 * 60;
+      let startTime = now - 60 * 6 * 60;
 
       switch (period) {
         case "5m": {
@@ -203,6 +204,7 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
         SELECT
           collections.id,
           collections.contract,
+          (collections.metadata ->> 'bannerImageUrl')::TEXT AS "banner",
           (collections.metadata ->> 'description')::TEXT AS "description",
           ${floorAskSelectQuery}
           FROM collections
@@ -272,7 +274,12 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
             };
           }
 
-          return { ...response, description: metadata.description, floorAsk };
+          return {
+            ...response,
+            banner: metadata.banner,
+            description: metadata.description,
+            floorAsk,
+          };
         })
       );
       const response = h.response({ collections });
