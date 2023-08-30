@@ -79,15 +79,6 @@ export const postOrdersV1Options: RouteOptions = {
           },
           validateBidValue: true,
         });
-
-        logger.info(
-          `post-orders-${version}-handler`,
-          JSON.stringify({
-            kind,
-            originatedAt,
-            source,
-          })
-        );
       }
 
       await orderbookOrdersJob.addToQueue(orderInfos);
