@@ -1,8 +1,12 @@
+import cron from "node-cron";
+
 import { logger } from "@/common/logger";
-import { safeWebSocketSubscription } from "@/common/provider";
+import { baseProvider, safeWebSocketSubscription } from "@/common/provider";
+import { redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
+import { checkForMissingBlocks } from "@/events-sync/syncEventsV2";
 
 // For syncing events we have two separate job queues. One is for
 // handling backfilling of past event while the other one handles
@@ -20,30 +24,31 @@ import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-j
 if (config.doBackgroundWork && config.catchup) {
   const networkSettings = getNetworkSettings();
 
-  // // Keep up with the head of the blockchain by pulling for new blocks every once in a while
-  // cron.schedule(
-  //   `*/${networkSettings.realtimeSyncFrequencySeconds} * * * * *`,
-  //   async () =>
-  //     await redlock
-  //       .acquire(
-  //         ["events-sync-catchup-lock"],
-  //         (networkSettings.realtimeSyncFrequencySeconds - 1) * 1000
-  //       )
-  //       .then(async () => {
-  //         try {
-  //           if (!config.master || !networkSettings.enableWebSocket) {
-  //             const block = await baseProvider.getBlockNumber();
-  //             await eventsSyncRealtimeJob.addToQueue({ block });
-  //             logger.info("events-sync-catchup", `Catching up events for block ${block}`);
-  //           }
-  //         } catch (error) {
-  //           logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);
-  //         }
-  //       })
-  //       .catch(() => {
-  //         // Skip on any errors
-  //       })
-  // );
+  // Keep up with the head of the blockchain by polling for new blocks every once in a while
+  cron.schedule(
+    `*/${networkSettings.realtimeSyncFrequencySeconds} * * * * *`,
+    async () =>
+      await redlock
+        .acquire(
+          ["events-sync-catchup-lock"],
+          (networkSettings.realtimeSyncFrequencySeconds - 1) * 1000
+        )
+        .then(async () => {
+          try {
+            const block = await baseProvider.getBlockNumber();
+            if (config.master && !networkSettings.enableWebSocket) {
+              logger.info("events-sync-catchup", `Catching up events for block ${block}`);
+              await eventsSyncRealtimeJob.addToQueue({ block });
+            }
+            await checkForMissingBlocks(block);
+          } catch (error) {
+            logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);
+          }
+        })
+        .catch(() => {
+          // Skip on any errors
+        })
+  );
 
   // MASTER ONLY
   if (config.master && networkSettings.enableWebSocket) {
@@ -58,6 +63,7 @@ if (config.doBackgroundWork && config.catchup) {
 
         try {
           await eventsSyncRealtimeJob.addToQueue({ block });
+          await checkForMissingBlocks(block);
         } catch (error) {
           logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);
         }
