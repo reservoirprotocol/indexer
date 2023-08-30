@@ -516,7 +516,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 10: {
       return {
         ...defaultNetworkSettings,
-        enableWebSocket: false,
+        enableWebSocket: true,
         enableReorgCheck: false,
         realtimeSyncFrequencySeconds: 5,
         realtimeSyncMaxBlockLag: 32,
@@ -564,7 +564,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 56: {
       return {
         ...defaultNetworkSettings,
-        enableWebSocket: false,
+        enableWebSocket: true,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
@@ -724,7 +724,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 42161: {
       return {
         ...defaultNetworkSettings,
-        enableWebSocket: false,
+        enableWebSocket: true,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
@@ -777,7 +777,7 @@ export const getNetworkSettings = (): NetworkSettings => {
       return {
         ...defaultNetworkSettings,
         isTestnet: true,
-        enableWebSocket: false,
+        enableWebSocket: true,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
@@ -810,7 +810,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 5001: {
       return {
         ...defaultNetworkSettings,
-        enableWebSocket: false,
+        enableWebSocket: true,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
@@ -843,7 +843,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 59140: {
       return {
         ...defaultNetworkSettings,
-        enableWebSocket: false,
+        enableWebSocket: true,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
@@ -877,7 +877,7 @@ export const getNetworkSettings = (): NetworkSettings => {
       return {
         ...defaultNetworkSettings,
         isTestnet: true,
-        enableWebSocket: false,
+        enableWebSocket: true,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
@@ -924,7 +924,7 @@ export const getNetworkSettings = (): NetworkSettings => {
       return {
         ...defaultNetworkSettings,
         isTestnet: true,
-        enableWebSocket: false,
+        enableWebSocket: true,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         supportedBidCurrencies: {
@@ -970,7 +970,7 @@ export const getNetworkSettings = (): NetworkSettings => {
       return {
         ...defaultNetworkSettings,
         isTestnet: true,
-        enableWebSocket: false,
+        enableWebSocket: true,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
@@ -1010,7 +1010,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 42170: {
       return {
         ...defaultNetworkSettings,
-        enableWebSocket: false,
+        enableWebSocket: true,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
@@ -1054,7 +1054,7 @@ export const getNetworkSettings = (): NetworkSettings => {
       return {
         ...defaultNetworkSettings,
         isTestnet: true,
-        enableWebSocket: false,
+        enableWebSocket: true,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
@@ -1087,7 +1087,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 7777777: {
       return {
         ...defaultNetworkSettings,
-        enableWebSocket: false,
+        enableWebSocket: true,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
@@ -1128,7 +1128,7 @@ export const getNetworkSettings = (): NetworkSettings => {
       return {
         ...defaultNetworkSettings,
         metadataMintDelay: 300,
-        enableWebSocket: false,
+        enableWebSocket: true,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
@@ -1207,7 +1207,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 59144: {
       return {
         ...defaultNetworkSettings,
-        enableWebSocket: false,
+        enableWebSocket: true,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
