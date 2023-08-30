@@ -205,24 +205,6 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
     }
 
     if (addToQueue) {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "backfill-activities",
-          message: `addToQueue. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}`,
-          type,
-          fromTimestamp,
-          fromTimestampISO,
-          toTimestamp,
-          toTimestampISO,
-          cursor,
-          addToQueueCursor,
-          indexName,
-          keepGoing,
-          lockId,
-        })
-      );
-
       await this.addToQueue(
         type,
         addToQueueCursor,
