@@ -11,6 +11,7 @@ import * as CommonAddresses from "../common/addresses";
 import { TxData, bn, generateSourceBytes, lc, n, s } from "../utils";
 
 import { ConduitController } from "../seaport-base";
+import { Network } from "../utils";
 
 export abstract class SeaportBaseExchange {
   public chainId: number;
@@ -117,13 +118,18 @@ export abstract class SeaportBaseExchange {
         !this.requiresExtraData(order)
       ) {
         info = info as BaseOrderInfo;
+        // to see if fulfillBasicOrder can solve gas problem on linea mainnet
+        const methodName =
+          this.chainId === Network.Linea
+            ? "fulfillBasicOrder"
+            : "fulfillBasicOrder_efficient_6GL6yc";
 
         // Use "basic" fulfillment
         return {
           from: taker,
           to: this.contract.address,
           data:
-            this.contract.interface.encodeFunctionData("fulfillBasicOrder_efficient_6GL6yc", [
+            this.contract.interface.encodeFunctionData(methodName, [
               {
                 considerationToken: info.paymentToken,
                 considerationIdentifier: "0",

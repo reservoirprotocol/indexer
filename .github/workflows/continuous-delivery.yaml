@@ -463,6 +463,10 @@ jobs:
             ${{ github.sha }} \
             indexer-worker-linea
           ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-master-linea.yaml \
+            ${{ github.sha }} \
+            indexer-worker-master-linea
+          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-zksync.yaml \
             ${{ github.sha }} \
             indexer-worker-master-zksync
