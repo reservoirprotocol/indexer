@@ -1,9 +1,7 @@
-import { createLogger, format, Logger, transports } from "winston";
+import { createLogger, format, transports } from "winston";
 import { getServiceName } from "@/config/network";
 
 import { networkInterfaces } from "os";
-
-import * as Transport from "winston-transport";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const nets: any = networkInterfaces();
@@ -22,43 +20,32 @@ for (const name of Object.keys(nets)) {
   }
 }
 
-let _logger: Logger;
-
 const log = (level: "error" | "info" | "warn" | "debug") => {
-  const getLogger = () => {
-    const service = getServiceName();
-    const _transports: Transport[] = [new transports.Console()];
+  const service = getServiceName();
 
-    if (process.env.DATADOG_API_KEY) {
-      _transports.push(
-        new transports.Http({
-          host: "http-intake.logs.datadoghq.com",
-          path: `/api/v2/logs?dd-api-key=${process.env.DATADOG_API_KEY}&ddsource=nodejs&service=${service}`,
-          ssl: true,
-        })
-      );
-    }
-
-    return createLogger({
-      exitOnError: false,
-      level: "debug",
-      defaultMeta: {
-        service,
-      },
-      format: format.combine(
-        format.timestamp({
-          format: "YYYY-MM-DD HH:mm:ss",
-        }),
-        format.json()
-      ),
-      transports: _transports,
-    });
-  };
-
-  _logger = _logger || getLogger();
+  const logger = createLogger({
+    exitOnError: false,
+    level: "debug",
+    format: format.combine(
+      format.timestamp({
+        format: "YYYY-MM-DD HH:mm:ss",
+      }),
+      format.json()
+    ),
+    transports: [
+      process.env.DATADOG_API_KEY
+        ? new transports.Http({
+            host: "http-intake.logs.datadoghq.com",
+            path: `/api/v2/logs?dd-api-key=${process.env.DATADOG_API_KEY}&ddsource=nodejs&service=${service}`,
+            ssl: true,
+          })
+        : // Fallback to logging to standard output
+          new transports.Console(),
+    ],
+  });
 
   return (component: string, message: string) =>
-    _logger.log(level, message, {
+    logger.log(level, message, {
       component,
       version: process.env.npm_package_version,
       networkInterfaces: results,
