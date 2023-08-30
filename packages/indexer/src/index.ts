@@ -11,7 +11,7 @@ import _ from "lodash";
 
 if (process.env.LOCAL_TESTING) {
   import("./setup");
-} else if (config.doBackgroundWork) {
+} else {
   RabbitMq.createVhost()
     .then(() => RabbitMq.connect())
     .then(async () => {
