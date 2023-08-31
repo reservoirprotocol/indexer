@@ -651,6 +651,7 @@ export const initIndex = async (): Promise<void> => {
         message: "Start.",
         indexName: INDEX_NAME,
         indexConfig,
+        settings: getNetworkSettings().elasticsearch?.indexes?.activities,
       })
     );
 
