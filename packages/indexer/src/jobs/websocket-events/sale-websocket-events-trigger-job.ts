@@ -154,7 +154,7 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
         logger.info(
           "sales-latency-2",
           JSON.stringify({
-            latency: new Date(data.after.created_at).getTime() - data.after.timestamp / 1000,
+            latency: new Date(data.after.created_at).getTime() / 1000 - data.after.timestamp,
             tx_hash: data.after.tx_hash,
             log_index: data.after.log_index,
             batch_index: data.after.batch_index,
