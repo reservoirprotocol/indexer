@@ -1,5 +1,8 @@
+import cron from "node-cron";
+
 import { logger } from "@/common/logger";
-import { safeWebSocketSubscription } from "@/common/provider";
+import { baseProvider, safeWebSocketSubscription } from "@/common/provider";
+import { redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
@@ -20,6 +23,33 @@ import { checkForMissingBlocks } from "@/events-sync/syncEventsV2";
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork && config.catchup) {
   const networkSettings = getNetworkSettings();
+
+  // Keep up with the head of the blockchain by polling for new blocks every once in a while
+  cron.schedule(
+    `*/${networkSettings.realtimeSyncFrequencySeconds} * * * * *`,
+    async () =>
+      await redlock
+        .acquire(
+          ["events-sync-catchup-lock"],
+          (networkSettings.realtimeSyncFrequencySeconds - 1) * 1000
+        )
+        .then(async () => {
+          try {
+            const block = await baseProvider.getBlockNumber();
+            if (config.master && !networkSettings.enableWebSocket) {
+              logger.info("events-sync-catchup", `Catching up events for block ${block}`);
+              await eventsSyncRealtimeJob.addToQueue({ block });
+            }
+            await checkForMissingBlocks(block);
+          } catch (error) {
+            logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);
+          }
+        })
+        .catch(() => {
+          // Skip on any errors
+        })
+  );
+
   // MASTER ONLY
   if (config.master && networkSettings.enableWebSocket) {
     // Besides the manual polling of events via the above cron job

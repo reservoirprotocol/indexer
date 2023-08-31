@@ -42,6 +42,7 @@ export const postOrdersV1Options: RouteOptions = {
             .required(),
           data: Joi.object().required(),
           originatedAt: Joi.string(),
+          source: Joi.string(),
         })
       ),
     }),
