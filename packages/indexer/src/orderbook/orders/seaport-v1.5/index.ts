@@ -91,6 +91,14 @@ export const save = async (
       const info = order.getInfo();
       const id = order.hash();
 
+      logger.info(
+        "orders-seaport-v1.5-save",
+        JSON.stringify({
+          order,
+          metadata,
+        })
+      );
+
       // Check: order has a valid format
       if (!info) {
         return results.push({
