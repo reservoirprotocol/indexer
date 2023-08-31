@@ -5,10 +5,13 @@ import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
+import {
+  EventKind,
+  processTokenListingEventJob,
+} from "@/jobs/token-listings/process-token-listing-event-job";
 import { Collections } from "@/models/collections";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { config } from "@/config/index";
-import { acquireLock } from "@/common/redis";
 
 export class IndexerOrdersHandler extends KafkaEventHandler {
   topicName = "indexer.public.orders";
@@ -22,6 +25,13 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
 
     if (payload.after.side === "sell") {
       eventKind = WebsocketEventKind.SellOrder;
+
+      await processTokenListingEventJob.addToQueue([
+        {
+          kind: EventKind.newSellOrder,
+          data: payload.after,
+        },
+      ]);
     } else if (payload.after.side === "buy") {
       eventKind = WebsocketEventKind.BuyOrder;
     } else {
@@ -45,9 +55,9 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
       eventKind,
     });
 
-    // if (payload.after.side === "sell") {
-    //   await this.handleSellOrder(payload);
-    // }
+    if (payload.after.side === "sell") {
+      await this.handleSellOrder(payload);
+    }
   }
 
   protected async handleUpdate(payload: any, offset: string): Promise<void> {
@@ -88,61 +98,41 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
   }
 
   async handleSellOrder(payload: any): Promise<void> {
-    try {
-      if (
-        payload.after.fillability_status === "fillable" &&
-        payload.after.approval_status === "approved"
-      ) {
-        const [, contract, tokenId] = payload.after.token_set_id.split(":");
+    if (
+      payload.after.fillability_status === "fillable" &&
+      payload.after.approval_status === "approved"
+    ) {
+      const [, contract, tokenId] = payload.after.token_set_id.split(":");
 
-        const acquiredLock = await acquireLock(
-          `fetch-ask-token-metadata-lock:${contract}:${tokenId}`,
-          86400
-        );
-
-        if (acquiredLock) {
-          logger.info(
-            "kafka-event-handler",
-            JSON.stringify({
-              topic: "handleSellOrder",
-              message: "Refreshing token metadata.",
-              payload,
-              contract,
-              tokenId,
-            })
-          );
-
-          if (config.chainId === 5) {
-            const collection = await Collections.getByContractAndTokenId(contract, tokenId);
-
-            await metadataIndexFetchJob.addToQueue(
-              [
-                {
-                  kind: "single-token",
-                  data: {
-                    method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
-                    contract,
-                    tokenId,
-                    collection: collection?.id || contract,
-                  },
-                  context: "kafka-event-handler",
-                },
-              ],
-              true
-            );
-          }
-        }
-      }
-    } catch (error) {
-      logger.error(
+      logger.info(
         "kafka-event-handler",
         JSON.stringify({
-          topic: "handleSellOrder",
-          message: "Handle sell order error. error=${error}",
+          message: "Refreshing token metadata.",
           payload,
-          error,
+          contract,
+          tokenId,
         })
       );
+
+      if (config.chainId === 5) {
+        const collection = await Collections.getByContractAndTokenId(contract, tokenId);
+
+        await metadataIndexFetchJob.addToQueue(
+          [
+            {
+              kind: "single-token",
+              data: {
+                method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
+                contract,
+                tokenId,
+                collection: collection?.id || contract,
+              },
+              context: "post-flag-token-v1",
+            },
+          ],
+          true
+        );
+      }
     }
   }
 }
