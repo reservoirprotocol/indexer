@@ -33,7 +33,6 @@ import * as backfillNftTransferCreatedAt from "@/jobs/backfill/backfill-nft-tran
 import * as backfillSaleRoyalties from "@/jobs/backfill/backfill-sale-royalties";
 import * as tokenWebsocketEventsTriggerQueue from "@/jobs/websocket-events/token-websocket-events-trigger-queue";
 import * as backfillSalePricingDecimalElasticsearch from "@/jobs/activities/backfill/backfill-sales-pricing-decimal-elasticsearch";
-import * as blockGapCheck from "@/jobs/events-sync/block-gap-check";
 import * as backfillRefreshCollectionsCreator from "@/jobs/backfill/backfill-refresh-collections-creator";
 import * as backfillLooksrareSeaportOrders from "@/jobs/backfill/backfill-looksrare-seaport-orders";
 import * as backfillSalesUsdPrice from "@/jobs/backfill/backfill-sales-usd-price";
@@ -149,6 +148,7 @@ import { pendingExpiredOrdersCheckJob } from "@/jobs/orderbook/cron/pending-expi
 import { askWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/ask-websocket-events-trigger-job";
 import { bidWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/bid-websocket-events-trigger-job";
 import { tokenWebsocketEventsTriggerJob } from "@/jobs/websocket-events/token-websocket-events-trigger-job";
+import { blockGapCheckJob } from "@/jobs/events-sync/block-gap-check";
 
 export const allJobQueues = [
   backfillExpiredOrders.queue,
@@ -159,7 +159,6 @@ export const allJobQueues = [
   backfillSaleRoyalties.queue,
   tokenWebsocketEventsTriggerQueue.queue,
   backfillSalePricingDecimalElasticsearch.queue,
-  blockGapCheck.queue,
   backfillRefreshCollectionsCreator.queue,
   backfillLooksrareSeaportOrders.queue,
   backfillSalesUsdPrice.queue,
@@ -281,6 +280,7 @@ export class RabbitMqJobsConsumer {
       askWebsocketEventsTriggerQueueJob,
       bidWebsocketEventsTriggerQueueJob,
       tokenWebsocketEventsTriggerJob,
+      blockGapCheckJob,
     ];
   }
 
