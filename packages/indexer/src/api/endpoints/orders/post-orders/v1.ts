@@ -67,15 +67,16 @@ export const postOrdersV1Options: RouteOptions = {
       logger.info(`post-orders-${version}-handler`, `Got ${orders.length} orders`);
 
       const orderInfos: GenericOrderInfo[] = [];
-      for (const { kind, data, originatedAt } of orders) {
+      for (const { kind, data, originatedAt, source } of orders) {
         orderInfos.push({
           kind,
           info: {
             orderParams: data,
             metadata: {
               originatedAt,
+              source,
             },
-            isOpenSea: true,
+            isOpenSea: source === "opensea",
           },
           validateBidValue: true,
         });

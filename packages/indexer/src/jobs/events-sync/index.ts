@@ -34,15 +34,17 @@ if (config.doBackgroundWork && config.catchup) {
           (networkSettings.realtimeSyncFrequencySeconds - 1) * 1000
         )
         .then(async () => {
-          try {
-            const block = await baseProvider.getBlockNumber();
-            if (config.master && !networkSettings.enableWebSocket) {
-              logger.info("events-sync-catchup", `Catching up events for block ${block}`);
-              await eventsSyncRealtimeJob.addToQueue({ block });
+          if (config.chainId !== 137) {
+            try {
+              const block = await baseProvider.getBlockNumber();
+              if (config.master && !networkSettings.enableWebSocket) {
+                logger.info("events-sync-catchup", `Catching up events for block ${block}`);
+                await eventsSyncRealtimeJob.addToQueue({ block });
+              }
+              await checkForMissingBlocks(block);
+            } catch (error) {
+              logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);
             }
-            await checkForMissingBlocks(block);
-          } catch (error) {
-            logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);
           }
         })
         .catch(() => {
