@@ -34,11 +34,9 @@ export const save = async (activities: ActivityDocument[], upsert = true): Promi
         logger.error(
           "elasticsearch-activities",
           JSON.stringify({
-            topic: "save-errors",
+            message: "save activities errors",
+            topic: "save",
             upsert,
-            data: {
-              activities: JSON.stringify(activities),
-            },
             response,
           })
         );
@@ -46,11 +44,9 @@ export const save = async (activities: ActivityDocument[], upsert = true): Promi
         logger.debug(
           "elasticsearch-activities",
           JSON.stringify({
-            topic: "save-conflicts",
+            message: "save activities conflicts",
+            topic: "save",
             upsert,
-            data: {
-              activities: JSON.stringify(activities),
-            },
             response,
           })
         );
@@ -60,11 +56,9 @@ export const save = async (activities: ActivityDocument[], upsert = true): Promi
     logger.error(
       "elasticsearch-activities",
       JSON.stringify({
+        message: `error saving activities. error=${error}`,
         topic: "save",
         upsert,
-        data: {
-          activities: JSON.stringify(activities),
-        },
         error,
       })
     );
@@ -649,6 +643,17 @@ export const initIndex = async (): Promise<void> => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     const indexConfig = CONFIG[indexConfigName];
+
+    logger.info(
+      "elasticsearch-activities",
+      JSON.stringify({
+        topic: "initIndex",
+        message: "Start.",
+        indexName: INDEX_NAME,
+        indexConfig,
+        settings: getNetworkSettings().elasticsearch?.indexes?.activities,
+      })
+    );
 
     if (await elasticsearch.indices.exists({ index: INDEX_NAME })) {
       logger.info(
