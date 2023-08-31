@@ -480,9 +480,9 @@ export const getNetworkSettings = (): NetworkSettings => {
           "0x2f3a40a3db8a7e3d09b0adfefbce4f6f81927557": true,
         },
         elasticsearch: {
-          ...defaultNetworkSettings.elasticsearch,
           indexes: {
             activities: {
+              ...defaultNetworkSettings.elasticsearch?.indexes?.activities,
               numberOfShards: 10,
             },
           },
@@ -527,9 +527,9 @@ export const getNetworkSettings = (): NetworkSettings => {
           networkId: "optimistic-ethereum",
         },
         elasticsearch: {
-          ...defaultNetworkSettings.elasticsearch,
           indexes: {
             activities: {
+              ...defaultNetworkSettings.elasticsearch?.indexes?.activities,
               numberOfShards: 10,
             },
           },
@@ -572,9 +572,9 @@ export const getNetworkSettings = (): NetworkSettings => {
           networkId: "binance-smart-chain",
         },
         elasticsearch: {
-          ...defaultNetworkSettings.elasticsearch,
           indexes: {
             activities: {
+              ...defaultNetworkSettings.elasticsearch?.indexes?.activities,
               numberOfShards: 10,
             },
           },
@@ -649,9 +649,9 @@ export const getNetworkSettings = (): NetworkSettings => {
           networkId: "polygon-pos",
         },
         elasticsearch: {
-          ...defaultNetworkSettings.elasticsearch,
           indexes: {
             activities: {
+              ...defaultNetworkSettings.elasticsearch?.indexes?.activities,
               numberOfShards: 40,
             },
           },
@@ -742,9 +742,9 @@ export const getNetworkSettings = (): NetworkSettings => {
           networkId: "arbitrum-one",
         },
         elasticsearch: {
-          ...defaultNetworkSettings.elasticsearch,
           indexes: {
             activities: {
+              ...defaultNetworkSettings.elasticsearch?.indexes?.activities,
               numberOfShards: 10,
             },
           },
@@ -928,9 +928,9 @@ export const getNetworkSettings = (): NetworkSettings => {
         lastBlockLatency: 5,
         subDomain: "api-mumbai",
         elasticsearch: {
-          ...defaultNetworkSettings.elasticsearch,
           indexes: {
             activities: {
+              ...defaultNetworkSettings.elasticsearch?.indexes?.activities,
               numberOfShards: 10,
             },
           },
