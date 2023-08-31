@@ -6,6 +6,7 @@ import { redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
+import { checkForMissingBlocks } from "@/events-sync/syncEventsV2";
 
 // For syncing events we have two separate job queues. One is for
 // handling backfilling of past event while the other one handles
@@ -34,11 +35,12 @@ if (config.doBackgroundWork && config.catchup) {
         )
         .then(async () => {
           try {
-            if (!config.master || !networkSettings.enableWebSocket) {
-              const block = await baseProvider.getBlockNumber();
+            const block = await baseProvider.getBlockNumber();
+            if (config.master && !networkSettings.enableWebSocket) {
+              logger.info("events-sync-catchup", `Catching up events for block ${block}`);
               await eventsSyncRealtimeJob.addToQueue({ block });
             }
-            logger.info("events-sync-catchup", "Catching up events");
+            await checkForMissingBlocks(block);
           } catch (error) {
             logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);
           }
@@ -61,6 +63,7 @@ if (config.doBackgroundWork && config.catchup) {
 
         try {
           await eventsSyncRealtimeJob.addToQueue({ block });
+          await checkForMissingBlocks(block);
         } catch (error) {
           logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);
         }

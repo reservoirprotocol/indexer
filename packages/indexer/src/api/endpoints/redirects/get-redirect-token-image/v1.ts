@@ -48,7 +48,7 @@ export const getRedirectTokenImageV1Options: RouteOptions = {
       const [contract, tokenId] = params.token.split(":");
       const token = await Tokens.getByContractAndTokenId(contract, tokenId, true);
 
-      if (_.isNull(token)) {
+      if (_.isNull(token) || !token.image) {
         throw Boom.badData(`Token ${params.token} not found`);
       }
 
@@ -56,6 +56,7 @@ export const getRedirectTokenImageV1Options: RouteOptions = {
         token.image,
         ImageSize[(query.imageSize as keyof typeof ImageSize) || "medium"]
       );
+
       delete request.query.imageSize;
       const imageWithQueryParams = Assets.addImageParams(imageUrl, request.query);
       return response.redirect(imageWithQueryParams).header("cache-control", `${1000 * 60}`);

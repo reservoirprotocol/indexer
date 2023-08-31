@@ -21,3 +21,4 @@ export * from "@/api/endpoints/collections/get-sources-listings/v1";
 export * from "@/api/endpoints/collections/put-set-collection-community/v1";
 export * from "@/api/endpoints/collections/get-collection-supported-marketplaces/v1";
 export * from "@/api/endpoints/collections/get-top-selling-collections/v1";
+export * from "@/api/endpoints/collections/get-top-selling-collections/v2";

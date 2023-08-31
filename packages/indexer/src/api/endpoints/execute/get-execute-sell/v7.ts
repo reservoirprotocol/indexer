@@ -1065,6 +1065,11 @@ export const getExecuteSellV7Options: RouteOptions = {
               },
             });
 
+            // Remove any 'pre-signature' steps
+            if (bidDetails.every((d) => d.kind !== "payment-processor")) {
+              steps = steps.filter((s) => s.id !== "pre-signatures");
+            }
+
             // Force the client to poll
             steps[1].items.push({
               status: "incomplete",
@@ -1094,6 +1099,11 @@ export const getExecuteSellV7Options: RouteOptions = {
                 maxPriorityFeePerGas,
               },
             });
+          }
+
+          // Remove any 'pre-signature' steps
+          if (bidDetails.every((d) => d.kind !== "payment-processor")) {
+            steps = steps.filter((s) => s.id !== "pre-signatures");
           }
 
           // Force the client to poll

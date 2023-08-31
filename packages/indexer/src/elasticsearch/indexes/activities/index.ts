@@ -34,11 +34,9 @@ export const save = async (activities: ActivityDocument[], upsert = true): Promi
         logger.error(
           "elasticsearch-activities",
           JSON.stringify({
-            topic: "save-errors",
+            message: "save activities errors",
+            topic: "save",
             upsert,
-            data: {
-              activities: JSON.stringify(activities),
-            },
             response,
           })
         );
@@ -46,11 +44,9 @@ export const save = async (activities: ActivityDocument[], upsert = true): Promi
         logger.debug(
           "elasticsearch-activities",
           JSON.stringify({
-            topic: "save-conflicts",
+            message: "save activities conflicts",
+            topic: "save",
             upsert,
-            data: {
-              activities: JSON.stringify(activities),
-            },
             response,
           })
         );
@@ -60,11 +56,9 @@ export const save = async (activities: ActivityDocument[], upsert = true): Promi
     logger.error(
       "elasticsearch-activities",
       JSON.stringify({
+        message: `error saving activities. error=${error}`,
         topic: "save",
         upsert,
-        data: {
-          activities: JSON.stringify(activities),
-        },
         error,
       })
     );
@@ -123,11 +117,13 @@ export const getChainStatsFromActivity = async () => {
           aggs: {
             sales_by_type: {
               terms: {
-                field: "type",
+                field: !["optimism", "base"].includes(getNetworkName()) ? "type" : "type.keyword",
               },
               aggs: {
                 sales_count: {
-                  value_count: { field: "id" },
+                  value_count: {
+                    field: !["optimism", "base"].includes(getNetworkName()) ? "id" : "id.keyword",
+                  },
                 },
                 total_volume: {
                   sum: { field: "pricing.priceDecimal" },
@@ -183,7 +179,8 @@ export enum TopSellingFillOptions {
 }
 
 const mapBucketToCollection = (bucket: any, includeRecentSales: boolean) => {
-  const collectionData = bucket?.top_collection_hits?.hits?.hits[0]?._source.collection;
+  const data = bucket?.top_collection_hits?.hits?.hits[0]?._source;
+  const collectionData = data.collection;
 
   const recentSales = bucket?.top_collection_hits?.hits?.hits.map((hit: any) => {
     const sale = hit._source;
@@ -205,7 +202,7 @@ const mapBucketToCollection = (bucket: any, includeRecentSales: boolean) => {
     id: collectionData?.id,
     name: collectionData?.name,
     image: collectionData?.image,
-    primaryContract: collectionData?.contract,
+    primaryContract: data?.contract,
     recentSales: includeRecentSales ? recentSales : [],
   };
 };
@@ -253,19 +250,23 @@ export const getTopSellingCollections = async (params: {
   const collectionAggregation = {
     collections: {
       terms: {
-        field: "collection.id",
+        field: !["optimism", "base"].includes(getNetworkName())
+          ? "collection.id"
+          : "collection.id.keyword",
         size: limit,
         order: { total_transactions: "desc" },
       },
       aggs: {
         total_sales: {
           value_count: {
-            field: "id",
+            field: !["optimism", "base"].includes(getNetworkName()) ? "id" : "id.keyword",
           },
         },
         total_transactions: {
           cardinality: {
-            field: "event.txHash",
+            field: !["optimism", "base"].includes(getNetworkName())
+              ? "event.txHash"
+              : "event.txHash.keyword",
           },
         },
 
@@ -642,6 +643,17 @@ export const initIndex = async (): Promise<void> => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     const indexConfig = CONFIG[indexConfigName];
+
+    logger.info(
+      "elasticsearch-activities",
+      JSON.stringify({
+        topic: "initIndex",
+        message: "Start.",
+        indexName: INDEX_NAME,
+        indexConfig,
+        settings: getNetworkSettings().elasticsearch?.indexes?.activities,
+      })
+    );
 
     if (await elasticsearch.indices.exists({ index: INDEX_NAME })) {
       logger.info(
