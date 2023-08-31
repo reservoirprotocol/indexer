@@ -30,11 +30,13 @@ export const extend = async (_chainId: number, metadata: any) => {
     Rune: "",
   };
 
-  metadata.attributes.forEach((attribute) => {
+  metadata.attributes.forEach((attribute: { key: string; value: string }) => {
     const attributeKey = attribute.key.charAt(0).toUpperCase() + attribute.key.slice(1);
     attributes.push({
       key: attributeKey ?? "property",
-      rank: rank[attributeKey] ? rank[attributeKey] : null,
+      rank: rank[attributeKey as keyof typeof rank]
+        ? rank[attributeKey as keyof typeof rank]
+        : null,
       value: attribute.value,
       kind: "string",
     });
@@ -44,18 +46,19 @@ export const extend = async (_chainId: number, metadata: any) => {
     }
 
     if (attributeKey in coreTraits) {
-      coreTraits[attributeKey] = attribute.value;
+      coreTraits[attributeKey as keyof typeof coreTraits] = attribute.value;
     }
   });
 
   if (!isUndesirable) {
     // Add name traits
     for (const attribute of ["Title", "Name", "Origin"]) {
-      if (String(metadata.tokenId) in souls) {
+      if (String(metadata.tokenId) in souls && souls[metadata.tokenId as keyof typeof souls]) {
+        const value = souls[metadata.tokenId as keyof typeof souls];
         attributes.push({
           key: attribute ?? "property",
-          rank: rank[attribute],
-          value: souls[metadata.tokenId][attribute.toLowerCase()],
+          rank: rank[attribute as keyof typeof rank],
+          value: value[attribute.toLowerCase() as keyof typeof value],
           kind: "string",
         });
       }
@@ -63,10 +66,10 @@ export const extend = async (_chainId: number, metadata: any) => {
 
     // Add None value for core traits
     for (const trait of ["Head", "Body", "Familiar", "Prop", "Rune"]) {
-      if (!coreTraits[trait]) {
+      if (!coreTraits[trait as keyof typeof coreTraits]) {
         attributes.push({
           key: trait ?? "property",
-          rank: rank[trait],
+          rank: rank[trait as keyof typeof rank],
           value: "None",
           kind: "string",
         });

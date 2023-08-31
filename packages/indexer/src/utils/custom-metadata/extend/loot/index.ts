@@ -1,10 +1,23 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { BigNumber } from "@ethersproject/bignumber";
 import { id } from "@ethersproject/hash";
 import { lootRarity, rarityDescription } from "loot-rarity";
 
-const items = {};
+const items: {
+  [key: string]: string[];
+} = {
+  WEAPON: [],
+  CHEST: [],
+  HEAD: [],
+
+  WAIST: [],
+  FOOT: [],
+  HAND: [],
+  NECK: [],
+  RING: [],
+};
 
 items.WEAPON = [
   "Warhammer",
@@ -233,12 +246,12 @@ const nameSuffixes = [
   "Moon",
 ];
 
-const random = (input) => BigNumber.from(id(input));
+const random = (input: string) => BigNumber.from(id(input));
 
-const capitalize = (s) => s.charAt(0).toUpperCase() + s.toLowerCase().slice(1);
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.toLowerCase().slice(1);
 
 export const extend = async (_chainId: number, metadata: any) => {
-  const attributes = [];
+  const attributes: any[] = [];
   const scores = {
     greatness: 0,
     orders: 0,

@@ -1,7 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import warriors from "./warriors.json";
+import _warriors from "./warriors.json";
 
+const warriors: {
+  [key: string]: {
+    [key: string]: string;
+  };
+} = _warriors;
 const rank = {
   Head: 14,
   Body: 13,
@@ -39,11 +44,11 @@ export const extend = async (_chainId: number, metadata: any) => {
 
   // Add Name attributes
   for (const attribute of ["Name", "Title", "Affiliation"]) {
+    const warrior = warriors[metadata.tokenId as keyof typeof warriors];
     attributes.push({
       key: attribute ?? "property",
       rank: rankCopy[attribute] ? rankCopy[attribute] : null,
-      value:
-        warriors[metadata.tokenId as keyof typeof warriors][attribute as keyof typeof warriors],
+      value: warrior[attribute as keyof typeof warriors],
       kind: "string",
     });
 

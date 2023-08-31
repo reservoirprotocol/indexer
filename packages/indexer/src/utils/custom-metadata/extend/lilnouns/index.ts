@@ -5,7 +5,7 @@ import { utils } from "ethers";
 
 import nouns from "./lilnouns.json";
 
-const capitalizeFirstLetter = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const capitalizeFirstLetter = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export const extend = async (_chainId: number, metadata: any) => {
   const traitMap = ["background", "body", "accessory", "head", "glasses"];
@@ -48,14 +48,15 @@ export const extend = async (_chainId: number, metadata: any) => {
       rank: 2,
     });
   }
-  for (const i in traitMap) {
+
+  traitMap.forEach((trait, i) => {
     traits.push({
-      key: capitalizeFirstLetter(traitMap[i]),
-      value: nouns[i][data.nouns[0].seed[traitMap[i]]],
+      key: capitalizeFirstLetter(trait),
+      value: nouns[i][data.nouns[0].seed[trait]],
       kind: "string",
       rank: 7 - i,
     });
-  }
+  });
 
   return {
     ...metadata,

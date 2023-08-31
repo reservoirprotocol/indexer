@@ -15,11 +15,14 @@ const ranks = {
 
 export const extend = async (_chainId: number, metadata: any) => {
   const response = await axios.get(`${metadataBaseURI}/${metadata.tokenId}`);
-  const attributes = response.data.attributes.map((a) => ({
+  const attributes = response.data.attributes.map((a: { trait_type: string; value: string }) => ({
     key: a.trait_type ?? "property",
     value: a.value,
     kind: "string",
-    rank: ranks[a.trait_type] !== undefined ? ranks[a.trait_type] : 1,
+    rank:
+      ranks[a.trait_type as keyof typeof ranks] !== undefined
+        ? ranks[a.trait_type as keyof typeof ranks]
+        : 1,
   }));
   return {
     ...metadata,

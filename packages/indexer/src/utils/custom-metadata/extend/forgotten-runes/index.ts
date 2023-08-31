@@ -1,6 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import wizards from "./wizards.json";
+import _wizards from "./wizards.json";
+
+const wizards: {
+  [key: string]: {
+    [key: string]: string;
+  };
+} = _wizards as any;
 
 const rank = {
   Head: 14,
@@ -24,7 +30,7 @@ export const extend = async (_chainId: number, metadata: any) => {
     attributes.push({
       key: trait ?? "property",
       rank: rank[trait as keyof typeof rank],
-      value: wizards[metadata.tokenId as keyof typeof wizards][trait],
+      value: wizards[metadata.tokenId as keyof typeof wizards][trait as keyof typeof wizards],
       kind: "string",
     });
   }
