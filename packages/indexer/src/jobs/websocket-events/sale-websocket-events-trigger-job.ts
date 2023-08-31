@@ -148,6 +148,22 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
         data: result,
         offset: data.offset,
       });
+
+      // Log sales latency for new sales
+      if (data.trigger === "insert") {
+        logger.info(
+          "sales-latency-2",
+          JSON.stringify({
+            latency: new Date(data.after.created_at).getTime() - data.after.timestamp / 1000,
+            tx_hash: data.after.tx_hash,
+            log_index: data.after.log_index,
+            batch_index: data.after.batch_index,
+            block: data.after.block,
+            block_hash: data.after.block_hash,
+            order_kind: data.after.order_kind,
+          })
+        );
+      }
     } catch (error) {
       logger.error(
         this.queueName,
@@ -188,6 +204,7 @@ interface SaleInfo {
   amount: number;
   fill_source_id: number;
   block: number;
+  block_hash: string;
   tx_hash: string;
   timestamp: number;
   price: string;
