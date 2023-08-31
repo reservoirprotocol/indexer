@@ -23,7 +23,7 @@ import * as forgottenRunesWarriors from "./forgotten-runes-warriors";
 import * as forgottenSouls from "./forgotten-souls";
 import * as goldfinch from "./goldfinch";
 import * as lilnouns from "./lilnouns";
-import * as loot from "./loot";
+// import * as loot from "./loot";
 import * as mirageGalleryCurated from "./mirage-gallery-curated";
 import * as moonbirds from "./moonbirds";
 import * as mutantApeYachtClub from "./mutant-ape-yacht-club";
@@ -290,8 +290,8 @@ extend["1,0xf55b615b479482440135ebf1b907fd4c37ed9420"] = forgottenPonies;
 extend["1,0x7c104b4db94494688027cced1e2ebfb89642c80f"] = forgottenRunesAthenaeum;
 
 // Loot
-extend["1,0xff9c1b15b16263c61d017ee9f65c50e4ae0113d7"] = loot;
-extend["4,0x79e2d470f950f2cf78eef41720e8ff2cf4b3cd78"] = loot;
+// extend["1,0xff9c1b15b16263c61d017ee9f65c50e4ae0113d7"] = loot;
+// extend["4,0x79e2d470f950f2cf78eef41720e8ff2cf4b3cd78"] = loot;
 
 // Goldfinch
 extend["1,0x57686612c601cb5213b01aa8e80afeb24bbd01df"] = goldfinch;
