@@ -18,7 +18,7 @@ import { BidCancelledEventHandler } from "@/elasticsearch/indexes/activities/eve
 import { FillEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/fill-event-created";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { NftTransferEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/nft-transfer-event-created";
-import { acquireLock, redis, releaseLock } from "@/common/redis";
+import { acquireLock, doesLockExist, redis, releaseLock } from "@/common/redis";
 import crypto from "crypto";
 
 export type BackfillSaveActivitiesElasticsearchJobPayload = {
@@ -186,6 +186,8 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
 
       await releaseLock(lockId);
     } else {
+      const lockExists = await doesLockExist(lockId);
+
       logger.info(
         this.queueName,
         JSON.stringify({
@@ -200,6 +202,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           indexName,
           keepGoing,
           lockId,
+          lockExists,
         })
       );
     }
