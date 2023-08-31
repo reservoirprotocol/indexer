@@ -3,7 +3,6 @@
 import { Interface } from "@ethersproject/abi";
 import { Contract } from "@ethersproject/contracts";
 import axios from "axios";
-import slugify from "slugify";
 
 import { baseProvider } from "@/common/provider";
 import { config } from "@/config/index";
@@ -69,7 +68,7 @@ export class MetadataApi {
 
       return {
         id: contract,
-        slug: slugify(name, { lower: true }),
+        slug: null,
         name,
         community: null,
         metadata: null,
