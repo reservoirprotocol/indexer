@@ -10,7 +10,7 @@ import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
 
-const BATCH_SIZE = 1000;
+const BATCH_SIZE = 500;
 
 export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
   queueName = "save-pending-activities-queue";
@@ -37,12 +37,7 @@ export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
           }
         }
       } catch (error) {
-        logger.error(
-          this.queueName,
-          `failed to insert into activities. error=${error}, pendingActivities=${JSON.stringify(
-            pendingActivities
-          )}`
-        );
+        logger.error(this.queueName, `failed to insert into activities. error=${error}`);
 
         await pendingActivitiesQueue.add(pendingActivities);
       }
