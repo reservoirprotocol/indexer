@@ -8,6 +8,8 @@ import { baseProvider } from "@/common/provider";
 import { config } from "@/config/index";
 import { getNetworkName } from "@/config/network";
 import { logger } from "@/common/logger";
+import { customHandleContractTokens, hasCustomHandler } from "./custom-metadata/custom";
+import { hasExtendHandler } from "./custom-metadata/extend";
 
 interface TokenMetadata {
   contract: string;
@@ -83,6 +85,12 @@ export class MetadataApi {
         creator: null,
       };
     } else {
+      // get custom / extended metadata locally
+      if (hasCustomHandler(config.chainId, contract)) {
+        const result = await customHandleContractTokens(config.chainId, contract, tokenId);
+        return result;
+      }
+
       let indexingMethod =
         options?.indexingMethod ?? MetadataApi.getCollectionIndexingMethod(community);
 
@@ -136,11 +144,37 @@ export class MetadataApi {
     tokens: { contract: string; tokenId: string }[],
     method = ""
   ) {
+    // get custom / extended metadata locally
+    const customMetadata = await Promise.all(
+      tokens.map(async (token) => {
+        if (hasExtendHandler(config.chainId, token.contract)) {
+          const result = await customHandleContractTokens(
+            config.chainId,
+            token.contract,
+            token.tokenId
+          );
+          return result;
+        }
+        return null;
+      })
+    );
+
+    // filter out nulls
+    const filteredCustomMetadata = customMetadata.filter((metadata) => metadata !== null);
+
+    // for tokens that don't have custom metadata, get from metadata-api
+    const tokensWithoutCustomMetadata = tokens.filter((token) => {
+      const hasCustomMetadata = filteredCustomMetadata.find((metadata) => {
+        return metadata.contract === token.contract && metadata.tokenId === token.tokenId;
+      });
+      return !hasCustomMetadata;
+    });
+
     const queryParams = new URLSearchParams();
 
-    for (const token of tokens) {
+    tokensWithoutCustomMetadata.forEach((token) => {
       queryParams.append("token", `${token.contract}:${token.tokenId}`);
-    }
+    });
 
     method = method === "" ? config.metadataIndexingMethod : method;
 
@@ -150,9 +184,9 @@ export class MetadataApi {
 
     const { data } = await axios.get(url);
 
-    const tokenMetadata: TokenMetadata[] = (data as any).metadata;
+    const metadata: TokenMetadata[] = (data as any).metadata;
 
-    return tokenMetadata;
+    return [...metadata, ...filteredCustomMetadata];
   }
 
   public static async parseTokenMetadata(
