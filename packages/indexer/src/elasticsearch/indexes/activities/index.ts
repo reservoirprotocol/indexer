@@ -40,16 +40,6 @@ export const save = async (activities: ActivityDocument[], upsert = true): Promi
             response,
           })
         );
-      } else {
-        logger.debug(
-          "elasticsearch-activities",
-          JSON.stringify({
-            message: "save activities conflicts",
-            topic: "save",
-            upsert,
-            response,
-          })
-        );
       }
     }
   } catch (error) {
@@ -640,17 +630,6 @@ export const initIndex = async (): Promise<void> => {
     // @ts-ignore
     const indexConfig = CONFIG[indexConfigName];
 
-    logger.info(
-      "elasticsearch-activities",
-      JSON.stringify({
-        topic: "initIndex",
-        message: "Start.",
-        indexName: INDEX_NAME,
-        indexConfig,
-        settings: getNetworkSettings().elasticsearch?.indexes?.activities,
-      })
-    );
-
     if (await elasticsearch.indices.exists({ index: INDEX_NAME })) {
       logger.info(
         "elasticsearch-activities",
@@ -659,6 +638,7 @@ export const initIndex = async (): Promise<void> => {
           message: "Index already exists.",
           indexName: INDEX_NAME,
           indexConfig,
+          indexSettings: getNetworkSettings().elasticsearch?.indexes?.activities,
         })
       );
 
@@ -670,6 +650,7 @@ export const initIndex = async (): Promise<void> => {
             message: "Mappings update disabled.",
             indexName: INDEX_NAME,
             indexConfig,
+            indexSettings: getNetworkSettings().elasticsearch?.indexes?.activities,
           })
         );
 
@@ -692,6 +673,7 @@ export const initIndex = async (): Promise<void> => {
           message: "Updated mappings.",
           indexName: INDEX_NAME,
           indexConfig,
+          indexSettings: getNetworkSettings().elasticsearch?.indexes?.activities,
           putMappingResponse,
         })
       );
@@ -703,6 +685,7 @@ export const initIndex = async (): Promise<void> => {
           message: "Creating Index.",
           indexName: INDEX_NAME,
           indexConfig,
+          indexSettings: getNetworkSettings().elasticsearch?.indexes?.activities,
         })
       );
 
@@ -723,6 +706,7 @@ export const initIndex = async (): Promise<void> => {
           message: "Index Created!",
           indexName: INDEX_NAME,
           indexConfig,
+          indexSettings: getNetworkSettings().elasticsearch?.indexes?.activities,
           params,
           createIndexResponse,
         })
@@ -737,6 +721,7 @@ export const initIndex = async (): Promise<void> => {
         topic: "initIndex",
         message: "Error.",
         indexName: INDEX_NAME,
+        indexSettings: getNetworkSettings().elasticsearch?.indexes?.activities,
         error,
       })
     );
@@ -826,22 +811,6 @@ export const updateActivitiesMissingCollection = async (
         );
       } else {
         keepGoing = pendingUpdateActivities.length === 1000;
-
-        logger.info(
-          "elasticsearch-activities",
-          JSON.stringify({
-            topic: "updateActivitiesMissingCollection",
-            message: `Success`,
-            data: {
-              contract,
-              tokenId,
-              collection,
-            },
-            bulkParams,
-            response,
-            keepGoing,
-          })
-        );
       }
     }
   } catch (error) {
@@ -962,23 +931,6 @@ export const updateActivitiesCollection = async (
         );
       } else {
         keepGoing = pendingUpdateActivities.length === 1000;
-
-        logger.info(
-          "elasticsearch-activities",
-          JSON.stringify({
-            topic: "updateActivitiesCollection",
-            message: `Success`,
-            data: {
-              contract,
-              tokenId,
-              newCollection,
-              oldCollectionId,
-            },
-            bulkParams,
-            response,
-            keepGoing,
-          })
-        );
       }
     }
   } catch (error) {
@@ -1173,22 +1125,6 @@ export const updateActivitiesTokenMetadata = async (
         );
       } else {
         keepGoing = pendingUpdateActivities.length === 1000;
-
-        logger.info(
-          "elasticsearch-activities",
-          JSON.stringify({
-            topic: "updateActivitiesTokenMetadata",
-            message: `Success`,
-            data: {
-              contract,
-              tokenId,
-              tokenData,
-            },
-            bulkParams,
-            response,
-            keepGoing,
-          })
-        );
       }
     }
   } catch (error) {
@@ -1350,21 +1286,6 @@ export const updateActivitiesCollectionMetadata = async (
         );
       } else {
         keepGoing = pendingUpdateActivities.length === 1000;
-
-        logger.info(
-          "elasticsearch-activities",
-          JSON.stringify({
-            topic: "updateActivitiesCollectionMetadata",
-            message: `Success`,
-            data: {
-              collectionId,
-              collectionData,
-            },
-            bulkParams,
-            response,
-            keepGoing,
-          })
-        );
       }
     }
   } catch (error) {
@@ -1454,26 +1375,11 @@ export const deleteActivitiesByBlockHash = async (blockHash: string): Promise<bo
               blockHash,
             },
             bulkParams,
-            response,
             keepGoing,
           })
         );
       } else {
         keepGoing = pendingDeleteActivities.length === 1000;
-
-        logger.info(
-          "elasticsearch-activities",
-          JSON.stringify({
-            topic: "deleteActivitiesByBlockHash",
-            message: `Success`,
-            data: {
-              blockHash,
-            },
-            bulkParams,
-            response,
-            keepGoing,
-          })
-        );
       }
     }
   } catch (error) {
