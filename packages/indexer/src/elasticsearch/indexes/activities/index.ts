@@ -250,23 +250,19 @@ export const getTopSellingCollections = async (params: {
   const collectionAggregation = {
     collections: {
       terms: {
-        field: !["optimism", "base"].includes(getNetworkName())
-          ? "collection.id"
-          : "collection.id.keyword",
+        field: !["base"].includes(getNetworkName()) ? "collection.id" : "collection.id.keyword",
         size: limit,
         order: { total_transactions: "desc" },
       },
       aggs: {
         total_sales: {
           value_count: {
-            field: !["optimism", "base"].includes(getNetworkName()) ? "id" : "id.keyword",
+            field: !["base"].includes(getNetworkName()) ? "id" : "id.keyword",
           },
         },
         total_transactions: {
           cardinality: {
-            field: !["optimism", "base"].includes(getNetworkName())
-              ? "event.txHash"
-              : "event.txHash.keyword",
+            field: !["base"].includes(getNetworkName()) ? "event.txHash" : "event.txHash.keyword",
           },
         },
 
