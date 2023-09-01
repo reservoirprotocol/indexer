@@ -811,6 +811,22 @@ export const updateActivitiesMissingCollection = async (
         );
       } else {
         keepGoing = pendingUpdateActivities.length === 1000;
+
+        // logger.info(
+        //   "elasticsearch-activities",
+        //   JSON.stringify({
+        //     topic: "updateActivitiesMissingCollection",
+        //     message: `Success`,
+        //     data: {
+        //       contract,
+        //       tokenId,
+        //       collection,
+        //     },
+        //     bulkParams,
+        //     response,
+        //     keepGoing,
+        //   })
+        // );
       }
     }
   } catch (error) {
@@ -931,6 +947,23 @@ export const updateActivitiesCollection = async (
         );
       } else {
         keepGoing = pendingUpdateActivities.length === 1000;
+
+        // logger.info(
+        //   "elasticsearch-activities",
+        //   JSON.stringify({
+        //     topic: "updateActivitiesCollection",
+        //     message: `Success`,
+        //     data: {
+        //       contract,
+        //       tokenId,
+        //       newCollection,
+        //       oldCollectionId,
+        //     },
+        //     bulkParams,
+        //     response,
+        //     keepGoing,
+        //   })
+        // );
       }
     }
   } catch (error) {
@@ -1125,6 +1158,22 @@ export const updateActivitiesTokenMetadata = async (
         );
       } else {
         keepGoing = pendingUpdateActivities.length === 1000;
+
+        // logger.info(
+        //   "elasticsearch-activities",
+        //   JSON.stringify({
+        //     topic: "updateActivitiesTokenMetadata",
+        //     message: `Success`,
+        //     data: {
+        //       contract,
+        //       tokenId,
+        //       tokenData,
+        //     },
+        //     bulkParams,
+        //     response,
+        //     keepGoing,
+        //   })
+        // );
       }
     }
   } catch (error) {
@@ -1286,6 +1335,21 @@ export const updateActivitiesCollectionMetadata = async (
         );
       } else {
         keepGoing = pendingUpdateActivities.length === 1000;
+
+        // logger.info(
+        //   "elasticsearch-activities",
+        //   JSON.stringify({
+        //     topic: "updateActivitiesCollectionMetadata",
+        //     message: `Success`,
+        //     data: {
+        //       collectionId,
+        //       collectionData,
+        //     },
+        //     bulkParams,
+        //     response,
+        //     keepGoing,
+        //   })
+        // );
       }
     }
   } catch (error) {
@@ -1375,11 +1439,26 @@ export const deleteActivitiesByBlockHash = async (blockHash: string): Promise<bo
               blockHash,
             },
             bulkParams,
+            response,
             keepGoing,
           })
         );
       } else {
         keepGoing = pendingDeleteActivities.length === 1000;
+
+        // logger.info(
+        //   "elasticsearch-activities",
+        //   JSON.stringify({
+        //     topic: "deleteActivitiesByBlockHash",
+        //     message: `Success`,
+        //     data: {
+        //       blockHash,
+        //     },
+        //     bulkParams,
+        //     response,
+        //     keepGoing,
+        //   })
+        // );
       }
     }
   } catch (error) {
