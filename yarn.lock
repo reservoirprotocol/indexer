@@ -3939,13 +3939,6 @@
   dependencies:
     ethers "^5.0.2"
 
-"@types/amqp-connection-manager@^3.4.1":
-  version "3.4.1"
-  resolved "https://registry.yarnpkg.com/@types/amqp-connection-manager/-/amqp-connection-manager-3.4.1.tgz#f0f22aeaddbd5e0da5651748e7c9d34643685e10"
-  integrity sha512-IUKZjnE7V+aUbuHvNZAZiAo4ew7Zzgz1aDiZiN2QEms1EzCYegsT7/Kondgc3UuC2j+Xjz8Gj7jIxnnQ5dWtGQ==
-  dependencies:
-    amqp-connection-manager "*"
-
 "@types/amqplib@^0.10.1":
   version "0.10.1"
   resolved "https://registry.yarnpkg.com/@types/amqplib/-/amqplib-0.10.1.tgz#d43d14027b969e82ceec71cc17bd28e5f5abbc7b"
@@ -4801,10 +4794,10 @@ ajv@^8.0.1, ajv@^8.11.0:
     require-from-string "^2.0.2"
     uri-js "^4.2.2"
 
-amqp-connection-manager@*:
-  version "4.1.13"
-  resolved "https://registry.yarnpkg.com/amqp-connection-manager/-/amqp-connection-manager-4.1.13.tgz#639a5e039a4ac0f1f739f3024289ef2fa35053c0"
-  integrity sha512-riL5EOlXDlBY4VTTfi6lgy4lwrDbtncQQ9C4SdgxGV6PZ8vgBsNmiKnkxGLvbppDRZ70522glxIc1ep+9Xd/Xw==
+amqp-connection-manager@^4.1.14:
+  version "4.1.14"
+  resolved "https://registry.yarnpkg.com/amqp-connection-manager/-/amqp-connection-manager-4.1.14.tgz#603d20ffbc6d90fe464c2a08600c7644c9475342"
+  integrity sha512-1km47dIvEr0HhMUazqovSvNwIlSvDX2APdUpULaINtHpiki1O+cLRaTeXb/jav4OLtH+k6GBXx5gsKOT9kcGKQ==
   dependencies:
     promise-breaker "^6.0.0"
 

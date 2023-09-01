@@ -299,7 +299,7 @@ export class RabbitMqJobsConsumer {
         },
         {
           reconnectTimeInSeconds: 5,
-          heartbeatIntervalInSeconds: 30,
+          heartbeatIntervalInSeconds: 0,
         }
       );
 
