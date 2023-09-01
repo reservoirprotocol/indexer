@@ -298,16 +298,21 @@ export const syncEvents = async (block: number) => {
 
   const availableEventData = getEventData();
 
-  const [{ logs, getLogsTime }, { saveBlocksTime, endSaveBlocksTime }, saveBlockTransactionsTime] =
-    await Promise.all([
-      _getLogs(eventFilter),
-      _saveBlock({
-        number: block,
-        hash: blockData.hash,
-        timestamp: blockData.timestamp,
-      }),
-      _saveBlockTransactions(blockData),
-    ]);
+  const [
+    { traces, getTransactionTracesTime },
+    { logs, getLogsTime },
+    { saveBlocksTime, endSaveBlocksTime },
+    saveBlockTransactionsTime,
+  ] = await Promise.all([
+    syncEventsUtils._getTransactionTraces(blockData.transactions, block),
+    _getLogs(eventFilter),
+    _saveBlock({
+      number: block,
+      hash: blockData.hash,
+      timestamp: blockData.timestamp,
+    }),
+    _saveBlockTransactions(blockData),
+  ]);
 
   let enhancedEvents = logs
     .map((log) => {
@@ -340,12 +345,10 @@ export const syncEvents = async (block: number) => {
 
   const startProcessLogs = Date.now();
 
-  // const processEventsLatencies = await Promise.all(
-  //   eventsBatches.map(async (eventsBatch) => {
-  //     await processEventsBatchV2([eventsBatch]);
-  //   })
-  // );
-  const processEventsLatencies = await processEventsBatchV2(eventsBatches);
+  const [processEventsLatencies] = await Promise.all([
+    processEventsBatchV2(eventsBatches),
+    syncEventsUtils.processContractAddresses(traces),
+  ]);
 
   const endProcessLogs = Date.now();
 
@@ -365,6 +368,11 @@ export const syncEvents = async (block: number) => {
         getLogsTime,
         processLogs: endProcessLogs - startProcessLogs,
       },
+      traces: {
+        count: traces.length,
+        getTransactionTracesTime,
+      },
+
       blocks: {
         count: 1,
         getBlockTime: endGetBlockTime - startGetBlockTime,
