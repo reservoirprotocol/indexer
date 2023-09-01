@@ -21,6 +21,10 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: EventsSyncRealtimeJobPayload) {
     const { block } = payload;
 
+    if (config.chainId === 1 && block >= 340000) {
+      return;
+    }
+
     try {
       await syncEvents(block);
       //eslint-disable-next-line
