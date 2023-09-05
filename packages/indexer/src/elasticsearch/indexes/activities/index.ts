@@ -107,12 +107,12 @@ export const getChainStatsFromActivity = async () => {
           aggs: {
             sales_by_type: {
               terms: {
-                field: !["optimism", "base"].includes(getNetworkName()) ? "type" : "type.keyword",
+                field: "type",
               },
               aggs: {
                 sales_count: {
                   value_count: {
-                    field: !["optimism", "base"].includes(getNetworkName()) ? "id" : "id.keyword",
+                    field: "id",
                   },
                 },
                 total_volume: {
@@ -240,19 +240,19 @@ export const getTopSellingCollections = async (params: {
   const collectionAggregation = {
     collections: {
       terms: {
-        field: !["base"].includes(getNetworkName()) ? "collection.id" : "collection.id.keyword",
+        field: "collection.id",
         size: limit,
         order: { total_transactions: "desc" },
       },
       aggs: {
         total_sales: {
           value_count: {
-            field: !["base"].includes(getNetworkName()) ? "id" : "id.keyword",
+            field: "id",
           },
         },
         total_transactions: {
           cardinality: {
-            field: !["base"].includes(getNetworkName()) ? "event.txHash" : "event.txHash.keyword",
+            field: "event.txHash",
           },
         },
 
