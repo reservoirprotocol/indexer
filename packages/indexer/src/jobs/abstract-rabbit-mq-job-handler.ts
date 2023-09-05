@@ -48,6 +48,7 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
   protected queueType: QueueType = "classic";
   protected consumerTimeout = 0;
   protected disableConsuming = config.rabbitDisableQueuesConsuming;
+  protected immediateAck = false;
 
   public async consume(channel: ChannelWrapper, consumeMessage: ConsumeMessage): Promise<void> {
     this.rabbitMqMessage = JSON.parse(consumeMessage.content.toString()) as RabbitMQMessage;
@@ -56,10 +57,17 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
     this.rabbitMqMessage.retryCount = this.rabbitMqMessage.retryCount ?? 0;
 
     try {
+      if (this.getImmediateAck()) {
+        await channel.ack(consumeMessage); // Ack the message with rabbit
+      }
+
       this.events(); // Subscribe to any events
       const processResult = await this.process(this.rabbitMqMessage.payload); // Process the message
 
-      await channel.ack(consumeMessage); // Ack the message with rabbit
+      if (!this.getImmediateAck()) {
+        await channel.ack(consumeMessage); // Ack the message with rabbit
+      }
+
       this.rabbitMqMessage.completeTime = _.now(); // Set the complete time
 
       // Release lock if there's a job id
@@ -94,7 +102,9 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
       );
 
       try {
-        await channel.ack(consumeMessage); // Ack the message with rabbit
+        if (!this.getImmediateAck()) {
+          await channel.ack(consumeMessage); // Ack the message with rabbit
+        }
 
         // Release lock if there's a job id
         if (this.rabbitMqMessage.jobId) {
@@ -180,6 +190,10 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
 
   public getConsumerTimeout(): number {
     return this.consumerTimeout;
+  }
+
+  public getImmediateAck(): boolean {
+    return this.immediateAck;
   }
 
   protected async send(job: { payload?: any; jobId?: string } = {}, delay = 0, priority = 0) {

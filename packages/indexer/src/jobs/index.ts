@@ -311,7 +311,7 @@ export class RabbitMqJobsConsumer {
         sharedChannel
       );
 
-      connection.once("error", (error) => {
+      connection.once("disconnect", (error) => {
         logger.error("rabbit-error", `Consumer connection error ${error}`);
       });
     }

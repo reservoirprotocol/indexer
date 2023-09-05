@@ -14,8 +14,6 @@ import { AbiParam } from "@/orderbook/mints/calldata";
 import { getMaxSupply } from "@/orderbook/mints/calldata/helpers";
 import { getMethodSignature } from "@/orderbook/mints/method-signatures";
 
-import * as lanyard from "@/orderbook/mints/calldata/detector/lanyard";
-
 const STANDARD = "unknown";
 
 export const extractByTx = async (
@@ -58,10 +56,7 @@ export const extractByTx = async (
   }
 
   // For now, we only support simple data types in the calldata
-  let couldBeLanyardCompatible = false;
-  if (methodSignature.params.split(",").filter((p) => p === "bytes32[]").length === 1) {
-    couldBeLanyardCompatible = true;
-  } else if (["(", ")", "[", "]", "bytes"].some((x) => methodSignature.params.includes(x))) {
+  if (["(", ")", "[", "]", "bytes"].some((x) => methodSignature.params.includes(x))) {
     return [];
   }
 
@@ -120,14 +115,6 @@ export const extractByTx = async (
   };
 
   const results = [collectionMint];
-
-  if (couldBeLanyardCompatible) {
-    const lanyardCollectionMints = await lanyard.extractByCollectionMint(
-      collectionMint,
-      methodSignature
-    );
-    results.push(...lanyardCollectionMints);
-  }
 
   return results;
 };
