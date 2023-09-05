@@ -22,4 +22,11 @@ describe("Mints - Zora", () => {
     const infos = await extractByCollectionERC721(collection);
     expect(infos.length).not.toBe(0);
   });
+
+  it("erc1155-sale-reward", async () => {
+    const collection = `0x60d35A892110705a09a7385efF144575F8f5D4cE`;
+    const infos = await extractByCollectionERC1155(collection, "1");
+    expect(infos.length).not.toBe(0);
+    expect(infos[0]?.details.tx.data.signature).toBe("0x9dbb844d");
+  });
 });

@@ -15,8 +15,9 @@ import { BlockWithTransactions } from "@ethersproject/abstract-provider";
 import { Block } from "@/models/blocks";
 import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
 import { blockCheckJob } from "@/jobs/events-sync/block-check-queue-job";
-import { redis } from "@/common/redis";
+import { acquireLock, doesLockExist, redis } from "@/common/redis";
 import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
+import { config } from "@/config/index";
 
 export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBatch[] => {
   const txHashToEvents = new Map<string, EnhancedEvent[]>();
@@ -280,12 +281,23 @@ const _saveBlockTransactions = async (blockData: BlockWithTransactions) => {
 };
 
 export const syncEvents = async (block: number) => {
+  if (config.chainId === 137) {
+    logger.info("sync-events-v2", `Start syncing block ${block}`);
+  }
+
   const startSyncTime = Date.now();
 
   const startGetBlockTime = Date.now();
   const blockData = await syncEventsUtils.fetchBlock(block);
   if (!blockData) {
     throw new Error(`Block ${block} not found with RPC provider`);
+  }
+
+  const blockLockName = `realtime-sync-${block}-${blockData.hash}`;
+
+  if (config.chainId === 137 && (await doesLockExist(blockLockName))) {
+    logger.info("sync-events-v2", `block ${block} hash ${blockData.hash} was already synced`);
+    return;
   }
 
   const endGetBlockTime = Date.now();
@@ -384,6 +396,10 @@ export const syncEvents = async (block: number) => {
 
   await blockCheckJob.addToQueue({ block: block, blockHash: blockData.hash, delay: 60 });
   await blockCheckJob.addToQueue({ block: block, blockHash: blockData.hash, delay: 60 * 5 });
+
+  if (config.chainId === 137) {
+    await acquireLock(blockLockName, 60 * 60).catch();
+  }
 };
 
 export const unsyncEvents = async (block: number, blockHash: string) => {
