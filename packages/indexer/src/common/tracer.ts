@@ -18,6 +18,14 @@ if (process.env.DATADOG_AGENT_URL) {
   tracer.use("hapi", {
     headers: ["x-api-key", "referer"],
   });
+
+  tracer.use("ioredis", {
+    enabled: false,
+  });
+
+  tracer.use("amqplib", {
+    enabled: false,
+  });
 }
 
 export default tracer;
