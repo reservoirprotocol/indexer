@@ -1,10 +1,10 @@
-import { config } from "@/config/index";
 import { redis } from "@/common/redis";
 import { idb } from "@/common/db";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
 import _ from "lodash";
+import { fromBuffer } from "@/common/utils";
 
 export class BackfillTokensTimeToMetadataJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-tokens-time-to-metadata-queue";
@@ -26,7 +26,7 @@ export class BackfillTokensTimeToMetadataJob extends AbstractRabbitMqJobHandler 
                 tokens.created_at
               FROM tokens
               WHERE tokens.metadata_indexed_at IS NULL and tokens.image IS NOT NULL
-              ORDER BY contract, token_id
+              ORDER BY updated_at DESC, contract DESC, token_id DESC
               LIMIT $/limit/
             )
             UPDATE tokens SET
@@ -47,9 +47,9 @@ export class BackfillTokensTimeToMetadataJob extends AbstractRabbitMqJobHandler 
 
       logger.info(
         this.queueName,
-        `Processed ${results.length} tokens.  limit=${limit}, lastToken=${JSON.stringify(
-          lastToken
-        )}`
+        `Processed ${results.length} tokens.  limit=${limit}, lastTokenContract=${fromBuffer(
+          lastToken.contract
+        )}, lastTokenId=${lastToken.token_id}`
       );
 
       await this.addToQueue();
@@ -57,10 +57,7 @@ export class BackfillTokensTimeToMetadataJob extends AbstractRabbitMqJobHandler 
   }
 
   public async addToQueue(delay = 1000) {
-    if (!config.doElasticsearchWork) {
-      return;
-    }
-    await this.send({ payload: {} }, delay);
+    await this.send({}, delay);
   }
 }
 
