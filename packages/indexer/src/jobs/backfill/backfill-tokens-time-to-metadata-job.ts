@@ -1,20 +1,8 @@
-import _ from "lodash";
-
 import { config } from "@/config/index";
 import { redis } from "@/common/redis";
-import { redb } from "@/common/db";
-import { fromBuffer, toBuffer } from "@/common/utils";
+import { idb } from "@/common/db";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-
-export type BackfillTokensTimeToMetadataJobPayload = {
-  cursor?: CursorInfo;
-};
-
-export type CursorInfo = {
-  contract: string;
-  tokenId: string;
-};
 
 export class BackfillTokensTimeToMetadataJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-delete-expired-bids-elasticsearch-queue";
@@ -23,18 +11,10 @@ export class BackfillTokensTimeToMetadataJob extends AbstractRabbitMqJobHandler 
   persistent = true;
   lazyMode = true;
 
-  protected async process(payload: BackfillTokensTimeToMetadataJobPayload) {
-    const { cursor } = payload;
+  protected async process() {
+    const limit = (await redis.get(`${this.queueName}-limit`)) || 500;
 
-    let continuationFilter = "";
-
-    if (cursor) {
-      continuationFilter = `AND (tokens.contract, tokens.token_id) > ($/contract/, $/tokenId/)`;
-    }
-
-    const limit = (await redis.get(`${this.queueName}-limit`)) || 3000;
-
-    const results = await redb.manyOrNone(
+    const results = await idb.manyOrNone(
       `
             WITH x AS (
               SELECT
@@ -43,7 +23,6 @@ export class BackfillTokensTimeToMetadataJob extends AbstractRabbitMqJobHandler 
                 tokens.created_at
               FROM tokens
               WHERE tokens.metadata_indexed_at IS NULL and tokens.image IS NOT NULL
-              ${continuationFilter}
               ORDER BY contract, token_id
               LIMIT $/limit/
             )
@@ -56,31 +35,20 @@ export class BackfillTokensTimeToMetadataJob extends AbstractRabbitMqJobHandler 
             RETURNING x.contract, x.token_id
           `,
       {
-        contract: cursor?.contract ? toBuffer(cursor?.contract) : null,
-        tokenId: cursor?.tokenId,
         limit,
       }
     );
 
-    let nextCursor;
-
     if (results.length > 0) {
-      const lastToken = _.last(results);
-
-      nextCursor = {
-        contract: fromBuffer(lastToken.contract),
-        tokenId: lastToken.token_id,
-      };
-
-      await this.addToQueue(nextCursor);
+      await this.addToQueue();
     }
   }
 
-  public async addToQueue(cursor?: CursorInfo, delay = 1000) {
+  public async addToQueue(delay = 1000) {
     if (!config.doElasticsearchWork) {
       return;
     }
-    await this.send({ payload: { cursor } }, delay);
+    await this.send({ payload: {} }, delay);
   }
 }
 
