@@ -5,11 +5,12 @@ import { idb } from "@/common/db";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
 export class BackfillTokensTimeToMetadataJob extends AbstractRabbitMqJobHandler {
-  queueName = "backfill-delete-expired-bids-elasticsearch-queue";
+  queueName = "backfill-tokens-time-to-metadata-queue";
   maxRetries = 10;
   concurrency = 1;
   persistent = true;
   lazyMode = true;
+  singleActiveConsumer = true;
 
   protected async process() {
     const limit = (await redis.get(`${this.queueName}-limit`)) || 500;
