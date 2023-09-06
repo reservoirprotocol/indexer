@@ -3,6 +3,8 @@ import { redis } from "@/common/redis";
 import { idb } from "@/common/db";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { logger } from "@/common/logger";
+import _ from "lodash";
 
 export class BackfillTokensTimeToMetadataJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-tokens-time-to-metadata-queue";
@@ -41,6 +43,15 @@ export class BackfillTokensTimeToMetadataJob extends AbstractRabbitMqJobHandler 
     );
 
     if (results.length > 0) {
+      const lastToken = _.last(results);
+
+      logger.info(
+        this.queueName,
+        `Processed ${results.length} tokens.  limit=${limit}, lastToken=${JSON.stringify(
+          lastToken
+        )}`
+      );
+
       await this.addToQueue();
     }
   }
