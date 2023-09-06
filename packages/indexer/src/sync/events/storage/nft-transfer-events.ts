@@ -7,6 +7,7 @@ import { BaseEventParams } from "@/events-sync/parser";
 import { eventsSyncNftTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
 import { AddressZero } from "@ethersproject/constants";
 import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
+import { deadEventsSyncJob } from "@/jobs/events-sync/dead-events-sync";
 
 export type Event = {
   kind: ContractKind;
@@ -19,7 +20,7 @@ export type Event = {
 
 type ContractKind = "erc721" | "erc1155" | "cryptopunks" | "erc721-like";
 
-type DbEvent = {
+export type DbEvent = {
   address: Buffer;
   block: number;
   block_hash: Buffer;
@@ -50,12 +51,17 @@ type erc1155Token = {
   minted_timestamp: number;
 };
 
-export const addEvents = async (events: Event[], backfill: boolean) => {
+export const addEvents = async (
+  events: Event[],
+  backfill: boolean,
+  updateBalancesForDeadAddress = false
+) => {
   // Keep track of all unique contracts and tokens
   const uniqueContracts = new Map<string, string>();
   const uniqueTokens = new Set<string>();
 
   const transferValues: DbEvent[] = [];
+  const deadTransferEvents: Event[] = [];
 
   const contractValues: {
     address: Buffer;
@@ -82,6 +88,11 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
       token_id: event.tokenId,
       amount: event.amount,
     });
+
+    // If the transfer is from the zero address, we add to the deadTransferValues to update balances later on
+    if (event.from === AddressZero && updateBalancesForDeadAddress === false) {
+      deadTransferEvents.push(event);
+    }
 
     if (!uniqueContracts.has(contractId)) {
       uniqueContracts.set(contractId, event.kind);
@@ -137,6 +148,11 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
         { table: "nft_transfer_events" }
       );
 
+      // if updateBalancesForDeadAddress is true, we update the balances for the zero address, otherwise we update the balances for non-zero addresses
+      const balanceUpdateExclusion = updateBalancesForDeadAddress
+        ? `AND "owner" = '${AddressZero}'`
+        : `AND "owner" != '${AddressZero}'`;
+
       // Atomically insert the transfer events and update balances
       nftTransferQueries.push(`
         WITH "x" AS (
@@ -183,6 +199,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
               unnest("amount_deltas") AS "amount_delta",
               unnest("timestamps") AS "timestamp"
             FROM "x"
+            ${balanceUpdateExclusion}
             ORDER BY "address" ASC, "token_id" ASC, "owner" ASC
           ) "y"
           GROUP BY "y"."address", "y"."token_id", "y"."owner"
@@ -232,6 +249,13 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
         tokenValuesChunk.map((t) => ({ contract: fromBuffer(t.contract), tokenId: t.token_id }))
       );
     }
+  }
+
+  // add deadTransferValues to separate process if updateBalancesForDeadAddress is false
+  if (!updateBalancesForDeadAddress && deadTransferEvents.length > 0) {
+    await deadEventsSyncJob.addToQueue({
+      deadTransferEvents: deadTransferEvents,
+    });
   }
 };
 

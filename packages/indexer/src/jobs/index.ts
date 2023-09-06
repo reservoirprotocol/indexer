@@ -148,6 +148,7 @@ import { askWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/ask-w
 import { bidWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/bid-websocket-events-trigger-job";
 import { tokenWebsocketEventsTriggerJob } from "@/jobs/websocket-events/token-websocket-events-trigger-job";
 import { blockGapCheckJob } from "@/jobs/events-sync/block-gap-check";
+import { deadEventsSyncJob } from "./events-sync/dead-events-sync";
 
 export const allJobQueues = [
   backfillExpiredOrders.queue,
@@ -261,6 +262,7 @@ export class RabbitMqJobsConsumer {
       orderbookPostOrderExternalJob,
       orderbookPostOrderExternalOpenseaJob,
       eventsSyncRealtimeJob,
+      deadEventsSyncJob,
       openseaOrdersProcessJob,
       openseaOrdersFetchJob,
       saveBidEventsJob,
