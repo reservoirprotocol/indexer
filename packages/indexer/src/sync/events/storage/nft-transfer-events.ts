@@ -150,8 +150,8 @@ export const addEvents = async (
 
       // if updateBalancesForDeadAddress is true, we update the balances for the zero address, otherwise we update the balances for non-zero addresses
       const balanceUpdateExclusion = updateBalancesForDeadAddress
-        ? `AND "owner" = '${AddressZero}'`
-        : `AND "owner" != '${AddressZero}'`;
+        ? `AND "owner" = E'\\${AddressZero.split("x")[1]}'`
+        : `AND "owner" != E'\\${AddressZero.split("x")[1]}'`;
 
       // Atomically insert the transfer events and update balances
       nftTransferQueries.push(`
