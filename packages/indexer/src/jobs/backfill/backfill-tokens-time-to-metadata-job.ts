@@ -42,7 +42,7 @@ export class BackfillTokensTimeToMetadataJob extends AbstractRabbitMqJobHandler 
                 tokens.token_id,
                 tokens.created_at
               FROM tokens
-              WHERE tokens.metadata_indexed_at IS NULL
+              WHERE tokens.metadata_indexed_at IS NULL and tokens.image IS NOT NULL
               ${continuationFilter}
               ORDER BY contract, token_id
               LIMIT $/limit/
