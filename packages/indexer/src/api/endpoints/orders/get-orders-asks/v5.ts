@@ -154,7 +154,7 @@ export const getOrdersAsksV5Options: RouteOptions = {
           then: Joi.valid("asc", "desc").default("desc"),
           otherwise: Joi.when("sortBy", {
             is: Joi.valid("price"),
-            then: Joi.valid("asc").default("asc"),
+            then: Joi.valid("asc", "desc").default("asc"),
             otherwise: Joi.valid("desc").default("desc"),
           }),
         }),
