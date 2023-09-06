@@ -96,15 +96,10 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
     return { addToQueue };
   }
 
-  public events() {
-    this.once(
-      "onCompleted",
-      async (message: RabbitMQMessage, processResult: { addToQueue: boolean }) => {
-        if (processResult.addToQueue) {
-          await this.addToQueue(message.payload.eventKind);
-        }
-      }
-    );
+  public async onCompleted(message: RabbitMQMessage, processResult: { addToQueue: boolean }) {
+    if (processResult.addToQueue) {
+      await this.addToQueue(message.payload.eventKind);
+    }
   }
 
   public async addToQueue(eventKind: EventKind) {

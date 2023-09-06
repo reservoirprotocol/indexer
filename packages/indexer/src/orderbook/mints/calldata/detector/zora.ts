@@ -246,6 +246,7 @@ export const extractByCollectionERC1155 = async (
   const c = new Contract(
     collection,
     new Interface([
+      "function computeTotalReward(uint256 numTokens) view returns(uint256)",
       "function getPermissions(uint256 tokenId, address user) view returns (uint256)",
       "function mintFee() external view returns(uint256)",
       `function getTokenInfo(uint256 tokenId) view returns (
@@ -266,6 +267,13 @@ export const extractByCollectionERC1155 = async (
       baseProvider
     );
     const defaultMinters = await zoraFactory.defaultMinters();
+    let totalRewards: BigNumber | undefined;
+    try {
+      totalRewards = await c.computeTotalReward(1);
+    } catch {
+      // Skip error for old version
+    }
+
     for (const minter of defaultMinters) {
       const permissions = await c.getPermissions(tokenId, minter);
       // Need to have mint permissions
@@ -311,30 +319,60 @@ export const extractByCollectionERC1155 = async (
             details: {
               tx: {
                 to: collection,
-                data: {
-                  // `mint`
-                  signature: "0x731133e9",
-                  params: [
-                    {
-                      kind: "unknown",
-                      abiType: "address",
-                      abiValue: minter.toLowerCase(),
-                    },
-                    {
-                      kind: "unknown",
-                      abiType: "uint256",
-                      abiValue: tokenId,
-                    },
-                    {
-                      kind: "quantity",
-                      abiType: "uint256",
-                    },
-                    {
-                      kind: "custom",
-                      abiType: "bytes",
-                    },
-                  ],
-                },
+                data:
+                  totalRewards == undefined
+                    ? {
+                        // `mint`
+                        signature: "0x731133e9",
+                        params: [
+                          {
+                            kind: "unknown",
+                            abiType: "address",
+                            abiValue: minter.toLowerCase(),
+                          },
+                          {
+                            kind: "unknown",
+                            abiType: "uint256",
+                            abiValue: tokenId,
+                          },
+                          {
+                            kind: "quantity",
+                            abiType: "uint256",
+                          },
+                          {
+                            kind: "custom",
+                            abiType: "bytes",
+                          },
+                        ],
+                      }
+                    : {
+                        // `mintWithRewards`
+                        signature: "0x9dbb844d",
+                        params: [
+                          {
+                            kind: "unknown",
+                            abiType: "address",
+                            abiValue: minter.toLowerCase(),
+                          },
+                          {
+                            kind: "unknown",
+                            abiType: "uint256",
+                            abiValue: tokenId,
+                          },
+                          {
+                            kind: "quantity",
+                            abiType: "uint256",
+                          },
+                          {
+                            kind: "custom",
+                            abiType: "bytes",
+                          },
+                          {
+                            kind: "referrer",
+                            abiType: "address",
+                          },
+                        ],
+                      },
               },
             },
             currency: Sdk.Common.Addresses.Native[config.chainId],
@@ -404,30 +442,60 @@ export const extractByCollectionERC1155 = async (
             details: {
               tx: {
                 to: collection,
-                data: {
-                  // `mint`
-                  signature: "0x731133e9",
-                  params: [
-                    {
-                      kind: "unknown",
-                      abiType: "address",
-                      abiValue: minter.toLowerCase(),
-                    },
-                    {
-                      kind: "unknown",
-                      abiType: "uint256",
-                      abiValue: tokenId.toString(),
-                    },
-                    {
-                      kind: "quantity",
-                      abiType: "uint256",
-                    },
-                    {
-                      kind: "allowlist",
-                      abiType: "bytes",
-                    },
-                  ],
-                },
+                data:
+                  totalRewards == undefined
+                    ? {
+                        // `mint`
+                        signature: "0x731133e9",
+                        params: [
+                          {
+                            kind: "unknown",
+                            abiType: "address",
+                            abiValue: minter.toLowerCase(),
+                          },
+                          {
+                            kind: "unknown",
+                            abiType: "uint256",
+                            abiValue: tokenId.toString(),
+                          },
+                          {
+                            kind: "quantity",
+                            abiType: "uint256",
+                          },
+                          {
+                            kind: "allowlist",
+                            abiType: "bytes",
+                          },
+                        ],
+                      }
+                    : {
+                        // `mintWithRewards`
+                        signature: "0x9dbb844d",
+                        params: [
+                          {
+                            kind: "unknown",
+                            abiType: "address",
+                            abiValue: minter.toLowerCase(),
+                          },
+                          {
+                            kind: "unknown",
+                            abiType: "uint256",
+                            abiValue: tokenId.toString(),
+                          },
+                          {
+                            kind: "quantity",
+                            abiType: "uint256",
+                          },
+                          {
+                            kind: "allowlist",
+                            abiType: "bytes",
+                          },
+                          {
+                            kind: "referrer",
+                            abiType: "address",
+                          },
+                        ],
+                      },
               },
             },
             currency: Sdk.Common.Addresses.Native[config.chainId],
@@ -480,12 +548,14 @@ export const extractByTx = async (
   if (
     [
       "0x731133e9", // `mint`
+      "0x9dbb844d", // `mintWithRewards`
     ].some((bytes4) => tx.data.startsWith(bytes4))
   ) {
     const tokenId = new Interface([
       "function mint(address minter, uint256 tokenId, uint256 quantity, bytes data)",
+      "function mintWithRewards(address minter,uint256 tokenId,uint256 quantity,bytes minterArguments,address mintReferral)",
     ])
-      .decodeFunctionData("mint", tx.data)
+      .decodeFunctionData(tx.data.startsWith("0x9dbb844d") ? "mintWithRewards" : "mint", tx.data)
       .tokenId.toString();
     return extractByCollectionERC1155(collection, tokenId);
   }

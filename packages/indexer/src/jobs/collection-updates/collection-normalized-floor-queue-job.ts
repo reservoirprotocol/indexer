@@ -1,6 +1,7 @@
 import { idb, redb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { config } from "@/config/index";
 
 export type CollectionNormalizedJobPayload = {
   kind: string;
@@ -13,7 +14,7 @@ export type CollectionNormalizedJobPayload = {
 export class CollectionNormalizedJob extends AbstractRabbitMqJobHandler {
   queueName = "collection-updates-normalized-floor-ask-queue";
   maxRetries = 10;
-  concurrency = 5;
+  concurrency = config.chainId == 137 ? 1 : 5;
   consumerTimeout = 60000;
   backoff = {
     type: "exponential",

@@ -9,6 +9,8 @@ import {
 } from "@/orderbook/mints";
 import { MethodSignature } from "@/orderbook/mints/method-signatures";
 
+// Unused at the moment
+
 const STANDARD = "lanyard";
 
 export const extractByCollectionMint = async (

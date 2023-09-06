@@ -45,11 +45,15 @@ export class BlockGapCheckJob extends AbstractRabbitMqJobHandler {
       );
 
       if (missingBlocks.length > 0) {
-        const delay = missingBlocks.length > 100 ? 1000 : 0;
+        const delay = missingBlocks.length > limit ? 500 : 0;
 
         logger.info(
           this.queueName,
-          `Found missing blocks. limit=${payload.limit}, missingBlocksCount=${missingBlocks.length}`
+          JSON.stringify({
+            message: `Found missing blocks. limit=${payload.limit}, missingBlocksCount=${missingBlocks.length}`,
+            limit,
+            missingBlocksCount: missingBlocks.length,
+          })
         );
 
         for (let i = 0; i < missingBlocks.length; i++) {

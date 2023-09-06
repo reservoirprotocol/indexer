@@ -3,9 +3,7 @@
 // Abstract class needed to be implemented in order to process job from rabbit
 import { RabbitMq, RabbitMQMessage } from "@/common/rabbit-mq";
 import { logger } from "@/common/logger";
-import _ from "lodash";
-import EventEmitter from "events";
-import TypedEmitter from "typed-emitter";
+import _, { now } from "lodash";
 import { ConsumeMessage } from "amqplib";
 import { releaseLock } from "@/common/redis";
 import { ChannelWrapper } from "amqp-connection-manager";
@@ -24,12 +22,7 @@ export type BackoffStrategy =
 
 export type QueueType = "classic" | "quorum";
 
-export type AbstractRabbitMqJobHandlerEvents = {
-  onCompleted: (message: RabbitMQMessage, processResult: any) => void;
-  onError: (message: RabbitMQMessage, error: any) => void;
-};
-
-export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new () => TypedEmitter<AbstractRabbitMqJobHandlerEvents>) {
+export abstract class AbstractRabbitMqJobHandler {
   static defaultMaxDeadLetterQueue = 50000;
 
   abstract queueName: string;
@@ -50,16 +43,45 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
   protected disableConsuming = config.rabbitDisableQueuesConsuming;
 
   public async consume(channel: ChannelWrapper, consumeMessage: ConsumeMessage): Promise<void> {
-    this.rabbitMqMessage = JSON.parse(consumeMessage.content.toString()) as RabbitMQMessage;
+    const start = now();
+
+    try {
+      this.rabbitMqMessage = JSON.parse(consumeMessage.content.toString()) as RabbitMQMessage;
+    } catch (error) {
+      // Log the error
+      logger.error(
+        this.queueName,
+        `Error parsing JSON: ${JSON.stringify(
+          error
+        )}, queueName=${this.getQueue()}, payload=${JSON.stringify(this.rabbitMqMessage)}`
+      );
+
+      channel.ack(consumeMessage);
+      return;
+    }
 
     this.rabbitMqMessage.consumedTime = this.rabbitMqMessage.consumedTime ?? _.now();
     this.rabbitMqMessage.retryCount = this.rabbitMqMessage.retryCount ?? 0;
 
     try {
-      this.events(); // Subscribe to any events
       const processResult = await this.process(this.rabbitMqMessage.payload); // Process the message
+      const jobTimedOut = now() - start > (this.consumerTimeout || 30 * 60 * 1000);
 
-      await channel.ack(consumeMessage); // Ack the message with rabbit
+      // Don't ack jobs that timed out as rabbit already re-queued them
+      if (!jobTimedOut) {
+        channel.ack(consumeMessage); // Ack the message with rabbit
+      } else {
+        // Log the timed out job
+        logger.info(
+          this.queueName,
+          `time ${(now() - start) / 1000}s acking ${
+            this.rabbitMqMessage.correlationId
+          } ${this.getQueue()} delivery tag ${
+            consumeMessage.fields.deliveryTag
+          } with payload ${JSON.stringify(this.rabbitMqMessage.payload)}`
+        );
+      }
+
       this.rabbitMqMessage.completeTime = _.now(); // Set the complete time
 
       // Release lock if there's a job id
@@ -67,9 +89,9 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
         await releaseLock(this.rabbitMqMessage.jobId).catch();
       }
 
-      this.emit("onCompleted", this.rabbitMqMessage, processResult); // Emit on Completed event
+      await this.onCompleted(this.rabbitMqMessage, processResult).catch();
     } catch (error) {
-      this.emit("onError", this.rabbitMqMessage, error); // Emit error event
+      await this.onError(this.rabbitMqMessage, error).catch();
 
       this.rabbitMqMessage.retryCount += 1;
       let queueName = this.getQueue();
@@ -94,7 +116,7 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
       );
 
       try {
-        await channel.ack(consumeMessage); // Ack the message with rabbit
+        channel.ack(consumeMessage); // Ack the message with rabbit
 
         // Release lock if there's a job id
         if (this.rabbitMqMessage.jobId) {
@@ -116,8 +138,15 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
     }
   }
 
-  // Function to subscribe to the object EventEmitter events
-  public events() {
+  // Function to handle on completed event
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public async onCompleted(message: RabbitMQMessage, processResult: any) {
+    return;
+  }
+
+  // Function to handle on error event
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public async onError(message: RabbitMQMessage, error: any) {
     return;
   }
 

@@ -28,8 +28,6 @@ import amqplibConnectionManager, {
 import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders";
 import * as backfillExpiredOrders2 from "@/jobs/backfill/backfill-expired-orders-2";
 import * as backfillRefreshCollectionMetadata from "@/jobs/backfill/backfill-refresh-collections-metadata";
-import * as backfillNftTransferUpdatedAt from "@/jobs/backfill/backfill-nft-transfer-events-updated-at";
-import * as backfillNftTransferCreatedAt from "@/jobs/backfill/backfill-nft-transfer-events-created-at";
 import * as backfillSaleRoyalties from "@/jobs/backfill/backfill-sale-royalties";
 import * as tokenWebsocketEventsTriggerQueue from "@/jobs/websocket-events/token-websocket-events-trigger-queue";
 import * as backfillSalePricingDecimalElasticsearch from "@/jobs/activities/backfill/backfill-sales-pricing-decimal-elasticsearch";
@@ -37,6 +35,7 @@ import * as backfillRefreshCollectionsCreator from "@/jobs/backfill/backfill-ref
 import * as backfillLooksrareSeaportOrders from "@/jobs/backfill/backfill-looksrare-seaport-orders";
 import * as backfillSalesUsdPrice from "@/jobs/backfill/backfill-sales-usd-price";
 import * as backfillSales from "@/jobs/backfill/backfill-sales";
+import * as backfillReorgBlocks from "@/jobs/backfill/backfill-reorg-blocks";
 
 import amqplib from "amqplib";
 import { config } from "@/config/index";
@@ -154,8 +153,6 @@ export const allJobQueues = [
   backfillExpiredOrders.queue,
   backfillExpiredOrders2.queue,
   backfillRefreshCollectionMetadata.queue,
-  backfillNftTransferUpdatedAt.queue,
-  backfillNftTransferCreatedAt.queue,
   backfillSaleRoyalties.queue,
   tokenWebsocketEventsTriggerQueue.queue,
   backfillSalePricingDecimalElasticsearch.queue,
@@ -163,6 +160,7 @@ export const allJobQueues = [
   backfillLooksrareSeaportOrders.queue,
   backfillSalesUsdPrice.queue,
   backfillSales.queue,
+  backfillReorgBlocks.queue,
 ];
 
 export class RabbitMqJobsConsumer {
@@ -299,7 +297,7 @@ export class RabbitMqJobsConsumer {
         },
         {
           reconnectTimeInSeconds: 5,
-          heartbeatIntervalInSeconds: 30,
+          heartbeatIntervalInSeconds: 0,
         }
       );
 
@@ -313,8 +311,8 @@ export class RabbitMqJobsConsumer {
         sharedChannel
       );
 
-      connection.once("error", (error) => {
-        logger.error("rabbit-error", `Consumer connection error ${error}`);
+      connection.once("disconnect", (error) => {
+        logger.error("rabbit-error", `Consumer connection error ${JSON.stringify(error)}`);
       });
     }
   }
@@ -364,26 +362,33 @@ export class RabbitMqJobsConsumer {
       : RabbitMqJobsConsumer.vhostChannelsToJobs.set(channel, [job]);
 
     // Subscribe to the queue
-    await channel.consume(
-      job.getQueue(),
-      async (msg) => {
-        if (!_.isNull(msg)) {
-          await _.clone(job)
-            .consume(channel, msg)
-            .catch((error) => {
-              logger.error(
-                "rabbit-consume",
-                `error consuming from ${job.queueName} error ${error}`
-              );
-            });
+    await channel
+      .consume(
+        job.getQueue(),
+        async (msg) => {
+          if (!_.isNull(msg)) {
+            await _.clone(job)
+              .consume(channel, msg)
+              .catch((error) => {
+                logger.error(
+                  "rabbit-consume",
+                  `error consuming from ${job.queueName} error ${error}`
+                );
+              });
+          }
+        },
+        {
+          consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getQueue()),
+          prefetch: job.getConcurrency(),
+          noAck: false,
         }
-      },
-      {
-        consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getQueue()),
-        prefetch: job.getConcurrency(),
-        noAck: false,
-      }
-    );
+      )
+      .catch((error) => {
+        logger.error(
+          "rabbit-consume",
+          `protocol error consuming from ${job.queueName} error ${error}`
+        );
+      });
   }
 
   /**

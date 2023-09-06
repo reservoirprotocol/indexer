@@ -19,7 +19,8 @@ export type CollectionMintStandard =
   | "zora"
   | "decent"
   | "foundation"
-  | "lanyard";
+  | "lanyard"
+  | "mintdotfun";
 
 export type CollectionMintDetails = {
   tx: MintTxSchema;
