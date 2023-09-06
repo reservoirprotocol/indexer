@@ -86,7 +86,7 @@ export const getCollectionFloorAskOracleV4Options: RouteOptions = {
       if (collectionResult) {
         query.collection = collectionResult.collection_id;
       } else {
-        throw new Error("Token is not associated to any collection");
+        throw Boom.badRequest("Token is not associated to any collection");
       }
     }
 

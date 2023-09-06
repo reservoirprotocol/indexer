@@ -312,7 +312,7 @@ export class RabbitMqJobsConsumer {
       );
 
       connection.once("disconnect", (error) => {
-        logger.error("rabbit-error", `Consumer connection error ${error}`);
+        logger.error("rabbit-error", `Consumer connection error ${JSON.stringify(error)}`);
       });
     }
   }
@@ -362,26 +362,33 @@ export class RabbitMqJobsConsumer {
       : RabbitMqJobsConsumer.vhostChannelsToJobs.set(channel, [job]);
 
     // Subscribe to the queue
-    await channel.consume(
-      job.getQueue(),
-      async (msg) => {
-        if (!_.isNull(msg)) {
-          await _.clone(job)
-            .consume(channel, msg)
-            .catch((error) => {
-              logger.error(
-                "rabbit-consume",
-                `error consuming from ${job.queueName} error ${error}`
-              );
-            });
+    await channel
+      .consume(
+        job.getQueue(),
+        async (msg) => {
+          if (!_.isNull(msg)) {
+            await _.clone(job)
+              .consume(channel, msg)
+              .catch((error) => {
+                logger.error(
+                  "rabbit-consume",
+                  `error consuming from ${job.queueName} error ${error}`
+                );
+              });
+          }
+        },
+        {
+          consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getQueue()),
+          prefetch: job.getConcurrency(),
+          noAck: false,
         }
-      },
-      {
-        consumerTag: RabbitMqJobsConsumer.getConsumerTag(job.getQueue()),
-        prefetch: job.getConcurrency(),
-        noAck: false,
-      }
-    );
+      )
+      .catch((error) => {
+        logger.error(
+          "rabbit-consume",
+          `protocol error consuming from ${job.queueName} error ${error}`
+        );
+      });
   }
 
   /**

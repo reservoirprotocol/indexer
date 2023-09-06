@@ -3254,7 +3254,7 @@ export class Router {
       const preSignatures: PreSignature[] = [];
 
       const approvals: NFTApproval[] = [];
-      for (const detail of details) {
+      for (const detail of paymentProcessorDetails) {
         const order = detail.order as Sdk.PaymentProcessor.Order;
         const takerOrder = order.buildMatching({
           tokenId: detail.tokenId,
@@ -3289,7 +3289,7 @@ export class Router {
         approvals: uniqBy(approvals, ({ txData: { from, to, data } }) => `${from}-${to}-${data}`),
         preSignatures,
         txData: exchange.fillOrdersTx(taker, orders, takeOrders),
-        orderIds: details.map((d) => d.orderId),
+        orderIds: paymentProcessorDetails.map((d) => d.orderId),
       });
     }
 
@@ -3406,10 +3406,10 @@ export class Router {
           break;
         }
 
-        case "payment-processor": {
-          module = this.contracts.paymentProcessorModule;
-          break;
-        }
+        // case "payment-processor": {
+        //   module = this.contracts.paymentProcessorModule;
+        //   break;
+        // }
 
         default: {
           continue;
@@ -4235,39 +4235,40 @@ export class Router {
           break;
         }
 
-        case "payment-processor": {
-          const order = detail.order as Sdk.PaymentProcessor.Order;
-          const module = this.contracts.paymentProcessorModule;
+        // case "payment-processor": {
+        //   const order = detail.order as Sdk.PaymentProcessor.Order;
+        //   const module = this.contracts.paymentProcessorModule;
 
-          const takerOrder = order.buildMatching({
-            taker: module.address,
-            takerMasterNonce: "0",
-            tokenId: order.params.collectionLevelOffer ? detail.tokenId : undefined,
-            maxRoyaltyFeeNumerator: detail.extraArgs?.maxRoyaltyFeeNumerator ?? "0",
-          });
-          const matchedOrder = order.getMatchedOrder(takerOrder);
+        //   const takerOrder = order.buildMatching({
+        //     taker: module.address,
+        //     takerMasterNonce: "0",
+        //     tokenId: order.params.collectionLevelOffer ? detail.tokenId : undefined,
+        //     maxRoyaltyFeeNumerator: detail.extraArgs?.maxRoyaltyFeeNumerator ?? "0",
+        //   });
+        //   const matchedOrder = order.getMatchedOrder(takerOrder);
 
-          executionsWithDetails.push({
-            detail,
-            execution: {
-              module: module.address,
-              data: module.interface.encodeFunctionData("acceptOffers", [
-                [matchedOrder],
-                [order.params],
-                {
-                  fillTo: taker,
-                  refundTo: taker,
-                  revertIfIncomplete: Boolean(!options?.partial),
-                },
-                fees,
-              ]),
-              value: 0,
-            },
-          });
+        //   executionsWithDetails.push({
+        //     detail,
+        //     execution: {
+        //       module: module.address,
+        //       data: module.interface.encodeFunctionData("acceptOffers", [
+        //         [matchedOrder],
+        //         [order.params],
+        //         {
+        //           fillTo: taker,
+        //           refundTo: taker,
+        //           revertIfIncomplete: Boolean(!options?.partial),
+        //         },
+        //         fees,
+        //       ]),
+        //       value: 0,
+        //     },
+        //   });
 
-          success[detail.orderId] = true;
-          break;
-        }
+        //   success[detail.orderId] = true;
+
+        //   break;
+        // }
       }
     }
 

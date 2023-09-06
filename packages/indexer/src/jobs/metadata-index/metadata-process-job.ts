@@ -5,6 +5,7 @@ import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
 import { logger } from "@/common/logger";
 import MetadataApi from "@/utils/metadata-api";
 import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
+import { RabbitMQMessage } from "@/common/rabbit-mq";
 
 export type MetadataIndexProcessJobPayload = {
   method: string;
@@ -109,13 +110,11 @@ export class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler {
     return 0;
   }
 
-  public events() {
-    this.once("onCompleted", async (rabbitMqMessage, processResult) => {
-      if (processResult) {
-        const { method } = rabbitMqMessage.payload;
-        await this.addToQueue({ method }, processResult * 1000);
-      }
-    });
+  public async onCompleted(rabbitMqMessage: RabbitMQMessage, processResult: undefined | number) {
+    if (processResult) {
+      const { method } = rabbitMqMessage.payload;
+      await this.addToQueue({ method }, processResult * 1000);
+    }
   }
 
   public async addToQueue(params: MetadataIndexProcessJobPayload, delay = 0) {
