@@ -12,7 +12,6 @@ export class BackfillTokensTimeToMetadataJob extends AbstractRabbitMqJobHandler 
   concurrency = 1;
   persistent = true;
   lazyMode = true;
-  singleActiveConsumer = true;
 
   protected async process() {
     const limit = (await redis.get(`${this.queueName}-limit`)) || 500;
