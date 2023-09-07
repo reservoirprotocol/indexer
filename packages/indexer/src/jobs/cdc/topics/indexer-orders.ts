@@ -112,6 +112,7 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
                 payload,
                 contract,
                 tokenId,
+                hasTokenName: !!token?.name,
               })
             );
 
