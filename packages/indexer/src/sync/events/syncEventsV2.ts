@@ -298,7 +298,6 @@ export const syncEvents = async (block: number) => {
   try {
     if (config.chainId === 137 && !(await acquireLock(blockLockName, 60 * 5))) {
       logger.info("sync-events-v2", `block ${block} hash ${blockData.hash} was already synced`);
-      return;
     }
 
     const endGetBlockTime = Date.now();
