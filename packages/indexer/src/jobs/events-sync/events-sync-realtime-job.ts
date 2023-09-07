@@ -21,7 +21,7 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: EventsSyncRealtimeJobPayload) {
     const { block } = payload;
 
-    if (config.chainId === 59144 && block >= 488000) {
+    if (config.chainId === 59144 && block >= 916077) {
       logger.info(this.queueName, `Skip Block ${block}`);
 
       return;

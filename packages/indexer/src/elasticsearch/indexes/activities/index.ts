@@ -20,8 +20,18 @@ import * as CONFIG from "@/elasticsearch/indexes/activities/config";
 
 const INDEX_NAME = `${getNetworkName()}.activities`;
 
-export const save = async (activities: ActivityDocument[], upsert = true): Promise<void> => {
+export const save = async (
+  activities: ActivityDocument[],
+  upsert = true,
+  overrideIndexedAt = true
+): Promise<void> => {
   try {
+    if (overrideIndexedAt) {
+      activities.forEach((activity) => {
+        activity.indexedAt = new Date();
+      });
+    }
+
     const response = await elasticsearch.bulk({
       body: activities.flatMap((activity) => [
         { [upsert ? "index" : "create"]: { _index: INDEX_NAME, _id: activity.id } },
