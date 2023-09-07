@@ -49,29 +49,29 @@ if (config.doBackgroundWork && config.catchup) {
           // Skip on any errors
         })
   );
+}
 
-  // MASTER ONLY
-  if (config.master && networkSettings.enableWebSocket) {
-    // Besides the manual polling of events via the above cron job
-    // we're also integrating WebSocket subscriptions to fetch the
-    // latest events as soon as they're hapenning on-chain. We are
-    // still keeping the manual polling though to ensure no events
-    // are being missed.
-    safeWebSocketSubscription(async (provider) => {
-      provider.on("block", async (block) => {
-        logger.info("events-sync-catchup", `Detected new block ${block}`);
+// MASTER ONLY
+if (config.master && getNetworkSettings().enableWebSocket) {
+  // Besides the manual polling of events via the above cron job
+  // we're also integrating WebSocket subscriptions to fetch the
+  // latest events as soon as they're hapenning on-chain. We are
+  // still keeping the manual polling though to ensure no events
+  // are being missed.
+  safeWebSocketSubscription(async (provider) => {
+    provider.on("block", async (block) => {
+      logger.info("events-sync-catchup", `Detected new block ${block}`);
 
-        try {
-          await eventsSyncRealtimeJob.addToQueue({ block });
-          if (![137].includes(config.chainId)) {
-            await checkForMissingBlocks(block);
-          } else {
-            await redis.set("latest-block-realtime", block);
-          }
-        } catch (error) {
-          logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);
+      try {
+        await eventsSyncRealtimeJob.addToQueue({ block });
+        if (![137].includes(config.chainId)) {
+          await checkForMissingBlocks(block);
+        } else {
+          await redis.set("latest-block-realtime", block);
         }
-      });
+      } catch (error) {
+        logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);
+      }
     });
-  }
+  });
 }
