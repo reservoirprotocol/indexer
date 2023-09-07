@@ -290,7 +290,6 @@ export const getNetworkSettings = (): NetworkSettings => {
           // Nifty Gateway Omnibus
           "0xe052113bd7d7700d623414a0a4585bcae754e9d5",
         ],
-
         trendingExcludedContracts: [
           "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85", // ens
           "0xd4416b13d2b3a9abae7acd5d6c2bbdbe25686401", // ens

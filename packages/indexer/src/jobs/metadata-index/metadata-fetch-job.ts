@@ -58,6 +58,16 @@ export class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
+    if (payload.context === "kafka-event-handler") {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          message: `Start. payload=${JSON.stringify(payload)}`,
+          payload,
+        })
+      );
+    }
+
     const { kind, data } = payload;
     const prioritized = !_.isUndefined(this.rabbitMqMessage?.prioritized);
     const limit = 1000;
