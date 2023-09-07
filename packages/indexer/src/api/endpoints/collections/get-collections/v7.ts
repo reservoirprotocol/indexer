@@ -23,16 +23,16 @@ import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
 
-const version = "v6";
+const version = "v7";
 
-export const getCollectionsV6Options: RouteOptions = {
+export const getCollectionsV7Options: RouteOptions = {
   cache: {
     privacy: "public",
     expiresIn: 10000,
   },
   description: "Collections",
   notes: "Use this API to explore a collection's metadata and statistics (sales, volume, etc).",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
       order: 3,
@@ -118,11 +118,12 @@ export const getCollectionsV6Options: RouteOptions = {
           "30DayVolume",
           "allTimeVolume",
           "createdAt",
+          "updatedAt",
           "floorAskPrice"
         )
         .default("allTimeVolume")
         .description(
-          "Order the items are returned in the response. Options are `#DayVolume`, `createdAt`, or `floorAskPrice`"
+          "Order the items are returned in the response. Options are `#DayVolume`, `createdAt`, `updatedAt`, or `floorAskPrice`"
         ),
       limit: Joi.number()
         .integer()
@@ -147,6 +148,7 @@ export const getCollectionsV6Options: RouteOptions = {
           id: Joi.string().description("Collection id"),
           slug: Joi.string().allow("", null).description("Open Sea slug"),
           createdAt: Joi.string().description("Time when added to indexer"),
+          updatedAt: Joi.string().description("Time when updated in indexer"),
           name: Joi.string().allow("", null),
           image: Joi.string().allow("", null),
           banner: Joi.string().allow("", null),
@@ -422,7 +424,8 @@ export const getCollectionsV6Options: RouteOptions = {
           ${floorAskSelectQuery}
           collections.token_count,
           collections.owner_count,
-          collections.created_at,
+          extract(epoch from collections.created_at) AS created_at,
+          extract(epoch from collections.updated_at) AS updated_at,
           collections.top_buy_id,
           collections.top_buy_maker,        
           collections.minted_timestamp,
@@ -539,9 +542,22 @@ export const getCollectionsV6Options: RouteOptions = {
 
         case "createdAt": {
           if (query.continuation) {
-            conditions.push(`(collections.created_at, collections.id) < ($/contParam/, $/contId/)`);
+            conditions.push(
+              `(collections.created_at, collections.id) < (to_timestamp($/contParam/), $/contId/)`
+            );
           }
           orderBy = ` ORDER BY collections.created_at DESC, collections.id DESC`;
+
+          break;
+        }
+
+        case "updatedAt": {
+          if (query.continuation) {
+            conditions.push(
+              `(collections.updated_at, collections.id) < (to_timestamp($/contParam/), $/contId/)`
+            );
+          }
+          orderBy = ` ORDER BY collections.updated_at DESC, collections.id DESC`;
 
           break;
         }
@@ -660,7 +676,8 @@ export const getCollectionsV6Options: RouteOptions = {
           return {
             id: r.id,
             slug: r.slug,
-            createdAt: new Date(r.created_at).toISOString(),
+            createdAt: new Date(r.created_at * 1000).toISOString(),
+            updatedAt: new Date(r.updated_at * 1000).toISOString(),
             name: r.name,
             image:
               r.image ?? (sampleImages.length ? Assets.getLocalAssetsLink(sampleImages[0]) : null),
@@ -841,9 +858,12 @@ export const getCollectionsV6Options: RouteOptions = {
             }
 
             case "createdAt": {
-              continuation = buildContinuation(
-                `${new Date(lastCollection.created_at).toISOString()}_${lastCollection.id}`
-              );
+              continuation = buildContinuation(`${lastCollection.created_at}_${lastCollection.id}`);
+              break;
+            }
+
+            case "updatedAt": {
+              continuation = buildContinuation(`${lastCollection.updated_at}_${lastCollection.id}`);
               break;
             }
 

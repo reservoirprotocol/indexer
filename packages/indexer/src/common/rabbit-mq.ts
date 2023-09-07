@@ -156,17 +156,6 @@ export class RabbitMq {
         );
       }
 
-      if (config.chainId === 137 && queueName === "events-sync-realtime") {
-        logger.info(
-          "events-sync-realtime",
-          `publish realtime sync ${JSON.stringify(
-            content
-          )} delay ${delay} lockTime ${lockTime} channelIndex ${channelIndex} queueLength ${RabbitMq.rabbitMqPublisherChannels[
-            channelIndex
-          ].queueLength()}`
-        );
-      }
-
       if (content.publishRetryCount > 0) {
         logger.info(
           `rabbit-message-republish`,
