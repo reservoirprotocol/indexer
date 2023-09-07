@@ -5,8 +5,8 @@ import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
-// import { Collections } from "@/models/collections";
-// import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { Collections } from "@/models/collections";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { acquireLock } from "@/common/redis";
 import { Tokens } from "@/models/tokens";
 
@@ -101,17 +101,6 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
         );
 
         if (acquiredLock) {
-          logger.info(
-            "kafka-event-handler",
-            JSON.stringify({
-              topic: "handleSellOrder",
-              message: "Acquired lock.",
-              payload,
-              contract,
-              tokenId,
-            })
-          );
-
           const token = await Tokens.getByContractAndTokenId(contract, tokenId);
 
           if (!token?.image) {
@@ -119,30 +108,30 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
               "kafka-event-handler",
               JSON.stringify({
                 topic: "handleSellOrder",
-                message: "Refreshing token metadata.",
+                message: `Refreshing token metadata. contract=${contract}, tokenId=${tokenId}`,
                 payload,
                 contract,
                 tokenId,
               })
             );
 
-            // const collection = await Collections.getByContractAndTokenId(contract, tokenId);
+            const collection = await Collections.getByContractAndTokenId(contract, tokenId);
 
-            // await metadataIndexFetchJob.addToQueue(
-            //     [
-            //       {
-            //         kind: "single-token",
-            //         data: {
-            //           method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
-            //           contract,
-            //           tokenId,
-            //           collection: collection?.id || contract,
-            //         },
-            //         context: "kafka-event-handler",
-            //       },
-            //     ],
-            //     true
-            // );
+            await metadataIndexFetchJob.addToQueue(
+              [
+                {
+                  kind: "single-token",
+                  data: {
+                    method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
+                    contract,
+                    tokenId,
+                    collection: collection?.id || contract,
+                  },
+                  context: "kafka-event-handler",
+                },
+              ],
+              true
+            );
           }
         }
       }
