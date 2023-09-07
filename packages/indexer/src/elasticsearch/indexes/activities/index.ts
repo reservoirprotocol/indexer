@@ -1183,21 +1183,21 @@ export const updateActivitiesTokenMetadata = async (
       } else {
         keepGoing = pendingUpdateActivities.length === 1000;
 
-        // logger.info(
-        //   "elasticsearch-activities",
-        //   JSON.stringify({
-        //     topic: "updateActivitiesTokenMetadata",
-        //     message: `Success`,
-        //     data: {
-        //       contract,
-        //       tokenId,
-        //       tokenData,
-        //     },
-        //     bulkParams,
-        //     response,
-        //     keepGoing,
-        //   })
-        // );
+        logger.info(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "updateActivitiesTokenMetadata",
+            message: `Success`,
+            data: {
+              contract,
+              tokenId,
+              tokenData,
+            },
+            bulkParams,
+            response,
+            keepGoing,
+          })
+        );
       }
     }
   } catch (error) {
