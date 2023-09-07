@@ -60,15 +60,20 @@ export class BlockGapCheckJob extends AbstractRabbitMqJobHandler {
             3600
           );
 
-          logger.info(
-            this.queueName,
-            `Found missing block. blockNumber=${missingBlocks[i].missing_block_number}, lockAcquired=${lockAcquired}}`
-          );
-
           if (lockAcquired) {
+            logger.info(
+              this.queueName,
+              `Sync missing block. blockNumber=${missingBlocks[i].missing_block_number}`
+            );
+
             await eventsSyncRealtimeJob.addToQueue({
               block: missingBlocks[i].missing_block_number,
             });
+          } else {
+            logger.info(
+              this.queueName,
+              `Skip missing block. blockNumber=${missingBlocks[i].missing_block_number}`
+            );
           }
         }
       }
