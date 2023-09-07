@@ -1,8 +1,10 @@
+import { Log } from "@ethersproject/abstract-provider";
 import { searchForCall } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
 
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
+import { getERC20Transfer } from "@/events-sync/handlers/utils/erc20";
 import * as utils from "@/events-sync/utils";
 import { config } from "@/config/index";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
@@ -15,8 +17,18 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
     order: new Map<string, number>(),
   };
 
+  // Keep track of all events within the currently processing transaction
+  let currentTx: string | undefined;
+  let currentTxLogs: Log[] = [];
+
   // Handle the events
   for (const { subKind, baseEventParams, log } of events) {
+    if (currentTx !== baseEventParams.txHash) {
+      currentTx = baseEventParams.txHash;
+      currentTxLogs = [];
+    }
+    currentTxLogs.push(log);
+
     const eventData = getEventData([subKind])[0];
     switch (subKind) {
       case "payment-processor-nonce-invalidated": {
@@ -258,13 +270,56 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             currencyPrice,
             usdPrice: priceData.usdPrice,
             contract: tokenAddress,
-            tokenId: tokenId,
-            amount: amount,
+            tokenId,
+            amount,
             orderSourceId: attributionData.orderSource?.id,
             aggregatorSourceId: attributionData.aggregatorSource?.id,
             fillSourceId: attributionData.fillSource?.id,
             baseEventParams,
           });
+
+          onChainData.fillInfos.push({
+            context: `${orderId}-${baseEventParams.txHash}`,
+            orderId: orderId,
+            orderSide,
+            contract: tokenAddress,
+            tokenId,
+            amount,
+            price: priceData.nativePrice,
+            timestamp: baseEventParams.timestamp,
+            maker,
+            taker,
+          });
+
+          onChainData.orderInfos.push({
+            context: `filled-${orderId}-${baseEventParams.txHash}`,
+            id: orderId,
+            trigger: {
+              kind: "sale",
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+            },
+          });
+
+          // If an ERC20 transfer occured in the same transaction as a sale
+          // then we need resync the maker's ERC20 approval to the exchange
+          const erc20 = getERC20Transfer(currentTxLogs);
+          if (erc20) {
+            onChainData.makerInfos.push({
+              context: `${baseEventParams.txHash}-buy-approval`,
+              maker,
+              trigger: {
+                kind: "approval-change",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+              },
+              data: {
+                kind: "buy-approval",
+                contract: erc20,
+                orderKind,
+              },
+            });
+          }
         }
 
         break;
@@ -399,10 +454,12 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               }
             );
 
+            const orderSide = "sell";
+
             onChainData.fillEvents.push({
               orderId,
               orderKind: "payment-processor",
-              orderSide: "sell",
+              orderSide,
               maker: seller,
               taker: buyer,
               price: priceData.nativePrice,
@@ -410,8 +467,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               currencyPrice,
               usdPrice: priceData.usdPrice,
               contract: tokenAddress,
-              tokenId: tokenId,
-              amount: amount,
+              tokenId,
+              amount,
               orderSourceId: attributionData.orderSource?.id,
               aggregatorSourceId: attributionData.aggregatorSource?.id,
               fillSourceId: attributionData.fillSource?.id,
@@ -420,6 +477,49 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 batchIndex: baseEventParams.batchIndex + i,
               },
             });
+
+            onChainData.fillInfos.push({
+              context: `${orderId}-${baseEventParams.txHash}`,
+              orderId: orderId,
+              orderSide,
+              contract: tokenAddress,
+              tokenId,
+              amount,
+              price: priceData.nativePrice,
+              timestamp: baseEventParams.timestamp,
+              maker: seller,
+              taker: buyer,
+            });
+
+            onChainData.orderInfos.push({
+              context: `filled-${orderId}-${baseEventParams.txHash}`,
+              id: orderId,
+              trigger: {
+                kind: "sale",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+              },
+            });
+
+            // If an ERC20 transfer occured in the same transaction as a sale
+            // then we need resync the maker's ERC20 approval to the exchange
+            const erc20 = getERC20Transfer(currentTxLogs);
+            if (erc20) {
+              onChainData.makerInfos.push({
+                context: `${baseEventParams.txHash}-buy-approval`,
+                maker: seller,
+                trigger: {
+                  kind: "approval-change",
+                  txHash: baseEventParams.txHash,
+                  txTimestamp: baseEventParams.timestamp,
+                },
+                data: {
+                  kind: "buy-approval",
+                  contract: erc20,
+                  orderKind,
+                },
+              });
+            }
           }
         }
 

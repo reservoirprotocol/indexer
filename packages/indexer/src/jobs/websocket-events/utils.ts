@@ -1,6 +1,8 @@
+import { logger } from "@/common/logger";
+
 // Utility functions for parsing cdc event data
 
-export const formatValidBetween = (validBetween: string) => {
+export const formatValidBetween = (validBetween: string, id?: string) => {
   try {
     const parsed = JSON.parse(validBetween.replace("infinity", "null"));
     return {
@@ -8,6 +10,10 @@ export const formatValidBetween = (validBetween: string) => {
       validUntil: Math.floor(new Date(parsed[1]).getTime() / 1000),
     };
   } catch (error) {
+    logger.error(
+      "formatValidBetween",
+      `Error parsing validBetween. validBetween=${validBetween} id=${id}`
+    );
     return {
       validFrom: null,
       validUntil: null,

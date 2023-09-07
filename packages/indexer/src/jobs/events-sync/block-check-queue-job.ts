@@ -17,9 +17,9 @@ export type BlockCheckJobPayload = {
 export class BlockCheckJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-block-check";
   maxRetries = 10;
-  concurrency = 10;
+  concurrency = 1;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 30000,

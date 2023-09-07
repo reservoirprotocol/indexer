@@ -50,15 +50,10 @@ export class RefreshActivitiesTokenMetadataJob extends AbstractRabbitMqJobHandle
     return { addToQueue };
   }
 
-  public events() {
-    this.once(
-      "onCompleted",
-      async (message: RabbitMQMessage, processResult: { addToQueue: boolean }) => {
-        if (processResult.addToQueue) {
-          await this.addToQueue(message.payload.contract, message.payload.tokenId);
-        }
-      }
-    );
+  public async onCompleted(message: RabbitMQMessage, processResult: { addToQueue: boolean }) {
+    if (processResult.addToQueue) {
+      await this.addToQueue(message.payload.contract, message.payload.tokenId);
+    }
   }
 
   public async addToQueue(contract: string, tokenId: string) {

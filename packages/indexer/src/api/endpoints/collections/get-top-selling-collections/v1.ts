@@ -14,9 +14,9 @@ import {
 
 import { getJoiPriceObject, JoiPrice } from "@/common/joi";
 
-const version = "v5";
+const version = "v1";
 
-export const getTopSellingCollectionsOptions: RouteOptions = {
+export const getTopSellingCollectionsV1Options: RouteOptions = {
   cache: {
     privacy: "public",
     expiresIn: 10000,

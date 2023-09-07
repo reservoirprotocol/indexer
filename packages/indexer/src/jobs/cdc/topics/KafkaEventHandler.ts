@@ -90,6 +90,8 @@ export abstract class KafkaEventHandler {
       "quantity_filled",
       "quantity_remaining",
       "nonce",
+      "supply",
+      "remaining_supply",
     ];
 
     // Handling for fields that should not be converted
@@ -99,6 +101,9 @@ export abstract class KafkaEventHandler {
     }
     if (payload.source.table === "collections") {
       stringKeys.push("name", "slug");
+    }
+    if (payload.source.table === "fill_events_2") {
+      stringKeys.push("order_kind");
     }
 
     // go through all the keys in the payload and convert any hex strings to strings

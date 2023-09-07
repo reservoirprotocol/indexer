@@ -3,7 +3,6 @@
 import { Interface } from "@ethersproject/abi";
 import { Contract } from "@ethersproject/contracts";
 import axios from "axios";
-import slugify from "slugify";
 
 import { baseProvider } from "@/common/provider";
 import { config } from "@/config/index";
@@ -69,7 +68,7 @@ export class MetadataApi {
 
       return {
         id: contract,
-        slug: slugify(name, { lower: true }),
+        slug: null,
         name,
         community: null,
         metadata: null,
@@ -89,6 +88,10 @@ export class MetadataApi {
 
       //TODO: Remove when adding proper support for overriding indexing method
       if (config.chainId === 1 && contract === "0xd532b88607b1877fe20c181cba2550e3bbd6b31c") {
+        indexingMethod = "simplehash";
+      }
+
+      if (config.chainId === 137 && contract === "0x2953399124f0cbb46d2cbacd8a89cf0599974963") {
         indexingMethod = "simplehash";
       }
 

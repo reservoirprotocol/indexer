@@ -9,6 +9,7 @@ import { TokenIDs } from "fummpel";
 // Needed for `rarible`
 import { encodeForMatchOrders } from "../../rarible/utils";
 // Needed for `seaport`
+import { ConduitController } from "../../seaport-base";
 import { constructOfferCounterOrderAndFulfillments } from "../../seaport-base/helpers";
 
 import * as Sdk from "../../index";
@@ -30,6 +31,7 @@ import {
   PerPoolSwapDetails,
   SwapDetail,
   PreSignature,
+  TransfersResult,
 } from "./types";
 import { SwapInfo, generateSwapInfo, mergeSwapInfos } from "./swap/index";
 import { generateFTApprovalTxData, generateNFTApprovalTxData, isETH, isWETH } from "./utils";
@@ -41,8 +43,10 @@ import ERC1155Abi from "../../common/abis/Erc1155.json";
 import RouterAbi from "./abis/ReservoirV6_0_1.json";
 // Misc
 import ApprovalProxyAbi from "./abis/ApprovalProxy.json";
+import OpenseaTransferHelperAbi from "./abis/OpenseaTransferHelper.json";
 // Modules
 import CollectionXyzModuleAbi from "./abis/CollectionXyzModule.json";
+import DittoModuleAbi from "./abis/DittoModule.json";
 import ElementModuleAbi from "./abis/ElementModule.json";
 import FoundationModuleAbi from "./abis/FoundationModule.json";
 import LooksRareV2ModuleAbi from "./abis/LooksRareV2Module.json";
@@ -104,6 +108,11 @@ export class Router {
       collectionXyzModule: new Contract(
         Addresses.CollectionXyzModule[chainId] ?? AddressZero,
         CollectionXyzModuleAbi,
+        provider
+      ),
+      dittoModule: new Contract(
+        Addresses.DittoModule[chainId] ?? AddressZero,
+        DittoModuleAbi,
         provider
       ),
       elementModule: new Contract(
@@ -881,6 +890,7 @@ export class Router {
     const orderIds: string[] = [];
 
     // Split all listings by their kind
+    const dittoDetails: ListingDetails[] = [];
     const elementErc721Details: ListingDetails[] = [];
     const elementErc721V2Details: ListingDetails[] = [];
     const elementErc1155Details: ListingDetails[] = [];
@@ -927,6 +937,10 @@ export class Router {
 
         case "collectionxyz":
           detailsRef = collectionXyzDetails;
+          break;
+
+        case "ditto":
+          detailsRef = dittoDetails;
           break;
 
         case "foundation":
@@ -1861,6 +1875,46 @@ export class Router {
 
       // Mark the listings as successfully handled
       for (const { orderId } of collectionXyzDetails) {
+        success[orderId] = true;
+        orderIds.push(orderId);
+      }
+    }
+
+    // Handle Ditto listings
+    if (dittoDetails.length) {
+      const orders = dittoDetails.map((d) => d.order as Sdk.Ditto.Order);
+      const router = new Sdk.Ditto.Router(this.chainId);
+      const module = this.contracts.dittoModule;
+
+      const fees = getFees(dittoDetails);
+      const price = orders
+        .map((order) => bn(order.params.expectedTokenAmount))
+        .reduce((a, b) => a.add(b), bn(0));
+      const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+      const totalPrice = price.add(feeAmount);
+
+      // Add executions
+      for (const order of orders) {
+        executions.push({
+          module: module.address,
+          data: router.fillBuyOrderTx(taker, order).data,
+          value: totalPrice,
+        });
+      }
+
+      // Track any possibly required swap
+      swapDetails.push({
+        tokenIn: buyInCurrency,
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
+        tokenOutAmount: totalPrice,
+        recipient: module.address,
+        refundTo: relayer,
+        details: dittoDetails,
+        executionIndex: executions.length - 1,
+      });
+
+      // Mark the listings as successfully handled
+      for (const { orderId } of dittoDetails) {
         success[orderId] = true;
         orderIds.push(orderId);
       }
@@ -3251,9 +3305,10 @@ export class Router {
       const preSignatures: PreSignature[] = [];
 
       const approvals: NFTApproval[] = [];
-      for (const detail of details) {
+      for (const detail of paymentProcessorDetails) {
         const order = detail.order as Sdk.PaymentProcessor.Order;
         const takerOrder = order.buildMatching({
+          tokenId: detail.tokenId,
           taker,
           takerMasterNonce: await exchange.getMasterNonce(this.provider, taker),
         });
@@ -3285,7 +3340,7 @@ export class Router {
         approvals: uniqBy(approvals, ({ txData: { from, to, data } }) => `${from}-${to}-${data}`),
         preSignatures,
         txData: exchange.fillOrdersTx(taker, orders, takeOrders),
-        orderIds: details.map((d) => d.orderId),
+        orderIds: paymentProcessorDetails.map((d) => d.orderId),
       });
     }
 
@@ -3377,6 +3432,11 @@ export class Router {
           break;
         }
 
+        case "ditto": {
+          module = this.contracts.dittoModule;
+          break;
+        }
+
         case "nftx": {
           module = this.contracts.nftxModule;
           break;
@@ -3402,10 +3462,10 @@ export class Router {
           break;
         }
 
-        case "payment-processor": {
-          module = this.contracts.paymentProcessorModule;
-          break;
-        }
+        // case "payment-processor": {
+        //   module = this.contracts.paymentProcessorModule;
+        //   break;
+        // }
 
         default: {
           continue;
@@ -3970,6 +4030,25 @@ export class Router {
           break;
         }
 
+        case "ditto": {
+          const order = detail.order as Sdk.Ditto.Order;
+          const module = this.contracts.dittoswapModule;
+          const router = new Sdk.Ditto.Router(this.chainId);
+
+          executionsWithDetails.push({
+            detail,
+            execution: {
+              module: module.address,
+              data: router.fillSellOrderTx(taker, order).data,
+              value: 0,
+            },
+          });
+
+          success[detail.orderId] = true;
+
+          break;
+        }
+
         case "x2y2": {
           const order = detail.order as Sdk.X2Y2.Order;
           const module = this.contracts.x2y2Module;
@@ -4231,39 +4310,40 @@ export class Router {
           break;
         }
 
-        case "payment-processor": {
-          const order = detail.order as Sdk.PaymentProcessor.Order;
-          const module = this.contracts.paymentProcessorModule;
+        // case "payment-processor": {
+        //   const order = detail.order as Sdk.PaymentProcessor.Order;
+        //   const module = this.contracts.paymentProcessorModule;
 
-          const takerOrder = order.buildMatching({
-            taker: module.address,
-            takerMasterNonce: "0",
-            tokenId: order.params.collectionLevelOffer ? detail.tokenId : undefined,
-            maxRoyaltyFeeNumerator: detail.extraArgs?.maxRoyaltyFeeNumerator ?? "0",
-          });
-          const matchedOrder = order.getMatchedOrder(takerOrder);
+        //   const takerOrder = order.buildMatching({
+        //     taker: module.address,
+        //     takerMasterNonce: "0",
+        //     tokenId: order.params.collectionLevelOffer ? detail.tokenId : undefined,
+        //     maxRoyaltyFeeNumerator: detail.extraArgs?.maxRoyaltyFeeNumerator ?? "0",
+        //   });
+        //   const matchedOrder = order.getMatchedOrder(takerOrder);
 
-          executionsWithDetails.push({
-            detail,
-            execution: {
-              module: module.address,
-              data: module.interface.encodeFunctionData("acceptOffers", [
-                [matchedOrder],
-                [order.params],
-                {
-                  fillTo: taker,
-                  refundTo: taker,
-                  revertIfIncomplete: Boolean(!options?.partial),
-                },
-                fees,
-              ]),
-              value: 0,
-            },
-          });
+        //   executionsWithDetails.push({
+        //     detail,
+        //     execution: {
+        //       module: module.address,
+        //       data: module.interface.encodeFunctionData("acceptOffers", [
+        //         [matchedOrder],
+        //         [order.params],
+        //         {
+        //           fillTo: taker,
+        //           refundTo: taker,
+        //           revertIfIncomplete: Boolean(!options?.partial),
+        //         },
+        //         fees,
+        //       ]),
+        //       value: 0,
+        //     },
+        //   });
 
-          success[detail.orderId] = true;
-          break;
-        }
+        //   success[detail.orderId] = true;
+
+        //   break;
+        // }
       }
     }
 
@@ -4338,5 +4418,72 @@ export class Router {
       txs,
       success,
     };
+  }
+
+  public async transfersTx(
+    transferItem: ApprovalProxy.TransferItem,
+    sender: string
+  ): Promise<TransfersResult> {
+    const useOpenseaTransferHelper = Sdk.Common.Addresses.OpenseaTransferHelper[this.chainId];
+
+    const conduitKey = useOpenseaTransferHelper
+      ? Sdk.SeaportBase.Addresses.OpenseaConduitKey[this.chainId]
+      : Sdk.SeaportBase.Addresses.ReservoirConduitKey[this.chainId];
+    const conduit = new ConduitController(this.chainId).deriveConduit(conduitKey);
+
+    const approvals = transferItem.items.map((item) => ({
+      orderIds: [],
+      contract: item.token,
+      owner: sender,
+      operator: conduit,
+      txData: generateNFTApprovalTxData(item.token, sender, conduit),
+    }));
+    // Ensure approvals are unique
+    const uniqueApprovals = uniqBy(
+      approvals,
+      ({ txData: { from, to, data } }) => `${from}-${to}-${data}`
+    );
+
+    if (useOpenseaTransferHelper) {
+      return {
+        txs: [
+          {
+            approvals: uniqueApprovals,
+            txData: {
+              from: sender,
+              to: Sdk.Common.Addresses.OpenseaTransferHelper[this.chainId],
+              data: new Interface(OpenseaTransferHelperAbi).encodeFunctionData("bulkTransfer", [
+                [
+                  {
+                    ...transferItem,
+                    items: transferItem.items.map((item) => ({
+                      ...item,
+                      validateERC721Receiver: true,
+                    })),
+                  },
+                ],
+                conduitKey,
+              ]),
+            },
+          },
+        ],
+      };
+    } else {
+      return {
+        txs: [
+          {
+            approvals: uniqueApprovals,
+            txData: {
+              from: sender,
+              to: Addresses.ApprovalProxy[this.chainId],
+              data: this.contracts.approvalProxy.interface.encodeFunctionData(
+                "bulkTransferWithExecute",
+                [[transferItem], [], conduitKey]
+              ),
+            },
+          },
+        ],
+      };
+    }
   }
 }

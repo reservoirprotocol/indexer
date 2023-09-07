@@ -14,7 +14,7 @@ export class TokenAttributeWebsocketEventsTriggerQueueJob extends AbstractRabbit
   queueName = "token-attribute-websocket-events-trigger-queue";
   maxRetries = 5;
   concurrency = 10;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 1000,

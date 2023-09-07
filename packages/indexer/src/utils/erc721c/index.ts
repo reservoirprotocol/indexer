@@ -21,10 +21,10 @@ export const getERC721CConfig = async (contract: string): Promise<ERC721CConfig 
       new Interface([
         "function getTransferValidator() public view returns (address)",
         `function getSecurityPolicy() public view returns (
-        uint8 transferSecurityLevel,
-        uint120 operatorWhitelistId,
-        uint120 permittedContractReceiverAllowlistId
-      )`,
+          uint8 transferSecurityLevel,
+          uint120 operatorWhitelistId,
+          uint120 permittedContractReceiverAllowlistId
+        )`,
       ]),
       baseProvider
     );

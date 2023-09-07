@@ -98,6 +98,10 @@ export const CollectionXyzModule: ChainIdToAddress = {
   [Network.EthereumGoerli]: "0x22097b493ea4c202d5b85cc9faf6d116830aa8a3",
 };
 
+export const DittoModule: ChainIdToAddress = {
+  [Network.EthereumGoerli]: "0xcc97a1297c78d5860a4ceabc8fe6218601b1f42c",
+};
+
 export const FoundationModule: ChainIdToAddress = {
   [Network.Ethereum]: "0x29155db9c01ac5412ad03c577d71bd9d0e90db97",
 };
@@ -155,7 +159,7 @@ export const AlienswapModule: ChainIdToAddress = {
   [Network.ScrollAlpha]: "0x60275b726b9ab1fdc6c2d3d8072f234fab5ddaeb",
   [Network.MantleTestnet]: "0xf94d47c742c97f37424db1c27817a0697d49f461",
   [Network.LineaTestnet]: "0xeb09b04d38d809c2dd5f33dda7208d0b299eda5a",
-  [Network.Linea]: "0x25210757f799423c908e4dbf8141dd10d51afbc6",
+  [Network.Linea]: "0xf769c98b6e384e98e36d6fc3ec7247dd1e887f57",
   [Network.BaseGoerli]: "0x527534529577b57548a1dbc0d7fb0088705a1965",
   [Network.Base]: "0x25210757f799423c908e4dbf8141dd10d51afbc6",
   [Network.EthereumSepolia]: "0x54e9b4580f8c180e8020cec7a330f189658e1329",

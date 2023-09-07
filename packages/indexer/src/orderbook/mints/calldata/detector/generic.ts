@@ -93,28 +93,30 @@ export const extractByTx = async (
     logger.error("mint-detector", JSON.stringify({ kind: STANDARD, error }));
   }
 
-  return [
-    {
-      collection,
-      contract: collection,
-      stage: "public-sale",
-      kind: "public",
-      status: "open",
-      standard: STANDARD,
-      details: {
-        tx: {
-          to: tx.to,
-          data: {
-            signature: methodSignature.signature,
-            params,
-          },
+  const collectionMint: CollectionMint = {
+    collection,
+    contract: collection,
+    stage: "public-sale",
+    kind: "public",
+    status: "open",
+    standard: STANDARD,
+    details: {
+      tx: {
+        to: tx.to,
+        data: {
+          signature: methodSignature.signature,
+          params,
         },
       },
-      currency: Sdk.Common.Addresses.Native[config.chainId],
-      price: pricePerAmountMinted.toString(),
-      maxSupply,
     },
-  ];
+    currency: Sdk.Common.Addresses.Native[config.chainId],
+    price: pricePerAmountMinted.toString(),
+    maxSupply,
+  };
+
+  const results = [collectionMint];
+
+  return results;
 };
 
 export const refreshByCollection = async (collection: string) => {

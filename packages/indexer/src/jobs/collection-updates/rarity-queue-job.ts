@@ -14,7 +14,7 @@ export type RarityQueueJobPayload = {
 export class RarityQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "rarity-queue";
   maxRetries = 10;
-  concurrency = 5;
+  concurrency = 1;
   persistent = false;
   backoff = {
     type: "exponential",

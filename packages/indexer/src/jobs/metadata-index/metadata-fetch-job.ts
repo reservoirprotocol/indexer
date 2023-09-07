@@ -46,7 +46,7 @@ export class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
   maxRetries = 10;
   concurrency = 5;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 20000,

@@ -393,14 +393,6 @@ export const getExecuteListV5Options: RouteOptions = {
           // Blacklist checks
           await checkBlacklistAndFallback(contract, params);
 
-          // For now, ERC20 listings are only supported on Seaport
-          if (
-            params.orderKind !== "seaport-v1.5" &&
-            params.currency !== Sdk.Common.Addresses.Native[config.chainId]
-          ) {
-            return errors.push({ message: "Unsupported currency", orderIndex: i });
-          }
-
           // Handle fees
           // TODO: Refactor the builders to get rid of the separate fee/feeRecipient arrays
           // TODO: Refactor the builders to get rid of the API params naming dependency

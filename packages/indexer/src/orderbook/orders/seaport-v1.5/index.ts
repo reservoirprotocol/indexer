@@ -576,10 +576,6 @@ export const save = async (
 
       let source: SourcesEntity | undefined;
 
-      if (isOpenSea) {
-        source = await sources.getOrInsert("opensea.io");
-      }
-
       if (metadata.source) {
         source = await sources.getOrInsert(metadata.source);
       } else {
@@ -588,6 +584,10 @@ export const save = async (
         if (matchedSource) {
           source = matchedSource;
         }
+      }
+
+      if (isOpenSea) {
+        source = await sources.getOrInsert("opensea.io");
       }
 
       // If the order is native, override any default source

@@ -14,7 +14,10 @@ import {
   transferWebsocketEventsTriggerQueueJob,
   TransferWebsocketEventInfo,
 } from "@/jobs/websocket-events/transfer-websocket-events-trigger-job";
-import * as tokenWebsocketEventsTriggerQueue from "@/jobs/websocket-events/token-websocket-events-trigger-queue";
+import {
+  tokenWebsocketEventsTriggerJob,
+  TokenWebsocketEventInfo,
+} from "@/jobs/websocket-events/token-websocket-events-trigger-job";
 import {
   collectionWebsocketEventsTriggerQueueJob,
   CollectionWebsocketEventInfo,
@@ -72,9 +75,9 @@ export const WebsocketEventRouter = async ({
       ]);
       break;
     case WebsocketEventKind.TokenEvent:
-      await tokenWebsocketEventsTriggerQueue.addToQueue([
+      await tokenWebsocketEventsTriggerJob.addToQueue([
         {
-          data: eventInfo as tokenWebsocketEventsTriggerQueue.TokenWebsocketEventInfo,
+          data: eventInfo as TokenWebsocketEventInfo,
         },
       ]);
       break;
@@ -113,6 +116,6 @@ export type EventInfo =
   | OrderWebsocketEventInfo
   | SaleWebsocketEventInfo
   | TransferWebsocketEventInfo
-  | tokenWebsocketEventsTriggerQueue.TokenWebsocketEventInfo
+  | TokenWebsocketEventInfo
   | CollectionWebsocketEventInfo
   | TokenAttributeWebsocketEventInfo;

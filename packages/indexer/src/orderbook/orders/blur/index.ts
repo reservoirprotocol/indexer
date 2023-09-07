@@ -250,7 +250,7 @@ export const savePartialListings = async (
           approval_status: "approved",
           token_set_id: tokenSetId,
           token_set_schema_hash: toBuffer(schemaHash),
-          maker: toBuffer(owner),
+          maker: toBuffer((orderParams.owner ?? owner).toLowerCase()),
           taker: toBuffer(AddressZero),
           price: price.toString(),
           value: price.toString(),

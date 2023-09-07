@@ -35,6 +35,10 @@ export type AbiParam =
   | {
       kind: "custom";
       abiType: string;
+    }
+  | {
+      kind: "referrer";
+      abiType: string;
     };
 
 export type MintTxSchema = {
@@ -50,7 +54,8 @@ export type CustomInfo = mints.manifold.Info;
 export const generateCollectionMintTxData = async (
   collectionMint: CollectionMint,
   minter: string,
-  quantity: number
+  quantity: number,
+  referrer?: string
 ): Promise<{ txData: TxData; price: string }> => {
   // For `allowlist` mints
   const allowlistData =
@@ -181,6 +186,17 @@ export const generateCollectionMintTxData = async (
             break;
           }
 
+          case "mintdotfun": {
+            if (allowlistItemIndex === 0) {
+              abiValue = await mints.mintdotfun.generateProofValue(
+                collectionMint,
+                minter,
+                referrer ?? AddressZero
+              );
+            }
+            break;
+          }
+
           default: {
             throw new Error("Allowlist fields not supported");
           }
@@ -220,6 +236,14 @@ export const generateCollectionMintTxData = async (
           abiValue: abiValue,
         });
 
+        break;
+      }
+
+      case "referrer": {
+        abiData.push({
+          abiType: p.abiType,
+          abiValue: referrer ?? AddressZero,
+        });
         break;
       }
 
@@ -282,6 +306,8 @@ export const refreshMintsForCollection = async (collection: string) => {
         return mints.foundation.refreshByCollection(collection);
       case "manifold":
         return mints.manifold.refreshByCollection(collection);
+      case "mintdotfun":
+        return mints.mintdotfun.refreshByCollection(collection);
       case "seadrop-v1.0":
         return mints.seadrop.refreshByCollection(collection);
       case "thirdweb":
