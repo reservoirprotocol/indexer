@@ -103,7 +103,7 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
         if (acquiredLock) {
           const token = await Tokens.getByContractAndTokenId(contract, tokenId);
 
-          if (!token?.image) {
+          if (!token?.image && !token?.name) {
             logger.info(
               "kafka-event-handler",
               JSON.stringify({
@@ -112,7 +112,6 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
                 payload,
                 contract,
                 tokenId,
-                hasTokenName: !!token?.name,
               })
             );
 
@@ -123,7 +122,9 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
                 {
                   kind: "single-token",
                   data: {
-                    method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
+                    method: metadataIndexFetchJob.getIndexingMethod(
+                      collection?.community || "simplehash"
+                    ),
                     contract,
                     tokenId,
                     collection: collection?.id || contract,
