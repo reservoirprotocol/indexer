@@ -122,9 +122,9 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
                 {
                   kind: "single-token",
                   data: {
-                    method: metadataIndexFetchJob.getIndexingMethod(
-                      collection?.community || "simplehash"
-                    ),
+                    method: collection?.community
+                      ? metadataIndexFetchJob.getIndexingMethod(collection?.community)
+                      : "simplehash",
                     contract,
                     tokenId,
                     collection: collection?.id || contract,

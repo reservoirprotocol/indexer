@@ -563,8 +563,10 @@ export const _search = async (
         JSON.stringify({
           topic: "_search",
           latency: esResult.took,
-          params: JSON.stringify(params),
+          paramsJSON: JSON.stringify(params),
           retries,
+          results: debug ? results : undefined,
+          params: debug ? params : undefined,
         })
       );
     }
