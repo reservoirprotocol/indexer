@@ -104,7 +104,6 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
                                         WHEN metadata_initialized_at IS NULL AND COALESCE(image, $/image/) IS NOT NULL THEN now() 
                                         ELSE metadata_initialized_at
                                     END,
-          metadata_initialized_at = CASE WHEN metadata_initialized_at IS NULL AND COALESCE(image, $/image/) IS NOT NULL THEN now() ELSE metadata_initialized_at END, 
           metadata_changed_at = CASE WHEN metadata_initialized_at IS NOT NULL AND NULLIF(image, $/image/) IS NOT NULL THEN now() ELSE metadata_changed_at END,
           metadata_updated_at = now()
         WHERE tokens.contract = $/contract/
