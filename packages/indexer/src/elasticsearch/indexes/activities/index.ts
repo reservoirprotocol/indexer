@@ -1124,20 +1124,27 @@ export const updateActivitiesTokenMetadata = async (
 
   const query = {
     bool: {
-      must: [
-        {
-          term: {
-            contract: contract.toLowerCase(),
-          },
-        },
-        {
-          term: {
-            "token.id": tokenId,
-          },
-        },
-      ],
       filter: {
         bool: {
+          must: [
+            {
+              term: {
+                contract: "0xb76fbbb30e31f2c3bdaa2466cfb1cfe39b220d06",
+              },
+            },
+            {
+              term: {
+                "token.id": "7514",
+              },
+            },
+          ],
+          must_not: [
+            {
+              term: {
+                type: "bid",
+              },
+            },
+          ],
           should,
         },
       },
