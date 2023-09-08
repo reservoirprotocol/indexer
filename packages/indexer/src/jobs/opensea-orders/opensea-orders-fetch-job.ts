@@ -21,7 +21,7 @@ export class OpenseaOrdersFetchJob extends AbstractRabbitMqJobHandler {
   maxRetries = 10;
   concurrency = 1;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 5 * 60 * 1000;
   singleActiveConsumer = true;
   backoff = {
     type: "fixed",

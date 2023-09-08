@@ -156,7 +156,12 @@ export class ApiKeyManager {
         );
 
         if (fromDb) {
-          Promise.race([redis.set(redisKey, JSON.stringify(fromDb)), timeout]).catch(); // Set in redis (no need to wait)
+          try {
+            Promise.race([redis.set(redisKey, JSON.stringify(fromDb)), timeout]).catch(); // Set in redis (no need to wait)
+          } catch {
+            // Ignore errors
+          }
+
           const apiKeyEntity = new ApiKeyEntity(fromDb);
           ApiKeyManager.apiKeys.set(key, apiKeyEntity); // Set in local memory storage
           if (!validateOriginAndIp) {
@@ -168,7 +173,12 @@ export class ApiKeyManager {
           const pipeline = redis.pipeline();
           pipeline.set(redisKey, "empty");
           pipeline.expire(redisKey, 3600 * 24);
-          Promise.race([pipeline.exec(), timeout]).catch(); // Set in redis (no need to wait)
+
+          try {
+            Promise.race([pipeline.exec(), timeout]).catch(); // Set in redis (no need to wait)
+          } catch {
+            // Ignore errors
+          }
         }
       }
     } catch (error) {

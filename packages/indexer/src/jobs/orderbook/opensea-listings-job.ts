@@ -6,7 +6,7 @@ export class OpenseaListingsJob extends AbstractRabbitMqJobHandler {
   maxRetries = 5;
   concurrency = 75;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 10000,

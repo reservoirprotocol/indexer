@@ -20,8 +20,18 @@ import * as CONFIG from "@/elasticsearch/indexes/activities/config";
 
 const INDEX_NAME = `${getNetworkName()}.activities`;
 
-export const save = async (activities: ActivityDocument[], upsert = true): Promise<void> => {
+export const save = async (
+  activities: ActivityDocument[],
+  upsert = true,
+  overrideIndexedAt = true
+): Promise<void> => {
   try {
+    if (overrideIndexedAt) {
+      activities.forEach((activity) => {
+        activity.indexedAt = new Date();
+      });
+    }
+
     const response = await elasticsearch.bulk({
       body: activities.flatMap((activity) => [
         { [upsert ? "index" : "create"]: { _index: INDEX_NAME, _id: activity.id } },
@@ -553,8 +563,10 @@ export const _search = async (
         JSON.stringify({
           topic: "_search",
           latency: esResult.took,
-          params: JSON.stringify(params),
+          paramsJSON: JSON.stringify(params),
           retries,
+          results: debug ? results : undefined,
+          params: debug ? params : undefined,
         })
       );
     }
@@ -1126,7 +1138,8 @@ export const updateActivitiesTokenMetadata = async (
         query,
         size: 1000,
       },
-      0
+      0,
+      true
     );
 
     if (pendingUpdateActivities.length) {
@@ -1170,21 +1183,21 @@ export const updateActivitiesTokenMetadata = async (
       } else {
         keepGoing = pendingUpdateActivities.length === 1000;
 
-        // logger.info(
-        //   "elasticsearch-activities",
-        //   JSON.stringify({
-        //     topic: "updateActivitiesTokenMetadata",
-        //     message: `Success`,
-        //     data: {
-        //       contract,
-        //       tokenId,
-        //       tokenData,
-        //     },
-        //     bulkParams,
-        //     response,
-        //     keepGoing,
-        //   })
-        // );
+        logger.info(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "updateActivitiesTokenMetadata",
+            message: `Success`,
+            data: {
+              contract,
+              tokenId,
+              tokenData,
+            },
+            bulkParams,
+            response,
+            keepGoing,
+          })
+        );
       }
     }
   } catch (error) {

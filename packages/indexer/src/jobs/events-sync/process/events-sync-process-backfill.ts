@@ -8,7 +8,7 @@ export class EventsSyncProcessBackfillJob extends AbstractRabbitMqJobHandler {
   maxRetries = 10;
   concurrency = 5;
   lazyMode = true;
-  consumerTimeout = 120000;
+  timeout = 120000;
 
   protected async process(payload: EventsBatch) {
     const { id, events, backfill } = payload;

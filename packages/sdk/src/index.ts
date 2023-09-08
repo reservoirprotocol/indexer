@@ -12,6 +12,7 @@ import * as CryptoKitties from "./cryptokitties";
 import * as CryptoPunks from "./cryptopunks";
 import * as CryptoVoxels from "./cryptovoxels";
 import * as Decentraland from "./decentraland";
+import * as Ditto from "./ditto";
 import * as Element from "./element";
 import * as Foundation from "./foundation";
 import * as LooksRare from "./looks-rare";
@@ -87,6 +88,7 @@ export {
   CryptoPunks,
   CryptoVoxels,
   Decentraland,
+  Ditto,
   Element,
   Foundation,
   LooksRare,

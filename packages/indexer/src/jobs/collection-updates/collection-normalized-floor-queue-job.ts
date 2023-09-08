@@ -15,7 +15,7 @@ export class CollectionNormalizedJob extends AbstractRabbitMqJobHandler {
   queueName = "collection-updates-normalized-floor-ask-queue";
   maxRetries = 10;
   concurrency = config.chainId == 137 ? 1 : 5;
-  consumerTimeout = 60000;
+  timeout = 5 * 60 * 1000;
   backoff = {
     type: "exponential",
     delay: 20000,

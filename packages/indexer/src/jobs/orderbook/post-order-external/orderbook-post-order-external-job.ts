@@ -6,7 +6,7 @@ export class OrderbookPostOrderExternalJob extends AbstractRabbitMqJobHandler {
   maxRetries = 5;
   concurrency = 5;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 60000;
 
   protected async process(payload: PostOrderExternalParams) {
     await processOrder(this, payload);

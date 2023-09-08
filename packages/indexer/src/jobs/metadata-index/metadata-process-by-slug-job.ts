@@ -26,7 +26,7 @@ export class MetadataIndexProcessBySlugJob extends AbstractRabbitMqJobHandler {
   concurrency = 1;
   singleActiveConsumer = true;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 5 * 60 * 1000;
   backoff = {
     type: "fixed",
     delay: 5000,

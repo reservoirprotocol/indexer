@@ -2,7 +2,7 @@ import cron from "node-cron";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-import { redlock } from "@/common/redis";
+import { acquireLock, redlock } from "@/common/redis";
 import { idb } from "@/common/db";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
@@ -45,8 +45,6 @@ export class BlockGapCheckJob extends AbstractRabbitMqJobHandler {
       );
 
       if (missingBlocks.length > 0) {
-        const delay = missingBlocks.length > limit ? 500 : 0;
-
         logger.info(
           this.queueName,
           JSON.stringify({
@@ -57,17 +55,26 @@ export class BlockGapCheckJob extends AbstractRabbitMqJobHandler {
         );
 
         for (let i = 0; i < missingBlocks.length; i++) {
-          logger.info(
-            this.queueName,
-            `Found missing block: ${missingBlocks[i].missing_block_number}`
+          const lockAcquired = await acquireLock(
+            `${this.queueName}:${missingBlocks[i].missing_block_number}`,
+            3600
           );
 
-          await eventsSyncRealtimeJob.addToQueue(
-            {
+          if (lockAcquired) {
+            logger.info(
+              this.queueName,
+              `Sync missing block. blockNumber=${missingBlocks[i].missing_block_number}`
+            );
+
+            await eventsSyncRealtimeJob.addToQueue({
               block: missingBlocks[i].missing_block_number,
-            },
-            delay * i
-          );
+            });
+          } else {
+            logger.info(
+              this.queueName,
+              `Skip missing block. blockNumber=${missingBlocks[i].missing_block_number}`
+            );
+          }
         }
       }
     } catch (error) {

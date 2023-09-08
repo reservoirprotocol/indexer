@@ -9,7 +9,7 @@ export class TransferUpdatesJob extends AbstractRabbitMqJobHandler {
   maxRetries = 10;
   concurrency = 5;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 60000;
 
   protected async process(payload: Event) {
     const { from, to, tokenId } = payload;

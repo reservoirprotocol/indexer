@@ -46,7 +46,7 @@ export class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
   maxRetries = 10;
   concurrency = 5;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 20000,
@@ -57,16 +57,6 @@ export class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
     if (config.liquidityOnly) {
       return;
     }
-
-    // if ([5, 137].includes(config.chainId)) {
-    //   logger.info(
-    //     this.queueName,
-    //     JSON.stringify({
-    //       message: `Start. payload=${JSON.stringify(payload)}`,
-    //       payload,
-    //     })
-    //   );
-    // }
 
     const { kind, data } = payload;
     const prioritized = !_.isUndefined(this.rabbitMqMessage?.prioritized);

@@ -149,6 +149,7 @@ import { bidWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/bid-w
 import { tokenWebsocketEventsTriggerJob } from "@/jobs/websocket-events/token-websocket-events-trigger-job";
 import { blockGapCheckJob } from "@/jobs/events-sync/block-gap-check";
 import { deadEventsSyncJob } from "./events-sync/dead-events-sync";
+import { backfillTokensTimeToMetadataJob } from "@/jobs/backfill/backfill-tokens-time-to-metadata-job";
 
 export const allJobQueues = [
   backfillExpiredOrders.queue,
@@ -281,6 +282,7 @@ export class RabbitMqJobsConsumer {
       bidWebsocketEventsTriggerQueueJob,
       tokenWebsocketEventsTriggerJob,
       blockGapCheckJob,
+      backfillTokensTimeToMetadataJob,
     ];
   }
 
@@ -319,9 +321,9 @@ export class RabbitMqJobsConsumer {
       connection.once("disconnect", (error) => {
         logger.error(
           "rabbit-error",
-          `Consumer connection error index ${i} isConnected ${connection.isConnected()} ${JSON.stringify(
-            error
-          )}`
+          `Consumer connection error index ${i} isConnected ${connection.isConnected()} channelCount ${
+            connection.channelCount
+          } ${JSON.stringify(error)}`
         );
       });
     }
@@ -365,7 +367,14 @@ export class RabbitMqJobsConsumer {
       await channel.waitForConnect();
 
       channel.once("connect", () => {
-        logger.info("rabbit-consume", `reconnected to ${job.getQueue()}`);
+        logger.info(
+          "rabbit-consume",
+          `reconnected to ${job.getQueue()} isConnected ${RabbitMqJobsConsumer.rabbitMqConsumerConnections[
+            connectionIndex
+          ].isConnected()} channelCount ${
+            RabbitMqJobsConsumer.rabbitMqConsumerConnections[connectionIndex].channelCount
+          }`
+        );
       });
     }
 
@@ -482,6 +491,7 @@ export class RabbitMqJobsConsumer {
           async (msg) => {
             if (!_.isNull(msg)) {
               await RabbitMq.send(queueName, JSON.parse(msg.content.toString()) as RabbitMQMessage);
+              channel.ack(msg);
             }
 
             ++counter;
@@ -490,7 +500,7 @@ export class RabbitMqJobsConsumer {
             }
           },
           {
-            noAck: true,
+            noAck: false,
             exclusive: true,
           }
         )

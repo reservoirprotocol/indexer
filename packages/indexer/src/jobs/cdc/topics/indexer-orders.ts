@@ -7,8 +7,8 @@ import {
 } from "@/jobs/websocket-events/websocket-event-router";
 import { Collections } from "@/models/collections";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
-import { config } from "@/config/index";
 import { acquireLock } from "@/common/redis";
+import { Tokens } from "@/models/tokens";
 
 export class IndexerOrdersHandler extends KafkaEventHandler {
   topicName = "indexer.public.orders";
@@ -45,9 +45,9 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
       eventKind,
     });
 
-    // if (payload.after.side === "sell") {
-    //   await this.handleSellOrder(payload);
-    // }
+    if (payload.after.side === "sell") {
+      await this.handleSellOrder(payload);
+    }
   }
 
   protected async handleUpdate(payload: any, offset: string): Promise<void> {
@@ -101,18 +101,20 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
         );
 
         if (acquiredLock) {
-          logger.info(
-            "kafka-event-handler",
-            JSON.stringify({
-              topic: "handleSellOrder",
-              message: "Refreshing token metadata.",
-              payload,
-              contract,
-              tokenId,
-            })
-          );
+          const token = await Tokens.getByContractAndTokenId(contract, tokenId);
 
-          if (config.chainId === 5) {
+          if (!token?.image && !token?.name) {
+            logger.info(
+              "kafka-event-handler",
+              JSON.stringify({
+                topic: "handleSellOrder",
+                message: `Refreshing token metadata. contract=${contract}, tokenId=${tokenId}`,
+                payload,
+                contract,
+                tokenId,
+              })
+            );
+
             const collection = await Collections.getByContractAndTokenId(contract, tokenId);
 
             await metadataIndexFetchJob.addToQueue(
@@ -120,7 +122,9 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
                 {
                   kind: "single-token",
                   data: {
-                    method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
+                    method: collection?.community
+                      ? metadataIndexFetchJob.getIndexingMethod(collection?.community)
+                      : "simplehash",
                     contract,
                     tokenId,
                     collection: collection?.id || contract,

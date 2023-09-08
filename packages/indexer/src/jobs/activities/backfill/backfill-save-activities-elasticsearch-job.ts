@@ -37,7 +37,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
   concurrency = 2;
   persistent = true;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 60000;
 
   backoff = {
     type: "fixed",

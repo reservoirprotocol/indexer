@@ -97,14 +97,14 @@ export class RabbitMq {
     content.publishRetryCount = content.publishRetryCount ?? 0;
     content.correlationId = content.correlationId ?? randomUUID();
 
-    const msgConsumingBuffer = 5 * 60; // Time for the job to actually process, will be released on the job is done
-    const lockTime = delay ? _.max([_.toInteger(delay / 1000), 0]) : msgConsumingBuffer;
+    const msgConsumingBuffer = 7 * 24 * 60 * 60; // Will be released on the job is done
+    const lockTime = Number(_.max([_.toInteger(delay / 1000), 0])) + msgConsumingBuffer;
     let lockAcquired = false;
 
     // For deduplication messages use redis lock, setting lock only if jobId is passed
     try {
       if (content.jobId && lockTime) {
-        if (!(await acquireLock(content.jobId, lockTime + msgConsumingBuffer))) {
+        if (!(await acquireLock(content.jobId, lockTime))) {
           return;
         }
 
@@ -168,7 +168,11 @@ export class RabbitMq {
     } catch (error) {
       if (`${error}`.includes("nacked")) {
         if (lockAcquired && content.jobId) {
-          await releaseLock(content.jobId).catch();
+          try {
+            await releaseLock(content.jobId);
+          } catch {
+            // Ignore errors
+          }
         }
 
         logger.error(
@@ -315,9 +319,13 @@ export class RabbitMq {
         definition["queue-mode"] = "lazy";
       }
 
-      // If the queue has specific timeout
-      if (queue.getConsumerTimeout()) {
-        definition["consumer-timeout"] = queue.getConsumerTimeout();
+      // // If the queue has specific timeout
+      if (queue.getTimeout() && !queue.isLazyMode()) {
+        try {
+          await this.deletePolicy({ name: `${queue.getQueue()}-policy` });
+        } catch {
+          // Ignore errors
+        }
       }
 
       if (!_.isEmpty(definition)) {
