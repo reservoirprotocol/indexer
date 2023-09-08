@@ -581,7 +581,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         "currency_normalized_value",
         "block_number",
         "log_index",
-        "originated_at",
+        { name: "originated_at", mod: ":raw" },
       ],
       {
         table: "orders",

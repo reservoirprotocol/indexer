@@ -5,7 +5,7 @@ import { RabbitMq, RabbitMQMessage } from "@/common/rabbit-mq";
 import { logger } from "@/common/logger";
 import _ from "lodash";
 import { ConsumeMessage } from "amqplib";
-import { releaseLock } from "@/common/redis";
+import { extendLock, releaseLock } from "@/common/redis";
 import { ChannelWrapper } from "amqp-connection-manager";
 import { config } from "@/config/index";
 
@@ -39,7 +39,8 @@ export abstract class AbstractRabbitMqJobHandler {
   protected useSharedChannel = false;
   protected lazyMode = false;
   protected queueType: QueueType = "classic";
-  protected timeout = 0;
+  protected timeout = 0; // Job timeout in ms
+  protected consumerTimeout = 0; // Rabbitmq timeout in ms default to 1800000ms (30 min) increase only if the job needs to run more than that, this value shouldn't be smaller than `timeout` (expect 0)
   protected disableConsuming = config.rabbitDisableQueuesConsuming;
 
   public async consume(channel: ChannelWrapper, consumeMessage: ConsumeMessage): Promise<void> {
@@ -60,6 +61,17 @@ export abstract class AbstractRabbitMqJobHandler {
 
     this.rabbitMqMessage.consumedTime = this.rabbitMqMessage.consumedTime ?? _.now();
     this.rabbitMqMessage.retryCount = this.rabbitMqMessage.retryCount ?? 0;
+
+    if (this.rabbitMqMessage.jobId) {
+      try {
+        await extendLock(
+          this.rabbitMqMessage.jobId,
+          _.max([_.toInteger(this.getTimeout() / 1000), 0]) || 5 * 60
+        );
+      } catch {
+        // Ignore errors
+      }
+    }
 
     try {
       let processResult;
@@ -225,6 +237,10 @@ export abstract class AbstractRabbitMqJobHandler {
 
   public getQueueType(): string {
     return this.queueType;
+  }
+
+  public getConsumerTimeout(): number {
+    return this.consumerTimeout;
   }
 
   public getTimeout(): number {

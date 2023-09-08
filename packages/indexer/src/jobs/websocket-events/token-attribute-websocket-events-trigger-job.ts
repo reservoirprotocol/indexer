@@ -42,14 +42,14 @@ export class TokenAttributeWebsocketEventsTriggerQueueJob extends AbstractRabbit
               }
             }
 
-            if (!changed.length) {
-              logger.info(
-                this.queueName,
-                `No changes detected for event. before=${JSON.stringify(
-                  data.before
-                )}, after=${JSON.stringify(data.after)}`
-              );
-            }
+            // if (!changed.length) {
+            //   logger.info(
+            //     this.queueName,
+            //     `No changes detected for event. before=${JSON.stringify(
+            //       data.before
+            //     )}, after=${JSON.stringify(data.after)}`
+            //   );
+            // }
           }
           break;
         case "delete":

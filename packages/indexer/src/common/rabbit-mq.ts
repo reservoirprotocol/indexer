@@ -319,13 +319,9 @@ export class RabbitMq {
         definition["queue-mode"] = "lazy";
       }
 
-      // // If the queue has specific timeout
-      if (queue.getTimeout() && !queue.isLazyMode()) {
-        try {
-          await this.deletePolicy({ name: `${queue.getQueue()}-policy` });
-        } catch {
-          // Ignore errors
-        }
+      // If the queue has specific timeout
+      if (queue.getConsumerTimeout()) {
+        definition["consumer-timeout"] = queue.getConsumerTimeout();
       }
 
       if (!_.isEmpty(definition)) {

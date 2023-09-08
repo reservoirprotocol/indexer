@@ -48,8 +48,12 @@ export const getRedirectTokenImageV1Options: RouteOptions = {
       const [contract, tokenId] = params.token.split(":");
       const token = await Tokens.getByContractAndTokenId(contract, tokenId, true);
 
-      if (_.isNull(token) || !token.image) {
+      if (_.isNull(token)) {
         throw Boom.badData(`Token ${params.token} not found`);
+      }
+
+      if (!token.image) {
+        throw Boom.badData(`Image not found for token ${params.token}`);
       }
 
       const imageUrl = Assets.getResizedImageUrl(

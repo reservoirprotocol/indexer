@@ -93,7 +93,19 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
           media = $/media/,
           updated_at = now(),
           collection_id = collection_id,
-          created_at = created_at
+          created_at = created_at,
+          metadata_indexed_at = CASE 
+                                    WHEN metadata_indexed_at IS NULL AND image IS NOT NULL THEN metadata_indexed_at 
+                                    WHEN metadata_indexed_at IS NULL THEN now() 
+                                    ELSE metadata_indexed_at
+                                END,
+          metadata_initialized_at = CASE
+                                        WHEN metadata_initialized_at IS NULL AND image IS NOT NULL THEN metadata_initialized_at 
+                                        WHEN metadata_initialized_at IS NULL AND COALESCE(image, $/image/) IS NOT NULL THEN now() 
+                                        ELSE metadata_initialized_at
+                                    END,
+          metadata_changed_at = CASE WHEN metadata_initialized_at IS NOT NULL AND NULLIF(image, $/image/) IS NOT NULL THEN now() ELSE metadata_changed_at END,
+          metadata_updated_at = now()
         WHERE tokens.contract = $/contract/
         AND tokens.token_id = $/tokenId/
         RETURNING collection_id, created_at, (
