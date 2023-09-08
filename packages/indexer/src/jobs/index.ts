@@ -423,7 +423,10 @@ export class RabbitMqJobsConsumer {
 
     if (channel) {
       await channel.cancel(RabbitMqJobsConsumer.getConsumerTag(job.getQueue()));
+      return true;
     }
+
+    return false;
   }
 
   /**
