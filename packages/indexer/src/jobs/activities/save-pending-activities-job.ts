@@ -67,12 +67,12 @@ export const savePendingActivitiesJob = new SavePendingActivitiesJob();
 
 if (config.doBackgroundWork && config.doElasticsearchWork) {
   cron.schedule(
-    config.chainId === 1 ? "*/2 * * * * *" : "*/5 * * * * *",
+    config.chainId === 1 ? "*/5 * * * * *" : "*/5 * * * * *",
     async () =>
       await redlock
         .acquire(
           ["save-pending-activities-queue-lock"],
-          config.chainId === 1 ? (2 - 1) * 1000 : (5 - 1) * 1000
+          config.chainId === 1 ? (5 - 1) * 1000 : (5 - 1) * 1000
         )
         .then(async () => savePendingActivitiesJob.addToQueue())
         .catch(() => {
