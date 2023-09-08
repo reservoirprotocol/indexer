@@ -105,7 +105,7 @@ export class BidCreatedEventHandler extends BaseActivityEventHandler {
 
     data.timestamp = data.originated_ts
       ? Math.floor(data.originated_ts)
-      : data.valid_from || Math.floor(data.created_ts);
+      : Math.floor(data.created_ts);
   }
 
   static async generateActivities(events: OrderEventInfo[]): Promise<ActivityDocument[]> {

@@ -137,8 +137,12 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
         )
         .then(async () => {
           for (const eventKind of Object.values(EventKind)) {
+            logger.info(processActivityEventsJob.queueName, `addToQueue. eventKind=${eventKind}`);
+
             await processActivityEventsJob.addToQueue(eventKind);
           }
+
+          await processActivityEventsJob.addToQueue(EventKind.newBuyOrder);
         })
         .catch(() => {
           // Skip on any errors
