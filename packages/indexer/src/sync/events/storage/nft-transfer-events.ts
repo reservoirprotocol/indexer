@@ -150,9 +150,11 @@ export const addEvents = async (
       );
 
       // if updateBalancesForDeadAddress is true, we update the balances for the zero address, otherwise we update the balances for non-zero addresses
+      const byteaValue = `\\x${AddressZero.slice(2)}`;
+
       const balanceUpdateExclusion = updateBalancesForDeadAddress
-        ? `"owner" = 'E\\\\x0000000000000000000000000000000000000000'`
-        : `"owner" != 'E\\\\x0000000000000000000000000000000000000000'`;
+        ? pgp.as.format(`"owner" = $1::bytea`, [byteaValue])
+        : pgp.as.format(`"owner" != $1::bytea`, [byteaValue]);
 
       if (updateBalancesForDeadAddress) {
         logger.info(
