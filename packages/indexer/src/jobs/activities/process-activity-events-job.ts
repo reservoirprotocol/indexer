@@ -44,11 +44,6 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
 
     const pendingActivityEvents = await pendingActivityEventsQueue.get(limit);
 
-    logger.info(
-      this.queueName,
-      `Debug2. eventKind=${eventKind}, pendingActivityEvents=${pendingActivityEvents.length}`
-    );
-
     if (pendingActivityEvents.length > 0) {
       try {
         let activities: ActivityDocument[] = [];
@@ -85,11 +80,6 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
             );
             break;
         }
-
-        logger.info(
-          this.queueName,
-          `Debug3. eventKind=${eventKind}, pendingActivityEvents=${pendingActivityEvents.length}, activities=${activities?.length}`
-        );
 
         if (activities?.length) {
           await pendingActivitiesQueue.add(activities);
@@ -137,12 +127,8 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
         )
         .then(async () => {
           for (const eventKind of Object.values(EventKind)) {
-            logger.info(processActivityEventsJob.queueName, `addToQueue. eventKind=${eventKind}`);
-
             await processActivityEventsJob.addToQueue(eventKind);
           }
-
-          await processActivityEventsJob.addToQueue(EventKind.newBuyOrder);
         })
         .catch(() => {
           // Skip on any errors

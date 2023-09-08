@@ -25,7 +25,7 @@ export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
 
     if (pendingActivities.length > 0) {
       try {
-        await ActivitiesIndex.save(pendingActivities, false);
+        await ActivitiesIndex.save(pendingActivities, false, false);
 
         for (const activity of pendingActivities) {
           // If collection information is not available yet when a mint event
