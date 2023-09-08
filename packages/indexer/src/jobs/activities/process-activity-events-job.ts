@@ -115,10 +115,13 @@ export const processActivityEventsJob = new ProcessActivityEventsJob();
 
 if (config.doBackgroundWork && config.doElasticsearchWork) {
   cron.schedule(
-    "*/5 * * * * *",
+    config.chainId === 1 ? "*/2 * * * * *" : "*/5 * * * * *",
     async () =>
       await redlock
-        .acquire([`${processActivityEventsJob.queueName}-cron-lock`], (5 - 1) * 1000)
+        .acquire(
+          [`${processActivityEventsJob.queueName}-cron-lock`],
+          config.chainId === 1 ? (2 - 1) * 1000 : (5 - 1) * 1000
+        )
         .then(async () => {
           for (const eventKind of Object.values(EventKind)) {
             await processActivityEventsJob.addToQueue(eventKind);
