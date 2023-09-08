@@ -87,6 +87,18 @@ export class RefreshActivitiesTokenMetadataJob extends AbstractRabbitMqJobHandle
       .update(`${contract.toLowerCase()}${tokenId}`)
       .digest("hex");
 
+    logger.info(
+      this.queueName,
+      JSON.stringify({
+        message: `addToQueue. contract=${contract}, tokenId=${tokenId}, jobId=${jobId}`,
+        data: {
+          contract,
+          tokenId,
+          jobId,
+        },
+      })
+    );
+
     await this.send({ payload: { contract, tokenId }, jobId });
   }
 }
