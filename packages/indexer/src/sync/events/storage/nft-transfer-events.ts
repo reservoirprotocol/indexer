@@ -8,6 +8,7 @@ import { eventsSyncNftTransfersWriteBufferJob } from "@/jobs/events-sync/write-b
 import { AddressZero } from "@ethersproject/constants";
 import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
 import { deadEventsSyncJob } from "@/jobs/events-sync/dead-events-sync";
+import { logger } from "@/common/logger";
 
 export type Event = {
   kind: ContractKind;
@@ -150,9 +151,20 @@ export const addEvents = async (
 
       // if updateBalancesForDeadAddress is true, we update the balances for the zero address, otherwise we update the balances for non-zero addresses
       const balanceUpdateExclusion = updateBalancesForDeadAddress
-        ? `AND "owner" = E'\\${AddressZero.split("x")[1]}'`
-        : `AND "owner" != E'\\${AddressZero.split("x")[1]}'`;
+        ? `AND "owner" = E'\\x${AddressZero.split("x")[1]}'`
+        : `AND "owner" != E'\\x${AddressZero.split("x")[1]}'`;
 
+      if (updateBalancesForDeadAddress) {
+        logger.info(
+          "add-events",
+          JSON.stringify({
+            message: `Updating balances for dead address`,
+            block: event.block,
+            blockHash: event.block_hash,
+            events: transferValues,
+          })
+        );
+      }
       // Atomically insert the transfer events and update balances
       nftTransferQueries.push(`
         WITH "x" AS (
@@ -253,6 +265,10 @@ export const addEvents = async (
 
   // add deadTransferValues to separate process if updateBalancesForDeadAddress is false
   if (!updateBalancesForDeadAddress && deadTransferEvents.length > 0) {
+    logger.info(
+      "add-events",
+      `Adding ${deadTransferEvents.length} dead transfer events to deadEventsSyncJob`
+    );
     await deadEventsSyncJob.addToQueue({
       deadTransferEvents: deadTransferEvents,
     });
