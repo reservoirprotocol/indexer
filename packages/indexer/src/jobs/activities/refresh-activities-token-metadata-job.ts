@@ -4,7 +4,6 @@ import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import _ from "lodash";
 import { Tokens } from "@/models/tokens";
 import crypto from "crypto";
-import { logger } from "@/common/logger";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 
 export type RefreshActivitiesTokenMetadataJobPayload = {
@@ -29,20 +28,6 @@ export class RefreshActivitiesTokenMetadataJob extends AbstractRabbitMqJobHandle
       payload.tokenUpdateData ?? (await Tokens.getByContractAndTokenId(contract, tokenId));
 
     if (!_.isEmpty(tokenUpdateData)) {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `Debug. contract=${contract}, tokenId=${tokenId}, tokenUpdateData=${JSON.stringify(
-            tokenUpdateData
-          )}`,
-          data: {
-            contract,
-            tokenId,
-          },
-          payload,
-        })
-      );
-
       const keepGoing = await ActivitiesIndex.updateActivitiesTokenMetadata(
         contract,
         tokenId,
@@ -50,20 +35,6 @@ export class RefreshActivitiesTokenMetadataJob extends AbstractRabbitMqJobHandle
       );
 
       if (keepGoing) {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            message: `KeepGoing. contract=${contract}, tokenId=${tokenId}, tokenUpdateData=${JSON.stringify(
-              tokenUpdateData
-            )}`,
-            data: {
-              contract,
-              tokenId,
-            },
-            payload,
-          })
-        );
-
         addToQueue = true;
       }
     }
