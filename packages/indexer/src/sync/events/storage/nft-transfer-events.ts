@@ -151,8 +151,8 @@ export const addEvents = async (
 
       // if updateBalancesForDeadAddress is true, we update the balances for the zero address, otherwise we update the balances for non-zero addresses
       const balanceUpdateExclusion = updateBalancesForDeadAddress
-        ? `"owner" = E'\\x${AddressZero.split("x")[1]}'`
-        : `"owner" != E'\\x${AddressZero.split("x")[1]}'`;
+        ? `"owner" = E'\\\\x${AddressZero.split("x")[1]}'`
+        : `"owner" != E'\\\\x${AddressZero.split("x")[1]}'`;
 
       if (updateBalancesForDeadAddress) {
         logger.info(
