@@ -328,7 +328,7 @@ async function insertQueries(
   queries: string[] | { query: string; values: { [key: string]: any } }[],
   backfill: boolean
 ) {
-  queries = queries.map((q) => (typeof q === "string" ? q : pgp.as.format(q.query, q.values)));
+  queries = queries.map((q) => (typeof q === "string" ? { query: q, values: {} } : q));
   if (backfill) {
     // When backfilling, use the write buffer to avoid deadlocks
     for (const query of _.chunk(queries, 1000)) {
@@ -342,7 +342,7 @@ async function insertQueries(
     // they get to run and we have no way to easily enforce this when
     // using the write buffer.
     for (const query of _.chunk(queries, [80001, 84531].includes(config.chainId) ? 250 : 500)) {
-      await idb.tx(async (t) => t.batch(query.map((q) => t.none(q))));
+      await idb.none(pgp.helpers.concat(query));
     }
   }
 }
