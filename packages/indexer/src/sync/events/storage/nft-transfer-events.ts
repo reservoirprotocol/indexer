@@ -157,11 +157,6 @@ export const addEvents = async (
         { table: "nft_transfer_events" }
       );
 
-      // if updateBalancesForDeadAddress is true, we update the balances for the zero address, otherwise we update the balances for non-zero addresses
-      const balanceUpdateExclusion = updateBalancesForDeadAddress
-        ? `"owner" = $/deadAddress/`
-        : `"owner" != $/deadAddress/`;
-
       if (updateBalancesForDeadAddress) {
         logger.info(
           "add-events",
@@ -220,7 +215,11 @@ export const addEvents = async (
               unnest("amount_deltas") AS "amount_delta",
               unnest("timestamps") AS "timestamp"
             FROM "x"
-            ${balanceUpdateExclusion}
+            ${
+              updateBalancesForDeadAddress
+                ? `WHERE "x"."from" = $/deadAddress/`
+                : `WHERE "x"."from" != $/deadAddress/`
+            }
             ORDER BY "address" ASC, "token_id" ASC, "owner" ASC
           ) "y"
           GROUP BY "y"."address", "y"."token_id", "y"."owner"
@@ -231,7 +230,6 @@ export const addEvents = async (
           "acquired_at" = COALESCE(GREATEST("excluded"."acquired_at", "nft_balances"."acquired_at"), "nft_balances"."acquired_at")
       `,
         values: {
-          ...event,
           deadAddress: toBuffer(AddressZero),
         },
       });
