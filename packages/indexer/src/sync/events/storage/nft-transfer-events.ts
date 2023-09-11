@@ -52,11 +52,7 @@ type erc1155Token = {
   minted_timestamp: number;
 };
 
-export const addEvents = async (
-  events: Event[],
-  backfill: boolean,
-  updateBalancesForDeadAddress = false
-) => {
+export const addEvents = async (events: Event[], backfill: boolean) => {
   // Keep track of all unique contracts and tokens
   const uniqueContracts = new Map<string, string>();
   const uniqueTokens = new Set<string>();
@@ -91,7 +87,7 @@ export const addEvents = async (
     });
 
     // If the transfer is from the zero address, we add to the deadTransferValues to update balances later on
-    if (event.from === AddressZero && updateBalancesForDeadAddress === false) {
+    if (event.from === AddressZero) {
       deadTransferEvents.push(event);
     }
 
@@ -157,17 +153,6 @@ export const addEvents = async (
         { table: "nft_transfer_events" }
       );
 
-      if (updateBalancesForDeadAddress) {
-        logger.info(
-          "add-events",
-          JSON.stringify({
-            message: `Updating balances for dead address`,
-            block: event.block,
-            blockHash: event.block_hash,
-            events: transferValues,
-          })
-        );
-      }
       // Atomically insert the transfer events and update balances
       nftTransferQueries.push({
         query: `
@@ -215,13 +200,9 @@ export const addEvents = async (
               unnest("amount_deltas") AS "amount_delta",
               unnest("timestamps") AS "timestamp"
             FROM "x"
-            ${
-              updateBalancesForDeadAddress
-                ? `WHERE "owner" = $/deadAddress/`
-                : `WHERE "owner" != $/deadAddress/`
-            }
             ORDER BY "address" ASC, "token_id" ASC, "owner" ASC
           ) "y"
+          ${backfill ? "" : `WHERE "owner" != $/deadAddress/`}
           GROUP BY "y"."address", "y"."token_id", "y"."owner"
         )
         ON CONFLICT ("contract", "token_id", "owner") DO
@@ -276,7 +257,7 @@ export const addEvents = async (
   }
 
   // add deadTransferValues to separate process if updateBalancesForDeadAddress is false
-  if (!updateBalancesForDeadAddress && deadTransferEvents.length > 0) {
+  if (deadTransferEvents.length > 0 && !backfill) {
     logger.info(
       "add-events",
       `Adding ${deadTransferEvents.length} dead transfer events to deadEventsSyncJob`
@@ -321,12 +302,93 @@ function buildTokenValuesQueries(tokenValuesChunk: erc721Token[] | erc1155Token[
   `;
 }
 
+export const updateDeadNftBalances = async (events: Event[]) => {
+  const queries: {
+    query: string;
+    values: {
+      // eslint-disable-next-line
+      [key: string]: any;
+    };
+  }[] = [];
+
+  for (const event of events) {
+    queries.push({
+      query: `-- First, check if the transfer event exists
+              WITH "event_check" AS (
+                  SELECT
+                      "address",
+                      "token_id",
+                      "from",
+                      "to",
+                      "amount",
+                      "timestamp"
+                  FROM "nft_transfer_events"
+                  WHERE "tx_hash" = $/txHash/
+              ),
+              -- Prepare the balance data based on the existing event
+              "balance_data" AS (
+                  SELECT
+                      "address",
+                      "token_id",
+                      ARRAY["from", "to"] AS "owners",
+                      ARRAY[-"amount", "amount"] AS "amount_deltas",
+                      to_timestamp("timestamp") AS "timestamp"
+                  FROM "event_check"
+              ),
+              -- Calculate the new balance
+              "new_balance" AS (
+                  SELECT
+                      "address",
+                      "token_id",
+                      unnest("owners") AS "owner",
+                      unnest("amount_deltas") AS "amount_delta",
+                      "timestamp"
+                  FROM "balance_data"
+              )
+              -- Insert the new balance into 'nft_balances' only if 'event_check' found a record
+              INSERT INTO "nft_balances" (
+                  "contract",
+                  "token_id",
+                  "owner",
+                  "amount",
+                  "acquired_at"
+              )
+              SELECT
+                  "address",
+                  "token_id",
+                  "owner",
+                  SUM("amount_delta"),
+                  MIN("timestamp")
+              FROM "new_balance"
+              WHERE "owner" = $/deadAddress/
+              GROUP BY "address", "token_id", "owner"
+              ON CONFLICT ("contract", "token_id", "owner") DO
+              UPDATE SET 
+                  "amount" = "nft_balances"."amount" + "excluded"."amount",
+                  "acquired_at" = COALESCE(GREATEST("excluded"."acquired_at", "nft_balances"."acquired_at"), "nft_balances"."acquired_at")
+              WHERE EXISTS (
+                  SELECT 1 FROM "event_check" -- Only proceed if 'event_check' found a record
+              );
+        `,
+      values: {
+        deadAddress: toBuffer(AddressZero),
+        txHash: toBuffer(event.baseEventParams.txHash),
+      },
+    });
+  }
+
+  await insertQueries(queries, false);
+};
+
 async function insertQueries(
   //eslint-disable-next-line
   queries: string[] | { query: string; values: { [key: string]: any } }[],
   backfill: boolean
 ) {
+  // eslint-disable-next-line
+  console.log("insertQueries", queries.length);
   queries = queries.map((q) => (typeof q === "string" ? { query: q, values: {} } : q));
+
   if (backfill) {
     // When backfilling, use the write buffer to avoid deadlocks
     for (const query of _.chunk(queries, 1000)) {

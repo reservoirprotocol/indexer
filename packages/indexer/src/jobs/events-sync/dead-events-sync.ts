@@ -1,4 +1,4 @@
-import { Event, addEvents } from "@/events-sync/storage/nft-transfer-events";
+import { Event, updateDeadNftBalances } from "@/events-sync/storage/nft-transfer-events";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 
 export type DeadEventsSyncJobPayload = {
@@ -17,7 +17,7 @@ export class DeadEventsSyncJob extends AbstractRabbitMqJobHandler {
 
   protected async process(payload: DeadEventsSyncJobPayload) {
     const { deadTransferEvents } = payload;
-    await addEvents(deadTransferEvents, false, true);
+    await updateDeadNftBalances(deadTransferEvents);
   }
 
   public async addToQueue(params: DeadEventsSyncJobPayload, delay = 0) {
