@@ -130,7 +130,15 @@ export const addEvents = async (
 
   if (transferValues.length) {
     for (const event of transferValues) {
-      const nftTransferQueries: string[] = [];
+      // either array of query objects or array of query strings
+      const nftTransferQueries: {
+        query: string;
+        values: {
+          // eslint-disable-next-line
+          [key: string]: any;
+        };
+      }[] = [];
+
       const columns = new pgp.helpers.ColumnSet(
         [
           "address",
@@ -151,8 +159,8 @@ export const addEvents = async (
 
       // if updateBalancesForDeadAddress is true, we update the balances for the zero address, otherwise we update the balances for non-zero addresses
       const balanceUpdateExclusion = updateBalancesForDeadAddress
-        ? `"owner" = ${pgp.as.format(`$1::bytea`, [toBuffer(AddressZero)])}`
-        : `"owner" != ${pgp.as.format(`$1::bytea`, [toBuffer(AddressZero)])}`;
+        ? `"owner" = $/deadAddress/`
+        : `"owner" != $/deadAddress/`;
 
       if (updateBalancesForDeadAddress) {
         logger.info(
@@ -166,7 +174,8 @@ export const addEvents = async (
         );
       }
       // Atomically insert the transfer events and update balances
-      nftTransferQueries.push(`
+      nftTransferQueries.push({
+        query: `
         WITH "x" AS (
           INSERT INTO "nft_transfer_events" (
             "address",
@@ -220,7 +229,12 @@ export const addEvents = async (
         UPDATE SET 
           "amount" = "nft_balances"."amount" + "excluded"."amount", 
           "acquired_at" = COALESCE(GREATEST("excluded"."acquired_at", "nft_balances"."acquired_at"), "nft_balances"."acquired_at")
-      `);
+      `,
+        values: {
+          ...event,
+          deadAddress: toBuffer(AddressZero),
+        },
+      });
 
       await insertQueries(nftTransferQueries, backfill);
     }
@@ -309,11 +323,18 @@ function buildTokenValuesQueries(tokenValuesChunk: erc721Token[] | erc1155Token[
   `;
 }
 
-async function insertQueries(queries: string[], backfill: boolean) {
+async function insertQueries(
+  //eslint-disable-next-line
+  queries: string[] | { query: string; values: { [key: string]: any } }[],
+  backfill: boolean
+) {
+  queries = queries.map((q) => (typeof q === "string" ? q : pgp.as.format(q.query, q.values)));
   if (backfill) {
     // When backfilling, use the write buffer to avoid deadlocks
     for (const query of _.chunk(queries, 1000)) {
-      await eventsSyncNftTransfersWriteBufferJob.addToQueue({ query: pgp.helpers.concat(query) });
+      await eventsSyncNftTransfersWriteBufferJob.addToQueue({
+        query: pgp.helpers.concat(query),
+      });
     }
   } else {
     // Otherwise write directly since there might be jobs that depend
