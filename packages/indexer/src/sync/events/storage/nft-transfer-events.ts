@@ -217,8 +217,8 @@ export const addEvents = async (
             FROM "x"
             ${
               updateBalancesForDeadAddress
-                ? `WHERE "x"."from" = $/deadAddress/`
-                : `WHERE "x"."from" != $/deadAddress/`
+                ? `WHERE "owner" = $/deadAddress/`
+                : `WHERE "owner" != $/deadAddress/`
             }
             ORDER BY "address" ASC, "token_id" ASC, "owner" ASC
           ) "y"
