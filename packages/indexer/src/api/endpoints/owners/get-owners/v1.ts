@@ -31,6 +31,7 @@ export const getOwnersV1Options: RouteOptions = {
         .description("Filter to a particular collection set."),
       collection: Joi.string()
         .lowercase()
+        .pattern(/^0x[a-fA-F0-9]{40}:[0-9]+:[0-9]+$|^0x[a-fA-F0-9]{40}$/)
         .description(
           "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
@@ -117,8 +118,13 @@ export const getOwnersV1Options: RouteOptions = {
         }
       }
 
-      // Check if the collection passed is identical the contract
-      if (query.collection.match(/^0x[a-f0-9]{40}:\d+:\d+$/g)) {
+      // If the collection passed is identical the contract
+      if (/^0x[a-f0-9]{40}$/.test(query.collection)) {
+        (query as any).contract = toBuffer(query.collection);
+
+        nftBalancesFilter = `nft_balances.contract = $/contract/`;
+        tokensFilter = `tokens.contract = $/contract/`;
+      } else {
         // This is a range collection
         const [contract, startTokenId, endTokenId] = query.collection.split(":");
         (query as any).contract = toBuffer(contract);
@@ -127,18 +133,6 @@ export const getOwnersV1Options: RouteOptions = {
 
         nftBalancesFilter = `nft_balances.contract = $/contract/ AND nft_balances.token_id BETWEEN $/startTokenId/ AND $/endTokenId/`;
         tokensFilter = `tokens.contract = $/contract/ AND tokens.token_id BETWEEN $/startTokenId/ AND $/endTokenId/`;
-      } else if (query.collection.match(/^0x[a-f0-9]{40}:[a-zA-Z]+-.+$/g)) {
-        const [contract] = query.collection.split(":");
-
-        (query as any).contract = toBuffer(contract);
-
-        nftBalancesFilter = `nft_balances.contract = $/contract/`;
-        tokensFilter = `tokens.contract = $/contract/`;
-      } else {
-        (query as any).contract = toBuffer(query.collection);
-
-        nftBalancesFilter = `nft_balances.contract = $/contract/`;
-        tokensFilter = `tokens.contract = $/contract/`;
       }
     } else if (query.contract) {
       (query as any).contract = toBuffer(query.contract);
