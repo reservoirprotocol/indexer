@@ -117,13 +117,8 @@ export const getOwnersV1Options: RouteOptions = {
         }
       }
 
-      // If the collection passed is identical the contract
-      if (/^0x[a-f0-9]{40}$/.test(query.collection)) {
-        (query as any).contract = toBuffer(query.collection);
-
-        nftBalancesFilter = `nft_balances.contract = $/contract/`;
-        tokensFilter = `tokens.contract = $/contract/`;
-      } else {
+      // Check if the collection passed is identical the contract
+      if (query.collection.match(/^0x[a-f0-9]{40}:\d+:\d+$/g)) {
         // This is a range collection
         const [contract, startTokenId, endTokenId] = query.collection.split(":");
         (query as any).contract = toBuffer(contract);
@@ -132,6 +127,11 @@ export const getOwnersV1Options: RouteOptions = {
 
         nftBalancesFilter = `nft_balances.contract = $/contract/ AND nft_balances.token_id BETWEEN $/startTokenId/ AND $/endTokenId/`;
         tokensFilter = `tokens.contract = $/contract/ AND tokens.token_id BETWEEN $/startTokenId/ AND $/endTokenId/`;
+      } else {
+        (query as any).contract = toBuffer(query.collection);
+
+        nftBalancesFilter = `nft_balances.contract = $/contract/`;
+        tokensFilter = `tokens.contract = $/contract/`;
       }
     } else if (query.contract) {
       (query as any).contract = toBuffer(query.contract);
