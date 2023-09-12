@@ -106,6 +106,7 @@ export const getOwnersV2Options: RouteOptions = {
     let nftBalancesFilter = "";
     let tokensFilter = "";
     let attributesJoin = "";
+    let tokensJoin = "";
 
     if (query.collection) {
       if (query.attributes) {
@@ -144,8 +145,10 @@ export const getOwnersV2Options: RouteOptions = {
 
         (query as any).contract = toBuffer(contract);
 
-        nftBalancesFilter = `nft_balances.contract = $/contract/`;
-        tokensFilter = `tokens.contract = $/contract/`;
+        tokensJoin = `JOIN tokens ON nft_balances.contract = tokens.contract AND nft_balances.token_id = tokens.token_id`;
+
+        nftBalancesFilter = `nft_balances.contract = $/contract/ AND tokens.contract = $/contract/ AND tokens.collection_id = $/collection/`;
+        tokensFilter = `tokens.contract = $/contract/ AND tokens.collection_id = $/collection/`;
       } else {
         (query as any).contract = toBuffer(query.collection);
 
@@ -193,6 +196,7 @@ export const getOwnersV2Options: RouteOptions = {
         WITH x AS (
           SELECT owner, SUM(amount) AS token_count
           FROM nft_balances
+          ${tokensJoin}
           ${attributesJoin}
           WHERE ${nftBalancesFilter}
           AND amount > 0
