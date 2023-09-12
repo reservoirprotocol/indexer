@@ -59,9 +59,6 @@ export abstract class AbstractRabbitMqJobHandler {
       return;
     }
 
-    this.rabbitMqMessage.consumedTime = this.rabbitMqMessage.consumedTime ?? _.now();
-    this.rabbitMqMessage.retryCount = this.rabbitMqMessage.retryCount ?? 0;
-
     if (this.rabbitMqMessage.jobId) {
       try {
         await extendLock(
@@ -69,9 +66,16 @@ export abstract class AbstractRabbitMqJobHandler {
           _.max([_.toInteger(this.getTimeout() / 1000), 0]) || 5 * 60
         );
       } catch {
+        logger.warn(
+          "rabbit-debug",
+          `failed to release lock ${this.queueName} ${this.rabbitMqMessage.jobId}`
+        );
         // Ignore errors
       }
     }
+
+    this.rabbitMqMessage.consumedTime = this.rabbitMqMessage.consumedTime ?? _.now();
+    this.rabbitMqMessage.retryCount = this.rabbitMqMessage.retryCount ?? 0;
 
     try {
       let processResult;
