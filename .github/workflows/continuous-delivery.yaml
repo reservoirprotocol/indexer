@@ -127,6 +127,26 @@ jobs:
             ./dev/platform/indexer-kafka-worker-goerli.yaml \
             ${{ github.sha }} \
             indexer-kafka-worker-goerli
+          ./utils/version_update.sh \
+            ./dev/platform/indexer-sepolia.yaml \
+            ${{ github.sha }} \
+            indexer-sepolia
+          ./utils/version_update.sh \
+            ./dev/platform/indexer-worker-sepolia.yaml \
+            ${{ github.sha }} \
+            indexer-worker-sepolia
+          ./utils/version_update.sh \
+            ./dev/platform/indexer-worker-sepolia-master.yaml \
+            ${{ github.sha }} \
+            indexer-worker-sepolia-master
+          ./utils/version_update.sh \
+            ./dev/platform/indexer-websocket-sepolia.yaml \
+            ${{ github.sha }} \
+            indexer-websocket-sepolia
+          ./utils/version_update.sh \
+            ./dev/platform/indexer-kafka-worker-sepolia.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-sepolia
 
       - name: Post to Slack
         if: ${{ always() }}
