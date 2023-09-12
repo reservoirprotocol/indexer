@@ -139,7 +139,11 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .when("sortBy", {
           is: Joi.valid("updatedAt"),
           then: Joi.valid("asc", "desc").default("desc"),
-          otherwise: Joi.valid("desc").default("desc"),
+          otherwise: Joi.when("sortBy", {
+            is: Joi.valid("price"),
+            then: Joi.valid("asc", "desc").default("asc"),
+            otherwise: Joi.valid("desc").default("desc"),
+          }),
         }),
       continuation: Joi.string()
         .pattern(regex.base64)

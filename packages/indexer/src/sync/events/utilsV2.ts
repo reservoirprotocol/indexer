@@ -10,6 +10,9 @@ import { logger } from "@/common/logger";
 import { TransactionTrace } from "@/models/transaction-traces";
 import { CallTrace } from "@georgeroman/evm-tx-simulator/dist/types";
 import { collectionNewContractDeployedJob } from "@/jobs/collections/collection-contract-deployed";
+import { config } from "@/config/index";
+
+const chainsWithoutCallTracer = [324];
 
 export type ContractAddress = {
   address: string;
@@ -86,10 +89,13 @@ export const getTracesFromBlock = async (blockNumber: number, retryMax = 10) => 
   let retries = 0;
   while (!traces && retries < retryMax) {
     try {
-      traces = await baseProvider.send("debug_traceBlockByNumber", [
-        blockNumberToHex(blockNumber),
-        { tracer: "callTracer" },
-      ]);
+      // eslint-disable-next-line
+      const params: any[] = [blockNumberToHex(blockNumber)];
+      if (!chainsWithoutCallTracer.includes(config.chainId)) {
+        params.push({ tracer: "callTracer" });
+      }
+
+      traces = await baseProvider.send("debug_traceBlockByNumber", params);
     } catch (e) {
       retries++;
       await new Promise((resolve) => setTimeout(resolve, 200));
@@ -122,7 +128,13 @@ export const getTransactionTraceFromRPC = async (hash: string, retryMax = 10) =>
   let retries = 0;
   while (!trace && retries < retryMax) {
     try {
-      trace = await baseProvider.send("debug_traceTransaction", [hash, { tracer: "callTracer" }]);
+      // eslint-disable-next-line
+      const params: any[] = [hash];
+
+      if (!chainsWithoutCallTracer.includes(config.chainId)) {
+        params.push({ tracer: "callTracer" });
+      }
+      trace = await baseProvider.send("debug_traceTransaction", params);
     } catch (e) {
       retries++;
       await new Promise((resolve) => setTimeout(resolve, 200));
