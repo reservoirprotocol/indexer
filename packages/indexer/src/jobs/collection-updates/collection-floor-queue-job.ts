@@ -12,6 +12,7 @@ export type CollectionFloorJobPayload = {
   tokenId: string;
   txHash: string | null;
   txTimestamp: number | null;
+  orderId?: string;
 };
 
 export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
@@ -25,12 +26,16 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
   } as BackoffStrategy;
 
   protected async process(payload: CollectionFloorJobPayload) {
-    const { kind, contract, tokenId, txHash, txTimestamp } = payload;
+    const { kind, contract, tokenId, txHash, txTimestamp, orderId } = payload;
 
     // First, retrieve the token's associated collection.
     const collectionResult = await redb.oneOrNone(
       `
-            SELECT tokens.collection_id FROM tokens
+            SELECT
+                tokens.collection_id,
+                collections.floor_sell_id
+            FROM tokens
+            LEFT JOIN collections ON tokens.collection_id = collections.id
             WHERE tokens.contract = $/contract/
               AND tokens.token_id = $/tokenId/
           `,
@@ -43,6 +48,20 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
     if (!collectionResult?.collection_id) {
       // Skip if the token is not associated to a collection.
       return;
+    }
+
+    if (!["new-order", "reprice"].includes(kind) && orderId != collectionResult.floor_sell_id) {
+      // Skip if the token is not associated to a collection.
+      // return;
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          message: `Skip irrelevant expire event. collection=${collectionResult.collection_id}, orderId=${orderId}`,
+          payload,
+          collectionId: collectionResult.collection_id,
+        })
+      );
     }
 
     const acquiredLock = await acquireLock(collectionResult.collection_id, 300);
