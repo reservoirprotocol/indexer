@@ -1,4 +1,4 @@
-import { idb, redb } from "@/common/db";
+import { idb } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { acquireLock, redis, releaseLock } from "@/common/redis";
@@ -12,6 +12,7 @@ export type CollectionFloorJobPayload = {
   tokenId: string;
   txHash: string | null;
   txTimestamp: number | null;
+  orderId?: string;
 };
 
 export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
@@ -25,12 +26,16 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
   } as BackoffStrategy;
 
   protected async process(payload: CollectionFloorJobPayload) {
-    const { kind, contract, tokenId, txHash, txTimestamp } = payload;
+    const { kind, contract, tokenId, txHash, txTimestamp, orderId } = payload;
 
     // First, retrieve the token's associated collection.
-    const collectionResult = await redb.oneOrNone(
+    const collectionResult = await idb.oneOrNone(
       `
-            SELECT tokens.collection_id FROM tokens
+            SELECT
+                tokens.collection_id,
+                collections.floor_sell_id
+            FROM tokens
+            LEFT JOIN collections ON tokens.collection_id = collections.id
             WHERE tokens.contract = $/contract/
               AND tokens.token_id = $/tokenId/
           `,
@@ -45,17 +50,35 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
-    const acquiredLock = await acquireLock(collectionResult.collection_id, 300);
+    let acquiredLock;
 
-    if (!acquiredLock) {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `Failed to acquire lock. collection=${collectionResult.collection_id}`,
-          payload,
-          collectionId: collectionResult.collection_id,
-        })
-      );
+    if (!["revalidation"].includes(kind)) {
+      if (!["new-order", "reprice"].includes(kind) && orderId != collectionResult.floor_sell_id) {
+        // Skip if the token is not associated to a collection.
+        // return;
+
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `Skip irrelevant expire event. collection=${collectionResult.collection_id}, orderId=${orderId}, collectionFloorSellId=${collectionResult.floor_sell_id}`,
+            payload,
+            collectionResult,
+          })
+        );
+      }
+
+      acquiredLock = await acquireLock(collectionResult.collection_id, 1);
+
+      if (!acquiredLock) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `Failed to acquire lock. collection=${collectionResult.collection_id}`,
+            payload,
+            collectionId: collectionResult.collection_id,
+          })
+        );
+      }
     }
 
     const collectionFloorAsk = await idb.oneOrNone(

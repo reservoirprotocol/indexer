@@ -1,8 +1,10 @@
-import { idb, redb } from "@/common/db";
+import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { Collections } from "@/models/collections";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { logger } from "@/common/logger";
+import { acquireLock, releaseLock } from "@/common/redis";
 
 export type NonFlaggedFloorQueueJobPayload = {
   kind: string;
@@ -10,6 +12,7 @@ export type NonFlaggedFloorQueueJobPayload = {
   tokenId: string;
   txHash: string | null;
   txTimestamp: number | null;
+  orderId?: string;
 };
 
 export class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler {
@@ -25,10 +28,14 @@ export class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler {
 
   protected async process(payload: NonFlaggedFloorQueueJobPayload) {
     // First, retrieve the token's associated collection.
-    const collectionResult = await redb.oneOrNone(
+    const collectionResult = await idb.oneOrNone(
       `
-            SELECT tokens.collection_id, collections.community FROM tokens
-            JOIN collections ON collections.id = tokens.collection_id
+            SELECT
+                tokens.collection_id,
+                collections.floor_sell_id,
+                collections.community
+            FROM tokens
+            LEFT JOIN collections ON tokens.collection_id = collections.id
             WHERE tokens.contract = $/contract/
               AND tokens.token_id = $/tokenId/
           `,
@@ -41,6 +48,40 @@ export class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler {
     if (!collectionResult?.collection_id) {
       // Skip if the token is not associated to a collection.
       return;
+    }
+
+    let acquiredLock;
+
+    if (!["revalidation"].includes(payload.kind)) {
+      if (
+        !["new-order", "reprice"].includes(payload.kind) &&
+        payload.orderId != collectionResult.floor_sell_id
+      ) {
+        // Skip if the token is not associated to a collection.
+        // return;
+
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `Skip irrelevant expire event. collection=${collectionResult.collection_id}, orderId=${payload.orderId}, collectionFloorSellId=${collectionResult.floor_sell_id}`,
+            payload,
+            collectionResult,
+          })
+        );
+      }
+
+      acquiredLock = await acquireLock(collectionResult.collection_id, 1);
+
+      if (!acquiredLock) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `Failed to acquire lock. collection=${collectionResult.collection_id}`,
+            payload,
+            collectionId: collectionResult.collection_id,
+          })
+        );
+      }
     }
 
     const nonFlaggedCollectionFloorAsk = await idb.oneOrNone(
@@ -148,6 +189,10 @@ export class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler {
         txTimestamp: payload.txTimestamp,
       }
     );
+
+    if (acquiredLock) {
+      await releaseLock(collectionResult.collection_id);
+    }
 
     if (nonFlaggedCollectionFloorAsk?.token_id) {
       const collection = await Collections.getById(collectionResult.collection_id);
