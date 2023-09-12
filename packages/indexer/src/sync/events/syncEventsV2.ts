@@ -18,7 +18,6 @@ import { blockCheckJob } from "@/jobs/events-sync/block-check-queue-job";
 import { acquireLock, redis, releaseLock } from "@/common/redis";
 import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
 import { config } from "@/config/index";
-import { traceSyncJob } from "@/jobs/events-sync/trace-sync-job";
 
 export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBatch[] => {
   const txHashToEvents = new Map<string, EnhancedEvent[]>();
@@ -437,7 +436,6 @@ export const syncEvents = async (block: number) => {
       })
     );
 
-    await traceSyncJob.addToQueue({ block: block });
     await blockCheckJob.addToQueue({ block: block, blockHash: blockData.hash, delay: 60 });
     await blockCheckJob.addToQueue({ block: block, blockHash: blockData.hash, delay: 60 * 5 });
   } catch (error) {

@@ -99,6 +99,11 @@ export const getCollectionsV7Options: RouteOptions = {
       includeMintStages: Joi.boolean()
         .default(false)
         .description("If true, mint data for the collection will be included in the response."),
+      includeSecurityConfigs: Joi.boolean()
+        .default(false)
+        .description(
+          "If true, security configuration data (e.g. ERC721C configuration) will be included in the response."
+        ),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
@@ -265,6 +270,16 @@ export const getCollectionsV7Options: RouteOptions = {
               maxMintsPerWallet: Joi.number().unsafe().allow(null),
             })
           ),
+          securityConfig: Joi.object({
+            operatorWhitelist: Joi.array()
+              .items(Joi.string().lowercase().pattern(regex.address))
+              .allow(null),
+            receiverAllowList: Joi.array()
+              .items(Joi.string().lowercase().pattern(regex.address))
+              .allow(null),
+            transferSecurityLevel: Joi.number().allow(null),
+            transferValidator: Joi.string().lowercase().pattern(regex.address).allow(null),
+          }).optional(),
         })
       ),
     }).label(`getCollections${version.toUpperCase()}Response`),
@@ -356,6 +371,30 @@ export const getCollectionsV7Options: RouteOptions = {
           AND fe.is_deleted = 0
         ) s ON TRUE
       `;
+      }
+
+      //Include security configurations
+      let securityConfigSelectQuery = "";
+      let securityConfigJoinQuery = "";
+      if (query.includeSecurityConfigs) {
+        securityConfigSelectQuery = ", t.*";
+        securityConfigJoinQuery = `
+                LEFT JOIN LATERAL (
+                  SELECT
+                    erc721c_configs.transfer_security_level,
+                    erc721c_configs.transfer_validator,
+                    erc721c_operator_whitelists.whitelist as operator_whitelist,
+                    erc721c_permitted_contract_receiver_allowlists.allowlist as receiver_allowlist
+                  FROM erc721c_configs
+                  LEFT JOIN erc721c_operator_whitelists
+                    ON erc721c_configs.transfer_validator = erc721c_operator_whitelists.transfer_validator
+                    AND erc721c_configs.operator_whitelist_id = erc721c_operator_whitelists.id
+                  LEFT JOIN erc721c_permitted_contract_receiver_allowlists
+                    ON erc721c_configs.transfer_validator = erc721c_permitted_contract_receiver_allowlists.transfer_validator
+                    AND erc721c_configs.permitted_contract_receiver_allowlist_id = erc721c_permitted_contract_receiver_allowlists.id
+                  WHERE erc721c_configs.contract = x.contract
+                ) t ON TRUE
+              `;
       }
 
       let floorAskSelectQuery;
@@ -609,6 +648,7 @@ export const getCollectionsV7Options: RouteOptions = {
           ${attributesSelectQuery}
           ${saleCountSelectQuery}
           ${mintStagesSelectQuery}
+          ${securityConfigSelectQuery}
         FROM x
         LEFT JOIN LATERAL (
            SELECT
@@ -648,6 +688,7 @@ export const getCollectionsV7Options: RouteOptions = {
         ${attributesJoinQuery}
         ${saleCountJoinQuery}
         ${mintStagesJoinQuery}
+        ${securityConfigJoinQuery}
       `;
 
       // Any further joins might not preserve sorting
@@ -825,6 +866,16 @@ export const getCollectionsV7Options: RouteOptions = {
                   }))
                 )
               : [],
+            securityConfig: query.includeSecurityConfigs
+              ? {
+                  operatorWhitelist: r.operator_whitelist ? r.operator_whitelist : null,
+                  receiverAllowList: r.receiver_allowlist ? r.receiver_allowlist : null,
+                  transferSecurityLevel: r.transfer_security_level
+                    ? r.transfer_security_level
+                    : null,
+                  transferValidator: r.transfer_validator ? fromBuffer(r.transfer_validator) : null,
+                }
+              : undefined,
           };
         })
       );
