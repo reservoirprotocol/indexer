@@ -139,6 +139,13 @@ export const getOwnersV2Options: RouteOptions = {
 
         nftBalancesFilter = `nft_balances.contract = $/contract/ AND nft_balances.token_id BETWEEN $/startTokenId/ AND $/endTokenId/`;
         tokensFilter = `tokens.contract = $/contract/ AND tokens.token_id BETWEEN $/startTokenId/ AND $/endTokenId/`;
+      } else if (query.collection.match(/^0x[a-f0-9]{40}:[a-zA-Z]+-.+$/g)) {
+        const [contract] = query.collection.split(":");
+
+        (query as any).contract = toBuffer(contract);
+
+        nftBalancesFilter = `nft_balances.contract = $/contract/`;
+        tokensFilter = `tokens.contract = $/contract/`;
       } else {
         (query as any).contract = toBuffer(query.collection);
 
