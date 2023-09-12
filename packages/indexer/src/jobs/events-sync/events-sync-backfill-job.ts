@@ -37,7 +37,7 @@ export class EventsSyncBackfillJob extends AbstractRabbitMqJobHandler {
 
     try {
       await syncEvents(fromBlock, toBlock, { backfill, syncDetails });
-      logger.info(this.queueName, `Events backfill syncing block range [${fromBlock}, ${toBlock}]`);
+      //logger.info(this.queueName, `Events backfill syncing block range [${fromBlock}, ${toBlock}]`);
     } catch (error) {
       logger.error(
         this.queueName,

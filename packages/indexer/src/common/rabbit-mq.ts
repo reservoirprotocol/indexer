@@ -97,7 +97,7 @@ export class RabbitMq {
     content.publishRetryCount = content.publishRetryCount ?? 0;
     content.correlationId = content.correlationId ?? randomUUID();
 
-    const msgConsumingBuffer = 7 * 24 * 60 * 60; // Will be released on the job is done
+    const msgConsumingBuffer = 30 * 60; // Will be released on the job is done
     const lockTime = Number(_.max([_.toInteger(delay / 1000), 0])) + msgConsumingBuffer;
     let lockAcquired = false;
 
