@@ -1,4 +1,4 @@
-import { idb, redb } from "@/common/db";
+import { idb } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { acquireLock, redis, releaseLock } from "@/common/redis";
@@ -29,7 +29,7 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
     const { kind, contract, tokenId, txHash, txTimestamp, orderId } = payload;
 
     // First, retrieve the token's associated collection.
-    const collectionResult = await redb.oneOrNone(
+    const collectionResult = await idb.oneOrNone(
       `
             SELECT
                 tokens.collection_id,
@@ -50,31 +50,35 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
-    if (!["new-order", "reprice"].includes(kind) && orderId != collectionResult.floor_sell_id) {
-      // Skip if the token is not associated to a collection.
-      // return;
+    let acquiredLock;
 
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `Skip irrelevant expire event. collection=${collectionResult.collection_id}, orderId=${orderId}`,
-          payload,
-          collectionId: collectionResult.collection_id,
-        })
-      );
-    }
+    if (!["revalidation"].includes(kind)) {
+      if (!["new-order", "reprice"].includes(kind) && orderId != collectionResult.floor_sell_id) {
+        // Skip if the token is not associated to a collection.
+        // return;
 
-    const acquiredLock = await acquireLock(collectionResult.collection_id, 300);
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `Skip irrelevant expire event. collection=${collectionResult.collection_id}, orderId=${orderId}`,
+            payload,
+            collectionId: collectionResult.collection_id,
+          })
+        );
+      }
 
-    if (!acquiredLock) {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `Failed to acquire lock. collection=${collectionResult.collection_id}`,
-          payload,
-          collectionId: collectionResult.collection_id,
-        })
-      );
+      acquiredLock = await acquireLock(collectionResult.collection_id, 1);
+
+      if (!acquiredLock) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `Failed to acquire lock. collection=${collectionResult.collection_id}`,
+            payload,
+            collectionId: collectionResult.collection_id,
+          })
+        );
+      }
     }
 
     const collectionFloorAsk = await idb.oneOrNone(
