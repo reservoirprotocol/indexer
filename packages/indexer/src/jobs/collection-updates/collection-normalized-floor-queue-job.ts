@@ -60,9 +60,9 @@ export class CollectionNormalizedJob extends AbstractRabbitMqJobHandler {
         logger.info(
           this.queueName,
           JSON.stringify({
-            message: `Skip irrelevant expire event. collection=${collectionResult.collection_id}, orderId=${orderId}`,
+            message: `Skip irrelevant expire event. collection=${collectionResult.collection_id}, orderId=${orderId}, collectionFloorSellId=${collectionResult.floor_sell_id}`,
             payload,
-            collectionId: collectionResult.collection_id,
+            collectionResult,
           })
         );
       }

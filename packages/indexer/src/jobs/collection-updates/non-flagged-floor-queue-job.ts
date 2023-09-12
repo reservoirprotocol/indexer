@@ -63,9 +63,9 @@ export class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler {
         logger.info(
           this.queueName,
           JSON.stringify({
-            message: `Skip irrelevant expire event. collection=${collectionResult.collection_id}, orderId=${payload.orderId}`,
+            message: `Skip irrelevant expire event. collection=${collectionResult.collection_id}, orderId=${payload.orderId}, collectionFloorSellId=${collectionResult.floor_sell_id}`,
             payload,
-            collectionId: collectionResult.collection_id,
+            collectionResult,
           })
         );
       }
