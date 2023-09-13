@@ -59,28 +59,17 @@ export const _getTransactionTraces = async (Txs: { hash: string }[], block: numb
   const timerStart = Date.now();
   let traces;
 
-  try {
-    traces = (await getTracesFromBlock(block)) as TransactionTrace[];
-  } catch (e) {
-    logger.error(`get-transactions-traces`, `Failed to get traces from block ${block}, ${e}`);
-    // traces = await getTracesFromHashes(Txs.map((tx) => tx.hash));
-    // throw e;
-  }
+  traces = (await getTracesFromBlock(block)) as TransactionTrace[];
 
-  if (!traces) {
-    return {
-      traces: [],
-      getTransactionTracesTime: 0,
-    };
+  if (traces) {
+    // traces don't have the transaction hash, so we need to add it by using the txs array we are passing in by using the index of the trace
+    traces = traces.map((trace, index) => {
+      return {
+        ...trace,
+        hash: Txs[index].hash,
+      };
+    });
   }
-
-  // traces don't have the transaction hash, so we need to add it by using the txs array we are passing in by using the index of the trace
-  traces = traces.map((trace, index) => {
-    return {
-      ...trace,
-      hash: Txs[index].hash,
-    };
-  });
 
   traces = traces.filter((trace) => trace !== null) as TransactionTrace[];
 
@@ -92,23 +81,14 @@ export const _getTransactionTraces = async (Txs: { hash: string }[], block: numb
   };
 };
 
-export const getTracesFromBlock = async (blockNumber: number, retryMax = 10) => {
-  let traces: TransactionTrace[] | undefined;
-  let retries = 0;
-  while (!traces && retries < retryMax) {
-    try {
-      // eslint-disable-next-line
-      const params: any[] = [blockNumberToHex(blockNumber)];
-      if (!chainsWithoutCallTracer.includes(config.chainId)) {
-        params.push({ tracer: "callTracer" });
-      }
-
-      traces = await baseProvider.send("debug_traceBlockByNumber", params);
-    } catch (e) {
-      retries++;
-      await new Promise((resolve) => setTimeout(resolve, 200));
-    }
+export const getTracesFromBlock = async (blockNumber: number) => {
+  // eslint-disable-next-line
+  const params: any[] = [blockNumberToHex(blockNumber)];
+  if (!chainsWithoutCallTracer.includes(config.chainId)) {
+    params.push({ tracer: "callTracer" });
   }
+
+  const traces: TransactionTrace[] = await baseProvider.send("debug_traceBlockByNumber", params);
 
   return traces;
 };
