@@ -326,7 +326,7 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
                 ? "attribute_offer"
                 : "collection_offer";
 
-            submitMetric("order_latency", orderCreated - orderStart - Number(ingestDelay ?? 0), {
+            submitMetric("orderLatency", orderCreated - orderStart - Number(ingestDelay ?? 0), {
               source: source?.getTitle() ?? "null",
               orderId: order.id,
               orderKind: order.kind,
