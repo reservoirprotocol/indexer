@@ -198,7 +198,7 @@ export const getTokensV6Options: RouteOptions = {
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Input any ERC20 address to return result in given currency"),
+        .description("Input any ERC20 address to return result in given currency. Applies to `topBid` and `floorAsk`."),
     })
       .or("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
       .oxor("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
