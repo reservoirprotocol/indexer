@@ -61,18 +61,26 @@ export const _getTransactionTraces = async (Txs: { hash: string }[], block: numb
 
   try {
     traces = (await getTracesFromBlock(block)) as TransactionTrace[];
-
-    // traces don't have the transaction hash, so we need to add it by using the txs array we are passing in by using the index of the trace
-    traces = traces.map((trace, index) => {
-      return {
-        ...trace,
-        hash: Txs[index].hash,
-      };
-    });
   } catch (e) {
     logger.error(`get-transactions-traces`, `Failed to get traces from block ${block}, ${e}`);
-    traces = await getTracesFromHashes(Txs.map((tx) => tx.hash));
+    // traces = await getTracesFromHashes(Txs.map((tx) => tx.hash));
+    // throw e;
   }
+
+  if (!traces) {
+    return {
+      traces: [],
+      getTransactionTracesTime: 0,
+    };
+  }
+
+  // traces don't have the transaction hash, so we need to add it by using the txs array we are passing in by using the index of the trace
+  traces = traces.map((trace, index) => {
+    return {
+      ...trace,
+      hash: Txs[index].hash,
+    };
+  });
 
   traces = traces.filter((trace) => trace !== null) as TransactionTrace[];
 
