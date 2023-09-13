@@ -2,7 +2,7 @@ import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { config } from "@/config/index";
-import { logger } from "@/common/logger";
+// import { logger } from "@/common/logger";
 import { acquireLock, releaseLock } from "@/common/redis";
 
 export type CollectionNormalizedJobPayload = {
@@ -56,14 +56,14 @@ export class CollectionNormalizedJob extends AbstractRabbitMqJobHandler {
       acquiredLock = await acquireLock(collectionResult.collection_id, 1);
 
       if (!acquiredLock) {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            message: `Failed to acquire lock. collection=${collectionResult.collection_id}`,
-            payload,
-            collectionId: collectionResult.collection_id,
-          })
-        );
+        // logger.info(
+        //   this.queueName,
+        //   JSON.stringify({
+        //     message: `Failed to acquire lock. collection=${collectionResult.collection_id}`,
+        //     payload,
+        //     collectionId: collectionResult.collection_id,
+        //   })
+        // );
       }
     }
 

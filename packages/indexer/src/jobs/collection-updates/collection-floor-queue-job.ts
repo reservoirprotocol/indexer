@@ -4,7 +4,7 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 import { acquireLock, redis, releaseLock } from "@/common/redis";
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 import { config } from "@/config/index";
-import { logger } from "@/common/logger";
+// import { logger } from "@/common/logger";
 
 export type CollectionFloorJobPayload = {
   kind: string;
@@ -56,14 +56,14 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
       acquiredLock = await acquireLock(collectionResult.collection_id, 1);
 
       if (!acquiredLock) {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            message: `Failed to acquire lock. collection=${collectionResult.collection_id}`,
-            payload,
-            collectionId: collectionResult.collection_id,
-          })
-        );
+        // logger.info(
+        //   this.queueName,
+        //   JSON.stringify({
+        //     message: `Failed to acquire lock. collection=${collectionResult.collection_id}`,
+        //     payload,
+        //     collectionId: collectionResult.collection_id,
+        //   })
+        // );
       }
     }
 
