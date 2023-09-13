@@ -1158,6 +1158,19 @@ export const getTokensV6Options: RouteOptions = {
           }
         }
 
+        const metadata = {
+          imageOriginal: undefined,
+          mediaOriginal: undefined,
+        };
+
+        if (r.metadata?.image_original_url) {
+          metadata.imageOriginal = r.metadata.image_original_url;
+        }
+
+        if (r.metadata?.animation_original_url) {
+          metadata.mediaOriginal = r.metadata.animation_original_url;
+        }
+
         return {
           token: {
             contract,
@@ -1167,11 +1180,9 @@ export const getTokensV6Options: RouteOptions = {
             image: Assets.getLocalAssetsLink(r.image),
             imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small),
             imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large),
-            metadata: r.metadata?.image_original_url
-              ? {
-                  imageOriginal: r.metadata.image_original_url,
-                }
-              : undefined,
+            metadata: Object.values(metadata).every((el) => el === undefined)
+              ? undefined
+              : metadata,
             media: r.media,
             kind: r.kind,
             isFlagged: Boolean(Number(r.is_flagged)),
