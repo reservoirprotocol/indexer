@@ -103,7 +103,7 @@ export const getTracesFromBlock = async (blockNumber: number) => {
         retryCount++;
         await new Promise((resolve) => setTimeout(resolve, 15000));
       } else {
-        logger.error("sync-events-v2", `Failed to get trace for block: ${blockNumber}`);
+        logger.error("sync-events-v2", `Failed to get trace for block: ${blockNumber}, ${e}`);
         throw e;
       }
     }
