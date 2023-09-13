@@ -53,23 +53,6 @@ export class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler {
     let acquiredLock;
 
     if (!["revalidation"].includes(payload.kind)) {
-      if (
-        !["new-order", "reprice"].includes(payload.kind) &&
-        payload.orderId != collectionResult.floor_sell_id
-      ) {
-        // Skip if the token is not associated to a collection.
-        // return;
-
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            message: `Skip irrelevant expire event. collection=${collectionResult.collection_id}, orderId=${payload.orderId}, collectionFloorSellId=${collectionResult.floor_sell_id}`,
-            payload,
-            collectionResult,
-          })
-        );
-      }
-
       acquiredLock = await acquireLock(collectionResult.collection_id, 1);
 
       if (!acquiredLock) {

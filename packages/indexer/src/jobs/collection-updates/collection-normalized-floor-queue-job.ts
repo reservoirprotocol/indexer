@@ -26,7 +26,7 @@ export class CollectionNormalizedJob extends AbstractRabbitMqJobHandler {
   lazyMode = true;
 
   protected async process(payload: CollectionNormalizedJobPayload) {
-    const { kind, contract, tokenId, txHash, txTimestamp, orderId } = payload;
+    const { kind, contract, tokenId, txHash, txTimestamp } = payload;
 
     // First, retrieve the token's associated collection.
     const collectionResult = await idb.oneOrNone(
@@ -53,20 +53,6 @@ export class CollectionNormalizedJob extends AbstractRabbitMqJobHandler {
     let acquiredLock;
 
     if (!["revalidation"].includes(kind)) {
-      if (!["new-order", "reprice"].includes(kind) && orderId != collectionResult.floor_sell_id) {
-        // Skip if the token is not associated to a collection.
-        // return;
-
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            message: `Skip irrelevant expire event. collection=${collectionResult.collection_id}, orderId=${orderId}, collectionFloorSellId=${collectionResult.floor_sell_id}`,
-            payload,
-            collectionResult,
-          })
-        );
-      }
-
       acquiredLock = await acquireLock(collectionResult.collection_id, 1);
 
       if (!acquiredLock) {
