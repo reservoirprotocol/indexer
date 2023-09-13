@@ -45,7 +45,7 @@ export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler
           this.queueName,
           `Collection ${contract} is both ERC721 and ERC1155. This is not supported yet.`
         );
-        break;
+        return;
       default:
         return;
     }

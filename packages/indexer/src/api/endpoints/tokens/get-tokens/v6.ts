@@ -422,6 +422,16 @@ export const getTokensV6Options: RouteOptions = {
         `;
     }
 
+    // Get the collections from the collection set
+    let collections: any[] = [];
+    if (query.collectionsSetId) {
+      collections = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+
+      if (_.isEmpty(collections)) {
+        throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
+      }
+    }
+
     let sourceCte = "";
     if (query.nativeSource || query.excludeEOA) {
       const sourceConditions: string[] = [];
@@ -461,6 +471,7 @@ export const getTokensV6Options: RouteOptions = {
         sourceConditions.push(`currency IN ($/currenciesFilter:raw/)`);
       }
 
+      // Retrieve the contract from the different filters options
       if (query.contract) {
         sourceConditions.push(`contract = $/contract/`);
       } else if (query.collection) {
@@ -472,6 +483,45 @@ export const getTokensV6Options: RouteOptions = {
 
         (query as any).contract = contractString;
         sourceConditions.push(`contract = $/contract/`);
+      } else if (query.tokens) {
+        if (!_.isArray(query.tokens)) {
+          query.tokens = [query.tokens];
+        }
+
+        const tokensContracts = [];
+        for (const token of query.tokens) {
+          const [contract] = token.split(":");
+          tokensContracts.push(contract);
+        }
+
+        query.tokensContracts = _.uniq(tokensContracts).map((contract: string) =>
+          toBuffer(contract)
+        );
+
+        sourceConditions.push("contract IN ($/tokensContracts:csv/)");
+      } else if (query.collectionsSetId && !_.isEmpty(collections)) {
+        const tokensContracts = [];
+
+        for (const collection of collections) {
+          if (collection.includes(":")) {
+            const [contract, ,] = collection.split(":");
+            tokensContracts.push(contract);
+          } else {
+            tokensContracts.push(collection);
+          }
+        }
+
+        query.tokensContracts = _.uniq(tokensContracts).map((contract: string) =>
+          toBuffer(contract)
+        );
+
+        sourceConditions.push("contract IN ($/tokensContracts:csv/)");
+      } else if (query.community) {
+        sourceConditions.push(`contract IN (
+            SELECT DISTINCT contract
+            FROM collections
+            WHERE community = $/community/
+          )`);
       }
 
       sourceCte = `
@@ -571,20 +621,11 @@ export const getTokensV6Options: RouteOptions = {
         `;
       }
 
-      let collections: any[] = [];
-      if (query.collectionsSetId) {
-        collections = await CollectionSets.getCollectionsIds(query.collectionsSetId);
-
-        if (_.isEmpty(collections)) {
-          throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
-        }
-
-        if (collections.length > 20) {
-          baseQuery += `
+      if (collections.length > 20) {
+        baseQuery += `
             JOIN collections_sets_collections csc
               ON t.collection_id = csc.collection_id
           `;
-        }
       }
 
       if (query.attributes) {
@@ -1143,6 +1184,19 @@ export const getTokensV6Options: RouteOptions = {
           }
         }
 
+        const metadata = {
+          imageOriginal: undefined,
+          mediaOriginal: undefined,
+        };
+
+        if (r.metadata?.image_original_url) {
+          metadata.imageOriginal = r.metadata.image_original_url;
+        }
+
+        if (r.metadata?.animation_original_url) {
+          metadata.mediaOriginal = r.metadata.animation_original_url;
+        }
+
         return {
           token: {
             contract,
@@ -1152,11 +1206,9 @@ export const getTokensV6Options: RouteOptions = {
             image: Assets.getLocalAssetsLink(r.image),
             imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small),
             imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large),
-            metadata: r.metadata?.image_original_url
-              ? {
-                  imageOriginal: r.metadata.image_original_url,
-                }
-              : undefined,
+            metadata: Object.values(metadata).every((el) => el === undefined)
+              ? undefined
+              : metadata,
             media: r.media,
             kind: r.kind,
             isFlagged: Boolean(Number(r.is_flagged)),
