@@ -88,8 +88,26 @@ export const getTracesFromBlock = async (blockNumber: number) => {
     params.push({ tracer: "callTracer" });
   }
 
-  const traces: TransactionTrace[] = await baseProvider.send("debug_traceBlockByNumber", params);
+  let traces: TransactionTrace[] = [];
+  let retryCount = 0;
+  while (traces.length === 0) {
+    try {
+      traces = await baseProvider.send("debug_traceBlockByNumber", params);
+      // eslint-disable-next-line
+    } catch (e: any) {
+      if (retryCount > 5) {
+        throw `Retry count exceeded for block: ${blockNumber}`;
+      }
 
+      if (e.body.includes("trace requests limited")) {
+        retryCount++;
+        await new Promise((resolve) => setTimeout(resolve, 15000));
+      } else {
+        logger.error("sync-events-v2", `Failed to get trace for block: ${blockNumber}`);
+        throw e;
+      }
+    }
+  }
   return traces;
 };
 
