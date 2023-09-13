@@ -13,6 +13,9 @@ if (process.env.DATADOG_AGENT_URL) {
     service,
     url: process.env.DATADOG_AGENT_URL,
     env: config.environment,
+    dogstatsd: {
+      hostname: process.env.DATADOG_AGENT_URL,
+    },
   });
 
   tracer.use("hapi", {
@@ -31,5 +34,15 @@ if (process.env.DATADOG_AGENT_URL) {
     enabled: false,
   });
 }
+
+export const submitMetric = (
+  name: string,
+  value: number,
+  tags?: { [key: string]: string | number }
+) => {
+  if (process.env.DATADOG_AGENT_URL) {
+    tracer.dogstatsd.distribution(name, value, tags);
+  }
+};
 
 export default tracer;
