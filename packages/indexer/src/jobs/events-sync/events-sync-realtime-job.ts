@@ -41,6 +41,10 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
         );
 
         return { addToQueue: true, delay: 1000 };
+      } else if (error?.message.includes("unfinalized")) {
+        logger.info(this.queueName, `Block ${block} is unfinalized, adding back to queue`);
+
+        return { addToQueue: true, delay: 1000 };
       } else {
         throw error;
       }

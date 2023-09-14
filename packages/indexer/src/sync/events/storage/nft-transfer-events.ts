@@ -7,6 +7,7 @@ import { BaseEventParams } from "@/events-sync/parser";
 import { eventsSyncNftTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
 import { AddressZero } from "@ethersproject/constants";
 import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
+import { ZeroAddressBalance } from "@/models/zero-address-balance";
 
 export type Event = {
   kind: ContractKind;
@@ -64,6 +65,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
 
   const tokenValuesErc721: erc721Token[] = [];
   const tokenValuesErc1155: erc1155Token[] = [];
+  const erc1155Contracts = [];
 
   for (const event of events) {
     const contractId = event.baseEventParams.address.toString();
@@ -106,6 +108,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
           remaining_supply: event.to === AddressZero ? 0 : 1,
         });
       } else {
+        erc1155Contracts.push(event.baseEventParams.address);
         tokenValuesErc1155.push({
           collection_id: event.baseEventParams.address,
           contract: toBuffer(event.baseEventParams.address),
@@ -137,6 +140,10 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
         { table: "nft_transfer_events" }
       );
 
+      const isFromZeroAddress = fromBuffer(event.from) === AddressZero;
+      const isErc1155 = _.includes(erc1155Contracts, fromBuffer(event.address));
+      const deferUpdate = config.chainId === 137 && isFromZeroAddress && isErc1155;
+
       // Atomically insert the transfer events and update balances
       nftTransferQueries.push(`
         WITH "x" AS (
@@ -158,6 +165,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
           RETURNING
             "address",
             "token_id",
+            true AS "new_transfer",
             ARRAY["from", "to"] AS "owners",
             ARRAY[-"amount", "amount"] AS "amount_deltas",
             ARRAY[NULL, to_timestamp("timestamp")] AS "timestamps"
@@ -185,15 +193,25 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
             FROM "x"
             ORDER BY "address" ASC, "token_id" ASC, "owner" ASC
           ) "y"
+          ${deferUpdate ? `WHERE y.owner != ${pgp.as.buffer(() => toBuffer(AddressZero))}` : ""}
           GROUP BY "y"."address", "y"."token_id", "y"."owner"
         )
         ON CONFLICT ("contract", "token_id", "owner") DO
         UPDATE SET 
           "amount" = "nft_balances"."amount" + "excluded"."amount", 
           "acquired_at" = COALESCE(GREATEST("excluded"."acquired_at", "nft_balances"."acquired_at"), "nft_balances"."acquired_at")
+        RETURNING (SELECT x.new_transfer FROM "x")
       `);
 
-      await insertQueries(nftTransferQueries, backfill);
+      const result = await insertQueries(nftTransferQueries, backfill);
+
+      if (!_.isEmpty(result) && deferUpdate) {
+        await ZeroAddressBalance.add(
+          fromBuffer(event.address),
+          event.token_id,
+          -Number(event.amount)
+        );
+      }
     }
   }
 
@@ -280,9 +298,7 @@ async function insertQueries(queries: string[], backfill: boolean) {
     // on the events to have been written to the database at the time
     // they get to run and we have no way to easily enforce this when
     // using the write buffer.
-    for (const query of _.chunk(queries, [80001, 84531].includes(config.chainId) ? 250 : 500)) {
-      await idb.tx(async (t) => t.batch(query.map((q) => t.none(q))));
-    }
+    return await idb.manyOrNone(pgp.helpers.concat(queries));
   }
 }
 

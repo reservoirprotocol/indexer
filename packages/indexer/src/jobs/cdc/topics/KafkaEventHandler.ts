@@ -92,6 +92,10 @@ export abstract class KafkaEventHandler {
       "nonce",
       "supply",
       "remaining_supply",
+      "floor_sell_value",
+      "floor_sell_currency_value",
+      "normalized_floor_sell_value",
+      "normalized_floor_sell_currency_value",
     ];
 
     // Handling for fields that should not be converted

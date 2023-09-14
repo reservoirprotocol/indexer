@@ -37,12 +37,9 @@ export const refreshRegistryRoyalties = async (collection: string) => {
     `,
     { collection }
   );
-  if (!tokenResult?.token_id) {
-    return;
-  }
 
   const token = fromBuffer(collectionResult.contract);
-  const tokenId = tokenResult.token_id;
+  const tokenId = tokenResult?.token_id || "0";
 
   const latestRoyalties = await getRegistryRoyalties(token, tokenId);
 

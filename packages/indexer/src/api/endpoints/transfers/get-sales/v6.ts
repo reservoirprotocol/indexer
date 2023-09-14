@@ -217,7 +217,7 @@ export const getSalesV6Options: RouteOptions = {
       `;
       } else if (query.sortBy && query.sortBy === "updatedAt") {
         paginationFilter = `
-        AND (extract(epoch from fill_events_2.updated_at), fill_events_2.log_index, fill_events_2.batch_index) ${inequalitySymbol} ($/timestamp/, $/logIndex/, $/batchIndex/)
+        AND (fill_events_2.updated_at, fill_events_2.log_index, fill_events_2.batch_index) ${inequalitySymbol} (to_timestamp($/timestamp/), $/logIndex/, $/batchIndex/)
         `;
       } else {
         paginationFilter = `

@@ -374,7 +374,11 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
 
       if (!attributeResult?.id) {
         // Otherwise, fail (and retry)
-        throw new Error(`Could not fetch/save attribute "${value}"`);
+        throw new Error(
+          `Could not fetch/save attribute keyId ${
+            attributeKeysIdsMap.get(key)?.id
+          } key ${key} value ${value} attributeResult ${JSON.stringify(attributeResult)}`
+        );
       }
 
       attributeIds.push(attributeResult.id);
