@@ -2,6 +2,7 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { logger } from "@/common/logger";
 import { GenericOrderInfo } from "@/jobs/orderbook/utils";
 import * as orders from "@/orderbook/orders";
+import { metric } from "@/common/metric";
 
 export class OpenseaBidsQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "orderbook-opensea-bids-queue";
@@ -126,7 +127,16 @@ export class OpenseaBidsQueueJob extends AbstractRabbitMqJobHandler {
       throw error;
     }
 
+    // TODO: remove log once migrated to new metric
     logger.debug(this.queueName, `[${kind}] Order save result: ${JSON.stringify(result)}`);
+
+    metric.count({
+      name: "ingestedOrdersv3",
+      tags: {
+        kind,
+        status: result[0]?.status,
+      },
+    });
   }
 
   public async addToQueue(orderInfos: GenericOrderInfo[]) {

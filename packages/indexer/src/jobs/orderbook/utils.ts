@@ -2,6 +2,7 @@ import { logger } from "@/common/logger";
 import * as orders from "@/orderbook/orders";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import _ from "lodash";
+import { metric } from "@/common/metric";
 
 export type GenericOrderInfo =
   | {
@@ -273,6 +274,15 @@ export const processOrder = async (job: AbstractRabbitMqJobHandler, payload: Gen
   }
 
   if (_.random(100) <= 75) {
+    // TODO: remove log once migrated to new metric
     logger.debug(job.queueName, `[${kind}] Order save result: ${JSON.stringify(result)}`);
+
+    metric.count({
+      name: "ingestedOrdersv3",
+      tags: {
+        kind,
+        status: result[0]?.status,
+      },
+    });
   }
 };
