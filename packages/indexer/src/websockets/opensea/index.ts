@@ -74,14 +74,16 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
         const eventType = event.event_type as EventType;
         const openSeaOrderParams = await handleEvent(eventType, event.payload);
 
-        metric.count({
-          name: "openseaReceivedOrderEvents",
-          tags: {
-            network,
-            event: String(event),
-            isSupported: String(!!openSeaOrderParams),
-          },
-        });
+        if (openSeaOrderParams || config.chainId === 1) {
+          metric.count({
+            name: "openseaReceivedOrderEvents",
+            tags: {
+              network,
+              event: String(event),
+              isSupported: String(!!openSeaOrderParams),
+            },
+          });
+        }
 
         if (openSeaOrderParams) {
           const protocolData = parseProtocolData(event.payload);
