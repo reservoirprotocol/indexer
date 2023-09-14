@@ -59,7 +59,7 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
           logger.info(
             this.queueName,
             JSON.stringify({
-              message: `Delayed lock changed. collection=${collectionResult.collection_id}, delayedLockId=${delayedLockId}`,
+              message: `Delayed lock changed. kind=${kind}, collection=${collectionResult.collection_id}, delayedLockId=${delayedLockId}`,
               payload,
               collectionId: collectionResult.collection_id,
             })
@@ -87,13 +87,22 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
           logger.info(
             this.queueName,
             JSON.stringify({
-              message: `Failed to acquire lock. collection=${collectionResult.collection_id}`,
+              message: `Acquired delayed lock. kind=${kind}, collection=${collectionResult.collection_id}, delayedLockId=${delayedLockId}`,
               payload,
               collectionId: collectionResult.collection_id,
             })
           );
 
           await this.addToQueue([payload], 1000);
+        } else {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              message: `Failed to acquire delayed lock. kind=${kind}, collection=${collectionResult.collection_id}, delayedLockId=${delayedLockId}`,
+              payload,
+              collectionId: collectionResult.collection_id,
+            })
+          );
         }
 
         // return;
