@@ -9,7 +9,7 @@ import { config } from "@/config/index";
 import { getNetworkName } from "@/config/network";
 import { logger } from "@/common/logger";
 import { customHandleContractTokens, customHandleToken, hasCustomHandler } from "@/metadata/custom";
-import { extendMetadata, hasExtendHandler } from "@/metadata/extend";
+import { extendMetadata, hasExtendHandler, extendCollectionMetadata } from "@/metadata/extend";
 
 export interface TokenMetadata {
   contract: string;
@@ -145,7 +145,7 @@ export class MetadataApi {
         throw new Error("Fallback collection data not acceptable");
       }
 
-      return collection;
+      return extendCollectionMetadata(config.chainId, collection, tokenId);
     }
   }
 
