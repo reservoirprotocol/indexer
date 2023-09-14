@@ -5,6 +5,9 @@ import { logger } from "@/common/logger";
 import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 
+import * as registry from "@/utils/royalties/registry";
+import * as royalties from "@/utils/royalties";
+
 export type CollectionContractDeployed = {
   contract: string;
   deployer?: string;
@@ -111,6 +114,24 @@ export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler
           )
         : null,
     ]);
+
+    if (name) {
+      try {
+        // Refresh the on-chain royalties
+        await registry.refreshRegistryRoyalties(contract);
+        await royalties.refreshDefaultRoyalties(contract);
+
+        logger.info(
+          this.queueName,
+          `Refreshing deployed collection on chain royalties. collectionId=${contract}`
+        );
+      } catch (error) {
+        logger.error(
+          this.queueName,
+          `Refreshing deployed collection on chain royalties error. collectionId=${contract}, error=${error}`
+        );
+      }
+    }
   }
 
   public async addToQueue(params: CollectionContractDeployed) {
