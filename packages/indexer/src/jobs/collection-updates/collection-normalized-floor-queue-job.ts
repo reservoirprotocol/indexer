@@ -1,4 +1,4 @@
-import { idb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { config } from "@/config/index";
@@ -29,13 +29,9 @@ export class CollectionNormalizedJob extends AbstractRabbitMqJobHandler {
     const { kind, contract, tokenId, txHash, txTimestamp } = payload;
 
     // First, retrieve the token's associated collection.
-    const collectionResult = await idb.oneOrNone(
+    const collectionResult = await redb.oneOrNone(
       `
-            SELECT
-                tokens.collection_id,
-                collections.floor_sell_id
-            FROM tokens
-            LEFT JOIN collections ON tokens.collection_id = collections.id
+            SELECT tokens.collection_id FROM tokens
             WHERE tokens.contract = $/contract/
               AND tokens.token_id = $/tokenId/
           `,

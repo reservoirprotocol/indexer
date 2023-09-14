@@ -32,7 +32,6 @@ export class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler {
       `
             SELECT
                 tokens.collection_id,
-                collections.floor_sell_id,
                 collections.community
             FROM tokens
             LEFT JOIN collections ON tokens.collection_id = collections.id
