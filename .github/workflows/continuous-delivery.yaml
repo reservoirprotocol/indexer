@@ -423,6 +423,38 @@ jobs:
             ${{ github.sha }} \
             indexer-kafka-worker-mumbai
           ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-arbitrum-nova.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-arbitrum-nova
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-avalanche.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-avalanche
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-base-goerli.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-base-goerli
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-linea.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-linea
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-scroll-alpha.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-scroll-alpha
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-zksync.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-zksync
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-zora.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-zora
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-zora-testnet.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-zora-testnet
+          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-optimism.yaml \
             ${{ github.sha }} \
             indexer-worker-master-optimism
