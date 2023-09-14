@@ -8,7 +8,7 @@ import { baseProvider } from "@/common/provider";
 import { config } from "@/config/index";
 import { getNetworkName } from "@/config/network";
 import { logger } from "@/common/logger";
-import { customHandleContractTokens, customHandleToken, hasCustomHandler } from "@/metadata/custom";
+import { customHandleCollection, customHandleToken, hasCustomHandler } from "@/metadata/custom";
 import { extendMetadata, hasExtendHandler, extendCollectionMetadata } from "@/metadata/extend";
 
 export interface TokenMetadata {
@@ -112,8 +112,7 @@ export class MetadataApi {
     } else {
       // get custom / extended metadata locally
       if (hasCustomHandler(config.chainId, contract)) {
-        const result = await customHandleContractTokens(config.chainId, contract, tokenId);
-        return result;
+        return customHandleCollection(config.chainId, { contract, tokenId });
       }
 
       let indexingMethod =
