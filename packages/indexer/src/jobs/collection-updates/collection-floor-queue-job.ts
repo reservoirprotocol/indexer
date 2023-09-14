@@ -52,7 +52,7 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
     if (!["revalidation"].includes(kind)) {
       if (payload.delayedLockId) {
         const delayedLockId = await getLockId(
-          `collection-updates-floor-ask-delayed-lock:${collectionResult.collection_id}`
+          `${this.queueName}-delayed-lock:${collectionResult.collection_id}`
         );
 
         if (delayedLockId !== payload.delayedLockId) {
@@ -70,7 +70,7 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
       }
 
       acquiredLock = await acquireLock(
-        `collection-updates-floor-ask-lock:${collectionResult.collection_id}`,
+        `${this.queueName}-lock:${collectionResult.collection_id}`,
         1
       );
 
@@ -78,7 +78,7 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
         const delayedLockId = randomUUID();
 
         const acquiredDelayedLock = await acquireLock(
-          `collection-updates-floor-ask-delayed-lock:${collectionResult.collection_id}`,
+          `${this.queueName}-delayed-lock:${collectionResult.collection_id}`,
           2,
           delayedLockId
         );
@@ -205,7 +205,7 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
     );
 
     if (acquiredLock) {
-      await releaseLock(`collection-updates-floor-ask-lock:${collectionResult.collection_id}`);
+      await releaseLock(`${this.queueName}-lock:${collectionResult.collection_id}`);
     }
 
     if (collectionFloorAsk) {
