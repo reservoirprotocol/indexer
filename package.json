@@ -1,0 +1,66 @@
+{
+  "name": "@reservoir0x/monorepo",
+  "version": "0.0.1",
+  "description": "Reservoir Protocol Monorepo",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "commitlint": "commitlint --edit",
+    "lint-check": "eslint --cache --max-warnings 0 \"packages/**/src/**/*.+(js|ts|json)\"",
+    "format-check": "prettier --cache --check \"packages/**/src/**/*.+(js|ts|json)\"",
+    "format": "prettier --cache --write \"packages/**/src/**/*.+(js|ts|json)\"",
+    "prepare": "husky install",
+    "release": "standard-version"
+  },
+  "dependencies": {
+    "eslint": "^8.10.0",
+    "eslint-config-prettier": "^8.5.0",
+    "husky": "^7.0.4",
+    "prettier": "^2.5.1",
+    "standard-version": "^9.3.2",
+    "turbo": "^1.8.2"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "_moduleAliases": {
+    "@/api": "./packages/indexer/dist/api",
+    "@/arweave-sync": "./packages/indexer/dist/sync/arweave",
+    "@/common": "./packages/indexer/dist/common",
+    "@/config": "./packages/indexer/dist/config",
+    "@/models": "./packages/indexer/dist/models",
+    "@/utils": "./packages/indexer/dist/utils",
+    "@/jobs": "./packages/indexer/dist/jobs",
+    "@/orderbook": "./packages/indexer/dist/orderbook",
+    "@/events-sync": "./packages/indexer/dist/sync/events",
+    "@/pubsub": "./packages/indexer/dist/pubsub",
+    "@/websockets": "./packages/indexer/dist/websockets",
+    "@/elasticsearch": "./packages/indexer/dist/elasticsearch",
+    "@/metadata": "./packages/indexer/dist/metadata"
+  },
+  "resolutions": {
+    "**/flat": "^5.0.1",
+    "**/underscore": "^1.12.1",
+    "**/@openzeppelin/contracts": "^4.7.3",
+    "**/json5": "^2.2.2",
+    "**/minimatch": "^3.0.5",
+    "**/async": "^2.6.4",
+    "**/lodash": "^4.17.21",
+    "**/node-fetch": "^2.6.7",
+    "**/yargs-parser": "^21.1.1",
+    "**/@sideway/formula": "^3.0.1",
+    "**/got": "^11.8.5",
+    "**/validator": "^13.7.0",
+    "**/swagger-ui-dist": "4.13"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^17.4.4",
+    "@commitlint/config-angular": "^17.4.4",
+    "@semantic-release/changelog": "^6.0.2",
+    "@semantic-release/exec": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "semantic-release": "^20.1.1"
+  }
+}

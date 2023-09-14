@@ -1,0 +1,30 @@
+{
+  "name": "@reservoir0x/sdk",
+  "version": "0.0.340",
+  "description": "Reservoir Protocol SDK",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "prepublishOnly": "yarn clean && yarn build"
+  },
+  "dependencies": {
+    "@uniswap/smart-order-router": "^3.0.4",
+    "decimal.js": "^10.4.3",
+    "ethers": "^5.7.2",
+    "fummpel": "^0.0.4",
+    "merkletreejs": "^0.3.9"
+  },
+  "devDependencies": {
+    "@types/node": "^16.11.12",
+    "typescript": "^4.5.2"
+  },
+  "files": [
+    "dist/**/*"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

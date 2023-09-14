@@ -1,0 +1,298 @@
+{
+  "manifestVersion": "3.2",
+  "admin": {
+    "address": "0xA1B670Cc0E15496FbD7AcB8d939790FB49c22a90",
+    "txHash": "0x7a4e981d0bbc97014e004ff6490d3cec916caaf0cbedcbc4421c876bb74c1681"
+  },
+  "proxies": [
+    {
+      "address": "0xa5c0C6c024460b039B917a77EB564da5817c55E2",
+      "kind": "transparent"
+    }
+  ],
+  "impls": {
+    "c62a38d7cfec195ebf7cac4115eada713fc9abf341d83edc296d9febb4cc796c": {
+      "address": "0x7472E5014e0Cf714095DF348AAc5917b17a94701",
+      "txHash": "0x98216934ebab84b2bc4ba038f0bc128b1a80fe0e3696997c7efcaf4fc4cb3efa",
+      "layout": {
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:39"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:44"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "_owner",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_address",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "52",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:87"
+          },
+          {
+            "label": "weth",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_address",
+            "contract": "RouterV1",
+            "src": "contracts/router/RouterV1.sol:21"
+          },
+          {
+            "label": "looksRare",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_address",
+            "contract": "RouterV1",
+            "src": "contracts/router/RouterV1.sol:23"
+          },
+          {
+            "label": "looksRareTransferManagerERC721",
+            "offset": 0,
+            "slot": "103",
+            "type": "t_address",
+            "contract": "RouterV1",
+            "src": "contracts/router/RouterV1.sol:24"
+          },
+          {
+            "label": "looksRareTransferManagerERC1155",
+            "offset": 0,
+            "slot": "104",
+            "type": "t_address",
+            "contract": "RouterV1",
+            "src": "contracts/router/RouterV1.sol:25"
+          },
+          {
+            "label": "wyvernV23",
+            "offset": 0,
+            "slot": "105",
+            "type": "t_address",
+            "contract": "RouterV1",
+            "src": "contracts/router/RouterV1.sol:27"
+          },
+          {
+            "label": "wyvernV23Proxy",
+            "offset": 0,
+            "slot": "106",
+            "type": "t_address",
+            "contract": "RouterV1",
+            "src": "contracts/router/RouterV1.sol:28"
+          },
+          {
+            "label": "zeroExV4",
+            "offset": 0,
+            "slot": "107",
+            "type": "t_address",
+            "contract": "RouterV1",
+            "src": "contracts/router/RouterV1.sol:30"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          }
+        }
+      }
+    },
+    "9995addd084dbc8cebeb90a42c3798ecf431da9d7ba96efcd33b976749b7e262": {
+      "address": "0x8fa86Bf24F1258E66d7B5e9fdE21de43e8f92fF4",
+      "layout": {
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:39"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:44"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "_owner",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_address",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "52",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:87"
+          },
+          {
+            "label": "weth",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_address",
+            "contract": "RouterV2",
+            "src": "contracts/router/RouterV2.sol:18"
+          },
+          {
+            "label": "looksRare",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_address",
+            "contract": "RouterV2",
+            "src": "contracts/router/RouterV2.sol:20"
+          },
+          {
+            "label": "looksRareTransferManagerERC721",
+            "offset": 0,
+            "slot": "103",
+            "type": "t_address",
+            "contract": "RouterV2",
+            "src": "contracts/router/RouterV2.sol:21"
+          },
+          {
+            "label": "looksRareTransferManagerERC1155",
+            "offset": 0,
+            "slot": "104",
+            "type": "t_address",
+            "contract": "RouterV2",
+            "src": "contracts/router/RouterV2.sol:22"
+          },
+          {
+            "label": "wyvernV23",
+            "offset": 0,
+            "slot": "105",
+            "type": "t_address",
+            "contract": "RouterV2",
+            "src": "contracts/router/RouterV2.sol:24"
+          },
+          {
+            "label": "wyvernV23Proxy",
+            "offset": 0,
+            "slot": "106",
+            "type": "t_address",
+            "contract": "RouterV2",
+            "src": "contracts/router/RouterV2.sol:25"
+          },
+          {
+            "label": "zeroExV4",
+            "offset": 0,
+            "slot": "107",
+            "type": "t_address",
+            "contract": "RouterV2",
+            "src": "contracts/router/RouterV2.sol:27"
+          },
+          {
+            "label": "_initializedV2",
+            "offset": 20,
+            "slot": "107",
+            "type": "t_bool",
+            "contract": "RouterV2",
+            "src": "contracts/router/RouterV2.sol:31"
+          },
+          {
+            "label": "foundation",
+            "offset": 0,
+            "slot": "108",
+            "type": "t_address",
+            "contract": "RouterV2",
+            "src": "contracts/router/RouterV2.sol:33"
+          },
+          {
+            "label": "x2y2",
+            "offset": 0,
+            "slot": "109",
+            "type": "t_address",
+            "contract": "RouterV2",
+            "src": "contracts/router/RouterV2.sol:35"
+          },
+          {
+            "label": "x2y2ERC721Delegate",
+            "offset": 0,
+            "slot": "110",
+            "type": "t_address",
+            "contract": "RouterV2",
+            "src": "contracts/router/RouterV2.sol:36"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          }
+        }
+      }
+    }
+  }
+}

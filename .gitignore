@@ -1,0 +1,50 @@
+# Dependencies
+node_modules
+
+# Secrets
+.env
+.env.testnet
+
+# Build
+dist
+tsconfig.tsbuildinfo
+.turbo
+
+# Misc
+yarn-debug.log*
+yarn-error.log*
+postgres/
+test*.ts
+.DS_Store
+foo123.ts
+
+# Yarn
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
+
+# Npm
+.npmrc
+
+# Hardhat
+artifacts
+cache
+
+# Tenderly
+tenderly.yaml
+
+# OpenZeppelin
+unknown-*
+
+# IDE
+*.iml
+.idea
+.yarnclean
+coverage/
+
+# Caches
+.eslintcache

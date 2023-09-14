@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    "target": "es2019",
+    "module": "commonjs",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "baseUrl": "src",
+    "paths": {
+      "@/api/*": ["api/*"],
+      "@/arweave-sync/*": ["sync/arweave/*"],
+      "@/common/*": ["common/*"],
+      "@/config/*": ["config/*"],
+      "@/jobs/*": ["jobs/*"],
+      "@/orderbook/*": ["orderbook/*"],
+      "@/elasticsearch/*": ["elasticsearch/*"],
+      "@/utils/*": ["utils/*"],
+      "@/models/*": ["models/*"],
+      "@/pubsub/*": ["pubsub/*"],
+      "@/websockets/*": ["websockets/*"],
+      "@/events-sync/*": ["sync/events/*"],
+      "@/metadata/*": ["metadata/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.js", "src/**/*.json"],
+  "exclude": ["src/tests/**/*.ts"],
+  "references": [{ "path": "../sdk" }],
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
+  }
+}
