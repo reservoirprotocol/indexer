@@ -1,10 +1,11 @@
 import { idb } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { acquireLock, redis, releaseLock } from "@/common/redis";
+import { acquireLock, getLockId, redis, releaseLock } from "@/common/redis";
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 import { config } from "@/config/index";
-// import { logger } from "@/common/logger";
+import { randomUUID } from "crypto";
+import { logger } from "@/common/logger";
 
 export type CollectionFloorJobPayload = {
   kind: string;
@@ -12,7 +13,7 @@ export type CollectionFloorJobPayload = {
   tokenId: string;
   txHash: string | null;
   txTimestamp: number | null;
-  orderId?: string;
+  delayedLockId?: string;
 };
 
 export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
@@ -53,17 +54,53 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
     let acquiredLock;
 
     if (!["revalidation"].includes(kind)) {
-      acquiredLock = await acquireLock(collectionResult.collection_id, 1);
+      if (payload.delayedLockId) {
+        const delayedLockId = await getLockId(
+          `collection-updates-floor-ask-delayed-lock:${collectionResult.collection_id}`
+        );
+
+        if (delayedLockId !== payload.delayedLockId) {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              message: `Delayed lock, changed. collection=${collectionResult.collection_id}, delayedLockId=${delayedLockId}`,
+              payload,
+              collectionId: collectionResult.collection_id,
+            })
+          );
+
+          return;
+        }
+      }
+
+      acquiredLock = await acquireLock(
+        `collection-updates-floor-ask-lock:${collectionResult.collection_id}`,
+        1
+      );
 
       if (!acquiredLock) {
-        // logger.info(
-        //   this.queueName,
-        //   JSON.stringify({
-        //     message: `Failed to acquire lock. collection=${collectionResult.collection_id}`,
-        //     payload,
-        //     collectionId: collectionResult.collection_id,
-        //   })
-        // );
+        const delayedLockId = randomUUID();
+
+        const acquiredDelayedLock = await acquireLock(
+          `collection-updates-floor-ask-delayed-lock:${collectionResult.collection_id}`,
+          2,
+          delayedLockId
+        );
+
+        if (acquiredDelayedLock) {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              message: `Failed to acquire lock. collection=${collectionResult.collection_id}`,
+              payload,
+              collectionId: collectionResult.collection_id,
+            })
+          );
+
+          await this.addToQueue([payload], 1000);
+        }
+      } else {
+        await releaseLock("delayed" + collectionResult.collection_id);
       }
     }
 
@@ -172,7 +209,7 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
     );
 
     if (acquiredLock) {
-      await releaseLock(collectionResult.collection_id);
+      await releaseLock(`collection-updates-floor-ask-lock:${collectionResult.collection_id}`);
     }
 
     if (collectionFloorAsk) {
@@ -201,8 +238,8 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
     }
   }
 
-  public async addToQueue(floorAskInfos: CollectionFloorJobPayload[]) {
-    await this.sendBatch(floorAskInfos.map((info) => ({ payload: info })));
+  public async addToQueue(floorAskInfos: CollectionFloorJobPayload[], delay = 0) {
+    await this.sendBatch(floorAskInfos.map((info) => ({ payload: info, delay })));
   }
 }
 
