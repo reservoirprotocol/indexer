@@ -1,13 +1,13 @@
 import cron from "node-cron";
 
 import { config } from "@/config/index";
-import { logger } from "@/common/logger";
 import { redlock } from "@/common/redis";
 
 import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
 import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
 import { PendingActivityEventsQueue } from "@/elasticsearch/indexes/activities/pending-activity-events-queue";
 import { EventKind } from "@/jobs/activities/process-activity-event-job";
+import { submitMetric } from "@/common/tracer";
 
 if (config.doBackgroundWork) {
   cron.schedule(
@@ -20,38 +20,22 @@ if (config.doBackgroundWork) {
           const pendingRefreshTokens = new PendingRefreshTokens(config.metadataIndexingMethod);
           const pendingRefreshTokensCount = await pendingRefreshTokens.length();
 
-          logger.info(
-            "pending-refresh-tokens-metric",
-            JSON.stringify({
-              topic: "queue-monitoring",
-              metadataIndexingMethod: config.metadataIndexingMethod,
-              pendingRefreshTokensCount,
-            })
-          );
+          submitMetric("pendingRefreshTokens", pendingRefreshTokensCount, {
+            metadataIndexingMethod: config.metadataIndexingMethod,
+          });
 
           const pendingActivitiesQueue = new PendingActivitiesQueue();
           const pendingActivitiesQueueCount = await pendingActivitiesQueue.count();
 
-          logger.info(
-            "pending-activities-queue-metric",
-            JSON.stringify({
-              topic: "queue-monitoring",
-              pendingActivitiesQueueCount,
-            })
-          );
+          submitMetric("pendingActivities", pendingActivitiesQueueCount);
 
           for (const eventKind of Object.values(EventKind)) {
             const pendingActivityEventsQueue = new PendingActivityEventsQueue(eventKind);
             const pendingActivityEventsQueueCount = await pendingActivityEventsQueue.count();
 
-            logger.info(
-              "pending-activity-events-queue-metric",
-              JSON.stringify({
-                topic: "queue-monitoring",
-                eventKind,
-                pendingActivityEventsQueueCount,
-              })
-            );
+            submitMetric("pendingActivityEvents", pendingActivityEventsQueueCount, {
+              eventKind,
+            });
           }
         })
         .catch(() => {
