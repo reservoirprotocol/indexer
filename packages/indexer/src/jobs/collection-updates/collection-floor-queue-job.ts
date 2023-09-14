@@ -59,13 +59,13 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
           logger.info(
             this.queueName,
             JSON.stringify({
-              message: `Delayed lock, changed. collection=${collectionResult.collection_id}, delayedLockId=${delayedLockId}`,
+              message: `Delayed lock changed. collection=${collectionResult.collection_id}, delayedLockId=${delayedLockId}`,
               payload,
               collectionId: collectionResult.collection_id,
             })
           );
 
-          return;
+          // return;
         }
       }
 
@@ -95,6 +95,8 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
 
           await this.addToQueue([payload], 1000);
         }
+
+        // return;
       } else {
         await releaseLock("delayed" + collectionResult.collection_id);
       }

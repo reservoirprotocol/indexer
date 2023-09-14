@@ -95,6 +95,8 @@ export class CollectionNormalizedJob extends AbstractRabbitMqJobHandler {
 
           await this.addToQueue([payload], 1000);
         }
+
+        // return;
       } else {
         await releaseLock("delayed" + collectionResult.collection_id);
       }
