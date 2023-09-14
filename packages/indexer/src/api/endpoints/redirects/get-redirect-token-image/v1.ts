@@ -52,10 +52,15 @@ export const getRedirectTokenImageV1Options: RouteOptions = {
         throw Boom.badData(`Token ${params.token} not found`);
       }
 
+      if (!token.image) {
+        throw Boom.badData(`Image not found for token ${params.token}`);
+      }
+
       const imageUrl = Assets.getResizedImageUrl(
         token.image,
         ImageSize[(query.imageSize as keyof typeof ImageSize) || "medium"]
       );
+
       delete request.query.imageSize;
       const imageWithQueryParams = Assets.addImageParams(imageUrl, request.query);
       return response.redirect(imageWithQueryParams).header("cache-control", `${1000 * 60}`);

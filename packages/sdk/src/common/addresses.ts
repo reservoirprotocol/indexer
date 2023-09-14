@@ -23,6 +23,7 @@ export const Native: ChainIdToAddress = {
   [Network.BaseGoerli]: AddressZero,
   [Network.Linea]: AddressZero,
   [Network.Zksync]: AddressZero,
+  [Network.PolygonZkevm]: AddressZero,
 };
 
 // Wrapped native currency
@@ -46,6 +47,7 @@ export const WNative: ChainIdToAddress = {
   [Network.ScrollAlpha]: "0x7160570bb153edd0ea1775ec2b2ac9b65f1ab61b",
   [Network.MantleTestnet]: "0xbaafec4b6ef4f5e0bafa850cbc48364b953efcf9",
   [Network.Zksync]: "0x5aea5775959fbc2557cc8789bc1bf90a239d9a91",
+  [Network.PolygonZkevm]: "0x4f9a0e7fd2bf6067db6994cf12e4495df938e6e9",
 };
 
 export const Usdc: ChainIdToAddress = {
@@ -59,6 +61,10 @@ export const Usdc: ChainIdToAddress = {
   [Network.Avalanche]: "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",
   [Network.Zksync]: "0x3355df6d4c9c3035724fd0e3914de96a5a83aaf4",
   [Network.Base]: "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+};
+
+export const Dai: ChainIdToAddress = {
+  [Network.Ethereum]: "0x6b175474e89094c44da98b954eedeac495271d0f",
 };
 
 export const RoyaltyEngine: ChainIdToAddress = {
@@ -116,4 +122,19 @@ export const GelatoRelay1BalanceERC2771: ChainIdToAddress = {
   [Network.EthereumGoerli]: "0xd8253782c45a12053594b9deb72d8e8ab2fca54c",
   [Network.Polygon]: "0xd8253782c45a12053594b9deb72d8e8ab2fca54c",
   [Network.Mumbai]: "0xd8253782c45a12053594b9deb72d8e8ab2fca54c",
+};
+
+export const OpenseaTransferHelper: ChainIdToAddress = {
+  [Network.Ethereum]: "0x0000000000c2d145a2526bd8c716263bfebe1a72",
+  [Network.EthereumGoerli]: "0x0000000000c2d145a2526bd8c716263bfebe1a72",
+  [Network.EthereumSepolia]: "0x0000000000c2d145a2526bd8c716263bfebe1a72",
+  [Network.Polygon]: "0x0000000000c2d145a2526bd8c716263bfebe1a72",
+  [Network.Mumbai]: "0x0000000000c2d145a2526bd8c716263bfebe1a72",
+  [Network.Optimism]: "0x0000000000c2d145a2526bd8c716263bfebe1a72",
+  [Network.Arbitrum]: "0x0000000000c2d145a2526bd8c716263bfebe1a72",
+  [Network.ArbitrumNova]: "0x0000000000c2d145a2526bd8c716263bfebe1a72",
+  [Network.Bsc]: "0x0000000000c2d145a2526bd8c716263bfebe1a72",
+  [Network.Avalanche]: "0x0000000000c2d145a2526bd8c716263bfebe1a72",
+  [Network.Base]: "0x0000000000c2d145a2526bd8c716263bfebe1a72",
+  [Network.BaseGoerli]: "0x0000000000c2d145a2526bd8c716263bfebe1a72",
 };

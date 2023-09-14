@@ -146,30 +146,33 @@ describe("[ReservoirV6_0_1] Element listings", () => {
       executions.push({
         module: swapModule.address,
         data: swapModule.interface.encodeFunctionData("ethToExactOutput", [
-          {
-            params: {
-              tokenIn: Sdk.Common.Addresses.WNative[chainId],
-              tokenOut: Sdk.Common.Addresses.Usdc[chainId],
-              fee: 500,
-              recipient: swapModule.address,
-              amountOut: listings
-                .map(({ price }, i) => bn(price).add(chargeFees ? feesOnTop[i] : 0))
-                .reduce((a, b) => bn(a).add(b), bn(0)),
-              amountInMaximum: parseEther("100"),
-              sqrtPriceLimitX96: 0,
-            },
-            transfers: [
-              {
-                recipient: elementModule.address,
-                amount: listings
+          [
+            {
+              params: {
+                tokenIn: Sdk.Common.Addresses.WNative[chainId],
+                tokenOut: Sdk.Common.Addresses.Usdc[chainId],
+                fee: 500,
+                recipient: swapModule.address,
+                amountOut: listings
                   .map(({ price }, i) => bn(price).add(chargeFees ? feesOnTop[i] : 0))
                   .reduce((a, b) => bn(a).add(b), bn(0)),
-                toETH: false,
+                amountInMaximum: parseEther("100"),
+                sqrtPriceLimitX96: 0,
               },
-            ],
-          },
+              transfers: [
+                {
+                  recipient: elementModule.address,
+                  amount: listings
+                    .map(({ price }, i) => bn(price).add(chargeFees ? feesOnTop[i] : 0))
+                    .reduce((a, b) => bn(a).add(b), bn(0)),
+                  toETH: false,
+                },
+              ],
+            },
+          ],
           // Refund to Carol
           carol.address,
+          true,
         ]),
         // Anything on top should be refunded
         value: parseEther("100"),

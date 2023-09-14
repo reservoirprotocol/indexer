@@ -32,10 +32,10 @@ export const getCollectionsV6Options: RouteOptions = {
   },
   description: "Collections",
   notes: "Use this API to explore a collection's metadata and statistics (sales, volume, etc).",
-  tags: ["api", "Collections"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 3,
+      deprecated: true,
     },
   },
   validate: {

@@ -10,7 +10,12 @@ import {
 } from "@/elasticsearch/indexes/activities/base";
 import { getActivityHash } from "@/elasticsearch/indexes/activities/utils";
 import { Orders } from "@/utils/orders";
-import { BaseActivityEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/base";
+import {
+  BaseActivityEventHandler,
+  NftTransferEventInfo,
+} from "@/elasticsearch/indexes/activities/event-handlers/base";
+import _ from "lodash";
+import { logger } from "@/common/logger";
 
 export class FillEventCreatedEventHandler extends BaseActivityEventHandler {
   public txHash: string;
@@ -113,5 +118,51 @@ export class FillEventCreatedEventHandler extends BaseActivityEventHandler {
     }
 
     data.timestamp = data.event_timestamp;
+  }
+
+  static async generateActivities(events: NftTransferEventInfo[]): Promise<ActivityDocument[]> {
+    const activities: ActivityDocument[] = [];
+
+    const eventsFilter = [];
+
+    for (const event of events) {
+      eventsFilter.push(
+        `('${_.replace(event.txHash, "0x", "\\x")}', '${event.logIndex}', '${event.batchIndex}')`
+      );
+    }
+
+    const results = await idb.manyOrNone(
+      `
+                ${FillEventCreatedEventHandler.buildBaseQuery()}
+                WHERE (tx_hash,log_index, batch_index) IN ($/eventsFilter:raw/);  
+                `,
+      { eventsFilter: _.join(eventsFilter, ",") }
+    );
+
+    for (const result of results) {
+      try {
+        const eventHandler = new FillEventCreatedEventHandler(
+          result.event_tx_hash,
+          result.event_log_index,
+          result.event_batch_index
+        );
+
+        const activity = eventHandler.buildDocument(result);
+
+        activities.push(activity);
+      } catch (error) {
+        logger.error(
+          "fill-event-created-event-handler",
+          JSON.stringify({
+            topic: "generate-activities",
+            message: `Error build document. error=${error}`,
+            result,
+            error,
+          })
+        );
+      }
+    }
+
+    return activities;
   }
 }

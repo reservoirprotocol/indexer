@@ -1,0 +1,654 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "contract ILpNft",
+        "name": "lpNft_",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "royaltyRegistry",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "DittoRouterDeadlinePassed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "DittoRouterNotApprovedPool",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "DittoRouterOutputAmountTooLow",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "DittoRoyaltyRouterNotImplemented",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "DittoRoyaltyRouterOutputAmountTooLow",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "DittoRoyaltyRouterRoyaltyExceedsSalePrice",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ReentrancyGuardReentrantCall",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "issuer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "pool",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "recipient",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "salePrice",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "royaltyAmount",
+        "type": "uint256"
+      }
+    ],
+    "name": "DittoRouterRoyaltiesRoyaltyIssued",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "FETCH_TOKEN_ID",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "ROYALTY_REGISTRY",
+    "outputs": [
+      {
+        "internalType": "contract IRoyaltyRegistry",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "nftCollection",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "salePrice",
+        "type": "uint256"
+      }
+    ],
+    "name": "calculateRoyalties",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "recipient",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "royalties",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "contract ERC20",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "poolTransferErc20From",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "contract IERC721",
+        "name": "nft",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      }
+    ],
+    "name": "poolTransferNftFrom",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "contract IDittoPool",
+            "name": "pool",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "nftIds",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "lpIds",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "bytes",
+            "name": "permitterData",
+            "type": "bytes"
+          },
+          {
+            "internalType": "uint256",
+            "name": "minOutput",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes",
+            "name": "swapData",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct RobustNftInSwap[]",
+        "name": "swapList",
+        "type": "tuple[]"
+      },
+      {
+        "internalType": "address",
+        "name": "tokenRecipient",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "deadline",
+        "type": "uint256"
+      }
+    ],
+    "name": "robustSwapNftsForTokens",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "outputAmount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "contract IDittoPool",
+            "name": "pool",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "nftIds",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "maxCost",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes",
+            "name": "swapData",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct RobustSwap[]",
+        "name": "swapList",
+        "type": "tuple[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "inputAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "nftRecipient",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "deadline",
+        "type": "uint256"
+      }
+    ],
+    "name": "robustSwapTokensForNfts",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "remainingValue",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "contract IDittoPool",
+                "name": "pool",
+                "type": "address"
+              },
+              {
+                "internalType": "uint256[]",
+                "name": "nftIds",
+                "type": "uint256[]"
+              },
+              {
+                "internalType": "uint256",
+                "name": "maxCost",
+                "type": "uint256"
+              },
+              {
+                "internalType": "bytes",
+                "name": "swapData",
+                "type": "bytes"
+              }
+            ],
+            "internalType": "struct RobustSwap[]",
+            "name": "tokenToNftTrades",
+            "type": "tuple[]"
+          },
+          {
+            "components": [
+              {
+                "internalType": "contract IDittoPool",
+                "name": "pool",
+                "type": "address"
+              },
+              {
+                "internalType": "uint256[]",
+                "name": "nftIds",
+                "type": "uint256[]"
+              },
+              {
+                "internalType": "uint256[]",
+                "name": "lpIds",
+                "type": "uint256[]"
+              },
+              {
+                "internalType": "bytes",
+                "name": "permitterData",
+                "type": "bytes"
+              },
+              {
+                "internalType": "uint256",
+                "name": "minOutput",
+                "type": "uint256"
+              },
+              {
+                "internalType": "bytes",
+                "name": "swapData",
+                "type": "bytes"
+              }
+            ],
+            "internalType": "struct RobustNftInSwap[]",
+            "name": "nftToTokenTrades",
+            "type": "tuple[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "inputAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "tokenRecipient",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "nftRecipient",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "deadline",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct RobustComplexSwap",
+        "name": "params",
+        "type": "tuple"
+      }
+    ],
+    "name": "robustSwapTokensForNftsAndNftsForTokens",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "remainingValue",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "outputAmount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "collection",
+        "type": "address"
+      }
+    ],
+    "name": "supportsRoyalty",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "collectionSupportsRoyalty",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "contract IDittoPool",
+                "name": "pool",
+                "type": "address"
+              },
+              {
+                "internalType": "uint256[]",
+                "name": "nftIds",
+                "type": "uint256[]"
+              },
+              {
+                "internalType": "uint256[]",
+                "name": "lpIds",
+                "type": "uint256[]"
+              },
+              {
+                "internalType": "bytes",
+                "name": "permitterData",
+                "type": "bytes"
+              },
+              {
+                "internalType": "bytes",
+                "name": "swapData",
+                "type": "bytes"
+              }
+            ],
+            "internalType": "struct NftInSwap[]",
+            "name": "nftToTokenTrades",
+            "type": "tuple[]"
+          },
+          {
+            "components": [
+              {
+                "internalType": "contract IDittoPool",
+                "name": "pool",
+                "type": "address"
+              },
+              {
+                "internalType": "uint256[]",
+                "name": "nftIds",
+                "type": "uint256[]"
+              },
+              {
+                "internalType": "bytes",
+                "name": "swapData",
+                "type": "bytes"
+              }
+            ],
+            "internalType": "struct Swap[]",
+            "name": "tokenToNftTrades",
+            "type": "tuple[]"
+          }
+        ],
+        "internalType": "struct ComplexSwap",
+        "name": "",
+        "type": "tuple"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "swapNftsForSpecificNftsThroughTokens",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "contract IDittoPool",
+            "name": "pool",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "nftIds",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "lpIds",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "bytes",
+            "name": "permitterData",
+            "type": "bytes"
+          },
+          {
+            "internalType": "bytes",
+            "name": "swapData",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct NftInSwap[]",
+        "name": "swapList",
+        "type": "tuple[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "minOutput",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "tokenRecipient",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "deadline",
+        "type": "uint256"
+      }
+    ],
+    "name": "swapNftsForTokens",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "outputAmount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "contract IDittoPool",
+            "name": "pool",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "nftIds",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "bytes",
+            "name": "swapData",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct Swap[]",
+        "name": "swapList",
+        "type": "tuple[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "inputAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "nftRecipient",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "deadline",
+        "type": "uint256"
+      }
+    ],
+    "name": "swapTokensForNfts",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "remainingValue",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

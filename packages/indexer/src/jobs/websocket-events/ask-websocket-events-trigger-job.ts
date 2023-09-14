@@ -29,7 +29,7 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
   queueName = "ask-websocket-events-trigger-queue";
   maxRetries = 5;
   concurrency = 10;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 1000,
@@ -50,16 +50,16 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
           }
         }
 
-        if (!changed.length) {
-          logger.info(
-            this.queueName,
-            `No changes detected for event. before=${JSON.stringify(
-              data.before
-            )}, after=${JSON.stringify(data.after)}`
-          );
+        // if (!changed.length) {
+        //   logger.info(
+        //     this.queueName,
+        //     `No changes detected for event. before=${JSON.stringify(
+        //       data.before
+        //     )}, after=${JSON.stringify(data.after)}`
+        //   );
 
-          // return;
-        }
+        //   return;
+        // }
       }
 
       const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", true);
@@ -83,19 +83,6 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         source = sources.get(Number(data.after.source_id_int), contract, tokenId);
       } else {
         source = sources.get(Number(data.after.source_id_int));
-      }
-
-      // Debugging blur orders
-      if (data.after.kind == "blur" && data.trigger === "update") {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            fillabilityStatus: data.after.fillability_status,
-            approvalStatus: data.after.approval_status,
-            status: formatStatus(data.after.fillability_status, data.after.approval_status),
-            orderId: data.after.id,
-          })
-        );
       }
 
       const result = {

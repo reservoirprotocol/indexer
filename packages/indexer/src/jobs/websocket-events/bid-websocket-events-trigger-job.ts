@@ -30,7 +30,7 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
   queueName = "bid-websocket-events-trigger-queue";
   maxRetries = 5;
   concurrency = 10;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 1000,
@@ -65,16 +65,16 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
           }
         }
 
-        if (!changed.length) {
-          logger.info(
-            this.queueName,
-            `No changes detected for event. before=${JSON.stringify(
-              data.before
-            )}, after=${JSON.stringify(data.after)}`
-          );
+        // if (!changed.length) {
+        //   logger.info(
+        //     this.queueName,
+        //     `No changes detected for event. before=${JSON.stringify(
+        //       data.before
+        //     )}, after=${JSON.stringify(data.after)}`
+        //   );
 
-          // return;
-        }
+        //   return;
+        // }
       }
 
       const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", true);

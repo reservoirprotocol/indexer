@@ -75,7 +75,7 @@ type NFTTransferEvent = {
 
 export const getNFTTransferEvents = async (txData: TxData): Promise<NFTTransferEvent[]> => {
   try {
-    const logs = await getEmittedEvents(txData);
+    const logs = await getEmittedEvents(txData, config.chainId);
 
     const matchesEventData = (log: Log, eventData: EventData) =>
       log.topics[0] === eventData.topic && log.topics.length === eventData.numTopics;
@@ -137,6 +137,8 @@ const simulateMintTxData = async (
       Network.EthereumGoerli,
       Network.EthereumSepolia,
       Network.Optimism,
+      // Network.Polygon,
+      // Network.Arbitrum,
       Network.Bsc,
       Network.Zora,
       Network.Base,
@@ -149,7 +151,7 @@ const simulateMintTxData = async (
 
     let logs: Log[];
     try {
-      logs = await getEmittedEvents(txData);
+      logs = await getEmittedEvents(txData, config.chainId);
       logger.info("mints-process", `Emitted events: ${JSON.stringify(logs)}`);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
@@ -212,7 +214,7 @@ const simulateMintTxData = async (
   }
 };
 
-const getEmittedEvents = async (txData: TxData) => {
+const getEmittedEvents = async (txData: TxData, chainId: number) => {
   const provider = new JsonRpcProvider(config.traceNetworkHttpUrl);
   const value = txData.value ?? bn(0);
   return getCallTraceLogs(
@@ -229,7 +231,7 @@ const getEmittedEvents = async (txData: TxData) => {
     },
     provider,
     {
-      method: "withLog",
+      method: [Network.Polygon, Network.Arbitrum].includes(chainId) ? "opcodeTrace" : "withLog",
     }
   );
 };

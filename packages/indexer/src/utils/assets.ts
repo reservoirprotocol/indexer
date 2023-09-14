@@ -14,7 +14,7 @@ export class Assets {
     }
 
     return assets;
-    // const baseUrl = `https://${getNetworkSettings().subDomain}.reservoir.tools/assets/v1?`;
+    // const baseUrl = `https://${getSubDomain()}.reservoir.tools/assets/v1?`;
     //
     // if (_.isArray(assets)) {
     //   const assetsResult = [];

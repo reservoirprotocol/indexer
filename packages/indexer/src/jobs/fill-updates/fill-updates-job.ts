@@ -21,7 +21,7 @@ export class FillUpdatesJob extends AbstractRabbitMqJobHandler {
   maxRetries = 10;
   concurrency = 5;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 60000;
 
   protected async process(payload: FillUpdatesJobPayload) {
     const { orderId, orderSide, contract, tokenId, amount, price, timestamp, maker, taker } =

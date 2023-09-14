@@ -21,6 +21,7 @@ import { offChainCheck } from "@/orderbook/orders/payment-processor/check";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
+import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
 
 export type OrderInfo = {
@@ -235,8 +236,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           : await royalties.getRoyaltiesByTokenSet(tokenSetId, "onchain")
       ).map((r) => ({ kind: "royalty", ...r }));
 
-      const price = bn(order.params.price).div(order.params.amount).toString();
-
       // Handle: royalties on top
       const defaultRoyalties =
         side === "sell"
@@ -248,6 +247,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         .reduce((a, b) => a + b, 0);
       const totalDefaultBps = defaultRoyalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
 
+      const currencyPrice = bn(order.params.price).div(order.params.amount).toString();
+
       const missingRoyalties = [];
       let missingRoyaltyAmount = bn(0);
       if (totalBuiltInBps < totalDefaultBps) {
@@ -256,7 +257,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         );
         if (validRecipients.length) {
           const bpsDiff = totalDefaultBps - totalBuiltInBps;
-          const amount = bn(price).mul(bpsDiff).div(10000);
+          const amount = bn(currencyPrice).mul(bpsDiff).div(10000);
           missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
 
           // Split the missing royalties pro-rata across all royalty recipients
@@ -275,22 +276,22 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       const feeBps = feeBreakdown.map(({ bps }) => bps).reduce((a, b) => Number(a) + Number(b), 0);
 
       // Handle: price and value
-      let value: string;
-      let normalizedValue: string | undefined;
+      let currencyValue: string;
+      let currencyNormalizedValue: string | undefined;
       if (side === "buy") {
         // For buy orders, we set the value as `price - fee` since it
         // is best for UX to show the user exactly what they're going
         // to receive on offer acceptance.
-        value = bn(price)
-          .sub(bn(price).mul(bn(feeBps)).div(10000))
+        currencyValue = bn(currencyPrice)
+          .sub(bn(currencyPrice).mul(bn(feeBps)).div(10000))
           .toString();
         // The normalized value excludes the royalties from the value
-        normalizedValue = bn(value).sub(missingRoyaltyAmount).toString();
+        currencyNormalizedValue = bn(currencyValue).sub(missingRoyaltyAmount).toString();
       } else {
         // For sell orders, the value is the same as the price
-        value = price;
+        currencyValue = currencyPrice;
         // The normalized value includes the royalties on top of the price
-        normalizedValue = bn(value).add(missingRoyaltyAmount).toString();
+        currencyNormalizedValue = bn(currencyValue).add(missingRoyaltyAmount).toString();
       }
 
       // Handle: source
@@ -299,6 +300,56 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       if (metadata.source) {
         source = await sources.getOrInsert(metadata.source);
       }
+
+      // Price conversion
+      let price = currencyPrice;
+      let value = currencyValue;
+
+      let needsConversion = false;
+      if (
+        ![
+          Sdk.Common.Addresses.Native[config.chainId],
+          Sdk.Common.Addresses.WNative[config.chainId],
+        ].includes(currency)
+      ) {
+        needsConversion = true;
+
+        // If the currency is anything other than ETH/WETH, we convert
+        // `price` and `value` from that currency denominations to the
+        // ETH denomination
+        {
+          const prices = await getUSDAndNativePrices(currency, price.toString(), currentTime);
+          if (!prices.nativePrice) {
+            // Getting the native price is a must
+            return results.push({
+              id,
+              status: "failed-to-convert-price",
+            });
+          }
+          price = bn(prices.nativePrice).toString();
+        }
+        {
+          const prices = await getUSDAndNativePrices(currency, value.toString(), currentTime);
+          if (!prices.nativePrice) {
+            // Getting the native price is a must
+            return results.push({
+              id,
+              status: "failed-to-convert-price",
+            });
+          }
+          value = bn(prices.nativePrice).toString();
+        }
+      }
+
+      const prices = await getUSDAndNativePrices(currency, currencyNormalizedValue, currentTime);
+      if (!prices.nativePrice) {
+        // Getting the native price is a must
+        return results.push({
+          id,
+          status: "failed-to-convert-price",
+        });
+      }
+      const normalizedValue = bn(prices.nativePrice).toString();
 
       // Handle: native Reservoir orders
       const isReservoir = false;
@@ -322,9 +373,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         price,
         value,
         currency: toBuffer(currency),
-        currency_price: price,
-        currency_value: value,
-        needs_conversion: null,
+        currency_price: currencyPrice,
+        currency_value: currencyValue,
+        needs_conversion: needsConversion,
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: orderNonce,
         source_id_int: source?.id,
@@ -338,7 +389,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         expiration: validTo,
         missing_royalties: missingRoyalties,
         normalized_value: normalizedValue,
-        currency_normalized_value: normalizedValue,
+        currency_normalized_value: currencyNormalizedValue,
       });
 
       const unfillable =

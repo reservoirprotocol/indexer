@@ -2,6 +2,7 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { acquireLock, releaseLock } from "@/common/redis";
 import { logger } from "@/common/logger";
 import { Collections } from "@/models/collections";
+import { Contracts } from "@/models/contracts";
 import _ from "lodash";
 
 export type CollectionMetadataInfo = {
@@ -38,7 +39,10 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
             );
           }
 
-          await Collections.updateCollectionCache(contract, tokenId, community);
+          await Promise.all([
+            Collections.updateCollectionCache(contract, tokenId, community),
+            Contracts.updateContractMetadata(contract),
+          ]);
         } catch (error) {
           logger.error(
             this.queueName,
@@ -84,7 +88,7 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
     params: {
       contract: string | { contract: string; community: string }[];
       tokenId?: string;
-      community?: string;
+      community?: string | null;
       forceRefresh?: boolean;
     },
     delay = 0,

@@ -14,19 +14,19 @@ import {
 
 import { getJoiPriceObject, JoiPrice } from "@/common/joi";
 
-const version = "v5";
+const version = "v1";
 
-export const getTopSellingCollectionsOptions: RouteOptions = {
+export const getTopSellingCollectionsV1Options: RouteOptions = {
   cache: {
     privacy: "public",
     expiresIn: 10000,
   },
   description: "Top Selling Collections",
   notes: "Get top selling and minting collections",
-  tags: ["api", "Collections"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 3,
+      deprecated: true,
     },
   },
   validate: {

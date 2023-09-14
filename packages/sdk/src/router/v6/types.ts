@@ -107,6 +107,10 @@ export type GenericOrder =
       order: Sdk.CollectionXyz.Order;
     }
   | {
+      kind: "ditto";
+      order: Sdk.Ditto.Order;
+    }
+  | {
       kind: "zora";
       order: Sdk.Zora.Order;
     }
@@ -249,6 +253,15 @@ export type FillMintsResult = {
     orderIds: string[];
   }[];
   success: { [orderId: string]: boolean };
+};
+
+// Transfers
+
+export type TransfersResult = {
+  txs: {
+    approvals: NFTApproval[];
+    txData: TxData;
+  }[];
 };
 
 // Swaps

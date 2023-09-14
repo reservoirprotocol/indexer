@@ -18,7 +18,7 @@ export class ResumeRabbitConsumerQueueEvent {
     const job = _.find(RabbitMqJobsConsumer.getQueues(), (queue) => queue.getQueue() === queueName);
     if (job) {
       await PausedRabbitMqQueues.delete(queueName);
-      await RabbitMqJobsConsumer.subscribeToVhost(job);
+      await RabbitMqJobsConsumer.subscribe(job);
     }
 
     logger.info(

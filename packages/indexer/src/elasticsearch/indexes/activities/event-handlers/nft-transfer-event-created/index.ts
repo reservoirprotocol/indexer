@@ -7,7 +7,10 @@ import { logger } from "@/common/logger";
 
 import { ActivityDocument, ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { getActivityHash } from "@/elasticsearch/indexes/activities/utils";
-import { BaseActivityEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/base";
+import {
+  BaseActivityEventHandler,
+  NftTransferEventInfo,
+} from "@/elasticsearch/indexes/activities/event-handlers/base";
 import { getNetworkSettings } from "@/config/network";
 
 export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandler {
@@ -141,10 +144,4 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
 
     return activities;
   }
-}
-
-export interface NftTransferEventInfo {
-  txHash: string;
-  logIndex: number;
-  batchIndex: number;
 }

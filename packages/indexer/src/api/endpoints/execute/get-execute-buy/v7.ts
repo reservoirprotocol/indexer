@@ -170,6 +170,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
         .description(
           "Choose a specific swapping provider when buying in a different currency (defaults to `uniswap`)"
         ),
+      referrer: Joi.string()
+        .pattern(regex.address)
+        .optional()
+        .description("Referrer address where supported"),
       // Various authorization keys
       x2y2ApiKey: Joi.string().description("Optional X2Y2 API key used for filling."),
       openseaApiKey: Joi.string().description(
@@ -491,6 +495,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       }[] = [];
       const preview = payload.onlyPath && payload.partial && items.every((i) => !i.quantity);
 
+      let lastError: string | undefined;
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         const itemIndex =
@@ -560,10 +565,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
             if (response.orderId) {
               item.orderId = response.orderId;
             } else {
+              lastError = "Raw order failed to get processed";
               if (payload.partial) {
                 continue;
               } else {
-                throw getExecuteError("Raw order failed to get processed");
+                throw getExecuteError(lastError);
               }
             }
           }
@@ -657,10 +663,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
           }
 
           if (error) {
+            lastError = error;
             if (payload.partial) {
               continue;
             } else {
-              throw getExecuteError(error);
+              throw getExecuteError(lastError);
             }
           }
 
@@ -697,6 +704,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         // Scenario 3: fill via `collection`
         if (item.collection) {
           let mintAvailable = false;
+          let hasActiveMints = false;
           if (item.fillType === "mint" || item.fillType === "preferMint") {
             const collectionData = await idb.oneOrNone(
               `
@@ -739,7 +747,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
                     const { txData, price } = await generateCollectionMintTxData(
                       mint,
                       payload.taker,
-                      quantityToMint
+                      quantityToMint,
+                      payload.referrer
                     );
 
                     const orderId = `mint:${item.collection}`;
@@ -784,7 +793,22 @@ export const getExecuteBuyV7Options: RouteOptions = {
                     item.quantity -= quantityToMint;
                     mintAvailable = true;
                   }
+
+                  hasActiveMints = true;
                 }
+              }
+            }
+
+            if (item.quantity > 0) {
+              if (!hasActiveMints) {
+                lastError = "Collection has no eligible mints";
+              } else {
+                lastError =
+                  "Unable to mint requested quantity (max mints per wallet possibly exceeded)";
+              }
+
+              if (!payload.partial && mintAvailable) {
+                throw getExecuteError(lastError);
               }
             }
           }
@@ -872,8 +896,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
             }
 
             if (tokenResults.length < item.quantity) {
+              lastError = "Unable to fill requested quantity";
               if (!payload.partial) {
-                throw getExecuteError("Unable to fill requested quantity");
+                throw getExecuteError(lastError);
               }
             }
           }
@@ -884,6 +909,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           const [contract, tokenId] = item.token.split(":");
 
           let mintAvailable = false;
+          let hasActiveMints = false;
           if (item.fillType === "mint" || item.fillType === "preferMint") {
             const collectionData = await idb.oneOrNone(
               `
@@ -925,7 +951,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
                     const { txData, price } = await generateCollectionMintTxData(
                       mint,
                       payload.taker,
-                      quantityToMint
+                      quantityToMint,
+                      payload.referrer
                     );
 
                     const orderId = `mint:${collectionData.id}`;
@@ -967,7 +994,22 @@ export const getExecuteBuyV7Options: RouteOptions = {
                     item.quantity -= quantityToMint;
                     mintAvailable = true;
                   }
+
+                  hasActiveMints = true;
                 }
+              }
+            }
+
+            if (item.quantity > 0) {
+              if (!hasActiveMints) {
+                lastError = "Token has no eligible mints";
+              } else {
+                lastError =
+                  "Unable to mint requested quantity (max mints per wallet possibly exceeded)";
+              }
+
+              if (!payload.partial && mintAvailable) {
+                throw getExecuteError(lastError);
               }
             }
           }
@@ -1112,12 +1154,14 @@ export const getExecuteBuyV7Options: RouteOptions = {
             }
 
             if (quantityToFill > 0) {
+              if (makerEqualsTakerQuantity >= quantityToFill) {
+                lastError = "No fillable orders (taker cannot fill own orders)";
+              } else {
+                lastError = "Unable to fill requested quantity";
+              }
+
               if (!payload.partial) {
-                if (makerEqualsTakerQuantity >= quantityToFill) {
-                  throw getExecuteError("No fillable orders (taker cannot fill own orders)");
-                } else {
-                  throw getExecuteError("Unable to fill requested quantity");
-                }
+                throw getExecuteError(lastError);
               }
             }
 
@@ -1134,7 +1178,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       }
 
       if (!path.length) {
-        throw getExecuteError("No fillable orders");
+        throw getExecuteError(lastError ?? "No fillable orders");
       }
 
       let buyInCurrency = payload.currency;

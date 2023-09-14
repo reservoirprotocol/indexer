@@ -26,7 +26,7 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
   queueName = "sale-websocket-events-trigger-queue";
   maxRetries = 5;
   concurrency = 10;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 1000,
@@ -125,12 +125,12 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
             }
 
             if (!changed.length) {
-              logger.info(
-                this.queueName,
-                `No changes detected for event. before=${JSON.stringify(
-                  data.before
-                )}, after=${JSON.stringify(data.after)}`
-              );
+              // logger.info(
+              //   this.queueName,
+              //   `No changes detected for event. before=${JSON.stringify(
+              //     data.before
+              //   )}, after=${JSON.stringify(data.after)}`
+              // );
               return;
             }
           }
@@ -188,6 +188,7 @@ interface SaleInfo {
   amount: number;
   fill_source_id: number;
   block: number;
+  block_hash: string;
   tx_hash: string;
   timestamp: number;
   price: string;

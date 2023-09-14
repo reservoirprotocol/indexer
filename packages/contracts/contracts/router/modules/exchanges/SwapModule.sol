@@ -78,53 +78,87 @@ contract SwapModule is BaseExchangeModule {
   // --- Swaps ---
 
   function ethToExactOutput(
-    Swap calldata swap,
-    address refundTo
+    // Assumes all swaps have the same token in
+    Swap[] calldata swaps,
+    address refundTo,
+    bool revertIfIncomplete
   ) external payable nonReentrant refundETHLeftover(refundTo) {
-    if (address(swap.params.tokenIn) != address(WETH) || msg.value != swap.params.amountInMaximum) {
-      revert WrongParams();
-    }
+    uint256 swapsLength = swaps.length;
+    for (uint256 i; i < swapsLength; ) {
+      Swap calldata swap = swaps[i];
 
-    // Execute the swap
-    SWAP_ROUTER.exactOutputSingle{value: msg.value}(swap.params);
+      // Execute the swap
+      try SWAP_ROUTER.exactOutputSingle{value: swap.params.amountInMaximum}(swap.params) {
+        uint256 length = swap.transfers.length;
+        for (uint256 j = 0; j < length; ) {
+          TransferDetail calldata transferDetail = swap.transfers[j];
+          if (transferDetail.toETH) {
+            WETH.withdraw(transferDetail.amount);
+            _sendETH(transferDetail.recipient, transferDetail.amount);
+          } else {
+            _sendERC20(
+              transferDetail.recipient,
+              transferDetail.amount,
+              IERC20(swap.params.tokenOut)
+            );
+          }
 
-    // Refund any ETH stucked in the router
-    SWAP_ROUTER.refundETH();
-
-    uint256 length = swap.transfers.length;
-    for (uint256 i = 0; i < length; ) {
-      TransferDetail calldata transferDetail = swap.transfers[i];
-      if (transferDetail.toETH) {
-        WETH.withdraw(transferDetail.amount);
-        _sendETH(transferDetail.recipient, transferDetail.amount);
-      } else {
-        _sendERC20(transferDetail.recipient, transferDetail.amount, IERC20(swap.params.tokenOut));
+          unchecked {
+            ++j;
+          }
+        }
+      } catch {
+        if (revertIfIncomplete) {
+          revert UnsuccessfulFill();
+        }
       }
 
       unchecked {
         ++i;
       }
     }
+
+    // Refund any ETH stucked in the router
+    SWAP_ROUTER.refundETH();
   }
 
   function erc20ToExactOutput(
-    Swap calldata swap,
-    address refundTo
-  ) external nonReentrant refundERC20Leftover(refundTo, swap.params.tokenIn) {
-    // Approve the router if needed
-    _approveERC20IfNeeded(swap.params.tokenIn, address(SWAP_ROUTER), swap.params.amountInMaximum);
+    // Assumes all swaps have the same token in
+    Swap[] calldata swaps,
+    address refundTo,
+    bool revertIfIncomplete
+  ) external nonReentrant refundERC20Leftover(refundTo, swaps[0].params.tokenIn) {
+    uint256 swapsLength = swaps.length;
+    for (uint256 i; i < swapsLength; ) {
+      Swap calldata swap = swaps[i];
 
-    // Execute the swap
-    SWAP_ROUTER.exactOutputSingle(swap.params);
+      // Approve the router if needed
+      _approveERC20IfNeeded(swap.params.tokenIn, address(SWAP_ROUTER), swap.params.amountInMaximum);
 
-    uint256 length = swap.transfers.length;
-    for (uint256 i = 0; i < length; ) {
-      TransferDetail calldata transferDetail = swap.transfers[i];
-      if (transferDetail.toETH) {
-        WETH.withdraw(transferDetail.amount);
-        _sendETH(transferDetail.recipient, transferDetail.amount);
-      } else {
-        _sendERC20(transferDetail.recipient, transferDetail.amount, IERC20(swap.params.tokenOut));
+      // Execute the swap
+      try SWAP_ROUTER.exactOutputSingle(swap.params) {
+        uint256 transfersLength = swap.transfers.length;
+        for (uint256 j = 0; j < transfersLength; ) {
+          TransferDetail calldata transferDetail = swap.transfers[j];
+          if (transferDetail.toETH) {
+            WETH.withdraw(transferDetail.amount);
+            _sendETH(transferDetail.recipient, transferDetail.amount);
+          } else {
+            _sendERC20(
+              transferDetail.recipient,
+              transferDetail.amount,
+              IERC20(swap.params.tokenOut)
+            );
+          }
+
+          unchecked {
+            ++j;
+          }
+        }
+      } catch {
+        if (revertIfIncomplete) {
+          revert UnsuccessfulFill();
+        }
       }
 
       unchecked {
