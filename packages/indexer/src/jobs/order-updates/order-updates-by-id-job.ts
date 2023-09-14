@@ -18,7 +18,7 @@ import { logger } from "@/common/logger";
 import { TriggerKind } from "@/jobs/order-updates/types";
 import { HashZero } from "@ethersproject/constants";
 import { topBidSingleTokenQueueJob } from "@/jobs/token-set-updates/top-bid-single-token-queue-job";
-import { submitMetric } from "@/common/tracer";
+import { metric } from "@/common/metric";
 
 export type OrderUpdatesByIdJobPayload = {
   // The context represents a deterministic id for what triggered
@@ -326,12 +326,16 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
                 ? "attribute_offer"
                 : "collection_offer";
 
-            submitMetric("orderLatency", orderCreated - orderStart - Number(ingestDelay ?? 0), {
-              source: source?.getTitle() ?? "null",
-              orderId: order.id,
-              orderKind: order.kind,
-              orderType,
-              ingestMethod: ingestMethod ?? "rest",
+            metric.distribution({
+              name: "orderLatency",
+              value: orderCreated - orderStart - Number(ingestDelay ?? 0),
+              tags: {
+                source: source?.getTitle() ?? "null",
+                orderId: order.id,
+                orderKind: order.kind,
+                orderType,
+                ingestMethod: ingestMethod ?? "rest",
+              },
             });
           }
         } catch {

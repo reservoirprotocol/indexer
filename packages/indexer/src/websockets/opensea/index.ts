@@ -33,7 +33,7 @@ import { openseaBidsQueueJob } from "@/jobs/orderbook/opensea-bids-queue-job";
 import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
 import { openseaListingsJob } from "@/jobs/orderbook/opensea-listings-job";
 import { getNetworkSettings } from "@/config/network";
-import _ from "lodash";
+import { metric } from "@/common/metric";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = getNetworkSettings().isTestnet ? Network.TESTNET : Network.MAINNET;
@@ -74,18 +74,14 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
         const eventType = event.event_type as EventType;
         const openSeaOrderParams = await handleEvent(eventType, event.payload);
 
-        // Reduce amount of logs by only total the amount of events received from Ethereum mainnet.
-        if (_.random(100) <= 50 && (openSeaOrderParams || config.chainId === 1)) {
-          logger.debug(
-            "opensea-websocket",
-            JSON.stringify({
-              message: "Processing event.",
-              network,
-              event,
-              isSupported: !!openSeaOrderParams,
-            })
-          );
-        }
+        metric.count({
+          name: "openseaReceivedOrderEvents",
+          tags: {
+            network,
+            event: String(event),
+            isSupported: String(!!openSeaOrderParams),
+          },
+        });
 
         if (openSeaOrderParams) {
           const protocolData = parseProtocolData(event.payload);

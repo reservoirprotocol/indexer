@@ -7,7 +7,7 @@ import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
 import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
 import { PendingActivityEventsQueue } from "@/elasticsearch/indexes/activities/pending-activity-events-queue";
 import { EventKind } from "@/jobs/activities/process-activity-event-job";
-import { submitMetric } from "@/common/tracer";
+import { metric } from "@/common/metric";
 
 if (config.doBackgroundWork) {
   cron.schedule(
@@ -20,21 +20,32 @@ if (config.doBackgroundWork) {
           const pendingRefreshTokens = new PendingRefreshTokens(config.metadataIndexingMethod);
           const pendingRefreshTokensCount = await pendingRefreshTokens.length();
 
-          submitMetric("pendingRefreshTokens", pendingRefreshTokensCount, {
-            metadataIndexingMethod: config.metadataIndexingMethod,
+          metric.distribution({
+            name: "pendingRefreshTokens",
+            value: pendingRefreshTokensCount,
+            tags: {
+              metadataIndexingMethod: config.metadataIndexingMethod,
+            },
           });
 
           const pendingActivitiesQueue = new PendingActivitiesQueue();
           const pendingActivitiesQueueCount = await pendingActivitiesQueue.count();
 
-          submitMetric("pendingActivities", pendingActivitiesQueueCount);
+          metric.distribution({
+            name: "pendingActivities",
+            value: pendingActivitiesQueueCount,
+          });
 
           for (const eventKind of Object.values(EventKind)) {
             const pendingActivityEventsQueue = new PendingActivityEventsQueue(eventKind);
             const pendingActivityEventsQueueCount = await pendingActivityEventsQueue.count();
 
-            submitMetric("pendingActivityEvents", pendingActivityEventsQueueCount, {
-              eventKind,
+            metric.distribution({
+              name: "pendingActivityEvents",
+              value: pendingActivityEventsQueueCount,
+              tags: {
+                eventKind,
+              },
             });
           }
         })
