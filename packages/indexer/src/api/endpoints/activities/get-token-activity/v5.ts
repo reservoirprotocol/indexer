@@ -133,7 +133,7 @@ export const getTokenActivityV5Options: RouteOptions = {
     }
 
     try {
-      const startGetTokenActivity = Date.now();
+      // const startGetTokenActivity = Date.now();
 
       const [contract, tokenId] = params.token.split(":");
 
@@ -346,19 +346,19 @@ export const getTokenActivityV5Options: RouteOptions = {
         };
       });
 
-      const endGetTokenActivity = Date.now();
-
-      logger.info(
-        `get-token-activity-${version}-handler`,
-        JSON.stringify({
-          topic: "token-cache",
-          message: `Cache Latency`,
-          getRealtimeTokensMetadata: query.getRealtimeTokensMetadata,
-          tokensToFetchCount: tokensToFetch.length,
-          nonCachedTokensToFetchCount: nonCachedTokensToFetch.length,
-          latency: endGetTokenActivity - startGetTokenActivity,
-        })
-      );
+      // const endGetTokenActivity = Date.now();
+      //
+      // logger.info(
+      //   `get-token-activity-${version}-handler`,
+      //   JSON.stringify({
+      //     topic: "token-cache",
+      //     message: `Cache Latency`,
+      //     getRealtimeTokensMetadata: query.getRealtimeTokensMetadata,
+      //     tokensToFetchCount: tokensToFetch.length,
+      //     nonCachedTokensToFetchCount: nonCachedTokensToFetch.length,
+      //     latency: endGetTokenActivity - startGetTokenActivity,
+      //   })
+      // );
 
       return { activities: await Promise.all(result), continuation };
     } catch (error) {

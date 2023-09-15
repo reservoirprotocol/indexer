@@ -145,7 +145,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
-    const startGetTokenActivity = Date.now();
+    // const startGetTokenActivity = Date.now();
 
     const query = request.query as any;
 
@@ -407,19 +407,19 @@ export const getCollectionActivityV6Options: RouteOptions = {
         };
       });
 
-      const endGetTokenActivity = Date.now();
-
-      logger.info(
-        `get-collection-activity-${version}-handler`,
-        JSON.stringify({
-          topic: "token-cache",
-          message: `Cache Latency`,
-          getRealtimeTokensMetadata: query.getRealtimeTokensMetadata,
-          tokensToFetchCount: tokensToFetch.length,
-          nonCachedTokensToFetchCount: nonCachedTokensToFetch.length,
-          latency: endGetTokenActivity - startGetTokenActivity,
-        })
-      );
+      // const endGetTokenActivity = Date.now();
+      //
+      // logger.info(
+      //   `get-collection-activity-${version}-handler`,
+      //   JSON.stringify({
+      //     topic: "token-cache",
+      //     message: `Cache Latency`,
+      //     getRealtimeTokensMetadata: query.getRealtimeTokensMetadata,
+      //     tokensToFetchCount: tokensToFetch.length,
+      //     nonCachedTokensToFetchCount: nonCachedTokensToFetch.length,
+      //     latency: endGetTokenActivity - startGetTokenActivity,
+      //   })
+      // );
 
       return { activities: await Promise.all(result), continuation };
     } catch (error) {
