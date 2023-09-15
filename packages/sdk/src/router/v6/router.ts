@@ -376,22 +376,6 @@ export class Router {
       orderIds: string[];
     }[] = [];
     const success: { [orderId: string]: boolean } = {};
-    // const preSignatures: PreSignature[] = [];
-
-    // for (const detail of details) {
-    //   if (!detail.erc721cSecurityLevel) continue;
-    //   if ([4, 6].includes(detail.erc721cSecurityLevel)) {
-    //     preSignatures.push({
-    //       kind: "erc721c-verfied-eoa",
-    //       signer: taker,
-    //       uniqueId: `${detail.contract}-${taker}`,
-    //       data: {
-    //         signatureKind: "eip191",
-    //         message: `EOA`
-    //       }
-    //     });
-    //   }
-    // }
 
     // When filling a single order in partial mode, propagate any errors back directly
     if (options?.partial && details.length === 1) {
