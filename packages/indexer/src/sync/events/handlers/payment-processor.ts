@@ -103,7 +103,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             );
 
             if (executeCallTrace) {
-              relevantCalldata = executeCallTrace.input;
+              relevantCalldata = executeCallTrace.input ?? "0x";
               trades.order.set(`${txHash}-${exchangeAddress}`, tradeRank + 1);
             }
           } catch {
@@ -111,6 +111,10 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           }
         } else {
           relevantCalldata = tx.data;
+        }
+
+        if (!relevantCalldata) {
+          break;
         }
 
         const matchedMethod = methods.find((c) => relevantCalldata!.includes(c.selector));
