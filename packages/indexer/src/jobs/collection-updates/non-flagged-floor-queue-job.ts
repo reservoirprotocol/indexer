@@ -62,13 +62,13 @@ export class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler {
           logger.info(
             this.queueName,
             JSON.stringify({
-              message: `Delayed lock, changed. collection=${collectionResult.collection_id}, delayedLockId=${delayedLockId}`,
+              message: `Delayed lock changed. kind=${payload.kind}, collection=${collectionResult.collection_id}, tokenId=${payload.tokenId}, delayedLockId=${delayedLockId}, expectedDelayedLockId=${payload.delayedLockId}`,
               payload,
               collectionId: collectionResult.collection_id,
             })
           );
 
-          // return;
+          return;
         }
       }
 
@@ -90,20 +90,38 @@ export class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler {
           logger.info(
             this.queueName,
             JSON.stringify({
-              message: `Failed to acquire lock. collection=${collectionResult.collection_id}`,
+              message: `Acquired delayed lock. kind=${payload.kind}, collection=${collectionResult.collection_id}, tokenId=${payload.tokenId}, delayedLockId=${delayedLockId}`,
               payload,
               collectionId: collectionResult.collection_id,
             })
           );
 
           await this.addToQueue([payload], 1000);
+        } else {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              message: `Failed to acquire delayed lock. kind=${payload.kind}, collection=${collectionResult.collection_id}, tokenId=${payload.tokenId}`,
+              payload,
+              collectionId: collectionResult.collection_id,
+            })
+          );
         }
 
-        // return;
-      } else {
-        await releaseLock("delayed" + collectionResult.collection_id);
+        return;
       }
     }
+
+    await releaseLock("delayed" + collectionResult.collection_id);
+
+    logger.info(
+      this.queueName,
+      JSON.stringify({
+        message: `Recalculating floor ask. kind=${payload.kind}, collection=${collectionResult.collection_id}, tokenId=${payload.tokenId}`,
+        payload,
+        collectionId: collectionResult.collection_id,
+      })
+    );
 
     const nonFlaggedCollectionFloorAsk = await idb.oneOrNone(
       `

@@ -59,13 +59,13 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
           logger.info(
             this.queueName,
             JSON.stringify({
-              message: `Delayed lock changed. kind=${kind}, collection=${collectionResult.collection_id}, delayedLockId=${delayedLockId}`,
+              message: `Delayed lock changed. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}, delayedLockId=${delayedLockId}, expectedDelayedLockId=${payload.delayedLockId}`,
               payload,
               collectionId: collectionResult.collection_id,
             })
           );
 
-          // return;
+          return;
         }
       }
 
@@ -87,7 +87,7 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
           logger.info(
             this.queueName,
             JSON.stringify({
-              message: `Acquired delayed lock. kind=${kind}, collection=${collectionResult.collection_id}, delayedLockId=${delayedLockId}`,
+              message: `Acquired delayed lock. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}, delayedLockId=${delayedLockId}`,
               payload,
               collectionId: collectionResult.collection_id,
             })
@@ -98,18 +98,27 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
           logger.info(
             this.queueName,
             JSON.stringify({
-              message: `Failed to acquire delayed lock. kind=${kind}, collection=${collectionResult.collection_id}, delayedLockId=${delayedLockId}`,
+              message: `Failed to acquire delayed lock. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}`,
               payload,
               collectionId: collectionResult.collection_id,
             })
           );
         }
 
-        // return;
-      } else {
-        await releaseLock("delayed" + collectionResult.collection_id);
+        return;
       }
     }
+
+    await releaseLock("delayed" + collectionResult.collection_id);
+
+    logger.info(
+      this.queueName,
+      JSON.stringify({
+        message: `Recalculating floor ask. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}`,
+        payload,
+        collectionId: collectionResult.collection_id,
+      })
+    );
 
     const collectionFloorAsk = await idb.oneOrNone(
       `
