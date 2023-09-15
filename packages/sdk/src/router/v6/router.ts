@@ -34,7 +34,13 @@ import {
   TransfersResult,
 } from "./types";
 import { SwapInfo, generateSwapInfo, mergeSwapInfos } from "./swap/index";
-import { generateFTApprovalTxData, generateNFTApprovalTxData, isETH, isWETH } from "./utils";
+import {
+  generateFTApprovalTxData,
+  generateNFTApprovalTxData,
+  isETH,
+  isWETH,
+  generateVerfiedApprovals,
+} from "./utils";
 
 // Tokens
 import ERC721Abi from "../../common/abis/Erc721.json";
@@ -370,6 +376,22 @@ export class Router {
       orderIds: string[];
     }[] = [];
     const success: { [orderId: string]: boolean } = {};
+    // const preSignatures: PreSignature[] = [];
+
+    // for (const detail of details) {
+    //   if (!detail.erc721cSecurityLevel) continue;
+    //   if ([4, 6].includes(detail.erc721cSecurityLevel)) {
+    //     preSignatures.push({
+    //       kind: "erc721c-verfied-eoa",
+    //       signer: taker,
+    //       uniqueId: `${detail.contract}-${taker}`,
+    //       data: {
+    //         signatureKind: "eip191",
+    //         message: `EOA`
+    //       }
+    //     });
+    //   }
+    // }
 
     // When filling a single order in partial mode, propagate any errors back directly
     if (options?.partial && details.length === 1) {
@@ -391,7 +413,7 @@ export class Router {
         txs.push({
           approvals: [],
           permits: [],
-          preSignatures: [],
+          preSignatures: generateVerfiedApprovals([detail], taker),
           txData: exchange.fillOrderTx(
             taker,
             Number(order.params.id),
@@ -415,6 +437,7 @@ export class Router {
 
       const exchange = new Sdk.PaymentProcessor.Exchange(this.chainId);
       const operator = exchange.contract.address;
+      const preSignatures: PreSignature[] = [];
 
       const approvals: FTApproval[] = [];
       for (const { currency, price } of ownDetails) {
@@ -429,7 +452,6 @@ export class Router {
         }
       }
 
-      const preSignatures: PreSignature[] = [];
       const orders: Sdk.PaymentProcessor.Order[] = ownDetails.map(
         (c) => c.order as Sdk.PaymentProcessor.Order
       );
@@ -462,7 +484,7 @@ export class Router {
         txs.push({
           approvals,
           permits: [],
-          preSignatures: preSignatures,
+          preSignatures: [...generateVerfiedApprovals(ownDetails, taker), ...preSignatures],
           txData: exchange.sweepCollectionTx(taker, bundledOrder, orders),
           orderIds: ownDetails.map((d) => d.orderId),
         });
@@ -488,7 +510,7 @@ export class Router {
         txs.push({
           approvals,
           permits: [],
-          preSignatures: preSignatures,
+          preSignatures: [...generateVerfiedApprovals(ownDetails, taker), ...preSignatures],
           txData: exchange.fillOrdersTx(taker, orders, takeOrders),
           orderIds: ownDetails.map((d) => d.orderId),
         });
@@ -597,7 +619,7 @@ export class Router {
             txs.push({
               approvals: [],
               permits: [],
-              preSignatures: [],
+              preSignatures: generateVerfiedApprovals(successfulBlurCompatibleListings, taker),
               txData: {
                 from: data.from,
                 to: data.to,
@@ -741,7 +763,7 @@ export class Router {
             {
               approvals: approval ? [approval] : [],
               permits: [],
-              preSignatures: [],
+              preSignatures: generateVerfiedApprovals([details[0]], taker),
               txData: await exchange.fillOrderTx(
                 taker,
                 order,
@@ -763,7 +785,7 @@ export class Router {
             {
               approvals: approval ? [approval] : [],
               permits: [],
-              preSignatures: [],
+              preSignatures: generateVerfiedApprovals(details, taker),
               txData: await exchange.fillOrdersTx(
                 taker,
                 orders,
@@ -820,7 +842,7 @@ export class Router {
             {
               approvals: approval ? [approval] : [],
               permits: [],
-              preSignatures: [],
+              preSignatures: generateVerfiedApprovals([details[0]], taker),
               txData: await exchange.fillOrderTx(
                 taker,
                 order,
@@ -842,7 +864,7 @@ export class Router {
             {
               approvals: approval ? [approval] : [],
               permits: [],
-              preSignatures: [],
+              preSignatures: generateVerfiedApprovals(details, taker),
               txData: await exchange.fillOrdersTx(
                 taker,
                 orders,

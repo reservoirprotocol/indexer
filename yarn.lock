@@ -2547,6 +2547,14 @@
     "@jridgewell/resolve-uri" "3.1.0"
     "@jridgewell/sourcemap-codec" "1.4.14"
 
+"@limitbreak/creator-token-contracts@^1.1.2":
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/@limitbreak/creator-token-contracts/-/creator-token-contracts-1.1.2.tgz#0384fafd0ef7bb6e393b75536f6af4b54805b0a3"
+  integrity sha512-kRw4Gvu1LfrPMK3mUzc++af0v3etBCl0ZiyXgBcQUdFie7jHwOSmptKXERHtHh04+fAX8xoivbIGWp/4kTPJqg==
+  dependencies:
+    "@openzeppelin/contracts" "4.8.3"
+    erc721a "^4.2.3"
+
 "@metamask/eth-sig-util@^4.0.0":
   version "4.0.1"
   resolved "https://registry.yarnpkg.com/@metamask/eth-sig-util/-/eth-sig-util-4.0.1.tgz#3ad61f6ea9ad73ba5b19db780d40d9aae5157088"
@@ -3161,7 +3169,7 @@
   dependencies:
     tslib "^2.3.1"
 
-"@openzeppelin/contracts@3.4.1-solc-0.7-2", "@openzeppelin/contracts@3.4.2-solc-0.7", "@openzeppelin/contracts@4.7.0", "@openzeppelin/contracts@^4.4.0", "@openzeppelin/contracts@^4.7.3":
+"@openzeppelin/contracts@3.4.1-solc-0.7-2", "@openzeppelin/contracts@3.4.2-solc-0.7", "@openzeppelin/contracts@4.7.0", "@openzeppelin/contracts@4.8.3", "@openzeppelin/contracts@^4.4.0", "@openzeppelin/contracts@^4.7.3":
   version "4.9.3"
   resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-4.9.3.tgz#00d7a8cf35a475b160b3f0293a6403c511099364"
   integrity sha512-He3LieZ1pP2TNt5JbkPA4PNT9WC3gOTOlDcFGJW4Le4QKqwmiNJCRt44APfxMxvq7OugU/cqYuPcSBzOw38DAg==
@@ -7243,7 +7251,7 @@ cross-fetch@^2.1.0, cross-fetch@^2.1.1:
     node-fetch "^2.6.7"
     whatwg-fetch "^2.0.4"
 
-cross-fetch@^3.0.6, cross-fetch@^3.1.4, cross-fetch@^3.1.5:
+cross-fetch@^3.0.6, cross-fetch@^3.1.5:
   version "3.1.8"
   resolved "https://registry.yarnpkg.com/cross-fetch/-/cross-fetch-3.1.8.tgz#0327eba65fd68a7d119f8fb2bf9334a1a7956f82"
   integrity sha512-cvA+JwZoU0Xq+h6WkMvAUqPEYy92Obet6UdKLfW60qn99ftItKjB5T+BkyWOFWe2pUyfQ+IJHmpOTznqk1M6Kg==
@@ -7952,6 +7960,11 @@ env-paths@^2.2.0:
   version "2.2.1"
   resolved "https://registry.yarnpkg.com/env-paths/-/env-paths-2.2.1.tgz#420399d416ce1fbe9bc0a07c62fa68d67fd0f8f2"
   integrity sha512-+h1lkLKhZMTYjog1VEpJNG7NZJWcuc2DDk/qsqSTRRCOXiLjeQ1d1/udrUGhqMxUgAlwKNZ0cf2uqan5GLuS2A==
+
+erc721a@^4.2.3:
+  version "4.2.3"
+  resolved "https://registry.yarnpkg.com/erc721a/-/erc721a-4.2.3.tgz#ca6469b0e54afb0f614272c2147dc4cb49ff223f"
+  integrity sha512-0deF0hOOK1XI1Vxv3NKDh2E9sgzRlENuOoexjXRJIRfYCsLlqi9ejl2RF6Wcd9HfH0ldqC03wleQ2WDjxoOUvA==
 
 err-code@^2.0.2:
   version "2.0.3"
@@ -12288,13 +12301,6 @@ loose-envify@^1.0.0:
   integrity sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==
   dependencies:
     js-tokens "^3.0.0 || ^4.0.0"
-
-loot-rarity@5.0.1:
-  version "5.0.1"
-  resolved "https://registry.yarnpkg.com/loot-rarity/-/loot-rarity-5.0.1.tgz#4be9d6d20703cb851c6e02250f1f722786639502"
-  integrity sha512-jK79MAy48Z9dZdWQ9ovGmHDa//I24PzPDVCLf1QiB+UYw66R7yKTXGcNRI9HxFjerGuxUOl+kYzH26APQVlBzg==
-  dependencies:
-    cross-fetch "^3.1.4"
 
 loupe@^2.3.1:
   version "2.3.6"

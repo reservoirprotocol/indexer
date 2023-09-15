@@ -6,6 +6,7 @@ import { BigNumberish, BigNumber } from "@ethersproject/bignumber";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import * as Sdk from "@reservoir0x/sdk/src";
 import { ethers, network } from "hardhat";
+import { Contract } from "@ethersproject/contracts";
 
 // --- Misc ---
 
@@ -70,6 +71,45 @@ export const setupNFTs = async (deployer: SignerWithAddress) => {
 
   return { erc721, erc1155 };
 };
+
+export const setupERC721C = async (deployer: SignerWithAddress) => {
+  const erc721c: any = await ethers
+    .getContractFactory("MockERC721C", deployer)
+    .then((factory) => factory.deploy());
+  return { erc721c };
+};
+
+export const configERC721C = async(deployer: SignerWithAddress, erc721c: Contract, level: number, whiteListOperators: string[], receivers: string[]) => {
+    await erc721c.connect(deployer).setToDefaultSecurityPolicy();
+    const validatorAddress = await erc721c.getTransferValidator();
+    const validator = new Contract(validatorAddress, new Interface([
+      `function createOperatorWhitelist(string calldata name) external returns (uint120)`,
+      `function addOperatorToWhitelist(uint120 id, address operator) external`,
+      `function createPermittedContractReceiverAllowlist(string calldata name) external returns (uint120)`,
+      `function addPermittedContractReceiverToAllowlist(uint120 id, address receiver) external`,
+    ]), ethers.provider).connect(deployer);
+
+    let operatorWhiteListId = 0;
+    let permittedContractReceiverAllowlistId = 0;
+
+    if (whiteListOperators.length) {
+      operatorWhiteListId = await validator.callStatic.createOperatorWhitelist("test");
+      await validator.createOperatorWhitelist("test");
+      for (const whiteListOperator of whiteListOperators) {
+        await validator.addOperatorToWhitelist(operatorWhiteListId, whiteListOperator);
+      }
+    }
+
+    if (receivers.length) {
+      permittedContractReceiverAllowlistId = await validator.callStatic.createPermittedContractReceiverAllowlist("test");
+      await validator.createPermittedContractReceiverAllowlist("test");
+      for (const whiteListOperator of whiteListOperators) {
+        await validator.addOperatorToWhitelist(operatorWhiteListId, whiteListOperator);
+      }
+    }
+
+    await erc721c.setToCustomSecurityPolicy(level, operatorWhiteListId, permittedContractReceiverAllowlistId);
+}
 
 export const setupConduit = async (
   chainId: number,

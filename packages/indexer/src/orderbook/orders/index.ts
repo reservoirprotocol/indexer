@@ -221,6 +221,8 @@ export const generateListingDetailsV6 = (
     tokenId: string;
     amount?: number;
     isFlagged?: boolean;
+    erc721cSecurityLevel?: number;
+    transferValidator?: string;
   }
 ): ListingDetails => {
   const common = {
@@ -232,6 +234,8 @@ export const generateListingDetailsV6 = (
     price: order.price,
     source: order.source,
     isFlagged: token.isFlagged,
+    erc721cSecurityLevel: token.erc721cSecurityLevel,
+    transferValidator: token.transferValidator,
     amount: token.amount ?? 1,
     fees: order.fees ?? [],
   };

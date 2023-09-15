@@ -35,6 +35,7 @@ import { getNFTTransferEvents } from "@/orderbook/mints/simulation";
 import { getPermitId, getPermit, savePermit } from "@/utils/permits";
 import { getPreSignatureId, getPreSignature, savePreSignature } from "@/utils/pre-signatures";
 import { getUSDAndCurrencyPrices } from "@/utils/prices";
+import * as erc721c from "@/utils/erc721c";
 
 const version = "v7";
 
@@ -423,20 +424,23 @@ export const getExecuteBuyV7Options: RouteOptions = {
         });
 
         if (order.kind !== "mint") {
-          const flaggedResult = await idb.oneOrNone(
-            `
-              SELECT
-                tokens.is_flagged
-              FROM tokens
-              WHERE tokens.contract = $/contract/
-                AND tokens.token_id = $/tokenId/
-              LIMIT 1
-            `,
-            {
-              contract: toBuffer(token.contract),
-              tokenId: token.tokenId,
-            }
-          );
+          const [flaggedResult, collectionConfig] = await Promise.all([
+            idb.oneOrNone(
+              `
+                SELECT
+                  tokens.is_flagged
+                FROM tokens
+                WHERE tokens.contract = $/contract/
+                  AND tokens.token_id = $/tokenId/
+                LIMIT 1
+              `,
+              {
+                contract: toBuffer(token.contract),
+                tokenId: token.tokenId,
+              }
+            ),
+            erc721c.getERC721CConfigFromDB(token.contract),
+          ]);
 
           listingDetails.push(
             generateListingDetailsV6(
@@ -455,6 +459,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 tokenId: token.tokenId!,
                 amount: token.quantity,
                 isFlagged: Boolean(flaggedResult.is_flagged),
+                erc721cSecurityLevel: collectionConfig?.transferSecurityLevel,
+                transferValidator: collectionConfig?.transferValidator,
               }
             )
           );
@@ -1362,6 +1368,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
           items: [],
         },
         {
+          id: "verified-eoa",
+          action: "Verified EOA",
+          description: "A one-time setup transaction to verify you're EOA",
+          kind: "transaction",
+          items: [],
+        },
+        {
           id: "sale",
           action: "Confirm transaction in your wallet",
           description: "To purchase this item you must confirm the transaction and pay the gas fee",
@@ -1650,7 +1663,60 @@ export const getExecuteBuyV7Options: RouteOptions = {
               },
             });
           }
+
+          if (preSignature.kind === "erc721c-verfied-eoa") {
+            const id = getPreSignatureId(request.payload as object, {
+              uniqueId: preSignature.uniqueId,
+            });
+
+            const cachedSignature = await getPreSignature(id);
+            if (cachedSignature) {
+              preSignature.signature = cachedSignature.signature;
+            } else {
+              await savePreSignature(id, preSignature);
+            }
+
+            const hasSignature = preSignature.signature;
+            if (!hasSignature) {
+              steps[3].items.push({
+                status: "incomplete",
+                data: {
+                  sign: preSignature.data,
+                  post: {
+                    endpoint: "/execute/pre-signature/v1",
+                    method: "POST",
+                    body: {
+                      id,
+                    },
+                  },
+                },
+              });
+            } else {
+              const signData = preSignature.data;
+              const transferValidator = signData.transferValidator;
+              const validator = new Sdk.Common.Helpers.CreatorTokenTransferValidator(
+                baseProvider,
+                transferValidator
+              );
+              const isVerified = await validator.isVerifiedEOA(preSignature.signer);
+              if (!isVerified) {
+                const verifyTransaction = validator.verifyTransaction(
+                  preSignature.signer,
+                  preSignature.signature!
+                );
+                steps[4].items.push({
+                  status: "incomplete",
+                  data: {
+                    ...verifyTransaction,
+                    maxFeePerGas,
+                    maxPriorityFeePerGas,
+                  },
+                });
+              }
+            }
+          }
         }
+
         if (signaturesPaymentProcessor.length && !steps[3].items.length) {
           const exchange = new Sdk.PaymentProcessor.Exchange(config.chainId);
           txData.data = exchange.attachTakerSignatures(txData.data, signaturesPaymentProcessor);
@@ -1684,7 +1750,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           }
         }
 
-        steps[4].items.push({
+        steps[5].items.push({
           status: "incomplete",
           orderIds,
           // Do not return the final step unless all previous steps are completed

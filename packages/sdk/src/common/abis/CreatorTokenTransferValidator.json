@@ -1,0 +1,758 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "defaultOwner",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "CallerDidNotSignTheMessage",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "CreatorTokenTransferValidator__AddressAlreadyAllowed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "CreatorTokenTransferValidator__AddressNotAllowed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "CreatorTokenTransferValidator__AllowlistDoesNotExist",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "CreatorTokenTransferValidator__AllowlistOwnershipCannotBeTransferredToZeroAddress",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "CreatorTokenTransferValidator__CallerDoesNotOwnAllowlist",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "CreatorTokenTransferValidator__CallerMustBeWhitelistedOperator",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "CreatorTokenTransferValidator__CallerMustHaveElevatedPermissionsForSpecifiedNFT",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "SignatureAlreadyVerified",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "enum AllowlistTypes",
+        "name": "kind",
+        "type": "uint8"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "AddedToAllowlist",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "enum AllowlistTypes",
+        "name": "kind",
+        "type": "uint8"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      }
+    ],
+    "name": "CreatedAllowlist",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "enum AllowlistTypes",
+        "name": "kind",
+        "type": "uint8"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "ReassignedAllowlistOwnership",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "enum AllowlistTypes",
+        "name": "kind",
+        "type": "uint8"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "RemovedFromAllowlist",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "enum AllowlistTypes",
+        "name": "kind",
+        "type": "uint8"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "collection",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint120",
+        "name": "id",
+        "type": "uint120"
+      }
+    ],
+    "name": "SetAllowlist",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "collection",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum TransferSecurityLevels",
+        "name": "level",
+        "type": "uint8"
+      }
+    ],
+    "name": "SetTransferSecurityLevel",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "VerifiedEOASignature",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "DEFAULT_TRANSFER_SECURITY_LEVEL",
+    "outputs": [
+      {
+        "internalType": "enum TransferSecurityLevels",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MESSAGE_TO_SIGN",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint120",
+        "name": "id",
+        "type": "uint120"
+      },
+      {
+        "internalType": "address",
+        "name": "operator",
+        "type": "address"
+      }
+    ],
+    "name": "addOperatorToWhitelist",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint120",
+        "name": "id",
+        "type": "uint120"
+      },
+      {
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      }
+    ],
+    "name": "addPermittedContractReceiverToAllowlist",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      }
+    ],
+    "name": "applyCollectionTransferPolicy",
+    "outputs": [],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      }
+    ],
+    "name": "createOperatorWhitelist",
+    "outputs": [
+      {
+        "internalType": "uint120",
+        "name": "",
+        "type": "uint120"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      }
+    ],
+    "name": "createPermittedContractReceiverAllowlist",
+    "outputs": [
+      {
+        "internalType": "uint120",
+        "name": "",
+        "type": "uint120"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "collection",
+        "type": "address"
+      }
+    ],
+    "name": "getCollectionSecurityPolicy",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "enum TransferSecurityLevels",
+            "name": "transferSecurityLevel",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint120",
+            "name": "operatorWhitelistId",
+            "type": "uint120"
+          },
+          {
+            "internalType": "uint120",
+            "name": "permittedContractReceiversId",
+            "type": "uint120"
+          }
+        ],
+        "internalType": "struct CollectionSecurityPolicy",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint120",
+        "name": "id",
+        "type": "uint120"
+      }
+    ],
+    "name": "getPermittedContractReceivers",
+    "outputs": [
+      {
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint120",
+        "name": "id",
+        "type": "uint120"
+      }
+    ],
+    "name": "getWhitelistedOperators",
+    "outputs": [
+      {
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint120",
+        "name": "id",
+        "type": "uint120"
+      },
+      {
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      }
+    ],
+    "name": "isContractReceiverPermitted",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint120",
+        "name": "id",
+        "type": "uint120"
+      },
+      {
+        "internalType": "address",
+        "name": "operator",
+        "type": "address"
+      }
+    ],
+    "name": "isOperatorWhitelisted",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "isVerifiedEOA",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint120",
+        "name": "",
+        "type": "uint120"
+      }
+    ],
+    "name": "operatorWhitelistOwners",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint120",
+        "name": "",
+        "type": "uint120"
+      }
+    ],
+    "name": "permittedContractReceiverAllowlistOwners",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint120",
+        "name": "id",
+        "type": "uint120"
+      },
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "reassignOwnershipOfOperatorWhitelist",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint120",
+        "name": "id",
+        "type": "uint120"
+      },
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "reassignOwnershipOfPermittedContractReceiverAllowlist",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint120",
+        "name": "id",
+        "type": "uint120"
+      },
+      {
+        "internalType": "address",
+        "name": "operator",
+        "type": "address"
+      }
+    ],
+    "name": "removeOperatorFromWhitelist",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint120",
+        "name": "id",
+        "type": "uint120"
+      },
+      {
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      }
+    ],
+    "name": "removePermittedContractReceiverFromAllowlist",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint120",
+        "name": "id",
+        "type": "uint120"
+      }
+    ],
+    "name": "renounceOwnershipOfOperatorWhitelist",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint120",
+        "name": "id",
+        "type": "uint120"
+      }
+    ],
+    "name": "renounceOwnershipOfPermittedContractReceiverAllowlist",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "collection",
+        "type": "address"
+      },
+      {
+        "internalType": "uint120",
+        "name": "id",
+        "type": "uint120"
+      }
+    ],
+    "name": "setOperatorWhitelistOfCollection",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "collection",
+        "type": "address"
+      },
+      {
+        "internalType": "uint120",
+        "name": "id",
+        "type": "uint120"
+      }
+    ],
+    "name": "setPermittedContractReceiverAllowlistOfCollection",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "collection",
+        "type": "address"
+      },
+      {
+        "internalType": "enum TransferSecurityLevels",
+        "name": "level",
+        "type": "uint8"
+      }
+    ],
+    "name": "setTransferSecurityLevelOfCollection",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes4",
+        "name": "interfaceId",
+        "type": "bytes4"
+      }
+    ],
+    "name": "supportsInterface",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "enum TransferSecurityLevels",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "name": "transferSecurityPolicies",
+    "outputs": [
+      {
+        "internalType": "enum CallerConstraints",
+        "name": "callerConstraints",
+        "type": "uint8"
+      },
+      {
+        "internalType": "enum ReceiverConstraints",
+        "name": "receiverConstraints",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "verifySignature",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint8",
+        "name": "v",
+        "type": "uint8"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "r",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "s",
+        "type": "bytes32"
+      }
+    ],
+    "name": "verifySignatureVRS",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

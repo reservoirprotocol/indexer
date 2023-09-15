@@ -3,6 +3,7 @@ import { BigNumberish } from "@ethersproject/bignumber";
 
 import * as Sdk from "../../index";
 import { MaxUint256, TxData } from "../../utils";
+import { ListingDetails, PreSignature } from "./types";
 
 export const isETH = (chainId: number, address: string) =>
   [Sdk.Common.Addresses.Native[chainId], Sdk.ZeroExV4.Addresses.Native[chainId]].includes(
@@ -37,3 +38,23 @@ export const generateFTApprovalTxData = (
     [spender, amount ?? MaxUint256]
   ),
 });
+
+export function generateVerfiedApprovals(details: ListingDetails[], taker: string) {
+  const preSignatures: PreSignature[] = [];
+  for (const detail of details) {
+    if (!detail.erc721cSecurityLevel) continue;
+    if ([4, 6].includes(detail.erc721cSecurityLevel)) {
+      preSignatures.push({
+        kind: "erc721c-verfied-eoa",
+        signer: taker,
+        uniqueId: `${detail.contract}-${taker}`,
+        data: {
+          signatureKind: "eip191",
+          message: `EOA`,
+          transferValidator: detail.transferValidator,
+        },
+      });
+    }
+  }
+  return preSignatures;
+}
