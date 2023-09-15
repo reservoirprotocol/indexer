@@ -130,4 +130,6 @@ export const config = {
   rabbitPassword: String(process.env.RABBIT_PASSWORD),
   rabbitDisableQueuesConsuming: Boolean(Number(process.env.RABBIT_DISABLE_QUEUES_CONSUMING)),
   forceEnableRabbitJobsConsumer: Boolean(Number(process.env.FORCE_ENABLE_RABBIT_JOBS_CONSUMER)),
+
+  enableActivitiesTokenCache: Boolean(Number(process.env.ENABLE_ACTIVITIES_TOKEN_CACHE)),
 };

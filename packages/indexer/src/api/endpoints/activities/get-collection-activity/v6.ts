@@ -19,6 +19,7 @@ import { Collections } from "@/models/collections";
 import { ActivityType } from "@/elasticsearch/indexes/activities/base";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { redb } from "@/common/db";
+import { redis } from "@/common/redis";
 
 const version = "v6";
 
@@ -144,6 +145,8 @@ export const getCollectionActivityV6Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
+    const startGetTokenActivity = Date.now();
+
     const query = request.query as any;
 
     if (query.types && !_.isArray(query.types)) {
@@ -211,10 +214,107 @@ export const getCollectionActivityV6Options: RouteOptions = {
         continuation: query.continuation,
       });
 
+      let tokensMetadata: any[] = [];
+      let tokensToFetch: any[] = [];
+      let nonCachedTokensToFetch: string[] = [];
+
+      query.getRealtimeTokensMetadata = query.includeMetadata && config.enableActivitiesTokenCache;
+
+      if (query.getRealtimeTokensMetadata) {
+        try {
+          tokensToFetch = activities
+            .filter((activity) => activity.token)
+            .map((activity) => `token-cache:${activity.contract}:${activity.token?.id}`);
+
+          // Make sure each token is unique
+          tokensToFetch = [...new Set(tokensToFetch).keys()];
+
+          tokensMetadata = await redis.mget(tokensToFetch);
+          tokensMetadata = tokensMetadata
+            .filter((token) => token)
+            .map((token) => JSON.parse(token));
+
+          nonCachedTokensToFetch = tokensToFetch.filter((tokenToFetch) => {
+            const [, contract, tokenId] = tokenToFetch.split(":");
+
+            return (
+              tokensMetadata.find((token) => {
+                return token.contract === contract && token.token_id === tokenId;
+              }) === undefined
+            );
+          });
+
+          if (nonCachedTokensToFetch.length) {
+            const tokensFilter = [];
+
+            for (const nonCachedTokenToFetch of nonCachedTokensToFetch) {
+              const [, contract, tokenId] = nonCachedTokenToFetch.split(":");
+
+              tokensFilter.push(`('${_.replace(contract, "0x", "\\x")}', '${tokenId}')`);
+            }
+
+            // Fetch details for all tokens
+            const tokensResult = await redb.manyOrNone(
+              `
+          SELECT
+            tokens.contract,
+            tokens.token_id,
+            tokens.name,
+            tokens.image
+          FROM tokens
+          WHERE (tokens.contract, tokens.token_id) IN ($/tokensFilter:raw/)
+        `,
+              { tokensFilter: _.join(tokensFilter, ",") }
+            );
+
+            if (tokensResult?.length) {
+              tokensMetadata.concat(
+                tokensResult.map((token) => ({
+                  contract: fromBuffer(token.contract),
+                  token_id: token.token_id,
+                  name: token.name,
+                  image: token.image,
+                }))
+              );
+
+              const redisMulti = redis.multi();
+
+              for (const tokenResult of tokensResult) {
+                const tokenResultContract = fromBuffer(tokenResult.contract);
+
+                await redisMulti.set(
+                  `token-cache:${tokenResultContract}:${tokenResult.token_id}`,
+                  JSON.stringify({
+                    contract: tokenResultContract,
+                    token_id: tokenResult.token_id,
+                    name: tokenResult.name,
+                    image: tokenResult.image,
+                  })
+                );
+
+                await redisMulti.expire(
+                  `token-cache:${tokenResultContract}:${tokenResult.token_id}`,
+                  60 * 60 * 24
+                );
+              }
+
+              await redisMulti.exec();
+            }
+          }
+        } catch (error) {
+          logger.error(`get-collection-activity-${version}-handler`, `Token cache error: ${error}`);
+        }
+      }
+
       const result = _.map(activities, async (activity) => {
         const currency = activity.pricing?.currency
           ? activity.pricing.currency
           : Sdk.Common.Addresses.Native[config.chainId];
+
+        const tokenMetadata = tokensMetadata?.find(
+          (token) =>
+            token.contract == activity.contract && `${token.token_id}` == activity.token?.id
+        );
 
         let order;
 
@@ -235,9 +335,9 @@ export const getCollectionActivityV6Options: RouteOptions = {
 
             if (activity.order.criteria.kind === "token") {
               (orderCriteria as any).data.token = {
-                tokenId: activity.token?.id,
-                name: activity.token?.name,
-                image: activity.token?.image,
+                tokenId: tokenMetadata ? tokenMetadata.id : activity.token?.id,
+                name: tokenMetadata ? tokenMetadata.name : activity.token?.name,
+                image: tokenMetadata ? tokenMetadata.image : activity.token?.image,
               };
             }
 
@@ -285,8 +385,12 @@ export const getCollectionActivityV6Options: RouteOptions = {
           contract: activity.contract,
           token: {
             tokenId: activity.token?.id || null,
-            tokenName: query.includeMetadata ? activity.token?.name || null : undefined,
-            tokenImage: query.includeMetadata ? activity.token?.image || null : undefined,
+            tokenName: query.includeMetadata
+              ? (tokenMetadata ? tokenMetadata.name : activity.token?.name) || null
+              : undefined,
+            tokenImage: query.includeMetadata
+              ? (tokenMetadata ? tokenMetadata.image : activity.token?.image) || null
+              : undefined,
           },
           collection: {
             collectionId: activity.collection?.id,
@@ -302,6 +406,20 @@ export const getCollectionActivityV6Options: RouteOptions = {
           order,
         };
       });
+
+      const endGetTokenActivity = Date.now();
+
+      logger.info(
+        `get-collection-activity-${version}-handler`,
+        JSON.stringify({
+          topic: "token-cache",
+          message: `Cache Latency`,
+          getRealtimeTokensMetadata: query.getRealtimeTokensMetadata,
+          tokensToFetchCount: tokensToFetch.length,
+          nonCachedTokensToFetchCount: nonCachedTokensToFetch.length,
+          latency: endGetTokenActivity - startGetTokenActivity,
+        })
+      );
 
       return { activities: await Promise.all(result), continuation };
     } catch (error) {
