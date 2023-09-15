@@ -170,8 +170,6 @@ export const getUserActivityV6Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
-    const startGetTokenActivity = Date.now();
-
     const query = request.query as any;
 
     if (query.types && !_.isArray(query.types)) {
@@ -416,20 +414,6 @@ export const getUserActivityV6Options: RouteOptions = {
           order,
         };
       });
-
-      const endGetTokenActivity = Date.now();
-
-      logger.info(
-        `get-user-activity-${version}-handler`,
-        JSON.stringify({
-          topic: "token-cache",
-          message: `Cache Latency`,
-          getRealtimeTokensMetadata: query.getRealtimeTokensMetadata,
-          tokensToFetchCount: tokensToFetch.length,
-          nonCachedTokensToFetchCount: nonCachedTokensToFetch.length,
-          latency: endGetTokenActivity - startGetTokenActivity,
-        })
-      );
 
       return { activities: await Promise.all(result), continuation };
     } catch (error) {
