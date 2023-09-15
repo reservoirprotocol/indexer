@@ -151,7 +151,8 @@ export class TokenFloorQueueJob extends AbstractRabbitMqJobHandler {
               price,
               previous_price AS "previousPrice",
               tx_hash AS "txHash",
-              tx_timestamp AS "txTimestamp"
+              tx_timestamp AS "txTimestamp",
+              order_id AS "orderId"
           `,
         {
           tokenSetId,

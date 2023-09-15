@@ -57,7 +57,7 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
   maxRetries = 10;
   concurrency = 80;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 10000,
@@ -255,7 +255,7 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
           if (trigger.kind == "cancel") {
             const eventData = {
               orderId: order.id,
-              transactionHash: trigger.txHash,
+              txHash: trigger.txHash,
               logIndex: trigger.logIndex,
               batchIndex: trigger.batchIndex,
             };
@@ -278,7 +278,7 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
           ) {
             const eventData = {
               orderId: order.id,
-              transactionHash: trigger.txHash,
+              txHash: trigger.txHash,
               logIndex: trigger.logIndex,
               batchIndex: trigger.batchIndex,
             };

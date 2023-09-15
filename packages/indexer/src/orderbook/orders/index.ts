@@ -37,7 +37,7 @@ import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
-import { getRoyalties } from "@/utils/royalties";
+import * as registry from "@/utils/royalties/registry";
 
 // Whenever a new order kind is added, make sure to also include an
 // entry/implementation in the below types/methods in order to have
@@ -83,7 +83,8 @@ export type OrderKind =
   | "midaswap"
   | "caviar-v1"
   | "payment-processor"
-  | "blur-v2";
+  | "blur-v2"
+  | "joepeg";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
@@ -788,9 +789,9 @@ export const generateBidDetailsV6 = async (
         ...common,
         order: sdkOrder,
         extraArgs: {
-          maxRoyaltyFeeNumerator: await getRoyalties(token.contract, undefined, "onchain").then(
-            (royalties) => royalties.map((r) => r.bps).reduce((a, b) => a + b, 0)
-          ),
+          maxRoyaltyFeeNumerator: await registry
+            .getRegistryRoyalties(common.contract, common.tokenId)
+            .then((royalties) => royalties.map((r) => r.bps).reduce((a, b) => a + b, 0)),
         },
       };
     }

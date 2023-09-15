@@ -7,6 +7,7 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 import { idb } from "@/common/db";
 import { redis } from "@/common/redis";
 import { Sources } from "@/models/sources";
+import { formatValidBetween } from "@/jobs/websocket-events/utils";
 
 interface CollectionInfo {
   id: string;
@@ -102,7 +103,7 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
   queueName = "collection-websocket-events-trigger-queue";
   maxRetries = 5;
   concurrency = 10;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 1000,
@@ -149,30 +150,15 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
         }
 
         if (!changed.length) {
-          logger.info(
-            this.queueName,
-            `No changes detected for event. before=${JSON.stringify(
-              data.before
-            )}, after=${JSON.stringify(data.after)}`
-          );
+          // logger.info(
+          //   this.queueName,
+          //   `No changes detected for event. before=${JSON.stringify(
+          //     data.before
+          //   )}, after=${JSON.stringify(data.after)}`
+          // );
           return;
         }
       }
-
-      const formatValidBetween = (validBetween: string) => {
-        try {
-          const parsed = JSON.parse(validBetween.replace("infinity", "null"));
-          return {
-            validFrom: new Date(parsed[0]).getTime(),
-            validUntil: new Date(parsed[1]).getTime(),
-          };
-        } catch (error) {
-          return {
-            validFrom: null,
-            validUntil: null,
-          };
-        }
-      };
 
       const r = data.after;
       const metadata = JSON.parse(r.metadata);

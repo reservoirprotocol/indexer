@@ -13,6 +13,7 @@ import { getContractKind } from "@/orderbook/mints/calldata/helpers";
 import MetadataApi from "@/utils/metadata-api";
 
 import { manifold } from "@/orderbook/mints/calldata/detector";
+import { collectionNewContractDeployedJob } from "@/jobs/collections/collection-contract-deployed";
 
 export type MintsProcessJobPayload =
   | {
@@ -132,44 +133,17 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
             collection: data.collection,
           }
         );
-        if (!contractResult.kind) {
-          const kind = await getContractKind(fromBuffer(contractResult.contract));
+        let kind = contractResult.kind;
+        if (!kind) {
+          kind = await getContractKind(fromBuffer(contractResult.contract));
           if (!kind) {
             throw new Error("Could not detect contract kind");
           }
 
-          await idb.none(
-            `
-              INSERT INTO contracts (
-                address,
-                kind
-              ) VALUES (
-                $/contract/,
-                $/kind/
-              ) ON CONFLICT DO NOTHING
-            `,
-            {
-              contract: contractResult.contract,
-              kind,
-            }
-          );
+          await collectionNewContractDeployedJob.addToQueue({
+            contract: contractResult.contract,
+          });
         }
-
-        const kind = await idb
-          .one(
-            `
-              SELECT
-                contracts.kind
-              FROM collections
-              JOIN contracts
-                ON collections.contract = contracts.address
-              WHERE collections.id = $/collection/
-            `,
-            {
-              collection: data.collection,
-            }
-          )
-          .then((r) => r.kind);
 
         switch (data.standard) {
           // TODO: Add support for `decent`

@@ -14,7 +14,7 @@ export class DailyVolumeJob extends AbstractRabbitMqJobHandler {
   concurrency = 1;
   useSharedChannel = true;
   persistent = false;
-  consumerTimeout = 2 * 60 * 60 * 1000;
+  timeout = 2 * 60 * 60 * 1000;
 
   protected async process(payload: DailyVolumeJobPayload) {
     const startTime = Number(payload.startTime);

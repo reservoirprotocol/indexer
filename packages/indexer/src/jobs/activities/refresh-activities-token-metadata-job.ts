@@ -4,7 +4,6 @@ import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import _ from "lodash";
 import { Tokens } from "@/models/tokens";
 import crypto from "crypto";
-import { logger } from "@/common/logger";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 
 export type RefreshActivitiesTokenMetadataJobPayload = {
@@ -16,7 +15,7 @@ export type RefreshActivitiesTokenMetadataJobPayload = {
 export class RefreshActivitiesTokenMetadataJob extends AbstractRabbitMqJobHandler {
   queueName = "refresh-activities-token-metadata-queue";
   maxRetries = 10;
-  concurrency = 1;
+  concurrency = 2;
   persistent = true;
   lazyMode = true;
 
@@ -36,13 +35,6 @@ export class RefreshActivitiesTokenMetadataJob extends AbstractRabbitMqJobHandle
       );
 
       if (keepGoing) {
-        logger.info(
-          this.queueName,
-          `KeepGoing. contract=${contract}, tokenId=${tokenId}, tokenUpdateData=${JSON.stringify(
-            tokenUpdateData
-          )}`
-        );
-
         addToQueue = true;
       }
     }
@@ -50,15 +42,10 @@ export class RefreshActivitiesTokenMetadataJob extends AbstractRabbitMqJobHandle
     return { addToQueue };
   }
 
-  public events() {
-    this.once(
-      "onCompleted",
-      async (message: RabbitMQMessage, processResult: { addToQueue: boolean }) => {
-        if (processResult.addToQueue) {
-          await this.addToQueue(message.payload.contract, message.payload.tokenId);
-        }
-      }
-    );
+  public async onCompleted(message: RabbitMQMessage, processResult: { addToQueue: boolean }) {
+    if (processResult.addToQueue) {
+      await this.addToQueue(message.payload.contract, message.payload.tokenId);
+    }
   }
 
   public async addToQueue(contract: string, tokenId: string) {

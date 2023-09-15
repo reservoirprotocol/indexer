@@ -14,6 +14,7 @@ import { Tokens } from "@/models/tokens";
 import { Collections } from "@/models/collections";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
+import { RabbitMQMessage } from "@/common/rabbit-mq";
 
 export type MetadataIndexProcessBySlugJobPayload = {
   method: string;
@@ -25,7 +26,7 @@ export class MetadataIndexProcessBySlugJob extends AbstractRabbitMqJobHandler {
   concurrency = 1;
   singleActiveConsumer = true;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 5 * 60 * 1000;
   backoff = {
     type: "fixed",
     delay: 5000,
@@ -180,13 +181,11 @@ export class MetadataIndexProcessBySlugJob extends AbstractRabbitMqJobHandler {
     }
   }
 
-  public events() {
-    this.once("onCompleted", async (rabbitMqMessage, processResult) => {
-      if (processResult) {
-        const { method } = rabbitMqMessage.payload;
-        await this.addToQueue({ method }, processResult * 1000);
-      }
-    });
+  public async onCompleted(rabbitMqMessage: RabbitMQMessage, processResult: undefined | number) {
+    if (processResult) {
+      const { method } = rabbitMqMessage.payload;
+      await this.addToQueue({ method }, processResult * 1000);
+    }
   }
 
   public async addToQueue(

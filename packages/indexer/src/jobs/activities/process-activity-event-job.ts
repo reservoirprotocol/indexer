@@ -1,13 +1,11 @@
-import { logger } from "@/common/logger";
+import { config } from "@/config/index";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
-import { FillEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/fill-event-created";
-import { NftTransferEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/nft-transfer-event-created";
-import { AskCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-created";
-import { BidCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-created";
-import { BidCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-cancelled";
-import { AskCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-cancelled";
+import { PendingActivityEventsQueue } from "@/elasticsearch/indexes/activities/pending-activity-events-queue";
+import {
+  NftTransferEventInfo,
+  OrderEventInfo,
+} from "@/elasticsearch/indexes/activities/event-handlers/base";
 
 export enum EventKind {
   fillEvent = "fillEvent",
@@ -21,60 +19,32 @@ export enum EventKind {
 export type ProcessActivityEventJobPayload =
   | {
       kind: EventKind.newSellOrder;
-      data: {
-        orderId: string;
-        transactionHash?: string;
-        logIndex?: number;
-        batchIndex?: number;
-      };
+      data: OrderEventInfo;
       context?: string;
     }
   | {
       kind: EventKind.newBuyOrder;
-      data: {
-        orderId: string;
-        transactionHash?: string;
-        logIndex?: number;
-        batchIndex?: number;
-      };
+      data: OrderEventInfo;
       context?: string;
     }
   | {
       kind: EventKind.nftTransferEvent;
-      data: {
-        transactionHash: string;
-        logIndex: number;
-        batchIndex: number;
-      };
+      data: NftTransferEventInfo;
       context?: string;
     }
   | {
       kind: EventKind.fillEvent;
-      data: {
-        transactionHash: string;
-        logIndex: number;
-        batchIndex: number;
-      };
+      data: NftTransferEventInfo;
       context?: string;
     }
   | {
       kind: EventKind.sellOrderCancelled;
-      data: {
-        orderId: string;
-        transactionHash: string;
-        logIndex: number;
-        batchIndex: number;
-      };
+      data: OrderEventInfo;
       context?: string;
     }
   | {
       kind: EventKind.buyOrderCancelled;
-      data: {
-        orderId: string;
-        transactionHash: string;
-        logIndex: number;
-        batchIndex: number;
-      };
+      data: OrderEventInfo;
       context?: string;
     };
 
@@ -88,82 +58,97 @@ export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: ProcessActivityEventJobPayload) {
     const { kind, data } = payload;
 
-    const pendingActivitiesQueue = new PendingActivitiesQueue();
-
-    let eventHandler;
-
     switch (kind) {
       case EventKind.fillEvent:
-        eventHandler = new FillEventCreatedEventHandler(
-          data.transactionHash,
-          data.logIndex,
-          data.batchIndex
-        );
+        await new PendingActivityEventsQueue(EventKind.fillEvent).add([
+          {
+            kind: EventKind.fillEvent,
+            data: {
+              txHash: data.txHash ?? data.transactionHash,
+              logIndex: data.logIndex,
+              batchIndex: data.batchIndex,
+            } as NftTransferEventInfo,
+          },
+        ]);
+
         break;
       case EventKind.nftTransferEvent:
-        eventHandler = new NftTransferEventCreatedEventHandler(
-          data.transactionHash,
-          data.logIndex,
-          data.batchIndex
-        );
+        await new PendingActivityEventsQueue(EventKind.nftTransferEvent).add([
+          {
+            kind: EventKind.nftTransferEvent,
+            data: {
+              txHash: data.txHash ?? data.transactionHash,
+              logIndex: data.logIndex,
+              batchIndex: data.batchIndex,
+            } as NftTransferEventInfo,
+          },
+        ]);
+
         break;
       case EventKind.newSellOrder:
-        eventHandler = new AskCreatedEventHandler(
-          data.orderId,
-          data.transactionHash,
-          data.logIndex,
-          data.batchIndex
-        );
+        await new PendingActivityEventsQueue(EventKind.newSellOrder).add([
+          {
+            kind: EventKind.newSellOrder,
+            data: {
+              orderId: data.orderId,
+              txHash: data.txHash ?? data.transactionHash,
+              logIndex: data.logIndex,
+              batchIndex: data.batchIndex,
+            } as OrderEventInfo,
+          },
+        ]);
+
         break;
       case EventKind.newBuyOrder:
-        eventHandler = new BidCreatedEventHandler(
-          data.orderId,
-          data.transactionHash,
-          data.logIndex,
-          data.batchIndex
-        );
+        await new PendingActivityEventsQueue(EventKind.newBuyOrder).add([
+          {
+            kind: EventKind.newBuyOrder,
+            data: {
+              orderId: data.orderId,
+              txHash: data.txHash ?? data.transactionHash,
+              logIndex: data.logIndex,
+              batchIndex: data.batchIndex,
+            } as OrderEventInfo,
+          },
+        ]);
+
         break;
       case EventKind.buyOrderCancelled:
-        eventHandler = new BidCancelledEventHandler(
-          data.orderId,
-          data.transactionHash,
-          data.logIndex,
-          data.batchIndex
-        );
+        await new PendingActivityEventsQueue(EventKind.buyOrderCancelled).add([
+          {
+            kind: EventKind.buyOrderCancelled,
+            data: {
+              orderId: data.orderId,
+              txHash: data.txHash ?? data.transactionHash,
+              logIndex: data.logIndex,
+              batchIndex: data.batchIndex,
+            } as OrderEventInfo,
+          },
+        ]);
+
         break;
       case EventKind.sellOrderCancelled:
-        eventHandler = new AskCancelledEventHandler(
-          data.orderId,
-          data.transactionHash,
-          data.logIndex,
-          data.batchIndex
-        );
+        await new PendingActivityEventsQueue(EventKind.sellOrderCancelled).add([
+          {
+            kind: EventKind.sellOrderCancelled,
+            data: {
+              orderId: data.orderId,
+              txHash: data.txHash ?? data.transactionHash,
+              logIndex: data.logIndex,
+              batchIndex: data.batchIndex,
+            } as OrderEventInfo,
+          },
+        ]);
+
         break;
-    }
-
-    let activity;
-
-    try {
-      activity = await eventHandler.generateActivity();
-    } catch (error) {
-      logger.error(
-        this.queueName,
-        JSON.stringify({
-          message: `Error generating activity. kind=${kind}, error=${error}`,
-          error,
-          data,
-        })
-      );
-
-      throw error;
-    }
-
-    if (activity) {
-      await pendingActivitiesQueue.add([activity]);
     }
   }
 
   public async addToQueue(payloads: ProcessActivityEventJobPayload[]) {
+    if (!config.doElasticsearchWork) {
+      return;
+    }
+
     await this.sendBatch(payloads.map((payload) => ({ payload })));
   }
 }

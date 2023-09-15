@@ -17,8 +17,9 @@ export class PauseRabbitConsumerQueueEvent {
 
     const job = _.find(RabbitMqJobsConsumer.getQueues(), (queue) => queue.getQueue() === queueName);
     if (job) {
-      await RabbitMqJobsConsumer.unsubscribe(job);
-      await PausedRabbitMqQueues.add(queueName);
+      if (await RabbitMqJobsConsumer.unsubscribe(job)) {
+        await PausedRabbitMqQueues.add(queueName);
+      }
     }
 
     logger.info(

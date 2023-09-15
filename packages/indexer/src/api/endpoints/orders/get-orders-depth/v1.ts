@@ -8,6 +8,7 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { JoiOrderDepth, getJoiOrderDepthObject } from "@/common/joi";
 import { fromBuffer, regex, toBuffer } from "@/common/utils";
+import { Collections } from "@/models/collections";
 
 const version = "v1";
 
@@ -116,7 +117,10 @@ export const getOrdersDepthV1Options: RouteOptions = {
                     AND token_sets.attribute_id IS NULL
                   `
                   : !query.collection.match(regex.address)
-                  ? " AND tokens.collection_id = $/collection/"
+                  ? `
+                    AND orders.contract = $/contract/
+                    AND tokens.collection_id = $/collection/
+                  `
                   : " AND orders.contract = $/contract/"
                 : ""
             }
@@ -125,7 +129,13 @@ export const getOrdersDepthV1Options: RouteOptions = {
         `,
         {
           side,
-          contract: query.token ? toBuffer(query.token.split(":")[0]) : toBuffer(query.collection),
+          contract: query.token
+            ? toBuffer(query.token.split(":")[0])
+            : query.collection.match(regex.address)
+            ? toBuffer(query.collection)
+            : toBuffer(
+                await Collections.getById(query.collection).then((c) => c!.contract ?? "0x")
+              ),
           tokenId: query.token && query.token.split(":")[1],
           tokenSetId: query.token && `token:${query.token}`,
           collection: query.collection,

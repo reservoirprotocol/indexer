@@ -69,6 +69,15 @@
       "137": "0x66d061360207e5231c6d442a099ce49da0516725",
       "8453": "0xd4d65f7d4f7a744b14e9088bc2d6fcd051134bf0",
       "42161": "0x66d061360207e5231c6d442a099ce49da0516725"
+    },
+    "v3": {
+      "1": "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+      "5": "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+      "10": "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+      "56": "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+      "137": "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+      "8453": "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+      "42161": "0x34acff419b262f3400d6aa17bd5b99a8c81e9726"
     }
   },
   "FoundationModule": {
@@ -142,10 +151,12 @@
       "5001": "0xf94d47c742c97f37424db1c27817a0697d49f461",
       "8453": "0x25210757f799423c908e4dbf8141dd10d51afbc6",
       "59140": "0xeb09b04d38d809c2dd5f33dda7208d0b299eda5a",
-      "59144": "0x25210757f799423c908e4dbf8141dd10d51afbc6",
       "84531": "0x527534529577b57548a1dbc0d7fb0088705a1965",
       "534353": "0x60275b726b9ab1fdc6c2d3d8072f234fab5ddaeb",
       "11155111": "0x54e9b4580f8c180e8020cec7a330f189658e1329"
+    },
+    "v2": {
+      "59144": "0xf769c98b6e384e98e36d6fc3ec7247dd1e887f57"
     }
   },
   "SeaportV15Module": {
@@ -280,6 +291,15 @@
       "137": "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
       "42161": "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
       "43114": "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d"
+    },
+    "v2": {
+      "1": "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
+      "5": "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
+      "10": "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
+      "56": "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
+      "137": "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
+      "42161": "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
+      "43114": "0xa34a25b433597ecab5cad6d740a25dadec252d7d"
     }
   },
   "SignedZoneController": {

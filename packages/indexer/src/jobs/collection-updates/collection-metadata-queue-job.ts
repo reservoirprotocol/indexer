@@ -2,8 +2,8 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { acquireLock, releaseLock } from "@/common/redis";
 import { logger } from "@/common/logger";
 import { Collections } from "@/models/collections";
+import { Contracts } from "@/models/contracts";
 import _ from "lodash";
-import { config } from "@/config/index";
 
 export type CollectionMetadataInfo = {
   contract: string;
@@ -39,14 +39,10 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
             );
           }
 
-          if (config.chainId === 43114 && forceRefresh) {
-            logger.info(
-              this.queueName,
-              `Debug. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}`
-            );
-          }
-
-          await Collections.updateCollectionCache(contract, tokenId, community);
+          await Promise.all([
+            Collections.updateCollectionCache(contract, tokenId, community),
+            Contracts.updateContractMetadata(contract),
+          ]);
         } catch (error) {
           logger.error(
             this.queueName,
@@ -92,7 +88,7 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
     params: {
       contract: string | { contract: string; community: string }[];
       tokenId?: string;
-      community?: string;
+      community?: string | null;
       forceRefresh?: boolean;
     },
     delay = 0,

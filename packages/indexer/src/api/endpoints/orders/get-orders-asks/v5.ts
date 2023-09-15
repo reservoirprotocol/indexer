@@ -152,7 +152,11 @@ export const getOrdersAsksV5Options: RouteOptions = {
         .when("sortBy", {
           is: Joi.valid("updatedAt"),
           then: Joi.valid("asc", "desc").default("desc"),
-          otherwise: Joi.valid("desc").default("desc"),
+          otherwise: Joi.when("sortBy", {
+            is: Joi.valid("price"),
+            then: Joi.valid("asc", "desc").default("asc"),
+            otherwise: Joi.valid("desc").default("desc"),
+          }),
         }),
       continuation: Joi.string()
         .pattern(regex.base64)
@@ -312,13 +316,6 @@ export const getOrdersAsksV5Options: RouteOptions = {
       ) {
         throw Boom.badRequest(
           `You must provide one of the following: [ids, maker, contracts] in order to filter querys with sortBy = updatedAt and status != 'active.`
-        );
-      }
-
-      // TODO Remove this restriction once an index is created for updatedAt and contracts
-      if (query.sortBy === "updatedAt" && query.contracts && query.status === "any") {
-        throw Boom.badRequest(
-          `Cannot filter by contracts while sortBy = "updatedAt" and status = "any"`
         );
       }
 
@@ -530,9 +527,9 @@ export const getOrdersAsksV5Options: RouteOptions = {
       // Sorting
       if (query.sortBy === "price") {
         if (query.normalizeRoyalties) {
-          baseQuery += ` ORDER BY orders.normalized_value, orders.id`;
+          baseQuery += ` ORDER BY orders.normalized_value, orders.fee_bps, orders.id`;
         } else {
-          baseQuery += ` ORDER BY orders.price, orders.id`;
+          baseQuery += ` ORDER BY orders.price, orders.fee_bps, orders.id`;
         }
       } else if (query.sortBy === "updatedAt") {
         if (query.sortDirection === "asc") {

@@ -135,6 +135,7 @@ export enum Network {
   Avalanche = 43114,
   Linea = 59144,
   Zora = 7777777,
+  PolygonZkevm = 1101,
   // Testnets
   EthereumGoerli = 5,
   ZoraTestnet = 999,

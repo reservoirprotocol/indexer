@@ -37,7 +37,8 @@
     "@/events-sync": "./packages/indexer/dist/sync/events",
     "@/pubsub": "./packages/indexer/dist/pubsub",
     "@/websockets": "./packages/indexer/dist/websockets",
-    "@/elasticsearch": "./packages/indexer/dist/elasticsearch"
+    "@/elasticsearch": "./packages/indexer/dist/elasticsearch",
+    "@/metadata": "./packages/indexer/dist/metadata"
   },
   "resolutions": {
     "**/flat": "^5.0.1",
