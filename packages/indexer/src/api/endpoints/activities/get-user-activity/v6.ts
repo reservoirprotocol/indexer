@@ -223,7 +223,7 @@ export const getUserActivityV6Options: RouteOptions = {
       let tokensToFetch: any[] = [];
       let nonCachedTokensToFetch: string[] = [];
 
-      query.getRealtimeTokensMetadata = query.includeMetadata && Math.floor(Math.random() * 2);
+      query.getRealtimeTokensMetadata = query.includeMetadata && config.enableActivitiesTokenCache;
 
       if (query.getRealtimeTokensMetadata) {
         try {

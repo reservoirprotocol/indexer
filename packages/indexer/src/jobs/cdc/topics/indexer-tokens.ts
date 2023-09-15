@@ -6,7 +6,6 @@ import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
-import { logger } from "@/common/logger";
 
 export class IndexerTokensHandler extends KafkaEventHandler {
   topicName = "indexer.public.tokens";
@@ -43,7 +42,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
     });
 
     if (payload.after.name || payload.after.image) {
-      const setResult = await redis.set(
+      await redis.set(
         `token-cache:${payload.after.contract}:${payload.after.token_id}`,
         JSON.stringify({
           contract: payload.after.contract,
@@ -55,19 +54,6 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         60 * 60 * 24,
         "XX"
       );
-
-      if (setResult) {
-        logger.info(
-          `indexer-tokens-handler`,
-          JSON.stringify({
-            topic: "token-cache",
-            message: `Set cache for token ${payload.after.contract}:${payload.after.token_id}`,
-            payloadAfter: payload.after,
-            contract: payload.after.contract,
-            tokenId: payload.after.token_id,
-          })
-        );
-      }
     }
   }
 
