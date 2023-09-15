@@ -145,7 +145,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
-    // const startGetTokenActivity = Date.now();
+    const startTimestamp = Date.now();
 
     const query = request.query as any;
 
@@ -217,6 +217,8 @@ export const getCollectionActivityV6Options: RouteOptions = {
       let tokensMetadata: any[] = [];
       let tokensToFetch: any[] = [];
       let nonCachedTokensToFetch: string[] = [];
+
+      const startCacheTimestamp = Date.now();
 
       query.getRealtimeTokensMetadata = query.includeMetadata && config.enableActivitiesTokenCache;
 
@@ -305,6 +307,8 @@ export const getCollectionActivityV6Options: RouteOptions = {
           logger.error(`get-collection-activity-${version}-handler`, `Token cache error: ${error}`);
         }
       }
+
+      const endCacheTimestamp = Date.now();
 
       const result = _.map(activities, async (activity) => {
         const currency = activity.pricing?.currency
@@ -407,19 +411,21 @@ export const getCollectionActivityV6Options: RouteOptions = {
         };
       });
 
-      // const endGetTokenActivity = Date.now();
-      //
-      // logger.info(
-      //   `get-collection-activity-${version}-handler`,
-      //   JSON.stringify({
-      //     topic: "token-cache",
-      //     message: `Cache Latency`,
-      //     getRealtimeTokensMetadata: query.getRealtimeTokensMetadata,
-      //     tokensToFetchCount: tokensToFetch.length,
-      //     nonCachedTokensToFetchCount: nonCachedTokensToFetch.length,
-      //     latency: endGetTokenActivity - startGetTokenActivity,
-      //   })
-      // );
+      const endTimestamp = Date.now();
+
+      logger.info(
+        `get-collection-activity-${version}-handler`,
+        JSON.stringify({
+          topic: "token-cache",
+          message: `Cache Latency`,
+          getRealtimeTokensMetadata: query.getRealtimeTokensMetadata,
+          tokensToFetchCount: tokensToFetch.length,
+          nonCachedTokensToFetchCount: nonCachedTokensToFetch.length,
+          totalLatency: endTimestamp - startTimestamp,
+          cacheLatency: endCacheTimestamp - startCacheTimestamp,
+          addedLatency: endTimestamp - startTimestamp - (endCacheTimestamp - startCacheTimestamp),
+        })
+      );
 
       return { activities: await Promise.all(result), continuation };
     } catch (error) {
