@@ -321,7 +321,7 @@ export const getNetworkSettings = (): NetworkSettings => {
               decimals: 8,
               metadata: 
                 image:
-                  "https://i.ibb.co/hsCRNcY/bedenia1.png", 
+                  "https://i.ibb.co/9GP6X1R/bidenia-Token.png", 
               },
             },
           ],
