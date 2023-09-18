@@ -16,18 +16,12 @@ export class OrderbookOrdersJob extends AbstractRabbitMqJobHandler {
     await processOrder(this, payload);
   }
 
-  public async addToQueue(
-    orderInfos: GenericOrderInfo[],
-    prioritized = false,
-    delay = 0,
-    jobId?: string
-  ) {
+  public async addToQueue(orderInfos: GenericOrderInfo[], prioritized = false, delay = 0) {
     await this.sendBatch(
       orderInfos.map((orderInfo) => ({
         payload: orderInfo,
         priority: prioritized ? 1 : 0,
         delay: delay ? delay * 1000 : 1,
-        jobId,
       }))
     );
   }
