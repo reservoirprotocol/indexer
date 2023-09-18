@@ -133,8 +133,6 @@ export const getTokenActivityV5Options: RouteOptions = {
     }
 
     try {
-      const startGetTokenActivity = Date.now();
-
       const [contract, tokenId] = params.token.split(":");
 
       const { activities, continuation } = await ActivitiesIndex.search({
@@ -150,14 +148,10 @@ export const getTokenActivityV5Options: RouteOptions = {
       }
 
       let tokensMetadata: any[] = [];
-      let tokensToFetch: any[] = [];
-      let nonCachedTokensToFetch: string[] = [];
 
-      query.getRealtimeTokensMetadata = query.includeMetadata && config.enableActivitiesTokenCache;
-
-      if (query.getRealtimeTokensMetadata) {
+      if (query.includeMetadata) {
         try {
-          tokensToFetch = activities
+          let tokensToFetch = activities
             .filter((activity) => activity.token)
             .map((activity) => `token-cache:${activity.contract}:${activity.token?.id}`);
 
@@ -169,7 +163,7 @@ export const getTokenActivityV5Options: RouteOptions = {
             .filter((token) => token)
             .map((token) => JSON.parse(token));
 
-          nonCachedTokensToFetch = tokensToFetch.filter((tokenToFetch) => {
+          const nonCachedTokensToFetch = tokensToFetch.filter((tokenToFetch) => {
             const [, contract, tokenId] = tokenToFetch.split(":");
 
             return (
@@ -203,7 +197,7 @@ export const getTokenActivityV5Options: RouteOptions = {
             );
 
             if (tokensResult?.length) {
-              tokensMetadata.concat(
+              tokensMetadata = tokensMetadata.concat(
                 tokensResult.map((token) => ({
                   contract: fromBuffer(token.contract),
                   token_id: token.token_id,
@@ -270,7 +264,7 @@ export const getTokenActivityV5Options: RouteOptions = {
 
             if (activity.order.criteria.kind === "token") {
               (orderCriteria as any).data.token = {
-                tokenId: tokenMetadata ? tokenMetadata.id : activity.token?.id,
+                tokenId: activity.token?.id,
                 name: tokenMetadata ? tokenMetadata.name : activity.token?.name,
                 image: tokenMetadata ? tokenMetadata.image : activity.token?.image,
               };
@@ -319,7 +313,7 @@ export const getTokenActivityV5Options: RouteOptions = {
           createdAt: new Date(activity.createdAt).toISOString(),
           contract: activity.contract,
           token: {
-            tokenId: tokenMetadata ? tokenMetadata.id : activity.token?.id,
+            tokenId: activity.token?.id,
             tokenName: query.includeMetadata
               ? tokenMetadata
                 ? tokenMetadata.name
@@ -345,20 +339,6 @@ export const getTokenActivityV5Options: RouteOptions = {
           order,
         };
       });
-
-      const endGetTokenActivity = Date.now();
-
-      logger.info(
-        `get-token-activity-${version}-handler`,
-        JSON.stringify({
-          topic: "token-cache",
-          message: `Cache Latency`,
-          getRealtimeTokensMetadata: query.getRealtimeTokensMetadata,
-          tokensToFetchCount: tokensToFetch.length,
-          nonCachedTokensToFetchCount: nonCachedTokensToFetch.length,
-          latency: endGetTokenActivity - startGetTokenActivity,
-        })
-      );
 
       return { activities: await Promise.all(result), continuation };
     } catch (error) {

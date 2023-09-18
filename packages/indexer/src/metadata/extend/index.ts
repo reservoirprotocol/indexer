@@ -35,6 +35,7 @@ import * as shreddingSassy from "./shredding-sassy";
 import * as soundxyz from "./soundxyz";
 import * as tfoust from "./tfoust";
 import * as utopiaAvatars from "./utopia-avatars";
+import * as superrareShared from "./superrare-shared";
 
 const extendCollection: any = {};
 const extend: any = {};
@@ -127,9 +128,6 @@ extendCollection["5,0xd8560c88d1dc85f9ed05b25878e366c49b68bef9"] = sharedContrac
 extendCollection["1,0xb66a603f4cfe17e3d27b87a8bfcad319856518b8"] = sharedContracts;
 extendCollection["5,0x7c4b13b5893cd82f371c5e28f12fb2f37542bbc5"] = sharedContracts;
 
-// Superrare
-extendCollection["1,0xb932a70a57673d89f4acffbe830e8ed7f75fb9e0"] = sharedContracts;
-
 // Foundation
 extendCollection["1,0x3b3ee1931dc30c1957379fac9aba94d1c48a5405"] = sharedContracts;
 
@@ -173,6 +171,9 @@ extendCollection["1,0xc143bbfcdbdbed6d454803804752a064a622c1f3"] = asyncBlueprin
 
 // Mirage Gallery Curated
 extendCollection["1,0xb7ec7bbd2d2193b47027247fc666fb342d23c4b5"] = mirageGalleryCurated;
+
+// Superrare Shared
+extendCollection["1,0xb932a70a57673d89f4acffbe830e8ed7f75fb9e0"] = superrareShared;
 
 // Sound XYZ
 soundxyz.SoundxyzArtistContracts.forEach(
@@ -304,3 +305,6 @@ extend["1,0x11708dc8a3ea69020f520c81250abb191b190110"] = cryptokicksIrl;
 
 // Utopia Avatars
 extend["1,0x5f076e995290f3f9aea85fdd06d8fae118f2b75c"] = utopiaAvatars;
+
+// Superrare Shared
+extend["1,0xb932a70a57673d89f4acffbe830e8ed7f75fb9e0"] = superrareShared;
