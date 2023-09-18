@@ -18,6 +18,7 @@ export const extendCollection = async (
   if (creatorAddress) {
     metadata.id = `${metadata.contract}:superrare-shared-${creatorAddress}`;
     metadata.name = "Foundation";
+    metadata.creator = creatorAddress;
     return {
       ...metadata,
     };
