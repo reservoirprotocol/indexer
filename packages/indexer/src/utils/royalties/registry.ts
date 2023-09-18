@@ -7,6 +7,7 @@ import { bn, fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { idb } from "@/common/db";
 import { Royalty, updateRoyaltySpec } from "@/utils/royalties";
+import { logger } from "@/common/logger";
 
 const DEFAULT_PRICE = "1000000000000000000";
 
@@ -42,6 +43,17 @@ export const refreshRegistryRoyalties = async (collection: string) => {
   const tokenId = tokenResult?.token_id || "0";
 
   const latestRoyalties = await getRegistryRoyalties(token, tokenId);
+
+  if (config.chainId === 137) {
+    logger.info(
+      "refreshRegistryRoyalties",
+      JSON.stringify({
+        topic: "debugRoyalties",
+        message: `Got latest royalties. token=${token}, tokenId=${tokenId}`,
+        latestRoyalties,
+      })
+    );
+  }
 
   // Save the retrieved royalty spec
   await updateRoyaltySpec(
@@ -88,8 +100,14 @@ export const getRegistryRoyalties = async (token: string, tokenId: string) => {
         const bps = Math.round(bn(amount).mul(10000).div(DEFAULT_PRICE).toNumber());
         latestRoyalties.push({ recipient, bps });
       }
-    } catch {
-      // Skip errors
+    } catch (error) {
+      logger.error(
+        "getRegistryRoyalties",
+        JSON.stringify({
+          topic: "debugRoyalties",
+          message: `Error. token=${token}, tokenId=${tokenId}, error=${error}`,
+        })
+      );
     }
   }
 

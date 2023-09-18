@@ -6,7 +6,6 @@ import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { idb, ridb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
-import { refreshActivitiesTokenMetadataJob } from "@/jobs/activities/refresh-activities-token-metadata-job";
 import { updateCollectionDailyVolumeJob } from "@/jobs/collection-updates/update-collection-daily-volume-job";
 import { replaceActivitiesCollectionJob } from "@/jobs/activities/replace-activities-collection-job";
 import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
@@ -49,7 +48,6 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       metadataOriginalUrl,
       mediaUrl,
       flagged,
-      isCopyrightInfringement,
       attributes,
     } = payload;
 
@@ -116,15 +114,6 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
     // Skip if there is no associated entry in the `tokens` table
     if (!result) {
       return;
-    }
-
-    if (
-      isCopyrightInfringement ||
-      result.old_metadata.name != name ||
-      result.old_metadata.image != imageUrl ||
-      result.old_metadata.media != mediaUrl
-    ) {
-      await refreshActivitiesTokenMetadataJob.addToQueue(contract, tokenId);
     }
 
     // If the new collection ID is different from the collection ID currently stored

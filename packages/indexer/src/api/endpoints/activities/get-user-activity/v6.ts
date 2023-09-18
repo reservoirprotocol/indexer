@@ -218,14 +218,10 @@ export const getUserActivityV6Options: RouteOptions = {
       });
 
       let tokensMetadata: any[] = [];
-      let tokensToFetch: any[] = [];
-      let nonCachedTokensToFetch: string[] = [];
 
-      query.getRealtimeTokensMetadata = query.includeMetadata && config.enableActivitiesTokenCache;
-
-      if (query.getRealtimeTokensMetadata) {
+      if (query.includeMetadata) {
         try {
-          tokensToFetch = activities
+          let tokensToFetch = activities
             .filter((activity) => activity.token)
             .map((activity) => `token-cache:${activity.contract}:${activity.token?.id}`);
 
@@ -238,7 +234,7 @@ export const getUserActivityV6Options: RouteOptions = {
               .filter((token) => token)
               .map((token) => JSON.parse(token));
 
-            nonCachedTokensToFetch = tokensToFetch.filter((tokenToFetch) => {
+            const nonCachedTokensToFetch = tokensToFetch.filter((tokenToFetch) => {
               const [, contract, tokenId] = tokenToFetch.split(":");
 
               return (
@@ -272,7 +268,7 @@ export const getUserActivityV6Options: RouteOptions = {
               );
 
               if (tokensResult?.length) {
-                tokensMetadata.concat(
+                tokensMetadata = tokensMetadata.concat(
                   tokensResult.map((token) => ({
                     contract: fromBuffer(token.contract),
                     token_id: token.token_id,
@@ -340,7 +336,7 @@ export const getUserActivityV6Options: RouteOptions = {
 
             if (activity.order.criteria.kind === "token") {
               (orderCriteria as any).data.token = {
-                tokenId: tokenMetadata ? tokenMetadata.id : activity.token?.id,
+                tokenId: activity.token?.id,
                 name: tokenMetadata ? tokenMetadata.name : activity.token?.name,
                 image: tokenMetadata ? tokenMetadata.image : activity.token?.image,
               };

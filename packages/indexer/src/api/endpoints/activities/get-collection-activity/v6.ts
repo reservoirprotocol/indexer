@@ -145,8 +145,6 @@ export const getCollectionActivityV6Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
-    // const startTimestamp = Date.now();
-
     const query = request.query as any;
 
     if (query.types && !_.isArray(query.types)) {
@@ -215,16 +213,10 @@ export const getCollectionActivityV6Options: RouteOptions = {
       });
 
       let tokensMetadata: any[] = [];
-      let tokensToFetch: any[] = [];
-      let nonCachedTokensToFetch: string[] = [];
 
-      // const startCacheTimestamp = Date.now();
-
-      query.getRealtimeTokensMetadata = query.includeMetadata && config.enableActivitiesTokenCache;
-
-      if (query.getRealtimeTokensMetadata) {
+      if (query.includeMetadata) {
         try {
-          tokensToFetch = activities
+          let tokensToFetch = activities
             .filter((activity) => activity.token)
             .map((activity) => `token-cache:${activity.contract}:${activity.token?.id}`);
 
@@ -237,7 +229,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
               .filter((token) => token)
               .map((token) => JSON.parse(token));
 
-            nonCachedTokensToFetch = tokensToFetch.filter((tokenToFetch) => {
+            const nonCachedTokensToFetch = tokensToFetch.filter((tokenToFetch) => {
               const [, contract, tokenId] = tokenToFetch.split(":");
 
               return (
@@ -271,7 +263,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
               );
 
               if (tokensResult?.length) {
-                tokensMetadata.concat(
+                tokensMetadata = tokensMetadata.concat(
                   tokensResult.map((token) => ({
                     contract: fromBuffer(token.contract),
                     token_id: token.token_id,
@@ -310,8 +302,6 @@ export const getCollectionActivityV6Options: RouteOptions = {
         }
       }
 
-      // const endCacheTimestamp = Date.now();
-
       const result = _.map(activities, async (activity) => {
         const currency = activity.pricing?.currency
           ? activity.pricing.currency
@@ -341,7 +331,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
 
             if (activity.order.criteria.kind === "token") {
               (orderCriteria as any).data.token = {
-                tokenId: tokenMetadata ? tokenMetadata.id : activity.token?.id,
+                tokenId: activity.token?.id,
                 name: tokenMetadata ? tokenMetadata.name : activity.token?.name,
                 image: tokenMetadata ? tokenMetadata.image : activity.token?.image,
               };
@@ -412,21 +402,6 @@ export const getCollectionActivityV6Options: RouteOptions = {
           order,
         };
       });
-
-      // const endTimestamp = Date.now();
-      //
-      // logger.info(
-      //   `get-collection-activity-${version}-handler`,
-      //   JSON.stringify({
-      //     topic: "token-cache",
-      //     message: `Cache Latency`,
-      //     getRealtimeTokensMetadata: query.getRealtimeTokensMetadata,
-      //     tokensToFetchCount: tokensToFetch.length,
-      //     nonCachedTokensToFetchCount: nonCachedTokensToFetch.length,
-      //     totalLatency: endTimestamp - startTimestamp,
-      //     cacheLatency: endCacheTimestamp - startCacheTimestamp,
-      //   })
-      // );
 
       return { activities: await Promise.all(result), continuation };
     } catch (error) {
