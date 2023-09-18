@@ -47,8 +47,8 @@ export const refreshRegistryRoyalties = async (collection: string) => {
   logger.info(
     "refreshRegistryRoyalties",
     JSON.stringify({
-      topic: "getRegistryRoyalties",
-      message: `Refreshing deployed collection on chain royalties. contract=${collectionResult.contract}, tokenId=${tokenId}`,
+      topic: "debugRoyalties",
+      message: `Got latest royalties. contract=${collectionResult.contract}, tokenId=${tokenId}`,
       latestRoyalties,
     })
   );
@@ -101,7 +101,10 @@ export const getRegistryRoyalties = async (token: string, tokenId: string) => {
     } catch (error) {
       logger.error(
         "getRegistryRoyalties",
-        `Refreshing deployed collection on chain royalties error. token=${token}, tokenId=${tokenId}, error=${error}`
+        JSON.stringify({
+          topic: "debugRoyalties",
+          message: `Error. token=${token}, tokenId=${tokenId}, error=${error}`,
+        })
       );
     }
   }
