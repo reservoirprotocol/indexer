@@ -54,9 +54,10 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
         logger.info(
           this.queueName,
           JSON.stringify({
-            message: `Trying again. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}, expectedDelayedLockId=${payload.delayedLockId}`,
+            message: `Trying again. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}, delayedLockId=${payload.delayedLockId}`,
             payload,
             collectionId: collectionResult.collection_id,
+            delayedLockId: payload.delayedLockId,
           })
         );
 
@@ -102,6 +103,8 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
               delayedLockId,
             })
           );
+
+          payload.delayedLockId = delayedLockId;
 
           await this.addToQueue([payload], 1000);
         } else {
