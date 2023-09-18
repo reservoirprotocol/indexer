@@ -6,7 +6,7 @@ import _ from "lodash";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 import { releaseLock } from "@/common/redis";
 import { generateCollectionTokenSetJob } from "@/jobs/flag-status/generate-collection-token-set-job";
-import MetadataApi from "@/utils/metadata-api";
+import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 import { TokensEntityUpdateParams } from "@/models/tokens/tokens-entity";
 import { Tokens } from "@/models/tokens";
 import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
@@ -55,7 +55,7 @@ export class FlagStatusSyncJob extends AbstractRabbitMqJobHandler {
     await Promise.all(
       pendingSyncFlagStatusTokensChunks.map(async (pendingSyncFlagStatusTokensChunk) => {
         try {
-          const tokensMetadata = await MetadataApi.getTokensMetadata(
+          const tokensMetadata = await MetadataProviderRouter.getTokensMetadata(
             pendingSyncFlagStatusTokensChunk
           );
 

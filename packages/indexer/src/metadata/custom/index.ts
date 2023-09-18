@@ -1,31 +1,29 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
+import { config } from "@/config/index";
 import * as copyrightInfringement from "./copyright-infringement";
 
 const customCollection: { [key: string]: any } = {};
 const custom: { [key: string]: any } = {};
 
-export const hasCustomCollectionHandler = (chainId: number, contract: string) =>
-  Boolean(customCollection[`${chainId},${contract}`]);
+export const hasCustomCollectionHandler = (contract: string) =>
+  Boolean(customCollection[`${config.chainId},${contract}`]);
 
-export const hasCustomHandler = (chainId: number, contract: string) =>
-  Boolean(custom[`${chainId},${contract}`]);
+export const hasCustomHandler = (contract: string) =>
+  Boolean(custom[`${config.chainId},${contract}`]);
 
 // All of the below methods assume the caller ensured that a custom
 // handler exists (eg. via calling the above check methods)
 
-export const customHandleCollection = async (chainId: number, token: any) =>
-  customCollection[`${chainId},${token.contract}`].fetchCollection(chainId, token);
+export const customHandleCollection = async (token: any) =>
+  customCollection[`${config.chainId},${token.contract}`].fetchCollection(token);
 
-export const customHandleToken = async (chainId: number, token: any) =>
-  custom[`${chainId},${token.contract}`].fetchToken(chainId, token);
+export const customHandleToken = async (token: any) =>
+  custom[`${config.chainId},${token.contract}`].fetchToken(token);
 
-export const customHandleContractTokens = async (
-  chainId: number,
-  contract: string,
-  continuation: string
-) => custom[`${chainId},${contract}`].fetchContractTokens(null, chainId, continuation);
+export const customHandleContractTokens = async (contract: string, continuation: string) =>
+  custom[`${config.chainId},${contract}`].fetchContractTokens(null, continuation);
 
 /////////////////////
 // Custom Collections
