@@ -44,14 +44,16 @@ export const refreshRegistryRoyalties = async (collection: string) => {
 
   const latestRoyalties = await getRegistryRoyalties(token, tokenId);
 
-  logger.info(
-    "refreshRegistryRoyalties",
-    JSON.stringify({
-      topic: "debugRoyalties",
-      message: `Got latest royalties. contract=${collectionResult.contract}, tokenId=${tokenId}`,
-      latestRoyalties,
-    })
-  );
+  if (config.chainId === 137) {
+    logger.info(
+      "refreshRegistryRoyalties",
+      JSON.stringify({
+        topic: "debugRoyalties",
+        message: `Got latest royalties. token=${token}, tokenId=${tokenId}`,
+        latestRoyalties,
+      })
+    );
+  }
 
   // Save the retrieved royalty spec
   await updateRoyaltySpec(
