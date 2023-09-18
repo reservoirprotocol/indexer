@@ -145,8 +145,6 @@ export const getCollectionActivityV6Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
-    const startTimestamp = Date.now();
-
     const query = request.query as any;
 
     if (query.types && !_.isArray(query.types)) {
@@ -215,16 +213,10 @@ export const getCollectionActivityV6Options: RouteOptions = {
       });
 
       let tokensMetadata: any[] = [];
-      let tokensToFetch: any[] = [];
-      let nonCachedTokensToFetch: string[] = [];
 
-      const startCacheTimestamp = Date.now();
-
-      const getRealtimeTokensMetadata = query.includeMetadata && config.enableActivitiesTokenCache;
-
-      if (getRealtimeTokensMetadata) {
+      if (query.includeMetadata) {
         try {
-          tokensToFetch = activities
+          let tokensToFetch = activities
             .filter((activity) => activity.token)
             .map((activity) => `token-cache:${activity.contract}:${activity.token?.id}`);
 
@@ -237,7 +229,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
               .filter((token) => token)
               .map((token) => JSON.parse(token));
 
-            nonCachedTokensToFetch = tokensToFetch.filter((tokenToFetch) => {
+            const nonCachedTokensToFetch = tokensToFetch.filter((tokenToFetch) => {
               const [, contract, tokenId] = tokenToFetch.split(":");
 
               return (
@@ -309,8 +301,6 @@ export const getCollectionActivityV6Options: RouteOptions = {
           logger.error(`get-collection-activity-${version}-handler`, `Token cache error: ${error}`);
         }
       }
-
-      const endCacheTimestamp = Date.now();
 
       const result = _.map(activities, async (activity) => {
         const currency = activity.pricing?.currency
@@ -412,23 +402,6 @@ export const getCollectionActivityV6Options: RouteOptions = {
           order,
         };
       });
-
-      const endTimestamp = Date.now();
-
-      if (getRealtimeTokensMetadata) {
-        logger.info(
-          `get-collection-activity-${version}-handler`,
-          JSON.stringify({
-            topic: "token-cache",
-            message: `Cache Latency`,
-            tokensToFetchCount: tokensToFetch.length,
-            nonCachedTokensToFetchCount: nonCachedTokensToFetch.length,
-            tokensMetadataCount: tokensMetadata.length,
-            totalLatency: endTimestamp - startTimestamp,
-            cacheLatency: endCacheTimestamp - startCacheTimestamp,
-          })
-        );
-      }
 
       return { activities: await Promise.all(result), continuation };
     } catch (error) {

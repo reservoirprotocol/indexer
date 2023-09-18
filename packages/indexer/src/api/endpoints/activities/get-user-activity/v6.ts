@@ -218,14 +218,10 @@ export const getUserActivityV6Options: RouteOptions = {
       });
 
       let tokensMetadata: any[] = [];
-      let tokensToFetch: any[] = [];
-      let nonCachedTokensToFetch: string[] = [];
 
-      query.getRealtimeTokensMetadata = query.includeMetadata && config.enableActivitiesTokenCache;
-
-      if (query.getRealtimeTokensMetadata) {
+      if (query.includeMetadata) {
         try {
-          tokensToFetch = activities
+          let tokensToFetch = activities
             .filter((activity) => activity.token)
             .map((activity) => `token-cache:${activity.contract}:${activity.token?.id}`);
 
@@ -238,7 +234,7 @@ export const getUserActivityV6Options: RouteOptions = {
               .filter((token) => token)
               .map((token) => JSON.parse(token));
 
-            nonCachedTokensToFetch = tokensToFetch.filter((tokenToFetch) => {
+            const nonCachedTokensToFetch = tokensToFetch.filter((tokenToFetch) => {
               const [, contract, tokenId] = tokenToFetch.split(":");
 
               return (
