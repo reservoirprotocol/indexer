@@ -12,7 +12,7 @@ export type EventsSyncRealtimeJobPayload = {
 export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-realtime";
   maxRetries = 30;
-  concurrency = [137, 84531, 80001, 11155111].includes(config.chainId) ? 1 : 5;
+  concurrency = [84531, 80001, 11155111].includes(config.chainId) ? 1 : 5;
   timeout = 10 * 60 * 1000;
   backoff = {
     type: "fixed",
@@ -42,9 +42,7 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
 
         return { addToQueue: true, delay: 1000 };
       } else if (error?.message.includes("unfinalized")) {
-        logger.info(this.queueName, `Block ${block} is unfinalized, adding back to queue`);
-
-        return { addToQueue: true, delay: 1000 };
+        return { addToQueue: true, delay: 2000 };
       } else {
         throw error;
       }

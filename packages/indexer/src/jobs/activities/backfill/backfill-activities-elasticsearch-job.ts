@@ -103,19 +103,17 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           "SELECT min(timestamp) AS min_timestamp, MAX(timestamp) AS max_timestamp from nft_transfer_events where is_deleted = 0;";
 
         const timestamps = await ridb.oneOrNone(query);
-        const minTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
 
-        const start = new Date(minTimestamp * 1000);
-        const end = new Date(timestamps.max_timestamp * 1000);
+        const startTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
+        const endTimestamp = timestamps.max_timestamp;
 
-        let loop = new Date(start);
+        let currentDay = startTimestamp;
 
         let jobCount = 0;
 
-        while (loop <= end) {
-          const fromTimestamp = Math.floor(loop.getTime() / 1000);
-          const newDate = loop.setDate(loop.getDate() + 1);
-          const toTimestamp = Math.floor(newDate / 1000);
+        while (currentDay <= endTimestamp) {
+          const fromTimestamp = currentDay;
+          const toTimestamp = currentDay + 3600;
 
           await backfillSaveActivitiesElasticsearchJob.addToQueue(
             "transfer",
@@ -127,7 +125,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
 
           jobCount++;
 
-          loop = new Date(newDate);
+          currentDay = toTimestamp;
 
           await redis.hset(
             `backfill-activities-elasticsearch-job:transfer`,
@@ -135,6 +133,37 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
             JSON.stringify({ fromTimestamp, toTimestamp })
           );
         }
+
+        // const start = new Date(minTimestamp * 1000);
+        // const end = new Date(timestamps.max_timestamp * 1000);
+        //
+        // let loop = new Date(start);
+        //
+        // let jobCount = 0;
+        //
+        // while (loop <= end) {
+        //   const fromTimestamp = Math.floor(loop.getTime() / 1000);
+        //   const newDate = loop.setDate(loop.getDate() + 1);
+        //   const toTimestamp = Math.floor(newDate / 1000);
+        //
+        //   await backfillSaveActivitiesElasticsearchJob.addToQueue(
+        //     "transfer",
+        //     undefined,
+        //     fromTimestamp,
+        //     toTimestamp,
+        //     indexName
+        //   );
+        //
+        //   jobCount++;
+        //
+        //   loop = new Date(newDate);
+        //
+        //   await redis.hset(
+        //     `backfill-activities-elasticsearch-job:transfer`,
+        //     `${fromTimestamp}:${toTimestamp}`,
+        //     JSON.stringify({ fromTimestamp, toTimestamp })
+        //   );
+        // }
 
         await redis.set(`backfill-activities-elasticsearch-job-count:transfer`, jobCount);
 
@@ -147,12 +176,10 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         );
 
         if (keepGoing) {
-          const fromTimestamp = Math.floor(end.getTime() / 1000);
-
           await backfillSaveActivitiesElasticsearchJob.addToQueue(
             "transfer",
             undefined,
-            fromTimestamp,
+            endTimestamp,
             undefined,
             indexName,
             true

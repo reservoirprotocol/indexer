@@ -8,8 +8,8 @@ import { baseProvider } from "@/common/provider";
 import { config } from "@/config/index";
 import { getNetworkName } from "@/config/network";
 import { logger } from "@/common/logger";
-import { customHandleContractTokens, customHandleToken, hasCustomHandler } from "@/metadata/custom";
-import { extendMetadata, hasExtendHandler } from "@/metadata/extend";
+import { customHandleCollection, customHandleToken, hasCustomHandler } from "@/metadata/custom";
+import { extendMetadata, hasExtendHandler, extendCollectionMetadata } from "@/metadata/extend";
 
 export interface TokenMetadata {
   contract: string;
@@ -112,8 +112,7 @@ export class MetadataApi {
     } else {
       // get custom / extended metadata locally
       if (hasCustomHandler(config.chainId, contract)) {
-        const result = await customHandleContractTokens(config.chainId, contract, tokenId);
-        return result;
+        return customHandleCollection(config.chainId, { contract, tokenId });
       }
 
       let indexingMethod =
@@ -145,7 +144,7 @@ export class MetadataApi {
         throw new Error("Fallback collection data not acceptable");
       }
 
-      return collection;
+      return extendCollectionMetadata(config.chainId, collection, tokenId);
     }
   }
 

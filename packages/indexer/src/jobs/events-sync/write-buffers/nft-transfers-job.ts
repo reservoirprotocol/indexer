@@ -18,7 +18,7 @@ export class EventsSyncNftTransfersWriteBufferJob extends AbstractRabbitMqJobHan
     const { query } = payload;
 
     try {
-      await idb.none(query);
+      await idb.manyOrNone(query);
     } catch (error) {
       logger.error(
         this.queueName,

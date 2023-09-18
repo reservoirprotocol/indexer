@@ -39,9 +39,16 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
 
     try {
       // Fetch collection metadata
-      const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, "", {
-        allowFallback: !newCollection,
+      let collection = await MetadataApi.getCollectionMetadata(contract, tokenId, "", {
+        allowFallback: true,
       });
+
+      if (newCollection && collection?.isFallback) {
+        collection = await MetadataApi.getCollectionMetadata(contract, tokenId, "", {
+          allowFallback: false,
+          indexingMethod: "simplehash",
+        });
+      }
 
       let tokenIdRange: string | null = null;
       if (collection.tokenIdRange) {
@@ -177,7 +184,8 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
       await royalties.refreshAllRoyaltySpecs(
         collection.id,
         collection.royalties as royalties.Royalty[] | undefined,
-        collection.openseaRoyalties as royalties.Royalty[] | undefined
+        collection.openseaRoyalties as royalties.Royalty[] | undefined,
+        this.queueName
       );
       await royalties.refreshDefaultRoyalties(collection.id);
 

@@ -404,6 +404,11 @@ export class OrderUpdatesByMakerJob extends AbstractRabbitMqJobHandler {
             // TODO: Is the below filtering needed anymore?
             // Exclude escrowed orders
             .filter(({ kind }) => kind !== "foundation" && kind !== "cryptopunks")
+            // Exclude orders for which the current price in the database might be stale
+            // (we already have other processes to revalidate such orders)
+            .filter(({ new_status, kind }) =>
+              ["sudoswap", "sudoswap-v2", "nftx"].includes(kind) ? new_status !== "fillable" : true
+            )
             // Some orders should never get revalidated
             .map((data) =>
               data.new_status === "no-balance" &&

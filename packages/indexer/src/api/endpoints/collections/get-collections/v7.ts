@@ -142,7 +142,9 @@ export const getCollectionsV7Options: RouteOptions = {
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Input any ERC20 address to return result in given currency"),
+        .description(
+          "Input any ERC20 address to return result in given currency. Applies to `topBid` and `floorAsk`."
+        ),
     }).oxor("id", "slug", "name", "collectionsSetId", "community", "contract"),
   },
   response: {
