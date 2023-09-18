@@ -340,7 +340,7 @@ export const getUserActivityV6Options: RouteOptions = {
 
             if (activity.order.criteria.kind === "token") {
               (orderCriteria as any).data.token = {
-                tokenId: tokenMetadata ? tokenMetadata.id : activity.token?.id,
+                tokenId: activity.token?.id,
                 name: tokenMetadata ? tokenMetadata.name : activity.token?.name,
                 image: tokenMetadata ? tokenMetadata.image : activity.token?.image,
               };

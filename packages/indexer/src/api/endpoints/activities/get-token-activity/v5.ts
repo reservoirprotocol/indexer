@@ -268,7 +268,7 @@ export const getTokenActivityV5Options: RouteOptions = {
 
             if (activity.order.criteria.kind === "token") {
               (orderCriteria as any).data.token = {
-                tokenId: tokenMetadata ? tokenMetadata.id : activity.token?.id,
+                tokenId: activity.token?.id,
                 name: tokenMetadata ? tokenMetadata.name : activity.token?.name,
                 image: tokenMetadata ? tokenMetadata.image : activity.token?.image,
               };
@@ -317,7 +317,7 @@ export const getTokenActivityV5Options: RouteOptions = {
           createdAt: new Date(activity.createdAt).toISOString(),
           contract: activity.contract,
           token: {
-            tokenId: tokenMetadata ? tokenMetadata.id : activity.token?.id,
+            tokenId: activity.token?.id,
             tokenName: query.includeMetadata
               ? tokenMetadata
                 ? tokenMetadata.name
