@@ -282,6 +282,10 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       const name = await contract.name();
       return name;
     } catch (e) {
+      logger.error(
+        "onchain-fetcher",
+        `getContractName error. contractAddress:${contractAddress}, error:${e}`
+      );
       return null;
     }
   }
@@ -315,6 +319,10 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
 
       return json;
     } catch (e) {
+      logger.error(
+        "onchain-fetcher",
+        `getCollectionMetadata error. contractAddress:${contractAddress}, error:${e}`
+      );
       return null;
     }
   }
@@ -362,6 +370,8 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       const json = JSON.parse(body);
       return [json, null];
     } catch (e: any) {
+      logger.error("onchain-fetcher", `sendBatch error. error:${e}`);
+
       return [
         null,
         {
@@ -409,6 +419,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       const json = await response.json();
       return [json, null];
     } catch (e) {
+      logger.error("onchain-fetcher", `getTokenMetadataFromURI error. error:${e}`);
       return [null, e];
     }
   }

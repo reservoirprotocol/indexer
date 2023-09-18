@@ -88,7 +88,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
     }/api/v1/assets?${searchParams.toString()}`;
 
     const data = await axios
-      .get(url, {
+      .get(!this.isOSTestnet() ? config.openSeaApiUrl || url : url, {
         headers: !this.isOSTestnet()
           ? {
               url,
@@ -130,21 +130,21 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
     searchParams.append("limit", "200");
 
     const url = `${
-      config.chainId === 1
-        ? config.openseaSlugBaseUrl || "https://api.opensea.io"
+      !this.isOSTestnet()
+        ? config.openSeaSlugBaseUrl || "https://api.opensea.io"
         : "https://rinkeby-api.opensea.io"
     }/api/v1/assets?${searchParams.toString()}`;
     const data = await axios
-      .get(url, {
-        headers:
-          config.chainId === 1
-            ? {
-                [config.openSeaSlugApiHeaders ?? "X-API-KEY"]: config.openSeaSlugApiKey.trim(),
-                Accept: "application/json",
-              }
-            : {
-                Accept: "application/json",
-              },
+      .get(!this.isOSTestnet() ? config.openSeaApiUrl || url : url, {
+        headers: !this.isOSTestnet()
+          ? {
+              url,
+              "X-API-KEY": config.openSeaApiKey.trim(),
+              Accept: "application/json",
+            }
+          : {
+              Accept: "application/json",
+            },
       })
       .then((response) => response.data)
       .catch((error) => this.handleError(error));
@@ -264,7 +264,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
     contract: string,
     tokenId: string
   ): Promise<{ creatorAddress: string; data: any }> {
-    if (config.chainId === 1) {
+    if (!this.isOSTestnet()) {
       const data = await this.getOSData("asset", contract, tokenId);
 
       return { data, creatorAddress: data?.creator?.address };
@@ -450,6 +450,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
 
     const headers = !this.isOSTestnet()
       ? {
+          url,
           "X-API-KEY": config.openSeaApiKey,
           Accept: "application/json",
         }
@@ -458,7 +459,9 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
         };
 
     try {
-      const osResponse = await axios.get(url, { headers });
+      const osResponse = await axios.get(!this.isOSTestnet() ? config.openSeaApiUrl || url : url, {
+        headers,
+      });
 
       switch (api) {
         case "events":
