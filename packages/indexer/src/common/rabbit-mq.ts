@@ -196,6 +196,7 @@ export class RabbitMq {
               content
             )}`,
             queueName: queueName.substring(_.indexOf(queueName, ".") + 1), // Remove chain name
+            rabbitMqPublisherChannels: RabbitMq.rabbitMqPublisherChannels.length,
           })
         );
       }
