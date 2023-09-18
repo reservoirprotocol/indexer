@@ -184,7 +184,8 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
       await royalties.refreshAllRoyaltySpecs(
         collection.id,
         collection.royalties as royalties.Royalty[] | undefined,
-        collection.openseaRoyalties as royalties.Royalty[] | undefined
+        collection.openseaRoyalties as royalties.Royalty[] | undefined,
+        this.queueName
       );
       await royalties.refreshDefaultRoyalties(collection.id);
 
