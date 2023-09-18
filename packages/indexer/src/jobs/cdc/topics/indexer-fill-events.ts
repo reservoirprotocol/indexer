@@ -39,7 +39,7 @@ export class IndexerFillEventsHandler extends KafkaEventHandler {
     );
 
     metric.distribution({
-      name: "salesLatency",
+      name: "salesLatencyv2",
       value: new Date(payload.after.created_at).getTime() / 1000 - payload.after.timestamp,
       tags: {
         tx_hash: payload.after.tx_hash,
