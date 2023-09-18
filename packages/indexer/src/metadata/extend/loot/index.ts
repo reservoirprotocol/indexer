@@ -249,8 +249,7 @@ const nameSuffixes = [
 const random = (input: string) => BigNumber.from(id(input));
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.toLowerCase().slice(1);
-
-export const extend = async (_chainId: number, metadata: any) => {
+export const extend = async (metadata: any) => {
   const attributes: any[] = [];
   const scores = {
     greatness: 0,

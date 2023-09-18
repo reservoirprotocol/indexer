@@ -8,8 +8,7 @@ export const extendCollection = async (_chainId: number, metadata: any, _tokenId
 
   return { ...metadata };
 };
-
-export const extend = async (_chainId: number, metadata: any) => {
+export const extend = async (metadata: any) => {
   metadata.collection = `${metadata.contract}:opensea-${metadata.slug}`;
   return { ...metadata };
 };

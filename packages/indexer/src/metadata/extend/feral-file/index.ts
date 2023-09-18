@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { CollectionMetadata, TokenMetadata } from "@/utils/metadata-api";
+import { CollectionMetadata, TokenMetadata } from "@/metadata/types";
 
 const collectionsTokenIdRange = [
   [
@@ -17,11 +17,7 @@ const getCollectionTokenIdRange = (tokenId: number) => {
   );
 };
 
-export const extendCollection = async (
-  _chainId: number,
-  metadata: CollectionMetadata,
-  _tokenId = null
-) => {
+export const extendCollection = async (metadata: CollectionMetadata, _tokenId = null) => {
   if (isNaN(Number(_tokenId)) || !_tokenId) {
     throw new Error(`Invalid tokenId ${_tokenId}`);
   }
@@ -40,7 +36,7 @@ export const extendCollection = async (
   return metadata;
 };
 
-export const extend = async (_chainId: number, metadata: TokenMetadata) => {
+export const extend = async (metadata: TokenMetadata) => {
   const collection = getCollectionTokenIdRange(metadata.tokenId);
 
   if (collection) {

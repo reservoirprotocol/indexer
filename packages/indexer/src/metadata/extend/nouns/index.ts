@@ -4,11 +4,11 @@ import { request, gql } from "graphql-request";
 import { utils } from "ethers";
 
 import nouns from "./nouns.json";
-import { TokenMetadata } from "@/utils/metadata-api";
+import { TokenMetadata } from "@/metadata/types";
 
 const capitalizeFirstLetter = (s: any) => s.charAt(0).toUpperCase() + s.slice(1);
 
-export const extend = async (_chainId: number, metadata: TokenMetadata) => {
+export const extend = async (metadata: TokenMetadata) => {
   const traitMap = ["background", "body", "accessory", "head", "glasses"];
   const data = await request(
     "https://api.thegraph.com/subgraphs/name/nounsdao/nouns-subgraph",
