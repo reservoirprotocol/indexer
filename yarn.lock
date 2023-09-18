@@ -7243,7 +7243,7 @@ cross-fetch@^2.1.0, cross-fetch@^2.1.1:
     node-fetch "^2.6.7"
     whatwg-fetch "^2.0.4"
 
-cross-fetch@^3.0.6, cross-fetch@^3.1.4, cross-fetch@^3.1.5:
+cross-fetch@^3.0.6, cross-fetch@^3.1.5:
   version "3.1.8"
   resolved "https://registry.yarnpkg.com/cross-fetch/-/cross-fetch-3.1.8.tgz#0327eba65fd68a7d119f8fb2bf9334a1a7956f82"
   integrity sha512-cvA+JwZoU0Xq+h6WkMvAUqPEYy92Obet6UdKLfW60qn99ftItKjB5T+BkyWOFWe2pUyfQ+IJHmpOTznqk1M6Kg==
@@ -12288,13 +12288,6 @@ loose-envify@^1.0.0:
   integrity sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==
   dependencies:
     js-tokens "^3.0.0 || ^4.0.0"
-
-loot-rarity@5.0.1:
-  version "5.0.1"
-  resolved "https://registry.yarnpkg.com/loot-rarity/-/loot-rarity-5.0.1.tgz#4be9d6d20703cb851c6e02250f1f722786639502"
-  integrity sha512-jK79MAy48Z9dZdWQ9ovGmHDa//I24PzPDVCLf1QiB+UYw66R7yKTXGcNRI9HxFjerGuxUOl+kYzH26APQVlBzg==
-  dependencies:
-    cross-fetch "^3.1.4"
 
 loupe@^2.3.1:
   version "2.3.6"
