@@ -99,6 +99,7 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
               message: `Acquired delayed lock. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}, delayedLockId=${delayedLockId}`,
               payload,
               collectionId: collectionResult.collection_id,
+              delayedLockId,
             })
           );
 
@@ -114,6 +115,8 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
               message: `Failed to acquire delayed lock. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}, cachedDelayedLockId=${cachedDelayedLockId}`,
               payload,
               collectionId: collectionResult.collection_id,
+              delayedLockId,
+              cachedDelayedLockId,
             })
           );
         }
@@ -122,7 +125,7 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
       }
     }
 
-    await releaseLock("delayed" + collectionResult.collection_id);
+    await releaseLock(`${this.queueName}-delayed-lock:${collectionResult.collection_id}`);
 
     logger.info(
       this.queueName,

@@ -109,7 +109,7 @@ export class CollectionNormalizedJob extends AbstractRabbitMqJobHandler {
       }
     }
 
-    await releaseLock("delayed" + collectionResult.collection_id);
+    await releaseLock(`${this.queueName}-delayed-lock:${collectionResult.collection_id}`);
 
     logger.info(
       this.queueName,
