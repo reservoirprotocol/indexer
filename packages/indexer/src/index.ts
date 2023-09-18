@@ -9,7 +9,7 @@ import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import _ from "lodash";
 
-if (!process.env.LOCAL_TESTING) {
+if (process.env.LOCAL_TESTING) {
   import("./setup");
 } else {
   RabbitMq.createVhost()
