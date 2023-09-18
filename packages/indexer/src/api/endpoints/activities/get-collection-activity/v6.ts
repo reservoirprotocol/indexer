@@ -220,9 +220,9 @@ export const getCollectionActivityV6Options: RouteOptions = {
 
       const startCacheTimestamp = Date.now();
 
-      query.getRealtimeTokensMetadata = query.includeMetadata && config.enableActivitiesTokenCache;
+      const getRealtimeTokensMetadata = query.includeMetadata && config.enableActivitiesTokenCache;
 
-      if (query.getRealtimeTokensMetadata) {
+      if (getRealtimeTokensMetadata) {
         try {
           tokensToFetch = activities
             .filter((activity) => activity.token)
@@ -271,7 +271,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
               );
 
               if (tokensResult?.length) {
-                tokensMetadata.concat(
+                tokensMetadata = tokensMetadata.concat(
                   tokensResult.map((token) => ({
                     contract: fromBuffer(token.contract),
                     token_id: token.token_id,
@@ -415,21 +415,20 @@ export const getCollectionActivityV6Options: RouteOptions = {
 
       const endTimestamp = Date.now();
 
-      logger.info(
-        `get-collection-activity-${version}-handler`,
-        JSON.stringify({
-          topic: "token-cache",
-          message: `Cache Latency`,
-          queryIncludeMetadata: query.includeMetadata,
-          configEnableActivitiesTokenCache: config.enableActivitiesTokenCache,
-          getRealtimeTokensMetadata: query.getRealtimeTokensMetadata,
-          tokensToFetchCount: tokensToFetch.length,
-          nonCachedTokensToFetchCount: nonCachedTokensToFetch.length,
-          tokensMetadataCount: tokensMetadata.length,
-          totalLatency: endTimestamp - startTimestamp,
-          cacheLatency: endCacheTimestamp - startCacheTimestamp,
-        })
-      );
+      if (getRealtimeTokensMetadata) {
+        logger.info(
+          `get-collection-activity-${version}-handler`,
+          JSON.stringify({
+            topic: "token-cache",
+            message: `Cache Latency`,
+            tokensToFetchCount: tokensToFetch.length,
+            nonCachedTokensToFetchCount: nonCachedTokensToFetch.length,
+            tokensMetadataCount: tokensMetadata.length,
+            totalLatency: endTimestamp - startTimestamp,
+            cacheLatency: endCacheTimestamp - startCacheTimestamp,
+          })
+        );
+      }
 
       return { activities: await Promise.all(result), continuation };
     } catch (error) {

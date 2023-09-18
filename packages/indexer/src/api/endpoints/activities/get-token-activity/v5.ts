@@ -201,7 +201,7 @@ export const getTokenActivityV5Options: RouteOptions = {
             );
 
             if (tokensResult?.length) {
-              tokensMetadata.concat(
+              tokensMetadata = tokensMetadata.concat(
                 tokensResult.map((token) => ({
                   contract: fromBuffer(token.contract),
                   token_id: token.token_id,
