@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { metric } from "@/common/metric";
 import { KafkaEventHandler } from "./KafkaEventHandler";
 import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
-import { metric } from "@/common/metric";
 
 export class IndexerFillEventsHandler extends KafkaEventHandler {
   topicName = "indexer.public.fill_events_2";
