@@ -9,14 +9,14 @@ export const extendCollection = async (
 ) => {
   const nft = new Contract(
     metadata.contract,
-    new utils.Interface(["function tokenCreator(uint256 _tokenId) view returns (address)"]),
+    new utils.Interface(["function tokenCreator(uint256 tokenId) view returns (address)"]),
     baseProvider
   );
 
   const creatorAddress = await nft.tokenCreator(_tokenId);
 
   if (creatorAddress) {
-    metadata.id = `${metadata.contract}:superrare-shared-${creatorAddress}`;
+    metadata.id = `${metadata.contract}:foundation-shared-${creatorAddress}`;
     metadata.name = "Foundation";
     metadata.creator = creatorAddress;
     return {
