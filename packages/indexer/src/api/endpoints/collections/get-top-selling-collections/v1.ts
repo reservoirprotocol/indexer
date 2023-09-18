@@ -7,6 +7,8 @@ import Joi from "joi";
 import { logger } from "@/common/logger";
 import { regex } from "@/common/utils";
 
+import { redis } from "@/common/redis";
+
 import {
   getTopSellingCollections,
   TopSellingFillOptions,
@@ -100,13 +102,27 @@ export const getTopSellingCollectionsV1Options: RouteOptions = {
     const { startTime, endTime, fillType, limit, includeRecentSales } = request.query;
 
     try {
-      const collectionsResult = await getTopSellingCollections({
-        startTime,
-        endTime,
-        fillType,
-        limit,
-        includeRecentSales,
-      });
+      const oneDayAgo = Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000);
+      let cachedResults = null;
+      let collectionsResult = [];
+
+      // if approx 24 hours ago, use cache
+      if (Math.abs(startTime - oneDayAgo) <= 1000) {
+        const cacheKey = `topSellingCollections:v2:1d:${fillType}:sales`;
+        cachedResults = await redis.get(cacheKey);
+      }
+
+      if (cachedResults) {
+        collectionsResult = JSON.parse(cachedResults).slice(0, limit);
+      } else {
+        collectionsResult = await getTopSellingCollections({
+          startTime,
+          endTime,
+          fillType,
+          limit,
+          includeRecentSales,
+        });
+      }
 
       const collections = await Promise.all(
         collectionsResult.map(async (collection: any) => {
