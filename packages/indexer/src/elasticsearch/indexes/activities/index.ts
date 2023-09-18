@@ -273,7 +273,6 @@ export const getTopSellingCollections = async (params: {
             field: "event.txHash",
           },
         },
-
         total_volume: {
           sum: {
             field: "pricing.priceDecimal",

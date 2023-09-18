@@ -8,6 +8,9 @@ import { fromBuffer, regex, toBuffer } from "@/common/utils";
 import { redb } from "@/common/db";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
+import { getStartTime } from "@/models/top-selling-collections/top-selling-collections";
+
+import { redis } from "@/common/redis";
 
 import {
   getTopSellingCollections,
@@ -39,7 +42,7 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
       fillType: Joi.string()
         .lowercase()
         .valid(..._.values(TopSellingFillOptions))
-        .default(TopSellingFillOptions.any)
+        .default(TopSellingFillOptions.sale)
         .description("Fill types to aggregate from (sale, mint, any)"),
 
       limit: Joi.number()
@@ -135,7 +138,6 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
     },
   },
   handler: async (request: Request, h) => {
-    let cacheTime = 60 * 5;
     const {
       period,
       fillType,
@@ -145,53 +147,26 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
       normalizeRoyalties,
       useNonFlaggedFloorAsk,
     } = request.query;
-    const now = Math.floor(new Date().getTime() / 1000);
+
     try {
-      let startTime = now - 60 * 24 * 60;
+      let collectionsResult = [];
 
-      switch (period) {
-        case "5m": {
-          startTime = now - 5 * 60;
-          cacheTime = 60 * 1;
-          break;
-        }
+      const cacheKey = `topSellingCollections:${period}`;
+      const cachedResults = await redis.get(cacheKey);
 
-        case "10m": {
-          startTime = now - 10 * 60;
-          cacheTime = 60 * 1;
-          break;
-        }
-        case "30m": {
-          startTime = now - 30 * 60;
-          break;
-        }
-        case "1h": {
-          startTime = now - 60 * 1 * 60;
-          break;
-        }
-        case "6h": {
-          startTime = now - 60 * 6 * 60;
-          break;
-        }
+      if (cachedResults) {
+        collectionsResult = JSON.parse(cachedResults).slice(0, limit);
+      } else {
+        const startTime = getStartTime(period);
 
-        case "7d": {
-          startTime = now - 60 * 24 * 60 * 7;
-          break;
-        }
-
-        case "30d": {
-          startTime = now - 60 * 24 * 60 * 30;
-          break;
-        }
+        collectionsResult = await getTopSellingCollections({
+          startTime,
+          fillType,
+          limit,
+          includeRecentSales,
+          sortBy,
+        });
       }
-
-      const collectionsResult = await getTopSellingCollections({
-        startTime,
-        fillType,
-        limit,
-        includeRecentSales,
-        sortBy,
-      });
 
       let floorAskSelectQuery;
 
@@ -248,28 +223,30 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
       const recentSalesPromise = collectionsResult.map(async (collection: any) => {
         return {
           ...collection,
-          recentSales: await Promise.all(
-            collection.recentSales.map(async (sale: any) => {
-              const { pricing, ...salesData } = sale;
-              const price = pricing
-                ? await getJoiPriceObject(
-                    {
-                      gross: {
-                        amount: String(pricing?.currencyPrice ?? pricing?.price ?? 0),
-                        nativeAmount: String(pricing?.price ?? 0),
-                        usdAmount: String(pricing.usdPrice ?? 0),
-                      },
-                    },
-                    pricing.currency
-                  )
-                : null;
+          recentSales: includeRecentSales
+            ? await Promise.all(
+                collection.recentSales.map(async (sale: any) => {
+                  const { pricing, ...salesData } = sale;
+                  const price = pricing
+                    ? await getJoiPriceObject(
+                        {
+                          gross: {
+                            amount: String(pricing?.currencyPrice ?? pricing?.price ?? 0),
+                            nativeAmount: String(pricing?.price ?? 0),
+                            usdAmount: String(pricing.usdPrice ?? 0),
+                          },
+                        },
+                        pricing.currency
+                      )
+                    : null;
 
-              return {
-                ...salesData,
-                price,
-              };
-            })
-          ),
+                  return {
+                    ...salesData,
+                    price,
+                  };
+                })
+              )
+            : [],
         };
       });
 
@@ -285,7 +262,7 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
       const sources = await Sources.getInstance();
 
       const collections = await Promise.all(
-        responses.map(async (response) => {
+        responses.map(async (response: any) => {
           const metadata = collectionsMetadata[(response as any).primaryContract] || {};
           let floorAsk;
           if (metadata) {
@@ -325,7 +302,6 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
         })
       );
       const response = h.response({ collections });
-      response.header("cache-control", `${cacheTime}, public`);
       return response;
     } catch (error) {
       logger.error(`get-top-selling-collections-${version}-handler`, `Handler failure: ${error}`);
