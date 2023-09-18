@@ -130,7 +130,7 @@ export const getUserTokensV7Options: RouteOptions = {
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Input any ERC20 address to return result in given currency"),
+        .description("Input any ERC20 address to return result in given currency. Applies to `topBid` and `floorAsk`."),
     }),
   },
   response: {
