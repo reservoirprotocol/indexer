@@ -416,7 +416,9 @@ export const getTokensV6Options: RouteOptions = {
           fe.royalty_fee_bps AS last_sale_royalty_fee_bps,
           fe.paid_full_royalty AS last_sale_paid_full_royalty,
           fe.royalty_fee_breakdown AS last_sale_royalty_fee_breakdown,
-          fe.marketplace_fee_breakdown AS last_sale_marketplace_fee_breakdown
+          fe.marketplace_fee_breakdown AS last_sale_marketplace_fee_breakdown,
+          fe.order_source_id_int AS last_sale_order_source_id_int,
+          fe.fill_source_id AS last_sale_fill_source_id
         FROM fill_events_2 fe
         WHERE fe.contract = t.contract AND fe.token_id = t.token_id AND fe.is_deleted = 0
         ORDER BY timestamp DESC LIMIT 1
@@ -1247,6 +1249,8 @@ export const getTokensV6Options: RouteOptions = {
                     },
                     currencyAddress: r.last_sale_currency,
                     timestamp: r.last_sale_timestamp,
+                    orderSourceId: r.last_sale_order_source_id_int,
+                    fillSourceId: r.last_sale_fill_source_id,
                   })
                 : undefined,
             owner: r.owner ? fromBuffer(r.owner) : null,
