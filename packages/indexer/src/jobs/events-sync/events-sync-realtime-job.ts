@@ -30,14 +30,14 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
     }
 
     try {
-      await traceSyncJob.addToQueue({ block: block });
-      await syncEvents(block);
-
       // Update the latest block synced
       const latestBlock = await redis.get("latest-block-realtime");
       if (latestBlock && block > Number(latestBlock)) {
         await redis.set("latest-block-realtime", block);
       }
+
+      await traceSyncJob.addToQueue({ block: block });
+      await syncEvents(block);
       //eslint-disable-next-line
     } catch (error: any) {
       // if the error is block not found, add back to queue
