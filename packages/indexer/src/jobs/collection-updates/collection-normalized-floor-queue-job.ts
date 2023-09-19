@@ -11,7 +11,6 @@ export type CollectionNormalizedJobPayload = {
   tokenId: string;
   txHash: string | null;
   txTimestamp: number | null;
-  delayedLockId?: string;
 };
 
 export class CollectionNormalizedJob extends AbstractRabbitMqJobHandler {
