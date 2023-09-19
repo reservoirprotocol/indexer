@@ -1,7 +1,7 @@
 import { idb, redb } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { acquireLock, getLockId, redis, releaseLock } from "@/common/redis";
+import { acquireLock, doesLockExist, redis, releaseLock } from "@/common/redis";
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 import { config } from "@/config/index";
 import { logger } from "@/common/logger";
@@ -12,7 +12,6 @@ export type CollectionFloorJobPayload = {
   tokenId: string;
   txHash: string | null;
   txTimestamp: number | null;
-  delayedLockId?: string;
 };
 
 export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
@@ -49,10 +48,9 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
     logger.info(
       this.queueName,
       JSON.stringify({
-        message: `Start. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}, delayedLockId=${payload.delayedLockId}`,
+        message: `Start. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}`,
         payload,
         collectionId: collectionResult.collection_id,
-        delayedLockId: payload.delayedLockId,
       })
     );
 
@@ -65,22 +63,18 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
       );
 
       if (!acquiredLock) {
-        if (!payload.delayedLockId) {
-          const delayedLockId = JSON.stringify(payload);
+        const acquiredRevalidationLock = await acquireLock(
+          `${this.queueName}-revalidation-lock:${collectionResult.collection_id}`,
+          300
+        );
 
-          await acquireLock(
-            `${this.queueName}-delayed-lock:${collectionResult.collection_id}`,
-            300,
-            delayedLockId
-          );
-
+        if (acquiredRevalidationLock) {
           logger.info(
             this.queueName,
             JSON.stringify({
-              message: `Got delayed lock. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}, delayedLockId=${delayedLockId}`,
+              message: `Got revalidation lock. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}`,
               payload,
               collectionId: collectionResult.collection_id,
-              delayedLockId,
             })
           );
         }
@@ -92,10 +86,9 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
     logger.info(
       this.queueName,
       JSON.stringify({
-        message: `Recalculating floor ask. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}, delayedLockId=${payload.delayedLockId}`,
+        message: `Recalculating floor ask. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}`,
         payload,
         collectionId: collectionResult.collection_id,
-        delayedLockId: payload.delayedLockId,
       })
     );
 
@@ -206,28 +199,32 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
     if (acquiredLock) {
       await releaseLock(`${this.queueName}-lock:${collectionResult.collection_id}`);
 
-      const delayedLockId = await getLockId(
-        `${this.queueName}-delayed-lock:${collectionResult.collection_id}`
-      );
-
       logger.info(
         this.queueName,
         JSON.stringify({
-          message: `Released lock. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}, delayedLockId=${delayedLockId}`,
+          message: `Released lock. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}`,
           payload,
           collectionId: collectionResult.collection_id,
-          delayedLockId,
         })
       );
 
-      if (delayedLockId) {
-        await releaseLock(`${this.queueName}-delayed-lock:${collectionResult.collection_id}`);
+      const revalidationLockExists = await doesLockExist(
+        `${this.queueName}-revalidation-lock:${collectionResult.collection_id}`
+      );
 
-        const delayedPayload = JSON.parse(delayedLockId);
+      if (revalidationLockExists) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `Trigger revalidation. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}`,
+            payload,
+            collectionId: collectionResult.collection_id,
+          })
+        );
 
-        delayedPayload.delayedLockId = delayedLockId;
-
-        await this.addToQueue([delayedPayload]);
+        await this.addToQueue([
+          { kind: "revalidation", contract, tokenId, txHash: null, txTimestamp: null },
+        ]);
       }
     }
 
