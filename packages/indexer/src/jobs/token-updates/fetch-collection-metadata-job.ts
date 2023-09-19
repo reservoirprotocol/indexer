@@ -43,11 +43,13 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
         allowFallback: true,
       });
 
-      if (newCollection && collection?.isFallback) {
-        collection = await MetadataApi.getCollectionMetadata(contract, tokenId, "", {
-          allowFallback: false,
-          indexingMethod: "simplehash",
-        });
+      if (contract !== "0xd7f566aeba20453e9bab7ea2fd737bfaec70cc69") {
+        if (newCollection && collection?.isFallback) {
+          collection = await MetadataApi.getCollectionMetadata(contract, tokenId, "", {
+            allowFallback: false,
+            indexingMethod: "simplehash",
+          });
+        }
       }
 
       let tokenIdRange: string | null = null;
