@@ -5,6 +5,9 @@ import {
   TopSellingFillOptions,
 } from "@/elasticsearch/indexes/activities";
 
+const VERSION = "v2";
+const expireTimeInSeconds = 1800;
+
 export const getStartTime = (period: string) => {
   const now = Math.floor(new Date().getTime() / 1000);
 
@@ -69,13 +72,15 @@ export class TopSellingCollections {
       })
     );
 
-    const redisArgs = results.flatMap(({ period, collections }) => {
-      const key = `topSellingCollections:${period}`;
+    const pipeline = redis.pipeline();
+
+    results.forEach(({ period, collections }) => {
+      const key = `topSellingCollections:${VERSION}:${period}`;
       const value = JSON.stringify(collections);
-      return [key, value];
+      pipeline.set(key, value, "EX", expireTimeInSeconds);
     });
 
-    await redis.mset(redisArgs);
+    await pipeline.exec();
 
     return results;
   }

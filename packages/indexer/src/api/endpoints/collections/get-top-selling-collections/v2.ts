@@ -151,7 +151,7 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
     try {
       let collectionsResult = [];
 
-      const cacheKey = `topSellingCollections:${period}`;
+      const cacheKey = `topSellingCollections:v2:${period}`;
       const cachedResults = await redis.get(cacheKey);
 
       if (cachedResults) {
