@@ -213,6 +213,8 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
       );
 
       if (revalidationLockExists) {
+        await releaseLock(`${this.queueName}-revalidation-lock:${collectionResult.collection_id}`);
+
         logger.info(
           this.queueName,
           JSON.stringify({
