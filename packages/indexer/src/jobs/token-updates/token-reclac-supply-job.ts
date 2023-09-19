@@ -7,6 +7,7 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import _ from "lodash";
 import { acquireLock } from "@/common/redis";
 import { getNetworkSettings } from "@/config/network";
+import { logger } from "@/common/logger";
 
 export type TokenRecalcSupplyPayload = {
   contract: string;
@@ -36,6 +37,13 @@ export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
 
     const totalSupply = await this.calcTotalSupply(contract, tokenId);
     const totalRemainingSupply = await this.calcRemainingSupply(contract, tokenId);
+
+    if (totalRemainingSupply > totalSupply) {
+      logger.warn(
+        this.queueName,
+        `too many remaining supply contract ${contract} tokenId ${tokenId} totalSupply ${totalSupply} totalRemainingSupply ${totalRemainingSupply}`
+      );
+    }
 
     await Tokens.update(contract, tokenId, {
       supply: totalSupply,

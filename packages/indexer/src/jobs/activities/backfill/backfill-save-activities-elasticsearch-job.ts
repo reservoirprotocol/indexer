@@ -34,7 +34,7 @@ export type BackfillSaveActivitiesElasticsearchJobPayload = {
 export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-save-activities-elasticsearch-queue";
   maxRetries = 10;
-  concurrency = 2;
+  concurrency = 1;
   persistent = true;
   lazyMode = true;
   timeout = 60000;

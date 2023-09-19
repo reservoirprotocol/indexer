@@ -189,7 +189,8 @@ export const updateRoyaltySpec = async (
 export const refreshAllRoyaltySpecs = async (
   collection: string,
   customRoyalties?: Royalty[],
-  openseaRoyalties?: Royalty[]
+  openseaRoyalties?: Royalty[],
+  context?: string
 ) => {
   // Update custom royalties
   await updateRoyaltySpec(collection, "custom", customRoyalties);
@@ -198,7 +199,7 @@ export const refreshAllRoyaltySpecs = async (
   await updateRoyaltySpec(collection, "opensea", openseaRoyalties);
 
   // Refresh the on-chain royalties
-  await registry.refreshRegistryRoyalties(collection);
+  await registry.refreshRegistryRoyalties(collection, context);
 };
 
 // The default royalties are represented by the max royalties across all royalty specs
