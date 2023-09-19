@@ -13,7 +13,7 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-realtime";
   maxRetries = 30;
   concurrency = [84531, 80001, 11155111].includes(config.chainId) ? 1 : 5;
-  timeout = 10 * 60 * 1000;
+  timeout = 5 * 60 * 1000;
   backoff = {
     type: "fixed",
     delay: 1000,
@@ -29,8 +29,8 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
     }
 
     try {
-      await syncEvents(block);
       await traceSyncJob.addToQueue({ block: block });
+      await syncEvents(block);
       //eslint-disable-next-line
     } catch (error: any) {
       // if the error is block not found, add back to queue
