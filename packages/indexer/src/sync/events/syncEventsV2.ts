@@ -479,8 +479,6 @@ export const checkForMissingBlocks = async (block: number) => {
         );
         await eventsSyncRealtimeJob.addToQueue({ block: i });
       }
-
-      await redis.set("latest-block-realtime", block);
     }
   } else {
     await redis.set("latest-block-realtime", block);

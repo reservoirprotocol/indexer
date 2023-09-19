@@ -43,11 +43,18 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
         allowFallback: true,
       });
 
-      if (newCollection && collection?.isFallback) {
-        collection = await MetadataProviderRouter.getCollectionMetadata(contract, tokenId, "", {
-          allowFallback: false,
-          indexingMethod: "simplehash",
-        });
+      if (
+        ![
+          "0x95a2c45003b86235bb3e05b6f3b8b7781e562f2b",
+          "0xd7f566aeba20453e9bab7ea2fd737bfaec70cc69",
+        ].includes(contract)
+      ) {
+        if (newCollection && collection?.isFallback) {
+          collection = await MetadataProviderRouter.getCollectionMetadata(contract, tokenId, "", {
+            allowFallback: false,
+            indexingMethod: "simplehash",
+          });
+        }
       }
 
       let tokenIdRange: string | null = null;

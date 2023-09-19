@@ -21,6 +21,15 @@ export class ReplaceActivitiesCollectionJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: ReplaceActivitiesCollectionJobPayload) {
     const { contract, tokenId, newCollectionId, oldCollectionId } = payload;
 
+    if (
+      [
+        "0x95a2c45003b86235bb3e05b6f3b8b7781e562f2b",
+        "0xd7f566aeba20453e9bab7ea2fd737bfaec70cc69",
+      ].includes(contract)
+    ) {
+      return;
+    }
+
     const collection = await Collections.getById(newCollectionId);
 
     if (collection) {
