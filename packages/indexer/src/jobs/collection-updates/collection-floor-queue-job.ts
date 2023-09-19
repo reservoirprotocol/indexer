@@ -73,6 +73,16 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
             300,
             delayedLockId
           );
+
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              message: `Got delayed lock. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}, delayedLockId=${delayedLockId}`,
+              payload,
+              collectionId: collectionResult.collection_id,
+              delayedLockId,
+            })
+          );
         }
 
         return;
