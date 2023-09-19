@@ -64,7 +64,8 @@ export type BullMQBulkJob = {
   opts?: BulkJobOptions;
 };
 
-export const acquireLock = async (name: string, expirationInSeconds = 0, id = randomUUID()) => {
+export const acquireLock = async (name: string, expirationInSeconds = 0) => {
+  const id = randomUUID();
   let acquired;
 
   if (expirationInSeconds) {
@@ -92,10 +93,6 @@ export const getLockExpiration = async (name: string) => {
 
 export const doesLockExist = async (name: string) => {
   return Boolean(await redis.exists(name));
-};
-
-export const getLockId = async (name: string) => {
-  return redis.get(name);
 };
 
 export const getMemUsage = async () => {
