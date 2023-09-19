@@ -236,8 +236,10 @@ export class RabbitMq {
   }
 
   public static async createVhost() {
-    const url = `${config.rabbitHttpUrl}/api/vhosts/${getNetworkName()}`;
-    await axios.put(url);
+    if (config.assertRabbitVhost) {
+      const url = `${config.rabbitHttpUrl}/api/vhosts/${getNetworkName()}`;
+      await axios.put(url);
+    }
   }
 
   public static async deletePolicy(policy: DeletePolicyPayload) {
