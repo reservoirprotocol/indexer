@@ -4,7 +4,6 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 import { acquireLock, getLockId, redis, releaseLock } from "@/common/redis";
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 import { config } from "@/config/index";
-import { randomUUID } from "crypto";
 import { logger } from "@/common/logger";
 
 export type CollectionFloorJobPayload = {
@@ -67,12 +66,22 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
 
       if (!acquiredLock) {
         if (!payload.delayedLockId) {
-          const delayedLockId = randomUUID();
+          const delayedLockId = JSON.stringify(payload);
 
           await acquireLock(
             `${this.queueName}-delayed-lock:${collectionResult.collection_id}`,
             300,
             delayedLockId
+          );
+
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              message: `Got delayed lock. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}, delayedLockId=${delayedLockId}`,
+              payload,
+              collectionId: collectionResult.collection_id,
+              delayedLockId,
+            })
           );
         }
 
@@ -214,9 +223,11 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
       if (delayedLockId) {
         await releaseLock(`${this.queueName}-delayed-lock:${collectionResult.collection_id}`);
 
-        payload.delayedLockId = delayedLockId;
+        const delayedPayload = JSON.parse(delayedLockId);
 
-        await this.addToQueue([payload]);
+        delayedPayload.delayedLockId = delayedLockId;
+
+        await this.addToQueue([delayedPayload]);
       }
     }
 
