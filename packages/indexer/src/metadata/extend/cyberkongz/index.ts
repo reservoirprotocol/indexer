@@ -1,13 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { CollectionMetadata } from "@/utils/metadata-api";
+import { CollectionMetadata } from "@/metadata/types";
 import _ from "lodash";
 
-export const extendCollection = async (
-  _chainId: number,
-  metadata: CollectionMetadata,
-  _tokenId = null
-) => {
+export const extendCollection = async (metadata: CollectionMetadata, _tokenId = null) => {
   let startTokenId;
   let endTokenId;
 
@@ -30,8 +26,7 @@ export const extendCollection = async (
 
   return { ...metadata };
 };
-
-export const extend = async (_chainId: number, metadata: any) => {
+export const extend = async (metadata: any) => {
   const tokenId = metadata.tokenId;
   let startTokenId;
   let endTokenId;

@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { CollectionMetadata } from "@/utils/metadata-api";
+import { config } from "@/config/index";
+import { CollectionMetadata, TokenMetadata } from "../types";
 import * as adidasOriginals from "./adidas-originals";
 import * as admitOne from "./admit-one";
 import * as artTennis from "./art-tennis";
@@ -40,14 +41,12 @@ import * as superrareShared from "./superrare-shared";
 const extendCollection: any = {};
 const extend: any = {};
 
-export const hasExtendHandler = (chainId: number, contract: string) =>
-  extend[`${chainId},${contract}`];
+export const hasExtendHandler = (contract: string) => extend[`${config.chainId},${contract}`];
 
-export const extendCollectionMetadata = async (chainId: number, metadata: any, tokenId: string) => {
+export const extendCollectionMetadata = async (metadata: any, tokenId?: string) => {
   if (metadata) {
-    if (extendCollection[`${chainId},${metadata.id}`]) {
-      return extendCollection[`${chainId},${metadata.id}`].extendCollection(
-        chainId,
+    if (extendCollection[`${config.chainId},${metadata.id}`]) {
+      return extendCollection[`${config.chainId},${metadata.id}`].extendCollection(
         metadata,
         tokenId
       );
@@ -57,10 +56,10 @@ export const extendCollectionMetadata = async (chainId: number, metadata: any, t
   }
 };
 
-export const extendMetadata = async (chainId: number, metadata: CollectionMetadata) => {
+export const extendMetadata = async (metadata: TokenMetadata) => {
   if (metadata) {
-    if (extend[`${chainId},${metadata.contract.toLowerCase()}`]) {
-      return extend[`${chainId},${metadata.contract.toLowerCase()}`].extend(chainId, metadata);
+    if (extend[`${config.chainId},${metadata.contract.toLowerCase()}`]) {
+      return extend[`${config.chainId},${metadata.contract.toLowerCase()}`].extend(metadata);
     } else {
       return metadata;
     }
@@ -74,14 +73,14 @@ class ExtendLogic {
     this.prefix = prefix;
   }
 
-  public async extendCollection(_chainId: number, metadata: CollectionMetadata, _tokenId = null) {
+  public async extendCollection(metadata: CollectionMetadata, _tokenId = null) {
     metadata.id = `${metadata.contract}:${this.prefix}-${metadata.slug}`;
     metadata.tokenIdRange = null;
     metadata.tokenSetId = null;
 
     return { ...metadata };
   }
-  public async extend(_chainId: number, metadata: CollectionMetadata) {
+  public async extend(metadata: TokenMetadata) {
     metadata.collection = `${metadata.contract}:${this.prefix}-${metadata.slug}`;
     return { ...metadata };
   }

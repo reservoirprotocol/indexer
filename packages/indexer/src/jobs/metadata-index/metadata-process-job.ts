@@ -3,7 +3,7 @@ import _ from "lodash";
 import { config } from "@/config/index";
 import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
 import { logger } from "@/common/logger";
-import MetadataApi from "@/utils/metadata-api";
+import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 
@@ -55,7 +55,7 @@ export class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler {
 
     const results = await Promise.all(
       refreshTokensChunks.map((refreshTokensChunk) =>
-        MetadataApi.getTokensMetadata(
+        MetadataProviderRouter.getTokensMetadata(
           refreshTokensChunk.map((refreshToken) => ({
             contract: refreshToken.contract,
             tokenId: refreshToken.tokenId,

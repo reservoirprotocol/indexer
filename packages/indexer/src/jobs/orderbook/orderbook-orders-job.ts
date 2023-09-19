@@ -26,7 +26,7 @@ export class OrderbookOrdersJob extends AbstractRabbitMqJobHandler {
       orderInfos.map((orderInfo) => ({
         payload: orderInfo,
         priority: prioritized ? 1 : 0,
-        delay: delay ? delay * 1000 : 0,
+        delay: delay ? delay * 1000 : 1,
         jobId,
       }))
     );

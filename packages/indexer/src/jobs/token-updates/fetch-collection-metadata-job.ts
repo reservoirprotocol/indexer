@@ -2,7 +2,7 @@ import { idb, pgp, PgPromiseQuery } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
-import MetadataApi from "@/utils/metadata-api";
+import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 import _ from "lodash";
 import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
@@ -39,12 +39,12 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
 
     try {
       // Fetch collection metadata
-      let collection = await MetadataApi.getCollectionMetadata(contract, tokenId, "", {
+      let collection = await MetadataProviderRouter.getCollectionMetadata(contract, tokenId, "", {
         allowFallback: true,
       });
 
       if (newCollection && collection?.isFallback) {
-        collection = await MetadataApi.getCollectionMetadata(contract, tokenId, "", {
+        collection = await MetadataProviderRouter.getCollectionMetadata(contract, tokenId, "", {
           allowFallback: false,
           indexingMethod: "simplehash",
         });

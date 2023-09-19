@@ -1,14 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { CollectionMetadata, TokenMetadata } from "@/utils/metadata-api";
+import { config } from "@/config/index";
+import { CollectionMetadata, TokenMetadata } from "@/metadata/types";
 import axios from "axios";
 import slugify from "slugify";
 
-export const extendCollection = async (
-  _chainId: number,
-  metadata: CollectionMetadata,
-  _tokenId = null
-) => {
+export const extendCollection = async (metadata: CollectionMetadata, _tokenId = null) => {
   if (isNaN(Number(_tokenId)) || !_tokenId) {
     throw new Error(`Invalid tokenId ${_tokenId}`);
   }
@@ -17,9 +14,9 @@ export const extendCollection = async (
   const endTokenId = startTokenId + 1000000 - 1;
 
   let baseUrl = "https://token.artblocks.io";
-  if (_chainId === 42161) {
+  if (config.chainId === 42161) {
     baseUrl = "https://token.arbitrum.artblocks.io";
-  } else if ([4, 5].includes(_chainId)) {
+  } else if ([4, 5].includes(config.chainId)) {
     baseUrl = "https://token.staging.artblocks.io";
   }
 
@@ -44,14 +41,14 @@ export const extendCollection = async (
   };
 };
 
-export const extend = async (_chainId: number, metadata: TokenMetadata) => {
+export const extend = async (metadata: TokenMetadata) => {
   const startTokenId = metadata.tokenId - (metadata.tokenId % 1000000);
   const endTokenId = startTokenId + 1000000 - 1;
 
   let baseUrl = "https://token.artblocks.io";
-  if (_chainId === 42161) {
+  if (config.chainId === 42161) {
     baseUrl = "https://token.arbitrum.artblocks.io";
-  } else if ([4, 5].includes(_chainId)) {
+  } else if ([4, 5].includes(config.chainId)) {
     baseUrl = "https://token.staging.artblocks.io";
   }
 

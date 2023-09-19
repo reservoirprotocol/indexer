@@ -21,7 +21,7 @@ export const config = {
   openseaIndexerApiBaseUrl: String(process.env.OPENSEA_INDEXER_API_BASE_URL),
 
   // When running in liquidity-only mode, all metadata processes are disabled
-  liquidityOnly: !process.env.METADATA_API_BASE_URL,
+  liquidityOnly: process.env.LIQUIDITY_ONLY ? Boolean(Number(process.env.LIQUIDITY_ONLY)) : false,
   metadataIndexingMethod: String(process.env.METADATA_INDEXING_METHOD || "opensea"),
   metadataIndexingMethodCollection: String(
     process.env.METADATA_INDEXING_METHOD_COLLECTION ||
@@ -84,11 +84,21 @@ export const config = {
 
   looksRareApiKey: String(process.env.LOOKSRARE_API_KEY),
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
+  openSeaSlugApiKey: String(process.env.OPENSEA_SLUG_API_KEY),
+  openSeaSlugApiHeaders: process.env.OPENSEA_SLUG_API_HEADERS,
+  openSeaSlugBaseUrl: String(process.env.OPENSEA_SLUG_BASE_URL),
   openSeaApiUrl: String(process.env.OPENSEA_API_URL || ""),
 
   openSeaCrossPostingApiKey: String(
     process.env.OPENSEA_CROSS_POSTING_API_KEY || process.env.OPENSEA_API_KEY
   ),
+
+  simplehashApiKey: String(process.env.SIMPLEHASH_API_KEY),
+
+  soundxyzApiKey: String(process.env.SOUNDXYZ_API_KEY),
+  soundxyzUserAgent: String(process.env.SOUNDXYZ_USER_AGENT),
+
+  ordinalsApiKey: String(process.env.ORDINALS_API_KEY),
 
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
   cbApiKey: String(process.env.CB_API_KEY),

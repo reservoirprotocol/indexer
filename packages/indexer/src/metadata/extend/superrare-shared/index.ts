@@ -1,12 +1,8 @@
 import { Contract, utils } from "ethers";
 import { baseProvider } from "@/common/provider";
 import axios from "axios";
-import { CollectionMetadata, TokenMetadata } from "@/utils/metadata-api";
-export const extendCollection = async (
-  _chainId: number,
-  metadata: CollectionMetadata,
-  _tokenId: number
-) => {
+import { CollectionMetadata, TokenMetadata } from "@/metadata/types";
+export const extendCollection = async (metadata: CollectionMetadata, _tokenId: number) => {
   const nft = new Contract(
     metadata.contract,
     new utils.Interface([
@@ -33,7 +29,7 @@ export const extendCollection = async (
   return metadata;
 };
 
-export const extend = async (_chainId: number, metadata: TokenMetadata) => {
+export const extend = async (metadata: TokenMetadata) => {
   const nft = new Contract(
     metadata.contract,
     new utils.Interface(["function tokenCreator(uint256 _tokenId) view returns (address)"]),

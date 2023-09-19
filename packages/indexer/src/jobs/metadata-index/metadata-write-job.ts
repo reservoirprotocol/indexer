@@ -16,34 +16,7 @@ import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attr
 import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-attribute-value-counts-job";
 import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
 import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
-
-export type MetadataIndexWriteJobPayload = {
-  collection: string;
-  contract: string;
-  tokenId: string;
-  name?: string;
-  description?: string;
-  originalMetadata?: JSON;
-  imageUrl?: string;
-  imageOriginalUrl?: string;
-  imageProperties?: {
-    width?: number;
-    height?: number;
-    size?: number;
-    mime_type?: string;
-  };
-  animationOriginalUrl?: string;
-  metadataOriginalUrl?: string;
-  mediaUrl?: string;
-  flagged?: boolean;
-  isCopyrightInfringement?: boolean;
-  attributes: {
-    key: string;
-    value: string;
-    kind: "string" | "number" | "date" | "range";
-    rank?: number;
-  }[];
-};
+import { TokenMetadata } from "@/metadata/types";
 
 export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
   queueName = "metadata-index-write-queue";
@@ -56,7 +29,7 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
     delay: 20000,
   } as BackoffStrategy;
 
-  protected async process(payload: MetadataIndexWriteJobPayload) {
+  protected async process(payload: any) {
     // const startTime = Date.now();
 
     const tokenAttributeCounter = {};
@@ -504,7 +477,7 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
     return true;
   }
 
-  public async addToQueue(tokenMetadataInfos: MetadataIndexWriteJobPayload[]) {
+  public async addToQueue(tokenMetadataInfos: TokenMetadata[]) {
     await this.sendBatch(
       tokenMetadataInfos
         .map((tokenMetadataInfo) => ({
