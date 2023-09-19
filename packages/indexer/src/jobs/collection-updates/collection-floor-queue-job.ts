@@ -45,52 +45,45 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
-    logger.info(
-      this.queueName,
-      JSON.stringify({
-        message: `Start. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}`,
-        payload,
-        collectionId: collectionResult.collection_id,
-      })
-    );
-
     let acquiredLock;
 
-    if (!["revalidation"].includes(kind)) {
-      acquiredLock = await acquireLock(
-        `${this.queueName}-lock:${collectionResult.collection_id}`,
-        300
-      );
-
-      if (!acquiredLock) {
-        const acquiredRevalidationLock = await acquireLock(
-          `${this.queueName}-revalidation-lock:${collectionResult.collection_id}`,
+    if ([5, 11155111].includes(config.chainId)) {
+      if (!["revalidation"].includes(kind)) {
+        acquiredLock = await acquireLock(
+          `${this.queueName}-lock:${collectionResult.collection_id}`,
           300
         );
 
-        if (acquiredRevalidationLock) {
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              message: `Got revalidation lock. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}`,
-              payload,
-              collectionId: collectionResult.collection_id,
-            })
+        if (!acquiredLock) {
+          const acquiredRevalidationLock = await acquireLock(
+            `${this.queueName}-revalidation-lock:${collectionResult.collection_id}`,
+            300
           );
+
+          if (acquiredRevalidationLock) {
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                message: `Got revalidation lock. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}`,
+                payload,
+                collectionId: collectionResult.collection_id,
+              })
+            );
+          }
+
+          return;
         }
-
-        return;
       }
-    }
 
-    logger.info(
-      this.queueName,
-      JSON.stringify({
-        message: `Recalculating floor ask. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}`,
-        payload,
-        collectionId: collectionResult.collection_id,
-      })
-    );
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          message: `Recalculating floor ask. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}`,
+          payload,
+          collectionId: collectionResult.collection_id,
+        })
+      );
+    }
 
     const collectionFloorAsk = await idb.oneOrNone(
       `

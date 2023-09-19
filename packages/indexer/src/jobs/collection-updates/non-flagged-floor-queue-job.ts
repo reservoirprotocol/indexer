@@ -3,9 +3,9 @@ import { toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { Collections } from "@/models/collections";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
-import { acquireLock, getLockId, releaseLock } from "@/common/redis";
+import { acquireLock, doesLockExist, releaseLock } from "@/common/redis";
 import { logger } from "@/common/logger";
-import { randomUUID } from "crypto";
+import { config } from "@/config/index";
 
 export type NonFlaggedFloorQueueJobPayload = {
   kind: string;
@@ -13,7 +13,6 @@ export type NonFlaggedFloorQueueJobPayload = {
   tokenId: string;
   txHash: string | null;
   txTimestamp: number | null;
-  delayedLockId?: string;
 };
 
 export class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler {
@@ -52,76 +51,43 @@ export class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler {
 
     let acquiredLock;
 
-    if (!["revalidation"].includes(payload.kind)) {
-      if (payload.delayedLockId) {
-        const delayedLockId = await getLockId(
-          `${this.queueName}-delayed-lock:${collectionResult.collection_id}`
+    if ([5, 11155111].includes(config.chainId)) {
+      if (!["revalidation"].includes(payload.kind)) {
+        acquiredLock = await acquireLock(
+          `${this.queueName}-lock:${collectionResult.collection_id}`,
+          300
         );
 
-        if (delayedLockId !== payload.delayedLockId) {
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              message: `Delayed lock changed. kind=${payload.kind}, collection=${collectionResult.collection_id}, tokenId=${payload.tokenId}, delayedLockId=${delayedLockId}, expectedDelayedLockId=${payload.delayedLockId}`,
-              payload,
-              collectionId: collectionResult.collection_id,
-            })
+        if (!acquiredLock) {
+          const acquiredRevalidationLock = await acquireLock(
+            `${this.queueName}-revalidation-lock:${collectionResult.collection_id}`,
+            300
           );
+
+          if (acquiredRevalidationLock) {
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                message: `Got revalidation lock. kind=${payload.kind}, collection=${collectionResult.collection_id}, tokenId=${payload.tokenId}`,
+                payload,
+                collectionId: collectionResult.collection_id,
+              })
+            );
+          }
 
           return;
         }
       }
 
-      acquiredLock = await acquireLock(
-        `${this.queueName}-lock:${collectionResult.collection_id}`,
-        1
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          message: `Recalculating floor ask. kind=${payload.kind}, collection=${collectionResult.collection_id}, tokenId=${payload.tokenId}`,
+          payload,
+          collectionId: collectionResult.collection_id,
+        })
       );
-
-      if (!acquiredLock) {
-        const delayedLockId = randomUUID();
-
-        const acquiredDelayedLock = await acquireLock(
-          `${this.queueName}-delayed-lock:${collectionResult.collection_id}`,
-          2,
-          delayedLockId
-        );
-
-        if (acquiredDelayedLock) {
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              message: `Acquired delayed lock. kind=${payload.kind}, collection=${collectionResult.collection_id}, tokenId=${payload.tokenId}, delayedLockId=${delayedLockId}`,
-              payload,
-              collectionId: collectionResult.collection_id,
-            })
-          );
-
-          await this.addToQueue([payload], 1000);
-        } else {
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              message: `Failed to acquire delayed lock. kind=${payload.kind}, collection=${collectionResult.collection_id}, tokenId=${payload.tokenId}`,
-              payload,
-              collectionId: collectionResult.collection_id,
-            })
-          );
-        }
-
-        return;
-      }
     }
-
-    await releaseLock(`${this.queueName}-delayed-lock:${collectionResult.collection_id}`);
-
-    logger.info(
-      this.queueName,
-      JSON.stringify({
-        message: `Recalculating floor ask. kind=${payload.kind}, collection=${collectionResult.collection_id}, tokenId=${payload.tokenId}`,
-        payload,
-        collectionId: collectionResult.collection_id,
-      })
-    );
 
     const nonFlaggedCollectionFloorAsk = await idb.oneOrNone(
       `
@@ -231,6 +197,42 @@ export class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler {
 
     if (acquiredLock) {
       await releaseLock(`${this.queueName}-lock:${collectionResult.collection_id}`);
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          message: `Released lock. kind=${payload.kind}, collection=${collectionResult.collection_id}, tokenId=${payload.tokenId}`,
+          payload,
+          collectionId: collectionResult.collection_id,
+        })
+      );
+
+      const revalidationLockExists = await doesLockExist(
+        `${this.queueName}-revalidation-lock:${collectionResult.collection_id}`
+      );
+
+      if (revalidationLockExists) {
+        await releaseLock(`${this.queueName}-revalidation-lock:${collectionResult.collection_id}`);
+
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `Trigger revalidation. kind=${payload.kind}, collection=${collectionResult.collection_id}, tokenId=${payload.tokenId}`,
+            payload,
+            collectionId: collectionResult.collection_id,
+          })
+        );
+
+        await this.addToQueue([
+          {
+            kind: "revalidation",
+            contract: payload.contract,
+            tokenId: payload.tokenId,
+            txHash: null,
+            txTimestamp: null,
+          },
+        ]);
+      }
     }
 
     if (nonFlaggedCollectionFloorAsk?.token_id) {
