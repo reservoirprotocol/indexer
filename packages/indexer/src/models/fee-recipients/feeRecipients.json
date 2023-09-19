@@ -88,10 +88,5 @@
     "address": "0xc888f5e3dd4fbeb37f6e1ba6fa68c83ab0cf7b2c",
     "domain": "fabrica.land",
     "kind": "marketplace"
-  },
-  {
-    "address": "0x4c9e96bdb58e913287fef018763092b64ce46061",
-    "domain": "reservoir.tools",
-    "kind": "marketplace"
   }
 ]
