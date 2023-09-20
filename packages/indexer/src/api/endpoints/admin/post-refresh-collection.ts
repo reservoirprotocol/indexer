@@ -163,7 +163,7 @@ export const postRefreshCollectionOptions: RouteOptions = {
 
         if (method === "opensea") {
           // Refresh contract orders from OpenSea
-          await OpenseaIndexerApi.fastContractSync(collection.contract);
+          await OpenseaIndexerApi.fastContractSync(collection.id);
           if (collection.slug && payload.refreshKind === "full-collection-by-slug") {
             metadataIndexInfo = {
               kind: "full-collection-by-slug",

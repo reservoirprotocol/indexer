@@ -139,7 +139,7 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         }
 
         // Refresh listings
-        await OpenseaIndexerApi.fastContractSync(collection.contract);
+        await OpenseaIndexerApi.fastContractSync(collection.id);
       } else {
         isLargeCollection = collection.tokenCount > 30000;
 
@@ -212,7 +212,7 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         }
 
         // Refresh listings
-        await OpenseaIndexerApi.fastContractSync(collection.contract);
+        await OpenseaIndexerApi.fastContractSync(collection.id);
 
         // Refresh the contract floor sell and top bid
         await collectionRefreshCacheJob.addToQueue({ collection: collection.id });

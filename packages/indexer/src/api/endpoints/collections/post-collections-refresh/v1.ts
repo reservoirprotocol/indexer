@@ -135,7 +135,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         await blurListingsRefreshJob.addToQueue(collection.id, true);
 
         // Refresh listings
-        await OpenseaIndexerApi.fastContractSync(collection.contract);
+        await OpenseaIndexerApi.fastContractSync(collection.id);
       } else {
         isLargeCollection = collection.tokenCount > 30000;
 
@@ -221,7 +221,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         }
 
         // Refresh listings
-        await OpenseaIndexerApi.fastContractSync(collection.contract);
+        await OpenseaIndexerApi.fastContractSync(collection.id);
 
         // Do these refresh operation only for small collections
         if (!isLargeCollection) {
