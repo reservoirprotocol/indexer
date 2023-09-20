@@ -194,17 +194,26 @@ export class Collections {
 
     const result = await idb.oneOrNone(query, values);
 
-    if (
-      result?.old_metadata.name != collection.name ||
-      result?.old_metadata.metadata.imageUrl != (collection.metadata as any)?.imageUrl
-    ) {
-      await refreshActivitiesCollectionMetadataJob.addToQueue({
-        collectionId: collection.id,
-        collectionUpdateData: {
-          name: collection.name || null,
-          image: (collection.metadata as any)?.imageUrl || null,
-        },
-      });
+    try {
+      if (
+        result?.old_metadata.name != collection.name ||
+        result?.old_metadata.metadata.imageUrl != (collection.metadata as any)?.imageUrl
+      ) {
+        await refreshActivitiesCollectionMetadataJob.addToQueue({
+          collectionId: collection.id,
+          collectionUpdateData: {
+            name: collection.name || null,
+            image: (collection.metadata as any)?.imageUrl || null,
+          },
+        });
+      }
+    } catch (error) {
+      logger.error(
+        "updateCollectionCache",
+        `refreshActivitiesCollectionMetadataJobError. contract=${contract}, tokenId=${tokenId}, community=${community}, collection=${JSON.stringify(
+          collection
+        )}, result=${JSON.stringify(result)}`
+      );
     }
 
     // Refresh all royalty specs and the default royalties
