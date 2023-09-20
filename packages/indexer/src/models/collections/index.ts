@@ -10,7 +10,6 @@ import {
   CollectionsEntityParams,
   CollectionsEntityUpdateParams,
 } from "@/models/collections/collections-entity";
-import { Tokens } from "@/models/tokens";
 import { updateBlurRoyalties } from "@/utils/blur";
 import * as erc721c from "@/utils/erc721c";
 import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
@@ -26,6 +25,7 @@ import {
   topBidCollectionJob,
   TopBidCollectionJobPayload,
 } from "@/jobs/collection-updates/top-bid-collection-job";
+import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -154,8 +154,7 @@ export class Collections {
       }
     }
 
-    const tokenCount = await Tokens.countTokensInCollection(collection.id);
-
+    await recalcTokenCountQueueJob.addToQueue({ collection: collection.id });
     await recalcOwnerCountQueueJob.addToQueue([
       {
         context: "updateCollectionCache",
@@ -169,7 +168,6 @@ export class Collections {
         metadata = $/metadata:json/,
         name = $/name/,
         slug = $/slug/,
-        token_count = $/tokenCount/,
         payment_tokens = $/paymentTokens/,
         creator = $/creator/,
         updated_at = now()
@@ -190,7 +188,6 @@ export class Collections {
       metadata: collection.metadata || {},
       name: collection.name,
       slug: collection.slug,
-      tokenCount,
       paymentTokens: collection.paymentTokens ? { opensea: collection.paymentTokens } : {},
       creator: collection.creator ? toBuffer(collection.creator) : null,
     };

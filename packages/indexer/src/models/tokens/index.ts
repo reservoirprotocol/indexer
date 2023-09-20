@@ -170,18 +170,6 @@ export class Tokens {
     });
   }
 
-  public static async countTokensInCollection(collectionId: string) {
-    const query = `SELECT count(*) AS count
-                   FROM tokens
-                   WHERE collection_id = $/collectionId/`;
-
-    return await idb
-      .oneOrNone(query, {
-        collectionId,
-      })
-      .then((result) => (result ? result.count : 0));
-  }
-
   public static async getSingleToken(collectionId: string) {
     const query = `
         SELECT token_id
