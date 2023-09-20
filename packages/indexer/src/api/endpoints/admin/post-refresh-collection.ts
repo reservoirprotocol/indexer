@@ -123,7 +123,7 @@ export const postRefreshCollectionOptions: RouteOptions = {
             contract: collection.contract,
             tokenId,
             community: collection.community,
-            forceRefresh: false,
+            forceRefresh: true,
           },
           0,
           "post-refresh-collection-admin"
