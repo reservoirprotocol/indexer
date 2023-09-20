@@ -37,6 +37,7 @@ export type MetadataIndexWriteJobPayload = {
   mediaUrl?: string;
   flagged?: boolean;
   isCopyrightInfringement?: boolean;
+  isFromWebhook?: boolean;
   attributes: {
     key: string;
     value: string;
@@ -75,6 +76,7 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       metadataOriginalUrl,
       mediaUrl,
       flagged,
+      isFromWebhook,
       attributes,
     } = payload;
 
@@ -151,7 +153,7 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
     ) {
       logger.info(
         this.queueName,
-        `New collection ${collection} for contract=${contract}, tokenId=${tokenId}, old collection=${result.collection_id}`
+        `New collection ${collection} for contract=${contract}, tokenId=${tokenId}, old collection=${result.collection_id} isFromWebhook ${isFromWebhook}`
       );
 
       if (this.updateActivities(contract)) {
