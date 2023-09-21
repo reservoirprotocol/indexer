@@ -22,6 +22,13 @@ import { Sources } from "@/models/sources";
 
 const version = "v2";
 
+const transformPeriod = (value: string) => {
+  if (value === "24h") {
+    return "1d";
+  }
+  return value;
+};
+
 export const getTopSellingCollectionsV2Options: RouteOptions = {
   cache: {
     privacy: "public",
@@ -37,8 +44,21 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
   validate: {
     query: Joi.object({
       period: Joi.string()
-        .valid("5m", "10m", "30m", "1h", "6h", "24h", "1d", "7d", "30d")
-        .default("24h"),
+        .default("1d")
+        .when("fillType", {
+          is: [TopSellingFillOptions.mint, TopSellingFillOptions.any],
+          then: Joi.string()
+            .custom(transformPeriod)
+            .valid("5m", "10m", "30m", "1h", "6h", "1d", "24h"),
+        })
+        .when("fillType", {
+          is: TopSellingFillOptions.sale,
+          then: Joi.string()
+            .custom(transformPeriod)
+            .valid("5m", "10m", "30m", "1h", "6h", "1d", "24h", "7d"),
+        })
+
+        .description("Time window to aggregate. 7d and 30d are only supported for sales."),
       fillType: Joi.string()
         .lowercase()
         .valid(..._.values(TopSellingFillOptions))
@@ -139,7 +159,6 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
   },
   handler: async (request: Request, h) => {
     const {
-      period,
       fillType,
       limit,
       sortBy,
@@ -150,8 +169,10 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
 
     try {
       let collectionsResult = [];
+      const period = request.query.period === "24hr" ? "1d" : request.query.period;
 
-      const cacheKey = `topSellingCollections:v2:${period}`;
+      const cacheKey = `topSellingCollections:v2:${period}:${fillType}:${sortBy}`;
+
       const cachedResults = await redis.get(cacheKey);
 
       if (cachedResults) {

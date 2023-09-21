@@ -51,7 +51,7 @@ export const getStartTime = (period: string) => {
 
 export class TopSellingCollections {
   public static async updateTopSellingCollections() {
-    const periods = ["30m", "1h", "6h", "1d", "7d", "30d"];
+    const periods = ["30m", "1h", "6h", "1d", "7d"];
     // only cache sales sorted by volume for now
 
     const results = await Promise.all(
@@ -72,10 +72,26 @@ export class TopSellingCollections {
       })
     );
 
+    const startTime = getStartTime("1d");
+    const countCollections = await getTopSellingCollections({
+      startTime,
+      fillType: TopSellingFillOptions.sale,
+      limit: 50,
+      includeRecentSales: true,
+      sortBy: "sales",
+    });
+
     const pipeline = redis.pipeline();
 
+    pipeline.set(
+      `topSellingCollections:${VERSION}:1d:sale:sales`,
+      JSON.stringify(countCollections),
+      "EX",
+      expireTimeInSeconds
+    );
+
     results.forEach(({ period, collections }) => {
-      const key = `topSellingCollections:${VERSION}:${period}`;
+      const key = `topSellingCollections:${VERSION}:${period}:sale:volume`;
       const value = JSON.stringify(collections);
       pipeline.set(key, value, "EX", expireTimeInSeconds);
     });
