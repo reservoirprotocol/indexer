@@ -194,22 +194,11 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
             contract,
             tokenId,
             mintedTimestamp,
-            context: "mint-queue",
           },
         ]);
       }
 
       if (isFirstToken) {
-        if (config.chainId === 137) {
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              topic: "debugRoyalties",
-              message: `First token, refresh collection. contract=${contract}, tokenId=${tokenId}`,
-            })
-          );
-        }
-
         await collectionMetadataQueueJob.addToQueue({
           contract,
           tokenId,

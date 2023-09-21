@@ -13,7 +13,7 @@ import { Royalty, updateRoyaltySpec } from "@/utils/royalties";
 const DEFAULT_PRICE = "1000000000000000000";
 
 // Assume there are no per-token royalties but everything is per-contract
-export const refreshRegistryRoyalties = async (collection: string, context?: string) => {
+export const refreshRegistryRoyalties = async (collection: string) => {
   // Fetch the collection's contract
   const collectionResult = await idb.oneOrNone(
     `
@@ -44,18 +44,6 @@ export const refreshRegistryRoyalties = async (collection: string, context?: str
   const tokenId = tokenResult?.token_id || "0";
 
   const latestRoyalties = await getRegistryRoyalties(token, tokenId);
-
-  if (config.chainId === 137) {
-    logger.info(
-      "refreshRegistryRoyalties",
-      JSON.stringify({
-        topic: "debugRoyalties",
-        message: `Got latest royalties. token=${token}, tokenId=${tokenId}, context=${context}`,
-        latestRoyalties,
-        context,
-      })
-    );
-  }
 
   // Save the retrieved royalty spec
   await updateRoyaltySpec(

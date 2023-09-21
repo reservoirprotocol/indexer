@@ -22,7 +22,6 @@ export type FetchCollectionMetadataJobPayload = {
   newCollection?: boolean;
   oldCollectionId?: string;
   allowFallbackCollectionMetadata?: boolean;
-  context?: string;
 };
 
 export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
@@ -192,9 +191,9 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
       await royalties.refreshAllRoyaltySpecs(
         collection.id,
         collection.royalties as royalties.Royalty[] | undefined,
-        collection.openseaRoyalties as royalties.Royalty[] | undefined,
-        this.queueName
+        collection.openseaRoyalties as royalties.Royalty[] | undefined
       );
+
       await royalties.refreshDefaultRoyalties(collection.id);
 
       // Refresh marketplace fees

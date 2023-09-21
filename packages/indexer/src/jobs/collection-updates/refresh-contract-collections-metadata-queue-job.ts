@@ -48,7 +48,7 @@ export class RefreshContractCollectionsMetadataQueueJob extends AbstractRabbitMq
         community: contractCollection.community,
       }));
 
-      await collectionMetadataQueueJob.addToQueueBulk(infos, 0, this.queueName);
+      await collectionMetadataQueueJob.addToQueueBulk(infos);
     } else {
       const contractToken = await redb.oneOrNone(
         `

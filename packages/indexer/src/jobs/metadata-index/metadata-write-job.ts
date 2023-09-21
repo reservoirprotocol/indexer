@@ -181,7 +181,6 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
             mintedTimestamp: getUnixTime(new Date(result.created_at)),
             newCollection: true,
             oldCollectionId: result.collection_id,
-            context: "write-queue",
           },
         ],
         `${contract}:${tokenId}`
