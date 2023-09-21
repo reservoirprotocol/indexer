@@ -1,4 +1,5 @@
 import { Interface } from "@ethersproject/abi";
+import { Log } from "@ethersproject/abstract-provider";
 import { Contract } from "@ethersproject/contracts";
 import { parseEther } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk/src";
@@ -62,7 +63,9 @@ describe("[ReservoirV6_0_1] Mints", () => {
     // Whether to include fees on top
     chargeFees: boolean,
     // Whether to revert or not in case of any failures
-    revertIfIncomplete: boolean
+    revertIfIncomplete: boolean,
+    // Mint comment to include
+    mintComment = ""
   ) => {
     const iface = new Interface([
       `
@@ -74,7 +77,10 @@ describe("[ReservoirV6_0_1] Mints", () => {
             (
               address recipient,
               uint256 amount
-            )[] fees
+            )[] fees,
+            address token,
+            uint256 quantity,
+            string comment
           )[] mintDetails,
           (
             address refundTo,
@@ -83,6 +89,7 @@ describe("[ReservoirV6_0_1] Mints", () => {
         )
       `,
       "function mint(address minter, bytes data)",
+      "event MintComment(address token, uint256 quantity, string comment)",
     ]);
 
     const [tokenId1, amount1, price1, revert1, fees1] = [
@@ -120,6 +127,9 @@ describe("[ReservoirV6_0_1] Mints", () => {
               recipient: bob.address,
               amount: fee,
             })),
+            token: erc721.address,
+            quantity: 1,
+            comment: mintComment,
           },
           {
             to: erc721.address,
@@ -131,6 +141,9 @@ describe("[ReservoirV6_0_1] Mints", () => {
               recipient: bob.address,
               amount: fee,
             })),
+            token: erc721.address,
+            quantity: 1,
+            comment: mintComment,
           },
         ],
         {
@@ -151,6 +164,9 @@ describe("[ReservoirV6_0_1] Mints", () => {
               recipient: bob.address,
               amount: fee,
             })),
+            token: erc721.address,
+            quantity: 1,
+            comment: mintComment,
           },
           {
             to: erc1155.address,
@@ -162,6 +178,9 @@ describe("[ReservoirV6_0_1] Mints", () => {
               recipient: bob.address,
               amount: fee,
             })),
+            token: erc721.address,
+            quantity: 1,
+            comment: mintComment,
           },
         ],
         {
@@ -197,7 +216,7 @@ describe("[ReservoirV6_0_1] Mints", () => {
 
     // Execute
 
-    await router.connect(alice).execute(
+    const tx = await router.connect(alice).execute(
       [
         {
           module: mintModule.address,
@@ -208,8 +227,23 @@ describe("[ReservoirV6_0_1] Mints", () => {
       { value: totalPrice }
     );
 
-    // Fetch post-state
+    if (mintComment.length) {
+      const txReceipt = await tx.wait();
+      const mintCommentEvents = (txReceipt.logs as Log[]).filter((log) =>
+        log.topics.includes(iface.getEventTopic("MintComment"))
+      );
 
+      expect(
+        mintCommentEvents.every((e) => {
+          const parsedEvent = iface.parseLog(e);
+          return parsedEvent.args["comment"] === mintComment;
+        })
+      );
+
+      expect(mintCommentEvents.length).eq(Number(!revert1) + Number(!revert2));
+    }
+
+    // Fetch post-state
     const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Native[chainId]);
 
     // Alice for the minted NFTs
@@ -242,14 +276,23 @@ describe("[ReservoirV6_0_1] Mints", () => {
     for (const partial of [false, true]) {
       for (const chargeFees of [false, true]) {
         for (const revertIfIncomplete of [false, true]) {
-          it(
-            `[${standard}]` +
-              `${partial ? "[partial]" : "[full]"}` +
-              `${chargeFees ? "[fees]" : "[no-fees]"}` +
-              `${revertIfIncomplete ? "[reverts]" : "[skip-reverts]"}`,
-            async () =>
-              testMints(standard as "erc721" | "erc1155", partial, chargeFees, revertIfIncomplete)
-          );
+          for (const comment of ["", "comment"]) {
+            it(
+              `[${standard}]` +
+                `${partial ? "[partial]" : "[full]"}` +
+                `${chargeFees ? "[fees]" : "[no-fees]"}` +
+                `${revertIfIncomplete ? "[reverts]" : "[skip-reverts]"}` +
+                `${comment === "" ? "[no-comment]" : "[mint-comment]"}`,
+              async () =>
+                testMints(
+                  standard as "erc721" | "erc1155",
+                  partial,
+                  chargeFees,
+                  revertIfIncomplete,
+                  comment
+                )
+            );
+          }
         }
       }
     }

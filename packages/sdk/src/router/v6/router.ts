@@ -257,7 +257,7 @@ export class Router {
     if (
       !Addresses.MintModule[this.chainId] ||
       options?.forceDirectFilling ||
-      (details.length === 1 && !details[0].fees?.length)
+      (details.length === 1 && !details[0].fees?.length && !details[0].comment)
     ) {
       // Under some conditions, we simply return that transaction data back to the caller
 
@@ -281,6 +281,9 @@ export class Router {
           data: d.txData.data,
           value: d.txData.value ?? 0,
           fees: d.fees ?? [],
+          token: d.token,
+          quantity: d.quantity,
+          comment: d.comment ?? "",
         })),
         {
           refundTo: taker,
@@ -736,6 +739,7 @@ export class Router {
     // - alienswap
 
     if (
+      details.length &&
       details.every(
         ({ kind, fees, currency, order }) =>
           kind === "seaport-v1.5" &&
@@ -815,6 +819,7 @@ export class Router {
     }
 
     if (
+      details.length &&
       details.every(
         ({ kind, fees, currency, order }) =>
           kind === "alienswap" &&
@@ -3176,10 +3181,6 @@ export class Router {
           ...txs,
         ];
       }
-    }
-
-    if (!txs.length) {
-      throw new Error("Could not fill any of the requested orders");
     }
 
     return {

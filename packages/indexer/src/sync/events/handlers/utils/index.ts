@@ -1,19 +1,22 @@
 import { Log } from "@ethersproject/abstract-provider";
+import { AddressZero } from "@ethersproject/constants";
+import _ from "lodash";
 
 import { concat } from "@/common/utils";
 import { EventKind, EventSubKind } from "@/events-sync/data";
-import { assignSourceToFillEvents } from "@/events-sync/handlers/utils/fills";
+import {
+  assignMintCommentToFillEvents,
+  assignSourceToFillEvents,
+} from "@/events-sync/handlers/utils/fills";
 import { BaseEventParams } from "@/events-sync/parser";
 import * as es from "@/events-sync/storage";
 
 import { GenericOrderInfo } from "@/jobs/orderbook/utils";
-import { AddressZero } from "@ethersproject/constants";
 import {
   recalcOwnerCountQueueJob,
   RecalcOwnerCountQueueJobPayload,
 } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import { mintQueueJob, MintQueueJobPayload } from "@/jobs/token-updates/mint-queue-job";
-
 import {
   processActivityEventJob,
   EventKind as ProcessActivityEventKind,
@@ -31,7 +34,6 @@ import {
   OrderUpdatesByMakerJobPayload,
 } from "@/jobs/order-updates/order-updates-by-maker-job";
 import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
-import _ from "lodash";
 import { transferUpdatesJob } from "@/jobs/transfer-updates/transfer-updates-job";
 
 // Semi-parsed and classified event
@@ -40,6 +42,14 @@ export type EnhancedEvent = {
   subKind: EventSubKind;
   baseEventParams: BaseEventParams;
   log: Log;
+};
+
+export type MintComment = {
+  token: string;
+  tokenId?: string;
+  quantity: number;
+  comment: string;
+  baseEventParams: BaseEventParams;
 };
 
 // Data extracted from purely on-chain information
@@ -70,6 +80,7 @@ export type OnChainData = {
   fillInfos: FillUpdatesJobPayload[];
   mintInfos: MintQueueJobPayload[];
   mints: MintsProcessJobPayload[];
+  mintComments: MintComment[];
 
   // For properly keeping orders validated on the go
   orderInfos: OrderUpdatesByIdJobPayload[];
@@ -97,6 +108,7 @@ export const initOnChainData = (): OnChainData => ({
   fillInfos: [],
   mintInfos: [],
   mints: [],
+  mintComments: [],
 
   orderInfos: [],
   makerInfos: [],
@@ -121,6 +133,12 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
       )
     );
   });
+
+  const startAssignMintCommentToFillEvents = Date.now();
+  if (!backfill) {
+    await Promise.all([assignMintCommentToFillEvents(allFillEvents, data.mintComments)]);
+  }
+  const endAssignMintCommentToFillEvents = Date.now();
 
   const startAssignSourceToFillEvents = Date.now();
   if (!backfill) {
@@ -248,7 +266,9 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   const endProcessTransferActivityEvent = Date.now();
 
   return {
-    // return the time it took to process each step
+    // Return the time it took to process each step
+    assignMintCommentToFillEvents:
+      endAssignMintCommentToFillEvents - startAssignMintCommentToFillEvents,
     assignSourceToFillEvents: endAssignSourceToFillEvents - startAssignSourceToFillEvents,
     persistEvents: endPersistEvents - startPersistEvents,
     persistOtherEvents: endPersistOtherEvents - startPersistOtherEvents,
@@ -257,7 +277,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     processTransferActivityEvent:
       endProcessTransferActivityEvent - startProcessTransferActivityEvent,
 
-    // return the number of events processed
+    // Return the number of events processed
     fillEvents: data.fillEvents.length,
     fillEventsPartial: data.fillEventsPartial.length,
     fillEventsOnChain: data.fillEventsOnChain.length,
@@ -273,6 +293,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     makerInfos: data.makerInfos.length,
     orders: data.orders.length,
     mints: data.mints.length,
+    mintComments: data.mintComments.length,
     mintInfos: data.mintInfos.length,
   };
 };

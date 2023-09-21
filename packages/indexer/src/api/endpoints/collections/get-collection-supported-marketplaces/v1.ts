@@ -39,6 +39,8 @@ type Marketplace = {
   listingEnabled: boolean;
   customFeesSupported: boolean;
   collectionBidSupported?: boolean;
+  traitBidSupported: boolean;
+  partialBidSupported: boolean;
   minimumBidExpiry?: number;
   minimumPrecision?: string;
   supportedBidCurrencies: string[];
@@ -97,6 +99,10 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           minimumBidExpiry: Joi.number(),
           minimumPrecision: Joi.string(),
           collectionBidSupported: Joi.boolean(),
+          traitBidSupported: Joi.boolean(),
+          partialBidSupported: Joi.boolean().description(
+            "This indicates whether or not multi quantity bidding is supported"
+          ),
           supportedBidCurrencies: Joi.array()
             .items(Joi.string())
             .description("erc20 contract addresses"),
@@ -170,6 +176,8 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           minimumBidExpiry: 15 * 60,
           customFeesSupported: false,
           supportedBidCurrencies: [Sdk.Common.Addresses.WNative[config.chainId]],
+          partialBidSupported: false,
+          traitBidSupported: false,
         },
         {
           name: "X2Y2",
@@ -183,6 +191,8 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           listingEnabled: false,
           customFeesSupported: false,
           supportedBidCurrencies: [Sdk.Common.Addresses.WNative[config.chainId]],
+          partialBidSupported: false,
+          traitBidSupported: false,
         },
       ];
 
@@ -207,6 +217,8 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           customFeesSupported: true,
           collectionBidSupported: Number(collectionResult.token_count) <= config.maxTokenSetSize,
           supportedBidCurrencies: Object.keys(ns.supportedBidCurrencies),
+          partialBidSupported: true,
+          traitBidSupported: true,
         });
       }
 
@@ -249,6 +261,8 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           minimumBidExpiry: 15 * 60,
           supportedBidCurrencies: Object.keys(ns.supportedBidCurrencies),
           paymentTokens: collectionResult.payment_tokens?.opensea,
+          partialBidSupported: true,
+          traitBidSupported: true,
         });
       }
 
@@ -279,6 +293,8 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
             minimumPrecision: "0.01",
             minimumBidExpiry: 10 * 24 * 60 * 60,
             supportedBidCurrencies: [Sdk.Blur.Addresses.Beth[config.chainId]],
+            partialBidSupported: true,
+            traitBidSupported: false,
           });
         }
       }
@@ -365,6 +381,8 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           const blocked = await checkMarketplaceIsFiltered(params.collection, operators);
           if (blocked && marketplace.orderbook === "reservoir") {
             marketplace.orderKind = "payment-processor";
+            marketplace.partialBidSupported = false;
+            marketplace.traitBidSupported = false;
           } else if (blocked && marketplace.orderbook === "looks-rare") {
             const seaportBlocked = await checkMarketplaceIsFiltered(
               params.collection,

@@ -29,6 +29,10 @@ export type AbiParam =
       abiType: string;
     }
   | {
+      kind: "comment";
+      abiType: string;
+    }
+  | {
       kind: "allowlist";
       abiType: string;
     }
@@ -55,7 +59,10 @@ export const generateCollectionMintTxData = async (
   collectionMint: CollectionMint,
   minter: string,
   quantity: number,
-  referrer?: string
+  options?: {
+    comment?: string;
+    referrer?: string;
+  }
 ): Promise<{ txData: TxData; price: string }> => {
   // For `allowlist` mints
   const allowlistData =
@@ -112,6 +119,24 @@ export const generateCollectionMintTxData = async (
         abiData.push({
           abiType: p.abiType,
           abiValue: minter,
+        });
+
+        break;
+      }
+
+      case "comment": {
+        abiData.push({
+          abiType: p.abiType,
+          abiValue: options?.comment ?? "",
+        });
+
+        break;
+      }
+
+      case "referrer": {
+        abiData.push({
+          abiType: p.abiType,
+          abiValue: options?.referrer ?? AddressZero,
         });
 
         break;
@@ -191,7 +216,7 @@ export const generateCollectionMintTxData = async (
               abiValue = await mints.mintdotfun.generateProofValue(
                 collectionMint,
                 minter,
-                referrer ?? AddressZero
+                options?.referrer ?? AddressZero
               );
             }
             break;
@@ -236,14 +261,6 @@ export const generateCollectionMintTxData = async (
           abiValue: abiValue,
         });
 
-        break;
-      }
-
-      case "referrer": {
-        abiData.push({
-          abiType: p.abiType,
-          abiValue: referrer ?? AddressZero,
-        });
         break;
       }
 

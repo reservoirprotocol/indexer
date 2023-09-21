@@ -3,8 +3,9 @@ import _ from "lodash";
 import { pgp, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { fromBuffer } from "@/common/utils";
-import * as es from "@/events-sync/storage";
 import { getNetworkSettings } from "@/config/network";
+import * as es from "@/events-sync/storage";
+import { MintComment } from "@/events-sync/handlers/utils";
 
 // By default, each fill event is assigned a default order source
 // based on the order kind. However, that is not accurate at all,
@@ -144,4 +145,43 @@ export const assignWashTradingScoreToFillEvents = async (fillEvents: es.fills.Ev
       `Failed to assign wash trading scores to fill events: ${error}`
     );
   }
+};
+
+export const assignMintCommentToFillEvents = async (
+  fillEvents: es.fills.Event[],
+  comments: MintComment[]
+) => {
+  let lastCustomCommentIndex = -1;
+  fillEvents.forEach((event) => {
+    const sameTxComments = comments
+      .filter((c) => c.baseEventParams.txHash === event.baseEventParams.txHash)
+      .sort((c, b) => c.baseEventParams.logIndex - b.baseEventParams.logIndex);
+
+    const matchedComment = sameTxComments.find(
+      (c) => c.token === event.contract && c.tokenId === event.tokenId
+    );
+    if (matchedComment) {
+      event.comment = matchedComment.comment;
+    } else {
+      let matchComment: MintComment | undefined;
+      for (let i = 0; i < sameTxComments.length; i++) {
+        const currComment = sameTxComments[i];
+        const currLogIndex = currComment.baseEventParams.logIndex;
+
+        if (
+          currComment.token === event.contract &&
+          currLogIndex > event.baseEventParams.logIndex &&
+          i > lastCustomCommentIndex
+        ) {
+          matchComment = currComment;
+          lastCustomCommentIndex = i;
+          break;
+        }
+      }
+
+      if (matchComment) {
+        event.comment = matchComment.comment;
+      }
+    }
+  });
 };
