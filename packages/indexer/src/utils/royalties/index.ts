@@ -190,7 +190,7 @@ export const refreshAllRoyaltySpecs = async (
   collection: string,
   customRoyalties?: Royalty[],
   openseaRoyalties?: Royalty[],
-  refreshOnChain?: boolean
+  refreshOnChain = true
 ) => {
   // Update custom royalties
   await updateRoyaltySpec(collection, "custom", customRoyalties);
