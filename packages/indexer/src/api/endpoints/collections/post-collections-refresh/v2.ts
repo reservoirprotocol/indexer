@@ -113,16 +113,12 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionMetadataQueueJob.addToQueue(
-          {
-            contract: collection.contract,
-            tokenId,
-            community: collection.community,
-            forceRefresh: true,
-          },
-          0,
-          "post-refresh-collection-v2"
-        );
+        await collectionMetadataQueueJob.addToQueue({
+          contract: collection.contract,
+          tokenId,
+          community: collection.community,
+          forceRefresh: true,
+        });
 
         if (collection.slug) {
           // Refresh opensea collection offers
@@ -186,16 +182,12 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionMetadataQueueJob.addToQueue(
-          {
-            contract: collection.contract,
-            tokenId,
-            community: collection.community,
-            forceRefresh: payload.overrideCoolDown,
-          },
-          0,
-          "post-refresh-collection-v2"
-        );
+        await collectionMetadataQueueJob.addToQueue({
+          contract: collection.contract,
+          tokenId,
+          community: collection.community,
+          forceRefresh: payload.overrideCoolDown,
+        });
 
         if (collection.slug) {
           // Refresh opensea collection offers
