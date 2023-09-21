@@ -33,7 +33,9 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      period: Joi.string().valid("5m", "30m", "1h", "6h", "24h").default("24h"),
+      period: Joi.string()
+        .valid("5m", "10m", "30m", "1h", "6h", "24h", "1d", "7d", "30d")
+        .default("24h"),
       fillType: Joi.string()
         .lowercase()
         .valid(..._.values(TopSellingFillOptions))
@@ -46,6 +48,7 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
         .max(50)
         .default(25)
         .description("Amount of items returned in response. Default is 25 and max is 50"),
+      sortBy: Joi.string().valid("volume", "sales").default("sales"),
 
       includeRecentSales: Joi.boolean()
         .default(false)
@@ -92,6 +95,15 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
               .allow(null)
               .description("Lowest Ask Price."),
           },
+          tokenCount: Joi.number().description("Total tokens within the collection."),
+          ownerCount: Joi.number().description("Unique number of owners."),
+          volumeChange: Joi.object({
+            "1day": Joi.number().unsafe().allow(null),
+            "7day": Joi.number().unsafe().allow(null),
+            "30day": Joi.number().unsafe().allow(null),
+          }).description(
+            "Total volume change X-days vs previous X-days. (e.g. 7day [days 1-7] vs 7day prior [days 8-14]). A value over 1 is a positive gain, under 1 is a negative loss. e.g. 1 means no change; 1.1 means 10% increase; 0.9 means 10% decrease."
+          ),
           recentSales: Joi.array().items(
             Joi.object({
               contract: Joi.string(),
@@ -128,6 +140,7 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
       period,
       fillType,
       limit,
+      sortBy,
       includeRecentSales,
       normalizeRoyalties,
       useNonFlaggedFloorAsk,
@@ -139,6 +152,12 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
       switch (period) {
         case "5m": {
           startTime = now - 5 * 60;
+          cacheTime = 60 * 1;
+          break;
+        }
+
+        case "10m": {
+          startTime = now - 10 * 60;
           cacheTime = 60 * 1;
           break;
         }
@@ -154,6 +173,16 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
           startTime = now - 60 * 6 * 60;
           break;
         }
+
+        case "7d": {
+          startTime = now - 60 * 24 * 60 * 7;
+          break;
+        }
+
+        case "30d": {
+          startTime = now - 60 * 24 * 60 * 30;
+          break;
+        }
       }
 
       const collectionsResult = await getTopSellingCollections({
@@ -161,6 +190,7 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
         fillType,
         limit,
         includeRecentSales,
+        sortBy,
       });
 
       let floorAskSelectQuery;
@@ -202,6 +232,11 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
         SELECT
           collections.id,
           collections.contract,
+          collections.token_count,
+          collections.owner_count,
+          collections.day1_volume_change,
+          collections.day7_volume_change,
+          collections.day30_volume_change,
           (collections.metadata ->> 'bannerImageUrl')::TEXT AS "banner",
           (collections.metadata ->> 'description')::TEXT AS "description",
           ${floorAskSelectQuery}
@@ -239,6 +274,7 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
       });
 
       const responses = await Promise.all([resultsPromise, ...recentSalesPromise]);
+
       const collectionMetadataResponse = responses.shift();
       const collectionsMetadata: Record<string, any> = {};
       if (collectionMetadataResponse && Array.isArray(collectionMetadataResponse)) {
@@ -247,6 +283,7 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
         });
       }
       const sources = await Sources.getInstance();
+
       const collections = await Promise.all(
         responses.map(async (response) => {
           const metadata = collectionsMetadata[(response as any).primaryContract] || {};
@@ -274,6 +311,13 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
 
           return {
             ...response,
+            volumeChange: {
+              "1day": metadata.day1_volume_change,
+              "7day": metadata.day7_volume_change,
+              "30day": metadata.day30_volume_change,
+            },
+            tokenCount: Number(metadata.token_count || 0),
+            ownerCount: Number(metadata.owner_count || 0),
             banner: metadata.banner,
             description: metadata.description,
             floorAsk,
