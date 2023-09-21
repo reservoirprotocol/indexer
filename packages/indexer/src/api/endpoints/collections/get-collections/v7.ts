@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { parseEther } from "@ethersproject/units";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Boom from "@hapi/boom";
 import * as Sdk from "@reservoir0x/sdk";
@@ -8,7 +9,6 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { parseEther } from "@ethersproject/units";
 import { JoiPrice, getJoiPriceObject } from "@/common/joi";
 import {
   buildContinuation,
@@ -344,90 +344,90 @@ export const getCollectionsV7Options: RouteOptions = {
         `;
       }
 
+      // Include sales count
       let saleCountSelectQuery = "";
       let saleCountJoinQuery = "";
       if (query.includeSalesCount) {
         saleCountSelectQuery = ", s.*";
         saleCountJoinQuery = `
-        LEFT JOIN LATERAL (
-          SELECT
-            SUM(CASE
-                  WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '24 HOURS'
-                  THEN 1
-                  ELSE 0
-                END) AS day_sale_count,
-            SUM(CASE
-                  WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '7 DAYS'
-                  THEN 1
-                  ELSE 0
-                END) AS week_sale_count,
-            SUM(CASE
-                  WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '30 DAYS'
-                  THEN 1
-                  ELSE 0
-                END) AS month_sale_count,
-            COUNT(*) AS total_sale_count
-          FROM fill_events_2 fe
-          JOIN "tokens" "t" ON "fe"."token_id" = "t"."token_id" AND "fe"."contract" = "t"."contract"
-          WHERE t.collection_id = x.id
-          AND fe.is_deleted = 0
-        ) s ON TRUE
-      `;
+          LEFT JOIN LATERAL (
+            SELECT
+              SUM(CASE
+                    WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '24 HOURS'
+                    THEN 1
+                    ELSE 0
+                  END) AS day_sale_count,
+              SUM(CASE
+                    WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '7 DAYS'
+                    THEN 1
+                    ELSE 0
+                  END) AS week_sale_count,
+              SUM(CASE
+                    WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '30 DAYS'
+                    THEN 1
+                    ELSE 0
+                  END) AS month_sale_count,
+              COUNT(*) AS total_sale_count
+            FROM fill_events_2 fe
+            JOIN "tokens" "t" ON "fe"."token_id" = "t"."token_id" AND "fe"."contract" = "t"."contract"
+            WHERE t.collection_id = x.id
+            AND fe.is_deleted = 0
+          ) s ON TRUE
+        `;
       }
 
-      //Include security configurations
+      // Include security configurations
       let securityConfigSelectQuery = "";
       let securityConfigJoinQuery = "";
       if (query.includeSecurityConfigs) {
         securityConfigSelectQuery = ", t.*";
         securityConfigJoinQuery = `
-                LEFT JOIN LATERAL (
-                  SELECT
-                    erc721c_configs.transfer_security_level,
-                    erc721c_configs.transfer_validator,
-                    erc721c_operator_whitelists.whitelist as operator_whitelist,
-                    erc721c_permitted_contract_receiver_allowlists.allowlist as receiver_allowlist
-                  FROM erc721c_configs
-                  LEFT JOIN erc721c_operator_whitelists
-                    ON erc721c_configs.transfer_validator = erc721c_operator_whitelists.transfer_validator
-                    AND erc721c_configs.operator_whitelist_id = erc721c_operator_whitelists.id
-                  LEFT JOIN erc721c_permitted_contract_receiver_allowlists
-                    ON erc721c_configs.transfer_validator = erc721c_permitted_contract_receiver_allowlists.transfer_validator
-                    AND erc721c_configs.permitted_contract_receiver_allowlist_id = erc721c_permitted_contract_receiver_allowlists.id
-                  WHERE erc721c_configs.contract = x.contract
-                ) t ON TRUE
-              `;
+          LEFT JOIN LATERAL (
+            SELECT
+              erc721c_configs.transfer_security_level,
+              erc721c_configs.transfer_validator,
+              erc721c_operator_whitelists.whitelist as operator_whitelist,
+              erc721c_permitted_contract_receiver_allowlists.allowlist as receiver_allowlist
+            FROM erc721c_configs
+            LEFT JOIN erc721c_operator_whitelists
+              ON erc721c_configs.transfer_validator = erc721c_operator_whitelists.transfer_validator
+              AND erc721c_configs.operator_whitelist_id = erc721c_operator_whitelists.id
+            LEFT JOIN erc721c_permitted_contract_receiver_allowlists
+              ON erc721c_configs.transfer_validator = erc721c_permitted_contract_receiver_allowlists.transfer_validator
+              AND erc721c_configs.permitted_contract_receiver_allowlist_id = erc721c_permitted_contract_receiver_allowlists.id
+            WHERE erc721c_configs.contract = x.contract
+          ) t ON TRUE
+        `;
       }
 
       let floorAskSelectQuery;
-
       if (query.normalizeRoyalties) {
         floorAskSelectQuery = `
-            collections.normalized_floor_sell_id AS floor_sell_id,
-            collections.normalized_floor_sell_value AS floor_sell_value,
-            collections.normalized_floor_sell_maker AS floor_sell_maker,
-            least(2147483647::NUMERIC, date_part('epoch', lower(collections.normalized_floor_sell_valid_between)))::INT AS floor_sell_valid_from,
-            least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(collections.normalized_floor_sell_valid_between)), 'Infinity'),0))::INT AS floor_sell_valid_until,
-            collections.normalized_floor_sell_source_id_int AS floor_sell_source_id_int,
-            `;
+          collections.normalized_floor_sell_id AS floor_sell_id,
+          collections.normalized_floor_sell_value AS floor_sell_value,
+          collections.normalized_floor_sell_maker AS floor_sell_maker,
+          least(2147483647::NUMERIC, date_part('epoch', lower(collections.normalized_floor_sell_valid_between)))::INT AS floor_sell_valid_from,
+          least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(collections.normalized_floor_sell_valid_between)), 'Infinity'),0))::INT AS floor_sell_valid_until,
+          collections.normalized_floor_sell_source_id_int AS floor_sell_source_id_int,
+        `;
       } else if (query.useNonFlaggedFloorAsk) {
         floorAskSelectQuery = `
-            collections.non_flagged_floor_sell_id AS floor_sell_id,
-            collections.non_flagged_floor_sell_value AS floor_sell_value,
-            collections.non_flagged_floor_sell_maker AS floor_sell_maker,
-            least(2147483647::NUMERIC, date_part('epoch', lower(collections.non_flagged_floor_sell_valid_between)))::INT AS floor_sell_valid_from,
-            least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(collections.non_flagged_floor_sell_valid_between)), 'Infinity'),0))::INT AS floor_sell_valid_until,
-            collections.non_flagged_floor_sell_source_id_int AS floor_sell_source_id_int,
-            `;
+          collections.non_flagged_floor_sell_id AS floor_sell_id,
+          collections.non_flagged_floor_sell_value AS floor_sell_value,
+          collections.non_flagged_floor_sell_maker AS floor_sell_maker,
+          least(2147483647::NUMERIC, date_part('epoch', lower(collections.non_flagged_floor_sell_valid_between)))::INT AS floor_sell_valid_from,
+          least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(collections.non_flagged_floor_sell_valid_between)), 'Infinity'),0))::INT AS floor_sell_valid_until,
+          collections.non_flagged_floor_sell_source_id_int AS floor_sell_source_id_int,
+        `;
       } else {
         floorAskSelectQuery = `
-            collections.floor_sell_id,
-            collections.floor_sell_value,
-            collections.floor_sell_maker,
-            least(2147483647::NUMERIC, date_part('epoch', lower(collections.floor_sell_valid_between)))::INT AS floor_sell_valid_from,
-            least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(collections.floor_sell_valid_between)), 'Infinity'),0))::INT AS floor_sell_valid_until,
-            collections.floor_sell_source_id_int,
-      `;
+          collections.floor_sell_id,
+          collections.floor_sell_value,
+          collections.floor_sell_maker,
+          least(2147483647::NUMERIC, date_part('epoch', lower(collections.floor_sell_valid_between)))::INT AS floor_sell_valid_from,
+          least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(collections.floor_sell_valid_between)), 'Infinity'),0))::INT AS floor_sell_valid_until,
+          collections.floor_sell_source_id_int,
+        `;
       }
 
       let baseQuery = `
@@ -859,6 +859,7 @@ export const getCollectionsV7Options: RouteOptions = {
                   r.mint_stages.map(async (m: any) => ({
                     stage: m.stage,
                     kind: m.kind,
+                    tokenId: m.tokenId,
                     price: m.price
                       ? await getJoiPriceObject({ gross: { amount: m.price } }, m.currency)
                       : m.price,

@@ -32,6 +32,7 @@ export interface TokenMetadata {
   animationOriginalUrl?: string;
   metadataOriginalUrl?: string;
   mediaUrl?: string;
+  isFromWebhook?: boolean;
   attributes: {
     key: string;
     value: string;

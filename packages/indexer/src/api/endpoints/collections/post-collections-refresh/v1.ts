@@ -105,16 +105,12 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionMetadataQueueJob.addToQueue(
-          {
-            contract: collection.contract,
-            tokenId,
-            community: collection.community,
-            forceRefresh: true,
-          },
-          0,
-          "post-refresh-collection-v1"
-        );
+        await collectionMetadataQueueJob.addToQueue({
+          contract: collection.contract,
+          tokenId,
+          community: collection.community,
+          forceRefresh: true,
+        });
 
         if (collection.slug) {
           // Refresh opensea collection offers
@@ -135,7 +131,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         await blurListingsRefreshJob.addToQueue(collection.id, true);
 
         // Refresh listings
-        await OpenseaIndexerApi.fastContractSync(collection.contract);
+        await OpenseaIndexerApi.fastContractSync(collection.id);
       } else {
         isLargeCollection = collection.tokenCount > 30000;
 
@@ -182,16 +178,12 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionMetadataQueueJob.addToQueue(
-          {
-            contract: collection.contract,
-            tokenId,
-            community: collection.community,
-            forceRefresh: payload.overrideCoolDown,
-          },
-          0,
-          "post-refresh-collection-v1"
-        );
+        await collectionMetadataQueueJob.addToQueue({
+          contract: collection.contract,
+          tokenId,
+          community: collection.community,
+          forceRefresh: payload.overrideCoolDown,
+        });
 
         if (collection.slug) {
           // Refresh opensea collection offers
@@ -221,7 +213,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         }
 
         // Refresh listings
-        await OpenseaIndexerApi.fastContractSync(collection.contract);
+        await OpenseaIndexerApi.fastContractSync(collection.id);
 
         // Do these refresh operation only for small collections
         if (!isLargeCollection) {

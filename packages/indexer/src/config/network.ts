@@ -313,6 +313,18 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
+            "0x55818be03e5103e74f96df7343dd1862a6d215f2",
+            {
+              contract: "0x55818be03e5103e74f96df7343dd1862a6d215f2",
+              name: "BIDENIA",
+              symbol: "BIE",
+              decimals: 8,
+              metadata: {
+                image: "https://i.ibb.co/9GP6X1R/bidenia-Token.png",
+              },
+            },
+          ],
+          [
             "0xefe804a604fd3175220d5a4f2fc1a048c479c592",
             {
               contract: "0xefe804a604fd3175220d5a4f2fc1a048c479c592",

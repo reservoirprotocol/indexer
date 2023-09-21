@@ -19,7 +19,12 @@ export const fillErrorCallback = async (
   const isUnrecoverable = data.isUnrecoverable || error.response?.status === 404;
   if (isUnrecoverable) {
     // Invalidate the order
-    await orderRevalidationsJob.addToQueue([{ id: data.orderId, status: "inactive" }]);
+    await orderRevalidationsJob.addToQueue([
+      {
+        by: "id",
+        data: { id: data.orderId, status: "inactive" },
+      },
+    ]);
   }
 
   // Custom logic based on the error kind

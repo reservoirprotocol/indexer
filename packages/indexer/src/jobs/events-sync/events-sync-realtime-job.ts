@@ -4,6 +4,7 @@ import { logger } from "@/common/logger";
 import { checkForOrphanedBlock, syncEvents } from "@/events-sync/syncEventsV2";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import { traceSyncJob } from "./trace-sync-job";
+import { redis } from "@/common/redis";
 
 export type EventsSyncRealtimeJobPayload = {
   block: number;
@@ -13,7 +14,7 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-realtime";
   maxRetries = 30;
   concurrency = [84531, 80001, 11155111].includes(config.chainId) ? 1 : 5;
-  timeout = 10 * 60 * 1000;
+  timeout = 5 * 60 * 1000;
   backoff = {
     type: "fixed",
     delay: 1000,
@@ -29,8 +30,14 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
     }
 
     try {
-      await syncEvents(block);
+      // Update the latest block synced
+      const latestBlock = await redis.get("latest-block-realtime");
+      if (latestBlock && block > Number(latestBlock)) {
+        await redis.set("latest-block-realtime", block);
+      }
+
       await traceSyncJob.addToQueue({ block: block });
+      await syncEvents(block);
       //eslint-disable-next-line
     } catch (error: any) {
       // if the error is block not found, add back to queue

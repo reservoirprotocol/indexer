@@ -85,16 +85,12 @@ export class OpenseaOrdersFetchJob extends AbstractRabbitMqJobHandler {
               refreshOpenseaCollectionOffersCollections[0].collection
             );
 
-            await collectionMetadataQueueJob.addToQueue(
-              {
-                contract: collectionResult!.contract,
-                tokenId,
-                community: collectionResult!.community,
-                forceRefresh: false,
-              },
-              0,
-              this.queueName
-            );
+            await collectionMetadataQueueJob.addToQueue({
+              contract: collectionResult!.contract,
+              tokenId,
+              community: collectionResult!.community,
+              forceRefresh: false,
+            });
           } catch {
             // Skip on any errors
           }

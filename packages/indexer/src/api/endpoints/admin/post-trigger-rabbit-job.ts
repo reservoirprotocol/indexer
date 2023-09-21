@@ -1,21 +1,22 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-import { orderRevalidationsJob } from "@/jobs/order-fixes/order-revalidations-job";
 
-export const postRevalidateOrderOptions: RouteOptions = {
-  description: "Revalidate an existing order",
+export const postTriggerRabbitJobOptions: RouteOptions = {
+  description: "Trigger rabbit job",
   tags: ["api", "x-admin"],
   validate: {
     headers: Joi.object({
       "x-admin-api-key": Joi.string().required(),
     }).options({ allowUnknown: true }),
     payload: Joi.object({
-      id: Joi.string().required(),
-      status: Joi.string().valid("active", "inactive").required(),
+      path: Joi.string().allow(""),
+      params: Joi.any(),
     }),
   },
   handler: async (request: Request) => {
@@ -23,17 +24,16 @@ export const postRevalidateOrderOptions: RouteOptions = {
       throw Boom.unauthorized("Wrong or missing admin API key");
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload = request.payload as any;
 
     try {
-      await orderRevalidationsJob.addToQueue([
-        { by: "id", data: { id: payload.id, status: payload.status } },
-      ]);
+      const { job } = await import(`@/jobs/${payload.path}`);
+      const jobObject = new job();
+      jobObject.addToQueue(...payload.params);
 
-      return { message: "Success" };
+      return { message: `triggered @/jobs/${payload.path} with ${JSON.stringify(payload.params)}` };
     } catch (error) {
-      logger.error("post-revalidate-order-handler", `Handler failure: ${error}`);
+      logger.error("post-trigger-job-handler", `Handler failure: ${error}`);
       throw error;
     }
   },

@@ -4,9 +4,12 @@ import { keccak256 } from "@ethersproject/solidity";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
-import { TxData } from "@reservoir0x/sdk/dist/utils";
 import { PermitHandler, PermitWithTransfers } from "@reservoir0x/sdk/dist/router/v6/permit";
-import { Fee, FillListingsResult, ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
+import {
+  FillListingsResult,
+  ListingDetails,
+  MintDetails,
+} from "@reservoir0x/sdk/dist/router/v6/types";
 import axios from "axios";
 import Joi from "joi";
 
@@ -173,7 +176,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
       referrer: Joi.string()
         .pattern(regex.address)
         .optional()
-        .description("Referrer address where supported"),
+        .description("Referrer address (where supported)"),
+      comment: Joi.string().optional().description("Mint comment (where suported)"),
       // Various authorization keys
       x2y2ApiKey: Joi.string().description("Optional X2Y2 API key used for filling."),
       openseaApiKey: Joi.string().description(
@@ -481,11 +485,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       }[] = payload.items;
 
       // Keep track of any mint transactions that need to be aggregated
-      const mintTxs: {
-        orderId: string;
-        txData: TxData;
-        fees: Fee[];
-      }[] = [];
+      const mintDetails: MintDetails[] = [];
 
       // Keep track of the maximum quantity available per item
       // (only relevant when the below `preview` field is true)
@@ -748,14 +748,20 @@ export const getExecuteBuyV7Options: RouteOptions = {
                       mint,
                       payload.taker,
                       quantityToMint,
-                      payload.referrer
+                      {
+                        comment: payload.comment,
+                        referrer: payload.referrer,
+                      }
                     );
 
                     const orderId = `mint:${item.collection}`;
-                    mintTxs.push({
+                    mintDetails.push({
                       orderId,
                       txData,
                       fees: [],
+                      token: mint.contract,
+                      quantity: quantityToMint,
+                      comment: payload.comment,
                     });
 
                     await addToPath(
@@ -952,14 +958,20 @@ export const getExecuteBuyV7Options: RouteOptions = {
                       mint,
                       payload.taker,
                       quantityToMint,
-                      payload.referrer
+                      {
+                        comment: payload.comment,
+                        referrer: payload.referrer,
+                      }
                     );
 
                     const orderId = `mint:${collectionData.id}`;
-                    mintTxs.push({
+                    mintDetails.push({
                       orderId,
                       txData,
                       fees: [],
+                      token: mint.contract,
+                      quantity: quantityToMint,
+                      comment: payload.comment,
                     });
 
                     await addToPath(
@@ -1356,8 +1368,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
         },
         {
           id: "pre-signatures",
-          action: "Sign orders",
-          description: "Some marketplaces require signing additional orders before filling",
+          action: "Sign data",
+          description: "Some exchanges require signing additional data before filling",
           kind: "signature",
           items: [],
         },
@@ -1471,19 +1483,19 @@ export const getExecuteBuyV7Options: RouteOptions = {
       const { txs, success } = result;
 
       // Add any mint transactions
-      if (mintTxs.length) {
+      if (mintDetails.length) {
         if (!result.txs.length) {
-          for (const tx of mintTxs) {
+          for (const md of mintDetails) {
             for (const fee of globalFees) {
-              tx.fees.push({
+              md.fees.push({
                 recipient: fee.recipient,
-                amount: bn(fee.amount).div(mintTxs.length).toString(),
+                amount: bn(fee.amount).div(mintDetails.length).toString(),
               });
             }
           }
         }
 
-        let mintsResult = await router.fillMintsTx(mintTxs, payload.taker, {
+        let mintsResult = await router.fillMintsTx(mintDetails, payload.taker, {
           source: payload.source,
           partial: payload.partial,
         });
@@ -1523,7 +1535,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         }
 
         if (!safeToUse) {
-          mintsResult = await router.fillMintsTx(mintTxs, payload.taker, {
+          mintsResult = await router.fillMintsTx(mintDetails, payload.taker, {
             source: payload.source,
             forceDirectFilling: true,
           });
@@ -1549,6 +1561,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
         throw getExecuteError("No fillable orders");
       }
 
+      // Cannot skip balance checking when filling Blur orders
+      if (payload.skipBalanceCheck && path.some((p) => p.source === "blur.io")) {
+        payload.skipBalanceCheck = false;
+      }
+
       // Custom gas settings
       const maxFeePerGas = payload.maxFeePerGas
         ? bn(payload.maxFeePerGas).toHexString()
@@ -1557,7 +1574,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
         ? bn(payload.maxPriorityFeePerGas).toHexString()
         : undefined;
 
-      for (const { txData, approvals, permits, orderIds, preSignatures } of txs) {
+      const permitHandler = new PermitHandler(config.chainId, baseProvider);
+      for (const { txData, approvals, permits, preSignatures } of txs) {
         // Handle approvals
         for (const approval of approvals) {
           const approvedAmount = await onChainData
@@ -1578,7 +1596,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
         }
 
         // Handle permits
-        const permitHandler = new PermitHandler(config.chainId, baseProvider);
         for (const permit of permits) {
           const id = getPermitId(request.payload as object, {
             token: permit.data.token,
@@ -1656,11 +1673,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
           txData.data = exchange.attachTakerSignatures(txData.data, signaturesPaymentProcessor);
         }
 
-        // Cannot skip balance checking when filling Blur orders
-        if (payload.skipBalanceCheck && path.some((p) => p.source === "blur.io")) {
-          payload.skipBalanceCheck = false;
-        }
-
         // Check that the transaction sender has enough funds to fill all requested tokens
         const txSender = payload.relayer ?? payload.taker;
         if (buyInCurrency === Sdk.Common.Addresses.Native[config.chainId]) {
@@ -1683,7 +1695,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
             throw getExecuteError("Balance too low to proceed with transaction");
           }
         }
+      }
 
+      for (const { txData, orderIds, permits } of txs) {
         steps[4].items.push({
           status: "incomplete",
           orderIds,

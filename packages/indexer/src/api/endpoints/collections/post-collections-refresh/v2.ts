@@ -113,16 +113,12 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionMetadataQueueJob.addToQueue(
-          {
-            contract: collection.contract,
-            tokenId,
-            community: collection.community,
-            forceRefresh: true,
-          },
-          0,
-          "post-refresh-collection-v2"
-        );
+        await collectionMetadataQueueJob.addToQueue({
+          contract: collection.contract,
+          tokenId,
+          community: collection.community,
+          forceRefresh: true,
+        });
 
         if (collection.slug) {
           // Refresh opensea collection offers
@@ -139,7 +135,7 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         }
 
         // Refresh listings
-        await OpenseaIndexerApi.fastContractSync(collection.contract);
+        await OpenseaIndexerApi.fastContractSync(collection.id);
       } else {
         isLargeCollection = collection.tokenCount > 30000;
 
@@ -186,16 +182,12 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionMetadataQueueJob.addToQueue(
-          {
-            contract: collection.contract,
-            tokenId,
-            community: collection.community,
-            forceRefresh: payload.overrideCoolDown,
-          },
-          0,
-          "post-refresh-collection-v2"
-        );
+        await collectionMetadataQueueJob.addToQueue({
+          contract: collection.contract,
+          tokenId,
+          community: collection.community,
+          forceRefresh: payload.overrideCoolDown,
+        });
 
         if (collection.slug) {
           // Refresh opensea collection offers
@@ -212,7 +204,7 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         }
 
         // Refresh listings
-        await OpenseaIndexerApi.fastContractSync(collection.contract);
+        await OpenseaIndexerApi.fastContractSync(collection.id);
 
         // Refresh the contract floor sell and top bid
         await collectionRefreshCacheJob.addToQueue({ collection: collection.id });

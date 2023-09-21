@@ -6,12 +6,13 @@ import { redb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
 import { bn, fromBuffer, now } from "@/common/utils";
 import { config } from "@/config/index";
-import * as marketplaceFees from "@/utils/marketplace-fees";
 import {
   BaseOrderBuildOptions,
   OrderBuildInfo,
   padSourceToSalt,
 } from "@/orderbook/orders/seaport-base/build/utils";
+import * as marketplaceFees from "@/utils/marketplace-fees";
+import * as registry from "@/utils/royalties/registry";
 
 export const getBuildInfo = async (
   options: BaseOrderBuildOptions,
@@ -100,10 +101,19 @@ export const getBuildInfo = async (
 
   // Include royalties
   if (options.automatedRoyalties && options.orderbook !== "looks-rare") {
-    const royalties: { bps: number; recipient: string }[] =
+    let royalties: { bps: number; recipient: string }[] =
       (options.orderbook === "opensea"
         ? collectionResult.new_royalties?.opensea
         : collectionResult.royalties) ?? [];
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const tokenId = (options as any)["tokenId"];
+    if (tokenId !== undefined) {
+      const tokenRoyalties = await registry.getRegistryRoyalties(options.contract!, tokenId);
+      if (tokenRoyalties.length) {
+        royalties = tokenRoyalties;
+      }
+    }
 
     let royaltyBpsToPay = royalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
     if (options.royaltyBps !== undefined) {

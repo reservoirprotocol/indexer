@@ -167,16 +167,12 @@ export class MetadataIndexProcessBySlugJob extends AbstractRabbitMqJobHandler {
           ],
           true
         ),
-        collectionMetadataQueueJob.addToQueue(
-          {
-            contract: refreshTokenBySlug.contract,
-            tokenId,
-            community: collection.community,
-            forceRefresh: false,
-          },
-          0,
-          this.queueName
-        ),
+        collectionMetadataQueueJob.addToQueue({
+          contract: refreshTokenBySlug.contract,
+          tokenId,
+          community: collection.community,
+          forceRefresh: false,
+        }),
       ]);
     }
   }

@@ -81,16 +81,16 @@ export const OneInchSwapModule: ChainIdToAddress = {
 // Exchange modules
 
 export const MintModule: ChainIdToAddress = {
-  [Network.Ethereum]: "0x0b85f4e399fc69044bd9ee604a59e9663f1ea292",
-  [Network.EthereumGoerli]: "0x0b85f4e399fc69044bd9ee604a59e9663f1ea292",
-  [Network.EthereumSepolia]: "0x0b85f4e399fc69044bd9ee604a59e9663f1ea292",
-  [Network.Optimism]: "0x0b85f4e399fc69044bd9ee604a59e9663f1ea292",
-  [Network.Bsc]: "0x0b85f4e399fc69044bd9ee604a59e9663f1ea292",
-  [Network.Base]: "0x3a65a4875be880552ecd27de4084799b65b40065",
-  [Network.BaseGoerli]: "0x3a65a4875be880552ecd27de4084799b65b40065",
-  [Network.Zora]: "0x3a65a4875be880552ecd27de4084799b65b40065",
-  [Network.ZoraTestnet]: "0x3a65a4875be880552ecd27de4084799b65b40065",
-  [Network.Avalanche]: "0x0b85f4e399fc69044bd9ee604a59e9663f1ea292",
+  [Network.Ethereum]: "0x849ef788b40af342e2883c3112dd636f03a4203e",
+  [Network.EthereumGoerli]: "0x849ef788b40af342e2883c3112dd636f03a4203e",
+  [Network.EthereumSepolia]: "0x849ef788b40af342e2883c3112dd636f03a4203e",
+  [Network.Optimism]: "0x849ef788b40af342e2883c3112dd636f03a4203e",
+  [Network.Arbitrum]: "0x849ef788b40af342e2883c3112dd636f03a4203e",
+  [Network.Bsc]: "0x849ef788b40af342e2883c3112dd636f03a4203e",
+  [Network.Base]: "0x849ef788b40af342e2883c3112dd636f03a4203e",
+  [Network.BaseGoerli]: "0xe3de16f7ed5a124686cc27571898e394959e8b39",
+  [Network.Zora]: "0xe3de16f7ed5a124686cc27571898e394959e8b39",
+  [Network.Avalanche]: "0x849ef788b40af342e2883c3112dd636f03a4203e",
 };
 
 export const CollectionXyzModule: ChainIdToAddress = {

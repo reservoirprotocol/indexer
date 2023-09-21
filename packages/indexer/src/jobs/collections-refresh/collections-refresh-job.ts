@@ -78,7 +78,7 @@ export class CollectionRefreshJob extends AbstractRabbitMqJobHandler {
         } as CollectionMetadataInfo)
     );
 
-    await collectionMetadataQueueJob.addToQueueBulk(infos, 0, this.queueName);
+    await collectionMetadataQueueJob.addToQueueBulk(infos);
   }
 
   public async addToQueue() {

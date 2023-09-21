@@ -159,6 +159,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
         const parsedMetadata = await MetadataApi.parseTokenMetadata(metadata, "opensea");
 
         if (parsedMetadata) {
+          parsedMetadata.isFromWebhook = true;
           await metadataIndexWriteJob.addToQueue([parsedMetadata]);
         }
       } catch (error) {

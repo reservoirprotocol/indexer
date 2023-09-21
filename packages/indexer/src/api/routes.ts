@@ -210,6 +210,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/trigger-rabbit-job",
+    options: adminEndpoints.postTriggerRabbitJobOptions,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/resync-source",
     options: adminEndpoints.postResyncSourceOptions,
   });

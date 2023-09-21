@@ -4,6 +4,7 @@ import { Contract } from "@ethersproject/contracts";
 import { idb, redb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
 import { fromBuffer, toBuffer } from "@/common/utils";
+import { orderRevalidationsJob } from "@/jobs/order-fixes/order-revalidations-job";
 
 export type ERC721CConfig = {
   transferValidator: string;
@@ -166,6 +167,31 @@ export const refreshERC721COperatorWhitelist = async (transferValidator: string,
       id,
       whitelist,
     }
+  );
+
+  const relevantContracts = await idb.manyOrNone(
+    `
+      SELECT
+        erc721c_configs.contract
+      FROM erc721c_configs
+      WHERE erc721c_configs.transfer_validator = $/transferValidator/
+      LIMIT 1000
+    `,
+    {
+      transferValidator: toBuffer(transferValidator),
+    }
+  );
+
+  // Invalid any orders relying on the blacklisted operator
+  await orderRevalidationsJob.addToQueue(
+    relevantContracts.map((c) => ({
+      by: "operator",
+      data: {
+        contract: fromBuffer(c.contract),
+        whitelistedOperators: whitelist,
+        status: "inactive",
+      },
+    }))
   );
 
   return whitelist;
