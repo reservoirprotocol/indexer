@@ -106,7 +106,8 @@ export const getTopSellingCollectionsV1Options: RouteOptions = {
       let cachedResults = null;
       let collectionsResult = [];
 
-      if (Math.abs(startTime - oneDayAgo) <= 600) {
+      // if approx 24 hours ago, use cache
+      if (Math.abs(startTime - oneDayAgo) <= 1000) {
         const cacheKey = `topSellingCollections:v2:1d:${fillType}:sales`;
         cachedResults = await redis.get(cacheKey);
       }

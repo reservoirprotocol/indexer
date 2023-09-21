@@ -51,7 +51,7 @@ export const getStartTime = (period: string) => {
 
 export class TopSellingCollections {
   public static async updateTopSellingCollections() {
-    const periods = ["30m", "1h", "6h", "1d", "7d"];
+    const periods = ["30m", "1h", "6h", "1d"];
     // only cache sales sorted by volume for now
 
     const results = await Promise.all(
