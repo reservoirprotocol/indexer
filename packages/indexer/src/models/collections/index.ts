@@ -97,7 +97,7 @@ export class Collections {
   }
 
   public static async updateCollectionCache(contract: string, tokenId: string, community = "") {
-    if (contract === "0x495f947276749ce646f68ac8c248420045cb7b5e") {
+    if (contract === "0x10b09f5335b130656c76af7556b02ee26a44aaf6") {
       logger.info(
         "updateCollectionCache",
         JSON.stringify({
@@ -132,7 +132,7 @@ export class Collections {
       }
     );
 
-    if (!collectionResult.id) {
+    if (!collectionResult?.id) {
       // If the collection doesn't exist, push a job to retrieve it
       await fetchCollectionMetadataJob.addToQueue([
         {
@@ -156,11 +156,11 @@ export class Collections {
 
     const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, community);
 
-    if (contract === "0x495f947276749ce646f68ac8c248420045cb7b5e") {
+    if (contract === "0x10b09f5335b130656c76af7556b02ee26a44aaf6") {
       logger.info(
         "updateCollectionCache",
         JSON.stringify({
-          topic: "post-refresh-collection",
+          topic: "debugCollectionRefresh",
           message: `getCollectionMetadata. contract=${contract}, tokenId=${tokenId}`,
           collection,
         })
@@ -235,11 +235,11 @@ export class Collections {
 
     const result = await idb.oneOrNone(query, values);
 
-    if (contract === "0x495f947276749ce646f68ac8c248420045cb7b5e") {
+    if (contract === "0x10b09f5335b130656c76af7556b02ee26a44aaf6") {
       logger.info(
         "updateCollectionCache",
         JSON.stringify({
-          topic: "post-refresh-collection",
+          topic: "debugCollectionRefresh",
           message: `collectionUpdated. contract=${contract}, tokenId=${tokenId}`,
           collection,
         })

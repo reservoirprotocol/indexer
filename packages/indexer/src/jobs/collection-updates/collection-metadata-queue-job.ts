@@ -29,11 +29,11 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: MetadataQueueJobPayload) {
     const { contract, tokenId, community, forceRefresh } = payload;
 
-    if (contract === "0x495f947276749ce646f68ac8c248420045cb7b5e") {
+    if (contract === "0x10b09f5335b130656c76af7556b02ee26a44aaf6") {
       logger.info(
         this.queueName,
         JSON.stringify({
-          topic: "post-refresh-collection",
+          topic: "debugCollectionRefresh",
           message: `Start. contract=${contract}, tokenId=${tokenId}`,
           payload,
         })
@@ -43,7 +43,7 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
     if (forceRefresh || (await acquireLock(`${this.queueName}:${contract}`, 5 * 60))) {
       if (await acquireLock(this.queueName, 1)) {
         try {
-          if (contract === "0x495f947276749ce646f68ac8c248420045cb7b5e") {
+          if (contract === "0x10b09f5335b130656c76af7556b02ee26a44aaf6") {
             logger.info(
               this.queueName,
               JSON.stringify({
@@ -66,7 +66,7 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
           );
         }
       } else {
-        if (contract === "0x495f947276749ce646f68ac8c248420045cb7b5e") {
+        if (contract === "0x10b09f5335b130656c76af7556b02ee26a44aaf6") {
           logger.info(
             this.queueName,
             JSON.stringify({
@@ -84,7 +84,7 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
         await this.addToQueue(payload, 1000);
       }
     } else {
-      if (contract === "0x495f947276749ce646f68ac8c248420045cb7b5e") {
+      if (contract === "0x10b09f5335b130656c76af7556b02ee26a44aaf6") {
         logger.info(
           this.queueName,
           JSON.stringify({
