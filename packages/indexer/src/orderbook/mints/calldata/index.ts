@@ -9,6 +9,9 @@ import { CollectionMint } from "@/orderbook/mints";
 
 import * as mints from "@/orderbook/mints/calldata/detector";
 
+// For now, use the deployer address
+const DEFAULT_REFERRER = "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e";
+
 export type AbiParam =
   | {
       kind: "unknown";
@@ -136,7 +139,7 @@ export const generateCollectionMintTxData = async (
       case "referrer": {
         abiData.push({
           abiType: p.abiType,
-          abiValue: options?.referrer ?? AddressZero,
+          abiValue: options?.referrer ?? DEFAULT_REFERRER,
         });
 
         break;
@@ -216,7 +219,7 @@ export const generateCollectionMintTxData = async (
               abiValue = await mints.mintdotfun.generateProofValue(
                 collectionMint,
                 minter,
-                options?.referrer ?? AddressZero
+                options?.referrer ?? DEFAULT_REFERRER
               );
             }
             break;
