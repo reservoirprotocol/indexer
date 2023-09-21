@@ -97,16 +97,6 @@ export class Collections {
   }
 
   public static async updateCollectionCache(contract: string, tokenId: string, community = "") {
-    if (contract === "0x10b09f5335b130656c76af7556b02ee26a44aaf6") {
-      logger.info(
-        "updateCollectionCache",
-        JSON.stringify({
-          topic: "post-refresh-collection",
-          message: `Start. contract=${contract}, tokenId=${tokenId}`,
-        })
-      );
-    }
-
     try {
       await Contracts.updateContractMetadata(contract);
     } catch (error) {
@@ -155,17 +145,6 @@ export class Collections {
     }
 
     const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, community);
-
-    if (contract === "0x10b09f5335b130656c76af7556b02ee26a44aaf6") {
-      logger.info(
-        "updateCollectionCache",
-        JSON.stringify({
-          topic: "debugCollectionRefresh",
-          message: `getCollectionMetadata. contract=${contract}, tokenId=${tokenId}`,
-          collection,
-        })
-      );
-    }
 
     if (collection.isCopyrightInfringement) {
       collection.name = collection.id;
@@ -234,17 +213,6 @@ export class Collections {
     };
 
     const result = await idb.oneOrNone(query, values);
-
-    if (contract === "0x10b09f5335b130656c76af7556b02ee26a44aaf6") {
-      logger.info(
-        "updateCollectionCache",
-        JSON.stringify({
-          topic: "debugCollectionRefresh",
-          message: `collectionUpdated. contract=${contract}, tokenId=${tokenId}`,
-          collection,
-        })
-      );
-    }
 
     try {
       if (
