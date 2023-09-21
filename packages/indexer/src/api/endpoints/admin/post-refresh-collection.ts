@@ -71,7 +71,6 @@ export const postRefreshCollectionOptions: RouteOptions = {
               contract: fromBuffer(tokenResult.contract),
               tokenId: tokenResult.token_id,
               allowFallbackCollectionMetadata: false,
-              context: "post-refresh-collection",
             },
           ]);
 
@@ -117,6 +116,17 @@ export const postRefreshCollectionOptions: RouteOptions = {
 
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
+
+        if (collection.contract === "0x495f947276749ce646f68ac8c248420045cb7b5e") {
+          logger.info(
+            "post-refresh-collection",
+            JSON.stringify({
+              topic: "debugCollectionRefresh",
+              message: `collectionMetadataQueueJob.addToQueue. contract=${collection.contract}, tokenId=${tokenId}`,
+              collection,
+            })
+          );
+        }
 
         await collectionMetadataQueueJob.addToQueue({
           contract: collection.contract,
