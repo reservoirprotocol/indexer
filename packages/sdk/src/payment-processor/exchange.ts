@@ -1,4 +1,4 @@
-import { Result } from "@ethersproject/abi";
+import { Interface, Result } from "@ethersproject/abi";
 import { Provider } from "@ethersproject/abstract-provider";
 import { Signer } from "@ethersproject/abstract-signer";
 import { BigNumber } from "@ethersproject/bignumber";
@@ -172,6 +172,25 @@ export class Exchange {
       value: price.toString(),
       data: data + generateSourceBytes(options?.source),
     };
+  }
+
+  // --- Check if operator is allowed to transfer ---
+
+  public async isTransferAllowed(
+    provider: Provider,
+    contract: string,
+    operator: string,
+    from: string,
+    to: string
+  ) {
+    const c = new Contract(
+      contract,
+      new Interface([
+        "function isTransferAllowed(address caller, address from, address to) view returns (bool)",
+      ]),
+      provider
+    );
+    return c.isTransferAllowed(operator, from, to);
   }
 
   // --- Attach signatures ---

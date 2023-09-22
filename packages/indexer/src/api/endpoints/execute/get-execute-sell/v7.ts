@@ -6,6 +6,7 @@ import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { BidDetails, FillBidsResult } from "@reservoir0x/sdk/dist/router/v6/types";
+import { estimateGas } from "@reservoir0x/sdk/dist/router/v6/utils";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
 import axios from "axios";
 import Joi from "joi";
@@ -175,6 +176,9 @@ export const getExecuteSellV7Options: RouteOptions = {
                 tip: Joi.string(),
                 orderIds: Joi.array().items(Joi.string()),
                 data: Joi.object(),
+                gasEstimate: Joi.number().description(
+                  "Approximation of gas used (only applies to `transaction` items)"
+                ),
               })
             )
             .required(),
@@ -951,6 +955,7 @@ export const getExecuteSellV7Options: RouteOptions = {
           orderIds?: string[];
           tip?: string;
           data?: object;
+          gasEstimate?: number;
         }[];
       }[] = [
         {
@@ -1214,7 +1219,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
       }
 
-      for (const { txData, orderIds, preSignatures } of txs) {
+      for (const { txData, txTags, orderIds, preSignatures } of txs) {
         // Handle pre-signatures
         const signaturesPaymentProcessor: string[] = [];
         for (const preSignature of preSignatures) {
@@ -1267,6 +1272,7 @@ export const getExecuteSellV7Options: RouteOptions = {
                 maxPriorityFeePerGas,
               }
             : undefined,
+          gasEstimate: txTags ? estimateGas(txTags) : undefined,
         });
       }
 

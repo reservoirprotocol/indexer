@@ -20,6 +20,7 @@ import {
 import { offChainCheck } from "@/orderbook/orders/payment-processor/check";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
+import * as erc721c from "@/utils/erc721c";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
@@ -221,6 +222,23 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       }
 
       const side = ["sale-approval"].includes(order.params.kind!) ? "sell" : "buy";
+
+      // Handle: security level 4 and 6 EOA verification
+      if (side === "buy") {
+        const config = await erc721c.getERC721CConfigFromDB(order.params.tokenAddress);
+        if (config && [4, 6].includes(config.transferSecurityLevel)) {
+          const isVerified = await erc721c.isVerifiedEOA(
+            config.transferValidator,
+            order.params.sellerOrBuyer
+          );
+          if (!isVerified) {
+            return results.push({
+              id,
+              status: "eoa-not-verified",
+            });
+          }
+        }
+      }
 
       // Handle: currency
       const currency = order.params.coin;
