@@ -224,7 +224,9 @@ export const CryptoPunksModule: ChainIdToAddress = {
 };
 
 export const PaymentProcessorModule: ChainIdToAddress = {
-  [Network.Ethereum]: "0x929adee14d57019bfd4d092889abe3e2a647e706",
-  [Network.EthereumGoerli]: "0x929adee14d57019bfd4d092889abe3e2a647e706",
-  [Network.EthereumSepolia]: "0x929adee14d57019bfd4d092889abe3e2a647e706",
+  [Network.Ethereum]: "0x273c845e0ad06530dfa408dc2531accd80d170a9",
+  [Network.EthereumGoerli]: "0x273c845e0ad06530dfa408dc2531accd80d170a9",
+  [Network.EthereumSepolia]: "0x273c845e0ad06530dfa408dc2531accd80d170a9",
+  [Network.Polygon]: "0x273c845e0ad06530dfa408dc2531accd80d170a9",
+  [Network.Mumbai]: "0x273c845e0ad06530dfa408dc2531accd80d170a9",
 };

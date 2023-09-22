@@ -8,6 +8,7 @@ import { logger } from "@/common/logger";
 import { now } from "@/common/utils";
 import { config } from "@/config/index";
 import * as b from "@/utils/auth/blur";
+import * as e from "@/utils/auth/erc721c";
 import * as o from "@/utils/auth/opensea";
 
 const version = "v1";
@@ -25,7 +26,7 @@ export const postAuthSignatureV1Options: RouteOptions = {
       signature: Joi.string().required().description("Signature to attach to the auth challenge"),
     }),
     payload: Joi.object({
-      kind: Joi.string().valid("blur", "opensea").required().description("Type of permit"),
+      kind: Joi.string().valid("blur", "erc721c", "opensea").required().description("Type of auth"),
       id: Joi.string().required().description("Id of the auth challenge"),
     }),
   },
@@ -56,15 +57,6 @@ export const postAuthSignatureV1Options: RouteOptions = {
             query.signature
           ).toLowerCase();
           if (recoveredSigner !== authChallenge.walletAddress.toLowerCase()) {
-            logger.error(
-              "blur-auth-challenge-signature",
-              JSON.stringify({
-                recoveredSigner,
-                walletAddress: authChallenge.walletAddress.toLowerCase(),
-                authChallenge,
-                signature: query.signature,
-              })
-            );
             throw Boom.badRequest("Invalid auth challenge signature");
           }
 
@@ -90,6 +82,31 @@ export const postAuthSignatureV1Options: RouteOptions = {
           );
 
           return { auth: await b.getAuth(authId).then((a) => a?.accessToken) };
+        }
+
+        case "erc721c": {
+          const authChallenge = await e.getAuthChallenge(payload.id);
+          if (!authChallenge) {
+            throw Boom.badRequest("Auth challenge does not exist");
+          }
+
+          const recoveredSigner = verifyMessage(
+            authChallenge.message,
+            query.signature
+          ).toLowerCase();
+          if (recoveredSigner !== authChallenge.walletAddress.toLowerCase()) {
+            throw Boom.badRequest("Invalid auth challenge signature");
+          }
+
+          const authId = e.getAuthId(recoveredSigner);
+          await e.saveAuth(
+            authId,
+            { signature: query.signature },
+            // Give a 10 minute buffer for the auth to expire
+            10 * 60
+          );
+
+          return { auth: await e.getAuth(authId).then((a) => a?.signature) };
         }
 
         case "opensea": {

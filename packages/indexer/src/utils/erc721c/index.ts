@@ -238,10 +238,27 @@ export const refreshERC721CPermittedContractReceiverAllowlist = async (
   return allowlist;
 };
 
+export const isVerifiedEOA = async (transferValidator: string, address: string) => {
+  const result = await idb.oneOrNone(
+    `
+      SELECT
+        1
+      FROM erc721c_verified_eoas
+      WHERE erc721c_verified_eoas.transfer_validator = $/transferValidator/
+        AND erc721c_verified_eoas.address = $/address/
+    `,
+    {
+      transferValidator: toBuffer(transferValidator),
+      address: toBuffer(address),
+    }
+  );
+  return Boolean(result);
+};
+
 export const saveVerifiedEOA = async (transferValidator: string, address: string) =>
   idb.none(
     `
-      INSERT INTO erc721_verified_eoas(
+      INSERT INTO erc721c_verified_eoas(
         transfer_validator,
         address
       ) VALUES (

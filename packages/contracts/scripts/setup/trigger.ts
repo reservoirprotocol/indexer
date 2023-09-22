@@ -309,7 +309,7 @@ export const trigger = {
         Sdk.CryptoPunks.Addresses.Exchange[chainId],
       ]),
     PaymentProcessorModule: async (chainId: number) =>
-      dv("PaymentProcessorModule", "v3", [
+      dv("PaymentProcessorModule", "v4", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.PaymentProcessor.Addresses.Exchange[chainId],

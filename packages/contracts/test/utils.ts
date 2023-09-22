@@ -3,6 +3,7 @@
 import { Interface } from "@ethersproject/abi";
 import { Provider } from "@ethersproject/abstract-provider";
 import { BigNumberish, BigNumber } from "@ethersproject/bignumber";
+import { Contract } from "@ethersproject/contracts";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import * as Sdk from "@reservoir0x/sdk/src";
 import { ethers, network } from "hardhat";
@@ -60,15 +61,54 @@ export const setupTokens = async (deployer: SignerWithAddress) => {
 };
 
 // Deploy mock ERC721/1155 contracts
-export const setupNFTs = async (deployer: SignerWithAddress) => {
+export const setupNFTs = async (
+  deployer: SignerWithAddress,
+  whitelistedOperators: string[] = []
+) => {
   const erc721: any = await ethers
     .getContractFactory("MockERC721", deployer)
     .then((factory) => factory.deploy());
+
   const erc1155: any = await ethers
     .getContractFactory("MockERC1155", deployer)
     .then((factory) => factory.deploy());
 
-  return { erc721, erc1155 };
+  const erc721c: any = await ethers
+    .getContractFactory("MockERC721C", deployer)
+    .then((factory) => factory.deploy());
+
+  const erc721cWithWhitelist: any = await ethers
+    .getContractFactory("MockERC721C", deployer)
+    .then((factory) => factory.deploy());
+
+  if (whitelistedOperators.length) {
+    await erc721cWithWhitelist.connect(deployer).setToDefaultSecurityPolicy();
+
+    const validatorAddress = await erc721cWithWhitelist.getTransferValidator();
+    const validator = new Contract(
+      validatorAddress,
+      new Interface([
+        "function createOperatorWhitelist(string calldata name) external returns (uint120)",
+        "function addOperatorToWhitelist(uint120 id, address operator) external",
+      ]),
+      ethers.provider
+    );
+
+    const operatorWhitelistId = await validator
+      .connect(deployer)
+      .callStatic.createOperatorWhitelist("whitelist");
+    await validator.connect(deployer).createOperatorWhitelist("whitelist");
+
+    for (const operator of whitelistedOperators) {
+      await validator.connect(deployer).addOperatorToWhitelist(operatorWhitelistId, operator);
+    }
+
+    await erc721cWithWhitelist
+      .connect(deployer)
+      .setToCustomSecurityPolicy(2, operatorWhitelistId, 0);
+  }
+
+  return { erc721, erc1155, erc721c, erc721cWithWhitelist };
 };
 
 export const setupConduit = async (
@@ -173,6 +213,18 @@ export const setupRouterWithModules = async (chainId: number, deployer: SignerWi
     .getContractFactory("PermitProxy", deployer)
     .then((factory) => factory.deploy(router.address, deployer.address));
   Sdk.RouterV6.Addresses.PermitProxy[chainId] = permitProxy.address.toLowerCase();
+
+  const paymentProcessorModule = await ethers
+    .getContractFactory("PaymentProcessorModule", deployer)
+    .then((factory) =>
+      factory.deploy(
+        deployer.address,
+        router.address,
+        Sdk.PaymentProcessor.Addresses.Exchange[chainId]
+      )
+    );
+  Sdk.RouterV6.Addresses.PaymentProcessorModule[chainId] =
+    paymentProcessorModule.address.toLowerCase();
 
   const conduitKey = await setupConduit(chainId, deployer, [approvalProxy.address]);
   Sdk.SeaportBase.Addresses.ReservoirConduitKey[chainId] = conduitKey;

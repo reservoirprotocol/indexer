@@ -10,6 +10,7 @@
     "test": "hardhat test"
   },
   "dependencies": {
+    "@limitbreak/creator-token-contracts": "^1.1.2",
     "@tenderly/hardhat-tenderly": "^1.6.1",
     "@uniswap/permit2-sdk": "^1.2.0",
     "hardhat-tracer": "^2.6.0",
