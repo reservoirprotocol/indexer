@@ -114,7 +114,16 @@ export const getTopSellingCollectionsV1Options: RouteOptions = {
 
       if (cachedResults) {
         collectionsResult = JSON.parse(cachedResults).slice(0, limit);
+
+        logger.info(
+          "get-top-selling-collections-v1-cache-hit",
+          `using cached results startTime=${startTime} fillType=${fillType}`
+        );
       } else {
+        logger.info(
+          "get-top-selling-collections-v1-cache-miss",
+          `No cached results for startTime=${startTime} fillType=${fillType}`
+        );
         collectionsResult = await getTopSellingCollections({
           startTime,
           endTime,

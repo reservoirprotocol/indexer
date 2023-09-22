@@ -158,6 +158,10 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
 
       if (cachedResults) {
         collectionsResult = JSON.parse(cachedResults).slice(0, limit);
+        logger.info(
+          "get-top-selling-collections-v2-cache-hit",
+          `Using cached results for ${cacheKey}`
+        );
       } else {
         const startTime = getStartTime(period);
 
@@ -168,6 +172,11 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
           includeRecentSales,
           sortBy,
         });
+
+        logger.info(
+          "get-top-selling-collections-v2-cache-miss",
+          `No cached results for ${cacheKey}`
+        );
       }
 
       let floorAskSelectQuery;
