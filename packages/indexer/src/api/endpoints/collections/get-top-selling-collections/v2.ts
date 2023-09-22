@@ -150,7 +150,7 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
 
     try {
       let collectionsResult = [];
-      const period = request.query.period === "24hr" ? "1d" : request.query.period;
+      const period = request.query.period === "24h" ? "1d" : request.query.period;
 
       const cacheKey = `topSellingCollections:v2:${period}:${fillType}:${sortBy}`;
 
