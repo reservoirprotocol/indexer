@@ -24,6 +24,7 @@ export const Native: ChainIdToAddress = {
   [Network.Linea]: AddressZero,
   [Network.Zksync]: AddressZero,
   [Network.PolygonZkevm]: AddressZero,
+  [Network.Ancient8Testnet]: AddressZero,
 };
 
 // Wrapped native currency

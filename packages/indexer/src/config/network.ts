@@ -1251,7 +1251,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         },
       };
     }
-    // Polygon zkEVM
+    // Ancient8 Testnet
     case 2863311531: {
       return {
         ...defaultNetworkSettings,
