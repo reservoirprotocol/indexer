@@ -1539,6 +1539,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         // So the client doesn't error
         steps[1].items.push({
           status: "complete",
+          data: {},
         });
       }
 

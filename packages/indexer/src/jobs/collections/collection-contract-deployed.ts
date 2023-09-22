@@ -53,9 +53,9 @@ export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler
 
     const { symbol, name } = await getContractNameAndSymbol(contract);
 
-    if (!name) {
-      logger.warn(this.queueName, `Collection ${contract} has no name`);
-    }
+    // if (!name) {
+    //   logger.warn(this.queueName, `Collection ${contract} has no name`);
+    // }
 
     await Promise.all([
       idb.none(

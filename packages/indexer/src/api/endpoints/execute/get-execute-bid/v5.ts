@@ -421,6 +421,10 @@ export const getExecuteBidV5Options: RouteOptions = {
             steps[0].items.push({
               status: "complete",
             });
+            steps[1].items.push({
+              status: "complete",
+              data: {},
+            });
           }
         }
       }
@@ -502,6 +506,10 @@ export const getExecuteBidV5Options: RouteOptions = {
         } else {
           steps[0].items.push({
             status: "complete",
+          });
+          steps[1].items.push({
+            status: "complete",
+            data: {},
           });
         }
       }

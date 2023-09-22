@@ -218,10 +218,11 @@ export const getTopSellingCollections = async (params: {
   startTime: number;
   endTime?: number;
   fillType: TopSellingFillOptions;
+  sortBy?: "volume" | "sales";
   limit: number;
   includeRecentSales: boolean;
 }): Promise<CollectionAggregation[]> => {
-  const { startTime, endTime, fillType, limit } = params;
+  const { startTime, endTime, fillType, limit, sortBy } = params;
 
   const { trendingExcludedContracts } = getNetworkSettings();
 
@@ -255,12 +256,13 @@ export const getTopSellingCollections = async (params: {
     },
   } as any;
 
+  const sort = sortBy == "volume" ? { total_volume: "desc" } : { total_transactions: "desc" };
   const collectionAggregation = {
     collections: {
       terms: {
         field: "collection.id",
         size: limit,
-        order: { total_transactions: "desc" },
+        order: sort,
       },
       aggs: {
         total_sales: {
@@ -273,7 +275,6 @@ export const getTopSellingCollections = async (params: {
             field: "event.txHash",
           },
         },
-
         total_volume: {
           sum: {
             field: "pricing.priceDecimal",

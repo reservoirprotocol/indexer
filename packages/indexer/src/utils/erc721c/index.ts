@@ -258,7 +258,7 @@ export const isVerifiedEOA = async (transferValidator: string, address: string) 
 export const saveVerifiedEOA = async (transferValidator: string, address: string) =>
   idb.none(
     `
-      INSERT INTO erc721_verified_eoas(
+      INSERT INTO erc721c_verified_eoas(
         transfer_validator,
         address
       ) VALUES (
