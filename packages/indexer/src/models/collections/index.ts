@@ -97,6 +97,16 @@ export class Collections {
   }
 
   public static async updateCollectionCache(contract: string, tokenId: string, community = "") {
+    if (contract === "0x27ca1486749ef528b97a7ea1857f0b6aaee2626a") {
+      logger.info(
+        "updateCollectionCache",
+        JSON.stringify({
+          topic: "debugRefreshRoyalties",
+          message: `Start. contract=${contract}, tokenId=${tokenId}`,
+        })
+      );
+    }
+
     try {
       await Contracts.updateContractMetadata(contract);
     } catch (error) {
@@ -132,6 +142,16 @@ export class Collections {
       ]);
 
       return;
+    }
+
+    if (contract === "0x27ca1486749ef528b97a7ea1857f0b6aaee2626a") {
+      logger.info(
+        "updateCollectionCache",
+        JSON.stringify({
+          topic: "debugRefreshRoyalties",
+          message: `refreshRegistryRoyalties. contract=${contract}, tokenId=${tokenId}`,
+        })
+      );
     }
 
     try {
@@ -245,6 +265,17 @@ export class Collections {
     );
 
     await royalties.refreshDefaultRoyalties(collection.id);
+
+    if (contract === "0x27ca1486749ef528b97a7ea1857f0b6aaee2626a") {
+      logger.info(
+        "updateCollectionCache",
+        JSON.stringify({
+          topic: "debugRefreshRoyalties",
+          message: `refreshDefaultRoyalties. contract=${contract}, tokenId=${tokenId}`,
+          collection,
+        })
+      );
+    }
 
     // Refresh Blur royalties (which get stored separately)
     await updateBlurRoyalties(collection.id, true);
