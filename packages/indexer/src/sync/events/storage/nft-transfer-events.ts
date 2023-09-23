@@ -254,7 +254,11 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
 };
 
 function buildTokenValuesQueries(tokenValuesChunk: erc721Token[] | erc1155Token[], kind: string) {
-  const columns = ["contract", "token_id", "minted_timestamp", "collection_id"];
+  const columns = ["contract", "token_id", "minted_timestamp"];
+
+  if (config.liquidityOnly) {
+    columns.push("collection_id");
+  }
 
   if (kind === "erc721") {
     columns.push("supply");
@@ -269,8 +273,8 @@ function buildTokenValuesQueries(tokenValuesChunk: erc721Token[] | erc1155Token[
     INSERT INTO "tokens" (
       "contract",
       "token_id",
-      "minted_timestamp",
-      "collection_id"
+      "minted_timestamp"
+      ${config.liquidityOnly ? `, "collection_id"` : ""}
       ${kind === "erc721" ? `, "supply"` : ""}
       ${kind === "erc721" ? `, "remaining_supply"` : ""}
     ) VALUES ${pgp.helpers.values(

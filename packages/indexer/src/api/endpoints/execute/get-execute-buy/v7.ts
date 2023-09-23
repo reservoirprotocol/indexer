@@ -1458,6 +1458,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
         steps[0].items.push({
           status: "complete",
         });
+
+        // No need to have the hacky fix here since for Blur the next step will always be "sale"
       }
 
       // Handle ERC721C authentication
@@ -1536,9 +1538,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
         steps[0].items.push({
           status: "complete",
         });
-        // So the client doesn't error
         steps[1].items.push({
           status: "complete",
+          // Hacky fix for: https://github.com/reservoirprotocol/reservoir-kit/pull/391
           data: {},
         });
       }
