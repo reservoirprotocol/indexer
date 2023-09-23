@@ -440,7 +440,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         elasticsearch: {
           indexes: {
             activities: {
-              numberOfShards: 40,
+              numberOfShards: 50,
             },
           },
         },
@@ -669,7 +669,7 @@ export const getNetworkSettings = (): NetworkSettings => {
           indexes: {
             activities: {
               ...defaultNetworkSettings.elasticsearch?.indexes?.activities,
-              numberOfShards: 40,
+              numberOfShards: 50,
             },
           },
         },

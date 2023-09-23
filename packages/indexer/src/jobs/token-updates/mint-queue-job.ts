@@ -31,16 +31,6 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: MintQueueJobPayload) {
     const { contract, tokenId, mintedTimestamp } = payload;
 
-    if (contract === "0x27ca1486749ef528b97a7ea1857f0b6aaee2626a") {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "debugRefreshRoyalties",
-          message: `Start. contract=${contract}, tokenId=${tokenId}`,
-        })
-      );
-    }
-
     try {
       // First, check the database for any matching collection
       const collection: {
@@ -71,17 +61,6 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
       // check if there are any tokens that exist already for the collection
       // if there are not, we need to fetch the collection metadata from upstream
       if (collection) {
-        if (contract === "0x27ca1486749ef528b97a7ea1857f0b6aaee2626a") {
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              topic: "debugRefreshRoyalties",
-              message: `Collection exists. contract=${contract}, tokenId=${tokenId}`,
-              collection,
-            })
-          );
-        }
-
         const existingToken = await idb.oneOrNone(
           `
             SELECT 1 FROM tokens
@@ -96,17 +75,6 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
         );
         if (!existingToken) {
           isFirstToken = true;
-        }
-
-        if (contract === "0x27ca1486749ef528b97a7ea1857f0b6aaee2626a") {
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              topic: "debugRefreshRoyalties",
-              message: `isFirstToken. contract=${contract}, tokenId=${tokenId}, isFirstToken=${isFirstToken}`,
-              collection,
-            })
-          );
         }
 
         const queries: PgPromiseQuery[] = [];
@@ -220,17 +188,6 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
           );
         }
       } else {
-        if (contract === "0x27ca1486749ef528b97a7ea1857f0b6aaee2626a") {
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              topic: "debugRefreshRoyalties",
-              message: `fetchCollectionMetadataJob. contract=${contract}, tokenId=${tokenId}`,
-              collection,
-            })
-          );
-        }
-
         // We fetch the collection metadata from upstream
         await fetchCollectionMetadataJob.addToQueue([
           {
@@ -242,17 +199,6 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
       }
 
       if (isFirstToken) {
-        if (contract === "0x27ca1486749ef528b97a7ea1857f0b6aaee2626a") {
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              topic: "debugRefreshRoyalties",
-              message: `collectionMetadataQueueJob. contract=${contract}, tokenId=${tokenId}`,
-              collection,
-            })
-          );
-        }
-
         await collectionMetadataQueueJob.addToQueue({
           contract,
           tokenId,

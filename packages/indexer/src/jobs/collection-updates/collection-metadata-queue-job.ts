@@ -29,16 +29,6 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: MetadataQueueJobPayload) {
     const { contract, tokenId, community, forceRefresh } = payload;
 
-    if (contract === "0x27ca1486749ef528b97a7ea1857f0b6aaee2626a") {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "debugRefreshRoyalties",
-          message: `Start. contract=${contract}, tokenId=${tokenId}`,
-        })
-      );
-    }
-
     if (forceRefresh || (await acquireLock(`${this.queueName}:${contract}`, 5 * 60))) {
       if (await acquireLock(this.queueName, 1)) {
         try {
