@@ -341,6 +341,91 @@ export const getTopSellingCollections = async (params: {
   );
 };
 
+export const getTopSellingCollectionsV2 = async (params: {
+  startTime: number;
+  fillType: TopSellingFillOptions;
+  sortBy?: "volume" | "sales";
+  limit: number;
+}): Promise<CollectionAggregation[]> => {
+  const { startTime, fillType, limit, sortBy } = params;
+
+  const { trendingExcludedContracts } = getNetworkSettings();
+
+  const salesQuery = {
+    bool: {
+      filter: [
+        {
+          terms: {
+            type: fillType == "any" ? ["sale", "mint"] : [fillType],
+          },
+        },
+        {
+          range: {
+            timestamp: {
+              gte: startTime,
+              format: "epoch_second",
+            },
+          },
+        },
+      ],
+      ...(trendingExcludedContracts && {
+        must_not: [
+          {
+            terms: {
+              "collection.id": trendingExcludedContracts,
+            },
+          },
+        ],
+      }),
+    },
+  } as any;
+
+  const sort = sortBy == "volume" ? { total_volume: "desc" } : { total_transactions: "desc" };
+  const collectionAggregation = {
+    collections: {
+      terms: {
+        field: "collection.id",
+        size: limit,
+        order: sort,
+      },
+      aggs: {
+        total_sales: {
+          value_count: {
+            field: "id",
+          },
+        },
+        total_transactions: {
+          cardinality: {
+            field: "event.txHash",
+          },
+        },
+        total_volume: {
+          sum: {
+            field: "pricing.priceDecimal",
+          },
+        },
+      },
+    },
+  } as any;
+
+  const esResult = (await elasticsearch.search({
+    index: INDEX_NAME,
+    size: 0,
+    body: {
+      query: salesQuery,
+      aggs: collectionAggregation,
+    },
+  })) as any;
+
+  return esResult?.aggregations?.collections?.buckets?.map((bucket: any) => {
+    return {
+      volume: bucket?.total_volume?.value,
+      count: bucket?.total_sales.value,
+      id: bucket.key,
+    };
+  });
+};
+
 export const deleteActivitiesById = async (ids: string[]): Promise<void> => {
   try {
     const response = await elasticsearch.bulk({
