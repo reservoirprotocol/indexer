@@ -289,7 +289,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
 
                   await redisMulti.expire(
                     `token-cache:${tokenResultContract}:${tokenResult.token_id}`,
-                    60 * 60 * 24
+                    3600
                   );
                 }
 
