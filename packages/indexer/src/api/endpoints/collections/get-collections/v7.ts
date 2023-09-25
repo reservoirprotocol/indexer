@@ -354,25 +354,18 @@ export const getCollectionsV7Options: RouteOptions = {
           LEFT JOIN LATERAL (
             SELECT
               SUM(CASE
-                    WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '24 HOURS'
-                    THEN 1
-                    ELSE 0
-                  END) AS day_sale_count,
-              SUM(CASE
-                    WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '7 DAYS'
-                    THEN 1
+                    WHEN to_timestamp(dv.timestamp) + INTERVAL '24 HOURS' > NOW() - INTERVAL '7 DAYS'
+                    THEN sales_count
                     ELSE 0
                   END) AS week_sale_count,
               SUM(CASE
-                    WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '30 DAYS'
-                    THEN 1
+                    WHEN to_timestamp(dv.timestamp) + INTERVAL '24 HOURS' > NOW() - INTERVAL '30 DAYS'
+                    THEN sales_count
                     ELSE 0
                   END) AS month_sale_count,
-              COUNT(*) AS total_sale_count
-            FROM fill_events_2 fe
-            JOIN "tokens" "t" ON "fe"."token_id" = "t"."token_id" AND "fe"."contract" = "t"."contract"
-            WHERE t.collection_id = x.id
-            AND fe.is_deleted = 0
+              SUM(sales_count) AS total_sale_count
+            FROM daily_volumes dv
+            WHERE dv.collection_id = x.id
           ) s ON TRUE
         `;
       }
@@ -449,6 +442,7 @@ export const getCollectionsV7Options: RouteOptions = {
           collections.token_id_range,
           collections.token_set_id,
           collections.creator,
+          collections.day1_sales_count AS "day_sale_count",
           collections.day1_rank,
           collections.day1_volume,
           collections.day7_rank,
@@ -839,7 +833,7 @@ export const getCollectionsV7Options: RouteOptions = {
             },
             salesCount: query.includeSalesCount
               ? {
-                  "1day": r.day_sale_count,
+                  "1day": `${r.day_sale_count ?? 0}`,
                   "7day": r.week_sale_count,
                   "30day": r.month_sale_count,
                   allTime: r.total_sale_count,
