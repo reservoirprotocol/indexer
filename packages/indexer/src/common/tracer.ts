@@ -13,6 +13,18 @@ if (process.env.DATADOG_AGENT_URL) {
     service,
     url: process.env.DATADOG_AGENT_URL,
     env: config.environment,
+    samplingRules: [
+      {
+        service: `${service}-postgres`,
+        sampleRate: 0,
+      },
+    ],
+    spanSamplingRules: [
+      {
+        service: `${service}-postgres`,
+        sampleRate: 0,
+      },
+    ],
   });
 
   tracer.use("hapi", {
