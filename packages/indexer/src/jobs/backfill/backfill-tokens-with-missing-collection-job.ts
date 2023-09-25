@@ -33,7 +33,7 @@ export class BackfillTokensWithMissingCollectionJob extends AbstractRabbitMqJobH
     const limit = (await redis.get(`${this.queueName}-limit`)) || 1;
 
     if (contract) {
-      contractFilter = `tokens.contract = $/contract/`;
+      contractFilter = `AND tokens.contract = $/contract/`;
     }
 
     if (cursor) {
