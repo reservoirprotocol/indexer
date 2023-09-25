@@ -28,7 +28,7 @@ if (process.env.DATADOG_AGENT_URL) {
   });
 
   tracer.use("pg", {
-    enabled: false,
+    enabled: config.chainId === 1,
   });
 }
 
