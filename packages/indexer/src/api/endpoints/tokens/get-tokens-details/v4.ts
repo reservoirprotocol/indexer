@@ -17,6 +17,7 @@ import {
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
 import { JoiAttributeValue } from "@/common/joi";
+import * as Boom from "@hapi/boom";
 
 const version = "v4";
 
@@ -335,7 +336,7 @@ export const getTokensDetailsV4Options: RouteOptions = {
               })
             );
 
-            throw new Error("Invalid continuation string used");
+            throw Boom.badRequest("Invalid continuation string used");
           }
 
           switch (query.sortBy) {
