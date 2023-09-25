@@ -8,6 +8,7 @@ import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
 import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
 import { PendingActivityEventsQueue } from "@/elasticsearch/indexes/activities/pending-activity-events-queue";
 import { EventKind } from "@/jobs/activities/process-activity-event-job";
+import { PendingExpiredBidActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-expired-bid-activities-queue";
 
 if (config.doBackgroundWork) {
   cron.schedule(
@@ -53,6 +54,18 @@ if (config.doBackgroundWork) {
               })
             );
           }
+
+          const pendingExpiredBidActivitiesQueue = new PendingExpiredBidActivitiesQueue();
+          const pendingExpiredBidActivitiesQueueCount =
+            await pendingExpiredBidActivitiesQueue.count();
+
+          logger.info(
+            "pending-expired-bid-activities-queue-metric",
+            JSON.stringify({
+              topic: "queue-monitoring",
+              pendingExpiredBidActivitiesQueueCount,
+            })
+          );
         })
         .catch(() => {
           // Skip on any errors
