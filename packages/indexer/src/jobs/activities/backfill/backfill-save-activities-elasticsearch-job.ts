@@ -221,7 +221,8 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
         fromTimestamp,
         toTimestamp,
         indexName,
-        keepGoing
+        keepGoing,
+        lockId
       );
     } else {
       logger.info(
@@ -278,31 +279,31 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
     fromTimestamp?: number,
     toTimestamp?: number,
     indexName?: string,
-    keepGoing?: boolean
+    keepGoing?: boolean,
+    lockId?: string
   ) {
+    const fromTimestampISO = new Date(fromTimestamp! * 1000).toISOString();
+    const toTimestampISO = new Date(toTimestamp! * 1000).toISOString();
+
+    logger.info(
+      this.queueName,
+      JSON.stringify({
+        topic: "backfill-activities",
+        message: `addToQueueDebug2. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}`,
+        type,
+        fromTimestamp,
+        fromTimestampISO,
+        toTimestamp,
+        toTimestampISO,
+        cursor,
+        indexName,
+        keepGoing,
+        lockId,
+      })
+    );
+
     if (!config.doElasticsearchWork) {
       return;
-    }
-
-    if (!keepGoing) {
-      const fromTimestampISO = new Date(fromTimestamp! * 1000).toISOString();
-      const toTimestampISO = new Date(toTimestamp! * 1000).toISOString();
-
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "backfill-activities",
-          message: `addToQueueDebug2. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}`,
-          type,
-          fromTimestamp,
-          fromTimestampISO,
-          toTimestamp,
-          toTimestampISO,
-          cursor,
-          indexName,
-          keepGoing,
-        })
-      );
     }
 
     // const jobId = crypto
