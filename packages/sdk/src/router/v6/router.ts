@@ -2835,7 +2835,11 @@ export class Router {
             ? module.interface.encodeFunctionData("acceptETHListing", [
                 encodeForMatchOrders(orders[0].params),
                 orders[0].params.signature,
-                encodeForMatchOrders(orders[0].buildMatching(module.address)),
+                encodeForMatchOrders(
+                  orders[0].buildMatching(module.address, {
+                    amount: raribleDetails[0].amount,
+                  })
+                ),
                 "0x",
                 {
                   fillTo: taker,
@@ -2848,7 +2852,13 @@ export class Router {
             : module.interface.encodeFunctionData("acceptETHListings", [
                 orders.map((order) => encodeForMatchOrders(order.params)),
                 orders.map((order) => order.params.signature),
-                orders.map((order) => encodeForMatchOrders(order.buildMatching(module.address))),
+                orders.map((order, index) =>
+                  encodeForMatchOrders(
+                    order.buildMatching(module.address, {
+                      amount: raribleDetails[index].amount,
+                    })
+                  )
+                ),
                 "0x",
                 {
                   fillTo: taker,
