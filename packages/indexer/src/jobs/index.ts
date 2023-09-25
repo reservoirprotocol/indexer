@@ -154,6 +154,7 @@ import { blockGapCheckJob } from "@/jobs/events-sync/block-gap-check";
 import { traceSyncJob } from "@/jobs/events-sync/trace-sync-job";
 import { backfillTokensTimeToMetadataJob } from "@/jobs/backfill/backfill-tokens-time-to-metadata-job";
 import { topSellingCollectionsJob } from "@/jobs/top-selling-collections-cache/save-top-selling-collections-job";
+import { newCollectionForTokenJob } from "@/jobs/token-updates/new-collection-for-token-job";
 
 export const allJobQueues = [
   backfillWrongNftBalances.queue,
@@ -290,6 +291,7 @@ export class RabbitMqJobsConsumer {
       blockGapCheckJob,
       backfillTokensTimeToMetadataJob,
       topSellingCollectionsJob,
+      newCollectionForTokenJob,
     ];
   }
 

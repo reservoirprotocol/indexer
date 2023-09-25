@@ -14,7 +14,7 @@ import { updateBlurRoyalties } from "@/utils/blur";
 import * as erc721c from "@/utils/erc721c";
 import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
-import MetadataApi from "@/utils/metadata-api";
+import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 import * as royalties from "@/utils/royalties";
 
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
@@ -144,7 +144,11 @@ export class Collections {
       );
     }
 
-    const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, community);
+    const collection = await MetadataProviderRouter.getCollectionMetadata(
+      contract,
+      tokenId,
+      community
+    );
 
     if (collection.isCopyrightInfringement) {
       collection.name = collection.id;

@@ -2,11 +2,11 @@
 
 import { logger } from "@/common/logger";
 import { getStakedAmountWei, stakedAmountWeiToAttributeBucket } from "../apecoin";
-import { TokenMetadata } from "@/utils/metadata-api";
+import { TokenMetadata } from "@/metadata/types";
 
 const POOL_ID = 1;
 
-export const extend = async (_chainId: number, metadata: TokenMetadata) => {
+export const extend = async (metadata: TokenMetadata) => {
   const traitCount = metadata.attributes.length;
 
   let stakedAmountWei;
@@ -14,7 +14,6 @@ export const extend = async (_chainId: number, metadata: TokenMetadata) => {
     const { tokenId } = metadata;
     stakedAmountWei = await getStakedAmountWei({ poolId: POOL_ID, tokenId: tokenId.toString() });
   } catch (error) {
-    // console.log(error);
     logger.error(
       "apecoin-extend",
       `Failed to get staked amount for tokenId ${metadata.tokenId}, poolId ${POOL_ID}, error: ${error}`

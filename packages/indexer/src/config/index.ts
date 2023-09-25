@@ -86,9 +86,20 @@ export const config = {
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
   openSeaApiUrl: String(process.env.OPENSEA_API_URL || ""),
 
+  openSeaTokenMetadataBySlugApiKey: String(process.env.OPENSEA_SLUG_API_KEY),
+  openSeaCollectionMetadataApiKey: String(process.env.OPENSEA_COLLECTION_API_KEY),
+  openSeaTokenMetadataApiKey: String(process.env.OPENSEA_TOKENS_API_KEY),
+
   openSeaCrossPostingApiKey: String(
     process.env.OPENSEA_CROSS_POSTING_API_KEY || process.env.OPENSEA_API_KEY
   ),
+
+  simplehashApiKey: String(process.env.SIMPLEHASH_API_KEY),
+
+  soundxyzApiKey: String(process.env.SOUNDXYZ_API_KEY),
+  soundxyzUserAgent: String(process.env.SOUNDXYZ_USER_AGENT),
+
+  ordinalsApiKey: String(process.env.ORDINALS_API_KEY),
 
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
   cbApiKey: String(process.env.CB_API_KEY),

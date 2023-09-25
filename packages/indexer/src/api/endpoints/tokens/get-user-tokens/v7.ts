@@ -140,6 +140,7 @@ export const getUserTokensV7Options: RouteOptions = {
       tokens: Joi.array().items(
         Joi.object({
           token: Joi.object({
+            chainId: Joi.number().required(),
             contract: Joi.string(),
             tokenId: Joi.string(),
             kind: Joi.string().description("Can be erc721, erc115, etc."),
@@ -666,6 +667,7 @@ export const getUserTokensV7Options: RouteOptions = {
         const acquiredTime = new Date(r.acquired_at * 1000).toISOString();
         return {
           token: {
+            chainId: config.chainId,
             contract: contract,
             tokenId: tokenId,
             kind: r.kind,

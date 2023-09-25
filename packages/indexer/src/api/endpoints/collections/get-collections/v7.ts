@@ -152,6 +152,7 @@ export const getCollectionsV7Options: RouteOptions = {
       continuation: Joi.string().allow(null),
       collections: Joi.array().items(
         Joi.object({
+          chainId: Joi.number().required(),
           id: Joi.string().description("Collection id"),
           slug: Joi.string().allow("", null).description("Open Sea slug"),
           createdAt: Joi.string().description("Time when added to indexer"),
@@ -717,6 +718,7 @@ export const getCollectionsV7Options: RouteOptions = {
           );
 
           return {
+            chainId: config.chainId,
             id: r.id,
             slug: r.slug,
             createdAt: new Date(r.created_at * 1000).toISOString(),

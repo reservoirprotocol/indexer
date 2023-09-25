@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { TokenMetadata } from "@/utils/metadata-api";
+import { TokenMetadata } from "@/metadata/types";
+
 import souls from "./souls.json";
 
 const rank = {
@@ -20,7 +21,7 @@ const rank = {
   Origin: 0,
 };
 
-export const extend = async (_chainId: number, metadata: TokenMetadata) => {
+export const extend = async (metadata: TokenMetadata) => {
   const attributes = [];
   let isUndesirable = false;
   const coreTraits = {
@@ -31,7 +32,7 @@ export const extend = async (_chainId: number, metadata: TokenMetadata) => {
     Rune: "",
   };
 
-  metadata.attributes.forEach((attribute: { key: string; value: string }) => {
+  metadata.attributes.forEach((attribute: { key: string; value: string | number | null }) => {
     const attributeKey = attribute.key.charAt(0).toUpperCase() + attribute.key.slice(1);
     attributes.push({
       key: attributeKey ?? "property",
@@ -47,7 +48,8 @@ export const extend = async (_chainId: number, metadata: TokenMetadata) => {
     }
 
     if (attributeKey in coreTraits) {
-      coreTraits[attributeKey as keyof typeof coreTraits] = attribute.value;
+      // eslint-disable-next-line
+      coreTraits[attributeKey as keyof typeof coreTraits] = attribute.value as string;
     }
   });
 

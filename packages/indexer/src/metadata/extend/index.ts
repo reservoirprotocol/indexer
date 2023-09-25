@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { CollectionMetadata } from "@/utils/metadata-api";
+import { config } from "@/config/index";
+import { CollectionMetadata, TokenMetadata } from "../types";
 import * as adidasOriginals from "./adidas-originals";
 import * as admitOne from "./admit-one";
 import * as artTennis from "./art-tennis";
@@ -36,18 +37,17 @@ import * as soundxyz from "./soundxyz";
 import * as tfoust from "./tfoust";
 import * as utopiaAvatars from "./utopia-avatars";
 import * as superrareShared from "./superrare-shared";
+import * as foundationShared from "./foundation-shared";
 
 const extendCollection: any = {};
 const extend: any = {};
 
-export const hasExtendHandler = (chainId: number, contract: string) =>
-  extend[`${chainId},${contract}`];
+export const hasExtendHandler = (contract: string) => extend[`${config.chainId},${contract}`];
 
-export const extendCollectionMetadata = async (chainId: number, metadata: any, tokenId: string) => {
+export const extendCollectionMetadata = async (metadata: any, tokenId?: string) => {
   if (metadata) {
-    if (extendCollection[`${chainId},${metadata.id}`]) {
-      return extendCollection[`${chainId},${metadata.id}`].extendCollection(
-        chainId,
+    if (extendCollection[`${config.chainId},${metadata.id}`]) {
+      return extendCollection[`${config.chainId},${metadata.id}`].extendCollection(
         metadata,
         tokenId
       );
@@ -57,10 +57,10 @@ export const extendCollectionMetadata = async (chainId: number, metadata: any, t
   }
 };
 
-export const extendMetadata = async (chainId: number, metadata: CollectionMetadata) => {
+export const extendMetadata = async (metadata: TokenMetadata) => {
   if (metadata) {
-    if (extend[`${chainId},${metadata.contract.toLowerCase()}`]) {
-      return extend[`${chainId},${metadata.contract.toLowerCase()}`].extend(chainId, metadata);
+    if (extend[`${config.chainId},${metadata.contract.toLowerCase()}`]) {
+      return extend[`${config.chainId},${metadata.contract.toLowerCase()}`].extend(metadata);
     } else {
       return metadata;
     }
@@ -74,14 +74,14 @@ class ExtendLogic {
     this.prefix = prefix;
   }
 
-  public async extendCollection(_chainId: number, metadata: CollectionMetadata, _tokenId = null) {
+  public async extendCollection(metadata: CollectionMetadata, _tokenId = null) {
     metadata.id = `${metadata.contract}:${this.prefix}-${metadata.slug}`;
     metadata.tokenIdRange = null;
     metadata.tokenSetId = null;
 
     return { ...metadata };
   }
-  public async extend(_chainId: number, metadata: CollectionMetadata) {
+  public async extend(metadata: TokenMetadata) {
     metadata.collection = `${metadata.contract}:${this.prefix}-${metadata.slug}`;
     return { ...metadata };
   }
@@ -128,9 +128,6 @@ extendCollection["5,0xd8560c88d1dc85f9ed05b25878e366c49b68bef9"] = sharedContrac
 extendCollection["1,0xb66a603f4cfe17e3d27b87a8bfcad319856518b8"] = sharedContracts;
 extendCollection["5,0x7c4b13b5893cd82f371c5e28f12fb2f37542bbc5"] = sharedContracts;
 
-// Foundation
-extendCollection["1,0x3b3ee1931dc30c1957379fac9aba94d1c48a5405"] = sharedContracts;
-
 // Zora
 extendCollection["1,0xabefbc9fd2f806065b4f3c237d4b59d9a97bcac7"] = sharedContracts;
 
@@ -174,6 +171,9 @@ extendCollection["1,0xb7ec7bbd2d2193b47027247fc666fb342d23c4b5"] = mirageGallery
 
 // Superrare Shared
 extendCollection["1,0xb932a70a57673d89f4acffbe830e8ed7f75fb9e0"] = superrareShared;
+
+// Foundation
+extendCollection["1,0x3b3ee1931dc30c1957379fac9aba94d1c48a5405"] = foundationShared;
 
 // Sound XYZ
 soundxyz.SoundxyzArtistContracts.forEach(
@@ -308,3 +308,6 @@ extend["1,0x5f076e995290f3f9aea85fdd06d8fae118f2b75c"] = utopiaAvatars;
 
 // Superrare Shared
 extend["1,0xb932a70a57673d89f4acffbe830e8ed7f75fb9e0"] = superrareShared;
+
+//Foundation Shared
+extend["1,0x3b3ee1931dc30c1957379fac9aba94d1c48a5405"] = foundationShared;
