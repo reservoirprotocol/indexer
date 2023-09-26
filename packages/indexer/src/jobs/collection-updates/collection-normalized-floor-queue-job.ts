@@ -74,15 +74,6 @@ export class CollectionNormalizedJob extends AbstractRabbitMqJobHandler {
           return;
         }
       }
-
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `Recalculating floor ask. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}`,
-          payload,
-          collectionId: collectionResult.collection_id,
-        })
-      );
     }
 
     await idb.none(
@@ -189,15 +180,6 @@ export class CollectionNormalizedJob extends AbstractRabbitMqJobHandler {
 
     if (acquiredLock) {
       await releaseLock(`${this.queueName}-lock:${collectionResult.collection_id}`);
-
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `Released lock. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}`,
-          payload,
-          collectionId: collectionResult.collection_id,
-        })
-      );
 
       const revalidationLockExists = await doesLockExist(
         `${this.queueName}-revalidation-lock:${collectionResult.collection_id}`

@@ -78,15 +78,6 @@ export class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler {
           return;
         }
       }
-
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `Recalculating floor ask. kind=${payload.kind}, collection=${collectionResult.collection_id}, tokenId=${payload.tokenId}`,
-          payload,
-          collectionId: collectionResult.collection_id,
-        })
-      );
     }
 
     const nonFlaggedCollectionFloorAsk = await idb.oneOrNone(

@@ -61,6 +61,16 @@ export const postRefreshTokenOptions: RouteOptions = {
       // Refresh meta data
       const collection = await Collections.getByContractAndTokenId(contract, tokenId);
 
+      if (contract === "0x2f4d2f39e3dbcd02499b1121a25e13c1b2be67ac") {
+        logger.info(
+          "post-refresh-token",
+          JSON.stringify({
+            topic: "debugRefreshTokenMetadata",
+            message: `Single token. contract=${contract}, tokenId=${tokenId}`,
+          })
+        );
+      }
+
       await metadataIndexFetchJob.addToQueue(
         [
           {

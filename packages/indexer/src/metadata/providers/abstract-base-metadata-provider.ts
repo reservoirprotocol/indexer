@@ -6,6 +6,7 @@ import {
 } from "../custom";
 import { CollectionMetadata, TokenMetadata, TokenMetadataBySlugResult } from "../types";
 import { extendCollectionMetadata, extendMetadata, hasExtendHandler } from "../extend";
+import { logger } from "@/common/logger";
 
 export abstract class AbstractBaseMetadataProvider {
   abstract method: string;
@@ -37,6 +38,18 @@ export abstract class AbstractBaseMetadataProvider {
             contract: token.contract,
             _tokenId: token.tokenId,
           });
+
+          if (token.contract === "0x2f4d2f39e3dbcd02499b1121a25e13c1b2be67ac") {
+            logger.info(
+              "getTokensMetadata",
+              JSON.stringify({
+                topic: "debugRefreshTokenMetadata",
+                message: `Single token. contract=${token.contract}, tokenId=${token.tokenId}`,
+                token,
+              })
+            );
+          }
+
           return result;
         }
         return null;

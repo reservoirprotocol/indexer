@@ -115,6 +115,17 @@ export class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
         );
       }
     } else if (kind === "single-token") {
+      if (data.contract === "0x2f4d2f39e3dbcd02499b1121a25e13c1b2be67ac") {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "debugRefreshTokenMetadata",
+            message: `Single token. collection=${data.collection}, contract=${data.contract}, tokenId=${data.tokenId}`,
+            payload,
+          })
+        );
+      }
+
       // Create the single token from the params
       refreshTokens.push({
         collection: data.collection,
