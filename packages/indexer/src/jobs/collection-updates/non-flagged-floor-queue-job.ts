@@ -51,7 +51,7 @@ export class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler {
 
     let acquiredLock;
 
-    if ([5, 11155111].includes(config.chainId)) {
+    if ([5, 11155111, 137].includes(config.chainId)) {
       if (!["revalidation"].includes(payload.kind)) {
         acquiredLock = await acquireLock(
           `${this.queueName}-lock:${collectionResult.collection_id}`,
