@@ -6,7 +6,6 @@ import {
 } from "../custom";
 import { CollectionMetadata, TokenMetadata, TokenMetadataBySlugResult } from "../types";
 import { extendCollectionMetadata, extendMetadata, hasExtendHandler } from "../extend";
-import { logger } from "@/common/logger";
 
 export abstract class AbstractBaseMetadataProvider {
   abstract method: string;
@@ -50,18 +49,6 @@ export abstract class AbstractBaseMetadataProvider {
     // for tokens that don't have custom metadata, get from metadata-api
     const tokensWithoutCustomMetadata = tokens.filter((token) => {
       const hasCustomMetadata = filteredCustomMetadata.find((metadata) => {
-        if (token.contract === "0x2f4d2f39e3dbcd02499b1121a25e13c1b2be67ac") {
-          logger.info(
-            "getTokensMetadata",
-            JSON.stringify({
-              topic: "debugRefreshTokenMetadata",
-              message: `Single token2. contract=${token.contract}, tokenId=${token.tokenId}`,
-              metadata,
-              token,
-            })
-          );
-        }
-
         return metadata.contract === token.contract && metadata.tokenId === token.tokenId;
       });
 
