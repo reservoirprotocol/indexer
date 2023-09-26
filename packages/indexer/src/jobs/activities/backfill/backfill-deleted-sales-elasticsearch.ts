@@ -6,8 +6,9 @@ import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { randomUUID } from "crypto";
 import { fromBuffer } from "@/common/utils";
 import { idb } from "@/common/db";
-import { FillEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/fill-event-created";
 import { logger } from "@/common/logger";
+import { elasticsearch } from "@/common/elasticsearch";
+import { ActivityDocument } from "@/elasticsearch/indexes/activities/base";
 
 const QUEUE_NAME = "backfill-deleted-sales-elasticsearch-queue";
 
@@ -35,24 +36,65 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
       );
 
       if (results.length) {
-        const toBeDeletedActivityIds = results.map((result) => {
-          const eventHandler = new FillEventCreatedEventHandler(
-            fromBuffer(result.tx_hash),
-            result.log_index,
-            result.batch_index
-          );
+        const toBeDeletedActivityIds: string[] = [];
 
-          const activityId = eventHandler.getActivityId();
+        results.forEach((result) => {
+          const query = {
+            bool: {
+              must_not: [
+                {
+                  exists: {
+                    field: "order",
+                  },
+                },
+              ],
+              must: [
+                {
+                  term: {
+                    "event.txHash": fromBuffer(result.tx_hash),
+                  },
+                },
+                {
+                  term: {
+                    "event.logIndex": result.log_index,
+                  },
+                },
+                {
+                  term: {
+                    "event.batchIndex": result.batch_index,
+                  },
+                },
+                {
+                  terms: {
+                    type: ["sale"],
+                  },
+                },
+              ],
+            },
+          };
 
-          logger.error(
+          const esResult = await elasticsearch.search<ActivityDocument>({
+            index: ActivitiesIndex.getIndexName(),
+            // This is needed due to issue with elasticsearch DSL.
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            query,
+            size: 1,
+          });
+
+          const activities = esResult.hits.hits.map((hit) => hit._source!);
+
+          logger.info(
             QUEUE_NAME,
-            `Debug: activityId=${activityId} txHash=${fromBuffer(result.tx_hash)} logIndex=${
+            `Debug: activityId=${activities[0].id} txHash=${fromBuffer(result.tx_hash)} logIndex=${
               result.log_index
             } batchIndex=${result.batch_index}`
           );
 
-          return activityId;
+          toBeDeletedActivityIds.push(activities[0].id);
         });
+
+        logger.info(QUEUE_NAME, `Debug2: toBeDeletedActivityIds=${toBeDeletedActivityIds.length}`);
 
         await ActivitiesIndex.deleteActivitiesById(toBeDeletedActivityIds);
       }
