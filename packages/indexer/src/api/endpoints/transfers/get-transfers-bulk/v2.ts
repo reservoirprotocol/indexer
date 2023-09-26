@@ -8,6 +8,7 @@ import _ from "lodash";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } from "@/common/utils";
+import * as Boom from "@hapi/boom";
 
 const version = "v2";
 
@@ -145,6 +146,15 @@ export const getTransfersBulkV2Options: RouteOptions = {
         conditions.push(`nft_transfer_events.tx_hash = $/txHash/`);
       }
 
+      // We default in the code so that these values don't appear in the docs
+      if (!query.startTimestamp) {
+        query.startTimestamp = 0;
+      }
+
+      if (!query.endTimestamp) {
+        query.endTimestamp = 9999999999;
+      }
+
       if (query.continuation) {
         if (query.sortBy === "timestamp") {
           const [timestamp, logIndex, batchIndex] = splitContinuation(
@@ -172,6 +182,20 @@ export const getTransfersBulkV2Options: RouteOptions = {
           (query as any).batchIndex = batchIndex;
           const sign = query.sortDirection == "desc" ? "<" : ">";
 
+          if (
+            _.floor(Number(updateAt)) < query.startTimestamp ||
+            _.floor(Number(updateAt)) > query.endTimestamp
+          ) {
+            const msg = `Continuation updatedAt ${_.floor(Number(updateAt))} out fo range ${
+              query.startTimestamp
+            } - ${query.endTimestamp} request ${JSON.stringify(query)} x-api-key ${
+              request.headers["x-api-key"]
+            }`;
+
+            logger.info("transfers-bulk", msg);
+            throw Boom.badRequest(msg);
+          }
+
           if (query.contract || query.token) {
             conditions.push(
               `(nft_transfer_events.address, nft_transfer_events.token_id, nft_transfer_events.updated_at, tx_hash, log_index, batch_index) ${sign} ($/address/, $/tokenId/, to_timestamp($/updatedAt/), $/txHash/, $/logIndex/, $/batchIndex/)`
@@ -182,15 +206,6 @@ export const getTransfersBulkV2Options: RouteOptions = {
             );
           }
         }
-      }
-
-      // We default in the code so that these values don't appear in the docs
-      if (!query.startTimestamp) {
-        query.startTimestamp = 0;
-      }
-
-      if (!query.endTimestamp) {
-        query.endTimestamp = 9999999999;
       }
 
       if (query.sortBy === "timestamp") {

@@ -309,15 +309,6 @@ export const getExecuteBidV4Options: RouteOptions = {
               throw Boom.badRequest("Only `reservoir` and `opensea` are supported as orderbooks");
             }
 
-            // OpenSea expects a royalty of at least 0.5%
-            if (
-              params.orderbook === "opensea" &&
-              params.royaltyBps !== undefined &&
-              Number(params.royaltyBps) < 50
-            ) {
-              throw Boom.badRequest("Royalties should be at least 0.5% when posting to OpenSea");
-            }
-
             let order: Sdk.SeaportV15.Order;
             if (token) {
               const [contract, tokenId] = token.split(":");

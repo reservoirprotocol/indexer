@@ -5,6 +5,7 @@ import { idb, redb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { orderRevalidationsJob } from "@/jobs/order-fixes/order-revalidations-job";
+import { logger } from "@/common/logger";
 
 export type ERC721CConfig = {
   transferValidator: string;
@@ -53,8 +54,12 @@ export const getERC721CConfig = async (contract: string): Promise<ERC721CConfig 
         permittedContractReceiverAllowlistId
       ),
     };
-  } catch {
+  } catch (error) {
     // Skip errors
+    logger.error(
+      "fetch-erc721c-config",
+      `Failed to fetch erc721c config contract=${contract} error=${error}`
+    );
   }
 
   return undefined;

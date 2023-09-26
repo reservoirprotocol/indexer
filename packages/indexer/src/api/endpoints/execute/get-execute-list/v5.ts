@@ -563,17 +563,6 @@ export const getExecuteListV5Options: RouteOptions = {
                   return errors.push({ message: "Unsupported orderbook", orderIndex: i });
                 }
 
-                // OpenSea expects a royalty of at least 0.5%
-                if (
-                  params.orderbook === "opensea" &&
-                  params.royaltyBps !== undefined &&
-                  Number(params.royaltyBps) < 50
-                ) {
-                  throw getExecuteError(
-                    "Royalties should be at least 0.5% when posting to OpenSea"
-                  );
-                }
-
                 const options = (params.options?.["seaport-v1.4"] ??
                   params.options?.["seaport-v1.5"]) as
                   | {

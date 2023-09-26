@@ -825,8 +825,7 @@ export const checkBlacklistAndFallback = async (
   if (["seaport-v1.5"].includes(params.orderKind) && ["reservoir"].includes(params.orderbook)) {
     const blocked = await checkMarketplaceIsFiltered(collection, [
       Sdk.SeaportV15.Addresses.Exchange[config.chainId],
-      new Sdk.SeaportBase.ConduitController(config.chainId).deriveConduit(
-        // Default to cover chains where there's no OpenSea conduit
+      new Sdk.SeaportV15.Exchange(config.chainId).deriveConduit(
         Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId] ?? HashZero
       ),
     ]);
