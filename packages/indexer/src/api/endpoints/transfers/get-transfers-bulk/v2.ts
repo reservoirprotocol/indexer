@@ -272,6 +272,19 @@ export const getTransfersBulkV2Options: RouteOptions = {
               rawResult[rawResult.length - 1].batch_index
           );
         } else if (query.sortBy == "updatedAt") {
+          if (
+            _.floor(Number(rawResult[rawResult.length - 1].updated_ts)) < query.startTimestamp ||
+            _.floor(Number(rawResult[rawResult.length - 1].updated_ts)) > query.endTimestamp
+          ) {
+            const msg = `Returned continuation updatedAt ${_.floor(
+              Number(rawResult[rawResult.length - 1].updated_ts)
+            )} out fo range ${query.startTimestamp} - ${
+              query.endTimestamp
+            } last raw ${JSON.stringify(rawResult)} x-api-key ${request.headers["x-api-key"]}`;
+
+            logger.info("transfers-bulk", msg);
+          }
+
           continuation = buildContinuation(
             rawResult[rawResult.length - 1].updated_ts +
               "_" +
