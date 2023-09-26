@@ -15,8 +15,8 @@ import { BlockWithTransactions } from "@ethersproject/abstract-provider";
 import { Block } from "@/models/blocks";
 import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
 import { blockCheckJob } from "@/jobs/events-sync/block-check-queue-job";
-import { redis } from "@/common/redis";
 import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
+import { LatestBlockRealtime } from "@/models/latest-block-realtime";
 
 export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBatch[] => {
   const txHashToEvents = new Map<string, EnhancedEvent[]>();
@@ -468,17 +468,18 @@ export const checkForOrphanedBlock = async (block: number) => {
   await blocksModel.deleteBlock(block, orphanedBlock.hash);
 };
 
-export const checkForMissingBlocks = async (block: number) => {
+export const checkForMissingBlocks = async (block: number, receivedFromWebhook = false) => {
   // lets set the latest block to the block we are syncing if it is higher than the current latest block by 1. If it is higher than 1, we create a job to sync the missing blocks
   // if its lower than the current latest block, we dont update the latest block in redis, but we still sync the block (this is for when we are catching up on missed blocks, or when we are syncing a block that is older than the current latest block)
-  const latestBlock = await redis.get("latest-block-realtime");
+  const latestBlockRealtime = new LatestBlockRealtime();
+  const latestBlock = await latestBlockRealtime.get();
 
   if (latestBlock) {
     const latestBlockNumber = Number(latestBlock);
     if (block - latestBlockNumber > 1) {
       // if we are missing more than 1 block, we need to sync the missing blocks
       for (let i = latestBlockNumber + 1; i <= block; i++) {
-        await eventsSyncRealtimeJob.addToQueue({ block: i });
+        await eventsSyncRealtimeJob.addToQueue({ block: i, receivedFromWebhook });
 
         logger.info(
           "sync-events-realtime",
@@ -487,6 +488,6 @@ export const checkForMissingBlocks = async (block: number) => {
       }
     }
   } else {
-    await redis.set("latest-block-realtime", block);
+    await latestBlockRealtime.set({ block, receivedFromWebhook });
   }
 };
