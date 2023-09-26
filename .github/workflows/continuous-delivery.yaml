@@ -539,6 +539,10 @@ jobs:
             ${{ github.sha }} \
             indexer-worker-polygon-zkevm
           ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-polygon-zkevm.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-polygon-zkevm
+          ./utils/version_update.sh \
             ./prod/platform/indexer-api-ancient8-testnet.yaml \
             ${{ github.sha }} \
             indexer-worker-ancient8-testnet
