@@ -186,14 +186,18 @@ export const getTransfersBulkV2Options: RouteOptions = {
             _.floor(Number(updateAt)) < query.startTimestamp ||
             _.floor(Number(updateAt)) > query.endTimestamp
           ) {
-            const msg = `Continuation updatedAt ${_.floor(Number(updateAt))} out fo range ${
+            const log = `Continuation updatedAt ${_.floor(Number(updateAt))} out fo range ${
               query.startTimestamp
             } - ${query.endTimestamp} request ${JSON.stringify(query)} x-api-key ${
               request.headers["x-api-key"]
             }`;
 
-            logger.info("transfers-bulk", msg);
-            throw Boom.badRequest(msg);
+            logger.info("transfers-bulk", log);
+            throw Boom.badRequest(
+              `Continuation updatedAt ${_.floor(Number(updateAt))} out fo range ${
+                query.startTimestamp
+              } - ${query.endTimestamp}`
+            );
           }
 
           if (query.token) {
@@ -280,13 +284,13 @@ export const getTransfersBulkV2Options: RouteOptions = {
             _.floor(Number(rawResult[rawResult.length - 1].updated_ts)) < query.startTimestamp ||
             _.floor(Number(rawResult[rawResult.length - 1].updated_ts)) > query.endTimestamp
           ) {
-            const msg = `Returned continuation updatedAt ${_.floor(
+            const log = `Returned continuation updatedAt ${_.floor(
               Number(rawResult[rawResult.length - 1].updated_ts)
             )} out fo range ${query.startTimestamp} - ${
               query.endTimestamp
             } last raw ${JSON.stringify(rawResult)} x-api-key ${request.headers["x-api-key"]}`;
 
-            logger.info("transfers-bulk", msg);
+            logger.info("transfers-bulk", log);
           }
 
           continuation = buildContinuation(

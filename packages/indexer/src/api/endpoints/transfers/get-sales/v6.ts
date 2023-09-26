@@ -224,14 +224,18 @@ export const getSalesV6Options: RouteOptions = {
         _.floor(Number(query.timestamp)) < query.startTimestamp ||
         _.floor(Number(query.timestamp)) > query.endTimestamp
       ) {
-        const msg = `Continuation timestamp ${_.floor(Number(query.timestamp))} out fo range ${
+        const log = `Continuation timestamp ${_.floor(Number(query.timestamp))} out fo range ${
           query.startTimestamp
         } - ${query.endTimestamp} request ${JSON.stringify(query)} x-api-key ${
           request.headers["x-api-key"]
         }`;
 
-        logger.info("transfers-sales", msg);
-        throw Boom.badRequest(msg);
+        logger.info("transfers-sales", log);
+        throw Boom.badRequest(
+          `Continuation timestamp ${_.floor(Number(query.timestamp))} out fo range ${
+            query.startTimestamp
+          }`
+        );
       }
 
       if (query.sortBy && query.sortBy === "price") {
@@ -359,13 +363,13 @@ export const getSalesV6Options: RouteOptions = {
           _.floor(Number(timestamp)) < query.startTimestamp ||
           _.floor(Number(timestamp)) > query.endTimestamp
         ) {
-          const msg = `Returned continuation timestamp ${_.floor(Number(timestamp))} out fo range ${
+          const log = `Returned continuation timestamp ${_.floor(Number(timestamp))} out fo range ${
             query.startTimestamp
           } - ${query.endTimestamp} last raw ${JSON.stringify(rawResult)} x-api-key ${
             request.headers["x-api-key"]
           }`;
 
-          logger.info("transfers-sales", msg);
+          logger.info("transfers-sales", log);
         }
 
         continuation = buildContinuation(
