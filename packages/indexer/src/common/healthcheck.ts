@@ -1,6 +1,8 @@
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { hdb } from "@/common/db";
+import { config } from "@/config/index";
+import { now } from "@/common/utils";
 
 export class HealthCheck {
   static async check(): Promise<boolean> {
@@ -16,6 +18,17 @@ export class HealthCheck {
     } catch (error) {
       logger.error("healthcheck", `Redis Healthcheck failed: ${error}`);
       return false;
+    }
+
+    if (config.master) {
+      const timestamp = await redis.get("latest-block-websocket-received");
+      const currentTime = now();
+      if (timestamp && Number(timestamp) < currentTime - 60) {
+        logger.error(
+          "healthcheck",
+          `last realtime websocket received ${timestamp} ${currentTime - Number(timestamp)}s ago`
+        );
+      }
     }
 
     return true;
