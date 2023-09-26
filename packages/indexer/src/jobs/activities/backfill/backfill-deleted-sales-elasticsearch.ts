@@ -42,7 +42,16 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
             result.batch_index
           );
 
-          return eventHandler.getActivityId();
+          const activityId = eventHandler.getActivityId();
+
+          logger.error(
+            QUEUE_NAME,
+            `Debug: activityId=${activityId} txHash=${fromBuffer(result.tx_hash)} logIndex=${
+              result.log_index
+            } batchIndex=${result.batch_index}`
+          );
+
+          return activityId;
         });
 
         await ActivitiesIndex.deleteActivitiesById(toBeDeletedActivityIds);
