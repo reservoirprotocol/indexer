@@ -234,7 +234,7 @@ export const getSalesV6Options: RouteOptions = {
         throw Boom.badRequest(
           `Continuation timestamp ${_.floor(Number(query.timestamp))} out fo range ${
             query.startTimestamp
-          }`
+          } - ${query.endTimestamp}`
         );
       }
 
