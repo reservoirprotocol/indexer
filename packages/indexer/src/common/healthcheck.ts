@@ -24,7 +24,15 @@ export class HealthCheck {
       const timestamp = await redis.get("latest-block-websocket-received");
       const currentTime = now();
       if (timestamp && Number(timestamp) < currentTime - 60) {
-        logger.error(
+        if (Number(timestamp) < currentTime - 180) {
+          logger.error(
+            "healthcheck",
+            `last realtime websocket received ${timestamp} ${currentTime - Number(timestamp)}s ago`
+          );
+          return false;
+        }
+
+        logger.info(
           "healthcheck",
           `last realtime websocket received ${timestamp} ${currentTime - Number(timestamp)}s ago`
         );
