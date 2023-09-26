@@ -196,9 +196,13 @@ export const getTransfersBulkV2Options: RouteOptions = {
             throw Boom.badRequest(msg);
           }
 
-          if (query.contract || query.token) {
+          if (query.token) {
             conditions.push(
               `(nft_transfer_events.address, nft_transfer_events.token_id, nft_transfer_events.updated_at, tx_hash, log_index, batch_index) ${sign} ($/address/, $/tokenId/, to_timestamp($/updatedAt/), $/txHash/, $/logIndex/, $/batchIndex/)`
+            );
+          } else if (query.contract) {
+            conditions.push(
+              `(nft_transfer_events.address, nft_transfer_events.updated_at, tx_hash, log_index, batch_index) ${sign} ($/address/, to_timestamp($/updatedAt/), $/txHash/, $/logIndex/, $/batchIndex/)`
             );
           } else {
             conditions.push(
@@ -237,7 +241,7 @@ export const getTransfersBulkV2Options: RouteOptions = {
           baseQuery += `
           ORDER BY
             nft_transfer_events.address ${query.sortDirection},
-            nft_transfer_events.token_id ${query.sortDirection},
+            ${query.token ? `nft_transfer_events.token_id ${query.sortDirection},` : ""}
             nft_transfer_events.updated_at ${query.sortDirection},
             nft_transfer_events.tx_hash ${query.sortDirection},
             nft_transfer_events.log_index ${query.sortDirection},

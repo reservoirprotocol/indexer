@@ -134,7 +134,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
   }
 
   async _getCollectionMetadata(contract: string): Promise<CollectionMetadata> {
-    const collection = await this.getCollectionMetadata(contract);
+    const collection = await this.getContractURI(contract);
     let collectionName = collection?.name ?? null;
 
     // Fallback for collection name if collection metadata not found
@@ -289,7 +289,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     }
   }
 
-  async getCollectionMetadata(contractAddress: string) {
+  async getContractURI(contractAddress: string) {
     try {
       const contract = new ethers.Contract(
         contractAddress,
@@ -320,7 +320,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     } catch (e) {
       logger.error(
         "onchain-fetcher",
-        `getCollectionMetadata error. contractAddress:${contractAddress}, error:${e}`
+        `getContractURI error. contractAddress:${contractAddress}, error:${e}`
       );
       return null;
     }
