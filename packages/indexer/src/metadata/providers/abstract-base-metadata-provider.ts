@@ -46,6 +46,7 @@ export abstract class AbstractBaseMetadataProvider {
                 topic: "debugRefreshTokenMetadata",
                 message: `Single token. contract=${token.contract}, tokenId=${token.tokenId}`,
                 token,
+                result,
               })
             );
           }
@@ -64,6 +65,19 @@ export abstract class AbstractBaseMetadataProvider {
       const hasCustomMetadata = filteredCustomMetadata.find((metadata) => {
         return metadata.contract === token.contract && metadata.tokenId === token.tokenId;
       });
+
+      if (token.contract === "0x2f4d2f39e3dbcd02499b1121a25e13c1b2be67ac") {
+        logger.info(
+          "getTokensMetadata",
+          JSON.stringify({
+            topic: "debugRefreshTokenMetadata",
+            message: `Single token. contract=${token.contract}, tokenId=${token.tokenId}`,
+            token,
+            hasCustomMetadata,
+          })
+        );
+      }
+
       return !hasCustomMetadata;
     });
 

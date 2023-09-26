@@ -3,7 +3,6 @@ import { toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { config } from "@/config/index";
 import { acquireLock, doesLockExist, releaseLock } from "@/common/redis";
-import { logger } from "@/common/logger";
 
 export type CollectionNormalizedJobPayload = {
   kind: string;
@@ -55,22 +54,6 @@ export class CollectionNormalizedJob extends AbstractRabbitMqJobHandler {
         );
 
         if (!acquiredLock) {
-          const acquiredRevalidationLock = await acquireLock(
-            `${this.queueName}-revalidation-lock:${collectionResult.collection_id}`,
-            300
-          );
-
-          if (acquiredRevalidationLock) {
-            logger.info(
-              this.queueName,
-              JSON.stringify({
-                message: `Got revalidation lock. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}`,
-                payload,
-                collectionId: collectionResult.collection_id,
-              })
-            );
-          }
-
           return;
         }
       }
@@ -187,15 +170,6 @@ export class CollectionNormalizedJob extends AbstractRabbitMqJobHandler {
 
       if (revalidationLockExists) {
         await releaseLock(`${this.queueName}-revalidation-lock:${collectionResult.collection_id}`);
-
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            message: `Trigger revalidation. kind=${kind}, collection=${collectionResult.collection_id}, tokenId=${tokenId}`,
-            payload,
-            collectionId: collectionResult.collection_id,
-          })
-        );
 
         await this.addToQueue([
           { kind: "revalidation", contract, tokenId, txHash: null, txTimestamp: null },
