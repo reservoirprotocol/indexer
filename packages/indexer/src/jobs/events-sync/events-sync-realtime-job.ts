@@ -4,11 +4,10 @@ import { logger } from "@/common/logger";
 import { checkForOrphanedBlock, syncEvents } from "@/events-sync/syncEventsV2";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import { traceSyncJob } from "./trace-sync-job";
-import { LatestBlockRealtime } from "@/models/latest-block-realtime";
+import { redis } from "@/common/redis";
 
 export type EventsSyncRealtimeJobPayload = {
   block: number;
-  receivedFromWebhook?: boolean;
 };
 
 export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
@@ -22,7 +21,7 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
   } as BackoffStrategy;
 
   protected async process(payload: EventsSyncRealtimeJobPayload) {
-    const { block, receivedFromWebhook } = payload;
+    const { block } = payload;
 
     if (config.chainId === 59144 && block >= 916077) {
       logger.info(this.queueName, `Skip Block ${block}`);
@@ -32,10 +31,9 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
 
     try {
       // Update the latest block synced
-      const latestBlockRealtime = new LatestBlockRealtime();
-      const latestBlock = await latestBlockRealtime.get();
+      const latestBlock = await redis.get("latest-block-realtime");
       if (latestBlock && block > Number(latestBlock)) {
-        await latestBlockRealtime.set({ block, receivedFromWebhook: Boolean(receivedFromWebhook) });
+        await redis.set("latest-block-realtime", block);
       }
 
       await traceSyncJob.addToQueue({ block: block });
