@@ -3,6 +3,7 @@
 
 import { config } from "@/config/index";
 import * as copyrightInfringement from "./copyright-infringement";
+import * as bridgeToBase from "./bridge-to-base";
 
 const customCollection: { [key: string]: any } = {};
 const custom: { [key: string]: any } = {};
@@ -126,3 +127,5 @@ custom["5,0x002cb3af46ad013a98b174a61711c0f725084bc0"] = copyrightInfringement;
 
 // Emblem Vault - temporary to prevent trading during migration
 custom["1,0x82c7a8f707110f5fbb16184a5933e9f78a34c6ab"] = copyrightInfringement;
+
+custom["8453,0xea2a41c02fa86a4901826615f9796e603c6a4491"] = bridgeToBase;

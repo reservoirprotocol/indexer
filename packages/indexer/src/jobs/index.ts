@@ -38,6 +38,7 @@ import * as backfillLooksrareSeaportOrders from "@/jobs/backfill/backfill-looksr
 import * as backfillSalesUsdPrice from "@/jobs/backfill/backfill-sales-usd-price";
 import * as backfillSales from "@/jobs/backfill/backfill-sales";
 import * as backfillReorgBlocks from "@/jobs/backfill/backfill-reorg-blocks";
+import * as backfillDeletedSalesElasticsearch from "@/jobs/activities/backfill/backfill-deleted-sales-elasticsearch";
 
 import amqplib from "amqplib";
 import { config } from "@/config/index";
@@ -170,6 +171,7 @@ export const allJobQueues = [
   backfillSalesUsdPrice.queue,
   backfillSales.queue,
   backfillReorgBlocks.queue,
+  backfillDeletedSalesElasticsearch.queue,
 ];
 
 export class RabbitMqJobsConsumer {
