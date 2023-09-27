@@ -38,7 +38,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
       if (results.length) {
         const toBeDeletedActivityIds: string[] = [];
 
-        results.forEach((result) => {
+        for (const result of results) {
           const query = {
             bool: {
               must_not: [
@@ -92,7 +92,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           );
 
           toBeDeletedActivityIds.push(activities[0].id);
-        });
+        }
 
         logger.info(QUEUE_NAME, `Debug2: toBeDeletedActivityIds=${toBeDeletedActivityIds.length}`);
 
