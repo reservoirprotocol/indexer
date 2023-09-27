@@ -112,9 +112,13 @@ export class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler {
   }
 
   public async onCompleted(rabbitMqMessage: RabbitMQMessage, processResult: undefined | number) {
+    logger.info(this.queueName, `Debug.processResult=${processResult}`);
+
     if (processResult) {
       const { method } = rabbitMqMessage.payload;
       await this.addToQueue({ method }, processResult * 1000);
+
+      logger.info(this.queueName, `Debug.processResult=${processResult}, method=${method}`);
     }
   }
 
