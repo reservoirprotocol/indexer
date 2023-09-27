@@ -36,8 +36,6 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
       );
 
       if (results.length) {
-        const toBeDeletedActivityIds: string[] = [];
-
         for (const result of results) {
           const query = {
             bool: {
@@ -92,7 +90,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
               )} logIndex=${result.log_index} batchIndex=${result.batch_index}`
             );
 
-            await ActivitiesIndex.deleteActivitiesById(toBeDeletedActivityIds);
+            await ActivitiesIndex.deleteActivitiesById([activities[0].id]);
           }
         }
       }
