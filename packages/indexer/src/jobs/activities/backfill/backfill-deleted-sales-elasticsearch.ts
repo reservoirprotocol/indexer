@@ -80,17 +80,20 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
             size: 1,
           });
 
-          const activities = esResult.hits.hits.map((hit) => hit._source!);
+          const pendingDeleteDocuments: { id: string; index: string }[] = esResult.hits.hits.map(
+            (hit) => ({ id: hit._source!.id, index: hit._index })
+          );
 
-          if (activities.length) {
+          for (const pendingDeleteDocument of pendingDeleteDocuments) {
             logger.info(
               QUEUE_NAME,
-              `Debug: activityId=${activities[0].id} txHash=${fromBuffer(
-                result.tx_hash
-              )} logIndex=${result.log_index} batchIndex=${result.batch_index}`
+              `Debug: pendingDeleteDocumentId=${pendingDeleteDocument.id}, index=${pendingDeleteDocument.index}`
             );
 
-            await ActivitiesIndex.deleteActivitiesById([activities[0].id]);
+            await elasticsearch.delete({
+              index: pendingDeleteDocument.index,
+              id: pendingDeleteDocument.id,
+            });
           }
         }
       }
