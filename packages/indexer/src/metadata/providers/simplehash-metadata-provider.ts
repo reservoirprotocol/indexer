@@ -103,7 +103,7 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
       collection: _.toLower(metadata.contract_address),
       flagged: null,
       slug:
-        metadata.collection.marketplace_pages.filter(
+        metadata.collection.marketplace_pages?.filter(
           (market: any) => market.marketplace_id === "opensea"
         )[0]?.marketplace_collection_id ?? undefined,
       // Token descriptions are a waste of space for most collections we deal with
