@@ -100,7 +100,11 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
           };
         }
 
-        const [metadata, error] = await this.getTokenMetadataFromURI(uri);
+        const [metadata, error] = await this.getTokenMetadataFromURI(
+          uri,
+          idToToken[token.id].contract,
+          idToToken[token.id].tokenId
+        );
         if (error) {
           // logger.error(
           //   "onchain-fetcher",
@@ -405,7 +409,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     }
   }
 
-  async getTokenMetadataFromURI(uri: string) {
+  async getTokenMetadataFromURI(uri: string, contract: string, tokenId: string) {
     try {
       if (uri.includes("ipfs://")) {
         uri = uri.replace("ipfs://", "https://ipfs.io/ipfs/");
@@ -442,7 +446,16 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       const json = await response.json();
       return [json, null];
     } catch (e) {
-      logger.error("onchain-fetcher", `getTokenMetadataFromURI error. error:${e}`);
+      logger.error(
+        "onchain-fetcher",
+        JSON.stringify({
+          message: "getTokenMetadataFromURI error",
+          contract,
+          tokenId,
+          uri,
+          error: e,
+        })
+      );
       return [null, e];
     }
   }
