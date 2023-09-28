@@ -72,9 +72,12 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
       .catch((error) => {
         logger.error(
           "simplehash-fetcher",
-          `fetchTokens error. url:${url} message:${error.message},  status:${
-            error.response?.status
-          }, data:${JSON.stringify(error.response?.data)}`
+          JSON.stringify({
+            message: `fetchTokens error. url:${url} message:${error.message},  status:${
+              error.response?.status
+            }, data:${JSON.stringify(error.response?.data)},`,
+            error,
+          })
         );
 
         throw error;
