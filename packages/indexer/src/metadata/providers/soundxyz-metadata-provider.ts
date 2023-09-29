@@ -35,13 +35,20 @@ export class SoundxyzMetadataProvider extends AbstractBaseMetadataProvider {
 
     for (const { contract, tokenId } of tokens) {
       try {
-        const [response, collection] = await Promise.all([
-          soundxyz.getContractSlug(contract, tokenId),
+        const [openseaResponse, collection] = await Promise.all([
+          openseaMetadataProvider.getTokensMetadata([{ contract, tokenId }]),
           this.getCollectionId(contract, tokenId),
         ]);
 
+        if (!openseaResponse || openseaResponse.length !== 1) {
+          // unexpected returned data
+          throw new Error("Opensea token metadata not returning expected data for sound nft")
+        }
+        const tokenMetadata = openseaResponse[0];
+
+
         data.push(
-          this.parseToken(response.data.data.releaseFromToken, contract, tokenId, collection)
+          this.parseToken(tokenMetadata, collection)
         );
       } catch (error) {
         logger.error(
@@ -79,38 +86,12 @@ export class SoundxyzMetadataProvider extends AbstractBaseMetadataProvider {
     return `${contract}:soundxyz-${releaseFromToken.id}`;
   }
 
-  parseToken(metadata: any, contract: string, tokenId: string, collection: any): TokenMetadata {
-    const isGoldenEgg = metadata.eggGame?.nft.tokenId === tokenId;
-    let imageUrl =
-      metadata.animatedCoverImage?.url ??
-      metadata.coverImage?.url ??
-      metadata.staticCoverImage?.url;
-    if (isGoldenEgg) {
-      imageUrl =
-        metadata.eggGame.animatedGoldenEggImageOptimized?.url ??
-        metadata.eggGame.goldenEggImage?.url;
-    }
-
+  parseToken(metadata: TokenMetadata, collection: any): TokenMetadata {
     return {
-      contract: contract,
-      tokenId: tokenId,
+      ...metadata,
       collection,
       slug: null,
-      name: metadata.title,
       flagged: false,
-      description: metadata.behindTheMusic,
-      imageUrl,
-      mediaUrl: metadata.track.revealedAudio.url,
-      attributes: (
-        (isGoldenEgg
-          ? metadata.eggGame.nft.openSeaMetadataAttributes
-          : metadata.baseMetadataAttributes) || []
-      ).map((trait: any) => ({
-        key: trait.traitType ?? "property",
-        value: trait.value,
-        kind: typeof trait.value == "number" ? "number" : "string",
-        rank: 1,
-      })),
     };
   }
 
