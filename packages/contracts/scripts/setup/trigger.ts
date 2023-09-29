@@ -364,12 +364,16 @@ export const trigger = {
         DEPLOYER,
         "https://test-tokens-metadata.vercel.app/api/erc721/",
         "https://test-tokens-metadata.vercel.app/api/erc721/contract",
+        DEPLOYER,
+        1000,
       ]),
     Erc1155: async () =>
       dv("ReservoirErc1155", "v1", [
         DEPLOYER,
         "https://test-tokens-metadata.vercel.app/api/erc1155/",
         "https://test-tokens-metadata.vercel.app/api/erc1155/contract",
+        DEPLOYER,
+        1000,
       ]),
   },
 };

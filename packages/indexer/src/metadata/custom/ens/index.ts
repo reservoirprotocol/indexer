@@ -3,19 +3,13 @@
 import axios from "axios";
 import { getNetworkName } from "@/config/network";
 
-export const fetchToken = async ({
-  contract,
-  _tokenId,
-}: {
-  contract: string;
-  _tokenId: string;
-}) => {
-  const url = `https://metadata.ens.domains/${getNetworkName()}/${contract}/${_tokenId}`;
+export const fetchToken = async ({ contract, tokenId }: { contract: string; tokenId: string }) => {
+  const url = `https://metadata.ens.domains/${getNetworkName()}/${contract}/${tokenId}`;
   const { data } = await axios.get(url);
 
   return {
     contract,
-    tokenId: _tokenId,
+    tokenId,
     collection: contract,
     name: data.name,
     description: data.description,

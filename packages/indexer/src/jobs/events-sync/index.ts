@@ -21,8 +21,8 @@ import { now } from "@/common/utils";
 // concurrent upserts of the balances):
 // https://stackoverflow.com/questions/46366324/postgres-deadlocks-on-concurrent-upserts
 
-// BACKGROUND WORKER ONLY
-if (config.doBackgroundWork && config.catchup) {
+// CATCHUP ONLY
+if (config.catchup) {
   const networkSettings = getNetworkSettings();
 
   // Keep up with the head of the blockchain by polling for new blocks every once in a while

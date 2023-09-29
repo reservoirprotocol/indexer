@@ -194,11 +194,11 @@ const config: HardhatUserConfig = {
         },
       },
       {
-        network: "baseGoerli",
-        chainId: 84531,
+        network: "ancient8Testnet",
+        chainId: 2863311531,
         urls: {
-          apiURL: "https://api-goerli.basescan.org/api",
-          browserURL: "https://goerli.basescan.org",
+          apiURL: "https://testnet.a8scan.io/api",
+          browserURL: "https://testnet.a8scan.io/",
         },
       },
     ],

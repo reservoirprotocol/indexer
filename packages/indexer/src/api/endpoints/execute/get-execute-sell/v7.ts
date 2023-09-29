@@ -228,7 +228,7 @@ export const getExecuteSellV7Options: RouteOptions = {
       type ExecuteFee = {
         kind?: string;
         recipient: string;
-        bps: number;
+        bps?: number;
         amount: number;
         rawAmount: string;
       };
@@ -882,17 +882,17 @@ export const getExecuteSellV7Options: RouteOptions = {
         fee: Sdk.RouterV6.Types.Fee
       ) => {
         // The fees should be relative to a single quantity
-        fee.amount = bn(fee.amount).div(item.quantity).toString();
+        let feeAmount = bn(fee.amount).div(item.quantity).toString();
 
         // Global fees get split across all eligible orders
-        let adjustedFeeAmount = bn(fee.amount).div(ordersEligibleForGlobalFees.length).toString();
+        let adjustedFeeAmount = bn(feeAmount).div(ordersEligibleForGlobalFees.length).toString();
 
         // If the item's currency is not the same with the buy-in currency,
         if (item.currency !== Sdk.Common.Addresses.Native[config.chainId]) {
-          fee.amount = await getUSDAndCurrencyPrices(
+          feeAmount = await getUSDAndCurrencyPrices(
             Sdk.Common.Addresses.Native[config.chainId],
             item.currency,
-            fee.amount,
+            feeAmount,
             now()
           ).then((p) => p.currencyPrice!);
           adjustedFeeAmount = await getUSDAndCurrencyPrices(
@@ -910,9 +910,13 @@ export const getExecuteSellV7Options: RouteOptions = {
         );
         const rawAmount = bn(adjustedFeeAmount).toString();
 
+        // To avoid numeric overflow
+        const maxBps = 10000;
+        const bps = bn(feeAmount).mul(10000).div(item.rawQuote);
+
         item.feesOnTop.push({
           recipient: fee.recipient,
-          bps: bn(fee.amount).mul(10000).div(item.rawQuote).toNumber(),
+          bps: bps.gt(maxBps) ? undefined : bps.toNumber(),
           amount,
           rawAmount,
         });

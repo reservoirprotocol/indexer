@@ -272,7 +272,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       type ExecuteFee = {
         kind?: string;
         recipient: string;
-        bps: number;
+        bps?: number;
         amount: number;
         rawAmount: string;
       };
@@ -833,7 +833,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
             // than we need, so we can filter out the ones that aren't fillable and not
             // end up with too few tokens.
 
-            const redundancyFactor = 5;
+            const redundancyFactor = 10;
             const tokenResults = await idb.manyOrNone(
               `
                 WITH x AS (
@@ -862,11 +862,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   ON x.order_id = orders.id
                 WHERE orders.fillability_status = 'fillable'
                   AND orders.approval_status = 'approved'
+                  AND orders.maker != $/taker/
                 LIMIT $/quantity/
               `,
               {
                 collection: item.collection,
                 quantity: item.quantity,
+                taker: toBuffer(payload.taker),
               }
             );
 
@@ -1242,17 +1244,17 @@ export const getExecuteBuyV7Options: RouteOptions = {
         fee: Sdk.RouterV6.Types.Fee
       ) => {
         // The fees should be relative to a single quantity
-        fee.amount = bn(fee.amount).div(item.quantity).toString();
+        let feeAmount = bn(fee.amount).div(item.quantity).toString();
 
         // Global fees get split across all eligible orders
-        let adjustedFeeAmount = bn(fee.amount).div(ordersEligibleForGlobalFees.length).toString();
+        let adjustedFeeAmount = bn(feeAmount).div(ordersEligibleForGlobalFees.length).toString();
 
         // If the item's currency is not the same with the buy-in currency,
         if (item.currency !== buyInCurrency) {
-          fee.amount = await getUSDAndCurrencyPrices(
+          feeAmount = await getUSDAndCurrencyPrices(
             buyInCurrency,
             item.currency,
-            fee.amount,
+            feeAmount,
             now()
           ).then((p) => p.currencyPrice!);
           adjustedFeeAmount = await getUSDAndCurrencyPrices(
@@ -1270,9 +1272,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
         );
         const rawAmount = bn(adjustedFeeAmount).toString();
 
+        // To avoid numeric overflow
+        const maxBps = 10000;
+        const bps = bn(feeAmount).mul(10000).div(item.rawQuote);
+
         item.feesOnTop.push({
           recipient: fee.recipient,
-          bps: bn(fee.amount).mul(10000).div(item.rawQuote).toNumber(),
+          bps: bps.gt(maxBps) ? undefined : bps.toNumber(),
           amount,
           rawAmount,
         });

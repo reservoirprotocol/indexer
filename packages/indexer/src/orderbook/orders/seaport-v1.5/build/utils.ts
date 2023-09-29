@@ -11,9 +11,9 @@ import {
   OrderBuildInfo,
   padSourceToSalt,
 } from "@/orderbook/orders/seaport-base/build/utils";
+import * as erc721c from "@/utils/erc721c";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import * as registry from "@/utils/royalties/registry";
-import * as erc721c from "@/utils/erc721c";
 
 export const getBuildInfo = async (
   options: BaseOrderBuildOptions,
@@ -92,6 +92,7 @@ export const getBuildInfo = async (
     // TODO: Fix types
     contract: options.contract!,
     price: options.weiPrice,
+    endPrice: options.endWeiPrice,
     amount: options.quantity,
     paymentToken: options.currency
       ? options.currency
@@ -110,6 +111,7 @@ export const getBuildInfo = async (
 
   // Keep track of the total amount of fees
   let totalFees = bn(0);
+  let totalEndFees = bn(0);
 
   // Include royalties
   if (options.automatedRoyalties && options.orderbook !== "looks-rare") {
@@ -140,13 +142,19 @@ export const getBuildInfo = async (
           royaltyBpsToPay -= bps;
 
           const fee = bn(bps).mul(options.weiPrice).div(10000);
+          const endFee = options.endWeiPrice
+            ? bn(bps).mul(options.endWeiPrice).div(10000)
+            : undefined;
+
           if (fee.gt(0)) {
             buildParams.fees!.push({
               recipient: r.recipient,
               amount: fee.toString(),
+              endAmount: endFee?.toString(),
             });
 
             totalFees = totalFees.add(fee);
+            totalEndFees = totalEndFees.add(endFee ?? 0);
           }
         }
       }
@@ -184,12 +192,19 @@ export const getBuildInfo = async (
     for (let i = 0; i < options.fee.length; i++) {
       if (Number(options.fee[i]) > 0) {
         const fee = bn(options.fee[i]).mul(options.weiPrice).div(10000);
+        const endFee = options.endWeiPrice
+          ? bn(options.fee[i]).mul(options.endWeiPrice).div(10000)
+          : undefined;
+
         if (fee.gt(0)) {
           buildParams.fees!.push({
             recipient: options.feeRecipient[i],
             amount: fee.toString(),
+            endAmount: endFee?.toString(),
           });
+
           totalFees = totalFees.add(fee);
+          totalEndFees = totalEndFees.add(endFee ?? 0);
         }
       }
     }
@@ -204,8 +219,9 @@ export const getBuildInfo = async (
   // amount received from the maker).
   if (side === "sell") {
     buildParams.price = bn(buildParams.price).sub(totalFees);
-  } else {
-    buildParams.price = bn(buildParams.price);
+    if (buildParams.endPrice) {
+      buildParams.endPrice = bn(buildParams.endPrice).sub(totalEndFees);
+    }
   }
 
   return {
