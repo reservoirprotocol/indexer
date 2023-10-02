@@ -39,9 +39,9 @@ if (process.env.DATADOG_AGENT_URL) {
     enabled: false,
   });
 
-  // tracer.use("pg", {
-  //   enabled: false,
-  // });
+  tracer.use("pg", {
+    enabled: false,
+  });
 }
 
 export default tracer;
