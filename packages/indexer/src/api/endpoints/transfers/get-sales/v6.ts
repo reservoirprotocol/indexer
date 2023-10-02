@@ -199,6 +199,14 @@ export const getSalesV6Options: RouteOptions = {
       collectionFilter = "TRUE";
     }
 
+    // We default in the code so that these values don't appear in the docs
+    if (!query.startTimestamp) {
+      query.startTimestamp = 0;
+    }
+    if (!query.endTimestamp) {
+      query.endTimestamp = 9999999999;
+    }
+
     if (query.continuation) {
       const contArr = splitContinuation(query.continuation, /^(.+)_(\d+)_(\d+)_(\d+)$/);
 
@@ -211,6 +219,25 @@ export const getSalesV6Options: RouteOptions = {
       (query as any).batchIndex = contArr[2];
       (query as any).price = contArr[3];
       const inequalitySymbol = query.sortDirection === "asc" ? ">" : "<";
+
+      if (
+        _.floor(Number(query.timestamp)) < query.startTimestamp ||
+        _.floor(Number(query.timestamp)) > query.endTimestamp
+      ) {
+        const log = `Continuation timestamp ${_.floor(Number(query.timestamp))} out fo range ${
+          query.startTimestamp
+        } - ${query.endTimestamp} request ${JSON.stringify(query)} x-api-key ${
+          request.headers["x-api-key"]
+        }`;
+
+        logger.info("transfers-sales", log);
+        throw Boom.badRequest(
+          `Continuation timestamp ${_.floor(Number(query.timestamp))} out fo range ${
+            query.startTimestamp
+          } - ${query.endTimestamp}`
+        );
+      }
+
       if (query.sortBy && query.sortBy === "price") {
         paginationFilter = `
         AND (fill_events_2.price) ${inequalitySymbol} ($/price/)
@@ -224,14 +251,6 @@ export const getSalesV6Options: RouteOptions = {
         AND (fill_events_2.timestamp, fill_events_2.log_index, fill_events_2.batch_index) ${inequalitySymbol} ($/timestamp/, $/logIndex/, $/batchIndex/)
         `;
       }
-    }
-
-    // We default in the code so that these values don't appear in the docs
-    if (!query.startTimestamp) {
-      query.startTimestamp = 0;
-    }
-    if (!query.endTimestamp) {
-      query.endTimestamp = 9999999999;
     }
 
     // Default to ordering by time
@@ -339,6 +358,19 @@ export const getSalesV6Options: RouteOptions = {
         const result = rawResult[rawResult.length - 1];
         const timestamp =
           query.sortBy && query.sortBy === "updatedAt" ? result.updated_ts : result.timestamp;
+
+        if (
+          _.floor(Number(timestamp)) < query.startTimestamp ||
+          _.floor(Number(timestamp)) > query.endTimestamp
+        ) {
+          const log = `Returned continuation timestamp ${_.floor(Number(timestamp))} out fo range ${
+            query.startTimestamp
+          } - ${query.endTimestamp} last raw ${JSON.stringify(rawResult)} x-api-key ${
+            request.headers["x-api-key"]
+          }`;
+
+          logger.info("transfers-sales", log);
+        }
 
         continuation = buildContinuation(
           timestamp + "_" + result.log_index + "_" + result.batch_index + "_" + result.price

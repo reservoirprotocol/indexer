@@ -12,6 +12,7 @@ import * as CONFIG from "@/elasticsearch/indexes/activities/config";
 import cron from "node-cron";
 import { RabbitMq } from "@/common/rabbit-mq";
 import { getNetworkName } from "@/config/network";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
 export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-activities-elasticsearch-queue";
@@ -32,11 +33,15 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
 
     const { createIndex, indexConfig, keepGoing, fromLastBackfill } = payload;
 
-    let indexName = payload.indexName;
-
-    indexName = `${getNetworkName()}.${indexName}`;
+    let indexName: string;
 
     if (createIndex) {
+      if (payload.indexName) {
+        indexName = `${getNetworkName()}.${payload.indexName}`;
+      } else {
+        indexName = `${ActivitiesIndex.getIndexName()}-${Date.now()}`;
+      }
+
       const params = {
         index: indexName,
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -55,6 +60,12 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           createIndexResponse,
         })
       );
+    } else {
+      if (payload.indexName) {
+        indexName = `${getNetworkName()}.${payload.indexName}`;
+      } else {
+        indexName = ActivitiesIndex.getIndexName();
+      }
     }
 
     const promises = [];
@@ -96,6 +107,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           JSON.stringify({
             topic: "backfill-activities",
             message: `from Last Back fill! transfer jobCount=${values.length}`,
+            indexName,
           })
         );
       } else {
@@ -134,37 +146,6 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           );
         }
 
-        // const start = new Date(minTimestamp * 1000);
-        // const end = new Date(timestamps.max_timestamp * 1000);
-        //
-        // let loop = new Date(start);
-        //
-        // let jobCount = 0;
-        //
-        // while (loop <= end) {
-        //   const fromTimestamp = Math.floor(loop.getTime() / 1000);
-        //   const newDate = loop.setDate(loop.getDate() + 1);
-        //   const toTimestamp = Math.floor(newDate / 1000);
-        //
-        //   await backfillSaveActivitiesElasticsearchJob.addToQueue(
-        //     "transfer",
-        //     undefined,
-        //     fromTimestamp,
-        //     toTimestamp,
-        //     indexName
-        //   );
-        //
-        //   jobCount++;
-        //
-        //   loop = new Date(newDate);
-        //
-        //   await redis.hset(
-        //     `backfill-activities-elasticsearch-job:transfer`,
-        //     `${fromTimestamp}:${toTimestamp}`,
-        //     JSON.stringify({ fromTimestamp, toTimestamp })
-        //   );
-        // }
-
         await redis.set(`backfill-activities-elasticsearch-job-count:transfer`, jobCount);
 
         logger.info(
@@ -172,6 +153,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           JSON.stringify({
             topic: "backfill-activities",
             message: `transfer jobCount=${jobCount}`,
+            indexName,
           })
         );
 
@@ -209,6 +191,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           JSON.stringify({
             topic: "backfill-activities",
             message: `from Last Back fill! sale jobCount=${values.length}`,
+            indexName,
           })
         );
       } else {
@@ -256,6 +239,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           JSON.stringify({
             topic: "backfill-activities",
             message: `sale jobCount=${jobCount}`,
+            indexName,
           })
         );
 
@@ -295,6 +279,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           JSON.stringify({
             topic: "backfill-activities",
             message: `from Last Back fill! ask jobCount=${values.length}`,
+            indexName,
           })
         );
       } else {
@@ -342,6 +327,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           JSON.stringify({
             topic: "backfill-activities",
             message: `ask jobCount=${jobCount}`,
+            indexName,
           })
         );
 
@@ -381,6 +367,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           JSON.stringify({
             topic: "backfill-activities",
             message: `from Last Back fill! ask cancel jobCount=${values.length}`,
+            indexName,
           })
         );
       } else {
@@ -428,6 +415,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           JSON.stringify({
             topic: "backfill-activities",
             message: `ask cancel jobCount=${jobCount}`,
+            indexName,
           })
         );
 
@@ -467,6 +455,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           JSON.stringify({
             topic: "backfill-activities",
             message: `from Last Back fill! bid jobCount=${values.length}`,
+            indexName,
           })
         );
       } else {
@@ -514,6 +503,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           JSON.stringify({
             topic: "backfill-activities",
             message: `bid jobCount=${jobCount}`,
+            indexName,
           })
         );
 
@@ -553,6 +543,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           JSON.stringify({
             topic: "backfill-activities",
             message: `from Last Back fill! bid cancel jobCount=${values.length}`,
+            indexName,
           })
         );
       } else {
@@ -600,6 +591,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           JSON.stringify({
             topic: "backfill-activities",
             message: `bid cancel jobCount=${jobCount}`,
+            indexName,
           })
         );
 

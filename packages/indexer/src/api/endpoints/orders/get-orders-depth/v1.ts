@@ -61,6 +61,7 @@ export const getOrdersDepthV1Options: RouteOptions = {
         `
           SELECT
             orders.kind,
+            orders.price,
             orders.currency_price,
             orders.currency,
             orders.quantity_remaining,
@@ -147,7 +148,7 @@ export const getOrdersDepthV1Options: RouteOptions = {
         results.map(async (r) =>
           getJoiOrderDepthObject(
             r.kind,
-            r.currency_price,
+            r.currency_price ?? r.price,
             fromBuffer(r.currency),
             r.quantity_remaining,
             r.raw_data,

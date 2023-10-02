@@ -16,7 +16,7 @@ export const extendCollection = async (metadata: CollectionMetadata, _tokenId: n
   const tokenURI = await nft.tokenURI(_tokenId);
 
   if (creatorAddress && tokenURI) {
-    metadata.id = `${metadata.contract}:superrare-shared-${creatorAddress}`;
+    metadata.id = `${metadata.contract}:superrare-shared-${creatorAddress}`.toLowerCase();
     metadata.creator = creatorAddress;
     await axios.get(tokenURI).then((rawMetadata) => {
       metadata.name = `SuperRare 1/1s: ${rawMetadata.data.createdBy}`;
@@ -39,7 +39,7 @@ export const extend = async (metadata: TokenMetadata) => {
   const creatorAddress = await nft.tokenCreator(metadata.tokenId);
 
   if (creatorAddress) {
-    metadata.collection = `${metadata.contract}:superrare-shared-${creatorAddress}`;
+    metadata.collection = `${metadata.contract}:superrare-shared-${creatorAddress}`.toLowerCase();
     return {
       ...metadata,
     };

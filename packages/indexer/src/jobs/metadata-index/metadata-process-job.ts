@@ -68,7 +68,8 @@ export class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler {
               `Too Many Requests. method=${method}, error=${JSON.stringify(error.response.data)}`
             );
 
-            rateLimitExpiredIn = Math.max(rateLimitExpiredIn, error.response.data.expires_in, 5);
+            // rateLimitExpiredIn = Math.max(rateLimitExpiredIn, error.response.data.expires_in, 5);
+            rateLimitExpiredIn = 5;
 
             await pendingRefreshTokens.add(refreshTokensChunk, true);
           } else {

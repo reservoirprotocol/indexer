@@ -51,7 +51,7 @@ export class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler {
 
     let acquiredLock;
 
-    if ([5, 11155111].includes(config.chainId)) {
+    if ([5, 11155111, 137].includes(config.chainId)) {
       if (!["revalidation"].includes(payload.kind)) {
         acquiredLock = await acquireLock(
           `${this.queueName}-lock:${collectionResult.collection_id}`,
@@ -59,34 +59,9 @@ export class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler {
         );
 
         if (!acquiredLock) {
-          const acquiredRevalidationLock = await acquireLock(
-            `${this.queueName}-revalidation-lock:${collectionResult.collection_id}`,
-            300
-          );
-
-          if (acquiredRevalidationLock) {
-            logger.info(
-              this.queueName,
-              JSON.stringify({
-                message: `Got revalidation lock. kind=${payload.kind}, collection=${collectionResult.collection_id}, tokenId=${payload.tokenId}`,
-                payload,
-                collectionId: collectionResult.collection_id,
-              })
-            );
-          }
-
           return;
         }
       }
-
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `Recalculating floor ask. kind=${payload.kind}, collection=${collectionResult.collection_id}, tokenId=${payload.tokenId}`,
-          payload,
-          collectionId: collectionResult.collection_id,
-        })
-      );
     }
 
     const nonFlaggedCollectionFloorAsk = await idb.oneOrNone(
@@ -197,15 +172,6 @@ export class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler {
 
     if (acquiredLock) {
       await releaseLock(`${this.queueName}-lock:${collectionResult.collection_id}`);
-
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `Released lock. kind=${payload.kind}, collection=${collectionResult.collection_id}, tokenId=${payload.tokenId}`,
-          payload,
-          collectionId: collectionResult.collection_id,
-        })
-      );
 
       const revalidationLockExists = await doesLockExist(
         `${this.queueName}-revalidation-lock:${collectionResult.collection_id}`

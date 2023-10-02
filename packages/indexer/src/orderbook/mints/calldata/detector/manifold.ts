@@ -35,13 +35,23 @@ export const extractByCollectionERC721 = async (
   instanceId: string,
   extension?: string
 ): Promise<CollectionMint[]> => {
-  const extensions = extension
-    ? [extension]
-    : await new Contract(
-        collection,
-        new Interface(["function getExtensions() view returns (address[])"]),
-        baseProvider
-      ).getExtensions();
+  const nft = new Contract(
+    collection,
+    new Interface([
+      "function getExtensions() view returns (address[])",
+      "function VERSION() view returns (uint256)",
+    ]),
+    baseProvider
+  );
+
+  const extensions = extension ? [extension] : await nft.getExtensions();
+
+  let version: number | undefined;
+  try {
+    version = (await nft.VERSION()).toNumber();
+  } catch {
+    // Skip errors
+  }
 
   const results: CollectionMint[] = [];
   for (const extension of extensions) {
@@ -64,7 +74,7 @@ export const extractByCollectionERC721 = async (
         }
       | undefined;
 
-    if (!claimConfig) {
+    if (!claimConfig && (!version || version === 1)) {
       try {
         const cV1 = new Contract(
           extension,
@@ -112,9 +122,9 @@ export const extractByCollectionERC721 = async (
       }
     }
 
-    if (!claimConfig) {
+    if (!claimConfig && (!version || version > 1)) {
       try {
-        const cV2 = new Contract(
+        const cV23 = new Contract(
           extension,
           new Interface([
             `
@@ -126,6 +136,7 @@ export const extractByCollectionERC721 = async (
                   uint48 startDate,
                   uint48 endDate,
                   uint8 storageProtocol,
+                  ${version && version >= 3 ? "uint8 contractVersion," : ""}
                   bool identical,
                   bytes32 merkleRoot,
                   string location,
@@ -142,9 +153,9 @@ export const extractByCollectionERC721 = async (
         );
 
         const [claim, mintFee, mintFeeMerkle] = await Promise.all([
-          cV2.getClaim(collection, instanceId),
-          cV2.MINT_FEE(),
-          cV2.MINT_FEE_MERKLE(),
+          cV23.getClaim(collection, instanceId),
+          cV23.MINT_FEE(),
+          cV23.MINT_FEE_MERKLE(),
         ]);
         claimConfig = {
           total: claim.total,

@@ -95,6 +95,12 @@ export const getExecuteListV5Options: RouteOptions = {
               .description(
                 "Amount seller is willing to sell for in the smallest denomination for the specific currency. Example: `1000000000000000000`"
               ),
+            endWeiPrice: Joi.string()
+              .pattern(regex.number)
+              .optional()
+              .description(
+                "Amount seller is willing to sell for Dutch auction in the largest denomination for the specific currency. Example: `2000000000000000000`"
+              ),
             orderKind: Joi.string()
               .valid(
                 "blur",
@@ -233,6 +239,7 @@ export const getExecuteListV5Options: RouteOptions = {
       token: string;
       quantity?: number;
       weiPrice: string;
+      endWeiPrice?: string;
       orderKind: string;
       orderbook: string;
       fees: string[];
@@ -561,17 +568,6 @@ export const getExecuteListV5Options: RouteOptions = {
               case "seaport-v1.5": {
                 if (!["reservoir", "opensea", "looks-rare"].includes(params.orderbook)) {
                   return errors.push({ message: "Unsupported orderbook", orderIndex: i });
-                }
-
-                // OpenSea expects a royalty of at least 0.5%
-                if (
-                  params.orderbook === "opensea" &&
-                  params.royaltyBps !== undefined &&
-                  Number(params.royaltyBps) < 50
-                ) {
-                  throw getExecuteError(
-                    "Royalties should be at least 0.5% when posting to OpenSea"
-                  );
                 }
 
                 const options = (params.options?.["seaport-v1.4"] ??

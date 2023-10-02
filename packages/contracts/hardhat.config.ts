@@ -9,6 +9,10 @@ import "@nomiclabs/hardhat-waffle";
 import "hardhat-gas-reporter";
 import "hardhat-tracer";
 
+// For zkSync
+import "@matterlabs/hardhat-zksync-deploy";
+import "@matterlabs/hardhat-zksync-solc";
+
 const getNetworkConfig = (chainId?: number) => {
   if (!chainId) {
     chainId = Number(process.env.CHAIN_ID ?? 1);
@@ -29,6 +33,9 @@ const getNetworkConfig = (chainId?: number) => {
         break;
       case 137:
         url = `https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
+        break;
+      case 324:
+        url = "https://mainnet.era.zksync.io";
         break;
       case 1101:
         url = "https://zkevm-rpc.com";
@@ -84,11 +91,22 @@ const getNetworkConfig = (chainId?: number) => {
     }
   }
 
-  return {
+  const config = {
     chainId,
     url,
     accounts: process.env.DEPLOYER_PK ? [process.env.DEPLOYER_PK] : undefined,
   };
+
+  // For zkSync
+  if (chainId === 324) {
+    return {
+      ...config,
+      ethNetwork: "mainnet",
+      zksync: true,
+    };
+  }
+
+  return config;
 };
 
 const networkConfig = getNetworkConfig();
@@ -129,6 +147,7 @@ const config: HardhatUserConfig = {
     optimism: getNetworkConfig(10),
     bsc: getNetworkConfig(56),
     polygon: getNetworkConfig(137),
+    zkSync: getNetworkConfig(324),
     polygonZkevm: getNetworkConfig(1101),
     base: getNetworkConfig(8453),
     arbitrum: getNetworkConfig(42161),
@@ -175,11 +194,11 @@ const config: HardhatUserConfig = {
         },
       },
       {
-        network: "baseGoerli",
-        chainId: 84531,
+        network: "ancient8Testnet",
+        chainId: 2863311531,
         urls: {
-          apiURL: "https://api-goerli.basescan.org/api",
-          browserURL: "https://goerli.basescan.org",
+          apiURL: "https://testnet.a8scan.io/api",
+          browserURL: "https://testnet.a8scan.io/",
         },
       },
     ],

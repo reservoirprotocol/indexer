@@ -35,7 +35,7 @@ export abstract class AbstractBaseMetadataProvider {
         if (hasCustomHandler(token.contract)) {
           const result = await customHandleToken({
             contract: token.contract,
-            _tokenId: token.tokenId,
+            tokenId: token.tokenId,
           });
           return result;
         }
@@ -51,6 +51,7 @@ export abstract class AbstractBaseMetadataProvider {
       const hasCustomMetadata = filteredCustomMetadata.find((metadata) => {
         return metadata.contract === token.contract && metadata.tokenId === token.tokenId;
       });
+
       return !hasCustomMetadata;
     });
 

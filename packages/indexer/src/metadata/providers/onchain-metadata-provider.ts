@@ -100,7 +100,11 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
           };
         }
 
-        const [metadata, error] = await this.getTokenMetadataFromURI(uri);
+        const [metadata, error] = await this.getTokenMetadataFromURI(
+          uri,
+          idToToken[token.id].contract,
+          idToToken[token.id].tokenId
+        );
         if (error) {
           // logger.error(
           //   "onchain-fetcher",
@@ -134,19 +138,43 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
   }
 
   async _getCollectionMetadata(contract: string): Promise<CollectionMetadata> {
-    const collection = await this.getCollectionMetadata(contract);
-    let collectionName = collection?.name ?? null;
+    try {
+      const collection = await this.getContractURI(contract);
+      let collectionName = collection?.name ?? null;
 
-    // Fallback for collection name if collection metadata not found
-    if (!collectionName) {
-      collectionName = (await this.getContractName(contract)) ?? contract;
+      // Fallback for collection name if collection metadata not found
+      if (!collectionName) {
+        collectionName = (await this.getContractName(contract)) ?? contract;
+      }
+
+      return this.parseCollection({
+        ...collection,
+        contract,
+        name: collectionName,
+      });
+    } catch (error) {
+      logger.error(
+        "onchain-fetcher",
+        JSON.stringify({
+          topic: "fetchCollectionError",
+          message: `Could not fetch collection.  contract=${contract}, error=${error}`,
+          contract,
+          error,
+        })
+      );
+
+      return {
+        id: contract,
+        slug: null,
+        name: contract,
+        community: null,
+        metadata: null,
+        contract,
+        tokenIdRange: null,
+        tokenSetId: `contract:${contract}`,
+        isFallback: true,
+      };
     }
-
-    return this.parseCollection({
-      ...collection,
-      contract,
-      name: collectionName,
-    });
   }
 
   async _getTokensMetadataBySlug(): Promise<TokenMetadataBySlugResult> {
@@ -289,7 +317,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     }
   }
 
-  async getCollectionMetadata(contractAddress: string) {
+  async getContractURI(contractAddress: string) {
     try {
       const contract = new ethers.Contract(
         contractAddress,
@@ -320,7 +348,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     } catch (e) {
       logger.error(
         "onchain-fetcher",
-        `getCollectionMetadata error. contractAddress:${contractAddress}, error:${e}`
+        `getContractURI error. contractAddress:${contractAddress}, error:${e}`
       );
       return null;
     }
@@ -381,7 +409,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     }
   }
 
-  async getTokenMetadataFromURI(uri: string) {
+  async getTokenMetadataFromURI(uri: string, contract: string, tokenId: string) {
     try {
       if (uri.includes("ipfs://")) {
         uri = uri.replace("ipfs://", "https://ipfs.io/ipfs/");
@@ -418,7 +446,16 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       const json = await response.json();
       return [json, null];
     } catch (e) {
-      logger.error("onchain-fetcher", `getTokenMetadataFromURI error. error:${e}`);
+      logger.error(
+        "onchain-fetcher",
+        JSON.stringify({
+          message: "getTokenMetadataFromURI error",
+          contract,
+          tokenId,
+          uri,
+          error: e,
+        })
+      );
       return [null, e];
     }
   }

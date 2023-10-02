@@ -88,5 +88,10 @@
     "address": "0xc888f5e3dd4fbeb37f6e1ba6fa68c83ab0cf7b2c",
     "domain": "fabrica.land",
     "kind": "marketplace"
+  },
+  {
+    "address": "0xe04d5cb7115e4015b2d3fa17dc2e6f88392f873c",
+    "domain": null,
+    "kind": "marketplace"
   }
 ]

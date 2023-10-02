@@ -114,7 +114,15 @@ export class BlockCheckJob extends AbstractRabbitMqJobHandler {
         }
       }
     } catch (error) {
-      logger.error(this.queueName, `Block check failed: ${error}`);
+      logger.error(
+        this.queueName,
+        JSON.stringify({
+          message: `Failed to process block ${block} with hash ${blockHash}. error=${error}`,
+          payload,
+          error,
+        })
+      );
+
       throw error;
     }
   }

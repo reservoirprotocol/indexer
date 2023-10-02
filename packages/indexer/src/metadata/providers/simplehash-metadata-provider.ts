@@ -72,9 +72,12 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
       .catch((error) => {
         logger.error(
           "simplehash-fetcher",
-          `fetchTokens error. url:${url} message:${error.message},  status:${
-            error.response?.status
-          }, data:${JSON.stringify(error.response?.data)}`
+          JSON.stringify({
+            message: `fetchTokens error. url:${url} message:${error.message},  status:${
+              error.response?.status
+            }, data:${JSON.stringify(error.response?.data)},`,
+            error,
+          })
         );
 
         throw error;
@@ -103,7 +106,7 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
       collection: _.toLower(metadata.contract_address),
       flagged: null,
       slug:
-        metadata.collection.marketplace_pages.filter(
+        metadata.collection.marketplace_pages?.filter(
           (market: any) => market.marketplace_id === "opensea"
         )[0]?.marketplace_collection_id ?? undefined,
       // Token descriptions are a waste of space for most collections we deal with
@@ -115,7 +118,7 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
       animationOriginalUrl: animation_original_url,
       metadataOriginalUrl: metadata_original_url,
       imageProperties: metadata.image_properties,
-      mediaUrl: metadata.video_url,
+      mediaUrl: metadata.video_url ?? metadata.audio_url,
       attributes: (attributes || []).map((trait: any) => ({
         key: trait.trait_type ?? "property",
         value: trait.value,

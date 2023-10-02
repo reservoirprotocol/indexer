@@ -98,7 +98,7 @@ export class Router {
 
     this.contracts = {
       // Initialize router
-      router: new Contract(Addresses.Router[chainId], RouterAbi, provider),
+      router: new Contract(Addresses.Router[chainId] ?? AddressZero, RouterAbi, provider),
       // Initialize approval proxy
       approvalProxy: new Contract(
         Addresses.ApprovalProxy[chainId] ?? AddressZero,
@@ -976,9 +976,6 @@ export class Router {
     // Keep track of any FT transfers that need to be performed
     const ftTransferItems: ApprovalProxy.TransferItem[] = [];
 
-    // Keep track of which order ids were handled
-    const orderIds: string[] = [];
-
     // Split all listings by their kind
     const dittoDetails: ListingDetails[] = [];
     const elementErc721Details: ListingDetails[] = [];
@@ -1133,7 +1130,10 @@ export class Router {
     }
 
     // Generate router executions
-    let executions: ExecutionInfo[] = [];
+    let executions: {
+      info: ExecutionInfo;
+      orderIds: string[];
+    }[] = [];
 
     // Keep track of tags for the router execution
     const routerTxTags: TxTags = {
@@ -1170,22 +1170,25 @@ export class Router {
       };
 
       executions.push({
-        module: module.address,
-        data:
-          orders.length === 1
-            ? module.interface.encodeFunctionData("acceptETHListingERC721", [
-                orders[0].getRaw(),
-                orders[0].params,
-                listingParams,
-                fees,
-              ])
-            : module.interface.encodeFunctionData("acceptETHListingsERC721", [
-                orders.map((order) => order.getRaw()),
-                orders.map((order) => order.params),
-                listingParams,
-                fees,
-              ]),
-        value: totalPrice,
+        info: {
+          module: module.address,
+          data:
+            orders.length === 1
+              ? module.interface.encodeFunctionData("acceptETHListingERC721", [
+                  orders[0].getRaw(),
+                  orders[0].params,
+                  listingParams,
+                  fees,
+                ])
+              : module.interface.encodeFunctionData("acceptETHListingsERC721", [
+                  orders.map((order) => order.getRaw()),
+                  orders.map((order) => order.params),
+                  listingParams,
+                  fees,
+                ]),
+          value: totalPrice,
+        },
+        orderIds: elementErc721Details.map((d) => d.orderId),
       });
 
       // Track any possibly required swap
@@ -1204,7 +1207,6 @@ export class Router {
       // Mark the listings as successfully handled
       for (const { orderId } of elementErc721Details) {
         success[orderId] = true;
-        orderIds.push(orderId);
       }
     }
 
@@ -1226,20 +1228,23 @@ export class Router {
       };
 
       executions.push({
-        module: module.address,
-        data:
-          orders.length === 1
-            ? module.interface.encodeFunctionData("acceptETHListingERC721V2", [
-                orders[0].getRaw(),
-                listingParams,
-                fees,
-              ])
-            : module.interface.encodeFunctionData("acceptETHListingsERC721V2", [
-                orders.map((order) => order.getRaw()),
-                listingParams,
-                fees,
-              ]),
-        value: totalPrice,
+        info: {
+          module: module.address,
+          data:
+            orders.length === 1
+              ? module.interface.encodeFunctionData("acceptETHListingERC721V2", [
+                  orders[0].getRaw(),
+                  listingParams,
+                  fees,
+                ])
+              : module.interface.encodeFunctionData("acceptETHListingsERC721V2", [
+                  orders.map((order) => order.getRaw()),
+                  listingParams,
+                  fees,
+                ]),
+          value: totalPrice,
+        },
+        orderIds: elementErc721V2Details.map((d) => d.orderId),
       });
 
       // Track any possibly required swap
@@ -1258,7 +1263,6 @@ export class Router {
       // Mark the listings as successfully handled
       for (const { orderId } of elementErc721V2Details) {
         success[orderId] = true;
-        orderIds.push(orderId);
       }
     }
 
@@ -1282,24 +1286,27 @@ export class Router {
       };
 
       executions.push({
-        module: module.address,
-        data:
-          orders.length === 1
-            ? module.interface.encodeFunctionData("acceptETHListingERC1155", [
-                orders[0].getRaw(),
-                orders[0].params,
-                elementErc1155Details[0].amount ?? 1,
-                listingParams,
-                fees,
-              ])
-            : module.interface.encodeFunctionData("acceptETHListingsERC1155", [
-                orders.map((order) => order.getRaw()),
-                orders.map((order) => order.params),
-                elementErc1155Details.map((d) => d.amount ?? 1),
-                listingParams,
-                fees,
-              ]),
-        value: totalPrice,
+        info: {
+          module: module.address,
+          data:
+            orders.length === 1
+              ? module.interface.encodeFunctionData("acceptETHListingERC1155", [
+                  orders[0].getRaw(),
+                  orders[0].params,
+                  elementErc1155Details[0].amount ?? 1,
+                  listingParams,
+                  fees,
+                ])
+              : module.interface.encodeFunctionData("acceptETHListingsERC1155", [
+                  orders.map((order) => order.getRaw()),
+                  orders.map((order) => order.params),
+                  elementErc1155Details.map((d) => d.amount ?? 1),
+                  listingParams,
+                  fees,
+                ]),
+          value: totalPrice,
+        },
+        orderIds: elementErc1155Details.map((d) => d.orderId),
       });
 
       // Track any possibly required swap
@@ -1318,7 +1325,6 @@ export class Router {
       // Mark the listings as successfully handled
       for (const { orderId } of elementErc1155Details) {
         success[orderId] = true;
-        orderIds.push(orderId);
       }
     }
 
@@ -1333,36 +1339,39 @@ export class Router {
       const totalPrice = price.add(feeAmount);
 
       executions.push({
-        module: module.address,
-        data:
-          orders.length === 1
-            ? module.interface.encodeFunctionData("acceptETHListing", [
-                {
-                  ...orders[0].params,
-                  token: orders[0].params.contract,
-                },
-                {
-                  fillTo: taker,
-                  refundTo: relayer,
-                  revertIfIncomplete: Boolean(!options?.partial),
-                  amount: price,
-                },
-                fees,
-              ])
-            : module.interface.encodeFunctionData("acceptETHListings", [
-                orders.map((order) => ({
-                  ...order.params,
-                  token: order.params.contract,
-                })),
-                {
-                  fillTo: taker,
-                  refundTo: relayer,
-                  revertIfIncomplete: Boolean(!options?.partial),
-                  amount: price,
-                },
-                fees,
-              ]),
-        value: totalPrice,
+        info: {
+          module: module.address,
+          data:
+            orders.length === 1
+              ? module.interface.encodeFunctionData("acceptETHListing", [
+                  {
+                    ...orders[0].params,
+                    token: orders[0].params.contract,
+                  },
+                  {
+                    fillTo: taker,
+                    refundTo: relayer,
+                    revertIfIncomplete: Boolean(!options?.partial),
+                    amount: price,
+                  },
+                  fees,
+                ])
+              : module.interface.encodeFunctionData("acceptETHListings", [
+                  orders.map((order) => ({
+                    ...order.params,
+                    token: order.params.contract,
+                  })),
+                  {
+                    fillTo: taker,
+                    refundTo: relayer,
+                    revertIfIncomplete: Boolean(!options?.partial),
+                    amount: price,
+                  },
+                  fees,
+                ]),
+          value: totalPrice,
+        },
+        orderIds: foundationDetails.map((d) => d.orderId),
       });
 
       // Track any possibly required swap
@@ -1381,7 +1390,6 @@ export class Router {
       // Mark the listings as successfully handled
       for (const { orderId } of foundationDetails) {
         success[orderId] = true;
-        orderIds.push(orderId);
       }
     }
 
@@ -1396,34 +1404,37 @@ export class Router {
       const totalPrice = price.add(feeAmount);
 
       executions.push({
-        module: module.address,
-        data:
-          orders.length === 1
-            ? module.interface.encodeFunctionData("acceptETHListing", [
-                orders[0].params,
-                orders[0].params.signature!,
-                orders[0].params.merkleTree ?? { root: HashZero, proof: [] },
-                {
-                  fillTo: taker,
-                  refundTo: relayer,
-                  revertIfIncomplete: Boolean(!options?.partial),
-                  amount: price,
-                },
-                fees,
-              ])
-            : module.interface.encodeFunctionData("acceptETHListings", [
-                orders.map((order) => order.params),
-                orders.map((order) => order.params.signature!),
-                orders.map((order) => order.params.merkleTree ?? { root: HashZero, proof: [] }),
-                {
-                  fillTo: taker,
-                  refundTo: relayer,
-                  revertIfIncomplete: Boolean(!options?.partial),
-                  amount: price,
-                },
-                fees,
-              ]),
-        value: totalPrice,
+        info: {
+          module: module.address,
+          data:
+            orders.length === 1
+              ? module.interface.encodeFunctionData("acceptETHListing", [
+                  orders[0].params,
+                  orders[0].params.signature!,
+                  orders[0].params.merkleTree ?? { root: HashZero, proof: [] },
+                  {
+                    fillTo: taker,
+                    refundTo: relayer,
+                    revertIfIncomplete: Boolean(!options?.partial),
+                    amount: price,
+                  },
+                  fees,
+                ])
+              : module.interface.encodeFunctionData("acceptETHListings", [
+                  orders.map((order) => order.params),
+                  orders.map((order) => order.params.signature!),
+                  orders.map((order) => order.params.merkleTree ?? { root: HashZero, proof: [] }),
+                  {
+                    fillTo: taker,
+                    refundTo: relayer,
+                    revertIfIncomplete: Boolean(!options?.partial),
+                    amount: price,
+                  },
+                  fees,
+                ]),
+          value: totalPrice,
+        },
+        orderIds: looksRareV2Details.map((d) => d.orderId),
       });
 
       // Track any possibly required swap
@@ -1442,7 +1453,6 @@ export class Router {
       // Mark the listings as successfully handled
       for (const { orderId } of looksRareV2Details) {
         success[orderId] = true;
-        orderIds.push(orderId);
       }
     }
 
@@ -1471,76 +1481,79 @@ export class Router {
         const buyInCurrencyIsETH = isETH(this.chainId, buyInCurrency);
 
         executions.push({
-          module: module.address,
-          data:
-            orders.length === 1
-              ? module.interface.encodeFunctionData(
-                  `accept${currencyIsETH ? "ETH" : "ERC20"}Listing`,
-                  [
-                    {
-                      parameters: {
-                        ...orders[0].params,
-                        totalOriginalConsiderationItems: orders[0].params.consideration.length,
+          info: {
+            module: module.address,
+            data:
+              orders.length === 1
+                ? module.interface.encodeFunctionData(
+                    `accept${currencyIsETH ? "ETH" : "ERC20"}Listing`,
+                    [
+                      {
+                        parameters: {
+                          ...orders[0].params,
+                          totalOriginalConsiderationItems: orders[0].params.consideration.length,
+                        },
+                        numerator: currencyDetails[0].amount ?? 1,
+                        denominator: orders[0].getInfo()!.amount,
+                        signature: orders[0].params.signature,
+                        extraData: await exchange.getExtraData(orders[0]),
                       },
-                      numerator: currencyDetails[0].amount ?? 1,
-                      denominator: orders[0].getInfo()!.amount,
-                      signature: orders[0].params.signature,
-                      extraData: await exchange.getExtraData(orders[0]),
-                    },
-                    {
-                      fillTo: taker,
-                      refundTo: relayer,
-                      revertIfIncomplete: Boolean(!options?.partial),
-                      amount: price,
-                      // Only needed for ERC20 listings
-                      token: currency,
-                    },
-                    fees,
-                  ]
-                )
-              : module.interface.encodeFunctionData(
-                  `accept${currencyIsETH ? "ETH" : "ERC20"}Listings`,
-                  [
-                    await Promise.all(
-                      orders.map(async (order, i) => {
-                        const totalAmount = order.getInfo()!.amount;
-                        const filledAmount = currencyDetails[i].amount ?? 1;
+                      {
+                        fillTo: taker,
+                        refundTo: relayer,
+                        revertIfIncomplete: Boolean(!options?.partial),
+                        amount: price,
+                        // Only needed for ERC20 listings
+                        token: currency,
+                      },
+                      fees,
+                    ]
+                  )
+                : module.interface.encodeFunctionData(
+                    `accept${currencyIsETH ? "ETH" : "ERC20"}Listings`,
+                    [
+                      await Promise.all(
+                        orders.map(async (order, i) => {
+                          const totalAmount = order.getInfo()!.amount;
+                          const filledAmount = currencyDetails[i].amount ?? 1;
 
-                        const orderData = {
-                          parameters: {
-                            ...order.params,
-                            totalOriginalConsiderationItems: order.params.consideration.length,
-                          },
-                          numerator: filledAmount,
-                          denominator: totalAmount,
-                          signature: order.params.signature,
-                          extraData: await exchange.getExtraData(order),
-                        };
-
-                        if (currencyIsETH) {
-                          return {
-                            order: orderData,
-                            price: bn(orders[i].getMatchingPrice())
-                              .mul(filledAmount)
-                              .div(totalAmount),
+                          const orderData = {
+                            parameters: {
+                              ...order.params,
+                              totalOriginalConsiderationItems: order.params.consideration.length,
+                            },
+                            numerator: filledAmount,
+                            denominator: totalAmount,
+                            signature: order.params.signature,
+                            extraData: await exchange.getExtraData(order),
                           };
-                        } else {
-                          return orderData;
-                        }
-                      })
-                    ),
-                    {
-                      fillTo: taker,
-                      refundTo: relayer,
-                      revertIfIncomplete: Boolean(!options?.partial),
-                      amount: price,
-                      // Only needed for ERC20 listings
-                      token: currency,
-                    },
-                    fees,
-                  ]
-                ),
-          value: buyInCurrencyIsETH && currencyIsETH ? totalPrice : 0,
+
+                          if (currencyIsETH) {
+                            return {
+                              order: orderData,
+                              price: bn(orders[i].getMatchingPrice())
+                                .mul(filledAmount)
+                                .div(totalAmount),
+                            };
+                          } else {
+                            return orderData;
+                          }
+                        })
+                      ),
+                      {
+                        fillTo: taker,
+                        refundTo: relayer,
+                        revertIfIncomplete: Boolean(!options?.partial),
+                        amount: price,
+                        // Only needed for ERC20 listings
+                        token: currency,
+                      },
+                      fees,
+                    ]
+                  ),
+            value: buyInCurrencyIsETH && currencyIsETH ? totalPrice : 0,
+          },
+          orderIds: currencyDetails.map((d) => d.orderId),
         });
 
         // Track any possibly required swap
@@ -1559,7 +1572,6 @@ export class Router {
         // Mark the listings as successfully handled
         for (const { orderId } of currencyDetails) {
           success[orderId] = true;
-          orderIds.push(orderId);
         }
       }
     }
@@ -1589,80 +1601,83 @@ export class Router {
         const buyInCurrencyIsETH = isETH(this.chainId, buyInCurrency);
 
         executions.push({
-          module: module.address,
-          data:
-            orders.length === 1
-              ? module.interface.encodeFunctionData(
-                  `accept${currencyIsETH ? "ETH" : "ERC20"}Listing`,
-                  [
-                    {
-                      parameters: {
-                        ...orders[0].params,
-                        totalOriginalConsiderationItems: orders[0].params.consideration.length,
+          info: {
+            module: module.address,
+            data:
+              orders.length === 1
+                ? module.interface.encodeFunctionData(
+                    `accept${currencyIsETH ? "ETH" : "ERC20"}Listing`,
+                    [
+                      {
+                        parameters: {
+                          ...orders[0].params,
+                          totalOriginalConsiderationItems: orders[0].params.consideration.length,
+                        },
+                        numerator: currencyDetails[0].amount ?? 1,
+                        denominator: orders[0].getInfo()!.amount,
+                        signature: orders[0].params.signature,
+                        extraData: await exchange.getExtraData(orders[0], {
+                          amount: currencyDetails[0].amount ?? 1,
+                        }),
                       },
-                      numerator: currencyDetails[0].amount ?? 1,
-                      denominator: orders[0].getInfo()!.amount,
-                      signature: orders[0].params.signature,
-                      extraData: await exchange.getExtraData(orders[0], {
-                        amount: currencyDetails[0].amount ?? 1,
-                      }),
-                    },
-                    {
-                      fillTo: taker,
-                      refundTo: relayer,
-                      revertIfIncomplete: Boolean(!options?.partial),
-                      amount: price,
-                      // Only needed for ERC20 listings
-                      token: currency,
-                    },
-                    fees,
-                  ]
-                )
-              : module.interface.encodeFunctionData(
-                  `accept${currencyIsETH ? "ETH" : "ERC20"}Listings`,
-                  [
-                    await Promise.all(
-                      orders.map(async (order, i) => {
-                        const totalAmount = order.getInfo()!.amount;
-                        const filledAmount = currencyDetails[i].amount ?? 1;
+                      {
+                        fillTo: taker,
+                        refundTo: relayer,
+                        revertIfIncomplete: Boolean(!options?.partial),
+                        amount: price,
+                        // Only needed for ERC20 listings
+                        token: currency,
+                      },
+                      fees,
+                    ]
+                  )
+                : module.interface.encodeFunctionData(
+                    `accept${currencyIsETH ? "ETH" : "ERC20"}Listings`,
+                    [
+                      await Promise.all(
+                        orders.map(async (order, i) => {
+                          const totalAmount = order.getInfo()!.amount;
+                          const filledAmount = currencyDetails[i].amount ?? 1;
 
-                        const orderData = {
-                          parameters: {
-                            ...order.params,
-                            totalOriginalConsiderationItems: order.params.consideration.length,
-                          },
-                          numerator: filledAmount,
-                          denominator: totalAmount,
-                          signature: order.params.signature,
-                          extraData: await exchange.getExtraData(orders[0], {
-                            amount: filledAmount,
-                          }),
-                        };
-
-                        if (currencyIsETH) {
-                          return {
-                            order: orderData,
-                            price: bn(orders[i].getMatchingPrice())
-                              .mul(filledAmount)
-                              .div(totalAmount),
+                          const orderData = {
+                            parameters: {
+                              ...order.params,
+                              totalOriginalConsiderationItems: order.params.consideration.length,
+                            },
+                            numerator: filledAmount,
+                            denominator: totalAmount,
+                            signature: order.params.signature,
+                            extraData: await exchange.getExtraData(orders[0], {
+                              amount: filledAmount,
+                            }),
                           };
-                        } else {
-                          return orderData;
-                        }
-                      })
-                    ),
-                    {
-                      fillTo: taker,
-                      refundTo: relayer,
-                      revertIfIncomplete: Boolean(!options?.partial),
-                      amount: price,
-                      // Only needed for ERC20 listings
-                      token: currency,
-                    },
-                    fees,
-                  ]
-                ),
-          value: buyInCurrencyIsETH && currencyIsETH ? totalPrice : 0,
+
+                          if (currencyIsETH) {
+                            return {
+                              order: orderData,
+                              price: bn(orders[i].getMatchingPrice())
+                                .mul(filledAmount)
+                                .div(totalAmount),
+                            };
+                          } else {
+                            return orderData;
+                          }
+                        })
+                      ),
+                      {
+                        fillTo: taker,
+                        refundTo: relayer,
+                        revertIfIncomplete: Boolean(!options?.partial),
+                        amount: price,
+                        // Only needed for ERC20 listings
+                        token: currency,
+                      },
+                      fees,
+                    ]
+                  ),
+            value: buyInCurrencyIsETH && currencyIsETH ? totalPrice : 0,
+          },
+          orderIds: currencyDetails.map((d) => d.orderId),
         });
 
         // Track any possibly required swap
@@ -1681,7 +1696,6 @@ export class Router {
         // Mark the listings as successfully handled
         for (const { orderId } of currencyDetails) {
           success[orderId] = true;
-          orderIds.push(orderId);
         }
       }
     }
@@ -1711,80 +1725,83 @@ export class Router {
         const buyInCurrencyIsETH = isETH(this.chainId, buyInCurrency);
 
         executions.push({
-          module: module.address,
-          data:
-            orders.length === 1
-              ? module.interface.encodeFunctionData(
-                  `accept${currencyIsETH ? "ETH" : "ERC20"}Listing`,
-                  [
-                    {
-                      parameters: {
-                        ...orders[0].params,
-                        totalOriginalConsiderationItems: orders[0].params.consideration.length,
+          info: {
+            module: module.address,
+            data:
+              orders.length === 1
+                ? module.interface.encodeFunctionData(
+                    `accept${currencyIsETH ? "ETH" : "ERC20"}Listing`,
+                    [
+                      {
+                        parameters: {
+                          ...orders[0].params,
+                          totalOriginalConsiderationItems: orders[0].params.consideration.length,
+                        },
+                        numerator: currencyDetails[0].amount ?? 1,
+                        denominator: orders[0].getInfo()!.amount,
+                        signature: orders[0].params.signature,
+                        extraData: await exchange.getExtraData(orders[0], {
+                          amount: currencyDetails[0].amount ?? 1,
+                        }),
                       },
-                      numerator: currencyDetails[0].amount ?? 1,
-                      denominator: orders[0].getInfo()!.amount,
-                      signature: orders[0].params.signature,
-                      extraData: await exchange.getExtraData(orders[0], {
-                        amount: currencyDetails[0].amount ?? 1,
-                      }),
-                    },
-                    {
-                      fillTo: taker,
-                      refundTo: relayer,
-                      revertIfIncomplete: Boolean(!options?.partial),
-                      amount: price,
-                      // Only needed for ERC20 listings
-                      token: currency,
-                    },
-                    fees,
-                  ]
-                )
-              : module.interface.encodeFunctionData(
-                  `accept${currencyIsETH ? "ETH" : "ERC20"}Listings`,
-                  [
-                    await Promise.all(
-                      orders.map(async (order, i) => {
-                        const totalAmount = order.getInfo()!.amount;
-                        const filledAmount = currencyDetails[i].amount ?? 1;
+                      {
+                        fillTo: taker,
+                        refundTo: relayer,
+                        revertIfIncomplete: Boolean(!options?.partial),
+                        amount: price,
+                        // Only needed for ERC20 listings
+                        token: currency,
+                      },
+                      fees,
+                    ]
+                  )
+                : module.interface.encodeFunctionData(
+                    `accept${currencyIsETH ? "ETH" : "ERC20"}Listings`,
+                    [
+                      await Promise.all(
+                        orders.map(async (order, i) => {
+                          const totalAmount = order.getInfo()!.amount;
+                          const filledAmount = currencyDetails[i].amount ?? 1;
 
-                        const orderData = {
-                          parameters: {
-                            ...order.params,
-                            totalOriginalConsiderationItems: order.params.consideration.length,
-                          },
-                          numerator: filledAmount,
-                          denominator: totalAmount,
-                          signature: order.params.signature,
-                          extraData: await exchange.getExtraData(orders[0], {
-                            amount: filledAmount,
-                          }),
-                        };
-
-                        if (currencyIsETH) {
-                          return {
-                            order: orderData,
-                            price: bn(orders[i].getMatchingPrice())
-                              .mul(filledAmount)
-                              .div(totalAmount),
+                          const orderData = {
+                            parameters: {
+                              ...order.params,
+                              totalOriginalConsiderationItems: order.params.consideration.length,
+                            },
+                            numerator: filledAmount,
+                            denominator: totalAmount,
+                            signature: order.params.signature,
+                            extraData: await exchange.getExtraData(orders[0], {
+                              amount: filledAmount,
+                            }),
                           };
-                        } else {
-                          return orderData;
-                        }
-                      })
-                    ),
-                    {
-                      fillTo: taker,
-                      refundTo: relayer,
-                      revertIfIncomplete: Boolean(!options?.partial),
-                      amount: price,
-                      // Only needed for ERC20 listings
-                      token: currency,
-                    },
-                    fees,
-                  ]
-                ),
-          value: buyInCurrencyIsETH && currencyIsETH ? totalPrice : 0,
+
+                          if (currencyIsETH) {
+                            return {
+                              order: orderData,
+                              price: bn(orders[i].getMatchingPrice())
+                                .mul(filledAmount)
+                                .div(totalAmount),
+                            };
+                          } else {
+                            return orderData;
+                          }
+                        })
+                      ),
+                      {
+                        fillTo: taker,
+                        refundTo: relayer,
+                        revertIfIncomplete: Boolean(!options?.partial),
+                        amount: price,
+                        // Only needed for ERC20 listings
+                        token: currency,
+                      },
+                      fees,
+                    ]
+                  ),
+            value: buyInCurrencyIsETH && currencyIsETH ? totalPrice : 0,
+          },
+          orderIds: currencyDetails.map((d) => d.orderId),
         });
 
         // Track any possibly required swap
@@ -1803,7 +1820,6 @@ export class Router {
         // Mark the listings as successfully handled
         for (const { orderId } of currencyDetails) {
           success[orderId] = true;
-          orderIds.push(orderId);
         }
       }
     }
@@ -1832,80 +1848,83 @@ export class Router {
         const buyInCurrencyIsETH = isETH(this.chainId, buyInCurrency);
 
         executions.push({
-          module: module.address,
-          data:
-            orders.length === 1
-              ? module.interface.encodeFunctionData(
-                  `accept${currencyIsETH ? "ETH" : "ERC20"}Listing`,
-                  [
-                    {
-                      parameters: {
-                        ...orders[0].params,
-                        totalOriginalConsiderationItems: orders[0].params.consideration.length,
+          info: {
+            module: module.address,
+            data:
+              orders.length === 1
+                ? module.interface.encodeFunctionData(
+                    `accept${currencyIsETH ? "ETH" : "ERC20"}Listing`,
+                    [
+                      {
+                        parameters: {
+                          ...orders[0].params,
+                          totalOriginalConsiderationItems: orders[0].params.consideration.length,
+                        },
+                        numerator: currencyDetails[0].amount ?? 1,
+                        denominator: orders[0].getInfo()!.amount,
+                        signature: orders[0].params.signature,
+                        extraData: await exchange.getExtraData(orders[0], {
+                          amount: currencyDetails[0].amount ?? 1,
+                        }),
                       },
-                      numerator: currencyDetails[0].amount ?? 1,
-                      denominator: orders[0].getInfo()!.amount,
-                      signature: orders[0].params.signature,
-                      extraData: await exchange.getExtraData(orders[0], {
-                        amount: currencyDetails[0].amount ?? 1,
-                      }),
-                    },
-                    {
-                      fillTo: taker,
-                      refundTo: relayer,
-                      revertIfIncomplete: Boolean(!options?.partial),
-                      amount: price,
-                      // Only needed for ERC20 listings
-                      token: currency,
-                    },
-                    fees,
-                  ]
-                )
-              : module.interface.encodeFunctionData(
-                  `accept${currencyIsETH ? "ETH" : "ERC20"}Listings`,
-                  [
-                    await Promise.all(
-                      orders.map(async (order, i) => {
-                        const totalAmount = order.getInfo()!.amount;
-                        const filledAmount = currencyDetails[i].amount ?? 1;
+                      {
+                        fillTo: taker,
+                        refundTo: relayer,
+                        revertIfIncomplete: Boolean(!options?.partial),
+                        amount: price,
+                        // Only needed for ERC20 listings
+                        token: currency,
+                      },
+                      fees,
+                    ]
+                  )
+                : module.interface.encodeFunctionData(
+                    `accept${currencyIsETH ? "ETH" : "ERC20"}Listings`,
+                    [
+                      await Promise.all(
+                        orders.map(async (order, i) => {
+                          const totalAmount = order.getInfo()!.amount;
+                          const filledAmount = currencyDetails[i].amount ?? 1;
 
-                        const orderData = {
-                          parameters: {
-                            ...order.params,
-                            totalOriginalConsiderationItems: order.params.consideration.length,
-                          },
-                          numerator: filledAmount,
-                          denominator: totalAmount,
-                          signature: order.params.signature,
-                          extraData: await exchange.getExtraData(orders[0], {
-                            amount: filledAmount,
-                          }),
-                        };
-
-                        if (currencyIsETH) {
-                          return {
-                            order: orderData,
-                            price: bn(orders[i].getMatchingPrice())
-                              .mul(filledAmount)
-                              .div(totalAmount),
+                          const orderData = {
+                            parameters: {
+                              ...order.params,
+                              totalOriginalConsiderationItems: order.params.consideration.length,
+                            },
+                            numerator: filledAmount,
+                            denominator: totalAmount,
+                            signature: order.params.signature,
+                            extraData: await exchange.getExtraData(orders[0], {
+                              amount: filledAmount,
+                            }),
                           };
-                        } else {
-                          return orderData;
-                        }
-                      })
-                    ),
-                    {
-                      fillTo: taker,
-                      refundTo: relayer,
-                      revertIfIncomplete: Boolean(!options?.partial),
-                      amount: price,
-                      // Only needed for ERC20 listings
-                      token: currency,
-                    },
-                    fees,
-                  ]
-                ),
-          value: buyInCurrencyIsETH && currencyIsETH ? totalPrice : 0,
+
+                          if (currencyIsETH) {
+                            return {
+                              order: orderData,
+                              price: bn(orders[i].getMatchingPrice())
+                                .mul(filledAmount)
+                                .div(totalAmount),
+                            };
+                          } else {
+                            return orderData;
+                          }
+                        })
+                      ),
+                      {
+                        fillTo: taker,
+                        refundTo: relayer,
+                        revertIfIncomplete: Boolean(!options?.partial),
+                        amount: price,
+                        // Only needed for ERC20 listings
+                        token: currency,
+                      },
+                      fees,
+                    ]
+                  ),
+            value: buyInCurrencyIsETH && currencyIsETH ? totalPrice : 0,
+          },
+          orderIds: currencyDetails.map((d) => d.orderId),
         });
 
         // Track any possibly required swap
@@ -1924,7 +1943,6 @@ export class Router {
         // Mark the listings as successfully handled
         for (const { orderId } of currencyDetails) {
           success[orderId] = true;
-          orderIds.push(orderId);
         }
       }
     }
@@ -1974,21 +1992,24 @@ export class Router {
           };
 
       executions.push({
-        module: module.address,
-        data: module.interface.encodeFunctionData(functionName, [
-          collectionXyzDetails.map((d) => (d.order as Sdk.CollectionXyz.Order).params.pool),
-          collectionXyzDetails.map((d) => ({
-            nftId: d.tokenId,
-            // Unused for buying from pools
-            proof: [],
-            proofFlags: [],
-            externalFilterContext: [],
-          })),
-          Math.floor(Date.now() / 1000) + 10 * 60,
-          listingParams,
-          fees,
-        ]),
-        value: isERC20 ? 0 : totalPrice,
+        info: {
+          module: module.address,
+          data: module.interface.encodeFunctionData(functionName, [
+            collectionXyzDetails.map((d) => (d.order as Sdk.CollectionXyz.Order).params.pool),
+            collectionXyzDetails.map((d) => ({
+              nftId: d.tokenId,
+              // Unused for buying from pools
+              proof: [],
+              proofFlags: [],
+              externalFilterContext: [],
+            })),
+            Math.floor(Date.now() / 1000) + 10 * 60,
+            listingParams,
+            fees,
+          ]),
+          value: isERC20 ? 0 : totalPrice,
+        },
+        orderIds: collectionXyzDetails.map((d) => d.orderId),
       });
 
       // Track any possibly required swap
@@ -2007,7 +2028,6 @@ export class Router {
       // Mark the listings as successfully handled
       for (const { orderId } of collectionXyzDetails) {
         success[orderId] = true;
-        orderIds.push(orderId);
       }
     }
 
@@ -2025,11 +2045,14 @@ export class Router {
       const totalPrice = price.add(feeAmount);
 
       // Add executions
-      for (const order of orders) {
+      for (let i = 0; i < orders.length; i++) {
         executions.push({
-          module: module.address,
-          data: router.fillBuyOrderTx(taker, order).data,
-          value: totalPrice,
+          info: {
+            module: module.address,
+            data: router.fillBuyOrderTx(taker, orders[i]).data,
+            value: totalPrice,
+          },
+          orderIds: [dittoDetails[i].orderId],
         });
       }
 
@@ -2049,7 +2072,6 @@ export class Router {
       // Mark the listings as successfully handled
       for (const { orderId } of dittoDetails) {
         success[orderId] = true;
-        orderIds.push(orderId);
       }
     }
 
@@ -2075,20 +2097,23 @@ export class Router {
       const totalPrice = price.add(feeAmount);
 
       executions.push({
-        module: module.address,
-        data: module.interface.encodeFunctionData("buyWithETH", [
-          sudoswapDetails.map((d) => (d.order as Sdk.Sudoswap.Order).params.pair),
-          sudoswapDetails.map((d) => d.tokenId),
-          Math.floor(Date.now() / 1000) + 10 * 60,
-          {
-            fillTo: taker,
-            refundTo: relayer,
-            revertIfIncomplete: Boolean(!options?.partial),
-            amount: price,
-          },
-          fees,
-        ]),
-        value: totalPrice,
+        info: {
+          module: module.address,
+          data: module.interface.encodeFunctionData("buyWithETH", [
+            sudoswapDetails.map((d) => (d.order as Sdk.Sudoswap.Order).params.pair),
+            sudoswapDetails.map((d) => d.tokenId),
+            Math.floor(Date.now() / 1000) + 10 * 60,
+            {
+              fillTo: taker,
+              refundTo: relayer,
+              revertIfIncomplete: Boolean(!options?.partial),
+              amount: price,
+            },
+            fees,
+          ]),
+          value: totalPrice,
+        },
+        orderIds: sudoswapDetails.map((d) => d.orderId),
       });
 
       // Track any possibly required swap
@@ -2107,7 +2132,6 @@ export class Router {
       // Mark the listings as successfully handled
       for (const { orderId } of sudoswapDetails) {
         success[orderId] = true;
-        orderIds.push(orderId);
       }
     }
 
@@ -2144,19 +2168,22 @@ export class Router {
       const totalPrice = price.add(feeAmount);
 
       executions.push({
-        module: module.address,
-        data: module.interface.encodeFunctionData("buyWithETH", [
-          sudoswapV2Details.map((d) => (d.order as Sdk.SudoswapV2.Order).params.pair),
-          sudoswapV2Details.map((d) => (d.contractKind === "erc721" ? d.tokenId : d.amount ?? 1)),
-          {
-            fillTo: taker,
-            refundTo: relayer,
-            revertIfIncomplete: Boolean(!options?.partial),
-            amount: price,
-          },
-          fees,
-        ]),
-        value: totalPrice,
+        info: {
+          module: module.address,
+          data: module.interface.encodeFunctionData("buyWithETH", [
+            sudoswapV2Details.map((d) => (d.order as Sdk.SudoswapV2.Order).params.pair),
+            sudoswapV2Details.map((d) => (d.contractKind === "erc721" ? d.tokenId : d.amount ?? 1)),
+            {
+              fillTo: taker,
+              refundTo: relayer,
+              revertIfIncomplete: Boolean(!options?.partial),
+              amount: price,
+            },
+            fees,
+          ]),
+          value: totalPrice,
+        },
+        orderIds: sudoswapV2Details.map((d) => d.orderId),
       });
 
       // Track any possibly required swap
@@ -2175,7 +2202,6 @@ export class Router {
       // Mark the listings as successfully handled
       for (const { orderId } of sudoswapV2Details) {
         success[orderId] = true;
-        orderIds.push(orderId);
       }
     }
 
@@ -2211,19 +2237,22 @@ export class Router {
       const totalPrice = price.add(feeAmount);
 
       executions.push({
-        module: module.address,
-        data: module.interface.encodeFunctionData("buyWithETH", [
-          midaswapDetails.map((d) => (d.order as Sdk.Midaswap.Order).params.tokenX),
-          midaswapDetails.map((d) => d.tokenId),
-          {
-            fillTo: taker,
-            refundTo: relayer,
-            revertIfIncomplete: Boolean(!options?.partial),
-            amount: price,
-          },
-          fees,
-        ]),
-        value: totalPrice,
+        info: {
+          module: module.address,
+          data: module.interface.encodeFunctionData("buyWithETH", [
+            midaswapDetails.map((d) => (d.order as Sdk.Midaswap.Order).params.tokenX),
+            midaswapDetails.map((d) => d.tokenId),
+            {
+              fillTo: taker,
+              refundTo: relayer,
+              revertIfIncomplete: Boolean(!options?.partial),
+              amount: price,
+            },
+            fees,
+          ]),
+          value: totalPrice,
+        },
+        orderIds: midaswapDetails.map((d) => d.orderId),
       });
 
       // Track any possibly required swap
@@ -2242,7 +2271,6 @@ export class Router {
       // Mark the listings as successfully handled
       for (const { orderId } of midaswapDetails) {
         success[orderId] = true;
-        orderIds.push(orderId);
       }
     }
 
@@ -2272,19 +2300,22 @@ export class Router {
       const totalPrice = price.add(feeAmount);
 
       executions.push({
-        module: module.address,
-        data: module.interface.encodeFunctionData("buyWithETH", [
-          caviarV1Details.map((d) => (d.order as Sdk.CaviarV1.Order).params.pool),
-          caviarV1Details.map((d) => d.tokenId),
-          {
-            fillTo: taker,
-            refundTo: relayer,
-            revertIfIncomplete: Boolean(!options?.partial),
-            amount: price,
-          },
-          fees,
-        ]),
-        value: totalPrice,
+        info: {
+          module: module.address,
+          data: module.interface.encodeFunctionData("buyWithETH", [
+            caviarV1Details.map((d) => (d.order as Sdk.CaviarV1.Order).params.pool),
+            caviarV1Details.map((d) => d.tokenId),
+            {
+              fillTo: taker,
+              refundTo: relayer,
+              revertIfIncomplete: Boolean(!options?.partial),
+              amount: price,
+            },
+            fees,
+          ]),
+          value: totalPrice,
+        },
+        orderIds: caviarV1Details.map((d) => d.orderId),
       });
 
       // Track any possibly required swap
@@ -2303,7 +2334,6 @@ export class Router {
       // Mark the listings as successfully handled
       for (const { orderId } of caviarV1Details) {
         success[orderId] = true;
-        orderIds.push(orderId);
       }
     }
 
@@ -2360,18 +2390,21 @@ export class Router {
       const totalPrice = price.add(feeAmount);
 
       executions.push({
-        module: module.address,
-        data: module.interface.encodeFunctionData("buyWithETH", [
-          aggregatedOrders,
-          {
-            fillTo: taker,
-            refundTo: relayer,
-            revertIfIncomplete: Boolean(!options?.partial),
-            amount: price,
-          },
-          fees,
-        ]),
-        value: totalPrice,
+        info: {
+          module: module.address,
+          data: module.interface.encodeFunctionData("buyWithETH", [
+            aggregatedOrders,
+            {
+              fillTo: taker,
+              refundTo: relayer,
+              revertIfIncomplete: Boolean(!options?.partial),
+              amount: price,
+            },
+            fees,
+          ]),
+          value: totalPrice,
+        },
+        orderIds: nftxDetails.map((d) => d.orderId),
       });
 
       // Track any possibly required swap
@@ -2390,7 +2423,6 @@ export class Router {
       // Mark the listings as successfully handled
       for (const { orderId } of nftxDetails) {
         success[orderId] = true;
-        orderIds.push(orderId);
       }
     }
 
@@ -2409,30 +2441,33 @@ export class Router {
       if (orders.length === 1) {
         try {
           executions.push({
-            module: module.address,
-            data: module.interface.encodeFunctionData("acceptETHListing", [
-              // Fetch X2Y2-signed input
-              exchange.contract.interface.decodeFunctionData(
-                "run",
-                await exchange.fetchInput(
-                  // For X2Y2, the module acts as the taker proxy
-                  module.address,
-                  orders[0],
-                  {
-                    source: options?.source,
-                    tokenId: x2y2Details[0].tokenId,
-                  }
-                )
-              ).input,
-              {
-                fillTo: taker,
-                refundTo: relayer,
-                revertIfIncomplete: Boolean(!options?.partial),
-                amount: price,
-              },
-              fees,
-            ]),
-            value: totalPrice,
+            info: {
+              module: module.address,
+              data: module.interface.encodeFunctionData("acceptETHListing", [
+                // Fetch X2Y2-signed input
+                exchange.contract.interface.decodeFunctionData(
+                  "run",
+                  await exchange.fetchInput(
+                    // For X2Y2, the module acts as the taker proxy
+                    module.address,
+                    orders[0],
+                    {
+                      source: options?.source,
+                      tokenId: x2y2Details[0].tokenId,
+                    }
+                  )
+                ).input,
+                {
+                  fillTo: taker,
+                  refundTo: relayer,
+                  revertIfIncomplete: Boolean(!options?.partial),
+                  amount: price,
+                },
+                fees,
+              ]),
+              value: totalPrice,
+            },
+            orderIds: [x2y2Details[0].orderId],
           });
 
           // Track any possibly required swap
@@ -2448,7 +2483,6 @@ export class Router {
 
           // Mark the listing as successfully handled
           success[x2y2Details[0].orderId] = true;
-          orderIds.push(x2y2Details[0].orderId);
         } catch (error) {
           if (options?.onError) {
             await options.onError("x2y2-listing", error, {
@@ -2501,18 +2535,21 @@ export class Router {
 
         if (inputs.some(Boolean)) {
           executions.push({
-            module: module.address,
-            data: module.interface.encodeFunctionData("acceptETHListings", [
-              inputs.filter(Boolean),
-              {
-                fillTo: taker,
-                refundTo: relayer,
-                revertIfIncomplete: Boolean(!options?.partial),
-                amount: price,
-              },
-              fees,
-            ]),
-            value: totalPrice,
+            info: {
+              module: module.address,
+              data: module.interface.encodeFunctionData("acceptETHListings", [
+                inputs.filter(Boolean),
+                {
+                  fillTo: taker,
+                  refundTo: relayer,
+                  revertIfIncomplete: Boolean(!options?.partial),
+                  amount: price,
+                },
+                fees,
+              ]),
+              value: totalPrice,
+            },
+            orderIds: x2y2Details.filter((_, i) => inputs[i]).map((d) => d.orderId),
           });
 
           // Track any possibly required swap
@@ -2532,7 +2569,6 @@ export class Router {
             if (inputs[i]) {
               // Mark the listing as successfully handled
               success[x2y2Details[i].orderId] = true;
-              orderIds.push(x2y2Details[i].orderId);
             }
           }
         }
@@ -2587,25 +2623,13 @@ export class Router {
         const totalPrice = price.add(feeAmount);
 
         executions.push({
-          module: module.address,
-          data:
-            orders.length === 1
-              ? module.interface.encodeFunctionData("acceptETHListingERC721", [
-                  orders[0].getRaw(),
-                  orders[0].params,
-                  {
-                    fillTo: taker,
-                    refundTo: relayer,
-                    revertIfIncomplete: Boolean(!options?.partial),
-                    amount: price,
-                  },
-                  fees,
-                ])
-              : this.contracts.zeroExV4Module.interface.encodeFunctionData(
-                  "acceptETHListingsERC721",
-                  [
-                    orders.map((order) => order.getRaw()),
-                    orders.map((order) => order.params),
+          info: {
+            module: module.address,
+            data:
+              orders.length === 1
+                ? module.interface.encodeFunctionData("acceptETHListingERC721", [
+                    orders[0].getRaw(),
+                    orders[0].params,
                     {
                       fillTo: taker,
                       refundTo: relayer,
@@ -2613,9 +2637,24 @@ export class Router {
                       amount: price,
                     },
                     fees,
-                  ]
-                ),
-          value: totalPrice,
+                  ])
+                : this.contracts.zeroExV4Module.interface.encodeFunctionData(
+                    "acceptETHListingsERC721",
+                    [
+                      orders.map((order) => order.getRaw()),
+                      orders.map((order) => order.params),
+                      {
+                        fillTo: taker,
+                        refundTo: relayer,
+                        revertIfIncomplete: Boolean(!options?.partial),
+                        amount: price,
+                      },
+                      fees,
+                    ]
+                  ),
+            value: totalPrice,
+          },
+          orderIds: zeroexV4Erc721Details.map((d) => d.orderId),
         });
 
         // Track any possibly required swap
@@ -2634,7 +2673,6 @@ export class Router {
         // Mark the listings as successfully handled
         for (const { orderId } of zeroexV4Erc721Details) {
           success[orderId] = true;
-          orderIds.push(orderId);
         }
       }
     }
@@ -2691,27 +2729,14 @@ export class Router {
         const totalPrice = price.add(feeAmount);
 
         executions.push({
-          module: module.address,
-          data:
-            orders.length === 1
-              ? module.interface.encodeFunctionData("acceptETHListingERC1155", [
-                  orders[0].getRaw(),
-                  orders[0].params,
-                  zeroexV4Erc1155Details[0].amount ?? 1,
-                  {
-                    fillTo: taker,
-                    refundTo: relayer,
-                    revertIfIncomplete: Boolean(!options?.partial),
-                    amount: price,
-                  },
-                  fees,
-                ])
-              : this.contracts.zeroExV4Module.interface.encodeFunctionData(
-                  "acceptETHListingsERC1155",
-                  [
-                    orders.map((order) => order.getRaw()),
-                    orders.map((order) => order.params),
-                    zeroexV4Erc1155Details.map((d) => d.amount ?? 1),
+          info: {
+            module: module.address,
+            data:
+              orders.length === 1
+                ? module.interface.encodeFunctionData("acceptETHListingERC1155", [
+                    orders[0].getRaw(),
+                    orders[0].params,
+                    zeroexV4Erc1155Details[0].amount ?? 1,
                     {
                       fillTo: taker,
                       refundTo: relayer,
@@ -2719,9 +2744,25 @@ export class Router {
                       amount: price,
                     },
                     fees,
-                  ]
-                ),
-          value: totalPrice,
+                  ])
+                : this.contracts.zeroExV4Module.interface.encodeFunctionData(
+                    "acceptETHListingsERC1155",
+                    [
+                      orders.map((order) => order.getRaw()),
+                      orders.map((order) => order.params),
+                      zeroexV4Erc1155Details.map((d) => d.amount ?? 1),
+                      {
+                        fillTo: taker,
+                        refundTo: relayer,
+                        revertIfIncomplete: Boolean(!options?.partial),
+                        amount: price,
+                      },
+                      fees,
+                    ]
+                  ),
+            value: totalPrice,
+          },
+          orderIds: zeroexV4Erc1155Details.map((d) => d.orderId),
         });
 
         // Track any possibly required swap
@@ -2740,7 +2781,6 @@ export class Router {
         // Mark the listings as successfully handled
         for (const { orderId } of zeroexV4Erc1155Details) {
           success[orderId] = true;
-          orderIds.push(orderId);
         }
       }
     }
@@ -2758,42 +2798,45 @@ export class Router {
       const totalPrice = price.add(feeAmount);
 
       executions.push({
-        module: module.address,
-        data:
-          orders.length === 1
-            ? module.interface.encodeFunctionData("acceptETHListing", [
-                {
-                  collection: orders[0].params.tokenContract,
-                  tokenId: orders[0].params.tokenId,
-                  currency: orders[0].params.askCurrency,
-                  amount: orders[0].params.askPrice,
-                  finder: taker,
-                },
-                {
-                  fillTo: taker,
-                  refundTo: relayer,
-                  revertIfIncomplete: Boolean(!options?.partial),
-                  amount: price,
-                },
-                fees,
-              ])
-            : module.interface.encodeFunctionData("acceptETHListings", [
-                orders.map((order) => ({
-                  collection: order.params.tokenContract,
-                  tokenId: order.params.tokenId,
-                  currency: order.params.askCurrency,
-                  amount: order.params.askPrice,
-                  finder: taker,
-                })),
-                {
-                  fillTo: taker,
-                  refundTo: relayer,
-                  revertIfIncomplete: Boolean(!options?.partial),
-                  amount: price,
-                },
-                fees,
-              ]),
-        value: totalPrice,
+        info: {
+          module: module.address,
+          data:
+            orders.length === 1
+              ? module.interface.encodeFunctionData("acceptETHListing", [
+                  {
+                    collection: orders[0].params.tokenContract,
+                    tokenId: orders[0].params.tokenId,
+                    currency: orders[0].params.askCurrency,
+                    amount: orders[0].params.askPrice,
+                    finder: taker,
+                  },
+                  {
+                    fillTo: taker,
+                    refundTo: relayer,
+                    revertIfIncomplete: Boolean(!options?.partial),
+                    amount: price,
+                  },
+                  fees,
+                ])
+              : module.interface.encodeFunctionData("acceptETHListings", [
+                  orders.map((order) => ({
+                    collection: order.params.tokenContract,
+                    tokenId: order.params.tokenId,
+                    currency: order.params.askCurrency,
+                    amount: order.params.askPrice,
+                    finder: taker,
+                  })),
+                  {
+                    fillTo: taker,
+                    refundTo: relayer,
+                    revertIfIncomplete: Boolean(!options?.partial),
+                    amount: price,
+                  },
+                  fees,
+                ]),
+          value: totalPrice,
+        },
+        orderIds: zoraDetails.map((d) => d.orderId),
       });
 
       // Track any possibly required swap
@@ -2812,7 +2855,6 @@ export class Router {
       // Mark the listings as successfully handled
       for (const { orderId } of zoraDetails) {
         success[orderId] = true;
-        orderIds.push(orderId);
       }
     }
 
@@ -2829,46 +2871,49 @@ export class Router {
       const totalPrice = price.add(feeAmount);
 
       executions.push({
-        module: module.address,
-        data:
-          orders.length === 1
-            ? module.interface.encodeFunctionData("acceptETHListing", [
-                encodeForMatchOrders(orders[0].params),
-                orders[0].params.signature,
-                encodeForMatchOrders(
-                  orders[0].buildMatching(module.address, {
-                    amount: raribleDetails[0].amount,
-                  })
-                ),
-                "0x",
-                {
-                  fillTo: taker,
-                  refundTo: relayer,
-                  revertIfIncomplete: Boolean(!options?.partial),
-                  amount: price,
-                },
-                fees,
-              ])
-            : module.interface.encodeFunctionData("acceptETHListings", [
-                orders.map((order) => encodeForMatchOrders(order.params)),
-                orders.map((order) => order.params.signature),
-                orders.map((order, index) =>
+        info: {
+          module: module.address,
+          data:
+            orders.length === 1
+              ? module.interface.encodeFunctionData("acceptETHListing", [
+                  encodeForMatchOrders(orders[0].params),
+                  orders[0].params.signature,
                   encodeForMatchOrders(
-                    order.buildMatching(module.address, {
-                      amount: raribleDetails[index].amount,
+                    orders[0].buildMatching(module.address, {
+                      amount: raribleDetails[0].amount,
                     })
-                  )
-                ),
-                "0x",
-                {
-                  fillTo: taker,
-                  refundTo: relayer,
-                  revertIfIncomplete: Boolean(!options?.partial),
-                  amount: price,
-                },
-                fees,
-              ]),
-        value: totalPrice,
+                  ),
+                  "0x",
+                  {
+                    fillTo: taker,
+                    refundTo: relayer,
+                    revertIfIncomplete: Boolean(!options?.partial),
+                    amount: price,
+                  },
+                  fees,
+                ])
+              : module.interface.encodeFunctionData("acceptETHListings", [
+                  orders.map((order) => encodeForMatchOrders(order.params)),
+                  orders.map((order) => order.params.signature),
+                  orders.map((order, index) =>
+                    encodeForMatchOrders(
+                      order.buildMatching(module.address, {
+                        amount: raribleDetails[index].amount,
+                      })
+                    )
+                  ),
+                  "0x",
+                  {
+                    fillTo: taker,
+                    refundTo: relayer,
+                    revertIfIncomplete: Boolean(!options?.partial),
+                    amount: price,
+                  },
+                  fees,
+                ]),
+          value: totalPrice,
+        },
+        orderIds: raribleDetails.map((d) => d.orderId),
       });
 
       // Track any possibly required swap
@@ -2887,7 +2932,6 @@ export class Router {
       // Mark the listings as successfully handled
       for (const { orderId } of raribleDetails) {
         success[orderId] = true;
-        orderIds.push(orderId);
       }
     }
 
@@ -2902,42 +2946,45 @@ export class Router {
       const totalPrice = price.add(feeAmount);
 
       executions.push({
-        module: module.address,
-        data:
-          orders.length === 1
-            ? module.interface.encodeFunctionData("acceptETHListing", [
-                {
-                  ...orders[0].params,
-                  token: orders[0].params.contract,
-                  priceWithFees: bn(orders[0].params.price).add(
-                    bn(orders[0].params.price).mul(3).div(100)
-                  ),
-                },
-                {
-                  fillTo: taker,
-                  refundTo: relayer,
-                  revertIfIncomplete: Boolean(!options?.partial),
-                  amount: price.add(price.mul(3).div(100)),
-                },
-                fees,
-              ])
-            : module.interface.encodeFunctionData("acceptETHListings", [
-                orders.map((order) => ({
-                  ...order.params,
-                  token: order.params.contract,
-                  priceWithFees: bn(orders[0].params.price).add(
-                    bn(orders[0].params.price).mul(3).div(100)
-                  ),
-                })),
-                {
-                  fillTo: taker,
-                  refundTo: relayer,
-                  revertIfIncomplete: Boolean(!options?.partial),
-                  amount: price.add(price.mul(3).div(100)),
-                },
-                fees,
-              ]),
-        value: totalPrice,
+        info: {
+          module: module.address,
+          data:
+            orders.length === 1
+              ? module.interface.encodeFunctionData("acceptETHListing", [
+                  {
+                    ...orders[0].params,
+                    token: orders[0].params.contract,
+                    priceWithFees: bn(orders[0].params.price).add(
+                      bn(orders[0].params.price).mul(3).div(100)
+                    ),
+                  },
+                  {
+                    fillTo: taker,
+                    refundTo: relayer,
+                    revertIfIncomplete: Boolean(!options?.partial),
+                    amount: price.add(price.mul(3).div(100)),
+                  },
+                  fees,
+                ])
+              : module.interface.encodeFunctionData("acceptETHListings", [
+                  orders.map((order) => ({
+                    ...order.params,
+                    token: order.params.contract,
+                    priceWithFees: bn(orders[0].params.price).add(
+                      bn(orders[0].params.price).mul(3).div(100)
+                    ),
+                  })),
+                  {
+                    fillTo: taker,
+                    refundTo: relayer,
+                    revertIfIncomplete: Boolean(!options?.partial),
+                    amount: price.add(price.mul(3).div(100)),
+                  },
+                  fees,
+                ]),
+          value: totalPrice,
+        },
+        orderIds: superRareDetails.map((d) => d.orderId),
       });
 
       // Track any possibly required swap
@@ -2956,7 +3003,6 @@ export class Router {
       // Mark the listings as successfully handled
       for (const { orderId } of superRareDetails) {
         success[orderId] = true;
-        orderIds.push(orderId);
       }
     }
 
@@ -2971,22 +3017,25 @@ export class Router {
       const totalPrice = price.add(feeAmount);
 
       executions.push({
-        module: module.address,
-        data: module.interface.encodeFunctionData("batchBuyPunksWithETH", [
-          orders.map((order) => ({
-            buyer: taker,
-            price: order.params.price,
-            punkIndex: order.params.tokenId,
-          })),
-          {
-            fillTo: taker,
-            refundTo: relayer,
-            revertIfIncomplete: Boolean(!options?.partial),
-            amount: price,
-          },
-          fees,
-        ]),
-        value: totalPrice,
+        info: {
+          module: module.address,
+          data: module.interface.encodeFunctionData("batchBuyPunksWithETH", [
+            orders.map((order) => ({
+              buyer: taker,
+              price: order.params.price,
+              punkIndex: order.params.tokenId,
+            })),
+            {
+              fillTo: taker,
+              refundTo: relayer,
+              revertIfIncomplete: Boolean(!options?.partial),
+              amount: price,
+            },
+            fees,
+          ]),
+          value: totalPrice,
+        },
+        orderIds: cryptoPunksDetails.map((d) => d.orderId),
       });
 
       // Track any possibly required swap
@@ -3005,7 +3054,6 @@ export class Router {
       // Mark the listings as successfully handled
       for (const { orderId } of cryptoPunksDetails) {
         success[orderId] = true;
-        orderIds.push(orderId);
       }
     }
 
@@ -3028,31 +3076,34 @@ export class Router {
         const buyInCurrencyIsETH = isETH(this.chainId, buyInCurrency);
 
         executions.push({
-          module: module.address,
-          data: module.interface.encodeFunctionData(
-            `accept${currencyIsETH ? "ETH" : "ERC20"}Listings`,
-            [
-              orders.map((order) =>
-                order.getMatchedOrder(
-                  order.buildMatching({
-                    taker: module.address,
-                    takerMasterNonce: "0",
-                  })
-                )
-              ),
-              orders.map((order) => order.params),
-              {
-                fillTo: taker,
-                refundTo: relayer,
-                revertIfIncomplete: Boolean(!options?.partial),
-                amount: price,
-                // Only needed for ERC20 listings
-                token: currency,
-              },
-              fees,
-            ]
-          ),
-          value: buyInCurrencyIsETH && currencyIsETH ? totalPrice : 0,
+          info: {
+            module: module.address,
+            data: module.interface.encodeFunctionData(
+              `accept${currencyIsETH ? "ETH" : "ERC20"}Listings`,
+              [
+                orders.map((order) =>
+                  order.getMatchedOrder(
+                    order.buildMatching({
+                      taker: module.address,
+                      takerMasterNonce: "0",
+                    })
+                  )
+                ),
+                orders.map((order) => order.params),
+                {
+                  fillTo: taker,
+                  refundTo: relayer,
+                  revertIfIncomplete: Boolean(!options?.partial),
+                  amount: price,
+                  // Only needed for ERC20 listings
+                  token: currency,
+                },
+                fees,
+              ]
+            ),
+            value: buyInCurrencyIsETH && currencyIsETH ? totalPrice : 0,
+          },
+          orderIds: currencyDetails.map((d) => d.orderId),
         });
 
         // Track any possibly required swap
@@ -3071,7 +3122,6 @@ export class Router {
         // Mark the listings as successfully handled
         for (const { orderId } of currencyDetails) {
           success[orderId] = true;
-          orderIds.push(orderId);
         }
       }
     }
@@ -3218,10 +3268,10 @@ export class Router {
                 }
               }
 
-              if (s.executionIndex) {
+              if (s.executionIndex !== undefined) {
                 unsuccessfulDependentExecutionIndexes.push(s.executionIndex);
               }
-              if (s.txIndex) {
+              if (s.txIndex !== undefined) {
                 unsuccessfulDependentTxIndexes.push(s.txIndex);
               }
             })
@@ -3234,7 +3284,7 @@ export class Router {
       }
     }
 
-    // Filter out any executions / txs that depend on failed swaps
+    // Filter out any executions / txs / order ids that depend on failed swaps
     executions = executions.filter((_, i) => !unsuccessfulDependentExecutionIndexes.includes(i));
     txs = txs.filter((_, i) => !unsuccessfulDependentTxIndexes.includes(i));
 
@@ -3243,14 +3293,17 @@ export class Router {
     if (executions.length || successfulSwapInfos.length) {
       // Prepend any swap executions
       executions = [
-        ...mergeSwapInfos(this.chainId, successfulSwapInfos).map((info) => info.execution),
+        ...mergeSwapInfos(this.chainId, successfulSwapInfos).map((info) => ({
+          info: info.execution,
+          orderIds: [],
+        })),
         ...executions,
       ];
 
       // If the buy-in currency is not ETH then we won't need any `value` fields
       if (buyInCurrency !== Sdk.Common.Addresses.Native[this.chainId]) {
         executions.forEach((e) => {
-          e.value = 0;
+          e.info.value = 0;
         });
       }
 
@@ -3279,15 +3332,16 @@ export class Router {
               ...{
                 to: this.contracts.router.address,
                 data:
-                  this.contracts.router.interface.encodeFunctionData("execute", [executions]) +
-                  generateSourceBytes(options?.source),
+                  this.contracts.router.interface.encodeFunctionData("execute", [
+                    executions.map((e) => e.info),
+                  ]) + generateSourceBytes(options?.source),
                 value: executions
-                  .map((e) => bn(e.value))
+                  .map((e) => bn(e.info.value))
                   .reduce((a, b) => a.add(b))
                   .toHexString(),
               },
             },
-            orderIds,
+            orderIds: executions.map((e) => e.orderIds).flat(),
           },
           ...txs,
         ];
@@ -3318,7 +3372,7 @@ export class Router {
                         "bulkTransferWithExecute",
                         [
                           ftTransferItems,
-                          executions,
+                          executions.map((e) => e.info),
                           Sdk.SeaportBase.Addresses.ReservoirConduitKey[this.chainId],
                         ]
                       ) + generateSourceBytes(options?.source),
@@ -3326,15 +3380,16 @@ export class Router {
                 : {
                     to: this.contracts.router.address,
                     data:
-                      this.contracts.router.interface.encodeFunctionData("execute", [executions]) +
-                      generateSourceBytes(options?.source),
+                      this.contracts.router.interface.encodeFunctionData("execute", [
+                        executions.map((e) => e.info),
+                      ]) + generateSourceBytes(options?.source),
                     value: executions
-                      .map((e) => bn(e.value))
+                      .map((e) => bn(e.info.value))
                       .reduce((a, b) => a.add(b))
                       .toHexString(),
                   }),
             },
-            orderIds,
+            orderIds: executions.map((e) => e.orderIds).flat(),
           },
           ...txs,
         ];
@@ -3563,21 +3618,23 @@ export class Router {
         continue;
       }
 
-      const contract = detail.contract;
-      const owner = taker;
-      const conduitController = new Sdk.SeaportBase.ConduitController(this.chainId);
-      const operator = conduitController.deriveConduit(
-        Sdk.SeaportBase.Addresses.ReservoirConduitKey[this.chainId]
-      );
+      if (!(details.length === 1 && !options?.forceApprovalProxy)) {
+        const contract = detail.contract;
+        const owner = taker;
+        const conduitController = new Sdk.SeaportBase.ConduitController(this.chainId);
+        const operator = conduitController.deriveConduit(
+          Sdk.SeaportBase.Addresses.ReservoirConduitKey[this.chainId]
+        );
 
-      // Generate approval
-      approvals.push({
-        orderIds: [detail.orderId],
-        contract,
-        owner,
-        operator,
-        txData: generateNFTApprovalTxData(contract, owner, operator),
-      });
+        // Generate approval
+        approvals.push({
+          orderIds: [detail.orderId],
+          contract,
+          owner,
+          operator,
+          txData: generateNFTApprovalTxData(contract, owner, operator),
+        });
+      }
 
       // Generate permit item
       let module: Contract;
@@ -4631,7 +4688,7 @@ export class Router {
         txTags: routerTxTags,
         // Ensure approvals are unique
         approvals: uniqBy(
-          // TODO: Exclude approvals for unsuccessfull items
+          // TODO: Exclude approvals for unsuccessful items
           approvals,
           ({ txData: { from, to, data } }) => `${from}-${to}-${data}`
         ),

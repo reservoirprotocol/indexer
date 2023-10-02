@@ -88,6 +88,7 @@ export const RoyaltyEngine: ChainIdToAddress = {
   [Network.Linea]: "0x8755310f937528173e7c5a106131d79a3601c9d9",
   [Network.Avalanche]: "0x60b433ee91680189deb2c94b0b062ea283f6b4dd",
   [Network.PolygonZkevm]: "0x60b433ee91680189deb2c94b0b062ea283f6b4dd",
+  [Network.Ancient8Testnet]: "0x8755310f937528173e7c5a106131d79a3601c9d9",
 };
 
 // Uniswap's `SwapRouter02`
@@ -120,6 +121,7 @@ export const Create3Factory: ChainIdToAddress = {
   [Network.Base]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
   [Network.Linea]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
   [Network.PolygonZkevm]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
+  [Network.Ancient8Testnet]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
 };
 
 export const GelatoRelay1BalanceERC2771: ChainIdToAddress = {

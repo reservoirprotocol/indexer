@@ -78,9 +78,19 @@ export const getTokensV6Options: RouteOptions = {
           then: Joi.forbidden(),
           otherwise: Joi.allow(),
         }),
-      tokenName: Joi.string().description(
-        "Filter to a particular token by name. This is case sensitive. Example: `token #1`"
-      ),
+      tokenName: Joi.string()
+        .description(
+          "Filter to a particular token by name. This is case sensitive. Example: `token #1`"
+        )
+        .when("collection", {
+          is: Joi.exist(),
+          then: Joi.allow(),
+          otherwise: Joi.when("contract", {
+            is: Joi.exist(),
+            then: Joi.allow(),
+            otherwise: Joi.forbidden(),
+          }),
+        }),
       tokens: Joi.alternatives().try(
         Joi.array()
           .max(50)
@@ -205,8 +215,7 @@ export const getTokensV6Options: RouteOptions = {
       .or("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
       .oxor("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
       .oxor("source", "nativeSource")
-      .with("attributes", "collection")
-      .with("tokenName", "collection"),
+      .with("attributes", "collection"),
   },
   response: {
     schema: Joi.object({

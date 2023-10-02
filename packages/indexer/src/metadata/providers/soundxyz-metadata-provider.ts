@@ -79,7 +79,7 @@ export class SoundxyzMetadataProvider extends AbstractBaseMetadataProvider {
     return `${contract}:soundxyz-${releaseFromToken.id}`;
   }
 
-  parseToken(metadata: any, contract: string, collection: any, tokenId: string): TokenMetadata {
+  parseToken(metadata: any, contract: string, tokenId: string, collection: any): TokenMetadata {
     const isGoldenEgg = metadata.eggGame?.nft.tokenId === tokenId;
     let imageUrl =
       metadata.animatedCoverImage?.url ??

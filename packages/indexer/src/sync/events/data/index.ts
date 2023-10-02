@@ -45,6 +45,7 @@ import * as blurV2 from "@/events-sync/data/blur-v2";
 import * as seadrop from "@/events-sync/data/seadrop";
 import * as erc721c from "@/events-sync/data/erc721c";
 import * as joepeg from "@/events-sync/data/joepeg";
+import * as metadataUpdate from "@/events-sync/data/metadata-update";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -92,7 +93,8 @@ export type EventKind =
   | "seadrop"
   | "blur-v2"
   | "erc721c"
-  | "joepeg";
+  | "joepeg"
+  | "metadata-update";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -300,7 +302,12 @@ export type EventSubKind =
   | "joepeg-taker-bid"
   | "erc721c-set-allowlist"
   | "erc721c-set-transfer-security-level"
-  | "erc721c-transfer-validator-updated";
+  | "erc721c-transfer-validator-updated"
+  | "metadata-update-single-token-opensea"
+  | "metadata-update-batch-tokens-opensea"
+  | "metadata-update-uri-opensea"
+  | "metadata-update-contract-uri-thirdweb"
+  | "metadata-update-zora";
 
 export type EventData = {
   kind: EventKind;
@@ -515,6 +522,11 @@ const allEventData = [
   erc721c.setAllowlist,
   joepeg.takerAsk,
   joepeg.takerBid,
+  metadataUpdate.metadataUpdateOpensea,
+  metadataUpdate.batchMetadataUpdateOpensea,
+  metadataUpdate.metadataUpdateURIOpensea,
+  metadataUpdate.contractURIUpdateThirdweb,
+  metadataUpdate.metadataUpdateURIZora,
 ];
 
 export const getEventData = (events?: string[]) => {

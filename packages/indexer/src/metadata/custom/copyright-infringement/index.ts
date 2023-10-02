@@ -25,7 +25,7 @@ export const fetchCollection = async ({
 export const fetchToken = async ({ contract, tokenId }: { contract: string; tokenId: string }) => {
   return {
     contract,
-    tokenId: tokenId,
+    tokenId,
     collection: contract,
     slug: contract,
     name: null,

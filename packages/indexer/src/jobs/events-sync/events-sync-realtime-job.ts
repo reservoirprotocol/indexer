@@ -42,12 +42,18 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
     } catch (error: any) {
       // if the error is block not found, add back to queue
       if (error?.message.includes("not found with RPC provider")) {
-        logger.info(
-          this.queueName,
-          `Block ${block} not found with RPC provider, adding back to queue`
-        );
+        logger.info(this.queueName, error?.message);
 
         return { addToQueue: true, delay: 1000 };
+      } else if (error?.message.includes("No logs found for block")) {
+        logger.info(this.queueName, error?.message);
+
+        // If no logs keep checking
+        if (Number(this.rabbitMqMessage?.retryCount) < this.maxRetries) {
+          return { addToQueue: true, delay: 1000 };
+        } else {
+          logger.info(this.queueName, `max retries for fetching logs for block ${block}`);
+        }
       } else if (error?.message.includes("unfinalized")) {
         return { addToQueue: true, delay: 2000 };
       } else {
@@ -64,7 +70,7 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
   ) {
     if (processResult?.addToQueue) {
       logger.info(this.queueName, `Retry block ${message.payload.block}`);
-      await this.addToQueue({ block: message.payload.block }, processResult.delay);
+      await this.addToQueue(message.payload, processResult.delay);
     }
   }
 
