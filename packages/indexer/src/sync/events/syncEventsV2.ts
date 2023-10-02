@@ -349,7 +349,9 @@ export const syncEvents = async (block: number) => {
 
   // Get the logs from the RPC
   const { logs, getLogsTime } = await _getLogs(eventFilter);
-  if (config.chainId === 137 && _.isEmpty(logs)) {
+
+  // Check if there are transactions but no longs
+  if (config.chainId === 137 && !_.isEmpty(blockData.transactions) && _.isEmpty(logs)) {
     throw new Error(`No logs found for block ${block}`);
   }
 
