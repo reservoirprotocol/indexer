@@ -328,7 +328,7 @@ export const syncTraces = async (block: number) => {
   );
 };
 
-export const syncEvents = async (block: number) => {
+export const syncEvents = async (block: number, skipLogsCheck = false) => {
   const startSyncTime = Date.now();
 
   const startGetBlockTime = Date.now();
@@ -351,7 +351,12 @@ export const syncEvents = async (block: number) => {
   const { logs, getLogsTime } = await _getLogs(eventFilter);
 
   // Check if there are transactions but no longs
-  if (config.chainId === 137 && !_.isEmpty(blockData.transactions) && _.isEmpty(logs)) {
+  if (
+    config.chainId === 137 &&
+    !skipLogsCheck &&
+    !_.isEmpty(blockData.transactions) &&
+    _.isEmpty(logs)
+  ) {
     throw new Error(`No logs found for block ${block}`);
   }
 

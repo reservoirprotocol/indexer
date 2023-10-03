@@ -224,7 +224,7 @@ export const getSalesV6Options: RouteOptions = {
         _.floor(Number(query.timestamp)) < query.startTimestamp ||
         _.floor(Number(query.timestamp)) > query.endTimestamp
       ) {
-        const log = `Continuation timestamp ${_.floor(Number(query.timestamp))} out fo range ${
+        const log = `Continuation timestamp ${_.floor(Number(query.timestamp))} out of range ${
           query.startTimestamp
         } - ${query.endTimestamp} request ${JSON.stringify(query)} x-api-key ${
           request.headers["x-api-key"]
@@ -232,7 +232,7 @@ export const getSalesV6Options: RouteOptions = {
 
         logger.info("transfers-sales", log);
         throw Boom.badRequest(
-          `Continuation timestamp ${_.floor(Number(query.timestamp))} out fo range ${
+          `Continuation timestamp ${_.floor(Number(query.timestamp))} out of range ${
             query.startTimestamp
           } - ${query.endTimestamp}`
         );
@@ -363,7 +363,7 @@ export const getSalesV6Options: RouteOptions = {
           _.floor(Number(timestamp)) < query.startTimestamp ||
           _.floor(Number(timestamp)) > query.endTimestamp
         ) {
-          const log = `Returned continuation timestamp ${_.floor(Number(timestamp))} out fo range ${
+          const log = `Returned continuation timestamp ${_.floor(Number(timestamp))} out of range ${
             query.startTimestamp
           } - ${query.endTimestamp} last raw ${JSON.stringify(rawResult)} x-api-key ${
             request.headers["x-api-key"]

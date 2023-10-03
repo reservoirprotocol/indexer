@@ -186,7 +186,7 @@ export const getTransfersBulkV2Options: RouteOptions = {
             _.floor(Number(updateAt)) < query.startTimestamp ||
             _.floor(Number(updateAt)) > query.endTimestamp
           ) {
-            const log = `Continuation updatedAt ${_.floor(Number(updateAt))} out fo range ${
+            const log = `Continuation updatedAt ${_.floor(Number(updateAt))} out of range ${
               query.startTimestamp
             } - ${query.endTimestamp} request ${JSON.stringify(query)} x-api-key ${
               request.headers["x-api-key"]
@@ -194,7 +194,7 @@ export const getTransfersBulkV2Options: RouteOptions = {
 
             logger.info("transfers-bulk", log);
             throw Boom.badRequest(
-              `Continuation updatedAt ${_.floor(Number(updateAt))} out fo range ${
+              `Continuation updatedAt ${_.floor(Number(updateAt))} out of range ${
                 query.startTimestamp
               } - ${query.endTimestamp}`
             );
@@ -286,7 +286,7 @@ export const getTransfersBulkV2Options: RouteOptions = {
           ) {
             const log = `Returned continuation updatedAt ${_.floor(
               Number(rawResult[rawResult.length - 1].updated_ts)
-            )} out fo range ${query.startTimestamp} - ${
+            )} out of range ${query.startTimestamp} - ${
               query.endTimestamp
             } last raw ${JSON.stringify(rawResult)} x-api-key ${request.headers["x-api-key"]}`;
 

@@ -36,6 +36,10 @@ export class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler {
       case "simplehash":
         count = 50;
         break;
+
+      case "onchain":
+        count = 1;
+        break;
     }
 
     const countTotal = method !== "soundxyz" ? config.maxParallelTokenRefreshJobs * count : count;

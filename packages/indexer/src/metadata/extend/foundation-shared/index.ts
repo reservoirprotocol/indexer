@@ -12,7 +12,7 @@ export const extendCollection = async (metadata: CollectionMetadata, _tokenId: n
   const creatorAddress = await nft.tokenCreator(_tokenId);
 
   if (creatorAddress) {
-    metadata.id = `${metadata.contract}:foundation-shared-${creatorAddress}`;
+    metadata.id = `${metadata.contract}:foundation-shared-${creatorAddress}`.toLowerCase();
     metadata.name = "Foundation";
     metadata.creator = creatorAddress;
     return {
@@ -33,7 +33,7 @@ export const extend = async (metadata: TokenMetadata) => {
   const creatorAddress = await nft.tokenCreator(metadata.tokenId);
 
   if (creatorAddress) {
-    metadata.collection = `${metadata.contract}:foundation-shared-${creatorAddress}`;
+    metadata.collection = `${metadata.contract}:foundation-shared-${creatorAddress}`.toLowerCase();
     return {
       ...metadata,
     };
