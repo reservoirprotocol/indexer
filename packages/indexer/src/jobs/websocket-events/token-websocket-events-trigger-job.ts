@@ -2,7 +2,7 @@ import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import _ from "lodash";
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
-import { idb, redb } from "@/common/db";
+import { idb } from "@/common/db";
 import { getJoiPriceObject } from "@/common/joi";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { Assets } from "@/utils/assets";
@@ -342,7 +342,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
         LIMIT 1
       `;
 
-      const rawResult = await redb.manyOrNone(baseQuery, {
+      const rawResult = await idb.manyOrNone(baseQuery, {
         contract: toBuffer(contract),
         tokenId,
       });
