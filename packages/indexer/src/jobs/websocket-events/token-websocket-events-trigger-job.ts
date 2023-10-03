@@ -12,14 +12,15 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 
 export type TokenWebsocketEventsTriggerJobPayload =
   | {
-      kind: "CDCEvent";
+      kind?: "CDCEvent";
       data: TokenCDCEventInfo;
     }
   | {
-      kind: "ForcedUpdate";
+      kind?: "ForcedChange";
       data: {
         contract: string;
         tokenId: string;
+        changed: string[];
       };
     };
 
@@ -51,10 +52,10 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: TokenWebsocketEventsTriggerJobPayload) {
     const { data, kind } = payload;
 
-    if (kind === "CDCEvent") {
-      await this.processCDCEvent(data);
-    } else if (kind === "ForcedUpdate") {
-      await this.processForcedUpdate(data.contract, data.tokenId);
+    if (kind === "ForcedChange") {
+      await this.processForcedChange(data.contract, data.tokenId, data.changed);
+    } else {
+      await this.processCDCEvent(data as TokenCDCEventInfo);
     }
   }
 
@@ -277,7 +278,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
     }
   }
 
-  async processForcedUpdate(contract: string, tokenId: string) {
+  async processForcedChange(contract: string, tokenId: string, changed: string[]) {
     const eventType = "token.updated";
 
     try {
@@ -453,7 +454,9 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
         this.queueName,
         JSON.stringify({
           topic: "processForcedUpdate",
-          message: `Publish forced update event. contract=${contract}, tokenId=${tokenId}`,
+          message: `Publish forced update event. contract=${contract}, tokenId=${tokenId}, changed=${JSON.stringify(
+            changed
+          )}`,
           resultJson: JSON.stringify(result),
         })
       );
@@ -463,7 +466,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
         tags: {
           contract: contract,
         },
-        // changed: [],
+        changed,
         data: result,
       });
     } catch (error) {

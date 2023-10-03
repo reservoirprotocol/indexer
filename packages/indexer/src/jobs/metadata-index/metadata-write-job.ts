@@ -450,10 +450,11 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
 
       await tokenWebsocketEventsTriggerJob.addToQueue([
         {
-          kind: "ForcedUpdate",
+          kind: "ForcedChange",
           data: {
             contract,
             tokenId,
+            changed: ["attributes"],
           },
         },
       ]);
