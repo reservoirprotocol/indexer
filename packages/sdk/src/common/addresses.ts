@@ -49,7 +49,7 @@ export const WNative: ChainIdToAddress = {
   [Network.MantleTestnet]: "0xbaafec4b6ef4f5e0bafa850cbc48364b953efcf9",
   [Network.Zksync]: "0x5aea5775959fbc2557cc8789bc1bf90a239d9a91",
   [Network.PolygonZkevm]: "0x4f9a0e7fd2bf6067db6994cf12e4495df938e6e9",
-  [Network.Ancient8Testnet]: "0x4200000000000000000000000000000000000015",
+  [Network.Ancient8Testnet]: "0xd9f9b787cd5db243f20ea56214ba10ef765b04e3",
 };
 
 export const Usdc: ChainIdToAddress = {

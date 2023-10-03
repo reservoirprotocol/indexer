@@ -15,18 +15,15 @@ if (process.env.DATADOG_AGENT_URL) {
     service,
     url: process.env.DATADOG_AGENT_URL,
     env: config.environment,
-    // samplingRules: [
-    //   {
-    //     service: `${service}-postgres`,
-    //     name: "pg.query",
-    //     sampleRate: 0,
-    //   },
-    //   {
-    //     service: `${service}`,
-    //     name: "pg.query",
-    //     sampleRate: 0,
-    //   },
-    // ],
+    samplingRules:
+      config.chainId === Network.Ancient8Testnet
+        ? [
+            {
+              service: `${service}-postgres`,
+              sampleRate: 0,
+            },
+          ]
+        : undefined,
   });
 
   tracer.use("hapi", {
