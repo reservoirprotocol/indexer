@@ -75,7 +75,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
               json_build_object(
                 'key', ta.key,
                 'kind', attributes.kind,
-                'value', ta.value,
+                'value', ta.value
               )
             )
           FROM token_attributes ta
@@ -325,7 +325,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
               json_build_object(
                 'key', ta.key,
                 'kind', attributes.kind,
-                'value', ta.value,
+                'value', ta.value
               )
             )
           FROM token_attributes ta
