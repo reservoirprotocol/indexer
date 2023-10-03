@@ -21,6 +21,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import { Collections } from "@/models/collections";
 import { redis } from "@/common/redis";
 import { redb } from "@/common/db";
+import { Sources } from "@/models/sources";
 
 const version = "v6";
 
@@ -159,6 +160,7 @@ export const getUserActivityV6Options: RouteOptions = {
             .description("Txn hash from the blockchain."),
           logIndex: Joi.number().allow(null),
           batchIndex: Joi.number().allow(null),
+          fillSource: Joi.object().allow(null),
           order: JoiActivityOrder,
           createdAt: Joi.string(),
         })
@@ -366,6 +368,11 @@ export const getUserActivityV6Options: RouteOptions = {
             : undefined;
         }
 
+        const sources = await Sources.getInstance();
+        const fillSource = activity.event?.fillSourceId
+          ? sources.get(activity.event?.fillSourceId)
+          : undefined;
+
         return {
           type: activity.type,
           fromAddress: activity.fromAddress,
@@ -409,6 +416,13 @@ export const getUserActivityV6Options: RouteOptions = {
           txHash: activity.event?.txHash,
           logIndex: activity.event?.logIndex,
           batchIndex: activity.event?.batchIndex,
+          fillSource: fillSource
+            ? {
+                domain: fillSource?.domain,
+                name: fillSource?.getTitle(),
+                icon: fillSource?.getIcon(),
+              }
+            : undefined,
           order,
         };
       });

@@ -79,6 +79,7 @@ export class FillEventCreatedEventHandler extends BaseActivityEventHandler {
                   block_hash AS "event_block_hash",
                   log_index AS "event_log_index",
                   batch_index AS "event_batch_index",
+                  fill_source_id AS "event_fill_source_id",
                   currency AS "pricing_currency",
                   price AS "pricing_price",
                   currency_price AS "pricing_currency_price",
