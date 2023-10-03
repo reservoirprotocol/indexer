@@ -251,6 +251,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
           topic: "processCDCEvent",
           message: `Processed cdc event. contract=${contract}, tokenId=${tokenId}`,
           resultJson: JSON.stringify(result),
+          token: `${contract}:${tokenId}`,
         })
       );
 
@@ -463,6 +464,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
             changed
           )}`,
           resultJson: JSON.stringify(result),
+          token: `${contract}:${tokenId}`,
         })
       );
 
