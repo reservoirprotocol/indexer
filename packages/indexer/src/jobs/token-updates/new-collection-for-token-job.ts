@@ -31,7 +31,7 @@ export type NewCollectionForTokenJobPayload = {
 export class NewCollectionForTokenJob extends AbstractRabbitMqJobHandler {
   queueName = "new-collection-for-token";
   maxRetries = 10;
-  concurrency = 5;
+  concurrency = 1;
   backoff = {
     type: "exponential",
     delay: 10000,
@@ -215,7 +215,6 @@ export class NewCollectionForTokenJob extends AbstractRabbitMqJobHandler {
       // Update the old collection's token count
       await recalcTokenCountQueueJob.addToQueue({
         collection: oldCollectionId,
-        force: true,
       });
 
       // If this is a new collection, recalculate floor price

@@ -973,21 +973,13 @@ export const getTokensV6Options: RouteOptions = {
         query.rarity ||
         query.tokens ||
         (query.sortBy === "updatedAt" &&
-          !(
-            query.collectionsSetId ||
-            query.community ||
-            (query.contract && query.contract.length > 1)
-          ))
+          !(query.collectionsSetId || query.community || query.contract))
       ) {
         baseQuery += getSort(query.sortBy, false);
       }
 
       // Break query into UNION of results for each collectionId or contract
-      if (
-        query.collectionsSetId ||
-        query.community ||
-        (query.contract && query.contract.length > 1 && !query.collection)
-      ) {
+      if (query.collectionsSetId || query.community || (query.contract && !query.collection)) {
         const unionQueries = [];
         const unionValues = query.contract ? query.contract : collections;
 
@@ -999,8 +991,7 @@ export const getTokensV6Options: RouteOptions = {
             `(
               ${baseQuery}
               ${conditions.length ? `AND ` : `WHERE `} t.${unionType} = $/${unionFilter}/
-              ${getSort(query.sortBy, false)}
-              LIMIT $/limit/
+              ${unionValues.length > 1 ? `${getSort(query.sortBy, false)} LIMIT $/limit/` : ""}
             )`
           );
         }
