@@ -945,6 +945,17 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           },
         },
+        whitelistedCurrencies: new Map([
+          [
+            "0x9E9Fce924Fe52869d13944E9eef02e4DB0B2DB7d",
+            {
+              contract: "0x9E9Fce924Fe52869d13944E9eef02e4DB0B2DB7d",
+              name: "FEWL",
+              symbol: "FEWL",
+              decimals: 18,
+            },
+          ]
+        ]),
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
