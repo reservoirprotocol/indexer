@@ -27,7 +27,7 @@ let _logger: Logger;
 const log = (level: "error" | "info" | "warn" | "debug") => {
   const getLogger = () => {
     const service = getServiceName();
-    const _transports: Transport[] = [new transports.Console()];
+    const _transports: Transport[] = [];
 
     if (process.env.DATADOG_API_KEY) {
       _transports.push(
@@ -37,6 +37,8 @@ const log = (level: "error" | "info" | "warn" | "debug") => {
           ssl: true,
         })
       );
+    } else {
+      _transports.push(new transports.Console());
     }
 
     return createLogger({
@@ -55,8 +57,8 @@ const log = (level: "error" | "info" | "warn" | "debug") => {
     });
   };
 
-  // _logger = _logger || getLogger();
-  _logger = getLogger();
+  _logger = _logger || getLogger();
+  // _logger = getLogger();
 
   return (component: string, message: string) =>
     _logger.log(level, message, {
