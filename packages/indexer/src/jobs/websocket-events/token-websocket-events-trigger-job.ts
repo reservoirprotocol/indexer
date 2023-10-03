@@ -2,17 +2,26 @@ import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import _ from "lodash";
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
-import { idb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import { getJoiPriceObject } from "@/common/joi";
-import { toBuffer } from "@/common/utils";
+import { fromBuffer, toBuffer } from "@/common/utils";
 import { Assets } from "@/utils/assets";
 import * as Sdk from "@reservoir0x/sdk";
 import { Sources } from "@/models/sources";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
-export type TokenWebsocketEventsTriggerJobPayload = {
-  data: TokenWebsocketEventInfo;
-};
+export type TokenWebsocketEventsTriggerJobPayload =
+  | {
+      kind: "CDCEvent";
+      data: TokenCDCEventInfo;
+    }
+  | {
+      kind: "ForcedUpdate";
+      data: {
+        contract: string;
+        tokenId: string;
+      };
+    };
 
 const changedMapping = {
   name: "name",
@@ -40,7 +49,18 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
   lazyMode = true;
 
   protected async process(payload: TokenWebsocketEventsTriggerJobPayload) {
-    const { data } = payload;
+    const { data, kind } = payload;
+
+    if (kind === "CDCEvent") {
+      await this.processCDCEvent(data);
+    } else if (kind === "ForcedUpdate") {
+      await this.processForcedUpdate(data.contract, data.tokenId);
+    }
+  }
+
+  async processCDCEvent(data: TokenCDCEventInfo) {
+    const contract = data.after.contract;
+    const tokenId = data.after.token_id;
 
     try {
       const baseQuery = `
@@ -48,7 +68,22 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
           con.kind,
           c.name AS collection_name,
           c.slug,
-          (c.metadata ->> 'imageUrl')::TEXT AS collection_image
+          (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
+          (SELECT
+            array_agg(
+              json_build_object(
+                'key', ta.key,
+                'kind', attributes.kind,
+                'value', ta.value,
+              )
+            )
+          FROM token_attributes ta
+          JOIN attributes
+            ON ta.attribute_id = attributes.id
+          WHERE ta.contract = $/contract/
+            AND ta.token_id = $/tokenId/
+            AND ta.key != ''
+        ) AS attributes
         FROM contracts con
         LEFT JOIN collections c ON con.address = c.contract
         WHERE con.address = $/contract/
@@ -57,14 +92,13 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
     `;
 
       const rawResult = await idb.manyOrNone(baseQuery, {
-        contract: toBuffer(data.after.contract),
+        contract: toBuffer(contract),
+        tokenId,
         collectionId: data.after.collection_id,
       });
 
       const r = rawResult[0];
 
-      const contract = data.after.contract;
-      const tokenId = data.after.token_id;
       const sources = await Sources.getInstance();
 
       const floorSellSource = data.after.floor_sell_value
@@ -115,6 +149,11 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
             image: r?.collection_image ? Assets.getLocalAssetsLink(r.collection_image) : null,
             slug: r?.slug,
           },
+          attributes: _.map(r.attributes, (attribute) => ({
+            key: attribute.key,
+            kind: attribute.kind,
+            value: attribute.value,
+          })),
         },
         market: {
           floorAsk: data.after.floor_sell_value && {
@@ -205,6 +244,15 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
         }
       }
 
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "processCDCEvent",
+          message: `Processed cdc event. contract=${contract}, tokenId=${tokenId}`,
+          resultJson: JSON.stringify(result),
+        })
+      );
+
       await publishWebsocketEvent({
         event: eventType,
         tags: {
@@ -217,10 +265,217 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
     } catch (error) {
       logger.error(
         this.queueName,
-        `Error processing websocket event. data=${JSON.stringify(data)}, error=${JSON.stringify(
-          error
-        )}`
+        JSON.stringify({
+          topic: "processCDCEvent",
+          message: `Error processing cdc event. contract=${contract}, tokenId=${tokenId}, error=${error}`,
+          data,
+          error,
+        })
       );
+
+      throw error;
+    }
+  }
+
+  async processForcedUpdate(contract: string, tokenId: string) {
+    const eventType = "token.updated";
+
+    try {
+      const selectFloorData = `
+        t.floor_sell_id,
+        t.floor_sell_maker,
+        t.floor_sell_valid_from,
+        t.floor_sell_valid_to,
+        t.floor_sell_source_id_int,
+        t.floor_sell_value,
+        t.floor_sell_currency,
+        t.floor_sell_currency_value,
+        t.normalized_floor_sell_id,
+        t.normalized_floor_sell_maker,
+        t.normalized_floor_sell_valid_from,
+        t.normalized_floor_sell_valid_to,
+        t.normalized_floor_sell_source_id_int,
+        t.normalized_floor_sell_value,
+        t.normalized_floor_sell_currency,
+        t.normalized_floor_sell_currency_value
+      `;
+
+      const baseQuery = `
+        SELECT
+          t.contract,
+          t.token_id,
+          t.name,
+          t.description,
+          t.image,
+          t.media,
+          t.collection_id,
+          c.name AS collection_name,
+          con.kind,
+          ${selectFloorData},
+          t.rarity_score,
+          t.rarity_rank,
+          t.is_flagged,
+          t.last_flag_update,
+          t.last_flag_change,
+          c.slug,
+          (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
+          (SELECT
+            array_agg(
+              json_build_object(
+                'key', ta.key,
+                'kind', attributes.kind,
+                'value', ta.value,
+              )
+            )
+          FROM token_attributes ta
+          JOIN attributes
+            ON ta.attribute_id = attributes.id
+          WHERE ta.contract = $/contract/
+            AND ta.token_id = $/tokenId/
+            AND ta.key != ''
+        ) AS attributes
+        FROM tokens t
+        LEFT JOIN collections c ON t.collection_id = c.id
+        JOIN contracts con ON t.contract = con.address
+        WHERE t.contract = $/contract/ AND t.token_id = $/tokenId/
+        LIMIT 1
+      `;
+
+      const rawResult = await redb.manyOrNone(baseQuery, {
+        contract: toBuffer(contract),
+        tokenId,
+      });
+
+      const r = rawResult[0];
+
+      const sources = await Sources.getInstance();
+
+      const floorSellSource = r.floor_sell_value
+        ? sources.get(Number(r.floor_sell_source_id_int), contract, tokenId)
+        : undefined;
+
+      // Use default currencies for backwards compatibility with entries
+      // that don't have the currencies cached in the tokens table
+      const floorAskCurrency = r.floor_sell_currency
+        ? fromBuffer(r.floor_sell_currency)
+        : Sdk.Common.Addresses.Native[config.chainId];
+
+      const normalizedFloorSellSource = r.normalized_floor_sell_value
+        ? sources.get(Number(r.normalized_floor_sell_source_id_int), contract, tokenId)
+        : undefined;
+
+      // Use default currencies for backwards compatibility with entries
+      // that don't have the currencies cached in the tokens table
+      const normalizedFloorAskCurrency = r.normalized_floor_sell_currency
+        ? fromBuffer(r.normalized_floor_sell_currency)
+        : Sdk.Common.Addresses.Native[config.chainId];
+
+      const result = {
+        token: {
+          contract,
+          tokenId,
+          name: r.name,
+          description: r.description,
+          image: Assets.getLocalAssetsLink(r.image),
+          media: r.media,
+          kind: r.kind,
+          isFlagged: Boolean(Number(r.is_flagged)),
+          lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
+          lastFlagChange: r.last_flag_change ? new Date(r.last_flag_change).toISOString() : null,
+          supply: !_.isNull(r.supply) ? r.supply : null,
+          remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : null,
+          rarity: r.rarity_score,
+          rarityRank: r.rarity_rank,
+          collection: {
+            id: r.collection_id,
+            name: r.collection_name,
+            image: Assets.getLocalAssetsLink(r.collection_image),
+            slug: r.slug,
+          },
+        },
+        market: {
+          floorAsk: r.floor_sell_value && {
+            id: r.floor_sell_id,
+            price: r.floor_sell_id
+              ? await getJoiPriceObject(
+                  {
+                    gross: {
+                      amount: r.floor_sell_currency_value ?? r.floor_sell_value,
+                      nativeAmount: r.floor_sell_value,
+                    },
+                  },
+                  floorAskCurrency,
+                  undefined
+                )
+              : null,
+            maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
+            validFrom: r.floor_sell_value ? r.floor_sell_valid_from : null,
+            validUntil: r.floor_sell_value ? r.floor_sell_valid_to : null,
+
+            source: {
+              id: floorSellSource?.address,
+              domain: floorSellSource?.domain,
+              name: floorSellSource?.getTitle(),
+              icon: floorSellSource?.getIcon(),
+              url: floorSellSource?.metadata.url,
+            },
+          },
+          floorAskNormalized: r.normalized_floor_sell_value && {
+            id: r.normalized_floor_sell_id,
+            price: r.normalized_floor_sell_id
+              ? await getJoiPriceObject(
+                  {
+                    gross: {
+                      amount:
+                        r.normalized_floor_sell_currency_value ?? r.normalized_floor_sell_value,
+                      nativeAmount: r.normalized_floor_sell_value,
+                    },
+                  },
+                  normalizedFloorAskCurrency,
+                  undefined
+                )
+              : null,
+            maker: r.normalized_floor_sell_maker ? fromBuffer(r.normalized_floor_sell_maker) : null,
+            validFrom: r.normalized_floor_sell_value ? r.normalized_floor_sell_valid_from : null,
+            validUntil: r.normalized_floor_sell_value ? r.normalized_floor_sell_valid_to : null,
+            source: {
+              id: normalizedFloorSellSource?.address,
+              domain: normalizedFloorSellSource?.domain,
+              name: normalizedFloorSellSource?.getTitle(),
+              icon: normalizedFloorSellSource?.getIcon(),
+              url: normalizedFloorSellSource?.metadata.url,
+            },
+          },
+        },
+      };
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "processForcedUpdate",
+          message: `Publish forced update event. contract=${contract}, tokenId=${tokenId}`,
+          resultJson: JSON.stringify(result),
+        })
+      );
+
+      await publishWebsocketEvent({
+        event: eventType,
+        tags: {
+          contract: contract,
+        },
+        // changed: [],
+        data: result,
+      });
+    } catch (error) {
+      logger.error(
+        this.queueName,
+        JSON.stringify({
+          topic: "processForcedUpdate",
+          message: `Error processing forced update event. contract=${contract}, tokenId=${tokenId}, error=${error}`,
+          error,
+        })
+      );
+
       throw error;
     }
   }
@@ -238,7 +493,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
   }
 }
 
-export type TokenWebsocketEventInfo = {
+export type TokenCDCEventInfo = {
   before: TokenInfo;
   after: TokenInfo;
   trigger: "insert" | "update" | "delete";
