@@ -3,13 +3,9 @@
 import _ from "lodash";
 import axios from "axios";
 import slugify from "slugify";
-import { CollectionMetadata, TokenMetadata } from "@/utils/metadata-api";
+import { CollectionMetadata, TokenMetadata } from "@/metadata/types";
 
-export const extendCollection = async (
-  _chainId: number,
-  metadata: CollectionMetadata,
-  _tokenId = null
-) => {
+export const extendCollection = async (metadata: CollectionMetadata, _tokenId = null) => {
   if (!_tokenId || isNaN(Number(_tokenId))) {
     throw new Error(`Invalid tokenId ${_tokenId}`);
   }
@@ -39,7 +35,7 @@ export const extendCollection = async (
   };
 };
 
-export const extend = async (_chainId: number, metadata: TokenMetadata) => {
+export const extend = async (metadata: TokenMetadata) => {
   const startTokenId = metadata.tokenId - (metadata.tokenId % 1000000);
   const endTokenId = startTokenId + 1000000 - 1;
 

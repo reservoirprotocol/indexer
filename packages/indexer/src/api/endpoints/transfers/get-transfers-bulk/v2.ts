@@ -8,6 +8,7 @@ import _ from "lodash";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } from "@/common/utils";
+import * as Boom from "@hapi/boom";
 
 const version = "v2";
 
@@ -145,6 +146,15 @@ export const getTransfersBulkV2Options: RouteOptions = {
         conditions.push(`nft_transfer_events.tx_hash = $/txHash/`);
       }
 
+      // We default in the code so that these values don't appear in the docs
+      if (!query.startTimestamp) {
+        query.startTimestamp = 0;
+      }
+
+      if (!query.endTimestamp) {
+        query.endTimestamp = 9999999999;
+      }
+
       if (query.continuation) {
         if (query.sortBy === "timestamp") {
           const [timestamp, logIndex, batchIndex] = splitContinuation(
@@ -172,9 +182,31 @@ export const getTransfersBulkV2Options: RouteOptions = {
           (query as any).batchIndex = batchIndex;
           const sign = query.sortDirection == "desc" ? "<" : ">";
 
-          if (query.contract || query.token) {
+          if (
+            _.floor(Number(updateAt)) < query.startTimestamp ||
+            _.floor(Number(updateAt)) > query.endTimestamp
+          ) {
+            const log = `Continuation updatedAt ${_.floor(Number(updateAt))} out of range ${
+              query.startTimestamp
+            } - ${query.endTimestamp} request ${JSON.stringify(query)} x-api-key ${
+              request.headers["x-api-key"]
+            }`;
+
+            logger.info("transfers-bulk", log);
+            throw Boom.badRequest(
+              `Continuation updatedAt ${_.floor(Number(updateAt))} out of range ${
+                query.startTimestamp
+              } - ${query.endTimestamp}`
+            );
+          }
+
+          if (query.token) {
             conditions.push(
               `(nft_transfer_events.address, nft_transfer_events.token_id, nft_transfer_events.updated_at, tx_hash, log_index, batch_index) ${sign} ($/address/, $/tokenId/, to_timestamp($/updatedAt/), $/txHash/, $/logIndex/, $/batchIndex/)`
+            );
+          } else if (query.contract) {
+            conditions.push(
+              `(nft_transfer_events.address, nft_transfer_events.updated_at, tx_hash, log_index, batch_index) ${sign} ($/address/, to_timestamp($/updatedAt/), $/txHash/, $/logIndex/, $/batchIndex/)`
             );
           } else {
             conditions.push(
@@ -182,15 +214,6 @@ export const getTransfersBulkV2Options: RouteOptions = {
             );
           }
         }
-      }
-
-      // We default in the code so that these values don't appear in the docs
-      if (!query.startTimestamp) {
-        query.startTimestamp = 0;
-      }
-
-      if (!query.endTimestamp) {
-        query.endTimestamp = 9999999999;
       }
 
       if (query.sortBy === "timestamp") {
@@ -222,7 +245,7 @@ export const getTransfersBulkV2Options: RouteOptions = {
           baseQuery += `
           ORDER BY
             nft_transfer_events.address ${query.sortDirection},
-            nft_transfer_events.token_id ${query.sortDirection},
+            ${query.token ? `nft_transfer_events.token_id ${query.sortDirection},` : ""}
             nft_transfer_events.updated_at ${query.sortDirection},
             nft_transfer_events.tx_hash ${query.sortDirection},
             nft_transfer_events.log_index ${query.sortDirection},
@@ -257,6 +280,19 @@ export const getTransfersBulkV2Options: RouteOptions = {
               rawResult[rawResult.length - 1].batch_index
           );
         } else if (query.sortBy == "updatedAt") {
+          if (
+            _.floor(Number(rawResult[rawResult.length - 1].updated_ts)) < query.startTimestamp ||
+            _.floor(Number(rawResult[rawResult.length - 1].updated_ts)) > query.endTimestamp
+          ) {
+            const log = `Returned continuation updatedAt ${_.floor(
+              Number(rawResult[rawResult.length - 1].updated_ts)
+            )} out of range ${query.startTimestamp} - ${
+              query.endTimestamp
+            } last raw ${JSON.stringify(rawResult)} x-api-key ${request.headers["x-api-key"]}`;
+
+            logger.info("transfers-bulk", log);
+          }
+
           continuation = buildContinuation(
             rawResult[rawResult.length - 1].updated_ts +
               "_" +

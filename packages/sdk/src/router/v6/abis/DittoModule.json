@@ -99,6 +99,11 @@
       {
         "components": [
           {
+            "internalType": "address",
+            "name": "tokenSender",
+            "type": "address"
+          },
+          {
             "internalType": "uint256[]",
             "name": "nftIds",
             "type": "uint256[]"
@@ -227,7 +232,7 @@
   {
     "inputs": [
       {
-        "internalType": "contract ERC20",
+        "internalType": "contract IERC20",
         "name": "token",
         "type": "address"
       },
@@ -302,6 +307,11 @@
       },
       {
         "components": [
+          {
+            "internalType": "address",
+            "name": "tokenSender",
+            "type": "address"
+          },
           {
             "internalType": "uint256[]",
             "name": "nftIds",

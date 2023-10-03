@@ -538,6 +538,22 @@ jobs:
             ./prod/platform/indexer-worker-polygon-zkevm.yaml \
             ${{ github.sha }} \
             indexer-worker-polygon-zkevm
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-polygon-zkevm.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-polygon-zkevm
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-api-ancient8-testnet.yaml \
+            ${{ github.sha }} \
+            indexer-worker-ancient8-testnet
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-ancient8-testnet.yaml \
+            ${{ github.sha }} \
+            indexer-worker-ancient8-testnet
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-ancient8-testnet.yaml \
+            ${{ github.sha }} \
+            indexer-worker-ancient8-testnet
       - name: Post to Slack
         if: ${{ always() }}
         id: slack-deploy-prod

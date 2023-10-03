@@ -4,6 +4,7 @@ import { Contract } from "@ethersproject/contracts";
 import { idb, redb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
 import { fromBuffer, toBuffer } from "@/common/utils";
+import { orderRevalidationsJob } from "@/jobs/order-fixes/order-revalidations-job";
 
 export type ERC721CConfig = {
   transferValidator: string;
@@ -168,6 +169,31 @@ export const refreshERC721COperatorWhitelist = async (transferValidator: string,
     }
   );
 
+  const relevantContracts = await idb.manyOrNone(
+    `
+      SELECT
+        erc721c_configs.contract
+      FROM erc721c_configs
+      WHERE erc721c_configs.transfer_validator = $/transferValidator/
+      LIMIT 1000
+    `,
+    {
+      transferValidator: toBuffer(transferValidator),
+    }
+  );
+
+  // Invalid any orders relying on the blacklisted operator
+  await orderRevalidationsJob.addToQueue(
+    relevantContracts.map((c) => ({
+      by: "operator",
+      data: {
+        contract: fromBuffer(c.contract),
+        whitelistedOperators: whitelist,
+        status: "inactive",
+      },
+    }))
+  );
+
   return whitelist;
 };
 
@@ -212,10 +238,27 @@ export const refreshERC721CPermittedContractReceiverAllowlist = async (
   return allowlist;
 };
 
+export const isVerifiedEOA = async (transferValidator: string, address: string) => {
+  const result = await idb.oneOrNone(
+    `
+      SELECT
+        1
+      FROM erc721c_verified_eoas
+      WHERE erc721c_verified_eoas.transfer_validator = $/transferValidator/
+        AND erc721c_verified_eoas.address = $/address/
+    `,
+    {
+      transferValidator: toBuffer(transferValidator),
+      address: toBuffer(address),
+    }
+  );
+  return Boolean(result);
+};
+
 export const saveVerifiedEOA = async (transferValidator: string, address: string) =>
   idb.none(
     `
-      INSERT INTO erc721_verified_eoas(
+      INSERT INTO erc721c_verified_eoas(
         transfer_validator,
         address
       ) VALUES (

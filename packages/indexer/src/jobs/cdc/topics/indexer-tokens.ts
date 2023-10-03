@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { redis } from "@/common/redis";
+
 import { KafkaEventHandler } from "./KafkaEventHandler";
 import {
   WebsocketEventKind,
@@ -38,6 +40,21 @@ export class IndexerTokensHandler extends KafkaEventHandler {
       },
       eventKind: WebsocketEventKind.TokenEvent,
     });
+
+    if (payload.after.name || payload.after.image) {
+      await redis.set(
+        `token-cache:${payload.after.contract}:${payload.after.token_id}`,
+        JSON.stringify({
+          contract: payload.after.contract,
+          token_id: payload.after.token_id,
+          name: payload.after.name,
+          image: payload.after.image,
+        }),
+        "EX",
+        60 * 60 * 24,
+        "XX"
+      );
+    }
   }
 
   protected async handleDelete(): Promise<void> {

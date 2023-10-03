@@ -17,6 +17,7 @@ export const Exchange: ChainIdToAddress = {
   [Network.Avalanche]: "0x00000000000000adc04c56bf30ac9d3c0aaf14dc",
   [Network.Base]: "0x00000000000000adc04c56bf30ac9d3c0aaf14dc",
   [Network.Linea]: "0x00000000000000adc04c56bf30ac9d3c0aaf14dc",
-  [Network.Zksync]: "0x00000000000000adc04c56bf30ac9d3c0aaf14dc",
+  [Network.Zksync]: "0x8ebc1f65c8cc48945649fbc4e29fb3bbd6e68f25",
+  [Network.Ancient8Testnet]: "0x00000000000000adc04c56bf30ac9d3c0aaf14dc",
   [Network.PolygonZkevm]: "0x00000000000000adc04c56bf30ac9d3c0aaf14dc",
 };

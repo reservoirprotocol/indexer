@@ -27,7 +27,9 @@ export const postRevalidateOrderOptions: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      await orderRevalidationsJob.addToQueue([{ id: payload.id, status: payload.status }]);
+      await orderRevalidationsJob.addToQueue([
+        { by: "id", data: { id: payload.id, status: payload.status } },
+      ]);
 
       return { message: "Success" };
     } catch (error) {

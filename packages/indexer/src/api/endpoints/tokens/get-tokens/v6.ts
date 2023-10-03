@@ -29,6 +29,7 @@ import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { Assets, ImageSize } from "@/utils/assets";
 import { CollectionSets } from "@/models/collection-sets";
+import { Collections } from "@/models/collections";
 
 const version = "v6";
 
@@ -67,20 +68,32 @@ export const getTokensV6Options: RouteOptions = {
           then: Joi.forbidden(),
           otherwise: Joi.allow(),
         }),
-      contract: Joi.string()
-        .lowercase()
-        .pattern(regex.address)
+      contract: Joi.alternatives()
+        .try(
+          Joi.array().items(Joi.string().lowercase().pattern(regex.address)).max(20),
+          Joi.string().lowercase().pattern(regex.address)
+        )
         .description(
-          "Filter to a particular contract. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Array of contracts. Max amount is 20. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         )
         .when("flagStatus", {
           is: Joi.exist(),
           then: Joi.forbidden(),
           otherwise: Joi.allow(),
         }),
-      tokenName: Joi.string().description(
-        "Filter to a particular token by name. This is case sensitive. Example: `token #1`"
-      ),
+      tokenName: Joi.string()
+        .description(
+          "Filter to a particular token by name. This is case sensitive. Example: `token #1`"
+        )
+        .when("collection", {
+          is: Joi.exist(),
+          then: Joi.allow(),
+          otherwise: Joi.when("contract", {
+            is: Joi.exist(),
+            then: Joi.allow(),
+            otherwise: Joi.forbidden(),
+          }),
+        }),
       tokens: Joi.alternatives().try(
         Joi.array()
           .max(50)
@@ -162,9 +175,31 @@ export const getTokensV6Options: RouteOptions = {
       limit: Joi.number()
         .integer()
         .min(1)
-        .max(100)
+        .when("sortBy", {
+          is: "updatedAt",
+          then: Joi.number().integer().max(1000),
+          otherwise: Joi.number().integer().max(100),
+        })
         .default(20)
-        .description("Amount of items returned in response. Max limit is 100."),
+        .description(
+          "Amount of items returned in response. Max limit is 100, except when sorting by `updatedAt` which has a limit of 1000."
+        ),
+      startTimestamp: Joi.number()
+        .when("sortBy", {
+          is: "updatedAt",
+          then: Joi.allow(),
+          otherwise: Joi.forbidden(),
+        })
+        .description(
+          "When sorting by `updatedAt`, the start timestamp you want to filter on (UTC)."
+        ),
+      endTimestamp: Joi.number()
+        .when("sortBy", {
+          is: "updatedAt",
+          then: Joi.allow(),
+          otherwise: Joi.forbidden(),
+        })
+        .description("When sorting by `updatedAt`, the end timestamp you want to filter on (UTC)."),
       includeTopBid: Joi.boolean()
         .default(false)
         .description("If true, top bid will be returned in the response."),
@@ -198,19 +233,32 @@ export const getTokensV6Options: RouteOptions = {
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Input any ERC20 address to return result in given currency"),
+        .description(
+          "Input any ERC20 address to return result in given currency. Applies to `topBid` and `floorAsk`."
+        ),
     })
-      .or("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
+      .when(".sortBy", {
+        is: "updatedAt",
+        then: undefined,
+        otherwise: Joi.object().or(
+          "collection",
+          "contract",
+          "tokens",
+          "tokenSetId",
+          "community",
+          "collectionsSetId"
+        ),
+      })
       .oxor("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
       .oxor("source", "nativeSource")
-      .with("attributes", "collection")
-      .with("tokenName", "collection"),
+      .with("attributes", "collection"),
   },
   response: {
     schema: Joi.object({
       tokens: Joi.array().items(
         Joi.object({
           token: Joi.object({
+            chainId: Joi.number().required(),
             contract: Joi.string().lowercase().pattern(regex.address).required(),
             tokenId: Joi.string().pattern(regex.number).required(),
             name: Joi.string().allow("", null),
@@ -414,7 +462,9 @@ export const getTokensV6Options: RouteOptions = {
           fe.royalty_fee_bps AS last_sale_royalty_fee_bps,
           fe.paid_full_royalty AS last_sale_paid_full_royalty,
           fe.royalty_fee_breakdown AS last_sale_royalty_fee_breakdown,
-          fe.marketplace_fee_breakdown AS last_sale_marketplace_fee_breakdown
+          fe.marketplace_fee_breakdown AS last_sale_marketplace_fee_breakdown,
+          fe.order_source_id_int AS last_sale_order_source_id_int,
+          fe.fill_source_id AS last_sale_fill_source_id
         FROM fill_events_2 fe
         WHERE fe.contract = t.contract AND fe.token_id = t.token_id AND fe.is_deleted = 0
         ORDER BY timestamp DESC LIMIT 1
@@ -422,13 +472,21 @@ export const getTokensV6Options: RouteOptions = {
         `;
     }
 
-    // Get the collections from the collection set
+    // Get the collections from the collection set or community
     let collections: any[] = [];
     if (query.collectionsSetId) {
       collections = await CollectionSets.getCollectionsIds(query.collectionsSetId);
 
       if (_.isEmpty(collections)) {
         throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
+      }
+    }
+
+    if (query.community) {
+      collections = await Collections.getIdsByCommunity(query.community);
+
+      if (_.isEmpty(collections)) {
+        throw Boom.badRequest(`No collections for community ${query.community}`);
       }
     }
 
@@ -473,7 +531,7 @@ export const getTokensV6Options: RouteOptions = {
 
       // Retrieve the contract from the different filters options
       if (query.contract) {
-        sourceConditions.push(`contract = $/contract/`);
+        sourceConditions.push(`contract IN ($/contract:csv/)`);
       } else if (query.collection) {
         let contractString = query.collection;
         if (query.collection.includes(":")) {
@@ -482,7 +540,7 @@ export const getTokensV6Options: RouteOptions = {
         }
 
         (query as any).contract = contractString;
-        sourceConditions.push(`contract = $/contract/`);
+        sourceConditions.push(`contract IN ($/contract:csv/)`);
       } else if (query.tokens) {
         if (!_.isArray(query.tokens)) {
           query.tokens = [query.tokens];
@@ -499,7 +557,7 @@ export const getTokensV6Options: RouteOptions = {
         );
 
         sourceConditions.push("contract IN ($/tokensContracts:csv/)");
-      } else if (query.collectionsSetId && !_.isEmpty(collections)) {
+      } else if ((query.collectionsSetId || query.community) && !_.isEmpty(collections)) {
         const tokensContracts = [];
 
         for (const collection of collections) {
@@ -516,12 +574,6 @@ export const getTokensV6Options: RouteOptions = {
         );
 
         sourceConditions.push("contract IN ($/tokensContracts:csv/)");
-      } else if (query.community) {
-        sourceConditions.push(`contract IN (
-            SELECT DISTINCT contract
-            FROM collections
-            WHERE community = $/community/
-          )`);
       }
 
       sourceCte = `
@@ -621,13 +673,6 @@ export const getTokensV6Options: RouteOptions = {
         `;
       }
 
-      if (collections.length > 20) {
-        baseQuery += `
-            JOIN collections_sets_collections csc
-              ON t.collection_id = csc.collection_id
-          `;
-      }
-
       if (query.attributes) {
         const attributes: { key: string; value: any }[] = [];
         Object.entries(query.attributes).forEach(([key, value]) => attributes.push({ key, value }));
@@ -659,13 +704,15 @@ export const getTokensV6Options: RouteOptions = {
         conditions.push(`t.is_flagged = $/flagStatus/`);
       }
 
-      if (query.community) {
-        conditions.push("c.community = $/community/");
-      }
-
       if (query.contract) {
-        (query as any).contract = toBuffer(query.contract);
-        conditions.push(`t.contract = $/contract/`);
+        if (!Array.isArray(query.contract)) {
+          query.contract = [query.contract];
+        }
+        query.contract = query.contract.map((contract: string) => toBuffer(contract));
+
+        if (query.contract.length == 1) {
+          conditions.push(`t.contract IN ($/contract:csv/)`);
+        }
       }
 
       if (query.minRarityRank) {
@@ -705,6 +752,14 @@ export const getTokensV6Options: RouteOptions = {
         conditions.push(`t.floor_sell_source_id_int = $/source/`);
       }
 
+      if (query.startTimestamp) {
+        conditions.push(`t.updated_at >= to_timestamp($/startTimestamp/)`);
+      }
+
+      if (query.endTimestamp) {
+        conditions.push(`t.updated_at <= to_timestamp($/endTimestamp/)`);
+      }
+
       if (query.tokens) {
         if (!_.isArray(query.tokens)) {
           query.tokens = [query.tokens];
@@ -733,10 +788,6 @@ export const getTokensV6Options: RouteOptions = {
 
       if (query.tokenSetId) {
         conditions.push(`tst.token_set_id = $/tokenSetId/`);
-      }
-
-      if (query.collectionsSetId && collections.length > 20) {
-        conditions.push(`csc.collections_set_id = $/collectionsSetId/`);
       }
 
       if (query.currencies) {
@@ -779,12 +830,13 @@ export const getTokensV6Options: RouteOptions = {
           query.attributes ||
           query.tokenSetId ||
           query.collectionsSetId ||
-          query.tokens
+          query.tokens ||
+          query.sortBy === "updatedAt"
         ) {
           switch (query.sortBy) {
             case "rarity": {
               if (contArr.length !== 3) {
-                throw new Error("Invalid continuation string used");
+                throw Boom.badRequest("Invalid continuation string used");
               }
               query.sortDirection = query.sortDirection || "asc"; // Default sorting for rarity is ASC
               const sign = query.sortDirection == "desc" ? "<" : ">";
@@ -799,7 +851,7 @@ export const getTokensV6Options: RouteOptions = {
 
             case "tokenId": {
               if (contArr.length !== 2) {
-                throw new Error("Invalid continuation string used");
+                throw Boom.badRequest("Invalid continuation string used");
               }
               const sign = query.sortDirection == "desc" ? "<" : ">";
               conditions.push(`(t.contract, t.token_id) ${sign} ($/contContract/, $/contTokenId/)`);
@@ -811,7 +863,7 @@ export const getTokensV6Options: RouteOptions = {
 
             case "updatedAt": {
               if (contArr.length !== 3) {
-                throw new Error("Invalid continuation string used");
+                throw Boom.badRequest("Invalid continuation string used");
               }
               const sign = query.sortDirection == "desc" ? "<" : ">";
               conditions.push(
@@ -828,7 +880,7 @@ export const getTokensV6Options: RouteOptions = {
             default:
               {
                 if (contArr.length !== 3) {
-                  throw new Error("Invalid continuation string used");
+                  throw Boom.badRequest("Invalid continuation string used");
                 }
                 const sign = query.sortDirection == "desc" ? "<" : ">";
                 const sortColumn =
@@ -859,7 +911,7 @@ export const getTokensV6Options: RouteOptions = {
           }
         } else {
           if (contArr.length !== 2) {
-            throw new Error("Invalid continuation string used");
+            throw Boom.badRequest("Invalid continuation string used");
           }
           const sign = query.sortDirection == "desc" ? "<" : ">";
           conditions.push(`(t.contract, t.token_id) ${sign} ($/contContract/, $/contTokenId/)`);
@@ -889,9 +941,11 @@ export const getTokensV6Options: RouteOptions = {
             }`;
           }
           case "updatedAt": {
-            return ` ORDER BY t_updated_at ${query.sortDirection || "ASC"}, t_contract ${
+            return ` ORDER BY ${union ? "t_" : "t."}updated_at ${
               query.sortDirection || "ASC"
-            }, t_token_id ${query.sortDirection || "ASC"}`;
+            }, t_contract ${query.sortDirection || "ASC"}, t_token_id ${
+              query.sortDirection || "ASC"
+            }`;
           }
           case "floorAskPrice":
           default: {
@@ -913,37 +967,38 @@ export const getTokensV6Options: RouteOptions = {
 
       // Only allow sorting on floorSell when we filter by collection / attributes / tokenSetId / rarity
       if (
-        query.contract ||
         query.collection ||
         query.attributes ||
         query.tokenSetId ||
         query.rarity ||
-        (query.collectionsSetId && collections.length > 20) ||
-        query.tokens
+        query.tokens ||
+        (query.sortBy === "updatedAt" &&
+          !(query.collectionsSetId || query.community || query.contract))
       ) {
         baseQuery += getSort(query.sortBy, false);
       }
 
-      // Break query into UNION of results for each collectionId for sets up to 20 collections
-      if (query.collectionsSetId && collections.length <= 20) {
-        const collectionsSetQueries = [];
-        const collectionsSetSort = getSort(query.sortBy, true);
+      // Break query into UNION of results for each collectionId or contract
+      if (query.collectionsSetId || query.community || (query.contract && !query.collection)) {
+        const unionQueries = [];
+        const unionValues = query.contract ? query.contract : collections;
 
-        for (const i in collections) {
-          (query as any)[`collection${i}`] = collections[i];
-          collectionsSetQueries.push(
+        for (const i in unionValues) {
+          const unionType = query.contract ? "contract" : "collection_id";
+          const unionFilter = `${unionType}${i}`;
+          (query as any)[unionFilter] = unionValues[i];
+          unionQueries.push(
             `(
               ${baseQuery}
-              ${conditions.length ? `AND ` : `WHERE `} t.collection_id = $/collection${i}/
-              ${collectionsSetSort}
-              LIMIT $/limit/
+              ${conditions.length ? `AND ` : `WHERE `} t.${unionType} = $/${unionFilter}/
+              ${unionValues.length > 1 ? `${getSort(query.sortBy, false)} LIMIT $/limit/` : ""}
             )`
           );
         }
 
         baseQuery = `
-          ${collectionsSetQueries.join(` UNION ALL `)}
-          ${collectionsSetSort}
+          ${unionQueries.join(` UNION ALL `)}
+          ${getSort(query.sortBy, true)}
         `;
       }
 
@@ -1028,7 +1083,8 @@ export const getTokensV6Options: RouteOptions = {
           query.attributes ||
           query.tokenSetId ||
           query.collectionsSetId ||
-          query.tokens
+          query.tokens ||
+          query.sortBy === "updatedAt"
         ) {
           switch (query.sortBy) {
             case "rarity":
@@ -1199,6 +1255,7 @@ export const getTokensV6Options: RouteOptions = {
 
         return {
           token: {
+            chainId: config.chainId,
             contract,
             tokenId,
             name: r.name,
@@ -1245,6 +1302,8 @@ export const getTokensV6Options: RouteOptions = {
                     },
                     currencyAddress: r.last_sale_currency,
                     timestamp: r.last_sale_timestamp,
+                    orderSourceId: r.last_sale_order_source_id_int,
+                    fillSourceId: r.last_sale_fill_source_id,
                   })
                 : undefined,
             owner: r.owner ? fromBuffer(r.owner) : null,

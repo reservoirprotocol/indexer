@@ -1,35 +1,35 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
+import { config } from "@/config/index";
 import * as copyrightInfringement from "./copyright-infringement";
+import * as ens from "./ens";
+import * as bridgeToBase from "./bridge-to-base";
 
 const customCollection: { [key: string]: any } = {};
 const custom: { [key: string]: any } = {};
 
-export const hasCustomCollectionHandler = (chainId: number, contract: string) =>
-  Boolean(customCollection[`${chainId},${contract}`]);
+export const hasCustomCollectionHandler = (contract: string) =>
+  Boolean(customCollection[`${config.chainId},${contract}`]);
 
-export const hasCustomHandler = (chainId: number, contract: string) =>
-  Boolean(custom[`${chainId},${contract}`]);
+export const hasCustomHandler = (contract: string) =>
+  Boolean(custom[`${config.chainId},${contract}`]);
 
 // All of the below methods assume the caller ensured that a custom
 // handler exists (eg. via calling the above check methods)
 
-export const customHandleCollection = async (chainId: number, token: any) =>
-  customCollection[`${chainId},${token.contract}`].fetchCollection(chainId, token);
+export const customHandleCollection = async (token: any) =>
+  customCollection[`${config.chainId},${token.contract}`].fetchCollection(token);
 
-export const customHandleToken = async (chainId: number, token: any) =>
-  custom[`${chainId},${token.contract}`].fetchToken(chainId, token);
+export const customHandleToken = async (token: any) =>
+  custom[`${config.chainId},${token.contract}`].fetchToken(token);
 
-export const customHandleContractTokens = async (
-  chainId: number,
-  contract: string,
-  continuation: string
-) => custom[`${chainId},${contract}`].fetchContractTokens(null, chainId, continuation);
+export const customHandleContractTokens = async (contract: string, continuation: string) =>
+  custom[`${config.chainId},${contract}`].fetchContractTokens(null, continuation);
 
-/////////////////////
+//////////////////////
 // Custom Collections
-/////////////////////
+//////////////////////
 
 // Copyright Infringement
 customCollection["1,0x783a32eb03a1175160d210cc99c79e6370a48317"] = copyrightInfringement;
@@ -60,6 +60,7 @@ customCollection["1,0x254f0ed9a40b81402c86dcb5bc064dc036a5b7cc"] = copyrightInfr
 customCollection["1,0xc7e8356dfb53576ff05bfe88c52ef72d8918bcb5"] = copyrightInfringement;
 customCollection["1,0x8c00c9c6c1edcef697acac2e4b7b3678b3ed9d90"] = copyrightInfringement;
 customCollection["1,0xed536e28bf08340f733ae5d49d0510289512a643"] = copyrightInfringement;
+customCollection["1,0x71f6aa96bd3ea7b88334494f28b42da57fb1b926"] = copyrightInfringement;
 
 customCollection["137,0xcf77e25cf1bfc57634bb7b95887b7120935a0d7f"] = copyrightInfringement;
 customCollection["137,0x27bde07c5d651856c483583899ed6823da3648b7"] = copyrightInfringement;
@@ -70,6 +71,7 @@ customCollection["137,0xca75456ceb3a3158022b6e22816995ae458ba05a"] = copyrightIn
 customCollection["137,0x452f032761efe3d10de4abb43e302774c7aabb12"] = copyrightInfringement;
 customCollection["137,0x5919fc8d26cf5869cd892a752b67e31c35357bfb"] = copyrightInfringement;
 customCollection["137,0xfd6b19ed681d621277d372fe9585dfe9b8a95510"] = copyrightInfringement;
+customCollection["137,0x2f4d2f39e3dbcd02499b1121a25e13c1b2be67ac"] = copyrightInfringement;
 
 customCollection["5,0x002cb3af46ad013a98b174a61711c0f725084bc0"] = copyrightInfringement;
 
@@ -109,6 +111,7 @@ custom["1,0x254f0ed9a40b81402c86dcb5bc064dc036a5b7cc"] = copyrightInfringement;
 custom["1,0xc7e8356dfb53576ff05bfe88c52ef72d8918bcb5"] = copyrightInfringement;
 custom["1,0x8c00c9c6c1edcef697acac2e4b7b3678b3ed9d90"] = copyrightInfringement;
 custom["1,0xed536e28bf08340f733ae5d49d0510289512a643"] = copyrightInfringement;
+custom["1,0x71f6aa96bd3ea7b88334494f28b42da57fb1b926"] = copyrightInfringement;
 
 custom["137,0xcf77e25cf1bfc57634bb7b95887b7120935a0d7f"] = copyrightInfringement;
 custom["137,0x27bde07c5d651856c483583899ed6823da3648b7"] = copyrightInfringement;
@@ -119,8 +122,15 @@ custom["137,0xca75456ceb3a3158022b6e22816995ae458ba05a"] = copyrightInfringement
 custom["137,0x452f032761efe3d10de4abb43e302774c7aabb12"] = copyrightInfringement;
 custom["137,0x5919fc8d26cf5869cd892a752b67e31c35357bfb"] = copyrightInfringement;
 custom["137,0xfd6b19ed681d621277d372fe9585dfe9b8a95510"] = copyrightInfringement;
+custom["137,0x2f4d2f39e3dbcd02499b1121a25e13c1b2be67ac"] = copyrightInfringement;
 
 custom["5,0x002cb3af46ad013a98b174a61711c0f725084bc0"] = copyrightInfringement;
 
 // Emblem Vault - temporary to prevent trading during migration
 custom["1,0x82c7a8f707110f5fbb16184a5933e9f78a34c6ab"] = copyrightInfringement;
+
+// ENS
+custom["1,0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85"] = ens;
+
+// Bridge to Base
+custom["8453,0xea2a41c02fa86a4901826615f9796e603c6a4491"] = bridgeToBase;

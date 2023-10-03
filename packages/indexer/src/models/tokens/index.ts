@@ -48,11 +48,6 @@ export class Tokens {
   }
 
   public static async getCollectionId(contract: string, tokenId: string) {
-    // For polygon no shared contracts at the moment
-    if (config.chainId === 137) {
-      return contract;
-    }
-
     const collectionId = await redb.oneOrNone(
       `SELECT collection_id
               FROM tokens
@@ -73,13 +68,6 @@ export class Tokens {
 
   public static async getCollectionIds(tokens: { contract: string; tokenId: string }[]) {
     const map = new Map<string, string>();
-
-    // For polygon no shared contracts at the moment
-    if (config.chainId === 137) {
-      _.map(tokens, (c) => map.set(`${c.contract}:${c.tokenId}`, c.contract));
-      return map;
-    }
-
     const columns = new pgp.helpers.ColumnSet(["contract", "token_id"], { table: "tokens" });
 
     const data = tokens.map((activity) => ({
@@ -168,18 +156,6 @@ export class Tokens {
       key,
       value,
     });
-  }
-
-  public static async countTokensInCollection(collectionId: string) {
-    const query = `SELECT count(*) AS count
-                   FROM tokens
-                   WHERE collection_id = $/collectionId/`;
-
-    return await idb
-      .oneOrNone(query, {
-        collectionId,
-      })
-      .then((result) => (result ? result.count : 0));
   }
 
   public static async getSingleToken(collectionId: string) {

@@ -1,0 +1,526 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import { config } from "@/config/index";
+import { CollectionMetadata, TokenMetadata, TokenMetadataBySlugResult } from "../types";
+import { logger } from "@/common/logger";
+import { Contract } from "ethers";
+import { Interface } from "ethers/lib/utils";
+import { baseProvider } from "@/common/provider";
+import axios from "axios";
+import { RequestWasThrottledError, normalizeMetadata } from "./utils";
+import _ from "lodash";
+import { AbstractBaseMetadataProvider } from "./abstract-base-metadata-provider";
+import { customHandleToken, hasCustomHandler } from "../custom";
+import { extendMetadata, hasExtendHandler } from "../extend";
+
+class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
+  method = "opensea";
+  protected async _getCollectionMetadata(
+    contract: string,
+    tokenId: string
+  ): Promise<CollectionMetadata> {
+    try {
+      const { data, creatorAddress } = await this.getDataWithCreator(contract, tokenId);
+
+      if (!data?.collection) {
+        throw new Error("Missing collection");
+      }
+
+      return this.parseCollection(data, contract, creatorAddress);
+    } catch (error) {
+      logger.error(
+        "opensea-fetcher",
+        JSON.stringify({
+          topic: "fetchCollectionError",
+          message: `Could not fetch collection.  contract=${contract}, tokenId=${tokenId}, error=${error}`,
+          contract,
+          tokenId,
+          error,
+        })
+      );
+
+      let name = contract;
+      try {
+        name = await new Contract(
+          contract,
+          new Interface(["function name() view returns (string)"]),
+          baseProvider
+        ).name();
+      } catch (error) {
+        logger.error(
+          "opensea-fetcher",
+          JSON.stringify({
+            topic: "fetchContractNameError",
+            message: `Could not fetch collection.  contract=${contract}, tokenId=${tokenId}, error=${error}`,
+
+            contract,
+            tokenId,
+            error,
+          })
+        );
+      }
+
+      return {
+        id: contract,
+        slug: null,
+        name,
+        community: null,
+        metadata: null,
+        contract,
+        tokenIdRange: null,
+        tokenSetId: `contract:${contract}`,
+        isFallback: true,
+      };
+    }
+  }
+
+  protected async _getTokensMetadata(
+    tokens: { contract: string; tokenId: string }[]
+  ): Promise<TokenMetadata[]> {
+    const searchParams = new URLSearchParams();
+    for (const { contract, tokenId } of tokens) {
+      searchParams.append("asset_contract_addresses", contract);
+      searchParams.append("token_ids", tokenId);
+    }
+
+    const url = `${
+      !this.isOSTestnet() ? "https://api.opensea.io" : "https://testnets-api.opensea.io"
+    }/api/v1/assets?${searchParams.toString()}`;
+
+    const data = await axios
+      .get(!this.isOSTestnet() ? config.openSeaApiUrl || url : url, {
+        headers: !this.isOSTestnet()
+          ? {
+              url,
+              "X-API-KEY": config.openSeaTokenMetadataApiKey.trim(),
+              Accept: "application/json",
+            }
+          : {
+              Accept: "application/json",
+            },
+      })
+      .then((response) => response.data)
+      .catch((error) => {
+        logger.error(
+          "opensea-fetcher",
+          `fetchTokens error. url:${url}, message:${error.message},  status:${
+            error.response?.status
+          }, data:${JSON.stringify(error.response?.data)}, url:${JSON.stringify(
+            error.config?.url
+          )}, headers:${JSON.stringify(error.config?.headers?.url)}`
+        );
+
+        this.handleError(error);
+      });
+
+    return data.assets.map(this.parseToken).filter(Boolean);
+  }
+
+  protected async _getTokensMetadataBySlug(
+    slug: string,
+    continuation?: string
+  ): Promise<TokenMetadataBySlugResult> {
+    const searchParams = new URLSearchParams();
+    if (continuation) {
+      searchParams.append("cursor", continuation);
+    }
+    if (slug) {
+      searchParams.append("collection_slug", slug);
+    }
+    searchParams.append("limit", "200");
+
+    const url = `${
+      !this.isOSTestnet() ? "https://api.opensea.io" : "https://testnets-api.opensea.io"
+    }/api/v1/assets?${searchParams.toString()}`;
+    const data = await axios
+      .get(!this.isOSTestnet() ? config.openSeaApiUrl || url : url, {
+        headers: !this.isOSTestnet()
+          ? {
+              url,
+              "X-API-KEY": config.openSeaTokenMetadataBySlugApiKey.trim(),
+              Accept: "application/json",
+            }
+          : {
+              Accept: "application/json",
+            },
+      })
+      .then((response) => response.data)
+      .catch((error) => this.handleError(error));
+
+    const assets = data.assets.map(this.parseToken).filter(Boolean);
+    return {
+      metadata: assets,
+      continuation: data.next ?? undefined,
+      previous: data.previous ?? undefined,
+    };
+  }
+
+  handleError(error: any) {
+    if (error.response?.status === 429 || error.response?.status === 503) {
+      let delay = 1;
+
+      if (error.response.data.detail?.startsWith("Request was throttled. Expected available in")) {
+        try {
+          delay = error.response.data.detail.split(" ")[6];
+        } catch {
+          // Skip on any errors
+        }
+      }
+
+      throw new RequestWasThrottledError(error.response.statusText, delay);
+    }
+
+    throw error;
+  }
+
+  parseToken(metadata: any): TokenMetadata {
+    return {
+      contract: metadata.asset_contract.address,
+      tokenId: metadata.token_id,
+      collection: _.toLower(metadata.asset_contract.address),
+      slug: metadata.collection.slug,
+      name: metadata.name,
+      flagged: metadata.supports_wyvern != null ? !metadata.supports_wyvern : false,
+      // Token descriptions are a waste of space for most collections we deal with
+      // so by default we ignore them (this behaviour can be overridden if needed).
+      description: metadata.description,
+      imageUrl: metadata.image_url,
+      imageOriginalUrl: metadata.image_original_url,
+      animationOriginalUrl: metadata.animation_original_url,
+      metadataOriginalUrl: metadata.token_metadata,
+      mediaUrl: metadata.animation_url,
+      attributes: (metadata.traits || []).map((trait: any) => ({
+        key: trait.trait_type ?? "property",
+        value: trait.value,
+        kind: typeof trait.value == "number" ? "number" : "string",
+        rank: 1,
+      })),
+    };
+  }
+
+  parseCollection(metadata: any, contract: string, creator: string): CollectionMetadata {
+    // TODO: Do we really need these here?
+    const communities = {
+      "0xff9c1b15b16263c61d017ee9f65c50e4ae0113d7": "loot",
+      "0x8db687aceb92c66f013e1d614137238cc698fedb": "loot",
+      "0x1dfe7ca09e99d10835bf73044a23b73fc20623df": "loot",
+      "0x521f9c7505005cfa19a8e5786a9c3c9c9f5e6f42": "forgottenrunes",
+      "0xf55b615b479482440135ebf1b907fd4c37ed9420": "forgottenrunes",
+      "0x31158181b4b91a423bfdc758fc3bf8735711f9c5": "forgottenrunes",
+      "0x251b5f14a825c537ff788604ea1b58e49b70726f": "forgottenrunes",
+      "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85": "ens",
+    };
+
+    // Collect the fees
+    const royalties = [];
+    const fees = [];
+
+    for (const key in metadata.collection.fees.seller_fees) {
+      if (Object.prototype.hasOwnProperty.call(metadata.collection.fees.seller_fees, key)) {
+        royalties.push({
+          recipient: key,
+          bps: metadata.collection.fees.seller_fees[key],
+        });
+      }
+    }
+
+    for (const key in metadata.collection.fees.opensea_fees) {
+      if (Object.prototype.hasOwnProperty.call(metadata.collection.fees.opensea_fees, key)) {
+        fees.push({
+          recipient: key,
+          bps: metadata.collection.fees.opensea_fees[key],
+        });
+      }
+    }
+
+    return {
+      id: contract,
+      slug: metadata.collection.slug,
+      name: metadata.collection ? metadata.collection.name : metadata.name,
+      community: communities[contract as keyof typeof communities] ?? null,
+      metadata: metadata.collection ? normalizeMetadata(metadata.collection) : null,
+      openseaRoyalties: royalties,
+      openseaFees: fees,
+      contract,
+      tokenIdRange: null,
+      tokenSetId: `contract:${contract}`,
+      paymentTokens: metadata.collection.payment_tokens
+        ? metadata.collection.payment_tokens.map((token: any) => {
+            return {
+              address: token.address,
+              decimals: token.decimals,
+              name: token.name,
+              symbol: token.symbol,
+            };
+          })
+        : undefined,
+      creator: creator ? _.toLower(creator) : null,
+    };
+  }
+
+  async getDataWithCreator(
+    contract: string,
+    tokenId: string
+  ): Promise<{ creatorAddress: string; data: any }> {
+    if (config.chainId === 1) {
+      const data = await this.getOSData("asset", contract, tokenId);
+
+      return { data, creatorAddress: data?.creator?.address };
+    }
+
+    let data = await this.getOSData("nft", contract, tokenId);
+    let creatorAddress = data?.creator;
+
+    if (data?.collection) {
+      data = await this.getOSDataForCollection(contract, tokenId, data.collection);
+      creatorAddress = creatorAddress ?? data?.creator?.address;
+    } else {
+      data = await this.getOSDataForEventsOrAsset(contract, tokenId);
+      if (data?.collection?.slug && !data?.collection?.payment_tokens) {
+        data = await this.getOSData("collection", contract, tokenId, data.collection.slug);
+      }
+      creatorAddress = data?.creator?.address;
+    }
+
+    return {
+      data,
+      creatorAddress,
+    };
+  }
+
+  async getOSDataForCollection(contract: string, tokenId: string, collection: any): Promise<any> {
+    return await this.getOSData("collection", contract, tokenId, collection);
+  }
+
+  async getOSDataForEventsOrAsset(contract: string, tokenId: string): Promise<any> {
+    return (
+      (await this.getOSData("events", contract, tokenId)) ||
+      (await this.getOSData("asset", contract, tokenId))
+    );
+  }
+
+  public async parseTokenMetadata(request: {
+    asset_contract: {
+      address: string;
+    };
+    collection: {
+      slug: string;
+    };
+    token_id: string;
+    name?: string;
+    description?: string;
+    image_url?: string;
+    animation_url?: string;
+    traits: Array<{
+      trait_type: string;
+      value: string | number | null;
+    }>;
+  }): Promise<TokenMetadata | null> {
+    if (hasCustomHandler(request.asset_contract.address)) {
+      const result = await customHandleToken({
+        contract: request.asset_contract.address,
+        _tokenId: request.token_id,
+      });
+      return result;
+    }
+
+    if (hasExtendHandler(request.asset_contract.address)) {
+      const result = await extendMetadata({
+        contract: request.asset_contract.address,
+        slug: request.collection.slug,
+        collection: request.asset_contract.address,
+        flagged: null,
+        tokenId: request.token_id,
+        name: request.name ?? "",
+        description: request.description ?? "",
+        imageUrl: request.image_url ?? "",
+        mediaUrl: request.animation_url ?? "",
+        attributes: request.traits.map((trait) => ({
+          key: trait.trait_type,
+          value: trait.value,
+          kind: typeof trait.value == "number" ? "number" : "string",
+        })),
+      });
+      return result;
+    }
+
+    return {
+      contract: request.asset_contract.address,
+      slug: request.collection.slug,
+      collection: request.asset_contract.address,
+      flagged: null,
+      tokenId: request.token_id,
+      name: request.name ?? "",
+      description: request.description ?? "",
+      imageUrl: request.image_url ?? "",
+      mediaUrl: request.animation_url ?? "",
+      attributes: request.traits.map((trait) => ({
+        key: trait.trait_type,
+        value: trait.value,
+        kind: typeof trait.value == "number" ? "number" : "string",
+      })),
+    };
+  }
+
+  getOSNetworkName(): string {
+    switch (config.chainId) {
+      case 1:
+        return "ethereum";
+      case 4:
+        return "rinkeby";
+      case 5:
+        return "goerli";
+      case 10:
+        return "optimism";
+      case 56:
+        return "bsc";
+      case 137:
+        return "matic";
+      case 42161:
+        return "arbitrum";
+      case 42170:
+        return "arbitrum_nova";
+      case 43114:
+        return "avalanche";
+      case 8453:
+        return "base";
+      case 7777777:
+        return "zora";
+      case 11155111:
+        return "sepolia";
+      case 80001:
+        return "mumbai";
+      case 84531:
+        return "base_goerli";
+      case 999:
+        return "zora_testnet";
+      default:
+        throw new Error(`Unknown chainId for metadata provider opensea: ${config.chainId}`);
+    }
+  }
+
+  isOSTestnet(): boolean {
+    switch (config.chainId) {
+      case 4:
+      case 5:
+      case 11155111:
+      case 80001:
+      case 84531:
+      case 999:
+        return true;
+    }
+
+    return false;
+  }
+
+  getUrlForApi(
+    api: string,
+    contract: string,
+    tokenId?: string,
+    network?: string,
+    slug?: string
+  ): string {
+    const baseUrl = `${
+      !this.isOSTestnet() ? "https://api.opensea.io" : "https://testnets-api.opensea.io"
+    }`;
+
+    switch (api) {
+      case "asset":
+        return `${baseUrl}/api/v1/asset/${contract}/${tokenId}`;
+      case "events":
+        return `${baseUrl}/api/v1/events?asset_contract_address=${contract}&token_id=${tokenId}`;
+      case "offers":
+        return `${baseUrl}/v2/orders/${network}/seaport/offers?asset_contract_address=${contract}&token_ids=${tokenId}`;
+      case "asset_contract":
+        return `${baseUrl}/api/v1/asset_contract/${contract}`;
+      case "collection":
+        return `${baseUrl}/api/v1/collection/${slug}`;
+      case "nft":
+        return `${baseUrl}/v2/chain/${network}/contract/${contract}/nfts/${tokenId}`;
+      default:
+        throw new Error(`Unknown API for metadata provider opensea: ${api}`);
+    }
+  }
+
+  async getOSData(api: string, contract: string, tokenId?: string, slug?: string): Promise<any> {
+    const network = this.getOSNetworkName();
+    const url = this.getUrlForApi(api, contract, tokenId, network, slug);
+
+    const headers = !this.isOSTestnet()
+      ? {
+          url,
+          "X-API-KEY": config.openSeaCollectionMetadataApiKey.trim(),
+          Accept: "application/json",
+        }
+      : {
+          Accept: "application/json",
+        };
+
+    try {
+      const osResponse = await axios.get(!this.isOSTestnet() ? config.openSeaApiUrl || url : url, {
+        headers,
+      });
+
+      switch (api) {
+        case "events":
+          // Fallback to offers API if we get a collection from the wrong chain
+          if (network == osResponse.data.asset_events[0]?.asset.asset_contract.chain_identifier) {
+            return osResponse.data.asset_events[0]?.asset;
+          } else {
+            return await this.getOSData("offers", contract, tokenId);
+          }
+        case "offers":
+          return osResponse.data.orders[0]?.taker_asset_bundle.assets[0];
+        case "asset":
+        case "asset_contract":
+        case "collection":
+          return osResponse.data;
+        case "nft":
+          return osResponse.data.nft;
+      }
+    } catch (error: any) {
+      if (api === "asset") {
+        logger.error(
+          "opensea-fetcher",
+          JSON.stringify({
+            topic: "getOSData",
+            message: "Retrieve asset error.",
+            url,
+            contract,
+            tokenId,
+            error,
+          })
+        );
+
+        // Try to get the collection only based on the contract.
+        if (error.response?.status === 404) {
+          if (isNaN(Number(tokenId))) {
+            logger.error(
+              "opensea-fetcher",
+              `fetchCollection retrieve asset contract - Invalid tokenId. contract:${contract}, tokenId:${tokenId}`
+            );
+
+            throw new Error(`Invalid tokenId.`);
+          }
+          return await this.getOSData("asset_contract", contract);
+        } else {
+          throw error;
+        }
+      } else {
+        logger.error(
+          "opensea-fetcher",
+          JSON.stringify({
+            topic: "getOSData",
+            message: "Could not fetch from API",
+            url,
+            contract,
+            tokenId,
+            error,
+          })
+        );
+      }
+    }
+  }
+}
+
+export const openseaMetadataProvider = new OpenseaMetadataProvider();

@@ -194,7 +194,6 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
             contract,
             tokenId,
             mintedTimestamp,
-            context: "mint-queue",
           },
         ]);
       }

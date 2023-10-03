@@ -27,12 +27,15 @@ import { handleEvent as handleCollectionOfferEvent } from "@/websockets/opensea/
 import { handleEvent as handleItemCancelled } from "@/websockets/opensea/handlers/item_cancelled";
 import { handleEvent as handleOrderRevalidate } from "@/websockets/opensea/handlers/order_revalidate";
 import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handlers/trait_offer";
-import MetadataApi from "@/utils/metadata-api";
 
 import { openseaBidsQueueJob } from "@/jobs/orderbook/opensea-bids-queue-job";
-import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
+import {
+  MetadataIndexWriteJobPayload,
+  metadataIndexWriteJob,
+} from "@/jobs/metadata-index/metadata-write-job";
 import { openseaListingsJob } from "@/jobs/orderbook/opensea-listings-job";
 import { getNetworkSettings } from "@/config/network";
+import { openseaMetadataProvider } from "@/metadata/providers/opensea-metadata-provider";
 import _ from "lodash";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
@@ -47,7 +50,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       transport: WebSocket,
     },
     onError: async (error) => {
-      logger.warn("opensea-websocket", `network=${network}, error=${error}`);
+      logger.warn("opensea-websocket", `network=${network}, error=${JSON.stringify(error)}`);
     },
   });
 
@@ -156,9 +159,10 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
           traits: event.payload.item.metadata.traits,
         };
 
-        const parsedMetadata = await MetadataApi.parseTokenMetadata(metadata, "opensea");
+        const parsedMetadata = await openseaMetadataProvider.parseTokenMetadata(metadata);
 
         if (parsedMetadata) {
+          (parsedMetadata as MetadataIndexWriteJobPayload).isFromWebhook = true;
           await metadataIndexWriteJob.addToQueue([parsedMetadata]);
         }
       } catch (error) {

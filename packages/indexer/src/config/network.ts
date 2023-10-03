@@ -72,6 +72,9 @@ export const getNetworkName = () => {
     case 1101:
       return "polygon-zkevm";
 
+    case 2863311531:
+      return "ancient8-testnet";
+
     default:
       return "unknown";
   }
@@ -313,6 +316,18 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
+            "0x55818be03e5103e74f96df7343dd1862a6d215f2",
+            {
+              contract: "0x55818be03e5103e74f96df7343dd1862a6d215f2",
+              name: "BIDENIA",
+              symbol: "BIE",
+              decimals: 8,
+              metadata: {
+                image: "https://i.ibb.co/9GP6X1R/bidenia-Token.png",
+              },
+            },
+          ],
+          [
             "0xefe804a604fd3175220d5a4f2fc1a048c479c592",
             {
               contract: "0xefe804a604fd3175220d5a4f2fc1a048c479c592",
@@ -425,7 +440,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         elasticsearch: {
           indexes: {
             activities: {
-              numberOfShards: 40,
+              numberOfShards: 50,
             },
           },
         },
@@ -654,7 +669,7 @@ export const getNetworkSettings = (): NetworkSettings => {
           indexes: {
             activities: {
               ...defaultNetworkSettings.elasticsearch?.indexes?.activities,
-              numberOfShards: 40,
+              numberOfShards: 50,
             },
           },
         },
@@ -1229,6 +1244,38 @@ export const getNetworkSettings = (): NetworkSettings => {
                   'MATIC',
                   18,
                   '{"coingeckoCurrencyId": "matic-network"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // Ancient8 Testnet
+    case 2863311531: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
                 ) ON CONFLICT DO NOTHING
               `
             ),

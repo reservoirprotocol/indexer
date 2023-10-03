@@ -270,6 +270,39 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         break;
       }
+
+      case "zora-custom-mint-comment":
+      case "zora-mint-comment": {
+        const { args } = eventData.abi.parseLog(log);
+        const token = args["tokenContract"].toLowerCase();
+        const comment = args["comment"];
+        const quantity = args["quantity"].toString();
+
+        if (subKind === "zora-custom-mint-comment") {
+          for (let i = 0; i < quantity; i++) {
+            onChainData.mintComments.push({
+              token,
+              quantity,
+              comment,
+              baseEventParams,
+            });
+          }
+        } else {
+          const firstMintedTokenId = args["tokenId"];
+          for (let i = 0; i < Number(quantity); i++) {
+            const tokenId = firstMintedTokenId.add(i + 1);
+            onChainData.mintComments.push({
+              token,
+              tokenId: tokenId.toString(),
+              quantity,
+              comment,
+              baseEventParams,
+            });
+          }
+        }
+
+        break;
+      }
     }
   }
 };

@@ -6,6 +6,7 @@ import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { BidDetails, FillBidsResult } from "@reservoir0x/sdk/dist/router/v6/types";
+import { estimateGas } from "@reservoir0x/sdk/dist/router/v6/utils";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
 import axios from "axios";
 import Joi from "joi";
@@ -175,6 +176,9 @@ export const getExecuteSellV7Options: RouteOptions = {
                 tip: Joi.string(),
                 orderIds: Joi.array().items(Joi.string()),
                 data: Joi.object(),
+                gasEstimate: Joi.number().description(
+                  "Approximation of gas used (only applies to `transaction` items)"
+                ),
               })
             )
             .required(),
@@ -224,7 +228,7 @@ export const getExecuteSellV7Options: RouteOptions = {
       type ExecuteFee = {
         kind?: string;
         recipient: string;
-        bps: number;
+        bps?: number;
         amount: number;
         rawAmount: string;
       };
@@ -878,17 +882,17 @@ export const getExecuteSellV7Options: RouteOptions = {
         fee: Sdk.RouterV6.Types.Fee
       ) => {
         // The fees should be relative to a single quantity
-        fee.amount = bn(fee.amount).div(item.quantity).toString();
+        let feeAmount = bn(fee.amount).div(item.quantity).toString();
 
         // Global fees get split across all eligible orders
-        let adjustedFeeAmount = bn(fee.amount).div(ordersEligibleForGlobalFees.length).toString();
+        let adjustedFeeAmount = bn(feeAmount).div(ordersEligibleForGlobalFees.length).toString();
 
         // If the item's currency is not the same with the buy-in currency,
         if (item.currency !== Sdk.Common.Addresses.Native[config.chainId]) {
-          fee.amount = await getUSDAndCurrencyPrices(
+          feeAmount = await getUSDAndCurrencyPrices(
             Sdk.Common.Addresses.Native[config.chainId],
             item.currency,
-            fee.amount,
+            feeAmount,
             now()
           ).then((p) => p.currencyPrice!);
           adjustedFeeAmount = await getUSDAndCurrencyPrices(
@@ -906,9 +910,13 @@ export const getExecuteSellV7Options: RouteOptions = {
         );
         const rawAmount = bn(adjustedFeeAmount).toString();
 
+        // To avoid numeric overflow
+        const maxBps = 10000;
+        const bps = bn(feeAmount).mul(10000).div(item.rawQuote);
+
         item.feesOnTop.push({
           recipient: fee.recipient,
-          bps: bn(fee.amount).mul(10000).div(item.rawQuote).toNumber(),
+          bps: bps.gt(maxBps) ? undefined : bps.toNumber(),
           amount,
           rawAmount,
         });
@@ -951,6 +959,7 @@ export const getExecuteSellV7Options: RouteOptions = {
           orderIds?: string[];
           tip?: string;
           data?: object;
+          gasEstimate?: number;
         }[];
       }[] = [
         {
@@ -970,8 +979,8 @@ export const getExecuteSellV7Options: RouteOptions = {
         },
         {
           id: "pre-signatures",
-          action: "Sign orders",
-          description: "Some marketplaces require signing additional orders before filling",
+          action: "Sign data",
+          description: "Some exchanges require signing additional data before filling",
           kind: "signature",
           items: [],
         },
@@ -1214,7 +1223,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
       }
 
-      for (const { txData, orderIds, preSignatures } of txs) {
+      for (const { txData, txTags, orderIds, preSignatures } of txs) {
         // Handle pre-signatures
         const signaturesPaymentProcessor: string[] = [];
         for (const preSignature of preSignatures) {
@@ -1267,6 +1276,7 @@ export const getExecuteSellV7Options: RouteOptions = {
                 maxPriorityFeePerGas,
               }
             : undefined,
+          gasEstimate: txTags ? estimateGas(txTags) : undefined,
         });
       }
 

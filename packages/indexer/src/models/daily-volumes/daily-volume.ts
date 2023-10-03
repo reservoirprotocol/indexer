@@ -245,6 +245,7 @@ export class DailyVolume {
     const results = await ridb.manyOrNone(
       `SELECT t1.collection_id,
        t1.volume,
+       t1.sales_count,
        t1.rank,
        t1.floor_sell_value,
        t1.volume_change,
@@ -254,6 +255,7 @@ export class DailyVolume {
           t.contract,
           t."collection_id",
           sum("fe"."price") AS "volume",
+          COUNT(*) AS "sales_count",
           RANK() OVER (ORDER BY SUM(price) DESC, t."collection_id") "rank",
           min(fe.price) AS "floor_sell_value",
           (sum("fe"."price") / vc.volume_past) as "volume_change"
@@ -301,7 +303,8 @@ export class DailyVolume {
               day1_volume = $/volume/,
               day1_rank = $/rank/,
               day1_floor_sell_value = $/floor_sell_value/,
-              day1_volume_change = $/volume_change/
+              day1_volume_change = $/volume_change/,
+              day1_sales_count = $/sales_count/
             WHERE id = $/collection_id/
             `,
           values: values,

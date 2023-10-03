@@ -59,7 +59,10 @@ export class ResyncAttributeValueCountsJob extends AbstractRabbitMqJobHandler {
             );
 
             await orderRevalidationsJob.addToQueue(
-              orders.map((order) => ({ id: order.id, status: "inactive" }))
+              orders.map((order) => ({
+                by: "id",
+                data: { id: order.id, status: "inactive" },
+              }))
             );
           }
         } catch (error) {

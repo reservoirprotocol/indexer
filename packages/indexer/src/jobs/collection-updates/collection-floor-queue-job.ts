@@ -1,10 +1,9 @@
-import { idb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { acquireLock, redis, releaseLock } from "@/common/redis";
+import { acquireLock, doesLockExist, redis, releaseLock } from "@/common/redis";
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 import { config } from "@/config/index";
-// import { logger } from "@/common/logger";
 
 export type CollectionFloorJobPayload = {
   kind: string;
@@ -12,7 +11,6 @@ export type CollectionFloorJobPayload = {
   tokenId: string;
   txHash: string | null;
   txTimestamp: number | null;
-  orderId?: string;
 };
 
 export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
@@ -29,13 +27,9 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
     const { kind, contract, tokenId, txHash, txTimestamp } = payload;
 
     // First, retrieve the token's associated collection.
-    const collectionResult = await idb.oneOrNone(
+    const collectionResult = await redb.oneOrNone(
       `
-            SELECT
-                tokens.collection_id,
-                collections.floor_sell_id
-            FROM tokens
-            LEFT JOIN collections ON tokens.collection_id = collections.id
+            SELECT tokens.collection_id FROM tokens
             WHERE tokens.contract = $/contract/
               AND tokens.token_id = $/tokenId/
           `,
@@ -52,18 +46,16 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
 
     let acquiredLock;
 
-    if (!["revalidation"].includes(kind)) {
-      acquiredLock = await acquireLock(collectionResult.collection_id, 1);
+    if ([5, 11155111, 137].includes(config.chainId)) {
+      if (!["revalidation"].includes(kind)) {
+        acquiredLock = await acquireLock(
+          `${this.queueName}-lock:${collectionResult.collection_id}`,
+          300
+        );
 
-      if (!acquiredLock) {
-        // logger.info(
-        //   this.queueName,
-        //   JSON.stringify({
-        //     message: `Failed to acquire lock. collection=${collectionResult.collection_id}`,
-        //     payload,
-        //     collectionId: collectionResult.collection_id,
-        //   })
-        // );
+        if (!acquiredLock) {
+          return;
+        }
       }
     }
 
@@ -172,7 +164,19 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
     );
 
     if (acquiredLock) {
-      await releaseLock(collectionResult.collection_id);
+      await releaseLock(`${this.queueName}-lock:${collectionResult.collection_id}`);
+
+      const revalidationLockExists = await doesLockExist(
+        `${this.queueName}-revalidation-lock:${collectionResult.collection_id}`
+      );
+
+      if (revalidationLockExists) {
+        await releaseLock(`${this.queueName}-revalidation-lock:${collectionResult.collection_id}`);
+
+        await this.addToQueue([
+          { kind: "revalidation", contract, tokenId, txHash: null, txTimestamp: null },
+        ]);
+      }
     }
 
     if (collectionFloorAsk) {
@@ -201,8 +205,8 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
     }
   }
 
-  public async addToQueue(floorAskInfos: CollectionFloorJobPayload[]) {
-    await this.sendBatch(floorAskInfos.map((info) => ({ payload: info })));
+  public async addToQueue(floorAskInfos: CollectionFloorJobPayload[], delay = 0) {
+    await this.sendBatch(floorAskInfos.map((info) => ({ payload: info, delay })));
   }
 }
 

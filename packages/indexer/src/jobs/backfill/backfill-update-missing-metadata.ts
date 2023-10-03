@@ -168,16 +168,12 @@ async function processCollection(collection: {
   const limit = Number(await redis.get(`${QUEUE_NAME}-tokens-limit`)) || 1000;
   if (!collection.slug) {
     const tokenId = await Tokens.getSingleToken(collection.id);
-    await collectionMetadataQueueJob.addToQueue(
-      {
-        contract: collection.contract,
-        tokenId,
-        community: "opensea",
-        forceRefresh: false,
-      },
-      0,
-      QUEUE_NAME
-    );
+    await collectionMetadataQueueJob.addToQueue({
+      contract: collection.contract,
+      tokenId,
+      community: "opensea",
+      forceRefresh: false,
+    });
     await processCollectionTokens(collection, limit, indexingMethod);
     return;
   }

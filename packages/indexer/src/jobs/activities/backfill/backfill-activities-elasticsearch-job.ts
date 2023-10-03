@@ -12,6 +12,7 @@ import * as CONFIG from "@/elasticsearch/indexes/activities/config";
 import cron from "node-cron";
 import { RabbitMq } from "@/common/rabbit-mq";
 import { getNetworkName } from "@/config/network";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
 export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-activities-elasticsearch-queue";
@@ -32,11 +33,15 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
 
     const { createIndex, indexConfig, keepGoing, fromLastBackfill } = payload;
 
-    let indexName = payload.indexName;
-
-    indexName = `${getNetworkName()}.${indexName}`;
+    let indexName: string;
 
     if (createIndex) {
+      if (payload.indexName) {
+        indexName = `${getNetworkName()}.${payload.indexName}`;
+      } else {
+        indexName = `${ActivitiesIndex.getIndexName()}-${Date.now()}`;
+      }
+
       const params = {
         index: indexName,
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -55,6 +60,12 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           createIndexResponse,
         })
       );
+    } else {
+      if (payload.indexName) {
+        indexName = `${getNetworkName()}.${payload.indexName}`;
+      } else {
+        indexName = ActivitiesIndex.getIndexName();
+      }
     }
 
     const promises = [];
@@ -96,6 +107,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           JSON.stringify({
             topic: "backfill-activities",
             message: `from Last Back fill! transfer jobCount=${values.length}`,
+            indexName,
           })
         );
       } else {
@@ -103,56 +115,61 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           "SELECT min(timestamp) AS min_timestamp, MAX(timestamp) AS max_timestamp from nft_transfer_events where is_deleted = 0;";
 
         const timestamps = await ridb.oneOrNone(query);
-        const minTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
 
-        const start = new Date(minTimestamp * 1000);
-        const end = new Date(timestamps.max_timestamp * 1000);
+        const startTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
+        const endTimestamp = timestamps.max_timestamp;
 
-        let loop = new Date(start);
+        // let currentDay = startTimestamp;
 
-        let jobCount = 0;
+        // let jobCount = 0;
+        //
+        // while (currentDay <= endTimestamp) {
+        //   const fromTimestamp = currentDay;
+        //   const toTimestamp = currentDay + 3600;
+        //
+        //   await backfillSaveActivitiesElasticsearchJob.addToQueue(
+        //     "transfer",
+        //     undefined,
+        //     fromTimestamp,
+        //     toTimestamp,
+        //     indexName
+        //   );
+        //
+        //   jobCount++;
+        //
+        //   currentDay = toTimestamp;
+        //
+        //   await redis.hset(
+        //     `backfill-activities-elasticsearch-job:transfer`,
+        //     `${fromTimestamp}:${toTimestamp}`,
+        //     JSON.stringify({ fromTimestamp, toTimestamp })
+        //   );
+        // }
+        //
+        // await redis.set(`backfill-activities-elasticsearch-job-count:transfer`, jobCount);
+        //
+        // logger.info(
+        //   this.queueName,
+        //   JSON.stringify({
+        //     topic: "backfill-activities",
+        //     message: `transfer jobCount=${jobCount}`,
+        //     indexName,
+        //   })
+        // );
 
-        while (loop <= end) {
-          const fromTimestamp = Math.floor(loop.getTime() / 1000);
-          const newDate = loop.setDate(loop.getDate() + 1);
-          const toTimestamp = Math.floor(newDate / 1000);
-
-          await backfillSaveActivitiesElasticsearchJob.addToQueue(
-            "transfer",
-            undefined,
-            fromTimestamp,
-            toTimestamp,
-            indexName
-          );
-
-          jobCount++;
-
-          loop = new Date(newDate);
-
-          await redis.hset(
-            `backfill-activities-elasticsearch-job:transfer`,
-            `${fromTimestamp}:${toTimestamp}`,
-            JSON.stringify({ fromTimestamp, toTimestamp })
-          );
-        }
-
-        await redis.set(`backfill-activities-elasticsearch-job-count:transfer`, jobCount);
-
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "backfill-activities",
-            message: `transfer jobCount=${jobCount}`,
-          })
+        await backfillSaveActivitiesElasticsearchJob.addToQueue(
+          "transfer",
+          undefined,
+          startTimestamp,
+          endTimestamp,
+          indexName
         );
 
         if (keepGoing) {
-          const fromTimestamp = Math.floor(end.getTime() / 1000);
-
           await backfillSaveActivitiesElasticsearchJob.addToQueue(
             "transfer",
             undefined,
-            fromTimestamp,
+            endTimestamp,
             undefined,
             indexName,
             true
@@ -182,6 +199,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           JSON.stringify({
             topic: "backfill-activities",
             message: `from Last Back fill! sale jobCount=${values.length}`,
+            indexName,
           })
         );
       } else {
@@ -189,51 +207,63 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           "SELECT min(timestamp) AS min_timestamp, MAX(timestamp) AS max_timestamp from fill_events_2 where is_deleted = 0;";
 
         const timestamps = await ridb.oneOrNone(query);
-        const minTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
+        // const minTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
 
-        const start = new Date(minTimestamp * 1000);
-        const end = new Date(timestamps.max_timestamp * 1000);
+        // const start = new Date(minTimestamp * 1000);
+        // const end = new Date(timestamps.max_timestamp * 1000);
+        //
+        // let loop = new Date(start);
+        //
+        // let jobCount = 0;
+        //
+        // while (loop <= end) {
+        //   const fromTimestamp = Math.floor(loop.getTime() / 1000);
+        //   const newDate = loop.setDate(loop.getDate() + 1);
+        //   const toTimestamp = Math.floor(newDate / 1000);
+        //
+        //   await backfillSaveActivitiesElasticsearchJob.addToQueue(
+        //     "sale",
+        //     undefined,
+        //     fromTimestamp,
+        //     toTimestamp,
+        //     indexName
+        //   );
+        //
+        //   jobCount++;
+        //
+        //   loop = new Date(newDate);
+        //
+        //   await redis.hset(
+        //     `backfill-activities-elasticsearch-job:sale`,
+        //     `${fromTimestamp}:${toTimestamp}`,
+        //     JSON.stringify({ fromTimestamp, toTimestamp })
+        //   );
+        // }
+        //
+        // await redis.set(`backfill-activities-elasticsearch-job-count:sale`, jobCount);
+        //
+        // logger.info(
+        //   this.queueName,
+        //   JSON.stringify({
+        //     topic: "backfill-activities",
+        //     message: `sale jobCount=${jobCount}`,
+        //     indexName,
+        //   })
+        // );
 
-        let loop = new Date(start);
+        const fromTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
+        const endTimestamp = timestamps.max_timestamp;
 
-        let jobCount = 0;
-
-        while (loop <= end) {
-          const fromTimestamp = Math.floor(loop.getTime() / 1000);
-          const newDate = loop.setDate(loop.getDate() + 1);
-          const toTimestamp = Math.floor(newDate / 1000);
-
-          await backfillSaveActivitiesElasticsearchJob.addToQueue(
-            "sale",
-            undefined,
-            fromTimestamp,
-            toTimestamp,
-            indexName
-          );
-
-          jobCount++;
-
-          loop = new Date(newDate);
-
-          await redis.hset(
-            `backfill-activities-elasticsearch-job:sale`,
-            `${fromTimestamp}:${toTimestamp}`,
-            JSON.stringify({ fromTimestamp, toTimestamp })
-          );
-        }
-
-        await redis.set(`backfill-activities-elasticsearch-job-count:sale`, jobCount);
-
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "backfill-activities",
-            message: `sale jobCount=${jobCount}`,
-          })
+        await backfillSaveActivitiesElasticsearchJob.addToQueue(
+          "sale",
+          undefined,
+          fromTimestamp,
+          endTimestamp,
+          indexName
         );
 
         if (keepGoing) {
-          const fromTimestamp = Math.floor(end.getTime() / 1000);
+          // const fromTimestamp = Math.floor(end.getTime() / 1000);
 
           await backfillSaveActivitiesElasticsearchJob.addToQueue(
             "sale",
@@ -268,6 +298,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           JSON.stringify({
             topic: "backfill-activities",
             message: `from Last Back fill! ask jobCount=${values.length}`,
+            indexName,
           })
         );
       } else {
@@ -275,51 +306,63 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           "SELECT extract(epoch from min(updated_at)) AS min_timestamp, extract(epoch from max(updated_at)) AS max_timestamp from orders WHERE side = 'sell';";
 
         const timestamps = await ridb.oneOrNone(query);
-        const minTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
+        // const minTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
 
-        const start = new Date(minTimestamp * 1000);
-        const end = new Date(timestamps.max_timestamp * 1000);
+        // const start = new Date(minTimestamp * 1000);
+        // const end = new Date(timestamps.max_timestamp * 1000);
+        //
+        // let loop = new Date(start);
+        //
+        // let jobCount = 0;
+        //
+        // while (loop <= end) {
+        //   const fromTimestamp = Math.floor(loop.getTime() / 1000);
+        //   const newDate = loop.setDate(loop.getDate() + 1);
+        //   const toTimestamp = Math.floor(newDate / 1000);
+        //
+        //   await backfillSaveActivitiesElasticsearchJob.addToQueue(
+        //     "ask",
+        //     undefined,
+        //     fromTimestamp,
+        //     toTimestamp,
+        //     indexName
+        //   );
+        //
+        //   jobCount++;
+        //
+        //   loop = new Date(newDate);
+        //
+        //   await redis.hset(
+        //     `backfill-activities-elasticsearch-job:ask`,
+        //     `${fromTimestamp}:${toTimestamp}`,
+        //     JSON.stringify({ fromTimestamp, toTimestamp })
+        //   );
+        // }
+        //
+        // await redis.set(`backfill-activities-elasticsearch-job-count:ask`, jobCount);
+        //
+        // logger.info(
+        //   this.queueName,
+        //   JSON.stringify({
+        //     topic: "backfill-activities",
+        //     message: `ask jobCount=${jobCount}`,
+        //     indexName,
+        //   })
+        // );
 
-        let loop = new Date(start);
+        const fromTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
+        const endTimestamp = timestamps.max_timestamp;
 
-        let jobCount = 0;
-
-        while (loop <= end) {
-          const fromTimestamp = Math.floor(loop.getTime() / 1000);
-          const newDate = loop.setDate(loop.getDate() + 1);
-          const toTimestamp = Math.floor(newDate / 1000);
-
-          await backfillSaveActivitiesElasticsearchJob.addToQueue(
-            "ask",
-            undefined,
-            fromTimestamp,
-            toTimestamp,
-            indexName
-          );
-
-          jobCount++;
-
-          loop = new Date(newDate);
-
-          await redis.hset(
-            `backfill-activities-elasticsearch-job:ask`,
-            `${fromTimestamp}:${toTimestamp}`,
-            JSON.stringify({ fromTimestamp, toTimestamp })
-          );
-        }
-
-        await redis.set(`backfill-activities-elasticsearch-job-count:ask`, jobCount);
-
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "backfill-activities",
-            message: `ask jobCount=${jobCount}`,
-          })
+        await backfillSaveActivitiesElasticsearchJob.addToQueue(
+          "ask",
+          undefined,
+          fromTimestamp,
+          endTimestamp,
+          indexName
         );
 
         if (keepGoing) {
-          const fromTimestamp = Math.floor(end.getTime() / 1000);
+          // const fromTimestamp = Math.floor(end.getTime() / 1000);
 
           await backfillSaveActivitiesElasticsearchJob.addToQueue(
             "ask",
@@ -354,6 +397,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           JSON.stringify({
             topic: "backfill-activities",
             message: `from Last Back fill! ask cancel jobCount=${values.length}`,
+            indexName,
           })
         );
       } else {
@@ -361,51 +405,63 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           "SELECT extract(epoch from min(updated_at)) AS min_timestamp, extract(epoch from max(updated_at)) AS max_timestamp from orders WHERE side = 'sell' AND fillability_status = 'cancelled';";
 
         const timestamps = await ridb.oneOrNone(query);
-        const minTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
+        // const minTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
+        //
+        // const start = new Date(minTimestamp * 1000);
+        // const end = new Date(timestamps.max_timestamp * 1000);
+        //
+        // let loop = new Date(start);
+        //
+        // let jobCount = 0;
+        //
+        // while (loop <= end) {
+        //   const fromTimestamp = Math.floor(loop.getTime() / 1000);
+        //   const newDate = loop.setDate(loop.getDate() + 1);
+        //   const toTimestamp = Math.floor(newDate / 1000);
+        //
+        //   await backfillSaveActivitiesElasticsearchJob.addToQueue(
+        //     "ask-cancel",
+        //     undefined,
+        //     fromTimestamp,
+        //     toTimestamp,
+        //     indexName
+        //   );
+        //
+        //   jobCount++;
+        //
+        //   loop = new Date(newDate);
+        //
+        //   await redis.hset(
+        //     `backfill-activities-elasticsearch-job:ask-cancel`,
+        //     `${fromTimestamp}:${toTimestamp}`,
+        //     JSON.stringify({ fromTimestamp, toTimestamp })
+        //   );
+        // }
+        //
+        // await redis.set(`backfill-activities-elasticsearch-job-count:ask-cancel`, jobCount);
+        //
+        // logger.info(
+        //   this.queueName,
+        //   JSON.stringify({
+        //     topic: "backfill-activities",
+        //     message: `ask cancel jobCount=${jobCount}`,
+        //     indexName,
+        //   })
+        // );
 
-        const start = new Date(minTimestamp * 1000);
-        const end = new Date(timestamps.max_timestamp * 1000);
+        const fromTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
+        const endTimestamp = timestamps.max_timestamp;
 
-        let loop = new Date(start);
-
-        let jobCount = 0;
-
-        while (loop <= end) {
-          const fromTimestamp = Math.floor(loop.getTime() / 1000);
-          const newDate = loop.setDate(loop.getDate() + 1);
-          const toTimestamp = Math.floor(newDate / 1000);
-
-          await backfillSaveActivitiesElasticsearchJob.addToQueue(
-            "ask-cancel",
-            undefined,
-            fromTimestamp,
-            toTimestamp,
-            indexName
-          );
-
-          jobCount++;
-
-          loop = new Date(newDate);
-
-          await redis.hset(
-            `backfill-activities-elasticsearch-job:ask-cancel`,
-            `${fromTimestamp}:${toTimestamp}`,
-            JSON.stringify({ fromTimestamp, toTimestamp })
-          );
-        }
-
-        await redis.set(`backfill-activities-elasticsearch-job-count:ask-cancel`, jobCount);
-
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "backfill-activities",
-            message: `ask cancel jobCount=${jobCount}`,
-          })
+        await backfillSaveActivitiesElasticsearchJob.addToQueue(
+          "ask-cancel",
+          undefined,
+          fromTimestamp,
+          endTimestamp,
+          indexName
         );
 
         if (keepGoing) {
-          const fromTimestamp = Math.floor(end.getTime() / 1000);
+          // const fromTimestamp = Math.floor(end.getTime() / 1000);
 
           await backfillSaveActivitiesElasticsearchJob.addToQueue(
             "ask-cancel",
@@ -440,6 +496,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           JSON.stringify({
             topic: "backfill-activities",
             message: `from Last Back fill! bid jobCount=${values.length}`,
+            indexName,
           })
         );
       } else {
@@ -447,51 +504,63 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           "SELECT extract(epoch from min(updated_at)) AS min_timestamp, extract(epoch from max(updated_at)) AS max_timestamp from orders WHERE side = 'buy';";
 
         const timestamps = await ridb.oneOrNone(query);
-        const minTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
+        // const minTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
+        //
+        // const start = new Date(minTimestamp * 1000);
+        // const end = new Date(timestamps.max_timestamp * 1000);
+        //
+        // let loop = new Date(start);
+        //
+        // let jobCount = 0;
+        //
+        // while (loop <= end) {
+        //   const fromTimestamp = Math.floor(loop.getTime() / 1000);
+        //   const newDate = loop.setDate(loop.getDate() + 1);
+        //   const toTimestamp = Math.floor(newDate / 1000);
+        //
+        //   await backfillSaveActivitiesElasticsearchJob.addToQueue(
+        //     "bid",
+        //     undefined,
+        //     fromTimestamp,
+        //     toTimestamp,
+        //     indexName
+        //   );
+        //
+        //   jobCount++;
+        //
+        //   loop = new Date(newDate);
+        //
+        //   await redis.hset(
+        //     `backfill-activities-elasticsearch-job:bid`,
+        //     `${fromTimestamp}:${toTimestamp}`,
+        //     JSON.stringify({ fromTimestamp, toTimestamp })
+        //   );
+        // }
+        //
+        // await redis.set(`backfill-activities-elasticsearch-job-count:bid`, jobCount);
+        //
+        // logger.info(
+        //   this.queueName,
+        //   JSON.stringify({
+        //     topic: "backfill-activities",
+        //     message: `bid jobCount=${jobCount}`,
+        //     indexName,
+        //   })
+        // );
 
-        const start = new Date(minTimestamp * 1000);
-        const end = new Date(timestamps.max_timestamp * 1000);
+        const fromTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
+        const endTimestamp = timestamps.max_timestamp;
 
-        let loop = new Date(start);
-
-        let jobCount = 0;
-
-        while (loop <= end) {
-          const fromTimestamp = Math.floor(loop.getTime() / 1000);
-          const newDate = loop.setDate(loop.getDate() + 1);
-          const toTimestamp = Math.floor(newDate / 1000);
-
-          await backfillSaveActivitiesElasticsearchJob.addToQueue(
-            "bid",
-            undefined,
-            fromTimestamp,
-            toTimestamp,
-            indexName
-          );
-
-          jobCount++;
-
-          loop = new Date(newDate);
-
-          await redis.hset(
-            `backfill-activities-elasticsearch-job:bid`,
-            `${fromTimestamp}:${toTimestamp}`,
-            JSON.stringify({ fromTimestamp, toTimestamp })
-          );
-        }
-
-        await redis.set(`backfill-activities-elasticsearch-job-count:bid`, jobCount);
-
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "backfill-activities",
-            message: `bid jobCount=${jobCount}`,
-          })
+        await backfillSaveActivitiesElasticsearchJob.addToQueue(
+          "bid",
+          undefined,
+          fromTimestamp,
+          endTimestamp,
+          indexName
         );
 
         if (keepGoing) {
-          const fromTimestamp = Math.floor(end.getTime() / 1000);
+          // const fromTimestamp = Math.floor(end.getTime() / 1000);
 
           await backfillSaveActivitiesElasticsearchJob.addToQueue(
             "bid",
@@ -526,6 +595,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           JSON.stringify({
             topic: "backfill-activities",
             message: `from Last Back fill! bid cancel jobCount=${values.length}`,
+            indexName,
           })
         );
       } else {
@@ -533,51 +603,63 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           "SELECT extract(epoch from min(updated_at)) AS min_timestamp, extract(epoch from max(updated_at)) AS max_timestamp from orders WHERE side = 'buy' AND fillability_status = 'cancelled';";
 
         const timestamps = await ridb.oneOrNone(query);
-        const minTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
+        // const minTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
+        //
+        // const start = new Date(minTimestamp * 1000);
+        // const end = new Date(timestamps.max_timestamp * 1000);
+        //
+        // let loop = new Date(start);
+        //
+        // let jobCount = 0;
+        //
+        // while (loop <= end) {
+        //   const fromTimestamp = Math.floor(loop.getTime() / 1000);
+        //   const newDate = loop.setDate(loop.getDate() + 1);
+        //   const toTimestamp = Math.floor(newDate / 1000);
+        //
+        //   await backfillSaveActivitiesElasticsearchJob.addToQueue(
+        //     "bid-cancel",
+        //     undefined,
+        //     fromTimestamp,
+        //     toTimestamp,
+        //     indexName
+        //   );
+        //
+        //   jobCount++;
+        //
+        //   loop = new Date(newDate);
+        //
+        //   await redis.hset(
+        //     `backfill-activities-elasticsearch-job:bid-cancel`,
+        //     `${fromTimestamp}:${toTimestamp}`,
+        //     JSON.stringify({ fromTimestamp, toTimestamp })
+        //   );
+        // }
+        //
+        // await redis.set(`backfill-activities-elasticsearch-job-count:bid-cancel`, jobCount);
+        //
+        // logger.info(
+        //   this.queueName,
+        //   JSON.stringify({
+        //     topic: "backfill-activities",
+        //     message: `bid cancel jobCount=${jobCount}`,
+        //     indexName,
+        //   })
+        // );
 
-        const start = new Date(minTimestamp * 1000);
-        const end = new Date(timestamps.max_timestamp * 1000);
+        const fromTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
+        const endTimestamp = timestamps.max_timestamp;
 
-        let loop = new Date(start);
-
-        let jobCount = 0;
-
-        while (loop <= end) {
-          const fromTimestamp = Math.floor(loop.getTime() / 1000);
-          const newDate = loop.setDate(loop.getDate() + 1);
-          const toTimestamp = Math.floor(newDate / 1000);
-
-          await backfillSaveActivitiesElasticsearchJob.addToQueue(
-            "bid-cancel",
-            undefined,
-            fromTimestamp,
-            toTimestamp,
-            indexName
-          );
-
-          jobCount++;
-
-          loop = new Date(newDate);
-
-          await redis.hset(
-            `backfill-activities-elasticsearch-job:bid-cancel`,
-            `${fromTimestamp}:${toTimestamp}`,
-            JSON.stringify({ fromTimestamp, toTimestamp })
-          );
-        }
-
-        await redis.set(`backfill-activities-elasticsearch-job-count:bid-cancel`, jobCount);
-
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "backfill-activities",
-            message: `bid cancel jobCount=${jobCount}`,
-          })
+        await backfillSaveActivitiesElasticsearchJob.addToQueue(
+          "bid-cancel",
+          undefined,
+          fromTimestamp,
+          endTimestamp,
+          indexName
         );
 
         if (keepGoing) {
-          const fromTimestamp = Math.floor(end.getTime() / 1000);
+          // const fromTimestamp = Math.floor(end.getTime() / 1000);
 
           await backfillSaveActivitiesElasticsearchJob.addToQueue(
             "bid-cancel",

@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { logger } from "@/common/logger";
-import { CollectionMetadata, TokenMetadata } from "@/utils/metadata-api";
+import { CollectionMetadata, TokenMetadata } from "@/metadata/types";
 import axios from "axios";
 
 function getProjectID(tokenId: number) {
@@ -14,11 +14,7 @@ function getProjectID(tokenId: number) {
   }
 }
 
-export const extendCollection = async (
-  _chainId: number,
-  metadata: CollectionMetadata,
-  _tokenId = null
-) => {
+export const extendCollection = async (metadata: CollectionMetadata, _tokenId = null) => {
   if (isNaN(Number(_tokenId)) || !_tokenId) {
     throw new Error(`Invalid tokenId ${_tokenId}`);
   }
@@ -73,16 +69,13 @@ export const extendCollection = async (
   };
 };
 
-export const extend = async (_chainId: number, metadata: TokenMetadata) => {
+export const extend = async (metadata: TokenMetadata) => {
   let data;
   try {
     const response = await axios.get(`https://account.miragegallery.ai/curated-details.json`);
     data = response.data;
   } catch (error) {
-    logger.error(
-      "mirage-gallery-curated-fetcher",
-      `fetchTokens get json error. chainId:${_chainId}, error:${error}`
-    );
+    logger.error("mirage-gallery-curated-fetcher", `fetchTokens get json error. error:${error}`);
 
     throw error;
   }
@@ -102,7 +95,7 @@ export const extend = async (_chainId: number, metadata: TokenMetadata) => {
   } catch (error) {
     logger.error(
       "mirage-gallery-curated-fetcher",
-      `fetchTokens get metadataURL error. chainId:${_chainId}, metadataURL=${metadataURL}, error:${error}`
+      `fetchTokens get metadataURL error.  metadataURL=${metadataURL}, error:${error}`
     );
 
     throw error;

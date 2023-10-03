@@ -129,6 +129,7 @@ export const mergeSwapInfos = (chainId: number, infos: SwapInfo[]): SwapInfo[] =
         data: infos[0].module.interface.encodeFunctionData(
           fromETH ? "ethToExactOutput" : "erc20ToExactOutput",
           [
+            // TODO: Aggregate same token and same recipient transfers
             decodedExecutionData.map((d) => d.swaps).flat(),
             decodedExecutionData[0].refundTo,
             decodedExecutionData[0].revertIfIncomplete,

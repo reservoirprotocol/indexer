@@ -10,7 +10,7 @@ import {
 } from "@/orderbook/mints";
 import * as detector from "@/orderbook/mints/calldata/detector";
 import { getContractKind } from "@/orderbook/mints/calldata/helpers";
-import MetadataApi from "@/utils/metadata-api";
+import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 
 import { manifold } from "@/orderbook/mints/calldata/detector";
 import { collectionNewContractDeployedJob } from "@/jobs/collections/collection-contract-deployed";
@@ -60,18 +60,23 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
           }
         );
         if (!collectionExists) {
-          const collection = await MetadataApi.getCollectionMetadata(data.collection, "0", "", {
-            indexingMethod:
-              data.standard === "manifold"
-                ? "manifold"
-                : data.standard === "seadrop-v1.0"
-                ? "opensea"
-                : "onchain",
-            additionalQueryParams:
-              data.standard === "manifold"
-                ? { instanceId: data.additionalInfo.instanceId }
-                : undefined,
-          });
+          const collection = await MetadataProviderRouter.getCollectionMetadata(
+            data.collection,
+            "0",
+            "",
+            {
+              indexingMethod:
+                data.standard === "manifold"
+                  ? "manifold"
+                  : data.standard === "seadrop-v1.0"
+                  ? "opensea"
+                  : "onchain",
+              additionalQueryParams:
+                data.standard === "manifold"
+                  ? { instanceId: data.additionalInfo.instanceId }
+                  : undefined,
+            }
+          );
 
           let tokenIdRange: string | null = null;
           if (collection.tokenIdRange) {

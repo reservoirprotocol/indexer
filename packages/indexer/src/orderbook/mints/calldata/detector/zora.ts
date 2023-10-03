@@ -100,9 +100,8 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
                         abiType: "uint256",
                       },
                       {
-                        kind: "unknown",
+                        kind: "comment",
                         abiType: "string",
-                        abiValue: "",
                       },
                       {
                         kind: "referrer",
@@ -201,9 +200,8 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
                         abiType: "bytes32[]",
                       },
                       {
-                        kind: "unknown",
+                        kind: "comment",
                         abiType: "string",
-                        abiValue: "",
                       },
                       {
                         kind: "referrer",

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { parseEther } from "@ethersproject/units";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Boom from "@hapi/boom";
 import * as Sdk from "@reservoir0x/sdk";
@@ -8,7 +9,6 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { parseEther } from "@ethersproject/units";
 import { JoiPrice, getJoiPriceObject } from "@/common/joi";
 import {
   buildContinuation,
@@ -130,19 +130,50 @@ export const getCollectionsV7Options: RouteOptions = {
         .description(
           "Order the items are returned in the response. Options are `#DayVolume`, `createdAt`, `updatedAt`, or `floorAskPrice`"
         ),
+      sortDirection: Joi.string()
+        .lowercase()
+        .when("sortBy", {
+          is: Joi.valid("updatedAt", "floorAskPrice"),
+          then: Joi.valid("asc", "desc").default("asc"),
+          otherwise: Joi.valid("asc", "desc").default("desc"),
+        }),
       limit: Joi.number()
         .integer()
         .min(1)
-        .max(20)
+        .when("sortBy", {
+          is: "updatedAt",
+          then: Joi.number().integer().max(1000),
+          otherwise: Joi.number().integer().max(20),
+        })
         .default(20)
-        .description("Amount of items returned in response. Default and max limit is 20."),
+        .description(
+          "Amount of items returned in response. Default and max limit is 20, unless sorting by `updatedAt` which has a max limit of 1000."
+        ),
+      startTimestamp: Joi.number()
+        .when("sortBy", {
+          is: "updatedAt",
+          then: Joi.allow(),
+          otherwise: Joi.forbidden(),
+        })
+        .description(
+          "When sorting by `updatedAt`, the start timestamp you want to filter on (UTC)."
+        ),
+      endTimestamp: Joi.number()
+        .when("sortBy", {
+          is: "updatedAt",
+          then: Joi.allow(),
+          otherwise: Joi.forbidden(),
+        })
+        .description("When sorting by `updatedAt`, the end timestamp you want to filter on (UTC)."),
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
       ),
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Input any ERC20 address to return result in given currency"),
+        .description(
+          "Input any ERC20 address to return result in given currency. Applies to `topBid` and `floorAsk`."
+        ),
     }).oxor("id", "slug", "name", "collectionsSetId", "community", "contract"),
   },
   response: {
@@ -150,6 +181,7 @@ export const getCollectionsV7Options: RouteOptions = {
       continuation: Joi.string().allow(null),
       collections: Joi.array().items(
         Joi.object({
+          chainId: Joi.number().required(),
           id: Joi.string().description("Collection id"),
           slug: Joi.string().allow("", null).description("Open Sea slug"),
           createdAt: Joi.string().description("Time when added to indexer"),
@@ -342,90 +374,83 @@ export const getCollectionsV7Options: RouteOptions = {
         `;
       }
 
+      // Include sales count
       let saleCountSelectQuery = "";
       let saleCountJoinQuery = "";
       if (query.includeSalesCount) {
         saleCountSelectQuery = ", s.*";
         saleCountJoinQuery = `
-        LEFT JOIN LATERAL (
-          SELECT
-            SUM(CASE
-                  WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '24 HOURS'
-                  THEN 1
-                  ELSE 0
-                END) AS day_sale_count,
-            SUM(CASE
-                  WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '7 DAYS'
-                  THEN 1
-                  ELSE 0
-                END) AS week_sale_count,
-            SUM(CASE
-                  WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '30 DAYS'
-                  THEN 1
-                  ELSE 0
-                END) AS month_sale_count,
-            COUNT(*) AS total_sale_count
-          FROM fill_events_2 fe
-          JOIN "tokens" "t" ON "fe"."token_id" = "t"."token_id" AND "fe"."contract" = "t"."contract"
-          WHERE t.collection_id = x.id
-          AND fe.is_deleted = 0
-        ) s ON TRUE
-      `;
+          LEFT JOIN LATERAL (
+            SELECT
+              SUM(CASE
+                    WHEN to_timestamp(dv.timestamp) + INTERVAL '24 HOURS' > NOW() - INTERVAL '7 DAYS'
+                    THEN sales_count
+                    ELSE 0
+                  END) AS week_sale_count,
+              SUM(CASE
+                    WHEN to_timestamp(dv.timestamp) + INTERVAL '24 HOURS' > NOW() - INTERVAL '30 DAYS'
+                    THEN sales_count
+                    ELSE 0
+                  END) AS month_sale_count,
+              SUM(sales_count) AS total_sale_count
+            FROM daily_volumes dv
+            WHERE dv.collection_id = x.id
+          ) s ON TRUE
+        `;
       }
 
-      //Include security configurations
+      // Include security configurations
       let securityConfigSelectQuery = "";
       let securityConfigJoinQuery = "";
       if (query.includeSecurityConfigs) {
         securityConfigSelectQuery = ", t.*";
         securityConfigJoinQuery = `
-                LEFT JOIN LATERAL (
-                  SELECT
-                    erc721c_configs.transfer_security_level,
-                    erc721c_configs.transfer_validator,
-                    erc721c_operator_whitelists.whitelist as operator_whitelist,
-                    erc721c_permitted_contract_receiver_allowlists.allowlist as receiver_allowlist
-                  FROM erc721c_configs
-                  LEFT JOIN erc721c_operator_whitelists
-                    ON erc721c_configs.transfer_validator = erc721c_operator_whitelists.transfer_validator
-                    AND erc721c_configs.operator_whitelist_id = erc721c_operator_whitelists.id
-                  LEFT JOIN erc721c_permitted_contract_receiver_allowlists
-                    ON erc721c_configs.transfer_validator = erc721c_permitted_contract_receiver_allowlists.transfer_validator
-                    AND erc721c_configs.permitted_contract_receiver_allowlist_id = erc721c_permitted_contract_receiver_allowlists.id
-                  WHERE erc721c_configs.contract = x.contract
-                ) t ON TRUE
-              `;
+          LEFT JOIN LATERAL (
+            SELECT
+              erc721c_configs.transfer_security_level,
+              erc721c_configs.transfer_validator,
+              erc721c_operator_whitelists.whitelist as operator_whitelist,
+              erc721c_permitted_contract_receiver_allowlists.allowlist as receiver_allowlist
+            FROM erc721c_configs
+            LEFT JOIN erc721c_operator_whitelists
+              ON erc721c_configs.transfer_validator = erc721c_operator_whitelists.transfer_validator
+              AND erc721c_configs.operator_whitelist_id = erc721c_operator_whitelists.id
+            LEFT JOIN erc721c_permitted_contract_receiver_allowlists
+              ON erc721c_configs.transfer_validator = erc721c_permitted_contract_receiver_allowlists.transfer_validator
+              AND erc721c_configs.permitted_contract_receiver_allowlist_id = erc721c_permitted_contract_receiver_allowlists.id
+            WHERE erc721c_configs.contract = x.contract
+          ) t ON TRUE
+        `;
       }
 
       let floorAskSelectQuery;
-
       if (query.normalizeRoyalties) {
         floorAskSelectQuery = `
-            collections.normalized_floor_sell_id AS floor_sell_id,
-            collections.normalized_floor_sell_value AS floor_sell_value,
-            collections.normalized_floor_sell_maker AS floor_sell_maker,
-            least(2147483647::NUMERIC, date_part('epoch', lower(collections.normalized_floor_sell_valid_between)))::INT AS floor_sell_valid_from,
-            least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(collections.normalized_floor_sell_valid_between)), 'Infinity'),0))::INT AS floor_sell_valid_until,
-            collections.normalized_floor_sell_source_id_int AS floor_sell_source_id_int,
-            `;
+          collections.normalized_floor_sell_id AS floor_sell_id,
+          collections.normalized_floor_sell_value AS floor_sell_value,
+          collections.normalized_floor_sell_maker AS floor_sell_maker,
+          least(2147483647::NUMERIC, date_part('epoch', lower(collections.normalized_floor_sell_valid_between)))::INT AS floor_sell_valid_from,
+          least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(collections.normalized_floor_sell_valid_between)), 'Infinity'),0))::INT AS floor_sell_valid_until,
+          collections.normalized_floor_sell_source_id_int AS floor_sell_source_id_int,
+        `;
       } else if (query.useNonFlaggedFloorAsk) {
         floorAskSelectQuery = `
-            collections.non_flagged_floor_sell_id AS floor_sell_id,
-            collections.non_flagged_floor_sell_value AS floor_sell_value,
-            collections.non_flagged_floor_sell_maker AS floor_sell_maker,
-            least(2147483647::NUMERIC, date_part('epoch', lower(collections.non_flagged_floor_sell_valid_between)))::INT AS floor_sell_valid_from,
-            least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(collections.non_flagged_floor_sell_valid_between)), 'Infinity'),0))::INT AS floor_sell_valid_until,
-            collections.non_flagged_floor_sell_source_id_int AS floor_sell_source_id_int,
-            `;
+          collections.non_flagged_floor_sell_id AS floor_sell_id,
+          collections.non_flagged_floor_sell_value AS floor_sell_value,
+          collections.non_flagged_floor_sell_maker AS floor_sell_maker,
+          least(2147483647::NUMERIC, date_part('epoch', lower(collections.non_flagged_floor_sell_valid_between)))::INT AS floor_sell_valid_from,
+          least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(collections.non_flagged_floor_sell_valid_between)), 'Infinity'),0))::INT AS floor_sell_valid_until,
+          collections.non_flagged_floor_sell_source_id_int AS floor_sell_source_id_int,
+        `;
       } else {
         floorAskSelectQuery = `
-            collections.floor_sell_id,
-            collections.floor_sell_value,
-            collections.floor_sell_maker,
-            least(2147483647::NUMERIC, date_part('epoch', lower(collections.floor_sell_valid_between)))::INT AS floor_sell_valid_from,
-            least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(collections.floor_sell_valid_between)), 'Infinity'),0))::INT AS floor_sell_valid_until,
-            collections.floor_sell_source_id_int,
-      `;
+          collections.floor_sell_id,
+          collections.floor_sell_value,
+          collections.floor_sell_maker,
+          least(2147483647::NUMERIC, date_part('epoch', lower(collections.floor_sell_valid_between)))::INT AS floor_sell_valid_from,
+          least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(collections.floor_sell_valid_between)), 'Infinity'),0))::INT AS floor_sell_valid_until,
+          collections.floor_sell_source_id_int,
+        `;
       }
 
       let baseQuery = `
@@ -446,6 +471,7 @@ export const getCollectionsV7Options: RouteOptions = {
           collections.token_id_range,
           collections.token_set_id,
           collections.creator,
+          collections.day1_sales_count AS "day_sale_count",
           collections.day1_rank,
           collections.day1_volume,
           collections.day7_rank,
@@ -480,7 +506,9 @@ export const getCollectionsV7Options: RouteOptions = {
               tokens.image
             FROM tokens
             WHERE tokens.collection_id = collections.id
-            ORDER BY rarity_rank DESC NULLS LAST
+            ORDER BY rarity_rank ${query.sortDirection} NULLS ${
+        query.sortDirection === "asc" ? "FIRST" : "LAST"
+      }
             LIMIT 4
           ) AS sample_images,
           (
@@ -536,6 +564,14 @@ export const getCollectionsV7Options: RouteOptions = {
         conditions.push(`collections.floor_sell_value >= $/minFloorAskPrice/`);
       }
 
+      if (query.startTimestamp) {
+        conditions.push(`collections.updated_at >= to_timestamp($/startTimestamp/)`);
+      }
+
+      if (query.endTimestamp) {
+        conditions.push(`collections.updated_at <= to_timestamp($/endTimestamp/)`);
+      }
+
       // Sorting and pagination
 
       if (query.continuation) {
@@ -545,14 +581,15 @@ export const getCollectionsV7Options: RouteOptions = {
       }
 
       let orderBy = "";
+      const sign = query.sortDirection === "asc" ? ">" : "<";
       switch (query.sortBy) {
         case "1DayVolume": {
           if (query.continuation) {
             conditions.push(
-              `(collections.day1_volume, collections.id) < ($/contParam/, $/contId/)`
+              `(collections.day1_volume, collections.id) ${sign} ($/contParam/, $/contId/)`
             );
           }
-          orderBy = ` ORDER BY collections.day1_volume DESC, collections.id DESC`;
+          orderBy = ` ORDER BY collections.day1_volume ${query.sortDirection}, collections.id ${query.sortDirection}`;
 
           break;
         }
@@ -560,10 +597,10 @@ export const getCollectionsV7Options: RouteOptions = {
         case "7DayVolume": {
           if (query.continuation) {
             conditions.push(
-              `(collections.day7_volume, collections.id) < ($/contParam/, $/contId/)`
+              `(collections.day7_volume, collections.id) ${sign} ($/contParam/, $/contId/)`
             );
           }
-          orderBy = ` ORDER BY collections.day7_volume DESC, collections.id DESC`;
+          orderBy = ` ORDER BY collections.day7_volume ${query.sortDirection}, collections.id ${query.sortDirection}`;
 
           break;
         }
@@ -571,10 +608,10 @@ export const getCollectionsV7Options: RouteOptions = {
         case "30DayVolume": {
           if (query.continuation) {
             conditions.push(
-              `(collections.day30_volume, collections.id) < ($/contParam/, $/contId/)`
+              `(collections.day30_volume, collections.id) ${sign} ($/contParam/, $/contId/)`
             );
           }
-          orderBy = ` ORDER BY collections.day30_volume DESC, collections.id DESC`;
+          orderBy = ` ORDER BY collections.day30_volume ${query.sortDirection}, collections.id ${query.sortDirection}`;
 
           break;
         }
@@ -582,10 +619,10 @@ export const getCollectionsV7Options: RouteOptions = {
         case "createdAt": {
           if (query.continuation) {
             conditions.push(
-              `(collections.created_at, collections.id) < (to_timestamp($/contParam/), $/contId/)`
+              `(collections.created_at, collections.id) ${sign} (to_timestamp($/contParam/), $/contId/)`
             );
           }
-          orderBy = ` ORDER BY collections.created_at DESC, collections.id DESC`;
+          orderBy = ` ORDER BY collections.created_at ${query.sortDirection}, collections.id ${query.sortDirection}`;
 
           break;
         }
@@ -593,10 +630,10 @@ export const getCollectionsV7Options: RouteOptions = {
         case "updatedAt": {
           if (query.continuation) {
             conditions.push(
-              `(collections.updated_at, collections.id) < (to_timestamp($/contParam/), $/contId/)`
+              `(collections.updated_at, collections.id) ${sign} (to_timestamp($/contParam/), $/contId/)`
             );
           }
-          orderBy = ` ORDER BY collections.updated_at DESC, collections.id DESC`;
+          orderBy = ` ORDER BY collections.updated_at ${query.sortDirection}, collections.id ${query.sortDirection}`;
 
           break;
         }
@@ -605,16 +642,16 @@ export const getCollectionsV7Options: RouteOptions = {
           if (query.continuation) {
             if (query.contParam !== "null") {
               conditions.push(
-                `(collections.floor_sell_value, collections.id) > ($/contParam/, $/contId/) OR (collections.floor_sell_value IS null)`
+                `(collections.floor_sell_value, collections.id) ${sign} ($/contParam/, $/contId/) OR (collections.floor_sell_value IS null)`
               );
             } else {
               conditions.push(
-                `(collections.id) > ($/contId/) AND (collections.floor_sell_value IS null)`
+                `(collections.id) ${sign} ($/contId/) AND (collections.floor_sell_value IS null)`
               );
             }
           }
 
-          orderBy = ` ORDER BY collections.floor_sell_value, collections.id`;
+          orderBy = ` ORDER BY collections.floor_sell_value ${query.sortDirection}, collections.id ${query.sortDirection}`;
           break;
         }
 
@@ -622,11 +659,11 @@ export const getCollectionsV7Options: RouteOptions = {
         default: {
           if (query.continuation) {
             conditions.push(
-              `(collections.all_time_volume, collections.id) < ($/contParam/, $/contId/)`
+              `(collections.all_time_volume, collections.id) ${sign} ($/contParam/, $/contId/)`
             );
           }
 
-          orderBy = ` ORDER BY collections.all_time_volume DESC, collections.id DESC`;
+          orderBy = ` ORDER BY collections.all_time_volume ${query.sortDirection}, collections.id ${query.sortDirection}`;
 
           break;
         }
@@ -715,6 +752,7 @@ export const getCollectionsV7Options: RouteOptions = {
           );
 
           return {
+            chainId: config.chainId,
             id: r.id,
             slug: r.slug,
             createdAt: new Date(r.created_at * 1000).toISOString(),
@@ -835,7 +873,7 @@ export const getCollectionsV7Options: RouteOptions = {
             },
             salesCount: query.includeSalesCount
               ? {
-                  "1day": r.day_sale_count,
+                  "1day": `${r.day_sale_count ?? 0}`,
                   "7day": r.week_sale_count,
                   "30day": r.month_sale_count,
                   allTime: r.total_sale_count,
@@ -857,6 +895,7 @@ export const getCollectionsV7Options: RouteOptions = {
                   r.mint_stages.map(async (m: any) => ({
                     stage: m.stage,
                     kind: m.kind,
+                    tokenId: m.tokenId,
                     price: m.price
                       ? await getJoiPriceObject({ gross: { amount: m.price } }, m.currency)
                       : m.price,

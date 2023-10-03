@@ -71,7 +71,6 @@ export const postRefreshCollectionOptions: RouteOptions = {
               contract: fromBuffer(tokenResult.contract),
               tokenId: tokenResult.token_id,
               allowFallbackCollectionMetadata: false,
-              context: "post-refresh-collection",
             },
           ]);
 
@@ -118,16 +117,23 @@ export const postRefreshCollectionOptions: RouteOptions = {
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionMetadataQueueJob.addToQueue(
-          {
-            contract: collection.contract,
-            tokenId,
-            community: collection.community,
-            forceRefresh: false,
-          },
-          0,
-          "post-refresh-collection-admin"
-        );
+        if (collection.contract === "0x495f947276749ce646f68ac8c248420045cb7b5e") {
+          logger.info(
+            "post-refresh-collection",
+            JSON.stringify({
+              topic: "debugCollectionRefresh",
+              message: `collectionMetadataQueueJob.addToQueue. contract=${collection.contract}, tokenId=${tokenId}`,
+              collection,
+            })
+          );
+        }
+
+        await collectionMetadataQueueJob.addToQueue({
+          contract: collection.contract,
+          tokenId,
+          community: collection.community,
+          forceRefresh: true,
+        });
 
         if (collection.slug) {
           // Refresh opensea collection offers
@@ -163,7 +169,7 @@ export const postRefreshCollectionOptions: RouteOptions = {
 
         if (method === "opensea") {
           // Refresh contract orders from OpenSea
-          await OpenseaIndexerApi.fastContractSync(collection.contract);
+          await OpenseaIndexerApi.fastContractSync(collection.id);
           if (collection.slug && payload.refreshKind === "full-collection-by-slug") {
             metadataIndexInfo = {
               kind: "full-collection-by-slug",

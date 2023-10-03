@@ -4,7 +4,6 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 import _ from "lodash";
 import { config } from "@/config/index";
 import { logger } from "@/common/logger";
-import MetadataApi from "@/utils/metadata-api";
 import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
 import {
   PendingRefreshTokensBySlug,
@@ -15,6 +14,7 @@ import { Collections } from "@/models/collections";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
+import { openseaMetadataProvider } from "@/metadata/providers/opensea-metadata-provider";
 
 export type MetadataIndexProcessBySlugJobPayload = {
   method: string;
@@ -52,11 +52,10 @@ export class MetadataIndexProcessBySlugJob extends AbstractRabbitMqJobHandler {
 
     async function processSlug(refreshTokenBySlug: RefreshTokenBySlug) {
       try {
-        const results = await MetadataApi.getTokensMetadataBySlug(
+        const results = await openseaMetadataProvider.getTokensMetadataBySlug(
           refreshTokenBySlug.contract,
           refreshTokenBySlug.slug,
-          method,
-          refreshTokenBySlug.continuation
+          refreshTokenBySlug.continuation ?? ""
         );
         if (results.metadata.length === 0) {
           //  Slug might be missing or might be wrong.
@@ -167,16 +166,12 @@ export class MetadataIndexProcessBySlugJob extends AbstractRabbitMqJobHandler {
           ],
           true
         ),
-        collectionMetadataQueueJob.addToQueue(
-          {
-            contract: refreshTokenBySlug.contract,
-            tokenId,
-            community: collection.community,
-            forceRefresh: false,
-          },
-          0,
-          this.queueName
-        ),
+        collectionMetadataQueueJob.addToQueue({
+          contract: refreshTokenBySlug.contract,
+          tokenId,
+          community: collection.community,
+          forceRefresh: false,
+        }),
       ]);
     }
   }

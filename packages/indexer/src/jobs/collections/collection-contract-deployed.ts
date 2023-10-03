@@ -53,9 +53,9 @@ export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler
 
     const { symbol, name } = await getContractNameAndSymbol(contract);
 
-    if (!name) {
-      logger.warn(this.queueName, `Collection ${contract} has no name`);
-    }
+    // if (!name) {
+    //   logger.warn(this.queueName, `Collection ${contract} has no name`);
+    // }
 
     await Promise.all([
       idb.none(
@@ -120,11 +120,6 @@ export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler
         // Refresh the on-chain royalties
         await registry.refreshRegistryRoyalties(contract);
         await royalties.refreshDefaultRoyalties(contract);
-
-        logger.info(
-          this.queueName,
-          `Refreshing deployed collection on chain royalties. collectionId=${contract}`
-        );
       } catch (error) {
         logger.error(
           this.queueName,

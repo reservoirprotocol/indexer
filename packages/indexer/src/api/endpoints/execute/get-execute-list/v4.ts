@@ -315,15 +315,6 @@ export const getExecuteListV4Options: RouteOptions = {
               throw Boom.badRequest("Only `reservoir` and `opensea` are supported as orderbooks");
             }
 
-            // OpenSea expects a royalty of at least 0.5%
-            if (
-              params.orderbook === "opensea" &&
-              params.royaltyBps !== undefined &&
-              Number(params.royaltyBps) < 50
-            ) {
-              throw Boom.badRequest("Royalties should be at least 0.5% when posting to OpenSea");
-            }
-
             const order = await seaportV15SellToken.build({
               ...params,
               maker,

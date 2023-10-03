@@ -2,14 +2,9 @@
 
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import _ from "lodash";
-import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { idb, ridb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
-import { refreshActivitiesTokenMetadataJob } from "@/jobs/activities/refresh-activities-token-metadata-job";
-import { updateCollectionDailyVolumeJob } from "@/jobs/collection-updates/update-collection-daily-volume-job";
-import { replaceActivitiesCollectionJob } from "@/jobs/activities/replace-activities-collection-job";
-import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
 import { getUnixTime } from "date-fns";
 import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
 import PgPromise from "pg-promise";
@@ -17,6 +12,9 @@ import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attr
 import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-attribute-value-counts-job";
 import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
 import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
+import { TokenMetadata } from "@/metadata/types";
+import { newCollectionForTokenJob } from "@/jobs/token-updates/new-collection-for-token-job";
+import { config } from "@/config/index";
 
 export type MetadataIndexWriteJobPayload = {
   collection: string;
@@ -38,6 +36,7 @@ export type MetadataIndexWriteJobPayload = {
   mediaUrl?: string;
   flagged?: boolean;
   isCopyrightInfringement?: boolean;
+  isFromWebhook?: boolean;
   attributes: {
     key: string;
     value: string;
@@ -76,7 +75,7 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       metadataOriginalUrl,
       mediaUrl,
       flagged,
-      isCopyrightInfringement,
+      isFromWebhook,
       attributes,
     } = payload;
 
@@ -145,57 +144,33 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
-    if (
-      isCopyrightInfringement ||
-      result.old_metadata.name != name ||
-      result.old_metadata.image != imageUrl ||
-      result.old_metadata.media != mediaUrl
-    ) {
-      await refreshActivitiesTokenMetadataJob.addToQueue(contract, tokenId);
-    }
-
     // If the new collection ID is different from the collection ID currently stored
     if (
+      !isFromWebhook &&
       result.collection_id !=
         "0x495f947276749ce646f68ac8c248420045cb7b5e:opensea-os-shared-storefront-collection" &&
       result.collection_id != collection
     ) {
       logger.info(
         this.queueName,
-        `New collection ${collection} for contract=${contract}, tokenId=${tokenId}, old collection=${result.collection_id}`
+        `New collection ${collection} for contract=${contract}, tokenId=${tokenId}, old collection=${result.collection_id} isFromWebhook ${isFromWebhook}`
       );
 
-      if (this.updateActivities(contract)) {
-        // Trigger a delayed job to recalc the daily volumes
-        await updateCollectionDailyVolumeJob.addToQueue({
-          newCollectionId: collection,
-          contract,
-        });
-
-        // Update the activities to the new collection
-        await replaceActivitiesCollectionJob.addToQueue({
-          contract,
-          tokenId,
-          newCollectionId: collection,
-          oldCollectionId: result.collection_id,
-        });
-      }
-
       // Set the new collection and update the token association
-      await fetchCollectionMetadataJob.addToQueue(
+      await newCollectionForTokenJob.addToQueue(
         [
           {
             contract,
             tokenId,
             mintedTimestamp: getUnixTime(new Date(result.created_at)),
-            newCollection: true,
+            newCollectionId: collection,
             oldCollectionId: result.collection_id,
-            context: "write-queue",
           },
         ],
         `${contract}:${tokenId}`
       );
 
+      // Stop processing the token metadata
       return;
     }
 
@@ -515,7 +490,7 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
     return true;
   }
 
-  public async addToQueue(tokenMetadataInfos: MetadataIndexWriteJobPayload[]) {
+  public async addToQueue(tokenMetadataInfos: TokenMetadata[]) {
     await this.sendBatch(
       tokenMetadataInfos
         .map((tokenMetadataInfo) => ({

@@ -4,9 +4,9 @@ import { Contract, utils } from "ethers";
 
 import axios from "axios";
 import { baseProvider } from "@/common/provider";
-import { TokenMetadata } from "@/utils/metadata-api";
+import { TokenMetadata } from "@/metadata/types";
 
-export const extend = async (_chainId: number, metadata: TokenMetadata) => {
+export const extend = async (metadata: TokenMetadata) => {
   const nft = new Contract(
     metadata.contract,
     new utils.Interface(["function immutableAttributeURI(uint256 tokenId) view returns (string)"]),

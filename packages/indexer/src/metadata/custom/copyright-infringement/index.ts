@@ -1,15 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-export const fetchCollection = async (
-  _chainId: number,
-  {
-    contract,
-    _tokenId,
-  }: {
-    contract: string;
-    _tokenId: string;
-  }
-) => {
+export const fetchCollection = async ({
+  contract,
+  tokenId,
+}: {
+  contract: string;
+  tokenId: string;
+}) => {
   return {
     id: contract,
     slug: contract,
@@ -25,19 +22,10 @@ export const fetchCollection = async (
   };
 };
 
-export const fetchToken = async (
-  _chainId: number,
-  {
-    contract,
-    _tokenId,
-  }: {
-    contract: string;
-    _tokenId: string;
-  }
-) => {
+export const fetchToken = async ({ contract, tokenId }: { contract: string; tokenId: string }) => {
   return {
     contract,
-    tokenId: _tokenId,
+    tokenId,
     collection: contract,
     slug: contract,
     name: null,
