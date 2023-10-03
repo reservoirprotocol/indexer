@@ -393,6 +393,11 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
             image: Assets.getLocalAssetsLink(r.collection_image),
             slug: r.slug,
           },
+          attributes: _.map(r.attributes, (attribute) => ({
+            key: attribute.key,
+            kind: attribute.kind,
+            value: attribute.value,
+          })),
         },
         market: {
           floorAsk: r.floor_sell_value && {
