@@ -84,6 +84,7 @@ export interface CollectionAggregation {
   image: string;
   primaryAssetContract: string;
   count: number;
+  volume: number;
 }
 
 export interface BuildActivityData extends BuildDocumentData {
