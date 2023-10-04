@@ -18,6 +18,7 @@ import { config } from "@/config/index";
 
 import { ActivityType } from "@/elasticsearch/indexes/activities/base";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { Sources } from "@/models/sources";
 
 const version = "v5";
 
@@ -115,6 +116,7 @@ export const getTokenActivityV5Options: RouteOptions = {
             .description("Txn hash from the blockchain."),
           logIndex: Joi.number().allow(null),
           batchIndex: Joi.number().allow(null),
+          fillSource: Joi.object().allow(null),
           order: JoiActivityOrder,
         })
       ),
@@ -294,6 +296,11 @@ export const getTokenActivityV5Options: RouteOptions = {
             : undefined;
         }
 
+        const sources = await Sources.getInstance();
+        const fillSource = activity.event?.fillSourceId
+          ? sources.get(activity.event?.fillSourceId)
+          : undefined;
+
         return {
           type: activity.type,
           fromAddress: activity.fromAddress,
@@ -336,6 +343,13 @@ export const getTokenActivityV5Options: RouteOptions = {
           txHash: activity.event?.txHash,
           logIndex: activity.event?.logIndex,
           batchIndex: activity.event?.batchIndex,
+          fillSource: fillSource
+            ? {
+                domain: fillSource?.domain,
+                name: fillSource?.getTitle(),
+                icon: fillSource?.getIcon(),
+              }
+            : undefined,
           order,
         };
       });

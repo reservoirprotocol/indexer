@@ -68,6 +68,7 @@ export const CONFIG_DEFAULT = {
           logIndex: { type: "integer" },
           batchIndex: { type: "integer" },
           blockHash: { type: "keyword" },
+          fillSourceId: { type: "integer" },
         },
       },
       pricing: {
@@ -174,6 +175,7 @@ export const CONFIG_1689873821 = {
           logIndex: { type: "integer" },
           batchIndex: { type: "integer" },
           blockHash: { type: "keyword" },
+          fillSourceId: { type: "integer" },
         },
       },
       pricing: {
