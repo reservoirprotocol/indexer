@@ -46,16 +46,14 @@ export class CollectionNormalizedJob extends AbstractRabbitMqJobHandler {
 
     let acquiredLock;
 
-    if ([5, 11155111, 137].includes(config.chainId)) {
-      if (!["revalidation"].includes(kind)) {
-        acquiredLock = await acquireLock(
-          `${this.queueName}-lock:${collectionResult.collection_id}`,
-          300
-        );
+    if (!["revalidation"].includes(kind)) {
+      acquiredLock = await acquireLock(
+        `${this.queueName}-lock:${collectionResult.collection_id}`,
+        300
+      );
 
-        if (!acquiredLock) {
-          return;
-        }
+      if (!acquiredLock) {
+        return;
       }
     }
 
