@@ -70,6 +70,23 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
     const acquiredLock = await acquireLock(lockId, 120);
 
     if (acquiredLock) {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "backfill-activities",
+          message: `Acquired lock. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}`,
+          type,
+          fromTimestamp,
+          fromTimestampISO,
+          toTimestamp,
+          toTimestampISO,
+          cursor,
+          indexName,
+          keepGoing,
+          lockId,
+        })
+      );
+
       try {
         const { activities, nextCursor } = await getActivities(
           type,
@@ -174,9 +191,30 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
       }
 
       await releaseLock(lockId);
-    } else {
+
       const lockExists = await doesLockExist(lockId);
 
+      if (lockExists) {
+        await releaseLock(lockId);
+
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "backfill-activities",
+            message: `Retry to release lock. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}`,
+            type,
+            fromTimestamp,
+            fromTimestampISO,
+            toTimestamp,
+            toTimestampISO,
+            cursor,
+            indexName,
+            keepGoing,
+            lockId,
+          })
+        );
+      }
+    } else {
       logger.info(
         this.queueName,
         JSON.stringify({
@@ -191,9 +229,10 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           indexName,
           keepGoing,
           lockId,
-          lockExists,
         })
       );
+
+      return;
     }
 
     if (addToQueue) {
