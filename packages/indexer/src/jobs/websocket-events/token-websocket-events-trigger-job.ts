@@ -319,6 +319,10 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
           t.is_flagged,
           t.last_flag_update,
           t.last_flag_change,
+          t.created_at,
+          t.updated_at,
+          t.supply,
+          t.remaining_supply,
           c.slug,
           (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
           (SELECT
@@ -391,7 +395,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
           collection: {
             id: r.collection_id,
             name: r.collection_name,
-            image: Assets.getLocalAssetsLink(r.collection_image),
+            image: r?.collection_image ? Assets.getLocalAssetsLink(r.collection_image) : null,
             slug: r.slug,
           },
           attributes: _.map(r.attributes, (attribute) => ({
@@ -453,6 +457,8 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
               url: normalizedFloorSellSource?.metadata.url,
             },
           },
+          createdAt: new Date(r.created_at).toISOString(),
+          updatedAt: new Date(r.updated_at).toISOString(),
         },
       };
 
