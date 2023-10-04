@@ -195,6 +195,8 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
       const lockExists = await doesLockExist(lockId);
 
       if (lockExists) {
+        await releaseLock(lockId);
+
         logger.info(
           this.queueName,
           JSON.stringify({
