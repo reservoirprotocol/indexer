@@ -18,7 +18,7 @@ import { BidCancelledEventHandler } from "@/elasticsearch/indexes/activities/eve
 import { FillEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/fill-event-created";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { NftTransferEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/nft-transfer-event-created";
-import { redis } from "@/common/redis";
+import { acquireLock, doesLockExist, redis, releaseLock } from "@/common/redis";
 import crypto from "crypto";
 import { ActivityDocument } from "@/elasticsearch/indexes/activities/base";
 
@@ -67,15 +67,14 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
       )
       .digest("hex");
 
-    const acquiredLock = true;
-    // const acquiredLock = await acquireLock(lockId, 120);
+    const acquiredLock = await acquireLock(lockId, 60);
 
     if (acquiredLock) {
       logger.info(
         this.queueName,
         JSON.stringify({
           topic: "backfill-activities",
-          message: `getActivities. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}`,
+          message: `acquiredLock. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}`,
           type,
           fromTimestamp,
           fromTimestampISO,
@@ -186,35 +185,35 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           })
         );
 
-        // await releaseLock(lockId);
+        await releaseLock(lockId);
 
         throw error;
       }
 
-      // await releaseLock(lockId);
-      //
-      // const lockExists = await doesLockExist(lockId);
-      //
-      // if (lockExists) {
-      //   await releaseLock(lockId);
-      //
-      //   logger.info(
-      //     this.queueName,
-      //     JSON.stringify({
-      //       topic: "backfill-activities",
-      //       message: `Retry to release lock. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}`,
-      //       type,
-      //       fromTimestamp,
-      //       fromTimestampISO,
-      //       toTimestamp,
-      //       toTimestampISO,
-      //       cursor,
-      //       indexName,
-      //       keepGoing,
-      //       lockId,
-      //     })
-      //   );
-      // }
+      await releaseLock(lockId);
+
+      const lockExists = await doesLockExist(lockId);
+
+      if (lockExists) {
+        await releaseLock(lockId);
+
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "backfill-activities",
+            message: `Retry to release lock. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}`,
+            type,
+            fromTimestamp,
+            fromTimestampISO,
+            toTimestamp,
+            toTimestampISO,
+            cursor,
+            indexName,
+            keepGoing,
+            lockId,
+          })
+        );
+      }
     } else {
       logger.info(
         this.queueName,
@@ -269,30 +268,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
       );
       await redis.decr(`backfill-activities-elasticsearch-job-count:${type}`);
     }
-
-    // return { addToQueue, nextCursor: addToQueueCursor };
   }
-
-  // public events() {
-  //   this.once(
-  //     "onCompleted",
-  //     async (
-  //       message: RabbitMQMessage,
-  //       processResult: { addToQueue: boolean; nextCursor?: OrderCursorInfo | EventCursorInfo }
-  //     ) => {
-  //       if (processResult.addToQueue) {
-  //         await this.addToQueue(
-  //           message.payload.type,
-  //           processResult.nextCursor,
-  //           message.payload.fromTimestamp,
-  //           message.payload.toTimestamp,
-  //           message.payload.indexName,
-  //           message.payload.keepGoing
-  //         );
-  //       }
-  //     }
-  //   );
-  // }
 
   public async addToQueue(
     type: "ask" | "ask-cancel" | "bid" | "bid-cancel" | "sale" | "transfer",
@@ -306,17 +282,9 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
       return;
     }
 
-    // const jobId = crypto
-    //   .createHash("sha256")
-    //   .update(
-    //     `${type}:${JSON.stringify(cursor)}${fromTimestamp}:${toTimestamp}:${indexName}:${keepGoing}`
-    //   )
-    //   .digest("hex");
-
     return this.send(
       {
         payload: { type, cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
-        // jobId,
       },
       keepGoing ? 5000 : 0
     );
