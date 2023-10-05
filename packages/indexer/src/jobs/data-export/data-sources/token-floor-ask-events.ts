@@ -44,23 +44,26 @@ export class TokenFloorAskEventsDataSource extends BaseDataSource {
 
     if (result.length) {
       const sources = await Sources.getInstance();
-      const data = result.map((r) => ({
-        id: r.id,
-        kind: r.kind,
-        contract: fromBuffer(r.contract),
-        token_id: r.token_id,
-        order_id: r.order_id,
-        maker: r.maker ? fromBuffer(r.maker) : null,
-        price: r.price ? r.price.toString() : null,
-        previous_price: r.previous_price ? r.previous_price.toString() : null,
-        nonce: r.nonce,
-        valid_from: r.valid_from ? Number(r.valid_from) : null,
-        valid_until: r.valid_until ? Number(r.valid_until) : null,
-        source: sources.get(r.source_id_int)?.name,
-        tx_hash: r.tx_hash ? fromBuffer(r.tx_hash) : null,
-        tx_timestamp: r.tx_timestamp ? Number(r.tx_timestamp) : null,
-        created_at: new Date(r.created_at * 1000).toISOString(),
-      }));
+      const data = result.map((r) => {
+        const source = sources.get(r.source_id_int);
+        return {
+          id: r.id,
+          kind: r.kind,
+          contract: fromBuffer(r.contract),
+          token_id: r.token_id,
+          order_id: r.order_id,
+          maker: r.maker ? fromBuffer(r.maker) : null,
+          price: r.price ? r.price.toString() : null,
+          previous_price: r.previous_price ? r.previous_price.toString() : null,
+          nonce: r.nonce,
+          valid_from: r.valid_from ? Number(r.valid_from) : null,
+          valid_until: r.valid_until ? Number(r.valid_until) : null,
+          source: source ? source.name : null,
+          tx_hash: r.tx_hash ? fromBuffer(r.tx_hash) : null,
+          tx_timestamp: r.tx_timestamp ? Number(r.tx_timestamp) : null,
+          created_at: new Date(r.created_at * 1000).toISOString(),
+        };
+      });
 
       const lastResult = result[result.length - 1];
 

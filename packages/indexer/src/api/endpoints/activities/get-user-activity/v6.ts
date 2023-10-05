@@ -10,8 +10,10 @@ import * as Boom from "@hapi/boom";
 import {
   getJoiActivityOrderObject,
   getJoiPriceObject,
+  getJoiSourceObject,
   JoiActivityOrder,
   JoiPrice,
+  JoiSource,
 } from "@/common/joi";
 import { ContractSets } from "@/models/contract-sets";
 import { config } from "@/config/index";
@@ -160,7 +162,7 @@ export const getUserActivityV6Options: RouteOptions = {
             .description("Txn hash from the blockchain."),
           logIndex: Joi.number().allow(null),
           batchIndex: Joi.number().allow(null),
-          fillSource: Joi.object().allow(null),
+          fillSource: JoiSource.allow(null),
           order: JoiActivityOrder,
           createdAt: Joi.string(),
         })
@@ -416,13 +418,7 @@ export const getUserActivityV6Options: RouteOptions = {
           txHash: activity.event?.txHash,
           logIndex: activity.event?.logIndex,
           batchIndex: activity.event?.batchIndex,
-          fillSource: fillSource
-            ? {
-                domain: fillSource?.domain,
-                name: fillSource?.getTitle(),
-                icon: fillSource?.getIcon(),
-              }
-            : undefined,
+          fillSource: fillSource ? getJoiSourceObject(fillSource, false) : undefined,
           order,
         };
       });

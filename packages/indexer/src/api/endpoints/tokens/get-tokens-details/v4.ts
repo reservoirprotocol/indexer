@@ -16,7 +16,7 @@ import {
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
-import { JoiAttributeValue } from "@/common/joi";
+import { JoiAttributeValue, JoiSource, getJoiSourceObject } from "@/common/joi";
 import * as Boom from "@hapi/boom";
 
 const version = "v4";
@@ -135,7 +135,7 @@ export const getTokensDetailsV4Options: RouteOptions = {
               maker: Joi.string().lowercase().pattern(regex.address).allow(null),
               validFrom: Joi.number().unsafe().allow(null),
               validUntil: Joi.number().unsafe().allow(null),
-              source: Joi.object().allow(null),
+              source: JoiSource.allow(null),
             },
             topBid: Joi.object({
               id: Joi.string().allow(null),
@@ -497,13 +497,7 @@ export const getTokensDetailsV4Options: RouteOptions = {
               maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
               validFrom: r.floor_sell_value ? r.floor_sell_valid_from : null,
               validUntil: r.floor_sell_value ? r.floor_sell_valid_to : null,
-              source: {
-                id: source?.address,
-                domain: source?.domain,
-                name: source?.getTitle(),
-                icon: source?.getIcon(),
-                url: source?.metadata.url,
-              },
+              source: getJoiSourceObject(source),
             },
             topBid: query.includeTopBid
               ? {

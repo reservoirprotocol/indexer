@@ -16,7 +16,13 @@ import {
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
 import _ from "lodash";
-import { getJoiPriceObject, JoiOrderCriteria, JoiPrice } from "@/common/joi";
+import {
+  getJoiPriceObject,
+  getJoiSourceObject,
+  JoiOrderCriteria,
+  JoiPrice,
+  JoiSource,
+} from "@/common/joi";
 import { Orders } from "@/utils/orders";
 import { ContractSets } from "@/models/contract-sets";
 import * as Boom from "@hapi/boom";
@@ -112,7 +118,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
           validFrom: Joi.number().unsafe(),
           validUntil: Joi.number().unsafe(),
           floorDifferencePercentage: Joi.number().unsafe(),
-          source: Joi.object().allow(null),
+          source: JoiSource.allow(null),
           feeBreakdown: Joi.array()
             .items(
               Joi.object({
@@ -349,13 +355,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
             validFrom: r.top_bid_valid_from,
             validUntil: r.top_bid_valid_until,
             floorDifferencePercentage: _.round(r.floor_difference_percentage || 0, 2),
-            source: {
-              id: source?.address,
-              domain: source?.domain,
-              name: source?.getTitle(),
-              icon: source?.getIcon(),
-              url: source?.metadata.url,
-            },
+            source: getJoiSourceObject(source),
             feeBreakdown,
             criteria: r.bid_criteria,
             token: {

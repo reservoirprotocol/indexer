@@ -108,26 +108,6 @@ jobs:
         working-directory: k8s-configs
         run: |
           ./utils/version_update.sh \
-            ./dev/platform/indexer-goerli.yaml \
-            ${{ github.sha }} \
-            indexer-goerli
-          ./utils/version_update.sh \
-            ./dev/platform/indexer-worker-goerli.yaml \
-            ${{ github.sha }} \
-            indexer-worker-goerli
-          ./utils/version_update.sh \
-            ./dev/platform/indexer-worker-goerli-master.yaml \
-            ${{ github.sha }} \
-            indexer-worker-goerli-master
-          ./utils/version_update.sh \
-            ./dev/platform/indexer-websocket-goerli.yaml \
-            ${{ github.sha }} \
-            indexer-websocket-goerli
-          ./utils/version_update.sh \
-            ./dev/platform/indexer-kafka-worker-goerli.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-goerli
-          ./utils/version_update.sh \
             ./dev/platform/indexer-sepolia.yaml \
             ${{ github.sha }} \
             indexer-sepolia
@@ -377,7 +357,7 @@ jobs:
           ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-base-goerli.yaml \
             ${{ github.sha }} \
-            indexer-websocket-base-goerli   
+            indexer-websocket-base-goerli
           ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-zora-testnet.yaml \
             ${{ github.sha }} \

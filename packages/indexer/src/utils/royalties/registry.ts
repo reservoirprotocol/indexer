@@ -10,6 +10,9 @@ import { bn, fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Royalty, updateRoyaltySpec } from "@/utils/royalties";
 
+// The royalties are returned in full amounts, but we store them as a percentage
+// so here we just use a default price (which is a round number) and deduce then
+// deduce the percentage taken as royalties from that
 const DEFAULT_PRICE = "1000000000000000000";
 
 // Assume there are no per-token royalties but everything is per-contract
@@ -76,7 +79,10 @@ export const refreshRegistryRoyalties = async (collection: string) => {
 
 const internalGetRegistryRoyalties = async (token: string, tokenId: string) => {
   const latestRoyalties: Royalty[] = [];
+
   if (Sdk.Common.Addresses.RoyaltyEngine[config.chainId]) {
+    // When configured / available, use the royalty engine
+
     const royaltyEngine = new Contract(
       Sdk.Common.Addresses.RoyaltyEngine[config.chainId],
       new Interface([
@@ -95,9 +101,6 @@ const internalGetRegistryRoyalties = async (token: string, tokenId: string) => {
     );
 
     try {
-      // The royalties are returned in full amounts, but we store them as a percentage
-      // so here we just use a default price (which is a round number) and deduce then
-      // deduce the percentage taken as royalties from that
       const { recipients, amounts } = await royaltyEngine
         .getRoyaltyView(token, tokenId, DEFAULT_PRICE)
         .catch(() => ({ recipients: [], amounts: [] }));
@@ -108,6 +111,7 @@ const internalGetRegistryRoyalties = async (token: string, tokenId: string) => {
         if (bn(amount).gte(DEFAULT_PRICE)) {
           throw new Error("Royalty exceeds price");
         }
+
         const bps = Math.round(bn(amount).mul(10000).div(DEFAULT_PRICE).toNumber());
         latestRoyalties.push({ recipient, bps });
       }
@@ -119,6 +123,39 @@ const internalGetRegistryRoyalties = async (token: string, tokenId: string) => {
           message: `Error. token=${token}, tokenId=${tokenId}, error=${error}`,
         })
       );
+    }
+  } else {
+    // Otherwise, use EIP-2981 on-chain royalty information
+
+    const contract = new Contract(
+      token,
+      new Interface([
+        `
+          function royaltyInfo(
+            uint256 tokenId,
+            uint256 value
+          ) external view returns (
+            address recipient,
+            uint256 amount
+          )
+        `,
+      ]),
+      baseProvider
+    );
+
+    try {
+      const result = await contract.royaltyInfo(tokenId, DEFAULT_PRICE);
+
+      const recipient = result.recipient.toLowerCase();
+      const amount = result.amount;
+      if (bn(amount).gte(DEFAULT_PRICE)) {
+        throw new Error("Royalty exceeds price");
+      }
+
+      const bps = Math.round(bn(amount).mul(10000).div(DEFAULT_PRICE).toNumber());
+      latestRoyalties.push({ recipient, bps });
+    } catch {
+      // Skip errors
     }
   }
 

@@ -9,6 +9,7 @@ import * as utils from "@/events-sync/utils";
 import { config } from "@/config/index";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as paymentProcessor from "@/orderbook/orders/payment-processor";
+import * as paymentProcessorUtils from "@/utils/payment-processor";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
@@ -526,6 +527,27 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             }
           }
         }
+
+        break;
+      }
+
+      case "payment-processor-created-or-updated-security-policy": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const securityPolicyId = parsedLog.args.securityPolicyId.toString();
+
+        // Refresh
+        await paymentProcessorUtils.getSecurityPolicyById(securityPolicyId, true);
+
+        break;
+      }
+
+      case "payment-processor-updated-collection-payment-coin":
+      case "payment-processor-updated-collection-security-policy": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const tokenAddress = parsedLog.args["tokenAddress"].toLowerCase();
+
+        // Refresh
+        await paymentProcessorUtils.getConfigByContract(tokenAddress, true);
 
         break;
       }

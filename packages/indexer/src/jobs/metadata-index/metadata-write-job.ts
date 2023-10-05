@@ -5,7 +5,7 @@ import _ from "lodash";
 import { logger } from "@/common/logger";
 import { idb, ridb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
-import { getUnixTime } from "date-fns";
+import { add, getUnixTime, isAfter } from "date-fns";
 import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
 import PgPromise from "pg-promise";
 import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attribute-key-counts-job";
@@ -15,6 +15,8 @@ import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribu
 import { TokenMetadata } from "@/metadata/types";
 import { newCollectionForTokenJob } from "@/jobs/token-updates/new-collection-for-token-job";
 import { config } from "@/config/index";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { redis } from "@/common/redis";
 import { tokenWebsocketEventsTriggerJob } from "@/jobs/websocket-events/token-websocket-events-trigger-job";
 
 export type MetadataIndexWriteJobPayload = {
@@ -44,6 +46,7 @@ export type MetadataIndexWriteJobPayload = {
     kind: "string" | "number" | "date" | "range";
     rank?: number;
   }[];
+  metadataMethod?: string;
 };
 
 export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
@@ -78,6 +81,7 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       flagged,
       isFromWebhook,
       attributes,
+      metadataMethod,
     } = payload;
 
     // Update the token's metadata
@@ -106,7 +110,7 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
           metadata_updated_at = now()
         WHERE tokens.contract = $/contract/
         AND tokens.token_id = $/tokenId/
-        RETURNING collection_id, created_at, (
+        RETURNING collection_id, created_at, image, name, (
           SELECT
           json_build_object(
             'name', tokens.name,
@@ -169,6 +173,38 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
 
       // Stop processing the token metadata
       return;
+    }
+
+    // If this is a new token and there's still no metadata (exclude mainnet)
+    if (
+      config.chainId !== 1 &&
+      _.isNull(result.image) &&
+      _.isNull(result.name) &&
+      isAfter(add(new Date(result.created_at), { minutes: 60 }), Date.now())
+    ) {
+      await redis.set(`retry-metadata${contract}-${tokenId}`, _.now(), "EX", 60 * 60);
+      logger.warn(this.queueName, `no metadata fetched for ${JSON.stringify(payload)}`);
+
+      // Requeue the token for metadata fetching and stop processing
+      return metadataIndexFetchJob.addToQueue(
+        [
+          {
+            kind: "single-token",
+            data: {
+              method: metadataMethod || config.metadataIndexingMethod,
+              contract,
+              tokenId,
+              collection,
+            },
+          },
+        ],
+        false,
+        10 * 60
+      );
+    }
+
+    if (config.chainId !== 1 && (await redis.get(`retry-metadata-${contract}-${tokenId}`))) {
+      logger.info(this.queueName, `metadata fetched for ${JSON.stringify(payload)}`);
     }
 
     if (flagged != null) {

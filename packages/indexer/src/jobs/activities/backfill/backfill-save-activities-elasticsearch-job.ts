@@ -18,7 +18,7 @@ import { BidCancelledEventHandler } from "@/elasticsearch/indexes/activities/eve
 import { FillEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/fill-event-created";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { NftTransferEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/nft-transfer-event-created";
-import { acquireLock, doesLockExist, redis, releaseLock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import crypto from "crypto";
 import { ActivityDocument } from "@/elasticsearch/indexes/activities/base";
 
@@ -67,14 +67,15 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
       )
       .digest("hex");
 
-    const acquiredLock = await acquireLock(lockId, 120);
+    const acquiredLock = true;
+    // const acquiredLock = await acquireLock(lockId, 120);
 
     if (acquiredLock) {
       logger.info(
         this.queueName,
         JSON.stringify({
           topic: "backfill-activities",
-          message: `Acquired lock. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}`,
+          message: `getActivities. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}`,
           type,
           fromTimestamp,
           fromTimestampISO,
@@ -185,35 +186,35 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           })
         );
 
-        await releaseLock(lockId);
+        // await releaseLock(lockId);
 
         throw error;
       }
 
-      await releaseLock(lockId);
-
-      const lockExists = await doesLockExist(lockId);
-
-      if (lockExists) {
-        await releaseLock(lockId);
-
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "backfill-activities",
-            message: `Retry to release lock. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}`,
-            type,
-            fromTimestamp,
-            fromTimestampISO,
-            toTimestamp,
-            toTimestampISO,
-            cursor,
-            indexName,
-            keepGoing,
-            lockId,
-          })
-        );
-      }
+      // await releaseLock(lockId);
+      //
+      // const lockExists = await doesLockExist(lockId);
+      //
+      // if (lockExists) {
+      //   await releaseLock(lockId);
+      //
+      //   logger.info(
+      //     this.queueName,
+      //     JSON.stringify({
+      //       topic: "backfill-activities",
+      //       message: `Retry to release lock. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}`,
+      //       type,
+      //       fromTimestamp,
+      //       fromTimestampISO,
+      //       toTimestamp,
+      //       toTimestampISO,
+      //       cursor,
+      //       indexName,
+      //       keepGoing,
+      //       lockId,
+      //     })
+      //   );
+      // }
     } else {
       logger.info(
         this.queueName,

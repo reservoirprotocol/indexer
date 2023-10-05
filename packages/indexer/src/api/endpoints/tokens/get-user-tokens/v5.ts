@@ -9,7 +9,7 @@ import { formatEth, fromBuffer, regex, toBuffer } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
-import { getJoiPriceObject, JoiPrice } from "@/common/joi";
+import { getJoiPriceObject, getJoiSourceObject, JoiPrice, JoiSource } from "@/common/joi";
 import { Sources } from "@/models/sources";
 import _ from "lodash";
 
@@ -132,7 +132,7 @@ export const getUserTokensV5Options: RouteOptions = {
               maker: Joi.string().lowercase().pattern(regex.address).allow(null),
               validFrom: Joi.number().unsafe().allow(null),
               validUntil: Joi.number().unsafe().allow(null),
-              source: Joi.object().allow(null),
+              source: JoiSource.allow(null),
             },
             acquiredAt: Joi.string().allow(null),
           }),
@@ -427,13 +427,7 @@ export const getUserTokensV5Options: RouteOptions = {
               maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
               validFrom: r.floor_sell_value ? r.floor_sell_valid_from : null,
               validUntil: r.floor_sell_value ? r.floor_sell_valid_to : null,
-              source: {
-                id: floorSellSource?.address,
-                domain: floorSellSource?.domain,
-                name: floorSellSource?.getTitle(),
-                icon: floorSellSource?.getIcon(),
-                url: floorSellSource?.metadata.url,
-              },
+              source: getJoiSourceObject(floorSellSource),
             },
             acquiredAt: r.acquired_at ? new Date(r.acquired_at).toISOString() : null,
           },

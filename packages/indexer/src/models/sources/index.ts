@@ -270,12 +270,13 @@ export class Sources {
     id: number,
     contract?: string,
     tokenId?: string,
-    optimizeCheckoutURL = false
+    optimizeCheckoutURL = false,
+    returnDefault = false
   ): SourcesEntity | undefined {
-    let sourceEntity: SourcesEntity;
+    let sourceEntity: SourcesEntity | undefined;
     if (id in this.sources) {
       sourceEntity = _.cloneDeep(this.sources[id]);
-    } else {
+    } else if (returnDefault) {
       sourceEntity = _.cloneDeep(Sources.getDefaultSource());
     }
 
@@ -285,8 +286,10 @@ export class Sources {
         (!sourceEntity.metadata.tokenUrlMainnet?.includes("${contract}") &&
           !sourceEntity.metadata.tokenUrlMainnet?.includes("${tokenId}"))
       ) {
-        const defaultSource = Sources.getDefaultSource();
-        sourceEntity.metadata.url = this.getTokenUrl(defaultSource, contract, tokenId);
+        if (returnDefault) {
+          const defaultSource = Sources.getDefaultSource();
+          sourceEntity.metadata.url = this.getTokenUrl(defaultSource, contract, tokenId);
+        }
       } else {
         sourceEntity.metadata.url = this.getTokenUrl(sourceEntity, contract, tokenId);
       }
@@ -295,7 +298,7 @@ export class Sources {
     return sourceEntity;
   }
 
-  public getByDomain(domain: string, returnDefault = true): SourcesEntity | undefined {
+  public getByDomain(domain: string, returnDefault = false): SourcesEntity | undefined {
     let sourceEntity: SourcesEntity | undefined;
 
     if (_.toLower(domain) in this.sourcesByDomain) {
@@ -313,7 +316,7 @@ export class Sources {
     }
   }
 
-  public getByName(name: string, returnDefault = true): SourcesEntity | undefined {
+  public getByName(name: string, returnDefault = false): SourcesEntity | undefined {
     let sourceEntity: SourcesEntity | undefined;
 
     if (_.toLower(name) in this.sourcesByName) {

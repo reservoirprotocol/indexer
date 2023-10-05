@@ -7,7 +7,7 @@ import { idb } from "@/common/db";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { getNetAmount } from "@/common/utils";
-import { getJoiPriceObject } from "@/common/joi";
+import { getJoiPriceObject, getJoiSourceObject } from "@/common/joi";
 import _ from "lodash";
 import * as Sdk from "@reservoir0x/sdk";
 import { formatStatus, formatValidBetween } from "@/jobs/websocket-events/utils";
@@ -124,13 +124,7 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         quantityFilled: Number(data.after.quantity_filled),
         quantityRemaining: Number(data.after.quantity_remaining),
         criteria: rawResult.criteria,
-        source: {
-          id: source?.address,
-          domain: source?.domain,
-          name: source?.getTitle(),
-          icon: source?.getIcon(),
-          url: source?.metadata.url,
-        },
+        source: getJoiSourceObject(source),
         feeBps: Number(data.after.fee_bps.toString()),
         feeBreakdown: data.after.fee_breakdown ? JSON.parse(data.after.fee_breakdown) : undefined,
         expiration: Math.floor(new Date(data.after.expiration).getTime() / 1000),

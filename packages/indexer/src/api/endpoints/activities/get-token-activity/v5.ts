@@ -11,8 +11,10 @@ import { fromBuffer, regex } from "@/common/utils";
 import {
   getJoiActivityOrderObject,
   getJoiPriceObject,
+  getJoiSourceObject,
   JoiActivityOrder,
   JoiPrice,
+  JoiSource,
 } from "@/common/joi";
 import { config } from "@/config/index";
 
@@ -116,7 +118,7 @@ export const getTokenActivityV5Options: RouteOptions = {
             .description("Txn hash from the blockchain."),
           logIndex: Joi.number().allow(null),
           batchIndex: Joi.number().allow(null),
-          fillSource: Joi.object().allow(null),
+          fillSource: JoiSource.allow(null),
           order: JoiActivityOrder,
         })
       ),
@@ -343,13 +345,7 @@ export const getTokenActivityV5Options: RouteOptions = {
           txHash: activity.event?.txHash,
           logIndex: activity.event?.logIndex,
           batchIndex: activity.event?.batchIndex,
-          fillSource: fillSource
-            ? {
-                domain: fillSource?.domain,
-                name: fillSource?.getTitle(),
-                icon: fillSource?.getIcon(),
-              }
-            : undefined,
+          fillSource: fillSource ? getJoiSourceObject(fillSource, false) : undefined,
           order,
         };
       });

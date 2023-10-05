@@ -10,6 +10,7 @@ import { Sources } from "@/models/sources";
 
 import { ActivityType } from "@/elasticsearch/indexes/activities/base";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { JoiSource, getJoiSourceObject } from "@/common/joi";
 
 const version = "v3";
 
@@ -94,7 +95,7 @@ export const getUserActivityV3Options: RouteOptions = {
           txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null),
           logIndex: Joi.number().allow(null),
           batchIndex: Joi.number().allow(null),
-          source: Joi.object().allow(null),
+          source: JoiSource.allow(null),
           createdAt: Joi.string(),
         })
       ),
@@ -151,13 +152,7 @@ export const getUserActivityV3Options: RouteOptions = {
           txHash: activity.event?.txHash,
           logIndex: activity.event?.logIndex,
           batchIndex: activity.event?.batchIndex,
-          source: source
-            ? {
-                domain: source?.domain,
-                name: source?.getTitle(),
-                icon: source?.getIcon(),
-              }
-            : undefined,
+          source: getJoiSourceObject(source, false),
         };
       });
 

@@ -227,6 +227,8 @@ export const save = async (
             AddressZero,
             // Cancellation zone
             Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId],
+            // FxHash pausable zone
+            Sdk.SeaportBase.Addresses.FxHashPausableZone[config.chainId],
           ].includes(order.params.zone) &&
           // Protected offers zone
           !isProtectedOffer

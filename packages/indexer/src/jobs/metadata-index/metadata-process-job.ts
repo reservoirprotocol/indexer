@@ -104,6 +104,7 @@ export class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler {
     await metadataIndexWriteJob.addToQueue(
       metadata.map((m) => ({
         ...m,
+        metadataMethod: method,
       }))
     );
 
