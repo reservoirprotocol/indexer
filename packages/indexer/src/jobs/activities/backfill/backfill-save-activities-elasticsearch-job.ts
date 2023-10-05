@@ -144,6 +144,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
               hasErrors: bulkResponse.errors,
               errorItems: bulkResponse.items.filter((item) => item.index?.error),
               errorActivities,
+              payloadJSON: JSON.stringify(payload),
             })
           );
         } else if (keepGoing) {
@@ -229,6 +230,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           indexName,
           keepGoing,
           lockId,
+          payloadJSON: JSON.stringify(payload),
         })
       );
 
