@@ -42,7 +42,9 @@ export const getRoyalties = async (
   } else if (returnAll) {
     const royalties: Royalty[] = [];
     _.each(royaltiesResult.new_royalties ?? {}, (r) => royalties.push(...r));
-    return _.uniqBy(royalties, "recipient"); // Return only uniq address
+
+    // Return unique addresses only
+    return _.uniqBy(royalties, "recipient");
   } else {
     return (royaltiesResult.new_royalties ?? {})[spec] ?? [];
   }
@@ -136,7 +138,9 @@ export const getRoyaltiesByTokenSet = async (
   } else if (returnAll) {
     const royalties: Royalty[] = [];
     _.each(royaltiesResult.new_royalties ?? {}, (r) => royalties.push(...r));
-    return _.uniqBy(royalties, "recipient"); // Return only uniq address
+
+    // Return unique addresses only
+    return _.uniqBy(royalties, "recipient");
   } else {
     return (royaltiesResult.new_royalties ?? {})[spec] ?? [];
   }

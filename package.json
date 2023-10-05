@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "start": "turbo run start",
+    "start": "turbo run start --log-prefix=none",
     "commitlint": "commitlint --edit",
     "lint-check": "eslint --cache --max-warnings 0 \"packages/**/src/**/*.+(js|ts|json)\"",
     "format-check": "prettier --cache --check \"packages/**/src/**/*.+(js|ts|json)\"",

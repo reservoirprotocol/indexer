@@ -223,7 +223,6 @@ export const getNetworkSettings = (): NetworkSettings => {
       indexes: {
         activities: {
           numberOfShards: 2,
-          disableMappingsUpdate: true,
           configName: "CONFIG_1689873821",
         },
       },
@@ -441,6 +440,7 @@ export const getNetworkSettings = (): NetworkSettings => {
           indexes: {
             activities: {
               numberOfShards: 50,
+              configName: "CONFIG_DEFAULT",
             },
           },
         },
@@ -945,6 +945,17 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           },
         },
+        whitelistedCurrencies: new Map([
+          [
+            "0x9e9fce924fe52869d13944e9eef02e4db0b2db7d",
+            {
+              contract: "0x9e9fce924fe52869d13944e9eef02e4db0b2db7d",
+              name: "FEWL",
+              symbol: "FEWL",
+              decimals: 18,
+            },
+          ],
+        ]),
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([

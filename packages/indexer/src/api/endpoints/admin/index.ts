@@ -2,6 +2,7 @@ export * from "@/api/endpoints/admin/get-api-key-details";
 export * from "@/api/endpoints/admin/get-marketplaces";
 export * from "@/api/endpoints/admin/get-open-api";
 export * from "@/api/endpoints/admin/get-rate-limit-rules";
+export * from "@/api/endpoints/admin/get-provider-metadata";
 export * from "@/api/endpoints/admin/post-calc-rarity";
 export * from "@/api/endpoints/admin/post-create-rate-limit-rule";
 export * from "@/api/endpoints/admin/post-delete-rate-limit-rule";

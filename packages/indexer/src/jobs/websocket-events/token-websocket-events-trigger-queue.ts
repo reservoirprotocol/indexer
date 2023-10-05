@@ -9,7 +9,7 @@ import _ from "lodash";
 
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
 import { idb } from "@/common/db";
-import { getJoiPriceObject } from "@/common/joi";
+import { getJoiPriceObject, getJoiSourceObject } from "@/common/joi";
 import { toBuffer } from "@/common/utils";
 import { Assets } from "@/utils/assets";
 
@@ -152,13 +152,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
               validFrom: data.after.floor_sell_value ? data.after.floor_sell_valid_from : null,
               validUntil: data.after.floor_sell_value ? data.after.floor_sell_valid_to : null,
 
-              source: {
-                id: floorSellSource?.address,
-                domain: floorSellSource?.domain,
-                name: floorSellSource?.getTitle(),
-                icon: floorSellSource?.getIcon(),
-                url: floorSellSource?.metadata.url,
-              },
+              source: getJoiSourceObject(floorSellSource),
             },
             floorAskNormalized: data.after.normalized_floor_sell_value && {
               id: data.after.normalized_floor_sell_id,
@@ -185,13 +179,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
               validUntil: data.after.normalized_floor_sell_value
                 ? data.after.normalized_floor_sell_valid_to
                 : null,
-              source: {
-                id: normalizedFloorSellSource?.address,
-                domain: normalizedFloorSellSource?.domain,
-                name: normalizedFloorSellSource?.getTitle(),
-                icon: normalizedFloorSellSource?.getIcon(),
-                url: normalizedFloorSellSource?.metadata.url,
-              },
+              source: getJoiSourceObject(normalizedFloorSellSource),
             },
           },
           createdAt: new Date(data.after.created_at).toISOString(),

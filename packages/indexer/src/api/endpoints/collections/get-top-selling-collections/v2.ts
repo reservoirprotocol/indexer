@@ -4,7 +4,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import _ from "lodash";
 import Joi from "joi";
 import { logger } from "@/common/logger";
-import { fromBuffer, regex } from "@/common/utils";
+import { fromBuffer, regex, toBuffer } from "@/common/utils";
 import { redb } from "@/common/db";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
@@ -24,7 +24,6 @@ const version = "v2";
 
 export const getTopSellingCollectionsV2Options: RouteOptions = {
   cache: {
-    expiresIn: 60 * 1000,
     privacy: "public",
   },
   description: "Top Selling Collections",
@@ -211,14 +210,16 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
       `;
       }
 
-      const collectionIdList = collectionsResult
-        .map((collection: any) => `'${collection.id}'`)
-        .join(", ");
+      let collections = [];
 
-      const baseQuery = `
+      if (collectionsResult.length) {
+        request.query.contract = collectionsResult.map((collection: any) =>
+          toBuffer(collection.primaryContract)
+        );
+
+        const baseQuery = `
         SELECT
           collections.id,
-          collections.name,
           collections.contract,
           collections.token_count,
           collections.owner_count,
@@ -226,99 +227,97 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
           collections.day7_volume_change,
           collections.day30_volume_change,
           (collections.metadata ->> 'bannerImageUrl')::TEXT AS "banner",
-          (collections.metadata ->> 'imageUrl')::TEXT AS "image",
           (collections.metadata ->> 'description')::TEXT AS "description",
           ${floorAskSelectQuery}
           FROM collections
-          WHERE collections.id IN (${collectionIdList})
+          WHERE collections.contract IN ($/contract:csv/)
       `;
 
-      const resultsPromise = redb.manyOrNone(baseQuery);
-      const recentSalesPromise = collectionsResult.map(async (collection: any) => {
-        return {
-          ...collection,
-          recentSales: includeRecentSales
-            ? await Promise.all(
-                collection.recentSales.map(async (sale: any) => {
-                  const { pricing, ...salesData } = sale;
-                  const price = pricing
-                    ? await getJoiPriceObject(
-                        {
-                          gross: {
-                            amount: String(pricing?.currencyPrice ?? pricing?.price ?? 0),
-                            nativeAmount: String(pricing?.price ?? 0),
-                            usdAmount: String(pricing.usdPrice ?? 0),
-                          },
-                        },
-                        pricing.currency
-                      )
-                    : null;
-
-                  return {
-                    ...salesData,
-                    price,
-                  };
-                })
-              )
-            : [],
-        };
-      });
-
-      const responses = await Promise.all([resultsPromise, ...recentSalesPromise]);
-
-      const collectionMetadataResponse = responses.shift();
-      const collectionsMetadata: Record<string, any> = {};
-      if (collectionMetadataResponse && Array.isArray(collectionMetadataResponse)) {
-        collectionMetadataResponse.forEach((metadata: any) => {
-          collectionsMetadata[metadata.id] = metadata;
-        });
-      }
-      const sources = await Sources.getInstance();
-
-      const collections = await Promise.all(
-        responses.map(async (response: any) => {
-          const metadata = collectionsMetadata[(response as any).id] || {};
-          let floorAsk;
-          if (metadata) {
-            const floorAskCurrency = metadata.floor_sell_currency
-              ? fromBuffer(metadata.floor_sell_currency)
-              : Sdk.Common.Addresses.Native[config.chainId];
-            floorAsk = {
-              id: metadata.floor_sell_id,
-              sourceDomain: sources.get(metadata.floor_sell_source_id_int)?.domain,
-              price: metadata.floor_sell_id
-                ? await getJoiPriceObject(
-                    {
-                      gross: {
-                        amount: metadata.floor_sell_currency_value ?? metadata.floor_sell_value,
-                        nativeAmount: metadata.floor_sell_value,
-                      },
-                    },
-                    floorAskCurrency
-                  )
-                : null,
-            };
-          }
-
+        const resultsPromise = redb.manyOrNone(baseQuery, request.query);
+        const recentSalesPromise = collectionsResult.map(async (collection: any) => {
           return {
-            ...response,
-            volumeChange: {
-              "1day": metadata.day1_volume_change,
-              "7day": metadata.day7_volume_change,
-              "30day": metadata.day30_volume_change,
-            },
-            name: metadata.name,
-            tokenCount: Number(metadata.token_count || 0),
-            ownerCount: Number(metadata.owner_count || 0),
-            image: metadata.image,
-            banner: metadata.banner,
-            description: metadata.description,
-            floorAsk,
+            ...collection,
+            recentSales: includeRecentSales
+              ? await Promise.all(
+                  collection.recentSales.map(async (sale: any) => {
+                    const { pricing, ...salesData } = sale;
+                    const price = pricing
+                      ? await getJoiPriceObject(
+                          {
+                            gross: {
+                              amount: String(pricing?.currencyPrice ?? pricing?.price ?? 0),
+                              nativeAmount: String(pricing?.price ?? 0),
+                              usdAmount: String(pricing.usdPrice ?? 0),
+                            },
+                          },
+                          pricing.currency
+                        )
+                      : null;
+
+                    return {
+                      ...salesData,
+                      price,
+                    };
+                  })
+                )
+              : [],
           };
-        })
-      );
-      const response = h.response({ collections });
-      return response;
+        });
+
+        const responses = await Promise.all([resultsPromise, ...recentSalesPromise]);
+
+        const collectionMetadataResponse = responses.shift();
+        const collectionsMetadata: Record<string, any> = {};
+        if (collectionMetadataResponse && Array.isArray(collectionMetadataResponse)) {
+          collectionMetadataResponse.forEach((metadata: any) => {
+            collectionsMetadata[fromBuffer(metadata.contract)] = metadata;
+          });
+        }
+        const sources = await Sources.getInstance();
+
+        collections = await Promise.all(
+          responses.map(async (response: any) => {
+            const metadata = collectionsMetadata[(response as any).primaryContract] || {};
+            let floorAsk;
+            if (metadata) {
+              const floorAskCurrency = metadata.floor_sell_currency
+                ? fromBuffer(metadata.floor_sell_currency)
+                : Sdk.Common.Addresses.Native[config.chainId];
+              floorAsk = {
+                id: metadata.floor_sell_id,
+                sourceDomain: sources.get(metadata.floor_sell_source_id_int)?.domain,
+                price: metadata.floor_sell_id
+                  ? await getJoiPriceObject(
+                      {
+                        gross: {
+                          amount: metadata.floor_sell_currency_value ?? metadata.floor_sell_value,
+                          nativeAmount: metadata.floor_sell_value,
+                        },
+                      },
+                      floorAskCurrency
+                    )
+                  : null,
+              };
+            }
+
+            return {
+              ...response,
+              volumeChange: {
+                "1day": metadata.day1_volume_change,
+                "7day": metadata.day7_volume_change,
+                "30day": metadata.day30_volume_change,
+              },
+              tokenCount: Number(metadata.token_count || 0),
+              ownerCount: Number(metadata.owner_count || 0),
+              banner: metadata.banner,
+              description: metadata.description,
+              floorAsk,
+            };
+          })
+        );
+      }
+
+      return h.response({ collections });
     } catch (error) {
       logger.error(`get-top-selling-collections-${version}-handler`, `Handler failure: ${error}`);
       throw error;

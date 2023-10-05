@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { HashZero } from "@ethersproject/constants";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -337,13 +336,15 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
         // Check if the exchange is filtered
         if (marketplace.listingEnabled) {
           let operators: string[] = [];
-          const seaportOperators = [
-            Sdk.SeaportV15.Addresses.Exchange[config.chainId],
-            new Sdk.SeaportBase.ConduitController(config.chainId).deriveConduit(
-              // Default to cover chains where there's no OpenSea conduit
-              Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId] ?? HashZero
-            ),
-          ];
+
+          const seaportOperators = [Sdk.SeaportV15.Addresses.Exchange[config.chainId]];
+          if (Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]) {
+            seaportOperators.push(
+              new Sdk.SeaportBase.ConduitController(config.chainId).deriveConduit(
+                Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
+              )
+            );
+          }
 
           switch (marketplace.orderKind) {
             case "blur": {

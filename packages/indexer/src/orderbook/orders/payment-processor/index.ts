@@ -1,7 +1,5 @@
-import { Interface } from "@ethersproject/abi";
 import { BigNumber } from "@ethersproject/bignumber";
 import { AddressZero } from "@ethersproject/constants";
-import { Contract } from "@ethersproject/contracts";
 import { keccak256 } from "@ethersproject/solidity";
 import * as Sdk from "@reservoir0x/sdk";
 import _ from "lodash";
@@ -22,6 +20,7 @@ import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/u
 import * as tokenSet from "@/orderbook/token-sets";
 import * as erc721c from "@/utils/erc721c";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
+import * as paymentProcessor from "@/utils/payment-processor";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
 
@@ -69,41 +68,42 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      if (order.params.coin !== Sdk.Common.Addresses.Native[config.chainId]) {
-        const exchange = new Contract(
-          Sdk.PaymentProcessor.Addresses.Exchange[config.chainId],
-          new Interface([
-            "function getTokenSecurityPolicyId(address collectionAddress) public view returns (uint256)",
-            `function getSecurityPolicy(uint256 securityPolicyId) public view returns (
-              (
-                bool enforceExchangeWhitelist,
-                bool enforcePaymentMethodWhitelist,
-                bool enforcePricingConstraints,
-                bool disablePrivateListings,
-                bool disableDelegatedPurchases,
-                bool disableEIP1271Signatures,
-                bool disableExchangeWhitelistEOABypass,
-                uint32 pushPaymentGasLimit,
-                address policyOwner
-              ) securityPolicy
-            )`,
-            "function isPaymentMethodApproved(uint256 securityPolicyId, address coin) public view returns (bool)",
-          ]),
+      const ppConfig = await paymentProcessor.getConfigByContract(order.params.tokenAddress);
+      if (ppConfig && ppConfig.securityPolicy.enforcePricingConstraints) {
+        if (order.params.coin.toLowerCase() != ppConfig.paymentCoin!.toLowerCase()) {
+          return results.push({
+            id,
+            status: "payment-token-not-whitelisted",
+          });
+        }
+
+        const price = bn(order.params.price).div(order.params.amount);
+        if (price.lt(ppConfig.pricingBounds!.floorPrice)) {
+          return results.push({
+            id,
+            status: "sale-price-below-configured-floor-price",
+          });
+        }
+        if (price.gt(ppConfig.pricingBounds!.ceilingPrice)) {
+          return results.push({
+            id,
+            status: "sale-price-above-configured-ceiling-price",
+          });
+        }
+      } else if (ppConfig?.securityPolicy.enforcePaymentMethodWhitelist) {
+        const exchange = new Sdk.PaymentProcessor.Exchange(config.chainId).contract.connect(
           baseProvider
         );
-        const securityPolicyId = await exchange.getTokenSecurityPolicyId(order.params.tokenAddress);
-        const securityPolicy = await exchange.getSecurityPolicy(securityPolicyId);
-        if (securityPolicy.enforcePaymentMethodWhitelist) {
-          const isWhitelisted = await exchange.isPaymentMethodApproved(
-            securityPolicyId,
-            order.params.coin
-          );
-          if (!isWhitelisted) {
-            return results.push({
-              id,
-              status: "payment-token-not-whitelisted",
-            });
-          }
+
+        const isWhitelisted = await exchange.isPaymentMethodApproved(
+          ppConfig.securityPolicy.id,
+          order.params.coin
+        );
+        if (!isWhitelisted) {
+          return results.push({
+            id,
+            status: "payment-token-not-whitelisted",
+          });
         }
       }
 

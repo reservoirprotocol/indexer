@@ -288,6 +288,9 @@ export type EventSubKind =
   | "payment-processor-nonce-invalidated"
   | "payment-processor-sweep-collection-erc1155"
   | "payment-processor-sweep-collection-erc721"
+  | "payment-processor-created-or-updated-security-policy"
+  | "payment-processor-updated-collection-payment-coin"
+  | "payment-processor-updated-collection-security-policy"
   | "thirdweb-claim-conditions-updated-erc721"
   | "thirdweb-claim-conditions-updated-erc1155"
   | "seadrop-public-drop-updated"
@@ -507,6 +510,9 @@ const allEventData = [
   paymentProcessor.nonceInvalidated,
   paymentProcessor.sweepCollectionERC1155,
   paymentProcessor.sweepCollectionERC721,
+  paymentProcessor.createdOrUpdatedSecurityPolicy,
+  paymentProcessor.updatedCollectionSecurityPolicy,
+  paymentProcessor.updatedCollectionPaymentCoin,
   thirdweb.claimConditionsUpdatedERC721,
   thirdweb.claimConditionsUpdatedERC1155,
   blurV2.execution,

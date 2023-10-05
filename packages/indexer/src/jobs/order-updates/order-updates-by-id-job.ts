@@ -329,7 +329,7 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
               "order-latency",
               JSON.stringify({
                 latency: orderCreated - orderStart - Number(ingestDelay ?? 0),
-                source: source?.getTitle(),
+                source: source?.getTitle() ?? null,
                 orderId: order.id,
                 orderKind: order.kind,
                 orderType,
