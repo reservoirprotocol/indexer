@@ -17,7 +17,7 @@ import { BidCancelledEventHandler } from "@/elasticsearch/indexes/activities/eve
 import { FillEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/fill-event-created";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { NftTransferEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/nft-transfer-event-created";
-import { acquireLock, doesLockExist, redis, redlock, releaseLock } from "@/common/redis";
+import { redis, redlock } from "@/common/redis";
 import crypto from "crypto";
 import { ActivityDocument } from "@/elasticsearch/indexes/activities/base";
 import cron from "node-cron";
@@ -60,142 +60,48 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
 
     const limit = Number(await redis.get(`${this.queueName}-limit`)) || 1000;
 
-    const lockId = crypto
+    const jobId = crypto
       .createHash("sha256")
       .update(
         `${type}:${JSON.stringify(cursor)}${fromTimestamp}:${toTimestamp}:${indexName}:${keepGoing}`
       )
       .digest("hex");
 
-    const acquiredLock = await acquireLock(lockId, 60);
-
-    if (acquiredLock) {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "backfill-activities",
-          message: `acquiredLock. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}`,
-          type,
-          fromTimestamp,
-          fromTimestampISO,
-          toTimestamp,
-          toTimestampISO,
-          cursor,
-          indexName,
-          keepGoing,
-          lockId,
-        })
+    try {
+      const { activities, nextCursor } = await getActivities(
+        type,
+        fromTimestamp,
+        toTimestamp,
+        cursor,
+        limit
       );
 
-      try {
-        const { activities, nextCursor } = await getActivities(
-          type,
-          fromTimestamp,
-          toTimestamp,
-          cursor,
-          limit
-        );
-
-        if (activities.length) {
-          if (activities.length === limit) {
-            addToQueue = true;
-            addToQueueCursor = nextCursor;
-          }
-
-          const bulkResponse = await elasticsearch.bulk({
-            body: activities.flatMap((activity) => [
-              { index: { _index: indexName, _id: activity.id } },
-              activity,
-            ]),
-          });
-
-          let errorActivities: ActivityDocument[] = [];
-
-          if (bulkResponse.errors) {
-            const errorItems = bulkResponse.items.filter((item) => item.index?.error);
-            const errorItemsIds = errorItems.map((item) => item.index?._id);
-            errorActivities = activities.filter((activity) => errorItemsIds.includes(activity.id));
-          }
-
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              topic: "backfill-activities",
-              message: `Backfilled ${activities.length} activities. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}, limit=${limit}`,
-              type,
-              fromTimestamp,
-              fromTimestampISO,
-              toTimestamp,
-              toTimestampISO,
-              cursor,
-              indexName,
-              keepGoing,
-              lockId,
-              nextCursor,
-              hasNextCursor: !!nextCursor,
-              hasErrors: bulkResponse.errors,
-              errorItems: bulkResponse.items.filter((item) => item.index?.error),
-              errorActivities,
-              payloadJSON: JSON.stringify(payload),
-            })
-          );
-        } else if (keepGoing) {
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              topic: "backfill-activities",
-              message: `KeepGoing. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, limit=${limit}`,
-              type,
-              fromTimestamp,
-              fromTimestampISO,
-              toTimestamp,
-              toTimestampISO,
-              cursor,
-              indexName,
-              keepGoing,
-              lockId,
-            })
-          );
-
+      if (activities.length) {
+        if (activities.length === limit) {
           addToQueue = true;
-          addToQueueCursor = cursor;
+          addToQueueCursor = nextCursor;
         }
-      } catch (error) {
-        logger.error(
-          this.queueName,
-          JSON.stringify({
-            topic: "backfill-activities",
-            message: `Error. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}, error=${error}`,
-            type,
-            fromTimestamp,
-            fromTimestampISO,
-            toTimestamp,
-            toTimestampISO,
-            cursor,
-            indexName,
-            keepGoing,
-            lockId,
-            payloadJSON: JSON.stringify(payload),
-          })
-        );
 
-        await releaseLock(lockId);
+        const bulkResponse = await elasticsearch.bulk({
+          body: activities.flatMap((activity) => [
+            { index: { _index: indexName, _id: activity.id } },
+            activity,
+          ]),
+        });
 
-        throw error;
-      }
+        let errorActivities: ActivityDocument[] = [];
 
-      await releaseLock(lockId);
-
-      const lockExists = await doesLockExist(lockId);
-
-      if (lockExists) {
-        await releaseLock(lockId);
+        if (bulkResponse.errors) {
+          const errorItems = bulkResponse.items.filter((item) => item.index?.error);
+          const errorItemsIds = errorItems.map((item) => item.index?._id);
+          errorActivities = activities.filter((activity) => errorItemsIds.includes(activity.id));
+        }
 
         logger.info(
           this.queueName,
           JSON.stringify({
             topic: "backfill-activities",
-            message: `Retry to release lock. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}`,
+            message: `Backfilled ${activities.length} activities. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}, limit=${limit}`,
             type,
             fromTimestamp,
             fromTimestampISO,
@@ -204,16 +110,42 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
             cursor,
             indexName,
             keepGoing,
-            lockId,
+            jobId,
+            nextCursor,
+            hasNextCursor: !!nextCursor,
+            hasErrors: bulkResponse.errors,
+            errorItems: bulkResponse.items.filter((item) => item.index?.error),
+            errorActivities,
+            payloadJSON: JSON.stringify(payload),
           })
         );
+      } else if (keepGoing) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "backfill-activities",
+            message: `KeepGoing. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, limit=${limit}`,
+            type,
+            fromTimestamp,
+            fromTimestampISO,
+            toTimestamp,
+            toTimestampISO,
+            cursor,
+            indexName,
+            keepGoing,
+            jobId,
+          })
+        );
+
+        addToQueue = true;
+        addToQueueCursor = cursor;
       }
-    } else {
-      logger.info(
+    } catch (error) {
+      logger.error(
         this.queueName,
         JSON.stringify({
           topic: "backfill-activities",
-          message: `Unable to acquire lock. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}`,
+          message: `Error. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}, error=${error}`,
           type,
           fromTimestamp,
           fromTimestampISO,
@@ -222,12 +154,12 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           cursor,
           indexName,
           keepGoing,
-          lockId,
+          jobId,
           payloadJSON: JSON.stringify(payload),
         })
       );
 
-      return;
+      throw error;
     }
 
     if (addToQueue) {
@@ -269,7 +201,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           cursor,
           indexName,
           keepGoing,
-          lockId,
+          jobId,
         })
       );
     }
@@ -287,9 +219,17 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
       return;
     }
 
+    const jobId = crypto
+      .createHash("sha256")
+      .update(
+        `${type}:${JSON.stringify(cursor)}${fromTimestamp}:${toTimestamp}:${indexName}:${keepGoing}`
+      )
+      .digest("hex");
+
     return this.send(
       {
         payload: { type, cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
+        jobId,
       },
       keepGoing ? 5000 : 1000
     );
@@ -706,7 +646,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
               backfillSaveActivitiesElasticsearchJob.queueName,
               JSON.stringify({
                 topic: "backfill-activities",
-                message: `from Last Back fill! type=${lastRunType}, delay=${lastRunDelay}`,
+                message: `Delay check! type=${lastRunType}, delay=${lastRunDelay}`,
               })
             );
 
@@ -731,7 +671,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
                   backfillSaveActivitiesElasticsearchJob.queueName,
                   JSON.stringify({
                     topic: "backfill-activities",
-                    message: `from Last Back fill! type=${lastRunType}`,
+                    message: `Backfill delayed, retriggering! type=${lastRunType}`,
                     payload,
                   })
                 );
