@@ -4,6 +4,7 @@ import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { Collections } from "@/models/collections";
 import _ from "lodash";
 import { logger } from "@/common/logger";
+import { RabbitMQMessage } from "@/common/rabbit-mq";
 
 export type RefreshActivitiesCollectionMetadataJobPayload = {
   collectionId: string;
@@ -18,19 +19,15 @@ export class RefreshActivitiesCollectionMetadataJob extends AbstractRabbitMqJobH
   lazyMode = true;
 
   protected async process(payload: RefreshActivitiesCollectionMetadataJobPayload) {
+    let addToQueue = false;
+
     const collectionId = payload.collectionId;
-    let collectionUpdateData = payload.collectionUpdateData;
+    const collection = await Collections.getById(collectionId);
 
-    if (!collectionUpdateData) {
-      const collectionData = await Collections.getById(collectionId);
-
-      if (collectionData) {
-        collectionUpdateData = {
-          name: collectionData.name || null,
-          image: collectionData.metadata?.imageUrl || null,
-        };
-      }
-    }
+    const collectionUpdateData = {
+      name: collection?.name || null,
+      image: collection?.metadata?.imageUrl || null,
+    };
 
     if (!_.isEmpty(collectionUpdateData)) {
       const keepGoing = await ActivitiesIndex.updateActivitiesCollectionMetadata(
@@ -55,8 +52,19 @@ export class RefreshActivitiesCollectionMetadataJob extends AbstractRabbitMqJobH
       );
 
       if (keepGoing) {
-        await this.addToQueue({ collectionId, collectionUpdateData });
+        addToQueue = true;
       }
+
+      return { addToQueue };
+    }
+  }
+
+  public async onCompleted(
+    rabbitMqMessage: RabbitMQMessage,
+    processResult: { addToQueue: boolean }
+  ) {
+    if (processResult?.addToQueue) {
+      await this.addToQueue(rabbitMqMessage.payload);
     }
   }
 
@@ -65,7 +73,7 @@ export class RefreshActivitiesCollectionMetadataJob extends AbstractRabbitMqJobH
       return;
     }
 
-    await this.send({ payload });
+    await this.send({ payload, jobId: payload.collectionId });
   }
 }
 

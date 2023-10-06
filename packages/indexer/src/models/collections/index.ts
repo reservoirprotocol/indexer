@@ -225,10 +225,6 @@ export class Collections {
       ) {
         await refreshActivitiesCollectionMetadataJob.addToQueue({
           collectionId: collection.id,
-          collectionUpdateData: {
-            name: collection.name || null,
-            image: (collection.metadata as any)?.imageUrl || null,
-          },
         });
       }
     } catch (error) {
