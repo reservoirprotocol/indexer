@@ -1392,9 +1392,10 @@ export const updateActivitiesCollectionMetadata = async (
               collectionId,
               collectionData,
             },
-            bulkParams,
+            bulkParams: JSON.stringify(bulkParams),
             response,
             keepGoing,
+            queryJson: JSON.stringify(query),
           })
         );
       } else {
@@ -1411,9 +1412,10 @@ export const updateActivitiesCollectionMetadata = async (
               collectionId,
               collectionData,
             },
-            bulkParams,
+            bulkParams: JSON.stringify(bulkParams),
             response,
             keepGoing,
+            queryJson: JSON.stringify(query),
           })
         );
       }
