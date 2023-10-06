@@ -67,7 +67,11 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
       )
       .digest("hex");
 
-    const acquiredLock = await acquireLock(lockId, 60);
+    let acquiredLock = await acquireLock(lockId, 60);
+
+    if (!acquiredLock) {
+      acquiredLock = await acquireLock(lockId, 60);
+    }
 
     if (acquiredLock) {
       logger.info(
