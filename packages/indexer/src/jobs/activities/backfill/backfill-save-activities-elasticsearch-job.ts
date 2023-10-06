@@ -187,6 +187,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
             indexName,
             keepGoing,
             lockId,
+            payloadJSON: JSON.stringify(payload),
           })
         );
 
