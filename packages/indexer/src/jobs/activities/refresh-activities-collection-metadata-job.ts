@@ -3,6 +3,7 @@ import { config } from "@/config/index";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { Collections } from "@/models/collections";
 import _ from "lodash";
+import { logger } from "@/common/logger";
 
 export type RefreshActivitiesCollectionMetadataJobPayload = {
   collectionId: string;
@@ -35,6 +36,22 @@ export class RefreshActivitiesCollectionMetadataJob extends AbstractRabbitMqJobH
       const keepGoing = await ActivitiesIndex.updateActivitiesCollectionMetadata(
         collectionId,
         collectionUpdateData
+      );
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "updateActivitiesCollectionMetadata",
+          message: `updateActivitiesTokenMetadata! collectionId=${collectionId}, collectionUpdateData=${JSON.stringify(
+            collectionUpdateData
+          )}`,
+          data: {
+            collectionId,
+            collectionUpdateData,
+          },
+          payload,
+          keepGoing,
+        })
       );
 
       if (keepGoing) {

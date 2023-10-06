@@ -1341,14 +1341,18 @@ export const updateActivitiesCollectionMetadata = async (
   };
 
   try {
-    const esResult = await _search({
-      _source: ["id"],
-      // This is needed due to issue with elasticsearch DSL.
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      query,
-      size: 1000,
-    });
+    const esResult = await _search(
+      {
+        _source: ["id"],
+        // This is needed due to issue with elasticsearch DSL.
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        query,
+        size: 1000,
+      },
+      0,
+      true
+    );
 
     const pendingUpdateDocuments: { id: string; index: string }[] = esResult.hits.hits.map(
       (hit) => ({ id: hit._source!.id, index: hit._index })
@@ -1381,7 +1385,9 @@ export const updateActivitiesCollectionMetadata = async (
           "elasticsearch-activities",
           JSON.stringify({
             topic: "updateActivitiesCollectionMetadata",
-            message: `Errors in response`,
+            message: `Errors in response. collectionId=${collectionId}, collectionData=${JSON.stringify(
+              collectionData
+            )}`,
             data: {
               collectionId,
               collectionData,
@@ -1394,20 +1400,22 @@ export const updateActivitiesCollectionMetadata = async (
       } else {
         keepGoing = pendingUpdateDocuments.length === 1000;
 
-        // logger.info(
-        //   "elasticsearch-activities",
-        //   JSON.stringify({
-        //     topic: "updateActivitiesCollectionMetadata",
-        //     message: `Success`,
-        //     data: {
-        //       collectionId,
-        //       collectionData,
-        //     },
-        //     bulkParams,
-        //     response,
-        //     keepGoing,
-        //   })
-        // );
+        logger.info(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "updateActivitiesCollectionMetadata",
+            message: `Success. collectionId=${collectionId}, collectionData=${JSON.stringify(
+              collectionData
+            )}`,
+            data: {
+              collectionId,
+              collectionData,
+            },
+            bulkParams,
+            response,
+            keepGoing,
+          })
+        );
       }
     }
   } catch (error) {
