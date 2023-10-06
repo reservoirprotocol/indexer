@@ -6,6 +6,7 @@ import { logger } from "@/common/logger";
 import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
+import { RequestWasThrottledError } from "@/metadata/providers/utils";
 
 export type MetadataIndexProcessJobPayload = {
   method: string;
@@ -66,14 +67,14 @@ export class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler {
           })),
           method
         ).catch(async (error) => {
-          if (error.response?.status === 429) {
+          if (error instanceof RequestWasThrottledError) {
             logger.warn(
               this.queueName,
-              `Too Many Requests. method=${method}, error=${JSON.stringify(error.response.data)}`
+              `Too Many Requests. method=${method}, error=${JSON.stringify(error)}`
             );
 
-            // rateLimitExpiredIn = Math.max(rateLimitExpiredIn, error.response.data.expires_in, 5);
-            rateLimitExpiredIn = 5;
+            rateLimitExpiredIn = Math.max(rateLimitExpiredIn, error.delay, 5);
+            // rateLimitExpiredIn = 5;
 
             await pendingRefreshTokens.add(refreshTokensChunk, true);
           } else {

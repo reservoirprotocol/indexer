@@ -121,12 +121,6 @@ export const config = {
     process.env.MAX_PARALLEL_TOKEN_COLLECTION_SLUG_REFRESH_JOBS || 1
   ),
 
-  // Backfilling
-  doFtTransfersWrite: Boolean(Number(process.env.DO_FT_TRANSFERS_WRITE)),
-  doNftTransfersWrite: Boolean(Number(process.env.DO_NFT_TRANSFERS_WRITE)),
-  doProcessBackfilling: Boolean(Number(process.env.DO_PROCESS_BACKFILLING)),
-  doProcessRealtime: Boolean(Number(process.env.DO_PROCESS_REALTIME)),
-
   enableDebug: Boolean(Number(process.env.ENABLE_DEBUG)),
 
   // Elasticsearch

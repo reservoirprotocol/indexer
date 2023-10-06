@@ -52,7 +52,7 @@ export type MetadataIndexWriteJobPayload = {
 export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
   queueName = "metadata-index-write-queue";
   maxRetries = 10;
-  concurrency = 40;
+  concurrency = config.chainId === 7777777 ? 10 : 40;
   lazyMode = true;
   timeout = 60000;
   backoff = {
@@ -183,8 +183,7 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       _.isNull(result.name) &&
       isAfter(add(new Date(result.created_at), { minutes: 60 }), Date.now())
     ) {
-      await redis.set(keyName, _.now(), "EX", 60 * 60);
-      logger.warn(this.queueName, `no metadata fetched for ${JSON.stringify(payload)}`);
+      await redis.set(keyName, _.now(), "EX", 2 * 60 * 60);
 
       // Requeue the token for metadata fetching and stop processing
       return metadataIndexFetchJob.addToQueue(
@@ -200,7 +199,7 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
           },
         ],
         false,
-        10 * 60
+        20 * 60
       );
     }
 
