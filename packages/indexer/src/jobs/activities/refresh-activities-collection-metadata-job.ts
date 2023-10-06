@@ -64,6 +64,14 @@ export class RefreshActivitiesCollectionMetadataJob extends AbstractRabbitMqJobH
     processResult: { addToQueue: boolean }
   ) {
     if (processResult?.addToQueue) {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "updateActivitiesCollectionMetadata",
+          message: `addToQueue! collectionId=${rabbitMqMessage.payload.collectionId}`,
+        })
+      );
+
       await this.addToQueue(rabbitMqMessage.payload);
     }
   }
