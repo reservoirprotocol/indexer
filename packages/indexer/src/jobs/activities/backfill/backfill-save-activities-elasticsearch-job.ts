@@ -37,7 +37,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
   concurrency = 1;
   persistent = true;
   lazyMode = true;
-  timeout = 60000;
+  timeout = 5 * 60 * 1000;
 
   backoff = {
     type: "fixed",
@@ -67,11 +67,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
       )
       .digest("hex");
 
-    let acquiredLock = await acquireLock(lockId, 60);
-
-    if (!acquiredLock) {
-      acquiredLock = await acquireLock(lockId, 60);
-    }
+    const acquiredLock = await acquireLock(lockId, 60);
 
     if (acquiredLock) {
       logger.info(
@@ -293,7 +289,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
       {
         payload: { type, cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
       },
-      keepGoing ? 5000 : 0
+      keepGoing ? 5000 : 1000
     );
   }
 }
