@@ -176,13 +176,14 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
     }
 
     // If this is a new token and there's still no metadata (exclude mainnet)
+    const keyName = `retry-metadata-${contract}-${tokenId}`;
     if (
       config.chainId !== 1 &&
       _.isNull(result.image) &&
       _.isNull(result.name) &&
       isAfter(add(new Date(result.created_at), { minutes: 60 }), Date.now())
     ) {
-      await redis.set(`retry-metadata${contract}-${tokenId}`, _.now(), "EX", 60 * 60);
+      await redis.set(keyName, _.now(), "EX", 60 * 60);
       logger.warn(this.queueName, `no metadata fetched for ${JSON.stringify(payload)}`);
 
       // Requeue the token for metadata fetching and stop processing
@@ -203,7 +204,12 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       );
     }
 
-    if (config.chainId !== 1 && (await redis.get(`retry-metadata-${contract}-${tokenId}`))) {
+    if (
+      config.chainId !== 1 &&
+      (!_.isNull(result.image) || !_.isNull(result.name)) &&
+      (await redis.get(keyName))
+    ) {
+      await redis.del(keyName);
       logger.info(this.queueName, `metadata fetched for ${JSON.stringify(payload)}`);
     }
 

@@ -141,9 +141,10 @@ const simulateMintTxData = async (
       // Network.Arbitrum,
       Network.Bsc,
       Network.Zora,
-      Network.Base,
       Network.ZoraTestnet,
+      Network.Base,
       Network.BaseGoerli,
+      Network.Ancient8Testnet,
     ].includes(config.chainId)
   ) {
     // CASE 1
@@ -164,36 +165,35 @@ const simulateMintTxData = async (
       log.topics[0] === eventData.topic &&
       log.topics.length === eventData.numTopics;
 
+    let count = bn(0);
     for (const log of logs) {
       if (contractKind === "erc721") {
         // ERC721 `Transfer`
         if (matchesEventData(log, erc721.transfer)) {
           const parsedLog = erc721.transfer.abi.parseLog(log);
           if (parsedLog.args["to"] === txData.from) {
-            return true;
+            count = count.add(1);
           }
         }
       } else if (contractKind === "erc1155") {
         // ERC1155 `TransferSingle`
         if (matchesEventData(log, erc1155.transferSingle)) {
           const parsedLog = erc1155.transferSingle.abi.parseLog(log);
-          if (
-            parsedLog.args["to"] === txData.from &&
-            parsedLog.args["amount"].toString() === String(quantity)
-          ) {
-            return true;
+          if (parsedLog.args["to"] === txData.from) {
+            count = count.add(parsedLog.args["amount"]);
           }
           // ERC1155 `TransferBatch`
         } else if (matchesEventData(log, erc1155.transferBatch)) {
           const parsedLog = erc1155.transferBatch.abi.parseLog(log);
-          if (
-            parsedLog.args["to"] === txData.from &&
-            parsedLog.args["amounts"][0].toString() === String(quantity)
-          ) {
-            return true;
+          if (parsedLog.args["to"] === txData.from) {
+            count = count.add(parsedLog.args["amounts"][0]);
           }
         }
       }
+    }
+
+    if (count.toString() === String(quantity)) {
+      return true;
     }
 
     return false;

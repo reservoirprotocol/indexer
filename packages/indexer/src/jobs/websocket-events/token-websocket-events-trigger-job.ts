@@ -233,16 +233,6 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
         }
       }
 
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "processCDCEvent",
-          message: `Processed cdc event. contract=${contract}, tokenId=${tokenId}`,
-          resultJson: JSON.stringify(result),
-          token: `${contract}:${tokenId}`,
-        })
-      );
-
       await publishWebsocketEvent({
         event: eventType,
         tags: {
@@ -449,18 +439,6 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
           updatedAt: new Date(r.updated_at).toISOString(),
         },
       };
-
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "processForcedUpdate",
-          message: `Publish forced update event. contract=${contract}, tokenId=${tokenId}, changed=${JSON.stringify(
-            changed
-          )}`,
-          resultJson: JSON.stringify(result),
-          token: `${contract}:${tokenId}`,
-        })
-      );
 
       await publishWebsocketEvent({
         event: eventType,
