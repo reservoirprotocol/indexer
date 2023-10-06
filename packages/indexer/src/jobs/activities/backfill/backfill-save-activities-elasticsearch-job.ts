@@ -10,7 +10,6 @@ import {
   EventCursorInfo,
 } from "@/jobs/activities/backfill/backfill-activities-elasticsearch-job";
 import { AskCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-created";
-// import { RabbitMQMessage } from "@/common/rabbit-mq";
 import { elasticsearch } from "@/common/elasticsearch";
 import { AskCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-cancelled";
 import { BidCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-created";
@@ -18,9 +17,10 @@ import { BidCancelledEventHandler } from "@/elasticsearch/indexes/activities/eve
 import { FillEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/fill-event-created";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { NftTransferEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/nft-transfer-event-created";
-import { acquireLock, doesLockExist, redis, releaseLock } from "@/common/redis";
+import { acquireLock, doesLockExist, redis, redlock, releaseLock } from "@/common/redis";
 import crypto from "crypto";
 import { ActivityDocument } from "@/elasticsearch/indexes/activities/base";
+import cron from "node-cron";
 
 export type BackfillSaveActivitiesElasticsearchJobPayload = {
   type: "ask" | "ask-cancel" | "bid" | "bid-cancel" | "sale" | "transfer";
@@ -108,14 +108,6 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
               activity,
             ]),
           });
-
-          if (!keepGoing) {
-            await redis.hset(
-              `backfill-activities-elasticsearch-job:${type}`,
-              `${fromTimestamp}:${toTimestamp}`,
-              JSON.stringify({ fromTimestamp, toTimestamp, cursor: nextCursor })
-            );
-          }
 
           let errorActivities: ActivityDocument[] = [];
 
@@ -239,6 +231,19 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
     }
 
     if (addToQueue) {
+      await redis.hset(
+        `${this.queueName}-last-payload`,
+        type,
+        JSON.stringify({
+          cursor: addToQueueCursor,
+          fromTimestamp,
+          toTimestamp,
+          indexName,
+        })
+      );
+
+      await redis.hset(`${this.queueName}-last-run`, type, new Date().toISOString());
+
       await this.addToQueue(
         type,
         addToQueueCursor,
@@ -248,6 +253,9 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
         keepGoing
       );
     } else {
+      await redis.hdel(`${this.queueName}-last-payload`, type);
+      await redis.hdel(`${this.queueName}-last-run`, type);
+
       logger.info(
         this.queueName,
         JSON.stringify({
@@ -264,12 +272,6 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           lockId,
         })
       );
-
-      await redis.hdel(
-        `backfill-activities-elasticsearch-job:${type}`,
-        `${fromTimestamp}:${toTimestamp}`
-      );
-      await redis.decr(`backfill-activities-elasticsearch-job-count:${type}`);
     }
   }
 
@@ -684,3 +686,68 @@ const getTransferActivities = async (
 
   return { activities, nextCursor };
 };
+
+if (config.doBackgroundWork && config.doElasticsearchWork) {
+  cron.schedule(
+    "*/5 * * * *",
+    async () =>
+      await redlock
+        .acquire(["backfill-activities-lock"], (5 * 60 - 5) * 1000)
+        .then(async () => {
+          const lastRunsJson = await redis.hgetall(
+            `${backfillSaveActivitiesElasticsearchJob.queueName}-last-run`
+          );
+
+          for (const lastRunType in lastRunsJson) {
+            const lastRunTimestamp = new Date(lastRunsJson[lastRunType]);
+            const lastRunDelay = new Date().getTime() - lastRunTimestamp.getTime() > 5 * 60 * 1000;
+
+            logger.info(
+              backfillSaveActivitiesElasticsearchJob.queueName,
+              JSON.stringify({
+                topic: "backfill-activities",
+                message: `from Last Back fill! type=${lastRunType}, delay=${lastRunDelay}`,
+              })
+            );
+
+            if (lastRunDelay) {
+              const payloadJson = await redis.hget(
+                `${backfillSaveActivitiesElasticsearchJob.queueName}-last-payload`,
+                lastRunType
+              );
+
+              if (payloadJson) {
+                const payload = JSON.parse(payloadJson);
+
+                await backfillSaveActivitiesElasticsearchJob.addToQueue(
+                  lastRunType as "ask" | "ask-cancel" | "bid" | "bid-cancel" | "sale" | "transfer",
+                  payload.cursor ?? undefined,
+                  payload.fromTimestamp,
+                  payload.toTimestamp,
+                  payload.indexName
+                );
+
+                logger.info(
+                  backfillSaveActivitiesElasticsearchJob.queueName,
+                  JSON.stringify({
+                    topic: "backfill-activities",
+                    message: `from Last Back fill! type=${lastRunType}`,
+                    payload,
+                  })
+                );
+              }
+            }
+          }
+        })
+        .catch((error) => {
+          logger.error(
+            backfillSaveActivitiesElasticsearchJob.queueName,
+            JSON.stringify({
+              topic: "backfill-activities",
+              message: `cron error. error=${error}`,
+              error,
+            })
+          );
+        })
+  );
+}
