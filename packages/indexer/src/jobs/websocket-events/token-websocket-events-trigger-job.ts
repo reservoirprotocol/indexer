@@ -222,12 +222,40 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
           }
 
           if (!changed.length) {
-            // logger.info(
-            //   this.queueName,
-            //   `No changes detected for event. before=${JSON.stringify(
-            //     data.before
-            //   )}, after=${JSON.stringify(data.after)}`
-            // );
+            try {
+              for (const key in data.after) {
+                const beforeValue = data.before[key as keyof TokenInfo];
+                const afterValue = data.after[key as keyof TokenInfo];
+
+                if (beforeValue !== afterValue) {
+                  changed.push(key as keyof TokenInfo);
+                }
+              }
+
+              logger.info(
+                this.queueName,
+                JSON.stringify({
+                  message: `No changes detected for token. contract=${contract}, tokenId=${tokenId}`,
+                  data,
+                  beforeJson: JSON.stringify(data.before),
+                  afterJson: JSON.stringify(data.after),
+                  changed,
+                  changedJson: JSON.stringify(changed),
+                  hasChanged: changed.length > 0,
+                })
+              );
+            } catch (error) {
+              logger.error(
+                this.queueName,
+                JSON.stringify({
+                  message: `No changes detected for token error. contract=${contract}, tokenId=${tokenId}`,
+                  data,
+                  changed,
+                  error,
+                })
+              );
+            }
+
             return;
           }
         }

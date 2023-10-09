@@ -125,12 +125,40 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
             }
 
             if (!changed.length) {
-              // logger.info(
-              //   this.queueName,
-              //   `No changes detected for event. before=${JSON.stringify(
-              //     data.before
-              //   )}, after=${JSON.stringify(data.after)}`
-              // );
+              try {
+                for (const key in data.after) {
+                  const beforeValue = data.before[key as keyof SaleInfo];
+                  const afterValue = data.after[key as keyof SaleInfo];
+
+                  if (beforeValue !== afterValue) {
+                    changed.push(key as keyof SaleInfo);
+                  }
+                }
+
+                logger.info(
+                  this.queueName,
+                  JSON.stringify({
+                    message: `No changes detected for sale. contract=${data.after.contract}, tokenId=${data.after.token_id}`,
+                    data,
+                    beforeJson: JSON.stringify(data.before),
+                    afterJson: JSON.stringify(data.after),
+                    changed,
+                    changedJson: JSON.stringify(changed),
+                    hasChanged: changed.length > 0,
+                  })
+                );
+              } catch (error) {
+                logger.error(
+                  this.queueName,
+                  JSON.stringify({
+                    message: `No changes detected for sale error. contract=${data.after.contract}, tokenId=${data.after.token_id}`,
+                    data,
+                    changed,
+                    error,
+                  })
+                );
+              }
+
               return;
             }
           }

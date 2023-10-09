@@ -50,16 +50,43 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
           }
         }
 
-        // if (!changed.length) {
-        //   logger.info(
-        //     this.queueName,
-        //     `No changes detected for event. before=${JSON.stringify(
-        //       data.before
-        //     )}, after=${JSON.stringify(data.after)}`
-        //   );
+        if (!changed.length) {
+          try {
+            for (const key in data.after) {
+              const beforeValue = data.before[key as keyof OrderInfo];
+              const afterValue = data.after[key as keyof OrderInfo];
 
-        //   return;
-        // }
+              if (beforeValue !== afterValue) {
+                changed.push(key as keyof OrderInfo);
+              }
+            }
+
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                message: `No changes detected for ask. orderId=${data.after.id}`,
+                data,
+                beforeJson: JSON.stringify(data.before),
+                afterJson: JSON.stringify(data.after),
+                changed,
+                changedJson: JSON.stringify(changed),
+                hasChanged: changed.length > 0,
+              })
+            );
+          } catch (error) {
+            logger.error(
+              this.queueName,
+              JSON.stringify({
+                message: `No changes detected for ask error. orderId=${data.after.id}`,
+                data,
+                changed,
+                error,
+              })
+            );
+          }
+
+          return;
+        }
       }
 
       const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", true);
