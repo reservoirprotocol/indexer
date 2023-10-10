@@ -4,11 +4,11 @@ import { CollectionMetadata, TokenMetadata, TokenMetadataBySlugResult } from "..
 import { logger } from "@/common/logger";
 
 import _ from "lodash";
-import slugify from "slugify";
 import * as soundxyz from "../extend/soundxyz/index";
 import { RequestWasThrottledError } from "./utils";
 import { openseaMetadataProvider } from "./opensea-metadata-provider";
 import { AbstractBaseMetadataProvider } from "./abstract-base-metadata-provider";
+import { SoundNftQuery } from "../extend/soundxyz/index";
 
 export class SoundxyzMetadataProvider extends AbstractBaseMetadataProvider {
   method = "soundxyz";
@@ -16,16 +16,16 @@ export class SoundxyzMetadataProvider extends AbstractBaseMetadataProvider {
   async _getCollectionMetadata(contract: string, tokenId: string): Promise<CollectionMetadata> {
     const {
       data: {
-        data: { releaseFromToken },
+        data: { nft },
       },
-    } = await soundxyz.getContractSlug(contract, tokenId);
+    } = await soundxyz.getMetadataFromSoundApi(contract, tokenId);
 
     const openseaRoyalties = await openseaMetadataProvider
       .getCollectionMetadata(contract, tokenId)
       .then((m) => m.openseaRoyalties)
       .catch(() => []);
 
-    return this.parseCollection(releaseFromToken, contract, openseaRoyalties);
+    return this.parseCollection(nft.release, contract, openseaRoyalties);
   }
 
   async _getTokensMetadata(
@@ -36,13 +36,11 @@ export class SoundxyzMetadataProvider extends AbstractBaseMetadataProvider {
     for (const { contract, tokenId } of tokens) {
       try {
         const [response, collection] = await Promise.all([
-          soundxyz.getContractSlug(contract, tokenId),
+          soundxyz.getMetadataFromSoundApi(contract, tokenId),
           this.getCollectionId(contract, tokenId),
         ]);
 
-        data.push(
-          this.parseToken(response.data.data.releaseFromToken, contract, tokenId, collection)
-        );
+        data.push(this.parseToken(response.data.data.nft, contract, tokenId, collection));
       } catch (error) {
         logger.error(
           "soundxyz-fetcher",
@@ -73,39 +71,29 @@ export class SoundxyzMetadataProvider extends AbstractBaseMetadataProvider {
     // Shared contract logic
     const {
       data: {
-        data: { releaseFromToken },
+        data: { nft },
       },
-    } = await soundxyz.getContractSlug(contract, tokenId);
-    return `${contract}:soundxyz-${releaseFromToken.id}`;
+    } = await soundxyz.getMetadataFromSoundApi(contract, tokenId);
+    return `${contract}:soundxyz-${nft.release.id}`;
   }
 
-  parseToken(metadata: any, contract: string, tokenId: string, collection: any): TokenMetadata {
-    const isGoldenEgg = metadata.eggGame?.nft.tokenId === tokenId;
-    let imageUrl =
-      metadata.animatedCoverImage?.url ??
-      metadata.coverImage?.url ??
-      metadata.staticCoverImage?.url;
-    if (isGoldenEgg) {
-      imageUrl =
-        metadata.eggGame.animatedGoldenEggImageOptimized?.url ??
-        metadata.eggGame.goldenEggImage?.url;
-    }
-
+  parseToken(
+    nft: SoundNftQuery["nft"],
+    contract: string,
+    tokenId: string,
+    collection: any
+  ): TokenMetadata {
     return {
       contract: contract,
       tokenId: tokenId,
       collection,
       slug: null,
-      name: metadata.title,
+      name: nft.title,
       flagged: false,
-      description: metadata.behindTheMusic,
-      imageUrl,
-      mediaUrl: metadata.track.revealedAudio.url,
-      attributes: (
-        (isGoldenEgg
-          ? metadata.eggGame.nft.openSeaMetadataAttributes
-          : metadata.baseMetadataAttributes) || []
-      ).map((trait: any) => ({
+      description: nft.release.behindTheMusic,
+      imageUrl: nft.coverImage.url,
+      mediaUrl: nft.audioUrl,
+      attributes: nft.openSeaMetadataAttributes.map((trait) => ({
         key: trait.traitType ?? "property",
         value: trait.value,
         kind: typeof trait.value == "number" ? "number" : "string",
@@ -114,25 +102,29 @@ export class SoundxyzMetadataProvider extends AbstractBaseMetadataProvider {
     };
   }
 
-  parseCollection(metadata: any, contract: string, openseaRoyalties?: object): CollectionMetadata {
+  parseCollection(
+    release: SoundNftQuery["nft"]["release"],
+    contract: string,
+    openseaRoyalties?: object
+  ): CollectionMetadata {
     const royalties = [];
 
-    if (metadata.fundingAddress && metadata.royaltyBps) {
+    if (release.fundingAddress && release.royaltyBps) {
       royalties.push({
-        recipient: _.toLower(metadata.fundingAddress),
-        bps: metadata.royaltyBps,
+        recipient: _.toLower(release.fundingAddress),
+        bps: release.royaltyBps,
       });
     }
 
     return {
       id: `${contract}`,
-      slug: slugify(metadata.titleSlug, { lower: true }),
-      name: `${metadata.artist.name} - ${metadata.title}`,
+      slug: release.titleSlug,
+      name: `${release.artist.name} - ${release.title}`,
       community: "sound.xyz",
       metadata: {
-        imageUrl: metadata.coverImage.url,
-        description: metadata.description,
-        externalUrl: `https://sound.xyz/${metadata.artist.soundHandle}/${metadata.titleSlug}`,
+        imageUrl: release.coverImage.url,
+        description: release.behindTheMusic,
+        externalUrl: release.webappUri,
       },
       royalties,
       openseaRoyalties: openseaRoyalties,

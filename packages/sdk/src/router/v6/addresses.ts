@@ -107,6 +107,7 @@ export const CollectionXyzModule: ChainIdToAddress = {
 
 export const DittoModule: ChainIdToAddress = {
   [Network.EthereumGoerli]: "0x1090afe10281912678a05d89fabd5fbe77d7f97f",
+  [Network.EthereumSepolia]: "0x2da6ebbdb78b6df0802c4d32afa6d8277c479552",
 };
 
 export const FoundationModule: ChainIdToAddress = {

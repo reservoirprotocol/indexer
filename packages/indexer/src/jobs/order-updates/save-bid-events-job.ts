@@ -1,12 +1,13 @@
-import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import _ from "lodash";
-import { BidEventsList } from "@/models/bid-events-list";
+import cron from "node-cron";
+
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
+import { redlock } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import cron from "node-cron";
-import { redlock } from "@/common/redis";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { BidEventsList } from "@/models/bid-events-list";
 
 export class SaveBidEventsJob extends AbstractRabbitMqJobHandler {
   queueName = "save-bid-events-queue";

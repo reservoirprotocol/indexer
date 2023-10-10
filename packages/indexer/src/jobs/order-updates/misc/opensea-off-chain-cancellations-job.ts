@@ -1,6 +1,6 @@
-import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { logger } from "@/common/logger";
 import { idb } from "@/common/db";
+import { logger } from "@/common/logger";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import {
   orderUpdatesByIdJob,
   OrderUpdatesByIdJobPayload,

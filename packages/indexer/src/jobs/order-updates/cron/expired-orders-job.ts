@@ -1,11 +1,12 @@
-import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { logger } from "@/common/logger";
-import { now } from "@/common/utils";
-import cron from "node-cron";
-import { redis, redlock } from "@/common/redis";
-import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders";
 import _ from "lodash";
+import cron from "node-cron";
+
+import { logger } from "@/common/logger";
+import { redis, redlock } from "@/common/redis";
+import { now } from "@/common/utils";
 import { config } from "@/config/index";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders";
 
 export class OrderUpdatesExpiredOrderJob extends AbstractRabbitMqJobHandler {
   queueName = "expired-orders";

@@ -120,12 +120,15 @@ export const getBuildInfo = async (
         ? collectionResult.new_royalties?.opensea
         : collectionResult.royalties) ?? [];
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const tokenId = (options as any)["tokenId"];
-    if (tokenId !== undefined) {
-      const tokenRoyalties = await registry.getRegistryRoyalties(options.contract!, tokenId);
-      if (tokenRoyalties.length) {
-        royalties = tokenRoyalties;
+    // OpenSea hasn't adopted per-token royalties yet
+    if (options.orderbook !== "opensea") {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tokenId = (options as any)["tokenId"];
+      if (tokenId !== undefined) {
+        const tokenRoyalties = await registry.getRegistryRoyalties(options.contract!, tokenId);
+        if (tokenRoyalties.length) {
+          royalties = tokenRoyalties;
+        }
       }
     }
 

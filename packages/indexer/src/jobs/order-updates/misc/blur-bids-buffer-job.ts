@@ -1,7 +1,8 @@
-import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import * as Sdk from "@reservoir0x/sdk";
+
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import * as Sdk from "@reservoir0x/sdk";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { blurBidsRefreshJob } from "@/jobs/order-updates/misc/blur-bids-refresh-job";
 import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
 

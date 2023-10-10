@@ -6,7 +6,7 @@ import { logger } from "@/common/logger";
 import { Contract } from "ethers";
 import { Interface } from "ethers/lib/utils";
 import axios from "axios";
-import { normalizeMetadata } from "./utils";
+import { RequestWasThrottledError, normalizeMetadata } from "./utils";
 import _ from "lodash";
 import { getNetworkName } from "@/config/network";
 import { baseProvider } from "@/common/provider";
@@ -69,25 +69,31 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
         headers: { "X-API-KEY": config.simplehashApiKey.trim() },
       })
       .then((response) => response.data)
-      .catch((error) => {
-        logger.error(
-          "simplehash-fetcher",
-          JSON.stringify({
-            message: `fetchTokens error. url:${url} message:${error.message},  status:${
-              error.response?.status
-            }, data:${JSON.stringify(error.response?.data)},`,
-            error,
-          })
-        );
-
-        throw error;
-      });
+      .catch((error) => this.handleError(error));
 
     return data.nfts.map(this.parseToken).filter(Boolean);
   }
 
   async _getTokensMetadataBySlug(): Promise<TokenMetadataBySlugResult> {
     throw new Error("Method not implemented.");
+  }
+
+  handleError(error: any) {
+    if (error.response?.status === 429 || error.response?.status === 503) {
+      let delay = 1;
+
+      if (error.response.data.detail?.startsWith("Request was throttled. Expected available in")) {
+        try {
+          delay = error.response.data.detail.split(" ")[6];
+        } catch {
+          // Skip on any errors
+        }
+      }
+
+      throw new RequestWasThrottledError(error.response.statusText, delay);
+    }
+
+    throw error;
   }
 
   parseToken(metadata: any): TokenMetadata {

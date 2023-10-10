@@ -1,15 +1,16 @@
+import cron from "node-cron";
+
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
+import { redlock } from "@/common/redis";
+import { fromBuffer, now } from "@/common/utils";
+import { config } from "@/config/index";
 import {
   orderUpdatesByIdJob,
   OrderUpdatesByIdJobPayload,
 } from "@/jobs/order-updates/order-updates-by-id-job";
 import { getUSDAndNativePrices, USDAndNativePrices } from "@/utils/prices";
-import { fromBuffer, now } from "@/common/utils";
-import cron from "node-cron";
-import { redlock } from "@/common/redis";
-import { config } from "@/config/index";
 
 export type OrderUpdatesErc20OrderJobPayload = {
   continuation?: string;

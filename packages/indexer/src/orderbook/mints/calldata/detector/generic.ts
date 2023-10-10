@@ -63,32 +63,34 @@ export const extractByTx = async (
   const params: AbiParam[] = [];
 
   try {
-    methodSignature.params.split(",").forEach((abiType, i) => {
-      const decodedValue = methodSignature.decodedCalldata[i];
+    if (methodSignature.params.length) {
+      methodSignature.params.split(",").forEach((abiType, i) => {
+        const decodedValue = methodSignature.decodedCalldata[i];
 
-      if (abiType.includes("int") && bn(decodedValue).eq(amountMinted)) {
-        params.push({
-          kind: "quantity",
-          abiType,
-        });
-      } else if (abiType.includes("address") && decodedValue.toLowerCase() === collection) {
-        params.push({
-          kind: "contract",
-          abiType,
-        });
-      } else if (abiType.includes("address") && decodedValue.toLowerCase() === tx.from) {
-        params.push({
-          kind: "recipient",
-          abiType,
-        });
-      } else {
-        params.push({
-          kind: "unknown",
-          abiType,
-          abiValue: decodedValue.toString().toLowerCase(),
-        });
-      }
-    });
+        if (abiType.includes("int") && bn(decodedValue).eq(amountMinted)) {
+          params.push({
+            kind: "quantity",
+            abiType,
+          });
+        } else if (abiType.includes("address") && decodedValue.toLowerCase() === collection) {
+          params.push({
+            kind: "contract",
+            abiType,
+          });
+        } else if (abiType.includes("address") && decodedValue.toLowerCase() === tx.from) {
+          params.push({
+            kind: "recipient",
+            abiType,
+          });
+        } else {
+          params.push({
+            kind: "unknown",
+            abiType,
+            abiValue: decodedValue.toString().toLowerCase(),
+          });
+        }
+      });
+    }
   } catch (error) {
     logger.error("mint-detector", JSON.stringify({ kind: STANDARD, error }));
   }

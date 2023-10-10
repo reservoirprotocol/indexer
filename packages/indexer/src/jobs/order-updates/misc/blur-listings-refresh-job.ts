@@ -1,11 +1,13 @@
 import axios from "axios";
+import cron from "node-cron";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis } from "@/common/redis";
+import { redis, redlock } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { RabbitMqJobsConsumer } from "@/jobs/index";
 import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
 import { updateBlurRoyalties } from "@/utils/blur";
 
@@ -139,3 +141,19 @@ export class BlurListingsRefreshJob extends AbstractRabbitMqJobHandler {
 }
 
 export const blurListingsRefreshJob = new BlurListingsRefreshJob();
+
+if (config.doBackgroundWork) {
+  cron.schedule(
+    // Every hour
+    "*/60 * * * *",
+    async () =>
+      await redlock
+        .acquire(["blur-listings-refresh-retry-lock"], (60 * 60 - 3) * 1000)
+        .then(async () => {
+          await RabbitMqJobsConsumer.retryQueue(blurListingsRefreshJob.queueName);
+        })
+        .catch(() => {
+          // Skip any errors
+        })
+  );
+}

@@ -80,10 +80,7 @@ const getUpstreamUSDPrice = async (
           value,
         };
       }
-    } else if (
-      getNetworkSettings().whitelistedCurrencies.has(currencyAddress) ||
-      isTestnetCurrency(currencyAddress)
-    ) {
+    } else if (isWhitelistedCurrency(currencyAddress) || isTestnetCurrency(currencyAddress)) {
       // Whitelisted currencies don't have a price, so we just hardcode the minimum possible value
       let value = "1";
       if (
@@ -229,6 +226,9 @@ const isTestnetCurrency = (currencyAddress: string) => {
   }
 };
 
+const isWhitelistedCurrency = (currencyAddress: string) =>
+  getNetworkSettings().whitelistedCurrencies.has(currencyAddress.toLowerCase());
+
 const areEquivalentCurrencies = (currencyAddress1: string, currencyAddress2: string) => {
   const equivalentCurrencySets = [
     [
@@ -267,7 +267,11 @@ export const getUSDAndNativePrices = async (
   let usdPrice: string | undefined;
   let nativePrice: string | undefined;
 
-  if (getNetworkSettings().coingecko?.networkId || isTestnetCurrency(currencyAddress)) {
+  if (
+    getNetworkSettings().coingecko?.networkId ||
+    isTestnetCurrency(currencyAddress) ||
+    isWhitelistedCurrency(currencyAddress)
+  ) {
     const currencyUSDPrice = await getAvailableUSDPrice(
       currencyAddress,
       timestamp,
@@ -327,7 +331,8 @@ export const getUSDAndCurrencyPrices = async (
   // Only try to get pricing data if the network supports it
   if (
     getNetworkSettings().coingecko?.networkId ||
-    (isTestnetCurrency(fromCurrencyAddress) && isTestnetCurrency(toCurrencyAddress))
+    (isTestnetCurrency(fromCurrencyAddress) && isTestnetCurrency(toCurrencyAddress)) ||
+    (isWhitelistedCurrency(fromCurrencyAddress) && isWhitelistedCurrency(toCurrencyAddress))
   ) {
     // Get the FROM currency price
     const fromCurrencyUSDPrice = await getAvailableUSDPrice(

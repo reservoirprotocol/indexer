@@ -11,72 +11,83 @@ import { config } from "@/config/index";
 export const SoundxyzArtistContracts = ArtistContracts.map((c) => c.toLowerCase());
 export const SoundxyzReleaseContracts = ReleaseContracts.map((c) => c.toLowerCase());
 
-export const getContractSlug = async (contract: string, _tokenId: string) => {
+// generated from graphql:codegen outside this repo
+export type SoundNftQuery = {
+  nft: {
+    title: string;
+    audioUrl: string | null;
+    coverImage: {
+      id: string;
+      url: string;
+    };
+    openSeaMetadataAttributes: {
+      traitType: string | null;
+      value: string;
+    }[];
+    release: {
+      id: string;
+      title: string;
+      titleSlug: string;
+      behindTheMusic: string;
+      royaltyBps: number;
+      fundingAddress: string;
+      webappUri: string;
+      artist: {
+        id: string;
+        name: string;
+      };
+      coverImage: {
+        id: string;
+        url: string;
+      };
+    };
+  };
+};
+
+export const getMetadataFromSoundApi = async (
+  contract: string,
+  _tokenId: string
+): Promise<{ data: { data: SoundNftQuery } }> => {
   const apiUrl = ![4, 5].includes(config.chainId)
     ? "https://api.sound.xyz/graphql?x-sound-client-name=firstmate"
     : "https://staging.api.sound.xyz/graphql";
 
+  // if updating this, ensure that codegen is run and the type is also updated
   const query = `
-        query ContractSlug {
-          releaseFromToken(
+        query SoundNft {
+          nft(
             input: { contractAddress: "${contract}", tokenId: "${_tokenId}" }
           ) {
-            baseMetadataAttributes {
+            title
+            audioUrl
+            coverImage {
+              id
+              url
+            }
+            openSeaMetadataAttributes {
               traitType
               value
             }
-            id
-            title
-            titleSlug
-            behindTheMusic
-            externalUrl
-            behindTheMusic
-            fundingAddress
-            royaltyBps
-            artist {
+            release {
               id
-              name
-              soundHandle
-              user {
-                publicAddress
-              }
-            }
-            coverImage {
-              url
-            }
-            staticCoverImage {
-               url
-            }
-            animatedCoverImage {
-               url
-            }
-            eggGame {
-              id
-              goldenEggImage {
-                url
-              }
-              animatedGoldenEggImageOptimized {
-                 url
-              }
-              nft {
+              title
+              titleSlug
+              behindTheMusic
+              royaltyBps
+              fundingAddress
+              webappUri
+              artist {
                 id
-                tokenId
-                openSeaMetadataAttributes {
-                  traitType
-                  value
-                }
+                name
               }
-            }
-            track {
-              id
-              revealedAudio {
+              coverImage {
                 id
                 url
               }
             }
           }
         }
-    `;
+  `;
 
   try {
     return axios.post(
@@ -103,29 +114,17 @@ export const getContractSlug = async (contract: string, _tokenId: string) => {
 export const extend = async (metadata: TokenMetadata) => {
   const {
     data: {
-      data: { releaseFromToken },
+      data: { nft },
     },
-  } = await getContractSlug(metadata.contract, metadata.tokenId);
-  const isGoldenEgg = releaseFromToken.eggGame?.nft.tokenId === metadata.tokenId;
-  let imageUrl =
-    releaseFromToken.animatedCoverImage?.url ??
-    releaseFromToken.coverImage?.url ??
-    releaseFromToken.staticCoverImage?.url;
-  if (isGoldenEgg) {
-    imageUrl =
-      releaseFromToken.eggGame.animatedGoldenEggImageOptimized?.url ??
-      releaseFromToken.eggGame.goldenEggImage?.url;
-  }
+  } = await getMetadataFromSoundApi(metadata.contract, metadata.tokenId);
 
-  metadata.name = releaseFromToken.title;
-  metadata.collection = `${metadata.contract}:soundxyz-${releaseFromToken.id}`;
-  metadata.description = releaseFromToken.behindTheMusic;
-  metadata.imageUrl = imageUrl;
-  metadata.attributes = (
-    (isGoldenEgg
-      ? releaseFromToken.eggGame.nft.openSeaMetadataAttributes
-      : releaseFromToken.baseMetadataAttributes) || []
-  ).map((trait: any) => ({
+  const { release, openSeaMetadataAttributes } = nft;
+
+  metadata.name = nft.title;
+  metadata.collection = `${metadata.contract}:soundxyz-${release.id}`;
+  metadata.description = release.behindTheMusic;
+  metadata.imageUrl = nft.coverImage.url;
+  metadata.attributes = openSeaMetadataAttributes.map((trait) => ({
     key: trait.traitType ?? "property",
     value: trait.value,
     kind: typeof trait.value == "number" ? "number" : "string",
@@ -142,16 +141,18 @@ export const extendCollection = async (metadata: CollectionMetadata, _tokenId = 
 
   const {
     data: {
-      data: { releaseFromToken },
+      data: { nft },
     },
-  } = await getContractSlug(metadata.contract, _tokenId);
+  } = await getMetadataFromSoundApi(metadata.contract, _tokenId);
+
+  const { release } = nft;
 
   const royalties = [];
 
-  if (releaseFromToken.fundingAddress && releaseFromToken.royaltyBps) {
+  if (release.fundingAddress && release.royaltyBps) {
     royalties.push({
-      recipient: _.toLower(releaseFromToken.fundingAddress),
-      bps: releaseFromToken.royaltyBps,
+      recipient: _.toLower(release.fundingAddress),
+      bps: release.royaltyBps,
     });
   }
 
@@ -159,14 +160,14 @@ export const extendCollection = async (metadata: CollectionMetadata, _tokenId = 
     metadata.metadata = {};
   }
 
-  metadata.metadata.imageUrl = releaseFromToken.coverImage.url;
-  metadata.metadata.description = releaseFromToken.description;
-  metadata.metadata.externalUrl = `https://sound.xyz/${releaseFromToken.artist.soundHandle}/${releaseFromToken.titleSlug}`;
+  metadata.metadata.imageUrl = release.coverImage.url;
+  metadata.metadata.description = release.behindTheMusic;
+  metadata.metadata.externalUrl = release.webappUri;
 
   return {
     ...metadata,
-    id: `${metadata.contract}:soundxyz-${releaseFromToken.id}`,
-    name: `${releaseFromToken.artist.name} - ${releaseFromToken.title}`,
+    id: `${metadata.contract}:soundxyz-${release.id}`,
+    name: `${release.artist.name} - ${release.title}`,
     community: "sound.xyz",
     royalties,
     tokenSetId: null,

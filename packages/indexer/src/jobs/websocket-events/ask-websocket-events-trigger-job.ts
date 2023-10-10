@@ -11,6 +11,7 @@ import { getJoiPriceObject, getJoiSourceObject } from "@/common/joi";
 import _ from "lodash";
 import * as Sdk from "@reservoir0x/sdk";
 import { formatStatus, formatValidBetween } from "@/jobs/websocket-events/utils";
+import { Network } from "@reservoir0x/sdk/dist/utils";
 
 export type AskWebsocketEventsTriggerQueueJobPayload = {
   data: OrderWebsocketEventInfo;
@@ -50,16 +51,45 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
           }
         }
 
-        // if (!changed.length) {
-        //   logger.info(
-        //     this.queueName,
-        //     `No changes detected for event. before=${JSON.stringify(
-        //       data.before
-        //     )}, after=${JSON.stringify(data.after)}`
-        //   );
+        if (!changed.length) {
+          if (config.chainId === Network.Ethereum) {
+            try {
+              for (const key in data.after) {
+                const beforeValue = data.before[key as keyof OrderInfo];
+                const afterValue = data.after[key as keyof OrderInfo];
 
-        //   return;
-        // }
+                if (beforeValue !== afterValue) {
+                  changed.push(key as keyof OrderInfo);
+                }
+              }
+
+              logger.info(
+                this.queueName,
+                JSON.stringify({
+                  message: `No changes detected for ask. orderId=${data.after.id}`,
+                  data,
+                  beforeJson: JSON.stringify(data.before),
+                  afterJson: JSON.stringify(data.after),
+                  changed,
+                  changedJson: JSON.stringify(changed),
+                  hasChanged: changed.length > 0,
+                })
+              );
+            } catch (error) {
+              logger.error(
+                this.queueName,
+                JSON.stringify({
+                  message: `No changes detected for ask error. orderId=${data.after.id}`,
+                  data,
+                  changed,
+                  error,
+                })
+              );
+            }
+          }
+
+          return;
+        }
       }
 
       const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", true);
