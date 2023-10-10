@@ -368,7 +368,8 @@ export class DailyVolume {
    */
   public static async updateCollections(
     useCleanValues = false,
-    collectionId = ""
+    collectionId = "",
+    isLiteUpdate = false
   ): Promise<boolean> {
     // Skip the query when the collection_id = -1
     const date = new Date();
@@ -402,8 +403,10 @@ export class DailyVolume {
         collection_id,
         SUM(volume${valuesPostfix}) AS $1:name
       FROM daily_volumes
+      ${isLiteUpdate ? "JOIN collections ON collections.id = daily_volumes.collection_id" : ""}
       WHERE timestamp >= $2
       AND collection_id != '-1'
+      ${isLiteUpdate ? "AND collections.day1_volume > 0" : ""}
       ${collectionId ? `AND collection_id = $3` : ""}
       GROUP BY collection_id
     `;
@@ -449,8 +452,10 @@ export class DailyVolume {
                RANK() OVER (ORDER BY SUM(volume${valuesPostfix}) DESC, "collection_id") $1:name,
                MIN(floor_sell_value${valuesPostfix}) AS $2:name
         FROM daily_volumes
+        ${isLiteUpdate ? "JOIN collections ON collections.id = daily_volumes.collection_id" : ""}
         WHERE timestamp < $3 AND timestamp >= $4
         AND collection_id != '-1'
+        ${isLiteUpdate ? "AND collections.day1_volume > 0" : ""}
         ${collectionId ? `AND collection_id = $5` : ""}
         GROUP BY collection_id
       `;

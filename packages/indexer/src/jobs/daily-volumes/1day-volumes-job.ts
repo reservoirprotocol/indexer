@@ -17,6 +17,7 @@ export class OneDayVolumeJob extends AbstractRabbitMqJobHandler {
     let { retry } = payload;
 
     const updateResult = await DailyVolume.update1Day();
+    await DailyVolume.updateCollections(false, "", true);
 
     if (updateResult) {
       logger.info(
