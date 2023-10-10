@@ -108,7 +108,7 @@ export const getTrendingMintsV1Options: RouteOptions = {
           ),
         })
       ),
-    }).label(`getTrendingMints${version.toUpperCase()}Response`),
+    }).label(`get-trending-mints${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
       logger.error(`get-trending-mints-${version}-handler`, `Wrong response schema: ${error}`);
       throw error;
@@ -235,7 +235,7 @@ async function formatCollections(
 
 async function getCollectionsMetadata(collectionsResult: any[], status?: "active" | "inactive") {
   const collectionIds = collectionsResult.map((collection: any) => collection.id);
-  const collectionsToFetch = collectionIds.map((id: string) => `collectionCache:v1:${id}`);
+  const collectionsToFetch = collectionIds.map((id: string) => `collection-cache:v1:${id}`);
   const collectionMetadataCache = await redis
     .mget(collectionsToFetch)
     .then((results) =>
@@ -355,7 +355,7 @@ async function getMintsResult(request: Request) {
   const statusType = status;
   let mintsResult = [];
   const period = request.query.period === "24h" ? "1d" : request.query.period;
-  const cacheKey = `topTrendingMints:v1:${period}:${statusType}`;
+  const cacheKey = `top-trending-mints:v1:${period}:${statusType}`;
   const cachedResults = await redis.get(cacheKey);
 
   if (cachedResults) {
