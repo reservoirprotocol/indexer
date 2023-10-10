@@ -12,6 +12,7 @@ import _ from "lodash";
 import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { collectionMetadataQueueJob } from "../collection-updates/collection-metadata-queue-job";
+import { Tokens } from "@/models/tokens";
 
 export type MintQueueJobPayload = {
   contract: string;
@@ -73,9 +74,12 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
             collection: collection.id,
           }
         );
+
         if (!existingToken) {
           isFirstToken = true;
         }
+
+        const token = await Tokens.getByContractAndTokenId(contract, tokenId);
 
         const queries: PgPromiseQuery[] = [];
 
@@ -102,6 +106,7 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
             topic: "debugTokenUpdate",
             message: `Update token. contract=${contract}, tokenId=${tokenId}`,
             token: `${contract}:${tokenId}`,
+            tokenJSON: JSON.stringify(token),
           })
         );
 
