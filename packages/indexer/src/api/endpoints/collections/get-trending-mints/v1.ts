@@ -213,23 +213,7 @@ async function formatCollections(
           ...response,
           mintType: mintStages?.[0]?.price?.amount?.decimal > 0 ? "paid" : "free",
           mintStatus: metadata.mint_status,
-          mintStages: metadata.mint_stages
-            ? await Promise.all(
-                metadata.mint_stages.map(async (m: any) => {
-                  return {
-                    stage: m?.stage || null,
-                    kind: m?.kind || null,
-                    tokenId: m?.tokenId || null,
-                    price: m?.price
-                      ? await getJoiPriceObject({ gross: { amount: m.price } }, m.currency)
-                      : m?.price,
-                    startTime: m?.startTime,
-                    endTime: m?.endTime,
-                    maxMintsPerWallet: m?.maxMintsPerWallet,
-                  };
-                })
-              )
-            : [],
+          mintStages,
           image: metadata?.metadata?.imageUrl,
           name: metadata?.name,
           volumeChange: {
