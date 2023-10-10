@@ -606,10 +606,31 @@ export const getTopSellingCollectionsV2 = async (params: {
 
 export const getTrendingMints = async (params: {
   startTime: number;
+  type: "free" | "paid" | "any";
 }): Promise<CollectionAggregation[]> => {
-  const { startTime } = params;
+  const { startTime, type } = params;
 
   const { trendingExcludedContracts } = getNetworkSettings();
+
+  let priceFilter: any;
+
+  if (type === "free") {
+    priceFilter = {
+      range: {
+        "pricing.priceDecimal": {
+          lte: 0,
+        },
+      },
+    };
+  } else if (type === "paid") {
+    priceFilter = {
+      range: {
+        "pricing.priceDecimal": {
+          gt: 0,
+        },
+      },
+    };
+  }
 
   const salesQuery = {
     bool: {
@@ -627,6 +648,7 @@ export const getTrendingMints = async (params: {
             },
           },
         },
+        ...(priceFilter ? [priceFilter] : []),
       ],
       ...(trendingExcludedContracts && {
         must_not: [
@@ -644,7 +666,7 @@ export const getTrendingMints = async (params: {
     collections: {
       terms: {
         field: "collection.id",
-        size: 100,
+        size: 1000,
         order: {
           total_transactions: "desc",
         },
@@ -668,7 +690,6 @@ export const getTrendingMints = async (params: {
       },
     },
   } as any;
-
   const esResult = (await elasticsearch.search({
     index: INDEX_NAME,
     size: 0,
@@ -677,7 +698,6 @@ export const getTrendingMints = async (params: {
       aggs: collectionAggregation,
     },
   })) as any;
-
   return esResult?.aggregations?.collections?.buckets?.map((bucket: any) => {
     return {
       volume: bucket?.total_volume?.value,
