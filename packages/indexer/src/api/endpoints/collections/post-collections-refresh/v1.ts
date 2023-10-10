@@ -24,6 +24,7 @@ import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
 import { blurBidsRefreshJob } from "@/jobs/order-updates/misc/blur-bids-refresh-job";
 import { blurListingsRefreshJob } from "@/jobs/order-updates/misc/blur-listings-refresh-job";
 import { openseaOrdersProcessJob } from "@/jobs/opensea-orders/opensea-orders-process-job";
+import { PendingFlagStatusSyncCollections } from "@/models/pending-flag-status-sync-collections";
 
 const version = "v1";
 
@@ -241,6 +242,14 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
 
           // Refresh the collection tokens metadata
           await metadataIndexFetchJob.addToQueue([metadataIndexInfo], true);
+
+          await PendingFlagStatusSyncCollections.add([
+            {
+              slug: collection.slug,
+              contract: collection.contract,
+              continuation: null,
+            },
+          ]);
         }
       }
 

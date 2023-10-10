@@ -8,7 +8,7 @@ import * as tokenSets from "@/orderbook/token-sets";
 export type FlagStatusUpdateJobPayload = {
   contract: string;
   tokenId: string;
-  isFlagged: boolean;
+  isFlagged: boolean | null;
 };
 
 export class FlagStatusUpdateJob extends AbstractRabbitMqJobHandler {

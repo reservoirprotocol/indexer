@@ -11,6 +11,7 @@ import { getNetworkSettings } from "@/config/network";
 import * as royalties from "@/utils/royalties";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 
 export type FetchCollectionMetadataJobPayload = {
   contract: string;
@@ -147,6 +148,16 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
           ],
           true,
           getNetworkSettings().metadataMintDelay
+        );
+
+        await PendingFlagStatusSyncTokens.add(
+          [
+            {
+              contract,
+              tokenId,
+            },
+          ],
+          true
         );
       }
 

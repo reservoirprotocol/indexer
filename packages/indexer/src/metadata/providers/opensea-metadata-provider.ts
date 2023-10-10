@@ -75,7 +75,10 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
   }
 
   protected async _getTokensMetadata(
-    tokens: { contract: string; tokenId: string }[]
+    tokens: { contract: string; tokenId: string }[],
+    options?: {
+      isRequestForFlaggedMetadata?: boolean;
+    }
   ): Promise<TokenMetadata[]> {
     const searchParams = new URLSearchParams();
     for (const { contract, tokenId } of tokens) {
@@ -87,12 +90,16 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
       !this.isOSTestnet() ? "https://api.opensea.io" : "https://testnets-api.opensea.io"
     }/api/v1/assets?${searchParams.toString()}`;
 
+    const API_KEY_TO_USE = options?.isRequestForFlaggedMetadata
+      ? config.openSeaFlaggedMetadataApiKey
+      : config.openSeaTokenMetadataApiKey;
+
     const data = await axios
       .get(!this.isOSTestnet() ? config.openSeaApiUrl || url : url, {
         headers: !this.isOSTestnet()
           ? {
               url,
-              "X-API-KEY": config.openSeaTokenMetadataApiKey.trim(),
+              "X-API-KEY": API_KEY_TO_USE.trim(),
               Accept: "application/json",
             }
           : {
@@ -118,7 +125,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
 
   protected async _getTokensMetadataBySlug(
     slug: string,
-    continuation?: string
+    continuation?: string | null
   ): Promise<TokenMetadataBySlugResult> {
     const searchParams = new URLSearchParams();
     if (continuation) {
@@ -126,6 +133,8 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
     }
     if (slug) {
       searchParams.append("collection_slug", slug);
+    } else {
+      throw new Error("Missing slug");
     }
     searchParams.append("limit", "200");
 
@@ -152,6 +161,54 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
       metadata: assets,
       continuation: data.next ?? undefined,
       previous: data.previous ?? undefined,
+    };
+  }
+
+  async _getTokensFlagStatusByContract(
+    contract: string,
+    continuation?: string
+  ): Promise<{
+    data: { contract: string; tokenId: string; isFlagged: boolean }[];
+    continuation: string | null;
+  }> {
+    const searchParams = new URLSearchParams();
+    searchParams.append("asset_contract_addresses", contract);
+    if (continuation) {
+      searchParams.append("cursor", continuation);
+    }
+    searchParams.append("include_orders", "false");
+    searchParams.append("order_direction", "desc");
+    searchParams.append("limit", "200");
+
+    const url = `${
+      !this.isOSTestnet() ? "https://api.opensea.io" : "https://testnets-api.opensea.io"
+    }/api/v1/assets?${searchParams.toString()}`;
+
+    const data = await axios
+      .get(!this.isOSTestnet() ? config.openSeaApiUrl || url : url, {
+        headers: !this.isOSTestnet()
+          ? {
+              url,
+              "X-API-KEY": config.openSeaFlaggedMetadataApiKey.trim(),
+              Accept: "application/json",
+            }
+          : {
+              Accept: "application/json",
+            },
+      })
+      .then((response) => response.data)
+      .catch((error) => {
+        // eslint-disable-next-line
+        console.log(error);
+      });
+
+    return {
+      data: data.assets.map((asset: any) => ({
+        contract: asset.asset_contract.address,
+        tokenId: asset.token_id,
+        isFlagged: !asset.supports_wyvern,
+      })),
+      continuation: data.next ?? undefined,
     };
   }
 
