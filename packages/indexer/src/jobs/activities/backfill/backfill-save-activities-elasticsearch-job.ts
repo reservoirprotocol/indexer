@@ -29,6 +29,7 @@ export type BackfillSaveActivitiesElasticsearchJobPayload = {
   toTimestamp?: number;
   indexName?: string;
   keepGoing?: boolean;
+  upsert?: boolean;
 };
 
 export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
@@ -51,6 +52,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
     const toTimestamp = payload.toTimestamp || 9999999999;
     const indexName = payload.indexName ?? ActivitiesIndex.getIndexName();
     const keepGoing = payload.keepGoing;
+    const upsert = payload.upsert || false;
 
     const fromTimestampISO = new Date(fromTimestamp * 1000).toISOString();
     const toTimestampISO = new Date(toTimestamp * 1000).toISOString();
@@ -84,7 +86,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
 
         const bulkResponse = await elasticsearch.bulk({
           body: activities.flatMap((activity) => [
-            { index: { _index: indexName, _id: activity.id } },
+            { [upsert ? "index" : "create"]: { _index: indexName, _id: activity.id } },
             activity,
           ]),
         });
