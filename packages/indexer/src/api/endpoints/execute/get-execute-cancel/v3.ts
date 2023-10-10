@@ -499,11 +499,13 @@ export const getExecuteCancelV3Options: RouteOptions = {
         }
 
         case "blur": {
-          if (orderResult.raw_data.createdAt) {
-            // Handle Blur authentication
-            const blurAuthId = b.getAuthId(maker);
-            const blurAuth = await b.getAuth(blurAuthId);
-            if (!blurAuth) {
+          // Handle Blur authentication
+          const blurAuthId = b.getAuthId(maker);
+          let blurAuth = await b.getAuth(blurAuthId);
+          if (!blurAuth) {
+            if (payload.blurAuth) {
+              blurAuth = { accessToken: payload.blurAuth };
+            } else {
               const blurAuthChallengeId = b.getAuthChallengeId(maker);
 
               let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
@@ -545,25 +547,21 @@ export const getExecuteCancelV3Options: RouteOptions = {
               });
 
               return { steps };
-            } else {
-              steps[0].items.push({
-                status: "complete",
-              });
-
-              cancelTx = await axios
-                .post(`${config.orderFetcherBaseUrl}/api/blur-cancel-listings`, {
-                  maker,
-                  contract: orderResult.raw_data.collection,
-                  tokenId: orderResult.raw_data.tokenId,
-                  authToken: blurAuth.accessToken,
-                })
-                .then((response) => response.data);
             }
-          } else {
-            const order = new Sdk.Blur.Order(config.chainId, orderResult.raw_data);
-            const exchange = new Sdk.Blur.Exchange(config.chainId);
-            cancelTx = exchange.cancelOrderTx(order.params.trader, order);
           }
+
+          steps[0].items.push({
+            status: "complete",
+          });
+
+          cancelTx = await axios
+            .post(`${config.orderFetcherBaseUrl}/api/blur-cancel-listings`, {
+              maker,
+              contract: orderResult.raw_data.collection,
+              tokenId: orderResult.raw_data.tokenId,
+              authToken: blurAuth.accessToken,
+            })
+            .then((response) => response.data);
 
           break;
         }
