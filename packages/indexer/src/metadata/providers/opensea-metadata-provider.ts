@@ -125,7 +125,10 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
 
   protected async _getTokensMetadataBySlug(
     slug: string,
-    continuation?: string | null
+    continuation?: string | null,
+    options?: {
+      isRequestForFlaggedMetadata?: boolean;
+    }
   ): Promise<TokenMetadataBySlugResult> {
     const searchParams = new URLSearchParams();
     if (continuation) {
@@ -138,6 +141,10 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
     }
     searchParams.append("limit", "200");
 
+    const API_KEY_TO_USE = options?.isRequestForFlaggedMetadata
+      ? config.openSeaFlaggedMetadataApiKey
+      : config.openSeaTokenMetadataBySlugApiKey;
+
     const url = `${
       !this.isOSTestnet() ? "https://api.opensea.io" : "https://testnets-api.opensea.io"
     }/api/v1/assets?${searchParams.toString()}`;
@@ -146,7 +153,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
         headers: !this.isOSTestnet()
           ? {
               url,
-              "X-API-KEY": config.openSeaTokenMetadataBySlugApiKey.trim(),
+              "X-API-KEY": API_KEY_TO_USE,
               Accept: "application/json",
             }
           : {

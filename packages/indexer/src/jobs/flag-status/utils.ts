@@ -27,7 +27,9 @@ export const getTokensFlagStatusForCollection = async (
   let parsedTokens: { contract: string; tokenId: string; isFlagged: boolean | null }[] = [];
   let nextContinuation: string | null = null;
   if (slug) {
-    const result = await openseaMetadataProvider.getTokensMetadataBySlug(slug, continuation || "");
+    const result = await openseaMetadataProvider.getTokensMetadataBySlug(slug, continuation || "", {
+      isRequestForFlaggedMetadata: true,
+    });
 
     parsedTokens = result.metadata.map((token) => ({
       contract: token.contract,

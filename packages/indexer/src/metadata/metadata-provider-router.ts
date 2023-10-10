@@ -45,7 +45,7 @@ export class MetadataProviderRouter {
     tokens: { contract: string; tokenId: string }[],
     method = "",
     options?: {
-      flagged?: boolean;
+      isRequestForFlaggedMetadata?: boolean;
     }
   ): Promise<TokenMetadata[]> {
     method = method === "" ? config.metadataIndexingMethod : method;

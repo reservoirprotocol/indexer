@@ -82,9 +82,12 @@ export abstract class AbstractBaseMetadataProvider {
 
   async getTokensMetadataBySlug(
     slug: string,
-    continuation: string
+    continuation: string,
+    options?: {
+      isRequestForFlaggedMetadata?: boolean;
+    }
   ): Promise<TokenMetadataBySlugResult> {
-    return this._getTokensMetadataBySlug(slug, continuation);
+    return this._getTokensMetadataBySlug(slug, continuation, options);
   }
 
   // Internal methods for subclasses
@@ -102,7 +105,10 @@ export abstract class AbstractBaseMetadataProvider {
 
   protected abstract _getTokensMetadataBySlug(
     slug: string,
-    continuation?: string
+    continuation?: string,
+    options?: {
+      isRequestForFlaggedMetadata?: boolean;
+    }
   ): Promise<TokenMetadataBySlugResult>;
 
   // Parsers
