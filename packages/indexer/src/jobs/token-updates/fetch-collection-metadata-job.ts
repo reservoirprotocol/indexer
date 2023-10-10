@@ -125,6 +125,15 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
       // Write the collection to the database
       await idb.none(pgp.helpers.concat(queries));
 
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "debugTokenUpdate",
+          message: `Update token. contract=${contract}, tokenId=${tokenId}`,
+          token: `${contract}:${tokenId}`,
+        })
+      );
+
       // Schedule a job to re-count tokens in the collection
       await recalcTokenCountQueueJob.addToQueue({ collection: collection.id });
       await recalcOwnerCountQueueJob.addToQueue([

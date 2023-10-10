@@ -96,6 +96,15 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
           },
         });
 
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "debugTokenUpdate",
+            message: `Update token. contract=${contract}, tokenId=${tokenId}`,
+            token: `${contract}:${tokenId}`,
+          })
+        );
+
         // Include the new token to any collection-wide token set
         if (collection.token_set_id) {
           queries.push({
