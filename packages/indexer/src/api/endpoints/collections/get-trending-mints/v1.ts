@@ -115,7 +115,7 @@ export const getTrendingMintsV1Options: RouteOptions = {
     },
   },
   handler: async (request: Request, h) => {
-    const { normalizeRoyalties, useNonFlaggedFloorAsk, status, price } = request.query;
+    const { normalizeRoyalties, useNonFlaggedFloorAsk, status } = request.query;
 
     try {
       const mintsResult = await getMintsResult(request);
@@ -126,8 +126,7 @@ export const getTrendingMintsV1Options: RouteOptions = {
         mintsResult,
         collectionsMetadata,
         normalizeRoyalties,
-        useNonFlaggedFloorAsk,
-        price
+        useNonFlaggedFloorAsk
       );
 
       const response = h.response({ mints });
