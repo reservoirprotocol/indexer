@@ -428,10 +428,8 @@ export const getTopSellingCollectionsV2 = async (params: {
 
 export const getTrendingMints = async (params: {
   startTime: number;
-  sortBy?: "volume" | "mints";
-  limit: number;
 }): Promise<CollectionAggregation[]> => {
-  const { startTime, limit, sortBy } = params;
+  const { startTime } = params;
 
   const { trendingExcludedContracts } = getNetworkSettings();
 
@@ -464,13 +462,14 @@ export const getTrendingMints = async (params: {
     },
   } as any;
 
-  const sort = sortBy == "volume" ? { total_volume: "desc" } : { total_transactions: "desc" };
   const collectionAggregation = {
     collections: {
       terms: {
         field: "collection.id",
-        size: limit,
-        order: sort,
+        size: 100,
+        order: {
+          total_transactions: "desc",
+        },
       },
       aggs: {
         total_mints: {

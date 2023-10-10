@@ -1,19 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Request, RouteOptions } from "@hapi/hapi";
-import Joi from "joi";
+import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { fromBuffer, regex } from "@/common/utils";
-import { redb } from "@/common/db";
-import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 import { getStartTime } from "@/models/top-selling-collections/top-selling-collections";
+import { Request, RouteOptions } from "@hapi/hapi";
+import * as Sdk from "@reservoir0x/sdk";
+import Joi from "joi";
 
 import { redis } from "@/common/redis";
 
 const REDIS_EXPIRATION = 60 * 60 * 24; // 24 hours
 
-import { getTrendingMints, TopSellingFillOptions } from "@/elasticsearch/indexes/activities";
+import { getTrendingMints } from "@/elasticsearch/indexes/activities";
 
 import { getJoiPriceObject, JoiPrice } from "@/common/joi";
 import { Sources } from "@/models/sources";
@@ -21,13 +21,9 @@ import { Sources } from "@/models/sources";
 const version = "v1";
 
 export const getTrendingMintsV1Options: RouteOptions = {
-  cache: {
-    expiresIn: 60 * 1000,
-    privacy: "public",
-  },
-  description: "Top Selling Collections",
-  notes: "Get top selling and minting collections",
-  tags: ["api", "Collections"],
+  description: "Top Trending Mints",
+  notes: "Get top trending mints",
+  tags: ["api", "mints"],
   plugins: {
     "hapi-swagger": {
       order: 3,
@@ -39,21 +35,23 @@ export const getTrendingMintsV1Options: RouteOptions = {
         .valid("5m", "10m", "30m", "1h", "6h", "24h")
         .default("24h")
         .description("Time window to aggregate."),
-
+      status: Joi.string()
+        .allow("active", "inactive")
+        .default("any")
+        .description("The collection's minting status."),
       limit: Joi.number()
         .integer()
         .min(1)
         .max(50)
         .default(50)
         .description(
-          "Amount of items returned in response. Default is 50 and max is 50s. Expected to be sorted and filtered on client side."
+          "Amount of items returned in response. Default is 50 and max is 50. Expected to be sorted and filtered on client side."
         ),
-      sortBy: Joi.string().valid("volume", "mints").default("mints"),
     }),
   },
   response: {
     schema: Joi.object({
-      collections: Joi.array().items(
+      mints: Joi.array().items(
         Joi.object({
           id: Joi.string().description("Collection id"),
           name: Joi.string().allow("", null),
@@ -63,6 +61,7 @@ export const getTrendingMintsV1Options: RouteOptions = {
           primaryContract: Joi.string().lowercase().pattern(regex.address),
           count: Joi.number().integer(),
           volume: Joi.number(),
+          mints: Joi.number(),
           creator: Joi.string().allow("", null),
           floorAsk: {
             id: Joi.string().allow(null),
@@ -80,6 +79,18 @@ export const getTrendingMintsV1Options: RouteOptions = {
               .allow(null)
               .description("Lowest Ask Price."),
           },
+          mintStatus: Joi.string().allow("", null),
+          mintStages: Joi.array().items(
+            Joi.object({
+              stage: Joi.string().allow(null),
+              tokenId: Joi.string().pattern(regex.number).allow(null),
+              kind: Joi.string().required(),
+              price: JoiPrice.allow(null),
+              startTime: Joi.number().allow(null),
+              endTime: Joi.number().allow(null),
+              maxMintsPerWallet: Joi.number().unsafe().allow(null),
+            })
+          ),
           tokenCount: Joi.number().description("Total tokens within the collection."),
           ownerCount: Joi.number().description("Unique number of owners."),
           volumeChange: Joi.object({
@@ -88,38 +99,35 @@ export const getTrendingMintsV1Options: RouteOptions = {
             "30day": Joi.number().unsafe().allow(null),
             allTime: Joi.number().unsafe().allow(null),
           }).description(
-            "Total volume change X-days vs previous X-days. (e.g. 7day [days 1-7] vs 7day prior [days 8-14]). A value over 1 is a positive gain, under 1 is a negative loss. e.g. 1 means no change; 1.1 means 10% increase; 0.9 means 10% decrease."
+            "Total volume chang e X-days vs previous X-days. (e.g. 7day [days 1-7] vs 7day prior [days 8-14]). A value over 1 is a positive gain, under 1 is a negative loss. e.g. 1 means no change; 1.1 means 10% increase; 0.9 means 10% decrease."
           ),
         })
       ),
-    }).label(`getTopSellingCollections${version.toUpperCase()}Response`),
+    }).label(`getTrendingMints${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
-      logger.error(
-        `get-top-selling-collections-${version}-handler`,
-        `Wrong response schema: ${error}`
-      );
+      logger.error(`get-trending-mints-${version}-handler`, `Wrong response schema: ${error}`);
       throw error;
     },
   },
   handler: async (request: Request, h) => {
-    const { normalizeRoyalties, useNonFlaggedFloorAsk } = request.query;
+    const { normalizeRoyalties, useNonFlaggedFloorAsk, status } = request.query;
 
     try {
-      const collectionsResult = await getCollectionsResult(request);
+      const mintsResult = await getMintsResult(request);
 
-      const collectionsMetadata = await getCollectionsMetadata(collectionsResult);
+      const collectionsMetadata = await getCollectionsMetadata(mintsResult, status);
 
-      const collections = await formatCollections(
-        collectionsResult,
+      const mints = await formatCollections(
+        mintsResult,
         collectionsMetadata,
         normalizeRoyalties,
         useNonFlaggedFloorAsk
       );
 
-      const response = h.response({ collections });
+      const response = h.response({ mints });
       return response;
     } catch (error) {
-      logger.error(`get-top-selling-collections-${version}-handler`, `Handler failure: ${error}`);
+      logger.error(`get-trending-mints-${version}-handler`, `Handler failure: ${error}`);
       throw error;
     }
   },
@@ -132,69 +140,89 @@ async function formatCollections(
   useNonFlaggedFloorAsk: boolean
 ) {
   const sources = await Sources.getInstance();
+  const metadataKeys = Object.keys(collectionsMetadata);
 
   const collections = await Promise.all(
-    collectionsResult.map(async (response: any) => {
-      const metadata = collectionsMetadata[response.id] || {};
-      let floorAsk;
-      let prefix = "";
+    collectionsResult
+      .filter((res) => metadataKeys.includes(res.id))
+      .map(async (response: any) => {
+        const metadata = collectionsMetadata[response.id] || {};
+        let floorAsk;
+        let prefix = "";
 
-      if (normalizeRoyalties) {
-        prefix = "normalized_";
-      } else if (useNonFlaggedFloorAsk) {
-        prefix = "non_flagged_";
-      }
+        if (normalizeRoyalties) {
+          prefix = "normalized_";
+        } else if (useNonFlaggedFloorAsk) {
+          prefix = "non_flagged_";
+        }
 
-      const floorAskId = metadata[`${prefix}floor_sell_id`];
-      const floorAskValue = metadata[`${prefix}floor_sell_value`];
-      let floorAskCurrency = metadata[`${prefix}floor_sell_currency`];
-      const floorAskSource = metadata[`${prefix}floor_sell_source_id_int`];
-      const floorAskCurrencyValue = metadata[`${prefix}floor_sell_currency_value`];
+        const floorAskId = metadata[`${prefix}floor_sell_id`];
+        const floorAskValue = metadata[`${prefix}floor_sell_value`];
+        let floorAskCurrency = metadata[`${prefix}floor_sell_currency`];
+        const floorAskSource = metadata[`${prefix}floor_sell_source_id_int`];
+        const floorAskCurrencyValue = metadata[`${prefix}floor_sell_currency_value`];
 
-      if (metadata) {
-        floorAskCurrency = floorAskCurrency
-          ? fromBuffer(floorAskCurrency)
-          : Sdk.Common.Addresses.Native[config.chainId];
-        floorAsk = {
-          id: floorAskId,
-          sourceDomain: sources.get(floorAskSource)?.domain,
-          price: metadata.floor_sell_id
-            ? await getJoiPriceObject(
-                {
-                  gross: {
-                    amount: floorAskCurrencyValue ?? floorAskValue,
-                    nativeAmount: floorAskValue,
+        if (metadata) {
+          floorAskCurrency = floorAskCurrency
+            ? fromBuffer(floorAskCurrency)
+            : Sdk.Common.Addresses.Native[config.chainId];
+          floorAsk = {
+            id: floorAskId,
+            sourceDomain: sources.get(floorAskSource)?.domain,
+            price: metadata.floor_sell_id
+              ? await getJoiPriceObject(
+                  {
+                    gross: {
+                      amount: floorAskCurrencyValue ?? floorAskValue,
+                      nativeAmount: floorAskValue,
+                    },
                   },
-                },
-                floorAskCurrency
+                  floorAskCurrency
+                )
+              : null,
+          };
+        }
+        return {
+          ...response,
+          mintStatus: metadata.mint_status,
+          mintStages: metadata.mint_stages
+            ? await Promise.all(
+                metadata.mint_stages.map(async (m: any) => {
+                  return {
+                    stage: m?.stage || null,
+                    kind: m?.kind || null,
+                    tokenId: m?.tokenId || null,
+                    price: m?.price
+                      ? await getJoiPriceObject({ gross: { amount: m.price } }, m.currency)
+                      : m?.price,
+                    startTime: m?.startTime,
+                    endTime: m?.endTime,
+                    maxMintsPerWallet: m?.maxMintsPerWallet,
+                  };
+                })
               )
-            : null,
+            : [],
+          image: metadata?.metadata?.imageUrl,
+          name: metadata?.name,
+          volumeChange: {
+            "1day": metadata.day1_volume_change,
+            "7day": metadata.day7_volume_change,
+            "30day": metadata.day30_volume_change,
+            allTime: metadata.all_time_volume,
+          },
+          tokenCount: Number(metadata.token_count || 0),
+          ownerCount: Number(metadata.owner_count || 0),
+          banner: metadata.metadata?.bannerImageUrl,
+          description: metadata.metadata?.description,
+          floorAsk,
         };
-      }
-
-      return {
-        ...response,
-        image: metadata.metadata.imageUrl,
-        name: metadata.name,
-        volumeChange: {
-          "1day": metadata.day1_volume_change,
-          "7day": metadata.day7_volume_change,
-          "30day": metadata.day30_volume_change,
-          allTime: metadata.all_time_volume,
-        },
-        tokenCount: Number(metadata.token_count || 0),
-        ownerCount: Number(metadata.owner_count || 0),
-        banner: metadata.metadata.bannerImageUrl,
-        description: metadata.metadata.description,
-        floorAsk,
-      };
-    })
+      })
   );
 
   return collections;
 }
 
-async function getCollectionsMetadata(collectionsResult: any[]) {
+async function getCollectionsMetadata(collectionsResult: any[], status?: "active" | "inactive") {
   const collectionIds = collectionsResult.map((collection: any) => collection.id);
   const collectionsToFetch = collectionIds.map((id: string) => `collectionCache:v1:${id}`);
   const collectionMetadataCache = await redis
@@ -221,45 +249,68 @@ async function getCollectionsMetadata(collectionsResult: any[]) {
 
     const collectionIdList = collectionsToFetchFromDb.map((id: string) => `'${id}'`).join(", ");
 
+    const mintStatus = status ? (status == "active" ? "open" : "closed") : "";
+
+    const mintStatusQuery = mintStatus && `AND mint_status = '${mintStatus}'`;
+
     const baseQuery = `
     SELECT
-      collections.id,
-      collections.name,
-      collections.contract,
-      collections.creator,
-      collections.token_count,
-      collections.owner_count,
-      collections.day1_volume_change,
-      collections.day7_volume_change,
-      collections.day30_volume_change,
-      collections.all_time_volume,
+    collections.id,
+    collections.name,
+    collections.contract,
+    collections.creator,
+    collections.token_count,
+    collections.owner_count,
+    collections.day1_volume_change,
+    collections.day7_volume_change,
+    collections.day30_volume_change,
+    collections.all_time_volume,
+    json_build_object(
+      'imageUrl', collections.metadata ->> 'imageUrl',
+      'bannerImageUrl', collections.metadata ->> 'bannerImageUrl',
+      'description', collections.metadata ->> 'description'
+    ) AS metadata,
+    collections.non_flagged_floor_sell_id,
+    collections.non_flagged_floor_sell_value,
+    collections.non_flagged_floor_sell_maker,
+    collections.non_flagged_floor_sell_valid_between,
+    collections.non_flagged_floor_sell_source_id_int,
+    collections.floor_sell_id,
+    collections.floor_sell_value,
+    collections.floor_sell_maker,
+    collections.floor_sell_valid_between,
+    collections.floor_sell_source_id_int,
+    collections.normalized_floor_sell_id,
+    collections.normalized_floor_sell_value,
+    collections.normalized_floor_sell_maker,
+    collections.normalized_floor_sell_valid_between,
+    collections.normalized_floor_sell_source_id_int,
+    collections.top_buy_id,
+    collections.top_buy_value,
+    collections.top_buy_maker,
+    collections.top_buy_valid_between,
+    collections.top_buy_source_id_int,
+    mint_subquery.mint_stages,
+    mint_subquery.mint_status
+  FROM collections
+  INNER JOIN LATERAL (
+    SELECT array_agg(
       json_build_object(
-        'imageUrl', (collections.metadata ->> 'imageUrl')::TEXT,
-        'bannerImageUrl', (collections.metadata ->> 'bannerImageUrl')::TEXT,
-        'description', (collections.metadata ->> 'description')::TEXT
-      ) AS metadata,
-      collections.non_flagged_floor_sell_id,
-      collections.non_flagged_floor_sell_value,
-      collections.non_flagged_floor_sell_maker,
-      collections.non_flagged_floor_sell_valid_between,
-      collections.non_flagged_floor_sell_source_id_int,
-      collections.floor_sell_id,
-      collections.floor_sell_value,
-      collections.floor_sell_maker,
-      collections.floor_sell_valid_between,
-      collections.floor_sell_source_id_int,
-      collections.normalized_floor_sell_id,
-      collections.normalized_floor_sell_value,
-      collections.normalized_floor_sell_maker,
-      collections.normalized_floor_sell_valid_between,
-      collections.normalized_floor_sell_source_id_int,
-      collections.top_buy_id,
-      collections.top_buy_value,
-      collections.top_buy_maker,
-      collections.top_buy_valid_between,
-      collections.top_buy_source_id_int
-    FROM collections
-    WHERE collections.id IN (${collectionIdList})
+        'stage', collection_mints.stage::TEXT,
+        'tokenId', collection_mints.token_id::TEXT,
+        'kind', collection_mints.kind,
+        'currency', '0x' || encode(collection_mints.currency, 'hex'),
+        'price', collection_mints.price::TEXT,
+        'startTime', EXTRACT(epoch FROM collection_mints.start_time)::INTEGER,
+        'endTime', EXTRACT(epoch FROM collection_mints.end_time)::INTEGER,
+        'maxMintsPerWallet', collection_mints.max_mints_per_wallet
+      )
+    ) AS mint_stages,
+    MAX(status) AS mint_status
+    FROM collection_mints
+    WHERE collection_mints.collection_id = collections.id
+  ) AS mint_subquery ON true
+  WHERE collections.id IN (${collectionIdList}) AND mint_status IS NOT NULL ${mintStatusQuery}
   `;
 
     collectionMetadataResponse = await redb.manyOrNone(baseQuery);
@@ -267,13 +318,20 @@ async function getCollectionsMetadata(collectionsResult: any[]) {
     const redisMulti = redis.multi();
 
     for (const metadata of collectionMetadataResponse) {
-      redisMulti.set(`collectionCache:v1:${metadata.id}`, JSON.stringify(metadata));
-      redisMulti.expire(`collectionCache:v1:${metadata.id}`, REDIS_EXPIRATION);
+      redisMulti.set(
+        `collectionCache:v1:${metadata.id}:${metadata.mint_status}`,
+        JSON.stringify(metadata)
+      );
+      redisMulti.expire(
+        `collectionCache:v1:${metadata.id}:${metadata.mint_status}`,
+        REDIS_EXPIRATION
+      );
     }
     await redisMulti.exec();
   }
 
   const collectionsMetadata: Record<string, any> = {};
+
   [...collectionMetadataResponse, ...collectionMetadataCache].forEach((metadata: any) => {
     collectionsMetadata[metadata.id] = metadata;
   });
@@ -281,24 +339,23 @@ async function getCollectionsMetadata(collectionsResult: any[]) {
   return collectionsMetadata;
 }
 
-async function getCollectionsResult(request: Request) {
-  const { limit, sortBy } = request.query;
-  const fillType = TopSellingFillOptions.sale;
-  let collectionsResult = [];
+async function getMintsResult(request: Request) {
+  const { limit, status } = request.query;
+  const statusType = status;
+  let mintsResult = [];
   const period = request.query.period === "24h" ? "1d" : request.query.period;
-  const cacheKey = `topTrendingMints:v1:${period}:${fillType}:${sortBy}`;
+  const cacheKey = `topTrendingMints:v1:${period}:${statusType}`;
   const cachedResults = await redis.get(cacheKey);
 
   if (cachedResults) {
-    collectionsResult = JSON.parse(cachedResults).slice(0, limit);
+    mintsResult = JSON.parse(cachedResults).slice(0, limit);
+    return mintsResult;
   } else {
     const startTime = getStartTime(period);
-    collectionsResult = await getTrendingMints({
+    mintsResult = await getTrendingMints({
       startTime,
-      limit,
-      sortBy,
     });
   }
 
-  return collectionsResult;
+  return mintsResult.slice(0, 50);
 }
