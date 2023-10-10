@@ -235,13 +235,13 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
               logger.info(
                 this.queueName,
                 JSON.stringify({
+                  topic: "debugTokenUpdate",
                   message: `No changes detected for token. contract=${contract}, tokenId=${tokenId}`,
                   data,
-                  beforeJson: JSON.stringify(data.before),
-                  afterJson: JSON.stringify(data.after),
                   changed,
                   changedJson: JSON.stringify(changed),
                   hasChanged: changed.length > 0,
+                  token: `${contract}:${tokenId}`,
                 })
               );
             } catch (error) {
