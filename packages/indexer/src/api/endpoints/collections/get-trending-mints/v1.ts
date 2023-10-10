@@ -330,11 +330,11 @@ async function getCollectionsMetadata(collectionsResult: any[], status?: "active
 
     for (const metadata of collectionMetadataResponse) {
       redisMulti.set(
-        `collectionCache:v1:${metadata.id}:${metadata.mint_status}`,
+        `collection-cache:v1:${metadata.id}:${metadata.mint_status}`,
         JSON.stringify(metadata)
       );
       redisMulti.expire(
-        `collectionCache:v1:${metadata.id}:${metadata.mint_status}`,
+        `collection-cache:v1:${metadata.id}:${metadata.mint_status}`,
         REDIS_EXPIRATION
       );
     }
