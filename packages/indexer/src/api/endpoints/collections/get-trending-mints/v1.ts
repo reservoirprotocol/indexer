@@ -32,9 +32,13 @@ export const getTrendingMintsV1Options: RouteOptions = {
   validate: {
     query: Joi.object({
       period: Joi.string()
-        .valid("5m", "10m", "30m", "1h", "6h", "24h")
+        .valid("5m", "10m", "30m", "1h", "2h", "6h", "24h")
         .default("24h")
         .description("Time window to aggregate."),
+      type: Joi.string()
+        .valid("free", "paid", "any")
+        .default("any")
+        .description("The type of the mint (free/paid)."),
       status: Joi.string()
         .allow("active", "inactive")
         .default("any")
@@ -79,6 +83,7 @@ export const getTrendingMintsV1Options: RouteOptions = {
               .allow(null)
               .description("Lowest Ask Price."),
           },
+          mintType: Joi.string().allow("free", "paid", "", null),
           mintStatus: Joi.string().allow("", null),
           mintStages: Joi.array().items(
             Joi.object({
@@ -110,7 +115,7 @@ export const getTrendingMintsV1Options: RouteOptions = {
     },
   },
   handler: async (request: Request, h) => {
-    const { normalizeRoyalties, useNonFlaggedFloorAsk, status } = request.query;
+    const { normalizeRoyalties, useNonFlaggedFloorAsk, status, price } = request.query;
 
     try {
       const mintsResult = await getMintsResult(request);
@@ -121,7 +126,8 @@ export const getTrendingMintsV1Options: RouteOptions = {
         mintsResult,
         collectionsMetadata,
         normalizeRoyalties,
-        useNonFlaggedFloorAsk
+        useNonFlaggedFloorAsk,
+        price
       );
 
       const response = h.response({ mints });
@@ -144,7 +150,11 @@ async function formatCollections(
 
   const collections = await Promise.all(
     collectionsResult
-      .filter((res) => metadataKeys.includes(res.id))
+      .filter((res) => {
+        if (metadataKeys.includes(res.id)) {
+          return res;
+        }
+      })
       .map(async (response: any) => {
         const metadata = collectionsMetadata[response.id] || {};
         let floorAsk;
@@ -182,8 +192,26 @@ async function formatCollections(
               : null,
           };
         }
+        const mintStages = metadata.mint_stages
+          ? await Promise.all(
+              metadata.mint_stages.map(async (m: any) => {
+                return {
+                  stage: m?.stage || null,
+                  kind: m?.kind || null,
+                  tokenId: m?.tokenId || null,
+                  price: m?.price
+                    ? await getJoiPriceObject({ gross: { amount: m.price } }, m.currency)
+                    : m?.price,
+                  startTime: m?.startTime,
+                  endTime: m?.endTime,
+                  maxMintsPerWallet: m?.maxMintsPerWallet,
+                };
+              })
+            )
+          : [];
         return {
           ...response,
+          mintType: mintStages?.[0]?.price?.amount?.decimal > 0 ? "paid" : "free",
           mintStatus: metadata.mint_status,
           mintStages: metadata.mint_stages
             ? await Promise.all(
@@ -340,7 +368,7 @@ async function getCollectionsMetadata(collectionsResult: any[], status?: "active
 }
 
 async function getMintsResult(request: Request) {
-  const { limit, status } = request.query;
+  const { limit, status, type } = request.query;
   const statusType = status;
   let mintsResult = [];
   const period = request.query.period === "24h" ? "1d" : request.query.period;
@@ -354,6 +382,7 @@ async function getMintsResult(request: Request) {
     const startTime = getStartTime(period);
     mintsResult = await getTrendingMints({
       startTime,
+      type,
     });
   }
 
