@@ -115,6 +115,15 @@ export const postRefreshCollectionOptions: RouteOptions = {
           );
         }
 
+        logger.info(
+          "postRefreshCollection",
+          JSON.stringify({
+            topic: "debugTokenUpdate",
+            message: `Update token. collection=${collection}`,
+            collection: `${collection}`,
+          })
+        );
+
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
