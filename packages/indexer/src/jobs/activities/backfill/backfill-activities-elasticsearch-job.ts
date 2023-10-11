@@ -224,8 +224,6 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
       );
 
       if (keepGoing) {
-        // const fromTimestamp = Math.floor(end.getTime() / 1000);
-
         await backfillSaveActivitiesElasticsearchJob.addToQueue(
           "bid-cancel",
           undefined,
