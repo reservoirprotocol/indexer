@@ -201,6 +201,14 @@ const config: HardhatUserConfig = {
           browserURL: "https://testnet.a8scan.io/",
         },
       },
+      {
+        network: "zoraTestnet",
+        chainId: 999,
+        urls: {
+          apiURL: "https://testnet.explorer.zora.energy/api",
+          browserURL: "https://testnet.explorer.zora.energy/",
+        },
+      },
     ],
   },
   gasReporter: {

@@ -107,7 +107,7 @@ describe("[ReservoirV6_0_1] Element listings", () => {
     // Taker: Carol
     // Fee recipient: Emilio
     const paymentToken = useUsdc
-      ? Sdk.Common.Addresses.Usdc[chainId]
+      ? Sdk.Common.Addresses.Usdc[chainId][0]
       : Sdk.Common.Addresses.Native[chainId];
     const parsePrice = (price: string) => (useUsdc ? parseUnits(price, 6) : parseEther(price));
     const useERC721 = useBatchSignedOrder || getRandomBoolean();
@@ -125,7 +125,7 @@ describe("[ReservoirV6_0_1] Element listings", () => {
         },
         isBatchSignedOrder: useBatchSignedOrder,
         paymentToken: useUsdc
-          ? Sdk.Common.Addresses.Usdc[chainId]
+          ? Sdk.Common.Addresses.Usdc[chainId][0]
           : Sdk.ZeroExV4.Addresses.Native[chainId],
         price: parsePrice(getRandomFloat(0.0001, 2).toFixed(6)),
         isCancelled: partial && getRandomBoolean(),
@@ -150,7 +150,7 @@ describe("[ReservoirV6_0_1] Element listings", () => {
             {
               params: {
                 tokenIn: Sdk.Common.Addresses.WNative[chainId],
-                tokenOut: Sdk.Common.Addresses.Usdc[chainId],
+                tokenOut: Sdk.Common.Addresses.Usdc[chainId][0],
                 fee: 500,
                 recipient: swapModule.address,
                 amountOut: listings

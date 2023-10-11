@@ -168,13 +168,23 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
         }
       }
 
+      const tags: { [key: string]: string } = {
+        contract: data.after.contract,
+        maker: data.after.maker,
+        taker: data.after.taker,
+      };
+
+      if (result.fillSource) {
+        tags.fillSource = result.fillSource;
+      }
+
+      if (result.orderSource) {
+        tags.orderSource = result.orderSource;
+      }
+
       await publishWebsocketEvent({
         event: eventType,
-        tags: {
-          contract: data.after.contract,
-          maker: data.after.maker,
-          taker: data.after.taker,
-        },
+        tags,
         changed,
         data: result,
         offset: data.offset,

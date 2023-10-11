@@ -20,6 +20,7 @@ import { NftTransferEventCreatedEventHandler } from "@/elasticsearch/indexes/act
 import { redis } from "@/common/redis";
 import crypto from "crypto";
 import { ActivityDocument } from "@/elasticsearch/indexes/activities/base";
+import { RabbitMQMessage } from "@/common/rabbit-mq";
 // import cron from "node-cron";
 
 export type BackfillSaveActivitiesElasticsearchJobPayload = {
@@ -29,6 +30,7 @@ export type BackfillSaveActivitiesElasticsearchJobPayload = {
   toTimestamp?: number;
   indexName?: string;
   keepGoing?: boolean;
+  upsert?: boolean;
 };
 
 export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
@@ -51,6 +53,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
     const toTimestamp = payload.toTimestamp || 9999999999;
     const indexName = payload.indexName ?? ActivitiesIndex.getIndexName();
     const keepGoing = payload.keepGoing;
+    const upsert = payload.upsert || false;
 
     const fromTimestampISO = new Date(fromTimestamp * 1000).toISOString();
     const toTimestampISO = new Date(toTimestamp * 1000).toISOString();
@@ -77,14 +80,14 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
       );
 
       if (activities.length) {
-        if (activities.length === limit) {
+        if (activities.length === limit || keepGoing) {
           addToQueue = true;
           addToQueueCursor = nextCursor;
         }
 
         const bulkResponse = await elasticsearch.bulk({
           body: activities.flatMap((activity) => [
-            { index: { _index: indexName, _id: activity.id } },
+            { [upsert ? "index" : "create"]: { _index: indexName, _id: activity.id } },
             activity,
           ]),
         });
@@ -162,32 +165,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
       throw error;
     }
 
-    if (addToQueue) {
-      await redis.hset(
-        `${this.queueName}-last-payload`,
-        type,
-        JSON.stringify({
-          cursor: addToQueueCursor,
-          fromTimestamp,
-          toTimestamp,
-          indexName,
-        })
-      );
-
-      await redis.hset(`${this.queueName}-last-run`, type, new Date().toISOString());
-
-      await this.addToQueue(
-        type,
-        addToQueueCursor,
-        fromTimestamp,
-        toTimestamp,
-        indexName,
-        keepGoing
-      );
-    } else {
-      await redis.hdel(`${this.queueName}-last-payload`, type);
-      await redis.hdel(`${this.queueName}-last-run`, type);
-
+    if (!addToQueue) {
       logger.info(
         this.queueName,
         JSON.stringify({
@@ -203,6 +181,27 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           keepGoing,
           jobId,
         })
+      );
+    }
+
+    return { addToQueue, addToQueueCursor };
+  }
+
+  public async onCompleted(
+    rabbitMqMessage: RabbitMQMessage,
+    processResult: {
+      addToQueue: boolean;
+      addToQueueCursor: OrderCursorInfo | EventCursorInfo | undefined;
+    }
+  ) {
+    if (processResult.addToQueue) {
+      await this.addToQueue(
+        rabbitMqMessage.payload.type,
+        processResult.addToQueueCursor,
+        rabbitMqMessage.payload.fromTimestamp,
+        rabbitMqMessage.payload.toTimestamp,
+        rabbitMqMessage.payload.indexName,
+        rabbitMqMessage.payload.keepGoing
       );
     }
   }

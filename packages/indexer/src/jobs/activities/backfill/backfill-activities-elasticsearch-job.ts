@@ -2,7 +2,6 @@ import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { ridb } from "@/common/db";
 import { elasticsearch } from "@/common/elasticsearch";
-import { redis } from "@/common/redis";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
@@ -29,7 +28,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
       })
     );
 
-    const { createIndex, indexConfig, keepGoing, fromLastBackfill } = payload;
+    const { createIndex, indexConfig, keepGoing } = payload;
 
     let indexName: string;
 
@@ -68,380 +67,196 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
 
     const promises = [];
 
-    const backfillTransferActivities = async (fromLastBackfill?: boolean) => {
-      if (fromLastBackfill) {
-        const payloadJson = await redis.hget(
-          `${backfillSaveActivitiesElasticsearchJob.queueName}-last-payload`,
-          "transfer"
-        );
+    const backfillTransferActivities = async () => {
+      const query =
+        "SELECT min(timestamp) AS min_timestamp, MAX(timestamp) AS max_timestamp from nft_transfer_events where is_deleted = 0;";
 
-        if (payloadJson) {
-          const payload = JSON.parse(payloadJson);
+      const timestamps = await ridb.oneOrNone(query);
+      const startTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
+      const endTimestamp = payload.toTimestamp || timestamps.max_timestamp;
 
-          await backfillSaveActivitiesElasticsearchJob.addToQueue(
-            "transfer",
-            payload.cursor ?? undefined,
-            payload.fromTimestamp,
-            payload.toTimestamp,
-            indexName
-          );
+      await backfillSaveActivitiesElasticsearchJob.addToQueue(
+        "transfer",
+        undefined,
+        startTimestamp,
+        endTimestamp,
+        indexName
+      );
 
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              topic: "backfill-activities",
-              message: `from Last Back fill! transfer`,
-              indexName,
-              payload,
-            })
-          );
-        }
-      } else {
-        const query =
-          "SELECT min(timestamp) AS min_timestamp, MAX(timestamp) AS max_timestamp from nft_transfer_events where is_deleted = 0;";
-
-        const timestamps = await ridb.oneOrNone(query);
-        const startTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
-        const endTimestamp = timestamps.max_timestamp;
-
+      if (keepGoing) {
         await backfillSaveActivitiesElasticsearchJob.addToQueue(
           "transfer",
           undefined,
-          startTimestamp,
           endTimestamp,
-          indexName
+          undefined,
+          indexName,
+          true
         );
-
-        if (keepGoing) {
-          await backfillSaveActivitiesElasticsearchJob.addToQueue(
-            "transfer",
-            undefined,
-            endTimestamp,
-            undefined,
-            indexName,
-            true
-          );
-        }
       }
     };
 
-    const backfillSaleActivities = async (fromLastBackfill?: boolean) => {
-      if (fromLastBackfill) {
-        const payloadJson = await redis.hget(
-          `${backfillSaveActivitiesElasticsearchJob.queueName}-last-payload`,
-          "sale"
-        );
+    const backfillSaleActivities = async () => {
+      const query =
+        "SELECT min(timestamp) AS min_timestamp, MAX(timestamp) AS max_timestamp from fill_events_2 where is_deleted = 0;";
 
-        if (payloadJson) {
-          const payload = JSON.parse(payloadJson);
+      const timestamps = await ridb.oneOrNone(query);
+      const fromTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
+      const endTimestamp = payload.toTimestamp || timestamps.max_timestamp;
 
-          await backfillSaveActivitiesElasticsearchJob.addToQueue(
-            "sale",
-            payload.cursor ?? undefined,
-            payload.fromTimestamp,
-            payload.toTimestamp,
-            indexName
-          );
+      await backfillSaveActivitiesElasticsearchJob.addToQueue(
+        "sale",
+        undefined,
+        fromTimestamp,
+        endTimestamp,
+        indexName
+      );
 
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              topic: "backfill-activities",
-              message: `from Last Back fill! sale`,
-              indexName,
-              payload,
-            })
-          );
-        }
-      } else {
-        const query =
-          "SELECT min(timestamp) AS min_timestamp, MAX(timestamp) AS max_timestamp from fill_events_2 where is_deleted = 0;";
-
-        const timestamps = await ridb.oneOrNone(query);
-        const fromTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
-        const endTimestamp = timestamps.max_timestamp;
-
+      if (keepGoing) {
         await backfillSaveActivitiesElasticsearchJob.addToQueue(
           "sale",
           undefined,
           fromTimestamp,
-          endTimestamp,
-          indexName
+          undefined,
+          indexName,
+          true
         );
-
-        if (keepGoing) {
-          // const fromTimestamp = Math.floor(end.getTime() / 1000);
-
-          await backfillSaveActivitiesElasticsearchJob.addToQueue(
-            "sale",
-            undefined,
-            fromTimestamp,
-            undefined,
-            indexName,
-            true
-          );
-        }
       }
     };
 
-    const backfillAskActivities = async (fromLastBackfill?: boolean) => {
-      if (fromLastBackfill) {
-        const payloadJson = await redis.hget(
-          `${backfillSaveActivitiesElasticsearchJob.queueName}-last-payload`,
-          "ask"
-        );
+    const backfillAskActivities = async () => {
+      const query =
+        "SELECT extract(epoch from min(updated_at)) AS min_timestamp, extract(epoch from max(updated_at)) AS max_timestamp from orders WHERE side = 'sell';";
 
-        if (payloadJson) {
-          const payload = JSON.parse(payloadJson);
+      const timestamps = await ridb.oneOrNone(query);
+      const fromTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
+      const endTimestamp = payload.toTimestamp || timestamps.max_timestamp;
 
-          await backfillSaveActivitiesElasticsearchJob.addToQueue(
-            "ask",
-            payload.cursor ?? undefined,
-            payload.fromTimestamp,
-            payload.toTimestamp,
-            indexName
-          );
+      await backfillSaveActivitiesElasticsearchJob.addToQueue(
+        "ask",
+        undefined,
+        fromTimestamp,
+        endTimestamp,
+        indexName
+      );
 
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              topic: "backfill-activities",
-              message: `from Last Back fill! ask`,
-              indexName,
-              payload,
-            })
-          );
-        }
-      } else {
-        const query =
-          "SELECT extract(epoch from min(updated_at)) AS min_timestamp, extract(epoch from max(updated_at)) AS max_timestamp from orders WHERE side = 'sell';";
-
-        const timestamps = await ridb.oneOrNone(query);
-        const fromTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
-        const endTimestamp = timestamps.max_timestamp;
-
+      if (keepGoing) {
         await backfillSaveActivitiesElasticsearchJob.addToQueue(
           "ask",
           undefined,
           fromTimestamp,
-          endTimestamp,
-          indexName
+          undefined,
+          indexName,
+          true
         );
-
-        if (keepGoing) {
-          // const fromTimestamp = Math.floor(end.getTime() / 1000);
-
-          await backfillSaveActivitiesElasticsearchJob.addToQueue(
-            "ask",
-            undefined,
-            fromTimestamp,
-            undefined,
-            indexName,
-            true
-          );
-        }
       }
     };
 
-    const backfillAskCancelActivities = async (fromLastBackfill?: boolean) => {
-      if (fromLastBackfill) {
-        const payloadJson = await redis.hget(
-          `${backfillSaveActivitiesElasticsearchJob.queueName}-last-payload`,
-          "ask-cancel"
-        );
+    const backfillAskCancelActivities = async () => {
+      const query =
+        "SELECT extract(epoch from min(updated_at)) AS min_timestamp, extract(epoch from max(updated_at)) AS max_timestamp from orders WHERE side = 'sell' AND fillability_status = 'cancelled';";
 
-        if (payloadJson) {
-          const payload = JSON.parse(payloadJson);
+      const timestamps = await ridb.oneOrNone(query);
+      const fromTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
+      const endTimestamp = payload.toTimestamp || timestamps.max_timestamp;
 
-          await backfillSaveActivitiesElasticsearchJob.addToQueue(
-            "ask-cancel",
-            payload.cursor ?? undefined,
-            payload.fromTimestamp,
-            payload.toTimestamp,
-            indexName
-          );
+      await backfillSaveActivitiesElasticsearchJob.addToQueue(
+        "ask-cancel",
+        undefined,
+        fromTimestamp,
+        endTimestamp,
+        indexName
+      );
 
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              topic: "backfill-activities",
-              message: `from Last Back fill! ask-cancel`,
-              indexName,
-              payload,
-            })
-          );
-        }
-      } else {
-        const query =
-          "SELECT extract(epoch from min(updated_at)) AS min_timestamp, extract(epoch from max(updated_at)) AS max_timestamp from orders WHERE side = 'sell' AND fillability_status = 'cancelled';";
-
-        const timestamps = await ridb.oneOrNone(query);
-        const fromTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
-        const endTimestamp = timestamps.max_timestamp;
-
+      if (keepGoing) {
         await backfillSaveActivitiesElasticsearchJob.addToQueue(
           "ask-cancel",
           undefined,
           fromTimestamp,
-          endTimestamp,
-          indexName
+          undefined,
+          indexName,
+          true
         );
-
-        if (keepGoing) {
-          // const fromTimestamp = Math.floor(end.getTime() / 1000);
-
-          await backfillSaveActivitiesElasticsearchJob.addToQueue(
-            "ask-cancel",
-            undefined,
-            fromTimestamp,
-            undefined,
-            indexName,
-            true
-          );
-        }
       }
     };
 
-    const backfillBidActivities = async (fromLastBackfill?: boolean) => {
-      if (fromLastBackfill) {
-        const payloadJson = await redis.hget(
-          `${backfillSaveActivitiesElasticsearchJob.queueName}-last-payload`,
-          "bid"
-        );
+    const backfillBidActivities = async () => {
+      const query =
+        "SELECT extract(epoch from min(updated_at)) AS min_timestamp, extract(epoch from max(updated_at)) AS max_timestamp from orders WHERE side = 'buy';";
 
-        if (payloadJson) {
-          const payload = JSON.parse(payloadJson);
+      const timestamps = await ridb.oneOrNone(query);
+      const fromTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
+      const endTimestamp = payload.toTimestamp || timestamps.max_timestamp;
 
-          await backfillSaveActivitiesElasticsearchJob.addToQueue(
-            "bid",
-            payload.cursor ?? undefined,
-            payload.fromTimestamp,
-            payload.toTimestamp,
-            indexName
-          );
+      await backfillSaveActivitiesElasticsearchJob.addToQueue(
+        "bid",
+        undefined,
+        fromTimestamp,
+        endTimestamp,
+        indexName
+      );
 
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              topic: "backfill-activities",
-              message: `from Last Back fill! bid`,
-              indexName,
-              payload,
-            })
-          );
-        }
-      } else {
-        const query =
-          "SELECT extract(epoch from min(updated_at)) AS min_timestamp, extract(epoch from max(updated_at)) AS max_timestamp from orders WHERE side = 'buy';";
-
-        const timestamps = await ridb.oneOrNone(query);
-        const fromTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
-        const endTimestamp = timestamps.max_timestamp;
-
+      if (keepGoing) {
         await backfillSaveActivitiesElasticsearchJob.addToQueue(
           "bid",
           undefined,
           fromTimestamp,
-          endTimestamp,
-          indexName
+          undefined,
+          indexName,
+          true
         );
-
-        if (keepGoing) {
-          // const fromTimestamp = Math.floor(end.getTime() / 1000);
-
-          await backfillSaveActivitiesElasticsearchJob.addToQueue(
-            "bid",
-            undefined,
-            fromTimestamp,
-            undefined,
-            indexName,
-            true
-          );
-        }
       }
     };
 
-    const backfillBidCancelActivities = async (fromLastBackfill?: boolean) => {
-      if (fromLastBackfill) {
-        const payloadJson = await redis.hget(
-          `${backfillSaveActivitiesElasticsearchJob.queueName}-last-payload`,
-          "bid-cancel"
-        );
+    const backfillBidCancelActivities = async () => {
+      const query =
+        "SELECT extract(epoch from min(updated_at)) AS min_timestamp, extract(epoch from max(updated_at)) AS max_timestamp from orders WHERE side = 'buy' AND fillability_status = 'cancelled';";
 
-        if (payloadJson) {
-          const payload = JSON.parse(payloadJson);
+      const timestamps = await ridb.oneOrNone(query);
+      const fromTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
+      const endTimestamp = payload.toTimestamp || timestamps.max_timestamp;
 
-          await backfillSaveActivitiesElasticsearchJob.addToQueue(
-            "bid-cancel",
-            payload.cursor ?? undefined,
-            payload.fromTimestamp,
-            payload.toTimestamp,
-            indexName
-          );
+      await backfillSaveActivitiesElasticsearchJob.addToQueue(
+        "bid-cancel",
+        undefined,
+        fromTimestamp,
+        endTimestamp,
+        indexName
+      );
 
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              topic: "backfill-activities",
-              message: `from Last Back fill! bid-cancel`,
-              indexName,
-              payload,
-            })
-          );
-        }
-      } else {
-        const query =
-          "SELECT extract(epoch from min(updated_at)) AS min_timestamp, extract(epoch from max(updated_at)) AS max_timestamp from orders WHERE side = 'buy' AND fillability_status = 'cancelled';";
-
-        const timestamps = await ridb.oneOrNone(query);
-        const fromTimestamp = payload.fromTimestamp || timestamps.min_timestamp;
-        const endTimestamp = timestamps.max_timestamp;
-
+      if (keepGoing) {
         await backfillSaveActivitiesElasticsearchJob.addToQueue(
           "bid-cancel",
           undefined,
           fromTimestamp,
-          endTimestamp,
-          indexName
+          undefined,
+          indexName,
+          true
         );
-
-        if (keepGoing) {
-          // const fromTimestamp = Math.floor(end.getTime() / 1000);
-
-          await backfillSaveActivitiesElasticsearchJob.addToQueue(
-            "bid-cancel",
-            undefined,
-            fromTimestamp,
-            undefined,
-            indexName,
-            true
-          );
-        }
       }
     };
 
     if (payload.backfillTransferActivities) {
-      promises.push(backfillTransferActivities(fromLastBackfill));
+      promises.push(backfillTransferActivities());
     }
 
     if (payload.backfillSaleActivities) {
-      promises.push(backfillSaleActivities(fromLastBackfill));
+      promises.push(backfillSaleActivities());
     }
 
     if (payload.backfillAskActivities) {
-      promises.push(backfillAskActivities(fromLastBackfill));
+      promises.push(backfillAskActivities());
     }
 
     if (payload.backfillAskCancelActivities) {
-      promises.push(backfillAskCancelActivities(fromLastBackfill));
+      promises.push(backfillAskCancelActivities());
     }
 
     if (payload.backfillBidActivities) {
-      promises.push(backfillBidActivities(fromLastBackfill));
+      promises.push(backfillBidActivities());
     }
 
     if (payload.backfillBidCancelActivities) {
-      promises.push(backfillBidCancelActivities(fromLastBackfill));
+      promises.push(backfillBidCancelActivities());
     }
 
     await Promise.all(promises);
@@ -459,7 +274,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
     backfillBidActivities = true,
     backfillBidCancelActivities = true,
     fromTimestamp?: number,
-    fromLastBackfill?: boolean
+    toTimestamp?: number
   ) {
     if (!config.doElasticsearchWork) {
       return;
@@ -477,7 +292,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         backfillBidActivities,
         backfillBidCancelActivities,
         fromTimestamp,
-        fromLastBackfill,
+        toTimestamp,
       },
     });
   }
@@ -497,15 +312,7 @@ export type BackfillActivitiesElasticsearchJobPayload = {
   backfillBidActivities?: boolean;
   backfillBidCancelActivities?: boolean;
   fromTimestamp?: number;
-  fromLastBackfill?: boolean;
-};
-
-export type BackfillBaseActivitiesElasticsearchJobPayload = {
-  cursor?: OrderCursorInfo | EventCursorInfo;
-  fromTimestamp?: number;
   toTimestamp?: number;
-  indexName?: string;
-  keepGoing?: boolean;
 };
 
 export interface OrderCursorInfo {

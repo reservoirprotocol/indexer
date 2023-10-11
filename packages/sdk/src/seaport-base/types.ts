@@ -85,6 +85,14 @@ export type OrderComponents = {
   totalOriginalConsiderationItems?: number;
 };
 
+export type AdvancedOrder = {
+  parameters: OrderComponents;
+  numerator: string;
+  denominator: string;
+  signature: string;
+  extraData: string;
+};
+
 export type MatchParams = {
   amount?: BigNumberish;
   criteriaResolvers?: CriteriaResolver[];

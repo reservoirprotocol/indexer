@@ -83,13 +83,7 @@ const getUpstreamUSDPrice = async (
     } else if (isWhitelistedCurrency(currencyAddress) || isTestnetCurrency(currencyAddress)) {
       // Whitelisted currencies don't have a price, so we just hardcode the minimum possible value
       let value = "1";
-      if (
-        [
-          Sdk.Common.Addresses.Usdc[config.chainId],
-          // Only needed for Goerli
-          "0x2f3a40a3db8a7e3d09b0adfefbce4f6f81927557",
-        ].includes(currencyAddress)
-      ) {
+      if (Sdk.Common.Addresses.Usdc[config.chainId]?.includes(currencyAddress)) {
         // 1:1 to USD
         value = "1000000";
       } else if (
@@ -220,7 +214,7 @@ const isTestnetCurrency = (currencyAddress: string) => {
     return [
       Sdk.Common.Addresses.Native[config.chainId],
       Sdk.Common.Addresses.WNative[config.chainId],
-      Sdk.Common.Addresses.Usdc[config.chainId],
+      ...(Sdk.Common.Addresses.Usdc[config.chainId] ?? []),
       ...Object.keys(getNetworkSettings().supportedBidCurrencies),
     ].includes(currencyAddress);
   }

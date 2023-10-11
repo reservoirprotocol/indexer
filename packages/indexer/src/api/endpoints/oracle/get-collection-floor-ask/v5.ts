@@ -267,7 +267,7 @@ export const getCollectionFloorAskOracleV5Options: RouteOptions = {
         // ETH: do nothing
       } else if (Object.values(Sdk.Common.Addresses.WNative).includes(query.currency)) {
         // WETH: do nothing
-      } else if (Object.values(Sdk.Common.Addresses.Usdc).includes(query.currency)) {
+      } else if (Object.values(Sdk.Common.Addresses.Usdc).flat().includes(query.currency)) {
         // USDC: convert price to USDC
         const usdPrice = await axios
           .get("https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd")
