@@ -54,7 +54,7 @@ export const ConduitController: ChainIdToAddress = {
   [Network.Base]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Linea]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.PolygonZkevm]: "0x00000000f9490004c11cef243f5400493c00ad63",
-  [Network.Zksync]: "0xfc694213fd093f775bbdbf8cc831aa15a7504bc8",
+  [Network.Zksync]: "0x4c68886e1db29168a6672e614412191591aca502",
   [Network.Ancient8Testnet]: "0x00000000f9490004c11cef243f5400493c00ad63",
 };
 
