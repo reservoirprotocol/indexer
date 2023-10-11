@@ -84,16 +84,6 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       metadataMethod,
     } = payload;
 
-    logger.info(
-      this.queueName,
-      JSON.stringify({
-        topic: "debugTokenUpdate",
-        message: `Update token. contract=${contract}, tokenId=${tokenId}`,
-        token: `${contract}:${tokenId}`,
-        payload,
-      })
-    );
-
     // Update the token's metadata
     const result = await idb.oneOrNone(
       `
