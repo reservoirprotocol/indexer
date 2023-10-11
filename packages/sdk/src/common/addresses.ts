@@ -1,6 +1,6 @@
 import { AddressZero } from "@ethersproject/constants";
 
-import { ChainIdToAddress, Network } from "../utils";
+import { ChainIdToAddress, ChainIdToAddressList, Network } from "../utils";
 
 // Native currency
 export const Native: ChainIdToAddress = {
@@ -52,18 +52,46 @@ export const WNative: ChainIdToAddress = {
   [Network.Ancient8Testnet]: "0x4200000000000000000000000000000000000006",
 };
 
-export const Usdc: ChainIdToAddress = {
-  [Network.Ethereum]: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-  [Network.EthereumGoerli]: "0x07865c6e87b9f70255377e024ace6630c1eaa37f",
-  [Network.EthereumSepolia]: "0x8267cf9254734c6eb452a7bb9aaf97b392258b21",
-  [Network.Optimism]: "0x7f5c764cbc14f9669b88837ca1490cca17c31607",
-  [Network.Bsc]: "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
-  [Network.Polygon]: "0x2791bca1f2de4661ed88a30c99a7a9449aa84174",
-  [Network.Mumbai]: "0x0fa8781a83e46826621b3bc094ea2a0212e71b23",
-  [Network.Arbitrum]: "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
-  [Network.Avalanche]: "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",
-  [Network.Zksync]: "0x3355df6d4c9c3035724fd0e3914de96a5a83aaf4",
-  [Network.Base]: "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+export const Usdc: ChainIdToAddressList = {
+  [Network.Ethereum]: [
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", // Native
+  ],
+  [Network.EthereumGoerli]: [
+    "0x07865c6e87b9f70255377e024ace6630c1eaa37f", // Native
+    "0x2f3a40a3db8a7e3d09b0adfefbce4f6f81927557", // Opensea
+  ],
+  [Network.EthereumSepolia]: [
+    "0x8267cf9254734c6eb452a7bb9aaf97b392258b21", // Native
+  ],
+  [Network.Optimism]: [
+    "0x7f5c764cbc14f9669b88837ca1490cca17c31607", // Bridged
+    "0x0b2c639c533813f4aa9d7837caf62653d097ff85", // Native
+  ],
+  [Network.Bsc]: [
+    "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d", // Native
+  ],
+  [Network.Polygon]: [
+    "0x2791bca1f2de4661ed88a30c99a7a9449aa84174", // Bridged
+    "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359", // Native
+  ],
+  [Network.Mumbai]: [
+    "0x0fa8781a83e46826621b3bc094ea2a0212e71b23", // Bridged
+    "0x9999f7fea5938fd3b1e26a12c3f2fb024e194f97", // Native
+  ],
+  [Network.Arbitrum]: [
+    "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8", // Bridged
+    "0xaf88d065e77c8cc2239327c5edb3a432268e5831", // Native
+  ],
+  [Network.Avalanche]: [
+    "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e", // Native
+  ],
+  [Network.Zksync]: [
+    "0x3355df6d4c9c3035724fd0e3914de96a5a83aaf4", // Bridged
+  ],
+  [Network.Base]: [
+    "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca", // Bridged
+    "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", // Native
+  ],
 };
 
 export const Dai: ChainIdToAddress = {

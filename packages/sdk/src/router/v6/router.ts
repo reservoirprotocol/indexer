@@ -3308,7 +3308,7 @@ export class Router {
       }
 
       if (options?.usePermit) {
-        const supportedPermitCurrencies = [Sdk.Common.Addresses.Usdc[this.chainId]];
+        const supportedPermitCurrencies = Sdk.Common.Addresses.Usdc[this.chainId] ?? [];
         if (!supportedPermitCurrencies.includes(buyInCurrency)) {
           throw new Error("Buying with permit not supported");
         }
