@@ -214,7 +214,7 @@ const isTestnetCurrency = (currencyAddress: string) => {
     return [
       Sdk.Common.Addresses.Native[config.chainId],
       Sdk.Common.Addresses.WNative[config.chainId],
-      ...(Sdk.Common.Addresses.Usdc[config.chainId] ?? {}),
+      ...(Sdk.Common.Addresses.Usdc[config.chainId] ?? []),
       ...Object.keys(getNetworkSettings().supportedBidCurrencies),
     ].includes(currencyAddress);
   }
