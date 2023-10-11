@@ -35,7 +35,6 @@ import {
 } from "@/jobs/order-updates/order-updates-by-maker-job";
 import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
 import { transferUpdatesJob } from "@/jobs/transfer-updates/transfer-updates-job";
-import { logger } from "@/common/logger";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -190,18 +189,6 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
 
   // Mints and last sales
   await transferUpdatesJob.addToQueue(nonFillTransferEvents);
-
-  for (const mintInfo of data.mintInfos) {
-    logger.info(
-      "utils",
-      JSON.stringify({
-        topic: "debugTokenUpdate",
-        message: `Update token. contract=${mintInfo.contract}, tokenId=${mintInfo.tokenId}`,
-        token: `${mintInfo.contract}:${mintInfo.tokenId}`,
-      })
-    );
-  }
-
   await mintQueueJob.addToQueue(data.mintInfos);
   await fillUpdatesJob.addToQueue(data.fillInfos);
   if (!backfill) {

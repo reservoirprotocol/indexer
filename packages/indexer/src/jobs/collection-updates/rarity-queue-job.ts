@@ -62,16 +62,6 @@ export class RarityQueueJob extends AbstractRabbitMqJobHandler {
 
       _.forEach(tokens, (token) => {
         updateTokensString += `(${token.id}, ${token.rarityTraitSum}, ${token.rarityTraitSumRank}),`;
-
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "debugTokenUpdate",
-            message: `Update token. contract=${collection.contract}, tokenId=${token.id}`,
-            updateTokensString,
-            token: `${collection.contract}:${token.id}`,
-          })
-        );
       });
 
       updateTokensString = _.trimEnd(updateTokensString, ",");

@@ -35,16 +35,6 @@ export const postMetadataIndexOptions: RouteOptions = {
 
       const [contract, tokenId] = token.split(":");
 
-      logger.info(
-        "postMetadataIndexHandler",
-        JSON.stringify({
-          topic: "debugTokenUpdate",
-          message: `Update token. contract=${contract}, tokenId=${tokenId}`,
-          token: `${contract}:${tokenId}`,
-          payload,
-        })
-      );
-
       await mintQueueJob.addToQueue([{ contract, tokenId, mintedTimestamp: now() }]);
 
       return { message: "Success" };
