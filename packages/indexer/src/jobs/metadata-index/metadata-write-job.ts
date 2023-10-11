@@ -181,7 +181,7 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       config.chainId !== 1 &&
       _.isNull(result.image) &&
       _.isNull(result.name) &&
-      isAfter(add(new Date(result.created_at), { minutes: 60 }), Date.now())
+      isAfter(add(new Date(result.created_at), { minutes: 25 }), Date.now())
     ) {
       await redis.set(keyName, _.now(), "EX", 2 * 60 * 60);
 

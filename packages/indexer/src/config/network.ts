@@ -216,7 +216,9 @@ export const getNetworkSettings = (): NetworkSettings => {
     whitelistedCurrencies: new Map<string, Currency>(),
     supportedBidCurrencies: {
       [Sdk.Common.Addresses.WNative[config.chainId]?.toLowerCase()]: true,
-      [Sdk.Common.Addresses.Usdc[config.chainId]?.toLowerCase()]: true,
+      ...Object.fromEntries(
+        (Sdk.Common.Addresses.Usdc[config.chainId] ?? []).map((address) => [address, true])
+      ),
     },
     elasticsearch: {
       numberOfShards: 2,
@@ -499,11 +501,6 @@ export const getNetworkSettings = (): NetworkSettings => {
           // ArtBlocks Engine Contracts
           "0xe480a895de49b49e37a8f0a8bd7e07fc9844cdb9",
         ],
-        supportedBidCurrencies: {
-          ...defaultNetworkSettings.supportedBidCurrencies,
-          // OpenSea USDC
-          "0x2f3a40a3db8a7e3d09b0adfefbce4f6f81927557": true,
-        },
         elasticsearch: {
           indexes: {
             activities: {
