@@ -1,7 +1,8 @@
-import { logger } from "@/common/logger";
-import * as orders from "@/orderbook/orders";
-import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import _ from "lodash";
+
+import { logger } from "@/common/logger";
+import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
+import * as orders from "@/orderbook/orders";
 
 export type GenericOrderInfo =
   | {

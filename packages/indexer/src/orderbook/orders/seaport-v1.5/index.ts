@@ -41,6 +41,7 @@ export type OrderInfo = {
   metadata: OrderMetadata;
   isReservoir?: boolean;
   isOpenSea?: boolean;
+  isOkx?: boolean;
   openSeaOrderParams?: OpenseaOrderParams;
 };
 
@@ -84,6 +85,7 @@ export const save = async (
     metadata: OrderMetadata,
     isReservoir?: boolean,
     isOpenSea?: boolean,
+    isOkx?: boolean,
     openSeaOrderParams?: OpenseaOrderParams
   ) => {
     try {
@@ -161,7 +163,7 @@ export const save = async (
           [
             {
               kind: "seaport-v1.5",
-              info: { orderParams, metadata, isReservoir, isOpenSea, openSeaOrderParams },
+              info: { orderParams, metadata, isReservoir, isOpenSea, isOkx, openSeaOrderParams },
               validateBidValue,
               ingestMethod,
               ingestDelay: startTime - currentTime + 5,
@@ -255,11 +257,19 @@ export const save = async (
         order.params.signature = undefined;
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (isOkx && !(orderParams as any).okxOrderId) {
+        return results.push({
+          id,
+          status: "missing-okx-order-id",
+        });
+      }
+
       // Check: order has a valid signature
-      if (metadata.fromOnChain || (isOpenSea && !order.params.signature)) {
+      if (metadata.fromOnChain || ((isOpenSea || isOkx) && !order.params.signature)) {
         // Skip if:
         // - the order was validated on-chain
-        // - the order is coming from OpenSea and it doesn't have a signature
+        // - the order is coming from OpenSea / Okx and it doesn't have a signature
       } else {
         try {
           await order.checkSignature(baseProvider);
@@ -583,6 +593,8 @@ export const save = async (
 
       if (isOpenSea) {
         source = await sources.getOrInsert("opensea.io");
+      } else if (isOkx) {
+        source = await sources.getOrInsert("okx.com");
       }
 
       // If the order is native, override any default source
@@ -705,10 +717,15 @@ export const save = async (
         }
       }
 
-      if (isOpenSea && !order.params.signature) {
+      if (!order.params.signature) {
         // Mark the order as being partial in order to force filling through the order-fetcher service
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (order.params as any).partial = true;
+
+        if (isOkx) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (order.params as any).okxOrderId = (orderParams as any).okxOrderId;
+        }
       }
 
       // Handle: off-chain cancellation via replacement
@@ -830,6 +847,7 @@ export const save = async (
             orderInfo.metadata,
             orderInfo.isReservoir,
             orderInfo.isOpenSea,
+            orderInfo.isOkx,
             orderInfo.openSeaOrderParams
           )
         )
