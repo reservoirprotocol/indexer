@@ -618,7 +618,7 @@ export const getTrendingMints = async (params: {
     priceFilter = {
       range: {
         "pricing.priceDecimal": {
-          lte: 0,
+          lte: 1,
         },
       },
     };
@@ -666,7 +666,7 @@ export const getTrendingMints = async (params: {
     collections: {
       terms: {
         field: "collection.id",
-        size: 1000,
+        size: 2500,
         order: {
           total_transactions: "desc",
         },
@@ -687,9 +687,16 @@ export const getTrendingMints = async (params: {
             field: "pricing.priceDecimal",
           },
         },
+        price_for_collection: {
+          terms: {
+            field: "pricing.priceDecimal",
+            size: 1,
+          },
+        },
       },
     },
   } as any;
+
   const esResult = (await elasticsearch.search({
     index: INDEX_NAME,
     size: 0,
@@ -700,8 +707,11 @@ export const getTrendingMints = async (params: {
   })) as any;
   return esResult?.aggregations?.collections?.buckets?.map((bucket: any) => {
     return {
-      volume: bucket?.total_volume?.value,
-      count: bucket?.total_mints.value,
+      mintVolume: bucket?.total_volume?.value,
+      mintCount: bucket?.total_mints.value,
+      mintPrice: bucket.price_for_collection.buckets.length
+        ? bucket.price_for_collection.buckets[0].key
+        : 0,
       id: bucket.key,
     };
   });
