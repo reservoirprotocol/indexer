@@ -7,7 +7,6 @@ import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck } from "@/orderbook/orders/x2y2/check";
@@ -15,7 +14,11 @@ import * as tokenSet from "@/orderbook/token-sets";
 import { Sources } from "@/models/sources";
 import * as royalties from "@/utils/royalties";
 import { Royalty } from "@/utils/royalties";
-// import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
+import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 
 export type OrderInfo = {
   orderParams: Sdk.X2Y2.Types.Order;
@@ -62,13 +65,17 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      // const isFiltered = await checkMarketplaceIsFiltered(order.params.nft.token, "x2y2");
-      // if (isFiltered) {
-      //   return results.push({
-      //     id,
-      //     status: "filtered",
-      //   });
-      // }
+      const isFiltered = await checkMarketplaceIsFiltered(order.params.nft.token, [
+        Sdk.X2Y2.Addresses.Erc721Delegate[config.chainId],
+        Sdk.X2Y2.Addresses.Erc1155Delegate[config.chainId],
+      ]);
+
+      if (isFiltered) {
+        return results.push({
+          id,
+          status: "filtered",
+        });
+      }
 
       const currentTime = now();
 
@@ -84,7 +91,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       // Check: sell order has Eth as payment token
       if (
         order.params.type === "sell" &&
-        order.params.currency !== Sdk.Common.Addresses.Eth[config.chainId]
+        order.params.currency !== Sdk.Common.Addresses.Native[config.chainId]
       ) {
         return results.push({
           id,
@@ -92,14 +99,22 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      // Check: buy order has Weth as payment token
+      // Check: buy order has WNative as payment token
       if (
         order.params.type === "buy" &&
-        order.params.currency !== Sdk.Common.Addresses.Weth[config.chainId]
+        order.params.currency !== Sdk.Common.Addresses.WNative[config.chainId]
       ) {
         return results.push({
           id,
           status: "unsupported-payment-token",
+        });
+      }
+
+      // Check: amount
+      if (order.params.amount !== 1) {
+        return results.push({
+          id,
+          status: "unsupported-amount",
         });
       }
 
@@ -264,7 +279,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       // Handle: conduit
       let conduit = Sdk.X2Y2.Addresses.Exchange[config.chainId];
       if (order.params.type === "sell") {
-        conduit = Sdk.X2Y2.Addresses.Erc721Delegate[config.chainId];
+        conduit =
+          order.params.delegateType === Sdk.X2Y2.Types.DelegationType.ERC721
+            ? Sdk.X2Y2.Addresses.Erc721Delegate[config.chainId]
+            : Sdk.X2Y2.Addresses.Erc1155Delegate[config.chainId];
       }
 
       const validFrom = `date_trunc('seconds', to_timestamp(${currentTime}))`;
@@ -300,7 +318,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         missing_royalties: missingRoyalties,
         normalized_value: normalizedValue,
         currency_normalized_value: normalizedValue,
-        // originated_at: metadata.originatedAt ? new Date(metadata.originatedAt) : null,
+        originated_at: metadata.originatedAt || null,
       });
 
       results.push({
@@ -358,7 +376,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         { name: "missing_royalties", mod: ":json" },
         "normalized_value",
         "currency_normalized_value",
-        // "originated_at",
+        "originated_at",
       ],
       {
         table: "orders",
@@ -366,7 +384,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
     );
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
 
-    await ordersUpdateById.addToQueue(
+    await orderUpdatesByIdJob.addToQueue(
       results
         .filter((r) => r.status === "success" && !r.unfillable)
         .map(
@@ -377,7 +395,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               trigger: {
                 kind: "new-order",
               },
-            } as ordersUpdateById.OrderInfo)
+            } as OrderUpdatesByIdJobPayload)
         )
     );
 
@@ -413,7 +431,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           }
         );
 
-        await ordersUpdateById.addToQueue(
+        await orderUpdatesByIdJob.addToQueue(
           result.map(
             ({ id }) =>
               ({
@@ -422,7 +440,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 trigger: {
                   kind: "cancel",
                 },
-              } as ordersUpdateById.OrderInfo)
+              } as OrderUpdatesByIdJobPayload)
           )
         );
       }

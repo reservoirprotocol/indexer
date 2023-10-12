@@ -42,7 +42,9 @@ export const getRoyalties = async (
   } else if (returnAll) {
     const royalties: Royalty[] = [];
     _.each(royaltiesResult.new_royalties ?? {}, (r) => royalties.push(...r));
-    return _.uniqBy(royalties, "recipient"); // Return only uniq address
+
+    // Return unique addresses only
+    return _.uniqBy(royalties, "recipient");
   } else {
     return (royaltiesResult.new_royalties ?? {})[spec] ?? [];
   }
@@ -136,7 +138,9 @@ export const getRoyaltiesByTokenSet = async (
   } else if (returnAll) {
     const royalties: Royalty[] = [];
     _.each(royaltiesResult.new_royalties ?? {}, (r) => royalties.push(...r));
-    return _.uniqBy(royalties, "recipient"); // Return only uniq address
+
+    // Return unique addresses only
+    return _.uniqBy(royalties, "recipient");
   } else {
     return (royaltiesResult.new_royalties ?? {})[spec] ?? [];
   }
@@ -189,7 +193,8 @@ export const updateRoyaltySpec = async (
 export const refreshAllRoyaltySpecs = async (
   collection: string,
   customRoyalties?: Royalty[],
-  openseaRoyalties?: Royalty[]
+  openseaRoyalties?: Royalty[],
+  refreshOnChain = true
 ) => {
   // Update custom royalties
   await updateRoyaltySpec(collection, "custom", customRoyalties);
@@ -197,8 +202,10 @@ export const refreshAllRoyaltySpecs = async (
   // Update opensea royalties
   await updateRoyaltySpec(collection, "opensea", openseaRoyalties);
 
-  // Refresh the on-chain royalties
-  await registry.refreshRegistryRoyalties(collection);
+  if (refreshOnChain) {
+    // Refresh the on-chain royalties
+    await registry.refreshRegistryRoyalties(collection);
+  }
 };
 
 // The default royalties are represented by the max royalties across all royalty specs

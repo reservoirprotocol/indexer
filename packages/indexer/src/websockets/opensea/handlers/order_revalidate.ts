@@ -1,9 +1,12 @@
 import { OrderValidationEventPayload } from "@opensea/stream-js/dist/types";
 
 import { idb } from "@/common/db";
-import * as orderRevalidations from "@/jobs/order-fixes/revalidations";
+import { logger } from "@/common/logger";
+import { orderRevalidationsJob } from "@/jobs/order-fixes/order-revalidations-job";
 
 export const handleEvent = async (payload: OrderValidationEventPayload) => {
+  logger.info("opensea-websocket-debug", JSON.stringify(payload));
+
   const currentStatus = await idb.oneOrNone(
     `
       SELECT
@@ -17,7 +20,12 @@ export const handleEvent = async (payload: OrderValidationEventPayload) => {
   );
 
   if (currentStatus && currentStatus.fillability_status === "cancelled") {
-    await orderRevalidations.addToQueue([{ id: payload.order_hash, status: "active" }]);
+    await orderRevalidationsJob.addToQueue([
+      {
+        by: "id",
+        data: { id: payload.order_hash, status: "active" },
+      },
+    ]);
   }
 
   return null;

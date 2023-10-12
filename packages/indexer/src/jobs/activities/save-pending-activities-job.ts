@@ -1,13 +1,14 @@
+import cron from "node-cron";
+
 import { logger } from "@/common/logger";
+import { config } from "@/config/index";
+import { redlock } from "@/common/redis";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/queue";
+import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
-import { config } from "@/config/index";
-import cron from "node-cron";
-import { redlock } from "@/common/redis";
 
 const BATCH_SIZE = 500;
 
@@ -24,7 +25,7 @@ export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
 
     if (pendingActivities.length > 0) {
       try {
-        await ActivitiesIndex.save(pendingActivities, false);
+        await ActivitiesIndex.save(pendingActivities, false, false);
 
         for (const activity of pendingActivities) {
           // If collection information is not available yet when a mint event
@@ -36,12 +37,7 @@ export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
           }
         }
       } catch (error) {
-        logger.error(
-          this.queueName,
-          `failed to insert into activities. error=${error}, pendingActivities=${JSON.stringify(
-            pendingActivities
-          )}`
-        );
+        logger.error(this.queueName, `failed to insert into activities. error=${error}`);
 
         await pendingActivitiesQueue.add(pendingActivities);
       }
@@ -55,6 +51,10 @@ export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue() {
+    if (!config.doElasticsearchWork) {
+      return;
+    }
+
     await this.send();
   }
 }
@@ -65,12 +65,15 @@ export const getLockName = () => {
 
 export const savePendingActivitiesJob = new SavePendingActivitiesJob();
 
-if (config.doBackgroundWork) {
+if (config.doBackgroundWork && config.doElasticsearchWork) {
   cron.schedule(
-    "*/5 * * * * *",
+    config.chainId === 1 ? "*/5 * * * * *" : "*/5 * * * * *",
     async () =>
       await redlock
-        .acquire(["save-pending-activities-queue-lock"], (5 - 1) * 1000)
+        .acquire(
+          ["save-pending-activities-queue-lock"],
+          config.chainId === 1 ? (5 - 1) * 1000 : (5 - 1) * 1000
+        )
         .then(async () => savePendingActivitiesJob.addToQueue())
         .catch(() => {
           // Skip on any errors

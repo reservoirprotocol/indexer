@@ -76,7 +76,7 @@ export class AsksDataSource extends BaseDataSource {
       for (const r of result) {
         const currency = await getCurrency(
           fromBuffer(r.currency) === AddressZero
-            ? Sdk.Common.Addresses.Eth[config.chainId]
+            ? Sdk.Common.Addresses.Native[config.chainId]
             : fromBuffer(r.currency)
         );
 
@@ -104,6 +104,8 @@ export class AsksDataSource extends BaseDataSource {
           }
         }
 
+        const source = sources.get(r.source_id_int);
+
         data.push({
           id: r.id,
           kind: r.kind,
@@ -125,7 +127,7 @@ export class AsksDataSource extends BaseDataSource {
           valid_from: Number(r.valid_from),
           valid_until: Number(r.valid_until),
           nonce: Number(r.nonce),
-          source: sources.get(r.source_id_int)?.domain,
+          source: source ? source.domain : null,
           fee_bps: Number(r.fee_bps),
           expiration: Number(r.expiration),
           raw_data: r.raw_data ?? null,
@@ -219,7 +221,7 @@ export class AsksDataSourceV2 extends BaseDataSource {
       for (const r of result) {
         const currency = await getCurrency(
           fromBuffer(r.currency) === AddressZero
-            ? Sdk.Common.Addresses.Eth[config.chainId]
+            ? Sdk.Common.Addresses.Native[config.chainId]
             : fromBuffer(r.currency)
         );
 

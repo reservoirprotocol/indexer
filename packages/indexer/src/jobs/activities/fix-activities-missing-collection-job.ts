@@ -12,29 +12,27 @@ export type FixActivitiesMissingCollectionJobPayload = {
 
 export class FixActivitiesMissingCollectionJob extends AbstractRabbitMqJobHandler {
   queueName = "fix-activities-missing-collection-queue";
-  maxRetries = 5;
-  concurrency = 15;
+  maxRetries = 10;
+  concurrency = 3;
   persistent = true;
   lazyMode = true;
-  useSharedChannel = true;
 
   protected async process(payload: FixActivitiesMissingCollectionJobPayload) {
     const { contract, tokenId, retry } = payload;
-
-    // Temporarily disable goerli prod
-    if (config.chainId === 5 && config.environment === "prod") {
-      return;
-    }
 
     const collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
 
     if (collection) {
       // Update the collection id of any missing activities
-      await ActivitiesIndex.updateActivitiesMissingCollection(
+      const keepGoing = await ActivitiesIndex.updateActivitiesMissingCollection(
         contract,
         Number(tokenId),
         collection
       );
+
+      if (keepGoing) {
+        await this.addToQueue(payload, true);
+      }
     } else if (Number(retry) < this.maxRetries) {
       await this.addToQueue({ ...payload, retry: Number(retry) + 1 });
     } else {
@@ -42,16 +40,22 @@ export class FixActivitiesMissingCollectionJob extends AbstractRabbitMqJobHandle
     }
   }
 
-  public async addToQueue(params: FixActivitiesMissingCollectionJobPayload) {
+  public async addToQueue(payload: FixActivitiesMissingCollectionJobPayload, force = false) {
     if (!config.doElasticsearchWork) {
       return;
     }
 
-    params.retry = params.retry ?? 0;
-    const jobId = `${params.contract}:${params.tokenId}:${params.retry}`;
-    const delay = params.retry ? params.retry ** 2 * 300 * 1000 : 0;
+    payload.retry = payload.retry ?? 0;
 
-    await this.send({ payload: params, jobId }, delay);
+    let jobId;
+
+    if (!force) {
+      jobId = `${payload.contract}:${payload.tokenId}:${payload.retry}`;
+    }
+
+    const delay = payload.retry ? payload.retry ** 2 * 300 * 1000 : 0;
+
+    await this.send({ payload, jobId }, delay);
   }
 }
 

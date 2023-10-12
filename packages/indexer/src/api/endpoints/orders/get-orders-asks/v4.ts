@@ -27,7 +27,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
   description: "Asks (listings)",
   notes:
     "Get a list of asks (listings), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing.\n\n Please mark `excludeEOA` as `true` to exclude Blur orders.",
-  tags: ["api", "Orders"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 5,
@@ -139,7 +139,11 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .when("sortBy", {
           is: Joi.valid("updatedAt"),
           then: Joi.valid("asc", "desc").default("desc"),
-          otherwise: Joi.valid("desc").default("desc"),
+          otherwise: Joi.when("sortBy", {
+            is: Joi.valid("price"),
+            then: Joi.valid("asc", "desc").default("asc"),
+            otherwise: Joi.valid("desc").default("desc"),
+          }),
         }),
       continuation: Joi.string()
         .pattern(regex.base64)
@@ -184,6 +188,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
 
       let baseQuery = `
         SELECT
+          contracts.kind AS "contract_kind",
           orders.id,
           orders.kind,
           orders.side,
@@ -229,9 +234,15 @@ export const getOrdersAsksV4Options: RouteOptions = {
             END
           ) AS status,
           extract(epoch from orders.updated_at) AS updated_at,
+          orders.originated_at,
           (${criteriaBuildQuery}) AS criteria
           ${query.includeRawData || query.includeDynamicPricing ? ", orders.raw_data" : ""}
         FROM orders
+        JOIN LATERAL (
+          SELECT kind
+          FROM contracts
+          WHERE contracts.address = orders.contract
+        ) contracts ON TRUE
       `;
 
       // We default in the code so that these values don't appear in the docs
@@ -534,6 +545,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
           tokenSetId: r.token_set_id,
           tokenSetSchemaHash: r.token_set_schema_hash,
           contract: r.contract,
+          contractKind: r.contract_kind,
           maker: r.maker,
           taker: r.taker,
           prices: {
@@ -556,11 +568,12 @@ export const getOrdersAsksV4Options: RouteOptions = {
           criteria: r.criteria,
           sourceIdInt: r.source_id_int,
           feeBps: r.fee_bps,
-          feeBreakdown: r.fee_breakdown,
+          feeBreakdown: r.fee_bps === 0 ? [] : r.fee_breakdown,
           expiration: r.expiration,
           isReservoir: r.is_reservoir,
           createdAt: r.created_at,
           updatedAt: r.updated_at,
+          originatedAt: r.originated_at,
           includeRawData: query.includeRawData,
           rawData: r.raw_data,
           normalizeRoyalties: query.normalizeRoyalties,

@@ -47,6 +47,7 @@ export const getCollectionTopBidOracleV3Options: RouteOptions = {
         id: Joi.string().required(),
         payload: Joi.string().required(),
         timestamp: Joi.number().required(),
+        chainId: Joi.string().required(),
         signature: Joi.string().required(),
       }),
     }).label(`getCollectionTopBidOracle${version.toUpperCase()}Response`),
@@ -269,11 +270,11 @@ export const getCollectionTopBidOracleV3Options: RouteOptions = {
         );
       }
 
-      if (Object.values(Sdk.Common.Addresses.Eth).includes(query.currency)) {
+      if (Object.values(Sdk.Common.Addresses.Native).includes(query.currency)) {
         // ETH: do nothing
-      } else if (Object.values(Sdk.Common.Addresses.Weth).includes(query.currency)) {
+      } else if (Object.values(Sdk.Common.Addresses.WNative).includes(query.currency)) {
         // WETH: do nothing
-      } else if (Object.values(Sdk.Common.Addresses.Usdc).includes(query.currency)) {
+      } else if (Object.values(Sdk.Common.Addresses.Usdc).flat().includes(query.currency)) {
         // USDC: convert price to USDC
         const usdPrice = await axios
           .get("https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd")

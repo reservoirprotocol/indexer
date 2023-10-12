@@ -32,10 +32,10 @@ export const getCollectionsV5Options: RouteOptions = {
   },
   description: "Collections",
   notes: "Use this API to explore a collection’s metadata and statistics (sales, volume, etc).",
-  tags: ["api", "Collections"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 3,
+      deprecated: true,
     },
   },
   validate: {
@@ -260,11 +260,12 @@ export const getCollectionsV5Options: RouteOptions = {
           mintStages: Joi.array().items(
             Joi.object({
               stage: Joi.string().required(),
+              tokenId: Joi.string().pattern(regex.number).allow(null),
               kind: Joi.string().required(),
-              price: JoiPrice.required(),
+              price: JoiPrice.allow(null),
               startTime: Joi.number().allow(null),
               endTime: Joi.number().allow(null),
-              maxMintsPerWallet: Joi.number().allow(null),
+              maxMintsPerWallet: Joi.number().unsafe().allow(null),
             })
           ),
         })
@@ -345,11 +346,12 @@ export const getCollectionsV5Options: RouteOptions = {
               array_agg(
                 json_build_object(
                   'stage', collection_mints.stage,
+                  'tokenId', collection_mints.token_id::TEXT,
                   'kind', collection_mints.kind,
                   'currency', concat('0x', encode(collection_mints.currency, 'hex')),
                   'price', collection_mints.price::TEXT,
-                  'startTime', collection_mints.start_time,
-                  'endTime', collection_mints.end_time,
+                  'startTime', floor(extract(epoch from collection_mints.start_time)),
+                  'endTime', floor(extract(epoch from collection_mints.end_time)),
                   'maxMintsPerWallet', collection_mints.max_mints_per_wallet
                 )
               ) AS mint_stages
@@ -365,30 +367,23 @@ export const getCollectionsV5Options: RouteOptions = {
       if (query.includeSalesCount) {
         saleCountSelectQuery = ", s.*";
         saleCountJoinQuery = `
-        LEFT JOIN LATERAL (
-          SELECT
-            SUM(CASE
-                  WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '24 HOURS'
-                  THEN 1
-                  ELSE 0
-                END) AS day_sale_count,
-            SUM(CASE
-                  WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '7 DAYS'
-                  THEN 1
-                  ELSE 0
-                END) AS week_sale_count,
-            SUM(CASE
-                  WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '30 DAYS'
-                  THEN 1
-                  ELSE 0
-                END) AS month_sale_count,
-            COUNT(*) AS total_sale_count
-          FROM fill_events_2 fe
-          JOIN "tokens" "t" ON "fe"."token_id" = "t"."token_id" AND "fe"."contract" = "t"."contract"
-          WHERE t.collection_id = x.id
-          AND fe.is_deleted = 0
-        ) s ON TRUE
-      `;
+          LEFT JOIN LATERAL (
+            SELECT
+              SUM(CASE
+                    WHEN to_timestamp(dv.timestamp) + INTERVAL '24 HOURS' > NOW() - INTERVAL '7 DAYS'
+                    THEN sales_count
+                    ELSE 0
+                  END) AS week_sale_count,
+              SUM(CASE
+                    WHEN to_timestamp(dv.timestamp) + INTERVAL '24 HOURS' > NOW() - INTERVAL '30 DAYS'
+                    THEN sales_count
+                    ELSE 0
+                  END) AS month_sale_count,
+              SUM(sales_count) AS total_sale_count
+            FROM daily_volumes dv
+            WHERE dv.collection_id = x.id
+          ) s ON TRUE
+        `;
       }
 
       let floorAskSelectQuery;
@@ -439,6 +434,7 @@ export const getCollectionsV5Options: RouteOptions = {
           collections.contract,
           collections.token_id_range,
           collections.token_set_id,
+          collections.day1_sales_count AS "day_sale_count",
           collections.day1_rank,
           collections.day1_volume,
           collections.day7_rank,
@@ -482,8 +478,6 @@ export const getCollectionsV5Options: RouteOptions = {
       // Filtering
 
       const conditions: string[] = [];
-
-      conditions.push("collections.token_count > 0");
 
       if (query.id) {
         conditions.push("collections.id = $/id/");
@@ -653,11 +647,11 @@ export const getCollectionsV5Options: RouteOptions = {
           // that don't have the currencies cached in the tokens table
           const floorAskCurrency = r.floor_sell_currency
             ? fromBuffer(r.floor_sell_currency)
-            : Sdk.Common.Addresses.Eth[config.chainId];
+            : Sdk.Common.Addresses.Native[config.chainId];
 
           const topBidCurrency = r.top_buy_currency
             ? fromBuffer(r.top_buy_currency)
-            : Sdk.Common.Addresses.Weth[config.chainId];
+            : Sdk.Common.Addresses.WNative[config.chainId];
 
           const sampleImages = _.filter(
             r.sample_images,
@@ -788,7 +782,7 @@ export const getCollectionsV5Options: RouteOptions = {
             },
             salesCount: query.includeSalesCount
               ? {
-                  "1day": r.day_sale_count,
+                  "1day": `${r.day_sale_count ?? 0}`,
                   "7day": r.week_sale_count,
                   "30day": r.month_sale_count,
                   allTime: r.total_sale_count,
@@ -809,8 +803,11 @@ export const getCollectionsV5Options: RouteOptions = {
               ? await Promise.all(
                   r.mint_stages.map(async (m: any) => ({
                     stage: m.stage,
+                    tokenId: m.tokenId,
                     kind: m.kind,
-                    price: await getJoiPriceObject({ gross: { amount: m.price } }, m.currency),
+                    price: m.price
+                      ? await getJoiPriceObject({ gross: { amount: m.price } }, m.currency)
+                      : m.price,
                     startTime: m.startTime,
                     endTime: m.endTime,
                     maxMintsPerWallet: m.maxMintsPerWallet,

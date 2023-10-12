@@ -6,10 +6,10 @@ import { Queue, QueueScheduler, Worker } from "bullmq";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
+import { orderUpdatesByMakerJob } from "@/jobs/order-updates/order-updates-by-maker-job";
 
 const QUEUE_NAME = "backfill-wrong-nft-balances";
 
@@ -39,6 +39,7 @@ if (config.doBackgroundWork) {
             nft_transfer_events.token_id
           FROM nft_transfer_events
           WHERE nft_transfer_events.block = $/block/
+            AND nft_transfer_events.is_deleted = 0
           ORDER BY
             nft_transfer_events.log_index,
             nft_transfer_events.batch_index
@@ -71,6 +72,7 @@ if (config.doBackgroundWork) {
                   FROM nft_transfer_events
                   WHERE nft_transfer_events.address = $/contract/
                     AND nft_transfer_events.token_id = $/tokenId/
+                    AND nft_transfer_events.is_deleted = 0
                 `,
                 {
                   contract: toBuffer(contract),
@@ -134,7 +136,7 @@ if (config.doBackgroundWork) {
             `
           );
 
-          await orderUpdatesByMaker.addToQueue(
+          await orderUpdatesByMakerJob.addToQueue(
             values.map((v) => ({
               context: `revalidation-${fromBuffer(v.contract)}-${v.token_id}-${fromBuffer(
                 v.owner
@@ -166,37 +168,37 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  redlock
-    .acquire([`${QUEUE_NAME}-lock-${RUN_NUMBER}-2`], 60 * 60 * 24 * 30 * 1000)
-    .then(async () => {
-      const getClosestBlock = async (timestamp: number) =>
-        idb
-          .oneOrNone(
-            `
-              SELECT
-                nft_transfer_events.block
-              FROM nft_transfer_events
-              WHERE nft_transfer_events.timestamp <= $/timestamp/
-              ORDER BY nft_transfer_events.timestamp DESC
-              LIMIT 1
-            `,
-            { timestamp }
-          )
-          .then((r) => r.block);
-
-      const intervals = [
-        [1683561600, 1683571600],
-        [1683571600, 1683581600],
-        [1683581600, 1683591600],
-        [1683591600, 1683601200],
-      ];
-      for (const [from, to] of intervals) {
-        await addToQueue(await getClosestBlock(from), await getClosestBlock(to));
-      }
-    })
-    .catch(() => {
-      // Skip on any errors
-    });
+  // redlock
+  //   .acquire([`${QUEUE_NAME}-lock-${RUN_NUMBER}-2`], 60 * 60 * 24 * 30 * 1000)
+  //   .then(async () => {
+  //     const getClosestBlock = async (timestamp: number) =>
+  //       idb
+  //         .oneOrNone(
+  //           `
+  //             SELECT
+  //               nft_transfer_events.block
+  //             FROM nft_transfer_events
+  //             WHERE nft_transfer_events.timestamp <= $/timestamp/
+  //             ORDER BY nft_transfer_events.timestamp DESC
+  //             LIMIT 1
+  //           `,
+  //           { timestamp }
+  //         )
+  //         .then((r) => r.block);
+  //
+  //     const intervals = [
+  //       [1683561600, 1683571600],
+  //       [1683571600, 1683581600],
+  //       [1683581600, 1683591600],
+  //       [1683591600, 1683601200],
+  //     ];
+  //     for (const [from, to] of intervals) {
+  //       await addToQueue(await getClosestBlock(from), await getClosestBlock(to));
+  //     }
+  //   })
+  //   .catch(() => {
+  //     // Skip on any errors
+  //   });
 }
 
 export const addToQueue = async (fromBlock: number, toBlock: number) => {

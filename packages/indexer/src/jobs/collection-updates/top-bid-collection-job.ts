@@ -19,6 +19,7 @@ export class TopBidCollectionJob extends AbstractRabbitMqJobHandler {
   queueName = "collection-updates-top-bid-queue";
   maxRetries = 10;
   concurrency = 5;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 20000,
@@ -154,7 +155,9 @@ export class TopBidCollectionJob extends AbstractRabbitMqJobHandler {
       if (payload.kind === "new-order" && collectionTopBid?.order_id) {
         await WebsocketEventRouter({
           eventKind: WebsocketEventKind.NewTopBid,
-          eventInfo: { orderId: collectionTopBid?.order_id },
+          eventInfo: {
+            orderId: collectionTopBid?.order_id,
+          },
         });
       }
     } catch (error) {

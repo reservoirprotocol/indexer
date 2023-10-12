@@ -4,9 +4,9 @@ import { Tokens } from "@/models/tokens";
 import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import * as orderFixes from "@/jobs/order-fixes/fixes";
 import { inject } from "@/api/index";
 import { config } from "@/config/index";
+import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
 
 export type TokenRefreshCacheJobPayload = {
   contract: string;
@@ -48,7 +48,7 @@ export class TokenRefreshCacheJob extends AbstractRabbitMqJobHandler {
     );
     if (floorAsk) {
       // Revalidate
-      await orderFixes.addToQueue([{ by: "id", data: { id: floorAsk.id } }]);
+      await orderFixesJob.addToQueue([{ by: "id", data: { id: floorAsk.id } }]);
 
       // Simulate
       await inject({
@@ -95,7 +95,7 @@ export class TokenRefreshCacheJob extends AbstractRabbitMqJobHandler {
       );
       if (topBid) {
         // Revalidate
-        await orderFixes.addToQueue([{ by: "id", data: { id: topBid.id } }]);
+        await orderFixesJob.addToQueue([{ by: "id", data: { id: topBid.id } }]);
 
         // Simulate
         if (config.chainId === 1) {

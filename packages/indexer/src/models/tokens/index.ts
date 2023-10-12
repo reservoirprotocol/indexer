@@ -4,13 +4,13 @@ import _ from "lodash";
 
 import { idb, pgp, redb } from "@/common/db";
 import { fromBuffer, now, toBuffer } from "@/common/utils";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import {
   TokensEntity,
   TokensEntityParams,
   TokensEntityUpdateParams,
 } from "@/models/tokens/tokens-entity";
 import { config } from "@/config/index";
+import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
 
 export type TokenAttributes = {
   attributeId: number;
@@ -48,11 +48,6 @@ export class Tokens {
   }
 
   public static async getCollectionId(contract: string, tokenId: string) {
-    // For polygon no shared contracts at the moment
-    if (config.chainId === 137) {
-      return contract;
-    }
-
     const collectionId = await redb.oneOrNone(
       `SELECT collection_id
               FROM tokens
@@ -73,13 +68,6 @@ export class Tokens {
 
   public static async getCollectionIds(tokens: { contract: string; tokenId: string }[]) {
     const map = new Map<string, string>();
-
-    // For polygon no shared contracts at the moment
-    if (config.chainId === 137) {
-      _.map(tokens, (c) => map.set(`${c.contract}:${c.tokenId}`, c.contract));
-      return map;
-    }
-
     const columns = new pgp.helpers.ColumnSet(["contract", "token_id"], { table: "tokens" });
 
     const data = tokens.map((activity) => ({
@@ -170,18 +158,6 @@ export class Tokens {
     });
   }
 
-  public static async countTokensInCollection(collectionId: string) {
-    const query = `SELECT count(*) AS count
-                   FROM tokens
-                   WHERE collection_id = $/collectionId/`;
-
-    return await idb
-      .oneOrNone(query, {
-        collectionId,
-      })
-      .then((result) => (result ? result.count : 0));
-  }
-
   public static async getSingleToken(collectionId: string) {
     const query = `
         SELECT token_id
@@ -231,7 +207,7 @@ export class Tokens {
         ${contractFilter}
         ${flagFilter}
         ${continuation}
-        ORDER BY token_id ASC
+        ORDER BY contract, token_id ASC
         LIMIT ${limit}
       `;
 
@@ -290,7 +266,7 @@ export class Tokens {
 
   public static async recalculateTokenFloorSell(contract: string, tokenId: string) {
     const tokenSetId = `token:${contract}:${tokenId}`;
-    await orderUpdatesById.addToQueue([
+    await orderUpdatesByIdJob.addToQueue([
       {
         context: `revalidate-sell-${tokenSetId}-${now()}`,
         tokenSetId,
@@ -302,7 +278,7 @@ export class Tokens {
 
   public static async recalculateTokenTopBid(contract: string, tokenId: string) {
     const tokenSetId = `token:${contract}:${tokenId}`;
-    await orderUpdatesById.addToQueue([
+    await orderUpdatesByIdJob.addToQueue([
       {
         context: `revalidate-buy-${tokenSetId}-${now()}`,
         tokenSetId,

@@ -53,10 +53,8 @@ export const getExecuteBuyV6Options: RouteOptions = {
               "seaport-v1.4",
               "seaport-v1.5",
               "x2y2",
-              "universe",
               "rarible",
               "sudoswap",
-              "flow",
               "nftx"
             )
             .required(),
@@ -92,7 +90,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
         "If true, all fills will be executed through the router."
       ),
       currency: Joi.string()
-        .valid(Sdk.Common.Addresses.Eth[config.chainId])
+        .valid(Sdk.Common.Addresses.Native[config.chainId])
         .description("Currency to buy all listings in."),
       normalizeRoyalties: Joi.boolean().default(false),
       preferredOrderSource: Joi.string()
@@ -302,7 +300,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
               // TODO: We don't support ERC20 fees because of potential direct filling which
               // does not work with fees on top. We'll need to integrate permits in order to
               // support ERC20 fees.
-              fees: order.currency === Sdk.Common.Addresses.Eth[config.chainId] ? fees : [],
+              fees: order.currency === Sdk.Common.Addresses.Native[config.chainId] ? fees : [],
             },
             {
               kind: token.kind,
@@ -385,7 +383,8 @@ export const getExecuteBuyV6Options: RouteOptions = {
                 }
                 ${
                   // TODO: Add support for buying in ERC20 tokens
-                  payload.currency && payload.currency !== Sdk.Common.Addresses.Eth[config.chainId]
+                  payload.currency &&
+                  payload.currency !== Sdk.Common.Addresses.Native[config.chainId]
                     ? " AND orders.currency = $/currency/"
                     : ""
                 }
@@ -472,7 +471,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
                   ${
                     // TODO: Add support for buying in ERC20 tokens
                     payload.currency &&
-                    payload.currency !== Sdk.Common.Addresses.Eth[config.chainId]
+                    payload.currency !== Sdk.Common.Addresses.Native[config.chainId]
                       ? " AND orders.currency = $/currency/"
                       : ""
                   }
@@ -561,7 +560,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
                   ${
                     // TODO: Add support for buying in ERC20 tokens
                     payload.currency &&
-                    payload.currency !== Sdk.Common.Addresses.Eth[config.chainId]
+                    payload.currency !== Sdk.Common.Addresses.Native[config.chainId]
                       ? " AND orders.currency = $/currency/"
                       : ""
                   }
@@ -700,7 +699,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
           buyInCurrency = path[0].currency;
         } else {
           // If multiple different-currency orders are to get filled, we use the native currency
-          buyInCurrency = Sdk.Common.Addresses.Eth[config.chainId];
+          buyInCurrency = Sdk.Common.Addresses.Native[config.chainId];
         }
       }
 
@@ -811,8 +810,6 @@ export const getExecuteBuyV6Options: RouteOptions = {
       try {
         result = await router.fillListingsTx(listingDetails, payload.taker, buyInCurrency, {
           source: payload.source,
-          // TODO: Add support for buying any listing via any ERC20 token
-          globalFees: buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId] ? feesOnTop : [],
           partial: payload.partial,
           forceRouter: payload.forceRouter,
           relayer: payload.relayer,
@@ -849,7 +846,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
         const totalPrice = subPath
           .map(({ rawQuote }) => bn(rawQuote))
           .reduce((a, b) => a.add(b), bn(0));
-        if (buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId]) {
+        if (buyInCurrency === Sdk.Common.Addresses.Native[config.chainId]) {
           const balance = await baseProvider.getBalance(txSender);
           if (!payload.skipBalanceCheck && bn(balance).lt(totalPrice)) {
             throw Boom.badData("Balance too low to proceed with transaction");
@@ -873,12 +870,10 @@ export const getExecuteBuyV6Options: RouteOptions = {
                 ? // Use OpenSea's conduit for sharing approvals
                   "0x1e0049783f008a0085193e00003d00cd54003c71"
                 : Sdk.SeaportV11.Addresses.Exchange[config.chainId];
-          } else if (listings.every((d) => d.kind === "universe")) {
-            conduit = Sdk.Universe.Addresses.Exchange[config.chainId];
           } else if (listings.every((d) => d.kind === "rarible")) {
             conduit = Sdk.Rarible.Addresses.Exchange[config.chainId];
           } else {
-            throw new Error("Only Seaport, Universe and Rarible ERC20 listings are supported");
+            throw new Error("Only Seaport and Rarible ERC20 listings are supported");
           }
 
           const allowance = await erc20.getAllowance(txSender, conduit);
@@ -916,7 +911,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
       // won't affect the client, which might be polling the API and
       // expect to get the steps returned in the same order / at the
       // same index.
-      if (buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId]) {
+      if (buyInCurrency === Sdk.Common.Addresses.Native[config.chainId]) {
         // Buying in ETH will never require an approval
         steps = [steps[0], ...steps.slice(2)];
       }

@@ -1,4 +1,3 @@
-import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
 
 import { now } from "@/common/utils";
@@ -29,7 +28,6 @@ export const build = async (options: BuildOrderOptions) => {
     .then((response) => response.data.data);
 
   return {
-    order: new Sdk.Blur.Order(config.chainId, response.signData.value),
     signData: response.signData,
     marketplaceData: response.marketplaceData,
   };

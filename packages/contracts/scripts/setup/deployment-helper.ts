@@ -69,7 +69,15 @@ export class DeploymentHelper {
       .getContractFactory(contractName, this.deployer)
       .then((factory) => factory.getDeployTransaction(...args).data);
 
-    await create3Factory.deploy(salt, creationCode);
+    await create3Factory.deploy(
+      salt,
+      creationCode,
+      // Overrides for some edge-cases
+      {
+        // maxFeePerGas: "2000000000",
+        // maxPriorityFeePerGas: "500000000",
+      }
+    );
 
     const deploymentAddress: string = await create3Factory.getDeployed(
       await this.deployer.getAddress(),

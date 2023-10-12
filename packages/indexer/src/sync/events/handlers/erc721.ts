@@ -1,6 +1,7 @@
 import * as Sdk from "@reservoir0x/sdk";
 
 import { bn } from "@/common/utils";
+import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { getEventData } from "@/events-sync/data";
@@ -88,7 +89,10 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             mintedTimestamp: baseEventParams.timestamp,
           });
           onChainData.mints.push({
-            txHash: baseEventParams.txHash,
+            by: "tx",
+            data: {
+              txHash: baseEventParams.txHash,
+            },
           });
 
           if (!ns.mintsAsSalesBlacklist.includes(baseEventParams.address)) {
@@ -118,6 +122,18 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         const fromNumber = Number(fromTokenId);
         const toNumber = Number(toTokenId);
+
+        // For safety, add a limit
+        if (toNumber - fromNumber > 100) {
+          logger.info(
+            "erc721-handler",
+            `Skipping consecutive-transfer range (size = ${toNumber - fromNumber}) for tx (${
+              baseEventParams.txHash
+            })`
+          );
+          break;
+        }
+
         for (let i = fromNumber; i <= toNumber; i++) {
           const tokenId = i.toString();
 
@@ -137,7 +153,10 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               mintedTimestamp: baseEventParams.timestamp,
             });
             onChainData.mints.push({
-              txHash: baseEventParams.txHash,
+              by: "tx",
+              data: {
+                txHash: baseEventParams.txHash,
+              },
             });
 
             if (!ns.mintsAsSalesBlacklist.includes(baseEventParams.address)) {
@@ -155,38 +174,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             }
           }
 
-          // Make sure to only handle the same data once per transaction
-          const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}-${tokenId}`;
-
-          onChainData.makerInfos.push({
-            context: `${contextPrefix}-${from}-sell-balance`,
-            maker: from,
-            trigger: {
-              kind: "balance-change",
-              txHash: baseEventParams.txHash,
-              txTimestamp: baseEventParams.timestamp,
-            },
-            data: {
-              kind: "sell-balance",
-              contract: baseEventParams.address,
-              tokenId,
-            },
-          });
-
-          onChainData.makerInfos.push({
-            context: `${contextPrefix}-${to}-sell-balance`,
-            maker: to,
-            trigger: {
-              kind: "balance-change",
-              txHash: baseEventParams.txHash,
-              txTimestamp: baseEventParams.timestamp,
-            },
-            data: {
-              kind: "sell-balance",
-              contract: baseEventParams.address,
-              tokenId,
-            },
-          });
+          // Skip pushing to `makerInfos` since that could result in "out-of-memory" errors
         }
 
         break;
@@ -242,7 +230,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         .map(({ amount }) => amount)
         .reduce((a, b) => bn(a).add(b).toString());
       const price = bn(tx.value).div(totalAmount).toString();
-      const currency = Sdk.Common.Addresses.Eth[config.chainId];
+      const currency = Sdk.Common.Addresses.Native[config.chainId];
 
       for (const mint of mints) {
         // Handle: attribution

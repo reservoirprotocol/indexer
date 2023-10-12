@@ -12,7 +12,14 @@ import _ from "lodash";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { JoiOrder, getJoiOrderObject } from "@/common/joi";
-import { buildContinuation, now, regex, splitContinuation, toBuffer } from "@/common/utils";
+import {
+  buildContinuation,
+  fromBuffer,
+  now,
+  regex,
+  splitContinuation,
+  toBuffer,
+} from "@/common/utils";
 import { config } from "@/config/index";
 import { Attributes } from "@/models/attributes";
 import { CollectionSets } from "@/models/collection-sets";
@@ -26,7 +33,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
   description: "Bids (offers)",
   notes:
     "Get a list of bids (offers), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing.\n\n There are a different kind of bids than can be returned:\n\n- Inputting a 'contract' will return token and attribute bids.\n\n- Inputting a 'collection-id' will return collection wide bids./n/n Please mark `excludeEOA` as `true` to exclude Blur orders.",
-  tags: ["api", "Orders"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 5,
@@ -213,9 +220,39 @@ export const getOrdersBidsV5Options: RouteOptions = {
         const sources = await Sources.getInstance();
         const source = sources.getByDomain(query.source);
 
-        const result: { contract: string; price: string; quantity: number }[] = await axios
+        const result: {
+          contract: string;
+          price: string;
+          quantity: number;
+          contract_kind: string;
+        }[] = await axios
           .get(`${config.orderFetcherBaseUrl}/api/blur-user-collection-bids?user=${query.maker}`)
-          .then((response) => response.data.bids);
+          .then(async (response) => {
+            if (_.isEmpty(response.data.bids)) {
+              return [];
+            }
+
+            const contracts = _.map(response.data.bids, (bid) => bid.contract);
+            const contractsQuery = `
+              SELECT address, kind
+              FROM contracts
+              WHERE address IN ($/contracts:list/)
+            `;
+
+            const contractsQueryResult = await redb.manyOrNone(contractsQuery, {
+              contracts: _.map(contracts, (c) => toBuffer(c)),
+            });
+            const contractsSet = new Map<string, string>();
+            _.each(contractsQueryResult, (contract) =>
+              contractsSet.set(fromBuffer(contract.address), contract.kind)
+            );
+
+            return _.map(response.data.bids, (bid) => ({
+              ...bid,
+              contract_kind: contractsSet.get(bid.contract),
+            }));
+          });
+
         return {
           orders: await Promise.all(
             result.map((r) =>
@@ -227,6 +264,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
                 tokenSetId: `contract:${r.contract}`,
                 tokenSetSchemaHash: toBuffer(HashZero),
                 contract: toBuffer(r.contract),
+                contractKind: r.contract_kind,
                 maker: toBuffer(query.maker),
                 taker: toBuffer(AddressZero),
                 prices: {
@@ -248,6 +286,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
                 isReservoir: false,
                 createdAt: now(),
                 updatedAt: now(),
+                originatedAt: now(),
                 includeRawData: false,
                 rawData: {} as any,
                 normalizeRoyalties: false,
@@ -269,6 +308,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
 
       let baseQuery = `
         SELECT
+          contracts.kind AS "contract_kind",
           orders.id,
           orders.kind,
           orders.side,
@@ -312,9 +352,15 @@ export const getOrdersBidsV5Options: RouteOptions = {
           orders.is_reservoir,
           extract(epoch from orders.created_at) AS created_at,
           extract(epoch from orders.updated_at) AS updated_at,
+          orders.originated_at,
           (${criteriaBuildQuery}) AS criteria
           ${query.includeRawData || query.includeDepth ? ", orders.raw_data" : ""}
         FROM orders
+        JOIN LATERAL (
+          SELECT kind
+          FROM contracts
+          WHERE contracts.address = orders.contract
+        ) contracts ON TRUE
       `;
 
       // We default in the code so that these values don't appear in the docs
@@ -617,6 +663,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
           tokenSetId: r.token_set_id,
           tokenSetSchemaHash: r.token_set_schema_hash,
           contract: r.contract,
+          contractKind: r.contract_kind,
           maker: r.maker,
           taker: r.taker,
           prices: {
@@ -639,11 +686,12 @@ export const getOrdersBidsV5Options: RouteOptions = {
           criteria: r.criteria,
           sourceIdInt: r.source_id_int,
           feeBps: r.fee_bps,
-          feeBreakdown: r.fee_breakdown,
+          feeBreakdown: r.fee_bps === 0 ? [] : r.fee_breakdown,
           expiration: r.expiration,
           isReservoir: r.is_reservoir,
           createdAt: r.created_at,
           updatedAt: r.updated_at,
+          originatedAt: r.originated_at,
           includeRawData: query.includeRawData,
           rawData: r.raw_data,
           normalizeRoyalties: query.normalizeRoyalties,

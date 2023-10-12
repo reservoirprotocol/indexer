@@ -190,32 +190,12 @@ export const getExecuteCancelV2Options: RouteOptions = {
           break;
         }
 
-        case "universe": {
-          const order = new Sdk.Universe.Order(config.chainId, orderResult.raw_data);
-          const exchange = new Sdk.Universe.Exchange(config.chainId);
-          const { side } = order.getInfo()!;
-          cancelTx = await exchange.cancelOrderTx(order.params);
-          orderSide = side;
-
-          break;
-        }
-
         case "rarible": {
           const order = new Sdk.Rarible.Order(config.chainId, orderResult.raw_data);
           const exchange = new Sdk.Rarible.Exchange(config.chainId);
           const { side } = order.getInfo()!;
           cancelTx = await exchange.cancelOrderTx(order.params);
           orderSide = side;
-
-          break;
-        }
-
-        case "flow": {
-          const order = new Sdk.Flow.Order(config.chainId, orderResult.raw_data);
-          const exchange = new Sdk.Flow.Exchange(config.chainId);
-          const nonce = order.nonce;
-          cancelTx = exchange.cancelMultipleOrdersTx(order.signer, [nonce]);
-          orderSide = order.isSellOrder ? "sell" : "buy";
 
           break;
         }

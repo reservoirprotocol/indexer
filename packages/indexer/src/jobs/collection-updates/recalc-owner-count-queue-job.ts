@@ -1,6 +1,5 @@
 import { idb, ridb } from "@/common/db";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { logger } from "@/common/logger";
 import { Collections } from "@/models/collections";
 import { acquireLock, getLockExpiration } from "@/common/redis";
 import { config } from "@/config/index";
@@ -27,6 +26,7 @@ export class RecalcOwnerCountQueueJob extends AbstractRabbitMqJobHandler {
   maxRetries = 10;
   concurrency = 10;
   lazyMode = true;
+  timeout = 5 * 60 * 1000;
   backoff = {
     type: "exponential",
     delay: 20000,
@@ -100,18 +100,6 @@ export class RecalcOwnerCountQueueJob extends AbstractRabbitMqJobHandler {
             }
           );
         }
-
-        logger.debug(
-          this.queueName,
-          JSON.stringify({
-            topic: "Update owner count",
-            jobData: data,
-            collection: collection.id,
-            collectionOwnerCount: collection.ownerCount,
-            ownerCount,
-            updated: Number(ownerCount) !== collection.ownerCount,
-          })
-        );
       } else {
         const acquiredScheduleLock = await acquireLock(
           this.getScheduleLockName(collection.id),
@@ -147,15 +135,6 @@ export class RecalcOwnerCountQueueJob extends AbstractRabbitMqJobHandler {
   };
 
   public async addToQueue(infos: RecalcOwnerCountQueueJobPayload[], delayInSeconds = 0) {
-    logger.debug(
-      this.queueName,
-      JSON.stringify({
-        topic: "addToQueue",
-        infos: infos,
-        delayInSeconds,
-      })
-    );
-
     // Disable for bsc while its back filling
     if (config.chainId === 56) {
       return;
@@ -165,6 +144,10 @@ export class RecalcOwnerCountQueueJob extends AbstractRabbitMqJobHandler {
       infos.map((info) => ({
         payload: info,
         delay: delayInSeconds * 1000,
+        jobId:
+          info.kind === "collectionId"
+            ? info.data.collectionId
+            : `${info.data.contract}:${info.data.tokenId}`,
       }))
     );
   }

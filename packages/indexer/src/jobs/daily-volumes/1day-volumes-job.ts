@@ -20,13 +20,13 @@ export class OneDayVolumeJob extends AbstractRabbitMqJobHandler {
 
     if (updateResult) {
       logger.info(
-        "daily-volumes",
+        "day-1-volumes",
         `Finished updating the 1day volume on collections table. retry=${retry}`
       );
     } else {
       if (retry < 5) {
         logger.warn(
-          "daily-volumes",
+          "day-1-volumes",
           `Something went wrong with updating the 1day volume on collections, will retry in a couple of minutes. retry=${retry}`
         );
         retry++;
@@ -34,7 +34,7 @@ export class OneDayVolumeJob extends AbstractRabbitMqJobHandler {
         await this.addToQueue({ retry });
       } else {
         logger.error(
-          "daily-volumes",
+          "day-1-volumes",
           `Something went wrong with retrying during updating the 1day volume on collection, stopping. retry=${retry}`
         );
       }

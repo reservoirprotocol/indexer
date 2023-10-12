@@ -2,7 +2,7 @@ import axios from "axios";
 
 import { ridb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { toBuffer } from "@/common/utils";
+import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
 export class OpenseaIndexerApi {
@@ -15,27 +15,31 @@ export class OpenseaIndexerApi {
       });
   }
 
-  static async fastContractSync(contract: string) {
+  static async fastContractSync(collectionId: string) {
     const results = await ridb.manyOrNone(
       `
         SELECT
+          collections.contract,
           collections.slug
         FROM collections
-        WHERE collections.contract = $/contract/
+        WHERE collections.id = $/collectionId/
       `,
       {
-        contract: toBuffer(contract),
+        collectionId: collectionId,
       }
     );
 
     return Promise.all(
       results.map((r) =>
         axios
-          .post(`${config.openseaIndexerApiBaseUrl}/fast-contract-sync`, { contract, slug: r.slug })
+          .post(`${config.openseaIndexerApiBaseUrl}/fast-contract-sync`, {
+            contract: fromBuffer(r.contract),
+            slug: r.slug,
+          })
           .catch((error) => {
             logger.error(
               "fast_contract_sync",
-              `Failed to sync contract=${contract}, slug=${r.slug}, error=${error}`
+              `Failed to sync collectionId=${collectionId}, slug=${r.slug}, error=${error}`
             );
             return false;
           })

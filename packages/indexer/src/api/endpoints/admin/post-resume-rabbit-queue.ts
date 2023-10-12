@@ -8,7 +8,7 @@ import { config } from "@/config/index";
 import { redis } from "@/common/redis";
 import { Channel } from "@/pubsub/channels";
 import _ from "lodash";
-import { getNetworkName } from "@/config/network";
+import { PausedRabbitMqQueues } from "@/models/paused-rabbit-mq-queues";
 
 export const postResumeRabbitQueueOptions: RouteOptions = {
   description: "Resume rabbit queue",
@@ -27,8 +27,11 @@ export const postResumeRabbitQueueOptions: RouteOptions = {
     }
 
     const payload = request.payload as any;
-    if (!_.startsWith(payload.queueName, `${getNetworkName()}.`)) {
-      payload.queueName = `${getNetworkName()}.${payload.queueName}`;
+
+    // Check if the queue is running
+    const pausedQueues = await PausedRabbitMqQueues.getPausedQueues();
+    if (_.indexOf(pausedQueues, payload.queueName) === -1) {
+      return { message: `${payload.queueName} already running` };
     }
 
     await redis.publish(

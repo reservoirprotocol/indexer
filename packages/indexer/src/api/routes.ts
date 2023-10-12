@@ -25,7 +25,9 @@ import * as transfersEndpoints from "@/api/endpoints/transfers";
 import * as syncEndpoints from "@/api/endpoints/sync";
 import * as assetsEndpoints from "@/api/endpoints/assets";
 import * as sourcesEndpoints from "@/api/endpoints/sources";
+import * as chainEndpoints from "@/api/endpoints/chain";
 import * as debugEndpoints from "@/api/endpoints/debug";
+import * as currenciesEndpoints from "@/api/endpoints/currencies";
 
 export const setupRoutes = (server: Server) => {
   // Activity
@@ -136,6 +138,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/retry-rabbit-queue",
+    options: adminEndpoints.postRetryRabbitQueue,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/pause-rabbit-queue",
     options: adminEndpoints.postPauseRabbitQueueOptions,
   });
@@ -177,6 +185,12 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
+    method: "GET",
+    path: "/admin/provider-metadata/{type}",
+    options: adminEndpoints.getProviderMetadata,
+  });
+
+  server.route({
     method: "POST",
     path: "/admin/update-api-key",
     options: adminEndpoints.postUpdateApiKeyOptions,
@@ -198,6 +212,12 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/admin/trigger-job",
     options: adminEndpoints.postTriggerJobOptions,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/admin/trigger-rabbit-job",
+    options: adminEndpoints.postTriggerRabbitJobOptions,
   });
 
   server.route({
@@ -454,6 +474,18 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/collections/v6",
+    options: collectionsEndpoints.getCollectionsV6Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/collections/v7",
+    options: collectionsEndpoints.getCollectionsV7Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/collections/{collectionOrSlug}/v1",
     options: collectionsEndpoints.getCollectionDeprecatedV1Options,
   });
@@ -480,6 +512,18 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/collections/{collection}/top-bids/v1",
     options: collectionsEndpoints.getCollectionTopBidsV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/collections/top-selling/v1",
+    options: collectionsEndpoints.getTopSellingCollectionsV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/collections/top-selling/v2",
+    options: collectionsEndpoints.getTopSellingCollectionsV2Options,
   });
 
   server.route({
@@ -540,6 +584,14 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/collections/{collection}/supported-marketplaces/v1",
     options: collectionsEndpoints.getCollectionSupportedMarketplacesV1Options,
+  });
+
+  // Chain
+
+  server.route({
+    method: "GET",
+    path: "/chain/stats/v1",
+    options: chainEndpoints.getChainStats,
   });
 
   // Collections Sets
@@ -641,12 +693,6 @@ export const setupRoutes = (server: Server) => {
   // Execute
 
   server.route({
-    method: "GET",
-    path: "/execute/bid/v2",
-    options: executeEndpoints.getExecuteBidV2Options,
-  });
-
-  server.route({
     method: "POST",
     path: "/execute/bid/v4",
     options: executeEndpoints.getExecuteBidV4Options,
@@ -656,24 +702,6 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/execute/bid/v5",
     options: executeEndpoints.getExecuteBidV5Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/execute/buy/v2",
-    options: executeEndpoints.getExecuteBuyV2Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/execute/buy/v3",
-    options: executeEndpoints.getExecuteBuyV3Options,
-  });
-
-  server.route({
-    method: "POST",
-    path: "/execute/buy/v4",
-    options: executeEndpoints.getExecuteBuyV4Options,
   });
 
   server.route({
@@ -696,12 +724,6 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
-    path: "/execute/cancel/v1",
-    options: executeEndpoints.getExecuteCancelV1Options,
-  });
-
-  server.route({
-    method: "GET",
     path: "/execute/cancel/v2",
     options: executeEndpoints.getExecuteCancelV2Options,
   });
@@ -710,18 +732,6 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/execute/cancel/v3",
     options: executeEndpoints.getExecuteCancelV3Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/execute/list/v2",
-    options: executeEndpoints.getExecuteListV2Options,
-  });
-
-  server.route({
-    method: "POST",
-    path: "/execute/list/v3",
-    options: executeEndpoints.getExecuteListV3Options,
   });
 
   server.route({
@@ -734,24 +744,6 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/execute/list/v5",
     options: executeEndpoints.getExecuteListV5Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/execute/sell/v3",
-    options: executeEndpoints.getExecuteSellV3Options,
-  });
-
-  server.route({
-    method: "POST",
-    path: "/execute/sell/v4",
-    options: executeEndpoints.getExecuteSellV4Options,
-  });
-
-  server.route({
-    method: "POST",
-    path: "/execute/sell/v5",
-    options: executeEndpoints.getExecuteSellV5Options,
   });
 
   server.route({
@@ -782,6 +774,24 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/execute/results/v1",
     options: executeEndpoints.postExecuteResultsV1,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/execute/transfer/v1",
+    options: executeEndpoints.postExecuteTransferV1Options,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/execute/permit-signature/v1",
+    options: executeEndpoints.postPermitSignatureV1Options,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/execute/pre-signature/v1",
+    options: executeEndpoints.postPreSignatureV1Options,
   });
 
   // Health
@@ -855,6 +865,12 @@ export const setupRoutes = (server: Server) => {
     options: oracleEndpoints.getTokenStatusOracleV3Options,
   });
 
+  server.route({
+    method: "GET",
+    path: "/oracle/collections/bid-ask-midpoint/v1",
+    options: oracleEndpoints.getCollectionBidAskMidpointOracleV1Options,
+  });
+
   // Orders
 
   server.route({
@@ -907,6 +923,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/orders/asks/v5",
+    options: ordersEndpoints.getOrdersAsksV5Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/orders/bids/v1",
     options: ordersEndpoints.getOrdersBidsV1Options,
   });
@@ -933,6 +955,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/orders/bids/v5",
     options: ordersEndpoints.getOrdersBidsV5Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/orders/bids/v6",
+    options: ordersEndpoints.getOrdersBidsV6Options,
   });
 
   server.route({
@@ -1339,6 +1367,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/sales/v6",
+    options: transfersEndpoints.getSalesV6Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/sales/bulk/v1",
     options: transfersEndpoints.getSalesBulkV1Options,
   });
@@ -1357,8 +1391,20 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/transfers/v4",
+    options: transfersEndpoints.getTransfersV4Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/transfers/bulk/v1",
     options: transfersEndpoints.getTransfersBulkV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/transfers/bulk/v2",
+    options: transfersEndpoints.getTransfersBulkV2Options,
   });
 
   // sync
@@ -1375,6 +1421,14 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/sources/v1",
     options: sourcesEndpoints.getSourcesV1Options,
+  });
+
+  // currencies
+
+  server.route({
+    method: "GET",
+    path: "/currencies/conversion/v1",
+    options: currenciesEndpoints.getCurrencyConversionV1Options,
   });
 
   // Debug APIs

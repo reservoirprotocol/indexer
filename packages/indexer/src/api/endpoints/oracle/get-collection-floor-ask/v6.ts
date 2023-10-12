@@ -88,7 +88,7 @@ export const getCollectionFloorAskOracleV6Options: RouteOptions = {
       if (collectionResult) {
         query.collection = collectionResult.collection_id;
       } else {
-        throw new Error("Token is not associated to any collection");
+        throw Boom.badRequest("Token is not associated to any collection");
       }
     }
 
@@ -271,11 +271,11 @@ export const getCollectionFloorAskOracleV6Options: RouteOptions = {
         );
       }
 
-      if (Object.values(Sdk.Common.Addresses.Eth).includes(query.currency)) {
+      if (Object.values(Sdk.Common.Addresses.Native).includes(query.currency)) {
         // ETH: do nothing
-      } else if (Object.values(Sdk.Common.Addresses.Weth).includes(query.currency)) {
+      } else if (Object.values(Sdk.Common.Addresses.WNative).includes(query.currency)) {
         // WETH: do nothing
-      } else if (Object.values(Sdk.Common.Addresses.Usdc).includes(query.currency)) {
+      } else if (Object.values(Sdk.Common.Addresses.Usdc).flat().includes(query.currency)) {
         // USDC: convert price to USDC
         const usdPrice = await axios
           .get("https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd")

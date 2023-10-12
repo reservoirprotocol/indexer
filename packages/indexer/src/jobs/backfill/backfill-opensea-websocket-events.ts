@@ -7,10 +7,11 @@ import { redshift } from "@/common/redshift";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
-import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as orders from "@/orderbook/orders";
 import { EventType } from "@opensea/stream-js";
 import { handleEvent, parseProtocolData } from "@/websockets/opensea";
+import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
+import { GenericOrderInfo } from "@/jobs/orderbook/utils";
 
 const QUEUE_NAME = "backfill-opensea-websocket-events";
 
@@ -60,7 +61,7 @@ if (config.doBackgroundWork) {
         }
       );
 
-      const orderInfos: orderbookOrders.GenericOrderInfo[] = [];
+      const orderInfos: GenericOrderInfo[] = [];
 
       for (const result of results) {
         try {
@@ -72,7 +73,7 @@ if (config.doBackgroundWork) {
           if (openSeaOrderParams) {
             const protocolData = parseProtocolData(eventData.payload);
 
-            let orderInfo: orderbookOrders.GenericOrderInfo;
+            let orderInfo: GenericOrderInfo;
 
             if (protocolData) {
               orderInfo = {
@@ -97,7 +98,7 @@ if (config.doBackgroundWork) {
       }
 
       if (orderInfos.length) {
-        await orderbookOrders.addToQueue(orderInfos);
+        await orderbookOrdersJob.addToQueue(orderInfos);
       }
 
       logger.info(QUEUE_NAME, `Processed ${results.length} records`);
@@ -119,19 +120,6 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
-
-  // !!! DISABLED
-  //
-  // if (config.chainId === 1) {
-  //   redlock
-  //     .acquire([`${QUEUE_NAME}-lock-v3`], 60 * 60 * 24 * 30 * 1000)
-  //     .then(async () => {
-  //       await addToQueue("2022-12-20T03:00:00.000Z", "2022-12-20T04:30:00.000Z");
-  //     })
-  //     .catch(() => {
-  //       // Skip on any errors
-  //     });
-  // }
 }
 
 export const addToQueue = async (

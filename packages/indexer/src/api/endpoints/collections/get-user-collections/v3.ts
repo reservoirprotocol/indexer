@@ -70,7 +70,9 @@ export const getUserCollectionsV3Options: RouteOptions = {
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Input any ERC20 address to return result in given currency."),
+        .description(
+          "Input any ERC20 address to return result in given currency. Applies to `topBid` and `floorAsk`."
+        ),
     }),
   },
   response: {
@@ -120,13 +122,16 @@ export const getUserCollectionsV3Options: RouteOptions = {
               "7day": Joi.number().unsafe().allow(null),
               "30day": Joi.number().unsafe().allow(null),
             }).description(
-              "Total volume change X-days vs previous X-days. (e.g. 7day [days 1-7] vs 7day prior [days 8-14])"
+              "Total volume change X-days vs previous X-days. (e.g. 7day [days 1-7] vs 7day prior [days 8-14]). A value over 1 is a positive gain, under 1 is a negative loss. e.g. 1 means no change; 1.1 means 10% increase; 0.9 means 10% decrease."
             ),
             floorSale: Joi.object({
               "1day": Joi.number().unsafe().allow(null),
               "7day": Joi.number().unsafe().allow(null),
               "30day": Joi.number().unsafe().allow(null),
             }).description("The floor sale from X-days ago."),
+            contractKind: Joi.string()
+              .allow("", null)
+              .description("Returns `erc721`, `erc1155`, etc."),
           }),
           ownership: Joi.object({
             tokenCount: Joi.string(),
@@ -228,7 +233,8 @@ export const getUserCollectionsV3Options: RouteOptions = {
                 (SELECT orders.currency FROM orders WHERE orders.id = collections.floor_sell_id) AS floor_sell_currency,                
                 (SELECT orders.currency_price FROM orders WHERE orders.id = collections.floor_sell_id) AS floor_sell_currency_price,
                 (SELECT orders.currency FROM orders WHERE orders.id = collections.top_buy_id) AS top_buy_currency,
-                (SELECT orders.currency_price FROM orders WHERE orders.id = collections.top_buy_id) AS top_buy_currency_price
+                (SELECT orders.currency_price FROM orders WHERE orders.id = collections.top_buy_id) AS top_buy_currency_price,
+                (SELECT contracts.kind FROM contracts WHERE contracts.address = collections.contract) AS contract_kind
         FROM nbsample 
         JOIN tokens ON nbsample.contract = tokens.contract AND nbsample.token_id = tokens.token_id
         ${liquidCount}
@@ -360,6 +366,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
               "7day": r.day7_floor_sell_value ? formatEth(r.day7_floor_sell_value) : null,
               "30day": r.day30_floor_sell_value ? formatEth(r.day30_floor_sell_value) : null,
             },
+            contractKind: r.contract_kind,
           },
           ownership: {
             tokenCount: String(r.owner_token_count),
@@ -381,7 +388,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
                 },
                 r.top_buy_currency
                   ? fromBuffer(r.top_buy_currency)
-                  : Sdk.Common.Addresses.Eth[config.chainId],
+                  : Sdk.Common.Addresses.Native[config.chainId],
                 query.displayCurrency
               )
             : undefined;

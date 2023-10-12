@@ -13,8 +13,7 @@ import { acquireLock, redis } from "@/common/redis";
 import tracer from "@/common/tracer";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { getNetworkSettings } from "@/config/network";
-import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/config";
+import { getNetworkName, getNetworkSettings } from "@/config/network";
 import { Collections } from "@/models/collections";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
@@ -25,11 +24,14 @@ import { TokenSet } from "@/orderbook/token-sets/token-list";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
 import { isOpen } from "@/utils/seaport-conduits";
-
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
+import { FeeRecipients } from "@/models/fee-recipients";
 import { topBidsCache } from "@/models/top-bids-caching";
-import * as orderbook from "@/jobs/orderbook/orders-queue";
 import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
+import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
 
 export type OrderInfo = {
   orderParams: Sdk.SeaportBase.Types.OrderComponents;
@@ -152,7 +154,7 @@ export const save = async (
 
       // Delay the validation of the order if it's start time is very soon in the future
       if (startTime > currentTime) {
-        await orderbook.addToQueue(
+        await orderbookOrdersJob.addToQueue(
           [
             {
               kind: "seaport-v1.4",
@@ -473,6 +475,8 @@ export const save = async (
         openSeaRoyalties = await royalties.getRoyaltiesByTokenSet(tokenSetId, "", true);
       }
 
+      const feeRecipients = await FeeRecipients.getInstance();
+
       let feeBps = 0;
       let knownFee = false;
       const feeBreakdown = info.fees.map(({ recipient, amount }) => {
@@ -487,8 +491,9 @@ export const save = async (
         feeBps += bps;
 
         // First check for opensea hardcoded recipients
-        const kind: "marketplace" | "royalty" = allPlatformFeeRecipients.has(
-          recipient.toLowerCase()
+        const kind: "marketplace" | "royalty" = feeRecipients.getByAddress(
+          recipient.toLowerCase(),
+          "marketplace"
         )
           ? "marketplace"
           : "royalty";
@@ -589,8 +594,8 @@ export const save = async (
       let needsConversion = false;
       if (
         ![
-          Sdk.Common.Addresses.Eth[config.chainId],
-          Sdk.Common.Addresses.Weth[config.chainId],
+          Sdk.Common.Addresses.Native[config.chainId],
+          Sdk.Common.Addresses.WNative[config.chainId],
         ].includes(currency)
       ) {
         needsConversion = true;
@@ -720,9 +725,7 @@ export const save = async (
             Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
         ) {
           await axios.post(
-            `https://seaport-oracle-${
-              config.chainId === 1 ? "mainnet" : "goerli"
-            }.up.railway.app/api/replacements`,
+            `https://seaport-oracle-${getNetworkName()}.up.railway.app/api/replacements`,
             {
               newOrders: [order.params],
               replacedOrders: [replacedOrderResult.raw_data],
@@ -859,7 +862,7 @@ export const save = async (
 
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
 
-    await ordersUpdateById.addToQueue(
+    await orderUpdatesByIdJob.addToQueue(
       results
         .filter((r) => r.status === "success" && !r.unfillable)
         .map(
@@ -872,7 +875,7 @@ export const save = async (
               },
               ingestMethod,
               ingestDelay,
-            } as ordersUpdateById.OrderInfo)
+            } as OrderUpdatesByIdJobPayload)
         )
     );
   }

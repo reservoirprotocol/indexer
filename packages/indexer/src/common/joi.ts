@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { BigNumberish } from "@ethersproject/bignumber";
+import { MaxUint256 } from "@ethersproject/constants";
 import { parseEther } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk";
 import crypto from "crypto";
@@ -8,6 +9,7 @@ import Joi from "joi";
 
 import { bn, formatEth, formatPrice, formatUsd, fromBuffer, now, regex } from "@/common/utils";
 import { config } from "@/config/index";
+import { FeeRecipients } from "@/models/fee-recipients";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { OrderKind } from "@/orderbook/orders";
@@ -33,8 +35,8 @@ const JoiPriceCurrency = Joi.object({
 
 export const JoiPrice = Joi.object({
   currency: JoiPriceCurrency,
-  amount: JoiPriceAmount,
-  netAmount: JoiPriceAmount.optional(),
+  amount: JoiPriceAmount.description("Amount with fees & royalties included."),
+  netAmount: JoiPriceAmount.optional().description("Amount with fees & royalties removed."),
 });
 
 export const JoiDynamicPrice = Joi.alternatives(
@@ -252,6 +254,9 @@ export const JoiOrderCriteria = Joi.alternatives(
   }),
   Joi.object({
     kind: "custom",
+    data: Joi.object({
+      collection: JoiOrderCriteriaCollection,
+    }),
   })
 );
 
@@ -272,6 +277,7 @@ export const JoiOrder = Joi.object({
   tokenSetId: Joi.string().required(),
   tokenSetSchemaHash: Joi.string().lowercase().pattern(regex.bytes32).required(),
   contract: Joi.string().lowercase().pattern(regex.address),
+  contractKind: Joi.string().lowercase(),
   maker: Joi.string().lowercase().pattern(regex.address).required(),
   taker: Joi.string().lowercase().pattern(regex.address).required(),
   price: JoiPrice.description("Return native currency unless displayCurrency contract was passed."),
@@ -299,6 +305,7 @@ export const JoiOrder = Joi.object({
   isDynamic: Joi.boolean(),
   createdAt: Joi.string().required().description("Time when added to indexer"),
   updatedAt: Joi.string().required().description("Time when updated in indexer"),
+  originatedAt: Joi.string().allow(null).description("Time when created by maker"),
   rawData: Joi.object().optional().allow(null),
   isNativeOffChainCancellable: Joi.boolean().optional(),
   depth: JoiOrderDepth,
@@ -315,19 +322,18 @@ export const getJoiDynamicPricingObject = async (
   dynamic: boolean,
   kind: OrderKind,
   normalizeRoyalties: boolean,
-  raw_data:
+  rawData:
     | Sdk.SeaportBase.Types.OrderComponents
     | Sdk.Sudoswap.OrderParams
-    | Sdk.Nftx.Types.OrderParams
-    | Sdk.CollectionXyz.Types.OrderParams,
+    | Sdk.Nftx.Types.OrderParams,
   currency?: string,
-  missing_royalties?: []
+  missingRoyalties?: []
 ) => {
-  const floorAskCurrency = currency ? currency : Sdk.Common.Addresses.Eth[config.chainId];
+  const floorAskCurrency = currency ? currency : Sdk.Common.Addresses.Native[config.chainId];
 
   // Add missing royalties on top of the raw prices
-  const missingRoyalties = normalizeRoyalties
-    ? ((missing_royalties ?? []) as any[])
+  const totalMissingRoyalties = normalizeRoyalties
+    ? ((missingRoyalties ?? []) as any[])
         .map((mr: any) => bn(mr.amount))
         .reduce((a, b) => a.add(b), bn(0))
     : bn(0);
@@ -335,7 +341,7 @@ export const getJoiDynamicPricingObject = async (
   if (dynamic && (kind === "seaport" || kind === "seaport-v1.4" || kind === "seaport-v1.5")) {
     const order = new Sdk.SeaportV14.Order(
       config.chainId,
-      raw_data as Sdk.SeaportBase.Types.OrderComponents
+      rawData as Sdk.SeaportBase.Types.OrderComponents
     );
 
     // Dutch auction
@@ -347,7 +353,7 @@ export const getJoiDynamicPricingObject = async (
             {
               gross: {
                 amount: bn(order.getMatchingPrice(order.params.startTime))
-                  .add(missingRoyalties)
+                  .add(totalMissingRoyalties)
                   .toString(),
               },
             },
@@ -357,7 +363,7 @@ export const getJoiDynamicPricingObject = async (
             {
               gross: {
                 amount: bn(order.getMatchingPrice(order.params.endTime))
-                  .add(missingRoyalties)
+                  .add(totalMissingRoyalties)
                   .toString(),
               },
             },
@@ -375,13 +381,13 @@ export const getJoiDynamicPricingObject = async (
     return {
       kind: "pool",
       data: {
-        pool: (raw_data as Sdk.Sudoswap.OrderParams).pair,
+        pool: (rawData as Sdk.Sudoswap.OrderParams).pair,
         prices: await Promise.all(
-          ((raw_data as Sdk.Sudoswap.OrderParams).extra.prices as string[]).map((price) =>
+          ((rawData as Sdk.Sudoswap.OrderParams).extra.prices as string[]).map((price) =>
             getJoiPriceObject(
               {
                 gross: {
-                  amount: bn(price).add(missingRoyalties).toString(),
+                  amount: bn(price).add(totalMissingRoyalties).toString(),
                 },
               },
               floorAskCurrency
@@ -390,44 +396,34 @@ export const getJoiDynamicPricingObject = async (
         ),
       },
     };
-  } else if (kind === "collectionxyz") {
+  } else if (
+    kind === "collectionxyz" ||
+    kind === "nftx" ||
+    kind === "caviar-v1" ||
+    kind === "midaswap"
+  ) {
     // Pool orders
     return {
       kind: "pool",
       data: {
-        pool: (raw_data as Sdk.CollectionXyz.Types.OrderParams).pool,
+        pool: (rawData as Sdk.Midaswap.Types.OrderParams).pool,
         prices: await Promise.all(
-          ((raw_data as Sdk.CollectionXyz.Types.OrderParams).extra.prices as string[]).map(
-            (price) =>
+          (rawData as Sdk.Midaswap.Types.OrderParams).extra.prices
+            .filter((price) =>
+              bn(price).lte(
+                bn((rawData as Sdk.Midaswap.Types.OrderParams).extra.floorPrice || MaxUint256)
+              )
+            )
+            .map((price) =>
               getJoiPriceObject(
                 {
                   gross: {
-                    amount: bn(price).add(missingRoyalties).toString(),
+                    amount: bn(price).add(totalMissingRoyalties).toString(),
                   },
                 },
                 floorAskCurrency
               )
-          )
-        ),
-      },
-    };
-  } else if (kind === "nftx") {
-    // Pool orders
-    return {
-      kind: "pool",
-      data: {
-        pool: (raw_data as Sdk.Nftx.Types.OrderParams).pool,
-        prices: await Promise.all(
-          ((raw_data as Sdk.Nftx.Types.OrderParams).extra.prices as string[]).map((price) =>
-            getJoiPriceObject(
-              {
-                gross: {
-                  amount: bn(price).add(missingRoyalties).toString(),
-                },
-              },
-              floorAskCurrency
             )
-          )
         ),
       },
     };
@@ -445,7 +441,7 @@ export const getJoiOrderDepthObject = async (
 ) => {
   // By default, show all prices in the native currency of the chain
   if (!displayCurrency) {
-    displayCurrency = Sdk.Common.Addresses.Eth[config.chainId];
+    displayCurrency = Sdk.Common.Addresses.Native[config.chainId];
   }
 
   const precisionDecimals = 4;
@@ -472,6 +468,8 @@ export const getJoiOrderDepthObject = async (
       );
     }
 
+    case "caviar-v1":
+    case "collectionxyz":
     case "nftx": {
       const order = rawData as Sdk.Nftx.Types.OrderParams;
       return Promise.all(
@@ -542,6 +540,7 @@ export const getJoiOrderObject = async (order: {
   tokenSetId: string;
   tokenSetSchemaHash: Buffer;
   contract: Buffer;
+  contractKind: string;
   maker: Buffer;
   taker: Buffer;
   prices: {
@@ -569,11 +568,13 @@ export const getJoiOrderObject = async (order: {
   isReservoir: boolean;
   createdAt: number;
   updatedAt: number;
+  originatedAt: number | null;
   includeRawData: boolean;
   rawData:
     | Sdk.SeaportBase.Types.OrderComponents
     | Sdk.Sudoswap.OrderParams
-    | Sdk.Nftx.Types.OrderParams;
+    | Sdk.Nftx.Types.OrderParams
+    | Sdk.Midaswap.Types.OrderParams;
   normalizeRoyalties: boolean;
   missingRoyalties: any;
   includeDynamicPricing?: boolean;
@@ -621,8 +622,8 @@ export const getJoiOrderObject = async (order: {
   const currency = order.prices.currency
     ? fromBuffer(order.prices.currency)
     : order.side === "sell"
-    ? Sdk.Common.Addresses.Eth[config.chainId]
-    : Sdk.Common.Addresses.Weth[config.chainId];
+    ? Sdk.Common.Addresses.Native[config.chainId]
+    : Sdk.Common.Addresses.WNative[config.chainId];
 
   return {
     id: order.id,
@@ -632,6 +633,7 @@ export const getJoiOrderObject = async (order: {
     tokenSetId: order.tokenSetId,
     tokenSetSchemaHash: fromBuffer(order.tokenSetSchemaHash),
     contract: fromBuffer(order.contract),
+    contractKind: order.contractKind,
     maker: fromBuffer(order.maker),
     taker: fromBuffer(order.taker),
     price: await getJoiPriceObject(
@@ -650,39 +652,33 @@ export const getJoiOrderObject = async (order: {
       currency,
       order.displayCurrency
     ),
-    validFrom: Number(order.validFrom),
-    validUntil: Number(order.validUntil),
+    validFrom: Math.floor(Number(order.validFrom)),
+    validUntil: Math.floor(Number(order.validUntil)),
     quantityFilled: Number(order.quantityFilled),
     quantityRemaining: Number(order.quantityRemaining),
-    dynamicPricing:
-      order.includeDynamicPricing && order.dynamic
-        ? await getJoiDynamicPricingObject(
-            order.dynamic,
-            order.kind,
-            order.normalizeRoyalties,
-            order.rawData,
-            currency,
-            order.missingRoyalties ? order.missingRoyalties : undefined
-          )
-        : order.dynamic !== undefined
-        ? null
-        : undefined,
+    dynamicPricing: order.includeDynamicPricing
+      ? await getJoiDynamicPricingObject(
+          Boolean(order.dynamic),
+          order.kind,
+          order.normalizeRoyalties,
+          order.rawData,
+          currency,
+          order.missingRoyalties ? order.missingRoyalties : undefined
+        )
+      : order.dynamic !== undefined
+      ? null
+      : undefined,
     criteria: order.criteria,
-    source: {
-      id: source?.address,
-      domain: source?.domain,
-      name: source?.getTitle(),
-      icon: source?.getIcon(),
-      url: source?.metadata.url,
-    },
+    source: getJoiSourceObject(source),
     feeBps: Number(feeBps.toString()),
     feeBreakdown: feeBreakdown,
-    expiration: Number(order.expiration),
+    expiration: Math.floor(Number(order.expiration)),
     isReservoir: order.isReservoir,
     isDynamic:
       order.dynamic !== undefined ? Boolean(order.dynamic || order.kind === "sudoswap") : undefined,
     createdAt: new Date(order.createdAt * 1000).toISOString(),
     updatedAt: new Date(order.updatedAt * 1000).toISOString(),
+    originatedAt: order.originatedAt ? new Date(order.originatedAt).toISOString() : null,
     rawData: order.includeRawData ? order.rawData : undefined,
     isNativeOffChainCancellable: order.includeRawData
       ? (order.rawData as any)?.zone ===
@@ -714,13 +710,7 @@ export const getJoiActivityOrderObject = async (order: {
   return {
     id: order.id,
     side: order.side ? (order.side === "sell" ? "ask" : "bid") : undefined,
-    source: orderSource
-      ? {
-          domain: orderSource?.domain,
-          name: orderSource?.getTitle(),
-          icon: orderSource?.getIcon(),
-        }
-      : undefined,
+    source: getJoiSourceObject(orderSource, false),
     criteria: order.criteria,
   };
 };
@@ -731,6 +721,8 @@ export const JoiFeeBreakdown = Joi.object({
   kind: Joi.string(),
   bps: Joi.number(),
   recipient: Joi.string(),
+  source: Joi.string().optional(),
+  rawAmount: Joi.string(),
 });
 
 export const JoiSale = Joi.object({
@@ -784,27 +776,46 @@ export const getFeeValue = (feeValue: any, validFees: boolean) => {
   return feeValue !== null && validFees ? feeValue : undefined;
 };
 
-export const getFeeBreakdown = (
+export const getFeeBreakdown = async (
   royaltyFeeBreakdown: any,
   marketplaceFeeBreakdown: any,
-  validFees: boolean
+  validFees: boolean,
+  totalAmount: string
 ) => {
-  return (royaltyFeeBreakdown !== null || marketplaceFeeBreakdown !== null) && validFees
-    ? [].concat(
-        (royaltyFeeBreakdown ?? []).map((detail: any) => {
-          return {
-            kind: "royalty",
-            ...detail,
-          };
-        }),
-        (marketplaceFeeBreakdown ?? []).map((detail: any) => {
-          return {
-            kind: "marketplace",
-            ...detail,
-          };
-        })
-      )
-    : undefined;
+  const feeRecipients = await FeeRecipients.getInstance();
+  const feeBreakdown: undefined | any[] =
+    (royaltyFeeBreakdown !== null || marketplaceFeeBreakdown !== null) && validFees
+      ? [].concat(
+          (royaltyFeeBreakdown ?? []).map((detail: any) => {
+            return {
+              kind: "royalty",
+              ...detail,
+            };
+          }),
+          (marketplaceFeeBreakdown ?? []).map((detail: any) => {
+            return {
+              kind: "marketplace",
+              ...detail,
+            };
+          })
+        )
+      : undefined;
+
+  const sources = await Sources.getInstance();
+
+  if (feeBreakdown) {
+    for (let i = 0; i < feeBreakdown.length; i++) {
+      const feeBreak = feeBreakdown[i];
+
+      const feeEntity = feeRecipients.getByAddress(feeBreak.recipient, feeBreak.kind);
+      feeBreak.rawAmount = bn(totalAmount).mul(feeBreak.bps).div(bn(10000)).toString();
+
+      const orderSource = feeEntity?.sourceId ? sources.get(Number(feeEntity.sourceId)) : undefined;
+      feeBreak.source = orderSource?.domain ?? undefined;
+    }
+  }
+
+  return feeBreakdown;
 };
 
 export const getJoiSaleObject = async (sale: {
@@ -947,10 +958,11 @@ export const getJoiSaleObject = async (sale: {
     royaltyFeeBps: getFeeValue(sale.fees.royaltyFeeBps, lastSaleFeeInfoIsValid),
     marketplaceFeeBps: getFeeValue(sale.fees.marketplaceFeeBps, lastSaleFeeInfoIsValid),
     paidFullRoyalty: getFeeValue(sale.fees.paidFullRoyalty, lastSaleFeeInfoIsValid),
-    feeBreakdown: getFeeBreakdown(
+    feeBreakdown: await getFeeBreakdown(
       sale.fees.royaltyFeeBreakdown,
       sale.fees.marketplaceFeeBreakdown,
-      lastSaleFeeInfoIsValid
+      lastSaleFeeInfoIsValid,
+      sale.prices.gross.amount
     ),
     isDeleted: sale.isDeleted,
     createdAt: sale.createdAt,
@@ -967,3 +979,25 @@ export const JoiExecuteFee = Joi.object({
   amount: Joi.number().unsafe(),
   rawAmount: Joi.string().pattern(regex.number),
 });
+
+// --- Sources ---
+
+export const JoiSource = Joi.object({
+  id: Joi.string().allow(null),
+  domain: Joi.string().allow(null),
+  name: Joi.string().allow(null),
+  icon: Joi.string().allow(null),
+  url: Joi.string().allow(null),
+});
+
+export const getJoiSourceObject = (source: SourcesEntity | undefined, full = true) => {
+  return source
+    ? {
+        id: full ? source.address : undefined,
+        domain: source.domain,
+        name: source.getTitle(),
+        icon: source.getIcon(),
+        url: full ? source.metadata.url : undefined,
+      }
+    : null;
+};

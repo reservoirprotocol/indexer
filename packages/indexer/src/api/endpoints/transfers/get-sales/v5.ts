@@ -16,10 +16,10 @@ export const getSalesV5Options: RouteOptions = {
   description: "Sales",
   notes:
     "Get recent sales for a contract or token. Paid mints are returned in this `sales` endpoint, free mints can be found in the `/activities/` endpoints. Array of contracts max limit is 20.",
-  tags: ["api", "Sales"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 8,
+      deprecated: true,
     },
   },
   validate: {
@@ -217,7 +217,7 @@ export const getSalesV5Options: RouteOptions = {
       `;
       } else if (query.orderBy && query.orderBy === "updated_at") {
         paginationFilter = `
-        AND (extract(epoch from fill_events_2.updated_at), fill_events_2.log_index, fill_events_2.batch_index) ${inequalitySymbol} ($/timestamp/, $/logIndex/, $/batchIndex/)
+        AND (fill_events_2.updated_at, fill_events_2.log_index, fill_events_2.batch_index) ${inequalitySymbol} (to_timestamp($/timestamp/), $/logIndex/, $/batchIndex/)
         `;
       } else {
         paginationFilter = `

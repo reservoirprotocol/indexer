@@ -1,15 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import amqplib, { ConfirmChannel, Connection } from "amqplib";
+import amqplib from "amqplib";
+import amqplibConnectionManager, {
+  AmqpConnectionManager,
+  ChannelWrapper,
+} from "amqp-connection-manager";
 import { config } from "@/config/index";
 import _ from "lodash";
-import { RabbitMqJobsConsumer } from "@/jobs/index";
 import { logger } from "@/common/logger";
 import { getNetworkName } from "@/config/network";
-import { acquireLock } from "@/common/redis";
+import { acquireLock, releaseLock } from "@/common/redis";
 import axios from "axios";
-import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import pLimit from "p-limit";
+import { FailedPublishMessages } from "@/models/failed-publish-messages-list";
+import { randomUUID } from "crypto";
 
 export type RabbitMQMessage = {
   payload: any;
@@ -19,7 +23,10 @@ export type RabbitMQMessage = {
   consumedTime?: number;
   completeTime?: number;
   retryCount?: number;
+  publishRetryCount?: number;
   persistent?: boolean;
+  prioritized?: boolean;
+  correlationId?: string;
 };
 
 export type CreatePolicyPayload = {
@@ -27,7 +34,6 @@ export type CreatePolicyPayload = {
   name: string;
   pattern: string;
   priority: number;
-  vhost?: string;
   definition: {
     "max-length"?: number;
     "max-length-bytes"?: number;
@@ -41,93 +47,158 @@ export type CreatePolicyPayload = {
 
 export type DeletePolicyPayload = {
   name: string;
-  vhost?: string;
 };
 
 export class RabbitMq {
   public static delayedExchangeName = `${getNetworkName()}.delayed`;
-
-  private static rabbitMqPublisherConnection: Connection;
+  private static rabbitMqPublisherConnection: AmqpConnectionManager;
 
   private static maxPublisherChannelsCount = 10;
-  private static rabbitMqPublisherChannels: ConfirmChannel[] = [];
+  private static rabbitMqPublisherChannels: ChannelWrapper[] = [];
 
   public static async connect() {
-    RabbitMq.rabbitMqPublisherConnection = await amqplib.connect(config.rabbitMqUrl);
+    RabbitMq.rabbitMqPublisherConnection = amqplibConnectionManager.connect(
+      {
+        hostname: config.rabbitHostname,
+        username: config.rabbitUsername,
+        password: config.rabbitPassword,
+        vhost: getNetworkName(),
+      },
+      {
+        reconnectTimeInSeconds: 5,
+        heartbeatIntervalInSeconds: 0,
+      }
+    );
 
-    for (let i = 0; i < RabbitMq.maxPublisherChannelsCount; ++i) {
-      const channel = await this.rabbitMqPublisherConnection.createConfirmChannel();
-      RabbitMq.rabbitMqPublisherChannels.push(channel);
+    for (let index = 0; index < RabbitMq.maxPublisherChannelsCount; ++index) {
+      const channel = this.rabbitMqPublisherConnection.createChannel();
+      await channel.waitForConnect();
+      RabbitMq.rabbitMqPublisherChannels[index] = channel;
 
       channel.once("error", (error) => {
-        logger.error("rabbit-error", `Publisher channel error ${error}`);
+        logger.error("rabbit-channel", `Publisher channel error ${error}`);
+      });
+
+      channel.once("close", async () => {
+        logger.warn("rabbit-channel", `Rabbit publisher channel ${index} closed`);
       });
     }
 
     RabbitMq.rabbitMqPublisherConnection.once("error", (error) => {
-      logger.error("rabbit-error", `Publisher connection error ${error}`);
+      logger.error("rabbit-connection", `Publisher connection error ${error}`);
+    });
+
+    RabbitMq.rabbitMqPublisherConnection.once("close", (error) => {
+      logger.warn("rabbit-connection", `Publisher connection error ${error}`);
     });
   }
 
   public static async send(queueName: string, content: RabbitMQMessage, delay = 0, priority = 0) {
+    content.publishRetryCount = content.publishRetryCount ?? 0;
+    content.correlationId = content.correlationId ?? randomUUID();
+
+    const msgConsumingBuffer = 30 * 60; // Will be released on the job is done
+    const lockTime = Number(_.max([_.toInteger(delay / 1000), 0])) + msgConsumingBuffer;
+    let lockAcquired = false;
+
+    // For deduplication messages use redis lock, setting lock only if jobId is passed
     try {
-      // For deduplication messages use redis lock, setting lock only if jobId is passed
-      const lockTime = delay ? Number(delay / 1000) : 5 * 60;
-      if (content.jobId && !(await acquireLock(content.jobId, lockTime))) {
-        return;
+      if (content.jobId && lockTime) {
+        if (!(await acquireLock(content.jobId, lockTime))) {
+          return;
+        }
+
+        lockAcquired = true;
+      }
+    } catch (error) {
+      logger.warn(
+        `rabbit-publish-error`,
+        JSON.stringify({
+          message: `failed to set lock to ${queueName} error ${error} lockTime ${lockTime} content=${JSON.stringify(
+            content
+          )}`,
+          queueName: queueName.substring(_.indexOf(queueName, ".") + 1), // Remove chain name
+        })
+      );
+    }
+
+    const channelIndex = _.random(0, RabbitMq.maxPublisherChannelsCount - 1);
+
+    content.publishTime = content.publishTime ?? _.now();
+    content.prioritized = Boolean(priority);
+
+    try {
+      if (delay) {
+        content.delay = delay;
+
+        // If delay given publish to the delayed exchange
+        await RabbitMq.rabbitMqPublisherChannels[channelIndex].publish(
+          RabbitMq.delayedExchangeName,
+          queueName,
+          Buffer.from(JSON.stringify(content)),
+          {
+            priority,
+            persistent: content.persistent,
+            headers: {
+              "x-delay": delay,
+            },
+          }
+        );
+      } else {
+        // If no delay send directly to queue to save any unnecessary routing
+        await RabbitMq.rabbitMqPublisherChannels[channelIndex].sendToQueue(
+          queueName,
+          Buffer.from(JSON.stringify(content)),
+          {
+            priority,
+            persistent: content.persistent,
+          }
+        );
       }
 
-      const channelIndex = _.random(0, RabbitMq.maxPublisherChannelsCount - 1);
-      content.publishTime = content.publishTime ?? _.now();
-
-      await new Promise<void>((resolve, reject) => {
-        if (delay) {
-          content.delay = delay;
-
-          // If delay given publish to the delayed exchange
-          RabbitMq.rabbitMqPublisherChannels[channelIndex].publish(
-            RabbitMq.delayedExchangeName,
-            queueName,
-            Buffer.from(JSON.stringify(content)),
-            {
-              priority,
-              persistent: content.persistent,
-              headers: {
-                "x-delay": delay,
-              },
-            },
-            (error) => {
-              if (!_.isNull(error)) {
-                reject(error);
-              }
-
-              resolve();
-            }
-          );
-        } else {
-          // If no delay send directly to queue to save any unnecessary routing
-          RabbitMq.rabbitMqPublisherChannels[channelIndex].sendToQueue(
-            queueName,
-            Buffer.from(JSON.stringify(content)),
-            {
-              priority,
-              persistent: content.persistent,
-            },
-            (error) => {
-              if (!_.isNull(error)) {
-                reject(error);
-              }
-
-              resolve();
-            }
-          );
-        }
-      });
+      if (content.publishRetryCount > 0) {
+        logger.info(
+          `rabbit-message-republish`,
+          JSON.stringify({
+            message: `successfully republished to ${queueName} content=${JSON.stringify(content)}`,
+            queueName: queueName.substring(_.indexOf(queueName, ".") + 1), // Remove chain name
+          })
+        );
+      }
     } catch (error) {
-      logger.debug(
-        `rabbitmq-publish-${queueName}`,
-        `failed to publish ${error} content=${JSON.stringify(content)}`
-      );
+      if (`${error}`.includes("nacked")) {
+        if (lockAcquired && content.jobId) {
+          try {
+            await releaseLock(content.jobId);
+          } catch {
+            // Ignore errors
+          }
+        }
+
+        logger.error(
+          `rabbit-publish-error`,
+          JSON.stringify({
+            message: `failed to publish and will be republish to ${queueName} error ${error} lockTime ${lockTime} content=${JSON.stringify(
+              content
+            )}`,
+            queueName: queueName.substring(_.indexOf(queueName, ".") + 1), // Remove chain name
+          })
+        );
+
+        ++content.publishRetryCount;
+        const failedPublishMessages = new FailedPublishMessages();
+        await failedPublishMessages.add([{ queue: queueName, payload: content }]);
+      } else {
+        logger.error(
+          `rabbit-publish-error`,
+          JSON.stringify({
+            message: `failed to publish to ${queueName} error ${error} lockTime ${lockTime} content=${JSON.stringify(
+              content
+            )}`,
+            queueName: queueName.substring(_.indexOf(queueName, ".") + 1), // Remove chain name
+          })
+        );
+      }
     }
   }
 
@@ -152,8 +223,7 @@ export class RabbitMq {
   }
 
   public static async createOrUpdatePolicy(policy: CreatePolicyPayload) {
-    policy.vhost = policy.vhost ?? "/";
-    const url = `${config.rabbitHttpUrl}/api/policies/%2F/${policy.name}`;
+    const url = `${config.rabbitHttpUrl}/api/policies/${getNetworkName()}/${policy.name}`;
 
     await axios.put(url, {
       "apply-to": policy.applyTo,
@@ -161,37 +231,55 @@ export class RabbitMq {
       name: policy.name,
       pattern: policy.pattern,
       priority: policy.priority,
-      vhost: policy.vhost,
     });
   }
 
+  public static async createVhost() {
+    if (config.assertRabbitVhost) {
+      const url = `${config.rabbitHttpUrl}/api/vhosts/${getNetworkName()}`;
+      await axios.put(url);
+    }
+  }
+
   public static async deletePolicy(policy: DeletePolicyPayload) {
-    policy.vhost = policy.vhost ?? "/";
-    const url = `${config.rabbitHttpUrl}/api/policies/%2F/${policy.name}`;
+    const url = `${config.rabbitHttpUrl}/api/policies/${getNetworkName()}/${policy.name}`;
 
     await axios.delete(url, {
       data: {
         component: "policy",
         name: policy.name,
-        vhost: policy.vhost,
       },
     });
   }
 
+  public static async getQueueSize(queueName: string, vhost = "%2F") {
+    const url = `${config.rabbitHttpUrl}/api/queues/${vhost}/${queueName}`;
+    const queueData = await axios.get(url);
+    return Number(queueData.data.messages);
+  }
+
   public static async assertQueuesAndExchanges() {
+    const abstract = await import("@/jobs/abstract-rabbit-mq-job-handler");
+    const jobsIndex = await import("@/jobs/index");
+
+    const connection = await amqplib.connect({
+      hostname: config.rabbitHostname,
+      username: config.rabbitUsername,
+      password: config.rabbitPassword,
+      vhost: getNetworkName(),
+    });
+
+    const channel = await connection.createChannel();
+
     // Assert the exchange for delayed messages
-    await this.rabbitMqPublisherChannels[0].assertExchange(
-      RabbitMq.delayedExchangeName,
-      "x-delayed-message",
-      {
-        durable: true,
-        autoDelete: false,
-        arguments: { "x-delayed-type": "direct" },
-      }
-    );
+    await channel.assertExchange(RabbitMq.delayedExchangeName, "x-delayed-message", {
+      durable: true,
+      autoDelete: false,
+      arguments: { "x-delayed-type": "direct" },
+    });
 
     // Assert the consumer queues
-    const consumerQueues = RabbitMqJobsConsumer.getQueues();
+    const consumerQueues = jobsIndex.RabbitMqJobsConsumer.getQueues();
     for (const queue of consumerQueues) {
       const options = {
         maxPriority: queue.getQueueType() === "classic" ? 1 : undefined,
@@ -202,32 +290,21 @@ export class RabbitMq {
       };
 
       // Create working queue
-      await this.rabbitMqPublisherChannels[0].assertQueue(queue.getQueue(), options);
-
-      // Create retry queue
-      await this.rabbitMqPublisherChannels[0].assertQueue(queue.getRetryQueue(), options);
+      await channel.assertQueue(queue.getQueue(), options);
 
       // Bind queues to the delayed exchange
-      await this.rabbitMqPublisherChannels[0].bindQueue(
-        queue.getQueue(),
-        RabbitMq.delayedExchangeName,
-        queue.getQueue()
-      );
-
-      await this.rabbitMqPublisherChannels[0].bindQueue(
-        queue.getRetryQueue(),
-        RabbitMq.delayedExchangeName,
-        queue.getRetryQueue()
-      );
+      await channel.bindQueue(queue.getQueue(), RabbitMq.delayedExchangeName, queue.getQueue());
 
       // Create dead letter queue for all jobs the failed more than the max retries
-      await this.rabbitMqPublisherChannels[0].assertQueue(queue.getDeadLetterQueue());
+      await channel.assertQueue(queue.getDeadLetterQueue());
 
       // If the dead letter queue have custom max length
-      if (queue.getMaxDeadLetterQueue() !== AbstractRabbitMqJobHandler.defaultMaxDeadLetterQueue) {
+      if (
+        queue.getMaxDeadLetterQueue() !==
+        abstract.AbstractRabbitMqJobHandler.defaultMaxDeadLetterQueue
+      ) {
         await this.createOrUpdatePolicy({
           name: `${queue.getDeadLetterQueue()}-policy`,
-          vhost: "/",
           priority: 10,
           pattern: `^${queue.getDeadLetterQueue()}$`,
           applyTo: "queues",
@@ -252,9 +329,8 @@ export class RabbitMq {
       if (!_.isEmpty(definition)) {
         await this.createOrUpdatePolicy({
           name: `${queue.getQueue()}-policy`,
-          vhost: "/",
           priority: 10,
-          pattern: `^${queue.getQueue()}$|^${queue.getRetryQueue()}$`,
+          pattern: `^${queue.getQueue()}$`,
           applyTo: "queues",
           definition,
         });
@@ -263,14 +339,16 @@ export class RabbitMq {
 
     // Create general rule for all dead letters queues
     await this.createOrUpdatePolicy({
-      name: `${getNetworkName()}.dead-letter-queues-policy`,
-      vhost: "/",
+      name: "dead-letter-queues-policy",
       priority: 1,
-      pattern: `^${getNetworkName()}.+-dead-letter$`,
+      pattern: "dead-letter$",
       applyTo: "queues",
       definition: {
-        "max-length": AbstractRabbitMqJobHandler.defaultMaxDeadLetterQueue,
+        "max-length": abstract.AbstractRabbitMqJobHandler.defaultMaxDeadLetterQueue,
       },
     });
+
+    await channel.close();
+    await connection.close();
   }
 }

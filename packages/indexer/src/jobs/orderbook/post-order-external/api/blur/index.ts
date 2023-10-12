@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
 
 import { logger } from "@/common/logger";
@@ -21,7 +20,6 @@ export type BlurData = {
   authToken: string;
   signature: string;
   isCollectionBid?: boolean;
-  originalData?: Sdk.Blur.Types.BaseOrder;
 };
 
 export async function postOrder(order: BlurData): Promise<void> {

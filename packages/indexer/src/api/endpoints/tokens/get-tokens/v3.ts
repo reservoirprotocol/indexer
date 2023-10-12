@@ -14,6 +14,7 @@ import {
   splitContinuation,
   toBuffer,
 } from "@/common/utils";
+import * as Boom from "@hapi/boom";
 
 const version = "v3";
 
@@ -192,7 +193,7 @@ export const getTokensV3Options: RouteOptions = {
               })
             );
 
-            throw new Error("Invalid continuation string used");
+            throw Boom.badRequest("Invalid continuation string used");
           }
           switch (query.sortBy) {
             case "topBidValue":

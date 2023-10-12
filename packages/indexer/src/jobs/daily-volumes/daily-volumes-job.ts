@@ -14,7 +14,7 @@ export class DailyVolumeJob extends AbstractRabbitMqJobHandler {
   concurrency = 1;
   useSharedChannel = true;
   persistent = false;
-  consumerTimeout = 2 * 60 * 60 * 1000;
+  timeout = 2 * 60 * 60 * 1000;
 
   protected async process(payload: DailyVolumeJobPayload) {
     const startTime = Number(payload.startTime);
@@ -42,9 +42,8 @@ export class DailyVolumeJob extends AbstractRabbitMqJobHandler {
             "daily-volumes",
             `Something went wrong with updating the collections, will retry in a couple of minutes. startTime=${startTime}, retry=${retry}`
           );
-          retry++;
 
-          await this.addToQueue({ startTime, ignoreInsertedRows: true, retry });
+          await this.addToQueue({ startTime, ignoreInsertedRows: true, retry: ++retry });
         } else {
           logger.error(
             "daily-volumes",
@@ -67,7 +66,7 @@ export class DailyVolumeJob extends AbstractRabbitMqJobHandler {
     params.retry = params.retry ?? 0;
     params.ignoreInsertedRows = params.ignoreInsertedRows ?? true;
 
-    const delay = params.retry ? params.retry ** 2 * 120 * 1000 : 0;
+    const delay = params.retry ? 5 * 60 * 1000 : 0;
     await this.send({ payload: params }, delay);
   }
 }

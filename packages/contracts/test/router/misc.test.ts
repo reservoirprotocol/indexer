@@ -55,14 +55,14 @@ describe("[ReservoirV6_0_1] Various edge-cases", () => {
         factory.deploy(
           deployer.address,
           router.address,
-          Sdk.Common.Addresses.Weth[chainId],
+          Sdk.Common.Addresses.WNative[chainId],
           Sdk.Common.Addresses.SwapRouter[chainId]
         )
       );
   });
 
   const getBalances = async (token: string) => {
-    if (token === Sdk.Common.Addresses.Eth[chainId]) {
+    if (token === Sdk.Common.Addresses.Native[chainId]) {
       return {
         alice: await ethers.provider.getBalance(alice.address),
         bob: await ethers.provider.getBalance(bob.address),
@@ -176,8 +176,8 @@ describe("[ReservoirV6_0_1] Various edge-cases", () => {
 
     // Fetch pre-state
 
-    const ethBalancesBefore = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
-    const wethBalancesBefore = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
+    const ethBalancesBefore = await getBalances(Sdk.Common.Addresses.Native[chainId]);
+    const wethBalancesBefore = await getBalances(Sdk.Common.Addresses.WNative[chainId]);
 
     // Execute
 
@@ -187,8 +187,8 @@ describe("[ReservoirV6_0_1] Various edge-cases", () => {
 
     // Fetch post-state
 
-    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
-    const wethBalancesAfter = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
+    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Native[chainId]);
+    const wethBalancesAfter = await getBalances(Sdk.Common.Addresses.WNative[chainId]);
 
     // Checks
 
@@ -257,7 +257,7 @@ describe("[ReservoirV6_0_1] Various edge-cases", () => {
 
     // Fetch pre-state
 
-    const balancesBefore = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
+    const balancesBefore = await getBalances(Sdk.Common.Addresses.WNative[chainId]);
 
     // Execute
 
@@ -272,7 +272,7 @@ describe("[ReservoirV6_0_1] Various edge-cases", () => {
 
     // Fetch post-state
 
-    const balancesAfter = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
+    const balancesAfter = await getBalances(Sdk.Common.Addresses.WNative[chainId]);
 
     // Checks
 
@@ -350,8 +350,8 @@ describe("[ReservoirV6_0_1] Various edge-cases", () => {
 
     // Fetch pre-state
 
-    const ethBalancesBefore = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
-    const wethBalancesBefore = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
+    const ethBalancesBefore = await getBalances(Sdk.Common.Addresses.Native[chainId]);
+    const wethBalancesBefore = await getBalances(Sdk.Common.Addresses.WNative[chainId]);
 
     // Execute
 
@@ -368,8 +368,8 @@ describe("[ReservoirV6_0_1] Various edge-cases", () => {
 
     // Fetch post-state
 
-    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
-    const wethBalancesAfter = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
+    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Native[chainId]);
+    const wethBalancesAfter = await getBalances(Sdk.Common.Addresses.WNative[chainId]);
 
     // Checks
 

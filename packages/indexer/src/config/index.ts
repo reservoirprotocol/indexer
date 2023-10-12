@@ -33,6 +33,7 @@ export const config = {
   disableRealtimeMetadataRefresh: Boolean(Number(process.env.DISABLE_REALTIME_METADATA_REFRESH)),
 
   databaseUrl: String(process.env.DATABASE_URL),
+  disableDatabaseStatementTimeout: Boolean(Number(process.env.DATABASE_DISABLE_STATEMENT_TIMEOUT)),
   readReplicaDatabaseUrl: String(process.env.READ_REPLICA_DATABASE_URL || process.env.DATABASE_URL),
   writeReplicaDatabaseUrl: String(
     process.env.WRITE_REPLICA_DATABASE_URL || process.env.DATABASE_URL
@@ -41,7 +42,6 @@ export const config = {
   rateLimitRedisUrl: String(process.env.RATE_LIMIT_REDIS_URL || process.env.REDIS_URL),
   redisWebsocketUrl: String(process.env.REDIS_WEBSOCKET_URL || process.env.REDIS_URL),
   metricsRedisUrl: String(process.env.METRICS_REDIS_URL || process.env.REDIS_URL),
-  orderbookRedisUrl: String(process.env.ORDERSBOOK_REDIS_URL || process.env.REDIS_URL),
   allChainsSyncRedisUrl: String(process.env.ALL_CHAINS_SYNC_REDIS_URL || process.env.REDIS_URL),
   redshiftUrl: String(process.env.REDSHIFT_URL),
 
@@ -60,9 +60,6 @@ export const config = {
   kafkaBrokers: process.env.KAFKA_BROKERS ? String(process.env.KAFKA_BROKERS).split(",") : [],
   kafkaClientId: String(process.env.KAFKA_CLIENT_ID),
   kafkaMaxBytesPerPartition: Number(process.env.KAFKA_MAX_BYTES_PER_PARTITION),
-
-  // for testing order websocket triggers
-  doOldOrderWebsocketWork: Boolean(Number(process.env.DO_OLD_ORDER_WEBSOCKET_WORK)),
 
   maxTokenSetSize: 100000,
 
@@ -89,21 +86,33 @@ export const config = {
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
   openSeaApiUrl: String(process.env.OPENSEA_API_URL || ""),
 
+  openSeaTokenMetadataBySlugApiKey: String(process.env.OPENSEA_SLUG_API_KEY),
+  openSeaCollectionMetadataApiKey: String(process.env.OPENSEA_COLLECTION_API_KEY),
+  openSeaTokenMetadataApiKey: String(process.env.OPENSEA_TOKENS_API_KEY),
+
   openSeaCrossPostingApiKey: String(
     process.env.OPENSEA_CROSS_POSTING_API_KEY || process.env.OPENSEA_API_KEY
   ),
 
+  simplehashApiKey: String(process.env.SIMPLEHASH_API_KEY),
+
+  soundxyzApiKey: String(process.env.SOUNDXYZ_API_KEY),
+  soundxyzUserAgent: String(process.env.SOUNDXYZ_USER_AGENT),
+
+  ordinalsApiKey: String(process.env.ORDINALS_API_KEY),
+
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
   cbApiKey: String(process.env.CB_API_KEY),
-  flowApiKey: String(process.env.FLOW_API_KEY),
   orderFetcherApiKey: String(process.env.ORDER_FETCHER_API_KEY),
 
   blurWsApiKey: process.env.BLUR_WS_API_KEY,
   blurWsUrl: process.env.BLUR_WS_URL,
+  blurWsListingsUrl: process.env.BLUR_LISTINGS_WS_URL,
 
   orderFetcherBaseUrl: String(process.env.ORDER_FETCHER_BASE_URL),
 
   cipherSecret: String(process.env.CIPHER_SECRET),
+  imageTag: String(process.env.IMAGE_TAG),
 
   slackApiKeyWebhookUrl: String(process.env.SLACK_API_KEY_WEBHOOK_URL),
 
@@ -112,24 +121,20 @@ export const config = {
     process.env.MAX_PARALLEL_TOKEN_COLLECTION_SLUG_REFRESH_JOBS || 1
   ),
 
-  // Backfilling
-  doFtTransfersWrite: Boolean(Number(process.env.DO_FT_TRANSFERS_WRITE)),
-  doNftTransfersWrite: Boolean(Number(process.env.DO_NFT_TRANSFERS_WRITE)),
-  doProcessBackfilling: Boolean(Number(process.env.DO_PROCESS_BACKFILLING)),
-  doProcessRealtime: Boolean(Number(process.env.DO_PROCESS_REALTIME)),
-
   enableDebug: Boolean(Number(process.env.ENABLE_DEBUG)),
 
   // Elasticsearch
   elasticsearchUrl: String(process.env.ELASTICSEARCH_URL || ""),
   doElasticsearchWork: Boolean(Number(process.env.DO_ELASTICSEARCH_WORK)),
-  enableElasticsearchRead: Boolean(Number(process.env.ENABLE_ELASTICSEARCH_READ)),
-
-  // realtime v2
-  enableRealtimeProcessing: Boolean(process.env.ENABLE_REALTIME_PROCESSING),
-  enableRealtimeV2BlockQueue: Boolean(process.env.ENABLE_REALTIME_V2_BLOCK_QUEUE),
 
   // RabbitMq
-  rabbitMqUrl: `amqp://${String(process.env.RABBIT_URL)}:5672`,
-  rabbitHttpUrl: `http://${String(process.env.RABBIT_URL)}:15672`,
+  rabbitHttpUrl: `http://${String(process.env.RABBIT_USERNAME)}:${String(
+    process.env.RABBIT_PASSWORD
+  )}@${String(process.env.RABBIT_HOSTNAME)}:15672`,
+  rabbitHostname: String(process.env.RABBIT_HOSTNAME),
+  rabbitUsername: String(process.env.RABBIT_USERNAME),
+  rabbitPassword: String(process.env.RABBIT_PASSWORD),
+  assertRabbitVhost: Boolean(Number(process.env.ASSERT_RABBIT_VHOST)),
+  rabbitDisableQueuesConsuming: Boolean(Number(process.env.RABBIT_DISABLE_QUEUES_CONSUMING)),
+  forceEnableRabbitJobsConsumer: Boolean(Number(process.env.FORCE_ENABLE_RABBIT_JOBS_CONSUMER)),
 };

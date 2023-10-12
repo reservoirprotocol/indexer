@@ -5,6 +5,7 @@
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { PgPromiseQuery, idb, pgp, redb, ridb } from "@/common/db";
+import _ from "lodash";
 
 export class DailyVolume {
   private static lockKey = "daily-volumes-running";
@@ -244,6 +245,7 @@ export class DailyVolume {
     const results = await ridb.manyOrNone(
       `SELECT t1.collection_id,
        t1.volume,
+       t1.sales_count,
        t1.rank,
        t1.floor_sell_value,
        t1.volume_change,
@@ -253,6 +255,7 @@ export class DailyVolume {
           t.contract,
           t."collection_id",
           sum("fe"."price") AS "volume",
+          COUNT(*) AS "sales_count",
           RANK() OVER (ORDER BY SUM(price) DESC, t."collection_id") "rank",
           min(fe.price) AS "floor_sell_value",
           (sum("fe"."price") / vc.volume_past) as "volume_change"
@@ -300,7 +303,8 @@ export class DailyVolume {
               day1_volume = $/volume/,
               day1_rank = $/rank/,
               day1_floor_sell_value = $/floor_sell_value/,
-              day1_volume_change = $/volume_change/
+              day1_volume_change = $/volume_change/,
+              day1_sales_count = $/sales_count/
             WHERE id = $/collection_id/
             `,
           values: values,
@@ -312,7 +316,7 @@ export class DailyVolume {
         await idb.none(concat);
       } catch (error: any) {
         logger.error(
-          "daily-volumes",
+          "day-1-volumes",
           `Error while inserting/updating daily volumes. collectionId=${collectionId}`
         );
 
@@ -346,7 +350,7 @@ export class DailyVolume {
         await idb.none(concat);
       } catch (error: any) {
         logger.error(
-          "daily-volumes",
+          "day-1-volumes",
           `Error while setting 1day values to null. collectionId=${collectionId}`
         );
 
@@ -513,6 +517,11 @@ export class DailyVolume {
     );
 
     if (!mergedArr.length) {
+      // For specific collection it could be there's no volume
+      if (collectionId) {
+        return true;
+      }
+
       logger.error(
         "daily-volumes",
         `No daily volumes found for 1, 7 and 30 days. Should be impossible. dateTimestamp=${dateTimestamp}`
@@ -522,7 +531,7 @@ export class DailyVolume {
     }
 
     try {
-      const queries: any = [];
+      const queries: { query: string; values: any }[] = [];
       mergedArr.forEach((row: any) => {
         // When updating single collection don't update the rank
         queries.push({
@@ -542,7 +551,9 @@ export class DailyVolume {
         });
       });
 
-      await idb.none(pgp.helpers.concat(queries));
+      for (const query of _.chunk(queries, 100)) {
+        await idb.none(pgp.helpers.concat(query));
+      }
     } catch (error: any) {
       logger.error(
         "daily-volumes",
@@ -579,22 +590,6 @@ export class DailyVolume {
       );
 
       return false;
-    }
-
-    try {
-      for (const row of mergedArr) {
-        await redis
-          .multi()
-          .zadd("collections_day7_rank", row.day7_rank, row.collection_id)
-          .zadd("collections_day30_rank", row.day30_rank, row.collection_id)
-          .zadd("collections_all_time_rank", row.all_time_rank, row.collection_id)
-          .exec();
-      }
-    } catch (error: any) {
-      logger.error(
-        "daily-volumes",
-        `Error while caching day30_rank on redis. dateTimestamp=${dateTimestamp}, error=${error}`
-      );
     }
 
     return true;

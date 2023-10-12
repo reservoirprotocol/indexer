@@ -5,7 +5,12 @@ import { idb } from "@/common/db";
 import { ActivityDocument, ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { getActivityHash } from "@/elasticsearch/indexes/activities/utils";
 import { Orders } from "@/utils/orders";
-import { BaseActivityEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/base";
+import {
+  BaseActivityEventHandler,
+  OrderEventInfo,
+} from "@/elasticsearch/indexes/activities/event-handlers/base";
+import _ from "lodash";
+import { logger } from "@/common/logger";
 
 export class AskCreatedEventHandler extends BaseActivityEventHandler {
   public orderId: string;
@@ -64,12 +69,14 @@ export class AskCreatedEventHandler extends BaseActivityEventHandler {
           orders.currency_value AS "pricing_currency_value",
           orders.normalized_value AS "pricing_normalized_value",
           orders.currency_normalized_value AS "pricing_currency_normalized_value",
-          (orders.quantity_filled + orders.quantity_remaining) AS amount,
+          (orders.quantity_filled + orders.quantity_remaining) AS "amount",
           orders.source_id_int AS "order_source_id_int",
           orders.fee_bps AS "pricing_fee_bps",
           (${orderCriteriaBuildQuery}) AS "order_criteria",
-          extract(epoch from orders.created_at) AS created_ts,
-          extract(epoch from orders.updated_at) AS updated_ts,
+          extract(epoch from orders.created_at) AS "created_ts",
+          extract(epoch from orders.updated_at) AS "updated_ts",
+          extract(epoch from orders.originated_at) AS "originated_ts",
+          DATE_PART('epoch', LOWER(orders.valid_between)) AS "valid_from",
           t.*
         FROM orders
         LEFT JOIN LATERAL (
@@ -91,6 +98,55 @@ export class AskCreatedEventHandler extends BaseActivityEventHandler {
 
   /* eslint-disable @typescript-eslint/no-explicit-any */
   parseEvent(data: any) {
-    data.timestamp = Math.floor(data.created_ts);
+    data.timestamp = data.originated_ts
+      ? Math.floor(data.originated_ts)
+      : Math.floor(data.created_ts);
+  }
+
+  static async generateActivities(events: OrderEventInfo[]): Promise<ActivityDocument[]> {
+    const activities: ActivityDocument[] = [];
+
+    const eventsFilter = [];
+
+    for (const event of events) {
+      eventsFilter.push(`('${event.orderId}')`);
+    }
+
+    const results = await idb.manyOrNone(
+      `
+                ${AskCreatedEventHandler.buildBaseQuery()}
+                WHERE (id) IN ($/eventsFilter:raw/);  
+                `,
+      { eventsFilter: _.join(eventsFilter, ",") }
+    );
+
+    for (const result of results) {
+      try {
+        const event = events.find((event) => event.orderId === result.order_id);
+
+        const eventHandler = new AskCreatedEventHandler(
+          result.order_id,
+          event?.txHash,
+          event?.logIndex,
+          event?.batchIndex
+        );
+
+        const activity = eventHandler.buildDocument(result);
+
+        activities.push(activity);
+      } catch (error) {
+        logger.error(
+          "ask-created-event-handler",
+          JSON.stringify({
+            topic: "generate-activities",
+            message: `Error build document. error=${error}`,
+            result,
+            error,
+          })
+        );
+      }
+    }
+
+    return activities;
   }
 }

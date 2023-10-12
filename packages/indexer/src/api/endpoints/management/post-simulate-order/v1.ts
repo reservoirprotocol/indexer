@@ -102,7 +102,8 @@ export const postSimulateOrderV1Options: RouteOptions = {
             orders.contract,
             orders.token_set_id,
             orders.fillability_status,
-            orders.approval_status
+            orders.approval_status,
+            orders.conduit
           FROM orders
           WHERE orders.id = $/id/
         `,
@@ -133,7 +134,9 @@ export const postSimulateOrderV1Options: RouteOptions = {
         }
       }
 
-      if (["blur", "nftx", "sudoswap", "sudoswap-v2", "universe"].includes(orderResult.kind)) {
+      if (
+        ["blur", "nftx", "sudoswap", "sudoswap-v2", "payment-processor"].includes(orderResult.kind)
+      ) {
         return { message: "Order not simulatable" };
       }
       if (getNetworkSettings().whitelistedCurrencies.has(fromBuffer(orderResult.currency))) {
@@ -144,7 +147,12 @@ export const postSimulateOrderV1Options: RouteOptions = {
       }
       if (
         orderResult.side === "buy" &&
-        fromBuffer(orderResult.contract) === "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85"
+        // ENS on mainnet
+        ((fromBuffer(orderResult.contract) === "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85" &&
+          config.chainId === 1) ||
+          // y00ts on polygon
+          (fromBuffer(orderResult.contract) === "0x670fd103b1a08628e9557cd66b87ded841115190" &&
+            config.chainId === 137))
       ) {
         return {
           message: "ENS bids are not simulatable due to us not yet handling expiration of domains",
@@ -175,7 +183,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
             items: [{ orderId: id }],
             taker: genericTaker,
             skipBalanceCheck: true,
-            currency: Sdk.Common.Addresses.Eth[config.chainId],
+            currency: Sdk.Common.Addresses.Native[config.chainId],
             allowInactiveOrderIds: true,
           },
         });
@@ -254,10 +262,22 @@ export const postSimulateOrderV1Options: RouteOptions = {
               AND (tokens.is_flagged IS NULL OR tokens.is_flagged = 0)
               AND nft_balances.amount > 0
               AND nft_balances.acquired_at < now() - interval '3 hours'
+              AND (
+                SELECT
+                  approved
+                FROM nft_approval_events
+                WHERE nft_approval_events.address = $/contract/
+                  AND nft_approval_events.owner = nft_balances.owner
+                  AND nft_approval_events.operator = $/conduit/
+                ORDER BY nft_approval_events.block DESC
+                LIMIT 1
+              )
             LIMIT 1
           `,
           {
             tokenSetId: orderResult.token_set_id,
+            contract: orderResult.contract,
+            conduit: orderResult.conduit,
           }
         );
         if (!tokenResult) {

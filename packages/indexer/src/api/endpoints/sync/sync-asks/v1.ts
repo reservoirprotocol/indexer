@@ -7,7 +7,7 @@ import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { JoiPrice, getJoiPriceObject } from "@/common/joi";
+import { JoiPrice, JoiSource, getJoiPriceObject, getJoiSourceObject } from "@/common/joi";
 import {
   buildContinuation,
   fromBuffer,
@@ -57,7 +57,7 @@ export const getSyncOrdersAsksV1Options: RouteOptions = {
           quantityFilled: Joi.number().unsafe(),
           quantityRemaining: Joi.number().unsafe(),
           status: Joi.string(),
-          source: Joi.object().allow(null),
+          source: JoiSource.allow(null),
           feeBps: Joi.number().allow(null),
           feeBreakdown: Joi.array()
             .items(
@@ -240,8 +240,8 @@ export const getSyncOrdersAsksV1Options: RouteOptions = {
             r.currency
               ? fromBuffer(r.currency)
               : r.side === "sell"
-              ? Sdk.Common.Addresses.Eth[config.chainId]
-              : Sdk.Common.Addresses.Weth[config.chainId]
+              ? Sdk.Common.Addresses.Native[config.chainId]
+              : Sdk.Common.Addresses.WNative[config.chainId]
           ),
           normalizedPrice: await getJoiPriceObject(
             {
@@ -257,20 +257,14 @@ export const getSyncOrdersAsksV1Options: RouteOptions = {
             r.currency
               ? fromBuffer(r.currency)
               : r.side === "sell"
-              ? Sdk.Common.Addresses.Eth[config.chainId]
-              : Sdk.Common.Addresses.Weth[config.chainId]
+              ? Sdk.Common.Addresses.Native[config.chainId]
+              : Sdk.Common.Addresses.WNative[config.chainId]
           ),
           validFrom: Number(r.valid_from),
           validUntil: Number(r.valid_until),
           quantityFilled: Number(r.quantity_filled),
           quantityRemaining: Number(r.quantity_remaining),
-          source: {
-            id: source?.address,
-            domain: source?.domain,
-            name: source?.getTitle(),
-            icon: source?.getIcon(),
-            url: source?.metadata.url,
-          },
+          source: getJoiSourceObject(source),
           feeBps: String(r.fee_bps),
           feeBreakdown: r.fee_breakdown,
           missingRoyalties: r.missing_royalties,

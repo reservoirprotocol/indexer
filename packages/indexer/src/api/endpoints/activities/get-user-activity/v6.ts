@@ -4,23 +4,26 @@ import _ from "lodash";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 import { logger } from "@/common/logger";
-import { buildContinuation, fromBuffer, regex, splitContinuation } from "@/common/utils";
-import { ActivityType } from "@/models/activities/activities-entity";
-import { UserActivities } from "@/models/user-activities";
-import { getOrderSourceByOrderKind, OrderKind } from "@/orderbook/orders";
+import { fromBuffer, regex } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
 import * as Boom from "@hapi/boom";
 import {
   getJoiActivityOrderObject,
   getJoiPriceObject,
+  getJoiSourceObject,
   JoiActivityOrder,
   JoiPrice,
+  JoiSource,
 } from "@/common/joi";
 import { ContractSets } from "@/models/contract-sets";
 import { config } from "@/config/index";
+import { ActivityType } from "@/elasticsearch/indexes/activities/base";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import * as Sdk from "@reservoir0x/sdk";
 import { Collections } from "@/models/collections";
+import { redis } from "@/common/redis";
+import { redb } from "@/common/db";
+import { Sources } from "@/models/sources";
 
 const version = "v6";
 
@@ -106,13 +109,10 @@ export const getUserActivityV6Options: RouteOptions = {
         .lowercase()
         .pattern(regex.address)
         .description("Input any ERC20 address to return result in given currency."),
-    })
-      .oxor("collection", "collectionsSetId", "contractsSetId", "community")
-      .options({ allowUnknown: true, stripUnknown: false }),
+    }).oxor("collection", "collectionsSetId", "contractsSetId", "community"),
   },
   response: {
     schema: Joi.object({
-      es: Joi.boolean().default(false),
       continuation: Joi.string().allow(null),
       activities: Joi.array().items(
         Joi.object({
@@ -142,8 +142,12 @@ export const getUserActivityV6Options: RouteOptions = {
               value: Joi.number().unsafe().allow(null),
               timestamp: Joi.number().unsafe().allow(null),
             },
-            tokenRarityScore: Joi.number().allow(null),
-            tokenRarityRank: Joi.number().allow(null),
+            tokenRarityScore: Joi.number()
+              .allow(null)
+              .description("No rarity for collections over 100k"),
+            tokenRarityRank: Joi.number()
+              .allow(null)
+              .description("No rarity rank for collections over 100k"),
             tokenMedia: Joi.string().allow(null),
           }),
           collection: Joi.object({
@@ -158,6 +162,7 @@ export const getUserActivityV6Options: RouteOptions = {
             .description("Txn hash from the blockchain."),
           logIndex: Joi.number().allow(null),
           batchIndex: Joi.number().allow(null),
+          fillSource: JoiSource.allow(null),
           order: JoiActivityOrder,
           createdAt: Joi.string(),
         })
@@ -194,210 +199,231 @@ export const getUserActivityV6Options: RouteOptions = {
     }
 
     try {
-      if (query.es !== "0" && config.enableElasticsearchRead) {
-        if (query.collection && !_.isArray(query.collection)) {
-          query.collection = [query.collection];
+      if (query.collection && !_.isArray(query.collection)) {
+        query.collection = [query.collection];
+      }
+
+      if (query.community) {
+        query.collection = await Collections.getIdsByCommunity(query.community);
+
+        if (query.collection.length === 0) {
+          throw Boom.badRequest(`No collections for community ${query.community}`);
         }
+      }
 
-        if (query.community) {
-          query.collection = await Collections.getIdsByCommunity(query.community);
+      const { activities, continuation } = await ActivitiesIndex.search({
+        types: query.types,
+        users: query.users,
+        collections: query.collection,
+        contracts: query.contracts,
+        sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
+        limit: query.limit,
+        continuation: query.continuation,
+      });
 
-          if (query.collection.length === 0) {
-            throw Boom.badRequest(`No collections for community ${query.community}`);
-          }
-        }
+      let tokensMetadata: any[] = [];
 
-        const { activities, continuation } = await ActivitiesIndex.search({
-          types: query.types,
-          users: query.users,
-          collections: query.collection,
-          contracts: query.contracts,
-          sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
-          limit: query.limit,
-          continuation: query.continuation,
-        });
+      if (query.includeMetadata) {
+        try {
+          let tokensToFetch = activities
+            .filter((activity) => activity.token)
+            .map((activity) => `token-cache:${activity.contract}:${activity.token?.id}`);
 
-        const result = _.map(activities, async (activity) => {
-          const currency = activity.pricing?.currency
-            ? activity.pricing.currency
-            : Sdk.Common.Addresses.Eth[config.chainId];
+          if (tokensToFetch.length) {
+            // Make sure each token is unique
+            tokensToFetch = [...new Set(tokensToFetch).keys()];
 
-          let order;
+            tokensMetadata = await redis.mget(tokensToFetch);
+            tokensMetadata = tokensMetadata
+              .filter((token) => token)
+              .map((token) => JSON.parse(token));
 
-          if (query.includeMetadata) {
-            let orderCriteria;
+            const nonCachedTokensToFetch = tokensToFetch.filter((tokenToFetch) => {
+              const [, contract, tokenId] = tokenToFetch.split(":");
 
-            if (activity.order?.criteria) {
-              orderCriteria = {
-                kind: activity.order.criteria.kind,
-                data: {
-                  collection: {
-                    id: activity.collection?.id,
-                    name: activity.collection?.name,
-                    image: activity.collection?.image,
-                  },
-                },
-              };
+              return (
+                tokensMetadata.find((token) => {
+                  return token.contract === contract && token.token_id === tokenId;
+                }) === undefined
+              );
+            });
 
-              if (activity.order.criteria.kind === "token") {
-                (orderCriteria as any).data.token = {
-                  tokenId: activity.token?.id,
-                  name: activity.token?.name,
-                  image: activity.token?.image,
-                };
+            if (nonCachedTokensToFetch.length) {
+              const tokensFilter = [];
+
+              for (const nonCachedTokenToFetch of nonCachedTokensToFetch) {
+                const [, contract, tokenId] = nonCachedTokenToFetch.split(":");
+
+                tokensFilter.push(`('${_.replace(contract, "0x", "\\x")}', '${tokenId}')`);
               }
 
-              if (activity.order.criteria.kind === "attribute") {
-                (orderCriteria as any).data.attribute = activity.order.criteria.data.attribute;
+              // Fetch details for all tokens
+              const tokensResult = await redb.manyOrNone(
+                `
+          SELECT
+            tokens.contract,
+            tokens.token_id,
+            tokens.name,
+            tokens.image
+          FROM tokens
+          WHERE (tokens.contract, tokens.token_id) IN ($/tokensFilter:raw/)
+        `,
+                { tokensFilter: _.join(tokensFilter, ",") }
+              );
+
+              if (tokensResult?.length) {
+                tokensMetadata = tokensMetadata.concat(
+                  tokensResult.map((token) => ({
+                    contract: fromBuffer(token.contract),
+                    token_id: token.token_id,
+                    name: token.name,
+                    image: token.image,
+                  }))
+                );
+
+                const redisMulti = redis.multi();
+
+                for (const tokenResult of tokensResult) {
+                  const tokenResultContract = fromBuffer(tokenResult.contract);
+
+                  await redisMulti.set(
+                    `token-cache:${tokenResultContract}:${tokenResult.token_id}`,
+                    JSON.stringify({
+                      contract: tokenResultContract,
+                      token_id: tokenResult.token_id,
+                      name: tokenResult.name,
+                      image: tokenResult.image,
+                    })
+                  );
+
+                  await redisMulti.expire(
+                    `token-cache:${tokenResultContract}:${tokenResult.token_id}`,
+                    60 * 60 * 24
+                  );
+                }
+
+                await redisMulti.exec();
               }
             }
+          }
+        } catch (error) {
+          logger.error(`get-user-activity-${version}-handler`, `Token cache error: ${error}`);
+        }
+      }
 
-            order = activity.order?.id
-              ? await getJoiActivityOrderObject({
-                  id: activity.order.id,
-                  side: activity.order.side,
-                  sourceIdInt: activity.order.sourceId,
-                  criteria: orderCriteria,
-                })
-              : undefined;
-          } else {
-            order = activity.order?.id
-              ? await getJoiActivityOrderObject({
-                  id: activity.order.id,
-                  side: null,
-                  sourceIdInt: null,
-                  criteria: undefined,
-                })
-              : undefined;
+      const result = _.map(activities, async (activity) => {
+        const currency = activity.pricing?.currency
+          ? activity.pricing.currency
+          : Sdk.Common.Addresses.Native[config.chainId];
+
+        const tokenMetadata = tokensMetadata?.find(
+          (token) =>
+            token.contract == activity.contract && `${token.token_id}` == activity.token?.id
+        );
+
+        let order;
+
+        if (query.includeMetadata) {
+          let orderCriteria;
+
+          if (activity.order?.criteria) {
+            orderCriteria = {
+              kind: activity.order.criteria.kind,
+              data: {
+                collection: {
+                  id: activity.collection?.id,
+                  name: activity.collection?.name,
+                  image: activity.collection?.image,
+                },
+              },
+            };
+
+            if (activity.order.criteria.kind === "token") {
+              (orderCriteria as any).data.token = {
+                tokenId: activity.token?.id,
+                name: tokenMetadata ? tokenMetadata.name : activity.token?.name,
+                image: tokenMetadata ? tokenMetadata.image : activity.token?.image,
+              };
+            }
+
+            if (activity.order.criteria.kind === "attribute") {
+              (orderCriteria as any).data.attribute = activity.order.criteria.data.attribute;
+            }
           }
 
-          return {
-            type: activity.type,
-            fromAddress: activity.fromAddress,
-            toAddress: activity.toAddress || null,
-            price: activity.pricing?.currency
-              ? await getJoiPriceObject(
-                  {
-                    gross: {
-                      amount: String(activity.pricing?.currencyPrice ?? activity.pricing?.price),
-                      nativeAmount: String(activity.pricing?.price),
-                    },
-                  },
-                  currency,
-                  query.displayCurrency
-                )
-              : undefined,
-            amount: Number(activity.amount),
-            timestamp: activity.timestamp,
-            createdAt: new Date(activity.createdAt).toISOString(),
-            contract: activity.contract,
-            token: {
-              tokenId: activity.token?.id || null,
-              tokenName: query.includeMetadata ? activity.token?.name || null : undefined,
-              tokenImage: query.includeMetadata ? activity.token?.image || null : undefined,
-              tokenMedia: query.includeMetadata ? null : undefined,
-              tokenRarityRank: query.includeMetadata ? null : undefined,
-              tokenRarityScore: query.includeMetadata ? null : undefined,
-            },
-            collection: {
-              collectionId: activity.collection?.id,
-              collectionName: query.includeMetadata ? activity.collection?.name : undefined,
-              collectionImage:
-                query.includeMetadata && activity.collection?.image != null
-                  ? activity.collection?.image
-                  : undefined,
-            },
-            txHash: activity.event?.txHash,
-            logIndex: activity.event?.logIndex,
-            batchIndex: activity.event?.batchIndex,
-            order,
-          };
-        });
-
-        return { activities: await Promise.all(result), continuation, es: true };
-      }
-
-      if (query.continuation) {
-        query.continuation = splitContinuation(query.continuation)[0];
-      }
-
-      const activities = await UserActivities.getActivities(
-        query.users,
-        query.collection,
-        query.community,
-        query.continuation,
-        query.types,
-        query.limit,
-        query.sortBy,
-        query.includeMetadata,
-        true,
-        query.contracts
-      );
-
-      // If no activities found
-      if (!activities.length) {
-        return { activities: [] };
-      }
-
-      const result = [];
-
-      for (const activity of activities) {
-        result.push({
-          type: activity.type,
-          fromAddress: activity.fromAddress,
-          toAddress: activity.toAddress,
-          // When creating a new version make sure price is always returned (https://linear.app/reservoir/issue/PLATF-1323/usersactivityv6-price-property-missing)
-          price: activity.order?.currency
-            ? await getJoiPriceObject(
-                {
-                  gross: {
-                    amount: String(activity.order?.currencyPrice ?? activity.price),
-                    nativeAmount: String(activity.price),
-                  },
-                },
-                fromBuffer(activity.order.currency),
-                query.displayCurrency
-              )
-            : undefined,
-          amount: activity.amount,
-          timestamp: activity.eventTimestamp,
-          createdAt: activity.createdAt.toISOString(),
-          contract: activity.contract,
-          token: activity.token,
-          collection: activity.collection,
-          txHash: activity.metadata.transactionHash,
-          logIndex: activity.metadata.logIndex,
-          batchIndex: activity.metadata.batchIndex,
-          order: activity.order?.id
+          order = activity.order?.id
             ? await getJoiActivityOrderObject({
                 id: activity.order.id,
                 side: activity.order.side,
-                sourceIdInt:
-                  activity.order.sourceIdInt ||
-                  (
-                    await getOrderSourceByOrderKind(activity.order.kind! as OrderKind)
-                  )?.id,
-                criteria: activity.order.criteria,
+                sourceIdInt: activity.order.sourceId,
+                criteria: orderCriteria,
               })
-            : undefined,
-        });
-      }
-
-      // Set the continuation node
-      let continuation = null;
-      if (activities.length === query.limit) {
-        const lastActivity = _.last(activities);
-
-        if (lastActivity) {
-          const continuationValue =
-            query.sortBy == "eventTimestamp"
-              ? lastActivity.eventTimestamp
-              : lastActivity.createdAt.toISOString();
-          continuation = buildContinuation(`${continuationValue}`);
+            : undefined;
+        } else {
+          order = activity.order?.id
+            ? await getJoiActivityOrderObject({
+                id: activity.order.id,
+                side: null,
+                sourceIdInt: null,
+                criteria: undefined,
+              })
+            : undefined;
         }
-      }
 
-      return { activities: result, continuation };
+        const sources = await Sources.getInstance();
+        const fillSource = activity.event?.fillSourceId
+          ? sources.get(activity.event?.fillSourceId)
+          : undefined;
+
+        return {
+          type: activity.type,
+          fromAddress: activity.fromAddress,
+          toAddress: activity.toAddress || null,
+          price: activity.pricing?.currency
+            ? await getJoiPriceObject(
+                {
+                  gross: {
+                    amount: String(activity.pricing?.currencyPrice ?? activity.pricing?.price),
+                    nativeAmount: String(activity.pricing?.price),
+                  },
+                },
+                currency,
+                query.displayCurrency
+              )
+            : undefined,
+          amount: Number(activity.amount),
+          timestamp: activity.timestamp,
+          createdAt: new Date(activity.createdAt).toISOString(),
+          contract: activity.contract,
+          token: {
+            tokenId: activity.token?.id || null,
+            tokenName: query.includeMetadata
+              ? (tokenMetadata ? tokenMetadata.name : activity.token?.name) || null
+              : undefined,
+            tokenImage: query.includeMetadata
+              ? (tokenMetadata ? tokenMetadata.image : activity.token?.image) || null
+              : undefined,
+            tokenMedia: query.includeMetadata ? null : undefined,
+            tokenRarityRank: query.includeMetadata ? null : undefined,
+            tokenRarityScore: query.includeMetadata ? null : undefined,
+          },
+          collection: {
+            collectionId: activity.collection?.id,
+            collectionName: query.includeMetadata ? activity.collection?.name : undefined,
+            collectionImage:
+              query.includeMetadata && activity.collection?.image != null
+                ? activity.collection?.image
+                : undefined,
+          },
+          txHash: activity.event?.txHash,
+          logIndex: activity.event?.logIndex,
+          batchIndex: activity.event?.batchIndex,
+          fillSource: fillSource ? getJoiSourceObject(fillSource, false) : undefined,
+          order,
+        };
+      });
+
+      return { activities: await Promise.all(result), continuation };
     } catch (error) {
       logger.error(`get-user-activity-${version}-handler`, `Handler failure: ${error}`);
       throw error;

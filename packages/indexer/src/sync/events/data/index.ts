@@ -10,7 +10,6 @@ import * as collectionxyz from "@/events-sync/data/collectionxyz";
 import * as cryptoPunks from "@/events-sync/data/cryptopunks";
 import * as decentraland from "@/events-sync/data/decentraland";
 import * as element from "@/events-sync/data/element";
-import * as flow from "@/events-sync/data/flow";
 import * as foundation from "@/events-sync/data/foundation";
 import * as looksRare from "@/events-sync/data/looks-rare";
 import * as manifold from "@/events-sync/data/manifold";
@@ -28,7 +27,6 @@ import * as sudoswap from "@/events-sync/data/sudoswap";
 import * as superrare from "@/events-sync/data/superrare";
 import * as tofu from "@/events-sync/data/tofu";
 import * as treasure from "@/events-sync/data/treasure";
-import * as universe from "@/events-sync/data/universe";
 import * as wyvernV2 from "@/events-sync/data/wyvern-v2";
 import * as wyvernV23 from "@/events-sync/data/wyvern-v2.3";
 import * as x2y2 from "@/events-sync/data/x2y2";
@@ -39,6 +37,15 @@ import * as zora from "@/events-sync/data/zora";
 import * as looksRareV2 from "@/events-sync/data/looks-rare-v2";
 import * as blend from "@/events-sync/data/blend";
 import * as sudoswapV2 from "@/events-sync/data/sudoswap-v2";
+import * as midaswap from "@/events-sync/data/midaswap";
+import * as caviarV1 from "@/events-sync/data/caviar-v1";
+import * as paymentProcessor from "@/events-sync/data/payment-processor";
+import * as thirdweb from "@/events-sync/data/thirdweb";
+import * as blurV2 from "@/events-sync/data/blur-v2";
+import * as seadrop from "@/events-sync/data/seadrop";
+import * as erc721c from "@/events-sync/data/erc721c";
+import * as joepeg from "@/events-sync/data/joepeg";
+import * as metadataUpdate from "@/events-sync/data/metadata-update";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -56,7 +63,6 @@ export type EventKind =
   | "cryptopunks"
   | "decentraland"
   | "element"
-  | "flow"
   | "foundation"
   | "looks-rare"
   | "manifold"
@@ -71,7 +77,6 @@ export type EventKind =
   | "superrare"
   | "tofu"
   | "treasure"
-  | "universe"
   | "wyvern"
   | "x2y2"
   | "zeroex-v2"
@@ -80,7 +85,16 @@ export type EventKind =
   | "zora"
   | "looks-rare-v2"
   | "blend"
-  | "sudoswap-v2";
+  | "sudoswap-v2"
+  | "midaswap"
+  | "caviar-v1"
+  | "payment-processor"
+  | "thirdweb"
+  | "seadrop"
+  | "blur-v2"
+  | "erc721c"
+  | "joepeg"
+  | "metadata-update";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -109,6 +123,8 @@ export type EventSubKind =
   | "foundation-buy-price-invalidated"
   | "foundation-buy-price-cancelled"
   | "foundation-buy-price-accepted"
+  | "foundation-created-fixed-price-sale"
+  | "foundation-add-merkle-root-to-fixed-price-sale"
   | "foundation-offer-accepted"
   | "x2y2-order-cancelled"
   | "x2y2-order-inventory"
@@ -153,6 +169,10 @@ export type EventSubKind =
   | "zora-ask-price-updated"
   | "zora-ask-cancelled"
   | "zora-auction-ended"
+  | "zora-sales-config-changed"
+  | "zora-updated-token"
+  | "zora-mint-comment"
+  | "zora-custom-mint-comment"
   | "nouns-auction-settled"
   | "cryptopunks-punk-offered"
   | "cryptopunks-punk-no-longer-for-sale"
@@ -167,8 +187,6 @@ export type EventSubKind =
   | "sudoswap-spot-price-update"
   | "sudoswap-delta-update"
   | "sudoswap-new-pair"
-  | "universe-match"
-  | "universe-cancel"
   | "nftx-redeemed"
   | "nftx-minted"
   | "nftx-user-staked"
@@ -183,10 +201,6 @@ export type EventSubKind =
   | "nftx-enable-mint-updated"
   | "nftx-enable-target-redeem-updated"
   | "blur-orders-matched"
-  | "flow-match-order-fulfilled"
-  | "flow-take-order-fulfilled"
-  | "flow-cancel-all-orders"
-  | "flow-cancel-multiple-orders"
   | "blur-order-cancelled"
   | "blur-nonce-incremented"
   | "manifold-purchase"
@@ -194,6 +208,8 @@ export type EventSubKind =
   | "manifold-cancel"
   | "manifold-finalize"
   | "manifold-accept"
+  | "manifold-claim-initialized"
+  | "manifold-claim-updated"
   | "tofu-inventory-update"
   | "decentraland-sale"
   | "nft-trader-swap"
@@ -253,7 +269,48 @@ export type EventSubKind =
   | "sudoswap-v2-spot-price-update"
   | "sudoswap-v2-delta-update"
   | "sudoswap-v2-new-erc721-pair"
-  | "sudoswap-v2-new-erc1155-pair";
+  | "sudoswap-v2-new-erc1155-pair"
+  | "midaswap-new-erc721-pair"
+  | "midaswap-erc20-deposit"
+  | "midaswap-erc721-deposit"
+  | "midaswap-sell-erc721"
+  | "midaswap-buy-erc721"
+  | "midaswap-position-burned"
+  | "caviar-v1-create"
+  | "caviar-v1-add"
+  | "caviar-v1-remove"
+  | "caviar-v1-buy"
+  | "caviar-v1-sell"
+  | "caviar-v1-wrap"
+  | "caviar-v1-unwrap"
+  | "payment-processor-buy-single-listing"
+  | "payment-processor-master-nonce-invalidated"
+  | "payment-processor-nonce-invalidated"
+  | "payment-processor-sweep-collection-erc1155"
+  | "payment-processor-sweep-collection-erc721"
+  | "payment-processor-created-or-updated-security-policy"
+  | "payment-processor-updated-collection-payment-coin"
+  | "payment-processor-updated-collection-security-policy"
+  | "thirdweb-claim-conditions-updated-erc721"
+  | "thirdweb-claim-conditions-updated-erc1155"
+  | "seadrop-public-drop-updated"
+  | "blur-v2-execution"
+  | "blur-v2-execution-721-packed"
+  | "blur-v2-execution-721-taker-fee-packed"
+  | "blur-v2-execution-721-maker-fee-packed"
+  | "erc721c-verified-eoa-signature"
+  | "erc721c-added-to-allowlist"
+  | "erc721c-removed-from-allowlist"
+  | "joepeg-taker-ask"
+  | "joepeg-taker-bid"
+  | "erc721c-set-allowlist"
+  | "erc721c-set-transfer-security-level"
+  | "erc721c-transfer-validator-updated"
+  | "metadata-update-single-token-opensea"
+  | "metadata-update-batch-tokens-opensea"
+  | "metadata-update-uri-opensea"
+  | "metadata-update-contract-uri-thirdweb"
+  | "metadata-update-zora";
 
 export type EventData = {
   kind: EventKind;
@@ -281,6 +338,8 @@ const allEventData = [
   foundation.buyPriceInvalidated,
   foundation.buyPriceSet,
   foundation.offerAccepted,
+  foundation.createFixedPriceSale,
+  foundation.addMerkleRootToFixedPriceSale,
   looksRare.cancelAllOrders,
   looksRare.cancelMultipleOrders,
   looksRare.takerAsk,
@@ -339,6 +398,10 @@ const allEventData = [
   zora.askCancelled,
   zora.askPriceUpdated,
   zora.auctionEnded,
+  zora.salesConfigChanged,
+  zora.updatedToken,
+  zora.mintComment,
+  zora.customMintComment,
   nouns.auctionSettled,
   cryptoPunks.punkOffered,
   cryptoPunks.punkNoLongerForSale,
@@ -353,8 +416,6 @@ const allEventData = [
   sudoswap.spotPriceUpdate,
   sudoswap.deltaUpdate,
   sudoswap.newPair,
-  universe.match,
-  universe.cancel,
   nftx.minted,
   nftx.redeemed,
   nftx.swapped,
@@ -367,10 +428,6 @@ const allEventData = [
   nftx.enableMintUpdated,
   nftx.enableTargetRedeemUpdated,
   blur.ordersMatched,
-  flow.matchOrderFulfilled,
-  flow.takeOrderFulfilled,
-  flow.cancelAllOrders,
-  flow.cancelMultipleOrders,
   blur.orderCancelled,
   blur.nonceIncremented,
   manifold.modify,
@@ -378,6 +435,8 @@ const allEventData = [
   manifold.purchase,
   manifold.cancel,
   manifold.accept,
+  manifold.claimInitialized,
+  manifold.claimUpdated,
   tofu.inventoryUpdate,
   decentraland.sale,
   nftTrader.swap,
@@ -432,7 +491,48 @@ const allEventData = [
   sudoswapV2.deltaUpdate,
   sudoswapV2.newERC721Pair,
   sudoswapV2.newERC1155Pair,
+  midaswap.newERC721Pair,
+  midaswap.erc20Deposit,
+  midaswap.erc721Deposit,
+  midaswap.buyERC721,
+  midaswap.sellERC721,
+  midaswap.positionBurned,
   treasure.bidAccepted,
+  caviarV1.create,
+  caviarV1.add,
+  caviarV1.remove,
+  caviarV1.buy,
+  caviarV1.sell,
+  caviarV1.wrap,
+  caviarV1.unwrap,
+  paymentProcessor.buySingleListing,
+  paymentProcessor.masterNonceInvalidated,
+  paymentProcessor.nonceInvalidated,
+  paymentProcessor.sweepCollectionERC1155,
+  paymentProcessor.sweepCollectionERC721,
+  paymentProcessor.createdOrUpdatedSecurityPolicy,
+  paymentProcessor.updatedCollectionSecurityPolicy,
+  paymentProcessor.updatedCollectionPaymentCoin,
+  thirdweb.claimConditionsUpdatedERC721,
+  thirdweb.claimConditionsUpdatedERC1155,
+  blurV2.execution,
+  blurV2.execution721MakerFeePacked,
+  blurV2.execution721Packed,
+  blurV2.execution721TakerFeePacked,
+  seadrop.publicDropUpdated,
+  erc721c.verifiedEOASignature,
+  erc721c.addedToAllowlist,
+  erc721c.removedFromAllowlist,
+  erc721c.transferValidatorUpdated,
+  erc721c.setTransferSecurityLevel,
+  erc721c.setAllowlist,
+  joepeg.takerAsk,
+  joepeg.takerBid,
+  metadataUpdate.metadataUpdateOpensea,
+  metadataUpdate.batchMetadataUpdateOpensea,
+  metadataUpdate.metadataUpdateURIOpensea,
+  metadataUpdate.contractURIUpdateThirdweb,
+  metadataUpdate.metadataUpdateURIZora,
 ];
 
 export const getEventData = (events?: string[]) => {

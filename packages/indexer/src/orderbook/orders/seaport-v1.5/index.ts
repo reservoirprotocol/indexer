@@ -13,8 +13,8 @@ import { acquireLock, redis } from "@/common/redis";
 import tracer from "@/common/tracer";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { getNetworkSettings } from "@/config/network";
-import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/config";
+import { getNetworkName, getNetworkSettings } from "@/config/network";
+import { FeeRecipients } from "@/models/fee-recipients";
 import { addPendingData } from "@/jobs/arweave-relay";
 import { Collections } from "@/models/collections";
 import { Sources } from "@/models/sources";
@@ -27,16 +27,21 @@ import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
 import { isOpen } from "@/utils/seaport-conduits";
 
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { topBidsCache } from "@/models/top-bids-caching";
-import * as orderbook from "@/jobs/orderbook/orders-queue";
 import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
+import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
+import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 
 export type OrderInfo = {
   orderParams: Sdk.SeaportBase.Types.OrderComponents;
   metadata: OrderMetadata;
   isReservoir?: boolean;
   isOpenSea?: boolean;
+  isOkx?: boolean;
   openSeaOrderParams?: OpenseaOrderParams;
 };
 
@@ -80,6 +85,7 @@ export const save = async (
     metadata: OrderMetadata,
     isReservoir?: boolean,
     isOpenSea?: boolean,
+    isOkx?: boolean,
     openSeaOrderParams?: OpenseaOrderParams
   ) => {
     try {
@@ -153,11 +159,11 @@ export const save = async (
 
       // Delay the validation of the order if it's start time is very soon in the future
       if (startTime > currentTime) {
-        await orderbook.addToQueue(
+        await orderbookOrdersJob.addToQueue(
           [
             {
               kind: "seaport-v1.5",
-              info: { orderParams, metadata, isReservoir, isOpenSea, openSeaOrderParams },
+              info: { orderParams, metadata, isReservoir, isOpenSea, isOkx, openSeaOrderParams },
               validateBidValue,
               ingestMethod,
               ingestDelay: startTime - currentTime + 5,
@@ -180,6 +186,17 @@ export const save = async (
         return results.push({
           id,
           status: "expired",
+        });
+      }
+
+      const isFiltered = await checkMarketplaceIsFiltered(info.contract, [
+        new Sdk.SeaportV15.Exchange(config.chainId).deriveConduit(order.params.conduitKey),
+      ]);
+
+      if (isFiltered) {
+        return results.push({
+          id,
+          status: "filtered",
         });
       }
 
@@ -210,8 +227,12 @@ export const save = async (
           ![
             // No zone
             AddressZero,
-            // Cancellation zone
+            // Reservoir cancellation zone
             Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId],
+            // Okx cancellation zone
+            Sdk.SeaportBase.Addresses.OkxCancellationZone[config.chainId],
+            // FxHash pausable zone
+            Sdk.SeaportBase.Addresses.FxHashPausableZone[config.chainId],
           ].includes(order.params.zone) &&
           // Protected offers zone
           !isProtectedOffer
@@ -238,11 +259,19 @@ export const save = async (
         order.params.signature = undefined;
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (isOkx && !(orderParams as any).okxOrderId) {
+        return results.push({
+          id,
+          status: "missing-okx-order-id",
+        });
+      }
+
       // Check: order has a valid signature
-      if (metadata.fromOnChain || (isOpenSea && !order.params.signature)) {
+      if (metadata.fromOnChain || ((isOpenSea || isOkx) && !order.params.signature)) {
         // Skip if:
         // - the order was validated on-chain
-        // - the order is coming from OpenSea and it doesn't have a signature
+        // - the order is coming from OpenSea / Okx and it doesn't have a signature
       } else {
         try {
           await order.checkSignature(baseProvider);
@@ -467,12 +496,13 @@ export const save = async (
       ];
 
       let openSeaRoyalties: royalties.Royalty[];
-
       if (order.params.kind === "single-token") {
         openSeaRoyalties = await royalties.getRoyalties(info.contract, info.tokenId, "", true);
       } else {
         openSeaRoyalties = await royalties.getRoyaltiesByTokenSet(tokenSetId, "", true);
       }
+
+      const feeRecipients = await FeeRecipients.getInstance();
 
       let feeBps = 0;
       let knownFee = false;
@@ -484,12 +514,12 @@ export const save = async (
               .mul(10000)
               .div(price)
               .toNumber();
-
         feeBps += bps;
 
         // First check for opensea hardcoded recipients
-        const kind: "marketplace" | "royalty" = allPlatformFeeRecipients.has(
-          recipient.toLowerCase()
+        const kind: "marketplace" | "royalty" = feeRecipients.getByAddress(
+          recipient.toLowerCase(),
+          "marketplace"
         )
           ? "marketplace"
           : "royalty";
@@ -550,16 +580,23 @@ export const save = async (
 
       // Handle: source
       const sources = await Sources.getInstance();
+
       let source: SourcesEntity | undefined;
 
-      const sourceHash = bn(order.params.salt)._hex.slice(0, 10);
-      const matchedSource = sources.getByDomainHash(sourceHash);
-      if (matchedSource) {
-        source = matchedSource;
+      if (metadata.source) {
+        source = await sources.getOrInsert(metadata.source);
+      } else {
+        const sourceHash = bn(order.params.salt)._hex.slice(0, 10);
+        const matchedSource = sources.getByDomainHash(sourceHash);
+        if (matchedSource) {
+          source = matchedSource;
+        }
       }
 
       if (isOpenSea) {
         source = await sources.getOrInsert("opensea.io");
+      } else if (isOkx) {
+        source = await sources.getOrInsert("okx.com");
       }
 
       // If the order is native, override any default source
@@ -590,8 +627,8 @@ export const save = async (
       let needsConversion = false;
       if (
         ![
-          Sdk.Common.Addresses.Eth[config.chainId],
-          Sdk.Common.Addresses.Weth[config.chainId],
+          Sdk.Common.Addresses.Native[config.chainId],
+          Sdk.Common.Addresses.WNative[config.chainId],
         ].includes(currency)
       ) {
         needsConversion = true;
@@ -650,17 +687,6 @@ export const save = async (
             Number(tokenId)
           );
 
-          logger.debug(
-            "orders-seaport-v1.5-save",
-            JSON.stringify({
-              topic: "validateBidValue",
-              collectionTopBidValue,
-              contract: info.contract,
-              tokenId,
-              value: value.toString(),
-            })
-          );
-
           if (collectionTopBidValue) {
             if (Number(value.toString()) <= collectionTopBidValue) {
               return results.push({
@@ -693,10 +719,15 @@ export const save = async (
         }
       }
 
-      if (isOpenSea && !order.params.signature) {
+      if (!order.params.signature) {
         // Mark the order as being partial in order to force filling through the order-fetcher service
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (order.params as any).partial = true;
+
+        if (isOkx) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (order.params as any).okxOrderId = (orderParams as any).okxOrderId;
+        }
       }
 
       // Handle: off-chain cancellation via replacement
@@ -721,9 +752,7 @@ export const save = async (
             Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
         ) {
           await axios.post(
-            `https://seaport-oracle-${
-              config.chainId === 1 ? "mainnet" : "goerli"
-            }.up.railway.app/api/replacements`,
+            `https://seaport-oracle-${getNetworkName()}.up.railway.app/api/replacements`,
             {
               newOrders: [order.params],
               replacedOrders: [replacedOrderResult.raw_data],
@@ -767,9 +796,9 @@ export const save = async (
         dynamic: info.isDynamic ?? null,
         raw_data: order.params,
         expiration: validTo,
-        missing_royalties: isProtectedOffer ? null : missingRoyalties,
-        normalized_value: isProtectedOffer ? null : normalizedValue,
-        currency_normalized_value: isProtectedOffer ? null : currencyNormalizedValue,
+        missing_royalties: missingRoyalties,
+        normalized_value: normalizedValue,
+        currency_normalized_value: currencyNormalizedValue,
         originated_at: metadata.originatedAt ?? null,
       });
 
@@ -820,6 +849,7 @@ export const save = async (
             orderInfo.metadata,
             orderInfo.isReservoir,
             orderInfo.isOpenSea,
+            orderInfo.isOkx,
             orderInfo.openSeaOrderParams
           )
         )
@@ -869,7 +899,7 @@ export const save = async (
 
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
 
-    await ordersUpdateById.addToQueue(
+    await orderUpdatesByIdJob.addToQueue(
       results
         .filter((r) => r.status === "success" && !r.unfillable)
         .map(
@@ -882,7 +912,7 @@ export const save = async (
               },
               ingestMethod,
               ingestDelay,
-            } as ordersUpdateById.OrderInfo)
+            } as OrderUpdatesByIdJobPayload)
         )
     );
   }

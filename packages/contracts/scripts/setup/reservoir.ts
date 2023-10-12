@@ -40,13 +40,13 @@ const main = async () => {
 
   // 5. Deploy various utilities
   for (const deploy of Object.values(trigger.Utilities)) {
-    await deploy();
+    await deploy(chainId);
   }
 
-  // 6. Deploy test NFTs
-  for (const deploy of Object.values(trigger.TestNFTs)) {
-    await deploy();
-  }
+  // // 6. Deploy test NFTs
+  // for (const deploy of Object.values(trigger.TestNFTs)) {
+  //   await deploy();
+  // }
 };
 
 main()

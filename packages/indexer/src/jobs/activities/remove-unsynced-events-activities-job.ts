@@ -16,14 +16,20 @@ export class RemoveUnsyncedEventsActivitiesJob extends AbstractRabbitMqJobHandle
 
   protected async process(payload: RemoveUnsyncedEventsActivitiesJobPayload) {
     await ActivitiesIndex.deleteActivitiesByBlockHash(payload.blockHash);
+
+    const keepGoing = await ActivitiesIndex.deleteActivitiesByBlockHash(payload.blockHash);
+
+    if (keepGoing) {
+      await this.addToQueue(payload.blockHash);
+    }
   }
 
-  public async addToQueue(params: RemoveUnsyncedEventsActivitiesJobPayload) {
+  public async addToQueue(blockHash: string) {
     if (!config.doElasticsearchWork) {
       return;
     }
 
-    await this.send({ payload: params });
+    await this.send({ payload: { blockHash } });
   }
 }
 

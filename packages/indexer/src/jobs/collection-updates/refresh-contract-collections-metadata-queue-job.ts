@@ -6,7 +6,7 @@ import {
   CollectionMetadataInfo,
 } from "@/jobs/collection-updates/collection-metadata-queue-job";
 import { config } from "@/config/index";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 
 export type RefreshContractCollectionsMetadataQueueJobPayload = {
   contract: string;
@@ -48,7 +48,7 @@ export class RefreshContractCollectionsMetadataQueueJob extends AbstractRabbitMq
         community: contractCollection.community,
       }));
 
-      await collectionMetadataQueueJob.addToQueueBulk(infos, 0, this.queueName);
+      await collectionMetadataQueueJob.addToQueueBulk(infos);
     } else {
       const contractToken = await redb.oneOrNone(
         `
@@ -64,7 +64,7 @@ export class RefreshContractCollectionsMetadataQueueJob extends AbstractRabbitMq
       );
 
       if (contractToken) {
-        await metadataIndexFetch.addToQueue([
+        await metadataIndexFetchJob.addToQueue([
           {
             kind: "single-token",
             data: {
@@ -73,6 +73,7 @@ export class RefreshContractCollectionsMetadataQueueJob extends AbstractRabbitMq
               tokenId: contractToken.token_id,
               collection: contract,
             },
+            context: this.queueName,
           },
         ]);
       }

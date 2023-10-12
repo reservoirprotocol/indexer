@@ -12,13 +12,20 @@ import { TxData, bn, generateSourceBytes, lc, n, s } from "../utils";
 
 import { ConduitController } from "../seaport-base";
 
+export type Options = {
+  orderFetcherBaseUrl?: string;
+};
+
 export abstract class SeaportBaseExchange {
   public chainId: number;
   public abstract contract: Contract;
   public conduitController: ConduitController;
+  public options?: Options;
 
-  constructor(chainId: number) {
+  constructor(chainId: number, options?: Options) {
     this.chainId = chainId;
+    this.options = options;
+
     this.conduitController = new ConduitController(this.chainId);
   }
 
@@ -97,7 +104,7 @@ export abstract class SeaportBaseExchange {
               fulfillments,
             ]) + generateSourceBytes(options?.source),
           value:
-            info.paymentToken === CommonAddresses.Eth[this.chainId]
+            info.paymentToken === CommonAddresses.Native[this.chainId]
               ? bn(order.getMatchingPrice(options?.timestampOverride))
                   .mul(matchParams.amount || "1")
                   .div(info.amount)
@@ -135,10 +142,10 @@ export abstract class SeaportBaseExchange {
                 offerAmount: info.amount,
                 basicOrderType:
                   (info.tokenKind === "erc721"
-                    ? info.paymentToken === CommonAddresses.Eth[this.chainId]
+                    ? info.paymentToken === CommonAddresses.Native[this.chainId]
                       ? Types.BasicOrderType.ETH_TO_ERC721_FULL_OPEN
                       : Types.BasicOrderType.ERC20_TO_ERC721_FULL_OPEN
-                    : info.paymentToken === CommonAddresses.Eth[this.chainId]
+                    : info.paymentToken === CommonAddresses.Native[this.chainId]
                     ? Types.BasicOrderType.ETH_TO_ERC1155_FULL_OPEN
                     : Types.BasicOrderType.ERC20_TO_ERC1155_FULL_OPEN) + order.params.orderType,
                 startTime: order.params.startTime,
@@ -159,7 +166,7 @@ export abstract class SeaportBaseExchange {
               },
             ]) + generateSourceBytes(options?.source),
           value:
-            info.paymentToken === CommonAddresses.Eth[this.chainId]
+            info.paymentToken === CommonAddresses.Native[this.chainId]
               ? bn(order.getMatchingPrice(options?.timestampOverride))
                   .mul(matchParams.amount || "1")
                   .div(info.amount)
@@ -188,7 +195,7 @@ export abstract class SeaportBaseExchange {
               recipient,
             ]) + generateSourceBytes(options?.source),
           value:
-            info.paymentToken === CommonAddresses.Eth[this.chainId]
+            info.paymentToken === CommonAddresses.Native[this.chainId]
               ? bn(order.getMatchingPrice(options?.timestampOverride))
                   .mul(matchParams.amount || "1")
                   .div(info.amount)
@@ -360,7 +367,7 @@ export abstract class SeaportBaseExchange {
             return (
               info &&
               info.side === "sell" &&
-              info.paymentToken === CommonAddresses.Eth[this.chainId]
+              info.paymentToken === CommonAddresses.Native[this.chainId]
             );
           })
           .map((order, i) =>

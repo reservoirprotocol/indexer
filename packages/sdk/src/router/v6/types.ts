@@ -2,6 +2,7 @@ import { BigNumberish } from "@ethersproject/bignumber";
 
 import * as Sdk from "../../index";
 import { TxData } from "../../utils";
+import { PermitWithTransfers } from "./permit";
 
 // Approvals and permits
 
@@ -45,6 +46,35 @@ export type Fee = {
   amount: BigNumberish;
 };
 
+export type Permit = {
+  kind: "erc20";
+  data: PermitWithTransfers;
+};
+
+export type PreSignature = {
+  kind: "payment-processor-take-order";
+  signer: string;
+  signature?: string;
+  uniqueId: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: any;
+};
+
+export type TxKind = "sale" | "mint" | "swap";
+export type TxTags = {
+  kind: TxKind;
+  // Number of listings for each order kind
+  listings?: { [orderKind: string]: number };
+  // Number of bids for each order kind
+  bids?: { [orderKind: string]: number };
+  // Number of mints
+  mints?: number;
+  // Number of swaps
+  swaps?: number;
+  // Number of fees on top
+  feesOnTop?: number;
+};
+
 // Orders
 
 export type GenericOrder =
@@ -73,16 +103,16 @@ export type GenericOrder =
       order: Sdk.SeaportV14.Order;
     }
   | {
-      kind: "seaport-v1.4-partial";
-      order: Sdk.SeaportBase.Types.PartialOrder;
-    }
-  | {
       kind: "seaport-v1.5";
       order: Sdk.SeaportV15.Order;
     }
   | {
       kind: "seaport-v1.5-partial";
-      order: Sdk.SeaportBase.Types.PartialOrder;
+      order: Sdk.SeaportBase.Types.OpenseaPartialOrder;
+    }
+  | {
+      kind: "seaport-v1.5-partial-okx";
+      order: Sdk.SeaportBase.Types.OkxPartialOrder;
     }
   | {
       kind: "alienswap";
@@ -101,12 +131,12 @@ export type GenericOrder =
       order: Sdk.CollectionXyz.Order;
     }
   | {
-      kind: "zora";
-      order: Sdk.Zora.Order;
+      kind: "ditto";
+      order: Sdk.Ditto.Order;
     }
   | {
-      kind: "universe";
-      order: Sdk.Universe.Order;
+      kind: "zora";
+      order: Sdk.Zora.Order;
     }
   | {
       kind: "element";
@@ -133,10 +163,6 @@ export type GenericOrder =
       order: Sdk.Nftx.Order;
     }
   | {
-      kind: "flow";
-      order: Sdk.Flow.Order;
-    }
-  | {
       kind: "superrare";
       order: Sdk.SuperRare.Order;
     }
@@ -147,6 +173,18 @@ export type GenericOrder =
   | {
       kind: "sudoswap-v2";
       order: Sdk.SudoswapV2.Order;
+    }
+  | {
+      kind: "midaswap";
+      order: Sdk.Midaswap.Order;
+    }
+  | {
+      kind: "caviar-v1";
+      order: Sdk.CaviarV1.Order;
+    }
+  | {
+      kind: "payment-processor";
+      order: Sdk.PaymentProcessor.Order;
     };
 
 // Listings
@@ -176,7 +214,10 @@ export type FillListingsResult = {
   txs: {
     approvals: FTApproval[];
     txData: TxData;
+    txTags?: TxTags;
     orderIds: string[];
+    permits: Permit[];
+    preSignatures: PreSignature[];
   }[];
   success: { [orderId: string]: boolean };
 };
@@ -207,9 +248,41 @@ export type FillBidsResult = {
   txs: {
     approvals: NFTApproval[];
     txData: TxData;
+    txTags?: TxTags;
+    orderIds: string[];
+    preSignatures: PreSignature[];
+  }[];
+  success: { [orderId: string]: boolean };
+};
+
+// Mints
+
+// Basic details for filling mints
+export type MintDetails = {
+  orderId: string;
+  txData: TxData;
+  fees: Fee[];
+  token: string;
+  quantity: number;
+  comment?: string;
+};
+
+export type FillMintsResult = {
+  txs: {
+    txData: TxData;
+    txTags?: TxTags;
     orderIds: string[];
   }[];
   success: { [orderId: string]: boolean };
+};
+
+// Transfers
+
+export type TransfersResult = {
+  txs: {
+    approvals: NFTApproval[];
+    txData: TxData;
+  }[];
 };
 
 // Swaps
@@ -225,5 +298,6 @@ export type SwapDetail = {
   recipient: string;
   refundTo: string;
   details: ListingDetails[];
-  executionIndex: number;
+  txIndex?: number;
+  executionIndex?: number;
 };

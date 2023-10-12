@@ -10,7 +10,7 @@ import { ApiKeyEntity, ApiKeyUpdateParams } from "@/models/api-keys/api-key-enti
 import getUuidByString from "uuid-by-string";
 import { AllChainsChannel, Channel } from "@/pubsub/channels";
 import axios from "axios";
-import { getNetworkName } from "@/config/network";
+import { getNetworkName, getSubDomain } from "@/config/network";
 import { config } from "@/config/index";
 import { Boom } from "@hapi/boom";
 import tracer from "@/common/tracer";
@@ -156,7 +156,12 @@ export class ApiKeyManager {
         );
 
         if (fromDb) {
-          Promise.race([redis.set(redisKey, JSON.stringify(fromDb)), timeout]).catch(); // Set in redis (no need to wait)
+          try {
+            Promise.race([redis.set(redisKey, JSON.stringify(fromDb)), timeout]).catch(); // Set in redis (no need to wait)
+          } catch {
+            // Ignore errors
+          }
+
           const apiKeyEntity = new ApiKeyEntity(fromDb);
           ApiKeyManager.apiKeys.set(key, apiKeyEntity); // Set in local memory storage
           if (!validateOriginAndIp) {
@@ -168,7 +173,12 @@ export class ApiKeyManager {
           const pipeline = redis.pipeline();
           pipeline.set(redisKey, "empty");
           pipeline.expire(redisKey, 3600 * 24);
-          Promise.race([pipeline.exec(), timeout]).catch(); // Set in redis (no need to wait)
+
+          try {
+            Promise.race([pipeline.exec(), timeout]).catch(); // Set in redis (no need to wait)
+          } catch {
+            // Ignore errors
+          }
         }
       }
     } catch (error) {
@@ -218,12 +228,20 @@ export class ApiKeyManager {
       log.query = request.query;
     }
 
+    if (request.headers["user-agent"]) {
+      log.userAgent = request.headers["user-agent"];
+    }
+
     if (request.headers["x-forwarded-for"]) {
       log.remoteAddress = request.headers["x-forwarded-for"];
     }
 
     if (request.headers["origin"]) {
       log.origin = request.headers["origin"];
+    }
+
+    if (request.headers["x-syncnode-version"]) {
+      log.syncnodeVersion = request.headers["x-syncnode-version"];
     }
 
     if (request.headers["x-rkui-version"]) {
@@ -240,6 +258,12 @@ export class ApiKeyManager {
 
     if (request.headers["host"]) {
       log.hostname = request.headers["host"];
+    }
+
+    if (log.route) {
+      log.fullUrl = `https://${getSubDomain()}.reservoir.tools${log.route}${
+        request.pre.queryString ? `?${request.pre.queryString}` : ""
+      }`;
     }
 
     // Add key information if it exists

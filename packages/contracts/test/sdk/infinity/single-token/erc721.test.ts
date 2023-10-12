@@ -7,13 +7,7 @@ import { ethers } from "hardhat";
 
 import * as Infinity from "@reservoir0x/sdk/src/infinity";
 
-import {
-  getChainId,
-  setupNFTs,
-  reset,
-  getCurrentTimestamp,
-  bn,
-} from "../../../utils";
+import { getChainId, setupNFTs, reset, getCurrentTimestamp, bn } from "../../../utils";
 import { BigNumberish } from "ethers";
 
 describe("Infinity - Single Specific Token ERC721", () => {
@@ -61,32 +55,24 @@ describe("Infinity - Single Specific Token ERC721", () => {
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
       nonce: "1",
       maxGasPrice: "100000000000",
-      currency: Common.Addresses.Eth[chainId],
+      currency: Common.Addresses.Native[chainId],
       tokenId,
-      numTokens: 1
+      numTokens: 1,
     });
 
     await sellOrder.sign(seller);
     await sellOrder.checkFillability(ethers.provider);
 
-    const buyerEthBalanceBefore = await ethers.provider.getBalance(
-      buyer.address
-    );
-    const sellerEthBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
+    const buyerEthBalanceBefore = await ethers.provider.getBalance(buyer.address);
+    const sellerEthBalanceBefore = await ethers.provider.getBalance(seller.address);
 
     const ownerBefore = await nft.getOwner(tokenId);
     expect(ownerBefore).to.eq(seller.address);
 
     await exchange.takeMultipleOneOrders(buyer, [sellOrder]);
 
-    const buyerEthBalanceAfter = await ethers.provider.getBalance(
-      buyer.address
-    );
-    const sellerEthBalanceAfter = await ethers.provider.getBalance(
-      seller.address
-    );
+    const buyerEthBalanceAfter = await ethers.provider.getBalance(buyer.address);
+    const sellerEthBalanceAfter = await ethers.provider.getBalance(seller.address);
     const ownerAfter = await nft.getOwner(tokenId);
 
     const protocolFeeBps: BigNumberish = await exchange.contract.connect(seller).protocolFeeBps();
@@ -96,7 +82,6 @@ describe("Infinity - Single Specific Token ERC721", () => {
     expect(sellerEthBalanceAfter).to.eq(sellerEthBalanceBefore.add(price).sub(fees));
     expect(ownerAfter).to.eq(buyer.address);
   });
-
 
   it("Build and take offer order", async () => {
     const buyer = alice;
@@ -112,7 +97,7 @@ describe("Infinity - Single Specific Token ERC721", () => {
 
     await nft.approve(seller, Infinity.Addresses.Exchange[chainId]);
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -133,32 +118,24 @@ describe("Infinity - Single Specific Token ERC721", () => {
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
       nonce: "1",
       maxGasPrice: "100000000000",
-      currency: Common.Addresses.Weth[chainId],
+      currency: Common.Addresses.WNative[chainId],
       tokenId,
-      numTokens: 1
+      numTokens: 1,
     });
 
     await offerOrder.sign(buyer);
     await offerOrder.checkFillability(ethers.provider);
 
-    const buyerWethBalanceBefore = await weth.getBalance(
-      buyer.address
-    );
-    const sellerWethBalanceBefore = await weth.getBalance(
-      seller.address
-    );
+    const buyerWethBalanceBefore = await weth.getBalance(buyer.address);
+    const sellerWethBalanceBefore = await weth.getBalance(seller.address);
 
     const ownerBefore = await nft.getOwner(tokenId);
     expect(ownerBefore).to.eq(seller.address);
 
     await exchange.takeMultipleOneOrders(seller, [offerOrder]);
 
-    const buyerWethBalanceAfter = await weth.getBalance(
-      buyer.address
-    );
-    const sellerWethBalanceAfter = await weth.getBalance(
-      seller.address
-    );
+    const buyerWethBalanceAfter = await weth.getBalance(buyer.address);
+    const sellerWethBalanceAfter = await weth.getBalance(seller.address);
     const ownerAfter = await nft.getOwner(tokenId);
 
     const protocolFeeBps: BigNumberish = await exchange.contract.connect(seller).protocolFeeBps();
@@ -167,5 +144,5 @@ describe("Infinity - Single Specific Token ERC721", () => {
     expect(buyerWethBalanceBefore.sub(buyerWethBalanceAfter)).to.be.gte(price);
     expect(sellerWethBalanceAfter).to.eq(sellerWethBalanceBefore.add(price).sub(fees));
     expect(ownerAfter).to.eq(buyer.address);
-  })
+  });
 });

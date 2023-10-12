@@ -100,11 +100,11 @@ export async function processTopBid(payload: topBidPayload, queueName: string) {
         tokenSetTopBid[0].topBuyId &&
         _.isNull(tokenSetTopBid[0].collectionId)
       ) {
-        //  Only trigger websocket event for non collection offers.
         await WebsocketEventRouter({
           eventKind: WebsocketEventKind.NewTopBid,
           eventInfo: {
             orderId: tokenSetTopBid[0].topBuyId,
+            validateCollectionTopBid: true,
           },
         });
       }

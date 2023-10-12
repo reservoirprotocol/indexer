@@ -14,6 +14,7 @@ export let producer: Producer;
 export const consumer = kafka.consumer({
   groupId: config.kafkaConsumerGroupId,
   maxBytesPerPartition: config.kafkaMaxBytesPerPartition || 1048576, // (default is 1MB)
+  allowAutoTopicCreation: false,
 });
 
 export async function startKafkaProducer(): Promise<void> {
@@ -70,6 +71,10 @@ export async function startKafkaConsumer(): Promise<void> {
     eachBatch: async ({ batch, resolveOffset, heartbeat }) => {
       const messagePromises = batch.messages.map(async (message) => {
         try {
+          if (!message?.value) {
+            return;
+          }
+
           const event = JSON.parse(message.value!.toString());
 
           if (batch.topic.endsWith("-dead-letter")) {

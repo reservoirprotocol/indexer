@@ -41,18 +41,6 @@ export const rateLimitRedis = new Redis(config.rateLimitRedisUrl, {
   commandTimeout: 600,
 });
 
-// Metric redis
-export const metricsRedis = new Redis(config.metricsRedisUrl, {
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-});
-
-// Orders book redis
-export const orderbookRedis = new Redis(config.orderbookRedisUrl, {
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-});
-
 // All chains sync redis
 export const allChainsSyncRedis = new Redis(config.allChainsSyncRedisUrl, {
   maxRetriesPerRequest: null,
@@ -101,6 +89,10 @@ export const releaseLock = async (name: string) => {
 
 export const getLockExpiration = async (name: string) => {
   return await redis.ttl(name);
+};
+
+export const doesLockExist = async (name: string) => {
+  return Boolean(await redis.exists(name));
 };
 
 export const getMemUsage = async () => {

@@ -77,11 +77,13 @@ export class BidsDataSource extends BaseDataSource {
       for (const r of result) {
         const currency = await getCurrency(
           fromBuffer(r.currency) === AddressZero
-            ? Sdk.Common.Addresses.Eth[config.chainId]
+            ? Sdk.Common.Addresses.Native[config.chainId]
             : fromBuffer(r.currency)
         );
 
         const currencyPrice = r.currency_price ?? r.price;
+
+        const source = sources.get(r.source_id_int);
 
         data.push({
           id: r.id,
@@ -102,7 +104,7 @@ export class BidsDataSource extends BaseDataSource {
           valid_from: Number(r.valid_from),
           valid_until: Number(r.valid_until),
           nonce: Number(r.nonce),
-          source: sources.get(r.source_id_int)?.domain,
+          source: source ? source.domain : null,
           fee_bps: Number(r.fee_bps),
           expiration: Number(r.expiration),
           raw_data: r.raw_data ?? null,

@@ -300,7 +300,7 @@ export const getSearchActivitiesV1Options: RouteOptions = {
       }
 
       const result = _.map(activities, async (activity) => {
-        const currency = activity.pricing?.currency ?? Sdk.Common.Addresses.Eth[config.chainId];
+        const currency = activity.pricing?.currency ?? Sdk.Common.Addresses.Native[config.chainId];
 
         return {
           type: activity.type,

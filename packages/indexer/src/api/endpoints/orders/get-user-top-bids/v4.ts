@@ -9,7 +9,13 @@ import Joi from "joi";
 
 import { redbAlt } from "@/common/db";
 import { logger } from "@/common/logger";
-import { getJoiPriceObject, JoiOrderCriteria, JoiPrice } from "@/common/joi";
+import {
+  getJoiPriceObject,
+  getJoiSourceObject,
+  JoiOrderCriteria,
+  JoiPrice,
+  JoiSource,
+} from "@/common/joi";
 import {
   buildContinuation,
   formatEth,
@@ -130,7 +136,7 @@ export const getUserTopBidsV4Options: RouteOptions = {
           floorDifferencePercentage: Joi.number()
             .unsafe()
             .description("Percentage difference between this bid and the current floor price."),
-          source: Joi.object().allow(null),
+          source: JoiSource.allow(null),
           feeBreakdown: Joi.array()
             .items(
               Joi.object({
@@ -261,7 +267,7 @@ export const getUserTopBidsV4Options: RouteOptions = {
         FROM nb
         JOIN LATERAL (
             SELECT o.token_set_id, o.id AS "top_bid_id", o.price AS "top_bid_price", o.value AS "top_bid_value",
-                   o.currency AS "top_bid_currency", o.currency_value AS "top_bid_currency_value", o.missing_royalties,
+                   o.currency AS "top_bid_currency", o.currency_price AS "top_bid_currency_price", o.currency_value AS "top_bid_currency_value", o.missing_royalties,
                    o.normalized_value AS "top_bid_normalized_value", o.currency_normalized_value AS "top_bid_currency_normalized_value",
                    o.maker AS "top_bid_maker", source_id_int, o.created_at "order_created_at", o.token_set_schema_hash,
                    extract(epoch from o.created_at) * 1000000 AS "order_created_at_micro",
@@ -376,13 +382,7 @@ export const getUserTopBidsV4Options: RouteOptions = {
             validFrom: r.top_bid_valid_from,
             validUntil: r.top_bid_valid_until,
             floorDifferencePercentage: _.round(r.floor_difference_percentage || 0, 2),
-            source: {
-              id: source?.address,
-              domain: source?.domain,
-              name: source?.getTitle(),
-              icon: source?.getIcon(),
-              url: source?.metadata.url,
-            },
+            source: getJoiSourceObject(source),
             feeBreakdown,
             criteria: r.bid_criteria,
             token: {
@@ -412,7 +412,7 @@ export const getUserTopBidsV4Options: RouteOptions = {
                         nativeAmount: String(r.token_last_sell_value),
                       },
                     },
-                    Sdk.Common.Addresses.Eth[config.chainId],
+                    Sdk.Common.Addresses.Native[config.chainId],
                     query.displayCurrency
                   )
                 : null,

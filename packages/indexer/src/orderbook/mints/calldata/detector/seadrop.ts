@@ -4,61 +4,61 @@ import * as Sdk from "@reservoir0x/sdk";
 
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import { now } from "@/common/utils";
 import { config } from "@/config/index";
 import { Transaction } from "@/models/transactions";
-import { CollectionMint } from "@/orderbook/mints";
-import { getMaxSupply } from "@/orderbook/mints/calldata/helpers";
+import {
+  CollectionMint,
+  getCollectionMints,
+  simulateAndUpsertCollectionMint,
+} from "@/orderbook/mints";
+import { getMaxSupply, getStatus, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
 
-export const tryParseCollectionMint = async (
-  collection: string,
-  contract: string,
-  tx: Transaction
-): Promise<CollectionMint | undefined> => {
-  if (
-    [
-      "0x161ac21f", // `mintPublic`
-    ].some((bytes4) => tx.data.startsWith(bytes4))
-  ) {
-    try {
-      const c = new Contract(
-        tx.to,
-        new Interface([
-          `
-            function mintPublic(
-              address nftContract,
-              address feeRecipient,
-              address minterIfNotPayer,
-              uint256 quantity
-            )
-          `,
-          `
-            function getPublicDrop(address nftContract) view returns (
-              (
-                uint80 mintPrice,
-                uint48 startTime,
-                uint48 endTime,
-                uint16 maxTotalMintableByWallet,
-                uint16 feeBps,
-                bool restrictFeeRecipients
-              )
-            )
-          `,
-        ]),
-        baseProvider
-      );
+const STANDARD = "seadrop-v1.0";
 
-      const drop = await c.getPublicDrop(contract);
-      if (drop.startTime && drop.endTime && drop.startTime <= now()) {
-        return {
+export const extractByCollectionERC721 = async (collection: string): Promise<CollectionMint[]> => {
+  const c = new Contract(
+    Sdk.Seadrop.Addresses.Seadrop[config.chainId],
+    new Interface([
+      `
+        function mintPublic(
+          address nftContract,
+          address feeRecipient,
+          address minterIfNotPayer,
+          uint256 quantity
+        )
+      `,
+      `
+        function getPublicDrop(address nftContract) view returns (
+          (
+            uint80 mintPrice,
+            uint48 startTime,
+            uint48 endTime,
+            uint16 maxTotalMintableByWallet,
+            uint16 feeBps,
+            bool restrictFeeRecipients
+          )
+        )
+      `,
+      "function getAllowedFeeRecipients(address nftContract) view returns (address[])",
+    ]),
+    baseProvider
+  );
+
+  const results: CollectionMint[] = [];
+  try {
+    const drop = await c.getPublicDrop(collection);
+    if (drop.startTime && drop.endTime) {
+      return [
+        {
           collection,
+          contract: collection,
           stage: "public-sale",
           kind: "public",
           status: "open",
-          standard: "seadrop-v1.0",
+          standard: STANDARD,
           details: {
             tx: {
-              to: tx.to,
+              to: Sdk.Seadrop.Addresses.Seadrop[config.chainId],
               data: {
                 // `mintPublic`
                 signature: "0x161ac21f",
@@ -68,11 +68,11 @@ export const tryParseCollectionMint = async (
                     abiType: "address",
                   },
                   {
-                    kind: "unknown",
+                    kind: drop.restrictFeeRecipients ? "unknown" : "recipient",
                     abiType: "address",
-                    abiValue: c.interface
-                      .decodeFunctionData("mintPublic", tx.data)
-                      .feeRecipient.toLowerCase(),
+                    abiValue: drop.restrictFeeRecipients
+                      ? (await c.getAllowedFeeRecipients(collection))[0].toLowerCase()
+                      : undefined,
                   },
                   {
                     kind: "recipient",
@@ -86,18 +86,73 @@ export const tryParseCollectionMint = async (
               },
             },
           },
-          currency: Sdk.Common.Addresses.Eth[config.chainId],
+          currency: Sdk.Common.Addresses.Native[config.chainId],
           price: drop.mintPrice.toString(),
           maxMintsPerWallet: String(drop.maxTotalMintableByWallet),
-          maxSupply: await getMaxSupply(contract),
-          startTime: drop.startTime,
-          endTime: drop.endTime,
-        };
-      }
-    } catch (error) {
-      logger.error("mint-detector", JSON.stringify({ kind: "seadrop-v1.0", error }));
+          maxSupply: await getMaxSupply(collection),
+          startTime: toSafeTimestamp(drop.startTime),
+          endTime: toSafeTimestamp(drop.endTime),
+        },
+      ];
     }
+  } catch (error) {
+    logger.error("mint-detector", JSON.stringify({ kind: STANDARD, error }));
   }
 
-  return undefined;
+  // Update the status of each collection mint
+  await Promise.all(
+    results.map(async (cm) => {
+      await getStatus(cm).then(({ status, reason }) => {
+        cm.status = status;
+        cm.statusReason = reason;
+      });
+    })
+  );
+
+  return results;
+};
+
+export const extractByTx = async (
+  collection: string,
+  tx: Transaction
+): Promise<CollectionMint[]> => {
+  if (
+    [
+      "0x161ac21f", // `mintPublic`
+    ].some((bytes4) => tx.data.startsWith(bytes4))
+  ) {
+    return extractByCollectionERC721(collection);
+  }
+
+  return [];
+};
+
+export const refreshByCollection = async (collection: string) => {
+  const existingCollectionMints = await getCollectionMints(collection, {
+    standard: STANDARD,
+  });
+
+  // Fetch and save/update the currently available mints
+  const latestCollectionMints = await extractByCollectionERC721(collection);
+  for (const collectionMint of latestCollectionMints) {
+    await simulateAndUpsertCollectionMint(collectionMint);
+  }
+
+  // Assume anything that exists in our system but was not returned
+  // in the above call is not available anymore so we can close
+  for (const existing of existingCollectionMints) {
+    if (
+      !latestCollectionMints.find(
+        (latest) =>
+          latest.collection === existing.collection &&
+          latest.stage === existing.stage &&
+          latest.tokenId === existing.tokenId
+      )
+    ) {
+      await simulateAndUpsertCollectionMint({
+        ...existing,
+        status: "closed",
+      });
+    }
+  }
 };

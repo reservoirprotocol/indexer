@@ -1,9 +1,9 @@
 import { ItemCancelledEventPayload } from "@opensea/stream-js/dist/types";
 
-import * as openseaOffChainCancellations from "@/jobs/order-updates/misc/opensea-off-chain-cancellations";
+import { openseaOffChainCancellationsJob } from "@/jobs/order-updates/misc/opensea-off-chain-cancellations-job";
 
 export const handleEvent = async (payload: ItemCancelledEventPayload) => {
-  await openseaOffChainCancellations.addToQueue(payload.order_hash);
+  await openseaOffChainCancellationsJob.addToQueue({ orderId: payload.order_hash });
 
   return null;
 };

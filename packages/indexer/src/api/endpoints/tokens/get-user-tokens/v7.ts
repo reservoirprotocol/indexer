@@ -19,9 +19,11 @@ import { config } from "@/config/index";
 import {
   getJoiPriceObject,
   getJoiSaleObject,
+  getJoiSourceObject,
   JoiAttributeValue,
   JoiPrice,
   JoiSale,
+  JoiSource,
 } from "@/common/joi";
 import { Sources } from "@/models/sources";
 import _ from "lodash";
@@ -94,7 +96,7 @@ export const getUserTokensV7Options: RouteOptions = {
         .valid("acquiredAt", "lastAppraisalValue")
         .default("acquiredAt")
         .description(
-          "Order the items are returned in the response. Options are `acquiredAt` and `lastAppraisalValue`."
+          "Order the items are returned in the response. Options are `acquiredAt` and `lastAppraisalValue`. `lastAppraisalValue` is the value of the last sale."
         ),
       sortDirection: Joi.string()
         .lowercase()
@@ -130,7 +132,9 @@ export const getUserTokensV7Options: RouteOptions = {
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Input any ERC20 address to return result in given currency"),
+        .description(
+          "Input any ERC20 address to return result in given currency. Applies to `topBid` and `floorAsk`."
+        ),
     }),
   },
   response: {
@@ -138,6 +142,7 @@ export const getUserTokensV7Options: RouteOptions = {
       tokens: Joi.array().items(
         Joi.object({
           token: Joi.object({
+            chainId: Joi.number().required(),
             contract: Joi.string(),
             tokenId: Joi.string(),
             kind: Joi.string().description("Can be erc721, erc115, etc."),
@@ -151,9 +156,16 @@ export const getUserTokensV7Options: RouteOptions = {
               .allow(null)
               .description("Can be higher than one if erc1155."),
             remainingSupply: Joi.number().unsafe().allow(null),
-            rarityScore: Joi.number().allow(null),
-            rarityRank: Joi.number().allow(null),
+            rarityScore: Joi.number()
+              .allow(null)
+              .description("No rarity for collections over 100k"),
+            rarityRank: Joi.number()
+              .allow(null)
+              .description("No rarity rank for collections over 100k"),
             media: Joi.string().allow(null),
+            isFlagged: Joi.boolean().default(false),
+            lastFlagUpdate: Joi.string().allow("", null),
+            lastFlagChange: Joi.string().allow("", null),
             collection: Joi.object({
               id: Joi.string().allow(null),
               name: Joi.string().allow("", null),
@@ -161,22 +173,27 @@ export const getUserTokensV7Options: RouteOptions = {
               openseaVerificationStatus: Joi.string().allow("", null),
               floorAskPrice: JoiPrice.allow(null).description("Can be null if no active asks."),
               royaltiesBps: Joi.number().allow(null),
-              royalties: Joi.array().items(
-                Joi.object({
-                  bps: Joi.number().allow(null),
-                  recipient: Joi.string().allow(null),
-                })
-              ),
+              royalties: Joi.array()
+                .items(
+                  Joi.object({
+                    bps: Joi.number().allow(null),
+                    recipient: Joi.string().allow(null),
+                  })
+                )
+                .allow(null),
             }),
             lastSale: JoiSale.optional(),
             topBid: Joi.object({
               id: Joi.string().allow(null),
               price: JoiPrice.allow(null),
-              source: Joi.object().allow(null),
+              source: JoiSource.allow(null),
             })
               .optional()
               .description("Can be null if not active bids."),
-            lastAppraisalValue: Joi.number().unsafe().allow(null).description("Can be null."),
+            lastAppraisalValue: Joi.number()
+              .unsafe()
+              .allow(null)
+              .description("The value of the last sale.Can be null."),
             attributes: Joi.array()
               .items(
                 Joi.object({
@@ -202,7 +219,7 @@ export const getUserTokensV7Options: RouteOptions = {
               kind: Joi.string().allow(null),
               validFrom: Joi.number().unsafe().allow(null),
               validUntil: Joi.number().unsafe().allow(null),
-              source: Joi.object().allow(null),
+              source: JoiSource.allow(null),
               rawData: Joi.object().optional().allow(null),
               isNativeOffChainCancellable: Joi.boolean().optional(),
             }).description("Can be null if no asks."),
@@ -393,6 +410,9 @@ export const getUserTokensV7Options: RouteOptions = {
           t.last_buy_value,
           t.last_sell_timestamp,
           t.last_buy_timestamp,
+          t.is_flagged,
+          t.last_flag_update,
+          t.last_flag_change,
           null AS top_bid_id,
           null AS top_bid_price,
           null AS top_bid_value,
@@ -430,6 +450,9 @@ export const getUserTokensV7Options: RouteOptions = {
             t.last_buy_value,
             t.last_sell_timestamp,
             t.last_buy_timestamp,
+            t.is_flagged,
+            t.last_flag_update,
+            t.last_flag_change,
             ${selectFloorData}
             ${selectRoyaltyBreakdown}
           FROM tokens t
@@ -630,13 +653,13 @@ export const getUserTokensV7Options: RouteOptions = {
         // that don't have the currencies cached in the tokens table
         const floorAskCurrency = r.floor_sell_currency
           ? fromBuffer(r.floor_sell_currency)
-          : Sdk.Common.Addresses.Eth[config.chainId];
+          : Sdk.Common.Addresses.Native[config.chainId];
         const topBidCurrency = r.top_bid_currency
           ? fromBuffer(r.top_bid_currency)
-          : Sdk.Common.Addresses.Weth[config.chainId];
+          : Sdk.Common.Addresses.WNative[config.chainId];
         const collectionFloorSellCurrency = r.collection_floor_sell_currency
           ? fromBuffer(r.collection_floor_sell_currency)
-          : Sdk.Common.Addresses.Eth[config.chainId];
+          : Sdk.Common.Addresses.Native[config.chainId];
         const floorSellSource = r.floor_sell_value
           ? sources.get(Number(r.floor_sell_source_id_int), contract, tokenId)
           : undefined;
@@ -646,6 +669,7 @@ export const getUserTokensV7Options: RouteOptions = {
         const acquiredTime = new Date(r.acquired_at * 1000).toISOString();
         return {
           token: {
+            chainId: config.chainId,
             contract: contract,
             tokenId: tokenId,
             kind: r.kind,
@@ -663,6 +687,9 @@ export const getUserTokensV7Options: RouteOptions = {
             supply: !_.isNull(r.supply) ? r.supply : null,
             remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : null,
             media: r.media,
+            isFlagged: Boolean(Number(r.is_flagged)),
+            lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
+            lastFlagChange: r.last_flag_change ? new Date(r.last_flag_change).toISOString() : null,
             collection: {
               id: r.collection_id,
               name: r.collection_name,
@@ -725,13 +752,7 @@ export const getUserTokensV7Options: RouteOptions = {
                         query.displayCurrency
                       )
                     : null,
-                  source: {
-                    id: topBidSource?.address,
-                    domain: topBidSource?.domain,
-                    name: topBidSource?.metadata.title || topBidSource?.name,
-                    icon: topBidSource?.getIcon(),
-                    url: topBidSource?.metadata.url,
-                  },
+                  source: getJoiSourceObject(topBidSource),
                 }
               : undefined,
             lastAppraisalValue: r.last_token_appraisal_value
@@ -777,13 +798,7 @@ export const getUserTokensV7Options: RouteOptions = {
               kind: r.floor_sell_kind,
               validFrom: r.floor_sell_value ? r.floor_sell_valid_from : null,
               validUntil: r.floor_sell_value ? r.floor_sell_valid_to : null,
-              source: {
-                id: floorSellSource?.address,
-                domain: floorSellSource?.domain,
-                name: floorSellSource?.metadata.title || floorSellSource?.name,
-                icon: floorSellSource?.getIcon(),
-                url: floorSellSource?.metadata.url,
-              },
+              source: getJoiSourceObject(floorSellSource),
               rawData: query.includeRawData ? r.floor_sell_raw_data : undefined,
               isNativeOffChainCancellable: query.includeRawData
                 ? r.floor_sell_raw_data?.zone ===

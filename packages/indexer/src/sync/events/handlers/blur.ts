@@ -115,7 +115,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         // Handle: prices
         const currency =
           sell.paymentToken.toLowerCase() === Sdk.Blur.Addresses.Beth[config.chainId]
-            ? Sdk.Common.Addresses.Eth[config.chainId]
+            ? Sdk.Common.Addresses.Native[config.chainId]
             : sell.paymentToken.toLowerCase();
         const currencyPrice = sell.price.div(sell.amount).toString();
 
@@ -124,7 +124,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           currencyPrice,
           baseEventParams.timestamp
         );
-
         if (!priceData.nativePrice) {
           // We must always have the native price
           break;

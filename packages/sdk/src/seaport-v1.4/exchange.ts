@@ -24,7 +24,7 @@ export class Exchange extends SeaportBaseExchange {
 
   constructor(chainId: number) {
     super(chainId);
-    this.exchangeAddress = Addresses.Exchange[chainId];
+    this.exchangeAddress = Addresses.Exchange[chainId] ?? AddressZero;
     this.cancellationZoneAddress = BaseAddresses.ReservoirCancellationZone[chainId];
     this.contract = new Contract(this.exchangeAddress, ExchangeAbi);
   }
@@ -161,7 +161,13 @@ export class Exchange extends SeaportBaseExchange {
         return axios
           .post(
             `https://seaport-oracle-${
-              this.chainId === 1 ? "mainnet" : "goerli"
+              this.chainId === 1
+                ? "mainnet"
+                : this.chainId === 5
+                ? "goerli"
+                : this.chainId === 137
+                ? "polygon"
+                : "mumbai"
             }.up.railway.app/api/signatures`,
             {
               orders: [

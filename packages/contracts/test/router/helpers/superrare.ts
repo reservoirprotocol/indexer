@@ -39,7 +39,7 @@ export const setupSuperRareListings = async (listings: SuperRareListing[]) => {
       contract: nft.contract.address,
       tokenId: nft.id.toString(),
       price: price.toString(),
-      currency: Sdk.Common.Addresses.Eth[chainId],
+      currency: Sdk.Common.Addresses.Native[chainId],
       splitAddresses: [seller.address],
       splitRatios: [100],
     });

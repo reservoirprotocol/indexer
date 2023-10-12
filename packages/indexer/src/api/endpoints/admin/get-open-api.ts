@@ -64,6 +64,12 @@ export const getOpenApiOptions: RouteOptions = {
           url: "https://api-polygon.reservoir.tools",
         },
         {
+          url: "https://api-mumbai.reservoir.tools",
+        },
+        {
+          url: "https://api-bsc.reservoir.tools",
+        },
+        {
           url: "https://api-arbitrum.reservoir.tools",
         },
         {
@@ -73,14 +79,48 @@ export const getOpenApiOptions: RouteOptions = {
           url: "https://api-sepolia.reservoir.tools",
         },
         {
+          url: "https://api-base.reservoir.tools",
+        },
+        {
           url: "https://api-base-goerli.reservoir.tools",
         },
         {
           url: "https://api-scroll-alpha.reservoir.tools",
         },
         {
+          url: "https://api-zora.reservoir.tools",
+        },
+        {
           url: "https://api-zora-testnet.reservoir.tools",
         },
+        {
+          url: "https://api-linea.reservoir.tools",
+        },
+        {
+          url: "https://api-avalanche.reservoir.tools",
+        },
+        {
+          url: "https://api-zksync.reservoir.tools",
+        },
+        {
+          url: "https://api-polygon-zkevm.reservoir.tools",
+        },
+      ];
+
+      // Preset list of tags.
+      const tagOrder = [
+        "Tokens",
+        "Collections",
+        "Attributes",
+        "Activity",
+        "Orders",
+        "Sales",
+        "Transfers",
+        "Events",
+        "Owners",
+        "Stats",
+        "Sources",
+        "Chain",
       ];
 
       data.openapi["paths"] = Object.fromEntries(
@@ -92,11 +132,25 @@ export const getOpenApiOptions: RouteOptions = {
           aMethod["tags"] = aMethod["tags"] ? aMethod["tags"] : [];
           bMethod["tags"] = bMethod["tags"] ? bMethod["tags"] : [];
 
-          if (aMethod["tags"][0] < bMethod["tags"][0]) {
+          // Get the index of the tags in the preset array.
+          let aTagIndex = tagOrder.indexOf(aMethod["tags"][0]);
+          let bTagIndex = tagOrder.indexOf(bMethod["tags"][0]);
+
+          // If a tag doesn't exist in the preset array, give it a high index.
+          if (aTagIndex === -1) {
+            aTagIndex = tagOrder.length;
+          }
+
+          if (bTagIndex === -1) {
+            bTagIndex = tagOrder.length;
+          }
+
+          // Compare the indices of the tags in the preset array.
+          if (aTagIndex < bTagIndex) {
             return -1;
           }
 
-          if (aMethod["tags"][0] > bMethod["tags"][0]) {
+          if (aTagIndex > bTagIndex) {
             return 1;
           }
 

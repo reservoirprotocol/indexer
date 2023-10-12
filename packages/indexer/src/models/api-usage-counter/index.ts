@@ -1,4 +1,4 @@
-import { metricsRedis } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { format } from "date-fns";
 import _ from "lodash";
 import { config } from "@/config/index";
@@ -26,12 +26,12 @@ export class ApiUsageCounter {
   ) {
     const date = format(new Date(timestamp), "yyyy-MM-dd HH:00:00");
     const member = `${config.chainId}*${apiKey}*${route}*${date}*${statusCode}*${points}`;
-    await metricsRedis.zincrby(ApiUsageCounter.key, incrementBy, member);
+    await redis.zincrby(ApiUsageCounter.key, incrementBy, member);
   }
 
   public static async popCounts(count = 200) {
     const results = [];
-    const counts = await metricsRedis.zpopmax(ApiUsageCounter.key, count);
+    const counts = await redis.zpopmax(ApiUsageCounter.key, count);
 
     for (let i = 0; i < counts.length; i += 2) {
       const [chainId, apiKey, route, date, statusCode, points] = _.split(counts[i], "*");

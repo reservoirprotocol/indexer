@@ -15,11 +15,10 @@ import * as syncEventsUtils from "@/events-sync/utils";
 import * as blocksModel from "@/models/blocks";
 import getUuidByString from "uuid-by-string";
 
-import * as blockCheck from "@/jobs/events-sync/block-check-queue";
-import * as eventsSyncRealtimeProcess from "@/jobs/events-sync/process/realtime";
-import { BlocksToCheck } from "@/jobs/events-sync/block-check-queue";
 import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
 import { eventsSyncProcessBackfillJob } from "@/jobs/events-sync/process/events-sync-process-backfill";
+import { blockCheckJob, BlockCheckJobPayload } from "@/jobs/events-sync/block-check-queue-job";
+import { eventsSyncProcessRealtimeJob } from "@/jobs/events-sync/process/events-sync-process-realtime";
 
 export const extractEventsBatches = async (
   enhancedEvents: EnhancedEvent[],
@@ -139,6 +138,14 @@ export const extractEventsBatches = async (
             data: kindToEvents.get("sudoswap-v2") ?? [],
           },
           {
+            kind: "midaswap",
+            data: kindToEvents.get("midaswap") ?? [],
+          },
+          {
+            kind: "caviar-v1",
+            data: kindToEvents.get("caviar-v1") ?? [],
+          },
+          {
             kind: "wyvern",
             data: kindToEvents.has("wyvern")
               ? [
@@ -172,10 +179,6 @@ export const extractEventsBatches = async (
           {
             kind: "zora",
             data: kindToEvents.get("zora") ?? [],
-          },
-          {
-            kind: "universe",
-            data: kindToEvents.get("universe") ?? [],
           },
           {
             kind: "rarible",
@@ -212,16 +215,6 @@ export const extractEventsBatches = async (
             data: kindToEvents.get("superrare") ?? [],
           },
           {
-            kind: "flow",
-            data: kindToEvents.has("flow")
-              ? [
-                  ...kindToEvents.get("flow")!,
-                  // To properly validate bids, we need some additional events
-                  ...events.filter((e) => e.subKind === "erc20-transfer"),
-                ]
-              : [],
-          },
-          {
             kind: "zeroex-v2",
             data: kindToEvents.get("zeroex-v2") ?? [],
           },
@@ -245,6 +238,34 @@ export const extractEventsBatches = async (
             kind: "collectionxyz",
             data: kindToEvents.get("collectionxyz") ?? [],
           },
+          {
+            kind: "payment-processor",
+            data: kindToEvents.get("payment-processor") ?? [],
+          },
+          {
+            kind: "thirdweb",
+            data: kindToEvents.get("thirdweb") ?? [],
+          },
+          {
+            kind: "seadrop",
+            data: kindToEvents.get("seadrop") ?? [],
+          },
+          {
+            kind: "blur-v2",
+            data: kindToEvents.get("blur-v2") ?? [],
+          },
+          {
+            kind: "erc721c",
+            data: kindToEvents.get("erc721c") ?? [],
+          },
+          {
+            kind: "joepeg",
+            data: kindToEvents.get("joepeg") ?? [],
+          },
+          {
+            kind: "metadata-update",
+            data: kindToEvents.get("metadata-update") ?? [],
+          },
         ];
 
         txHashToEventsBatch.set(txHash, {
@@ -265,7 +286,7 @@ export const syncEvents = async (
   options?: {
     // When backfilling, certain processes will be disabled
     backfill?: boolean;
-    syncDetails:
+    syncDetails?:
       | {
           method: "events";
           events: string[];
@@ -407,7 +428,7 @@ export const syncEvents = async (
     if (backfill) {
       await eventsSyncProcessBackfillJob.addToQueue(eventsBatches);
     } else {
-      await eventsSyncRealtimeProcess.addToQueue(eventsBatches, true);
+      await eventsSyncProcessRealtimeJob.addToQueue(eventsBatches, true);
     }
     const endTimeAddToProcessQueue = now();
 
@@ -420,12 +441,12 @@ export const syncEvents = async (
 
         // Act right away if the current block is a duplicate
         if ((await blocksModel.getBlocks(block)).length > 1) {
-          await blockCheck.addToQueue(block, blockHash, 10);
-          await blockCheck.addToQueue(block, blockHash, 30);
+          await blockCheckJob.addToQueue({ block, blockHash, delay: 10 });
+          await blockCheckJob.addToQueue({ block, blockHash, delay: 30 });
         }
       }
 
-      const blocksToCheck: BlocksToCheck[] = [];
+      const blocksToCheck: BlockCheckJobPayload[] = [];
       let blockNumbersArray = _.range(fromBlock, toBlock + 1);
 
       // Put all fetched blocks on a delayed queue
@@ -451,7 +472,7 @@ export const syncEvents = async (
         );
       }
 
-      await blockCheck.addBulk(blocksToCheck);
+      await blockCheckJob.addBulk(blocksToCheck);
     }
 
     const endTimeProcessingEvents = now();
@@ -491,6 +512,6 @@ export const unsyncEvents = async (block: number, blockHash: string) => {
     es.ftTransfers.removeEvents(block, blockHash),
     es.nftApprovals.removeEvents(block, blockHash),
     es.nftTransfers.removeEvents(block, blockHash),
-    removeUnsyncedEventsActivitiesJob.addToQueue({ blockHash }),
+    removeUnsyncedEventsActivitiesJob.addToQueue(blockHash),
   ]);
 };

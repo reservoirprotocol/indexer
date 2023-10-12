@@ -6,292 +6,23 @@ import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { bn, fromBuffer, now, toBuffer } from "@/common/utils";
+import { bn, fromBuffer, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Sources } from "@/models/sources";
-import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
-import { offChainCheck } from "@/orderbook/orders/blur/check";
 import * as tokenSet from "@/orderbook/token-sets";
 import { getBlurRoyalties } from "@/utils/blur";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 type SaveResult = {
   id: string;
   status: string;
   unfillable?: boolean;
-  triggerKind?: "new-order" | "cancel" | "reprice";
-};
-
-// Listings (full)
-
-export type FullListingOrderInfo = {
-  orderParams: Sdk.Blur.Types.BaseOrder;
-  metadata: OrderMetadata;
-};
-
-export const saveFullListings = async (
-  orderInfos: FullListingOrderInfo[],
-  ingestMethod?: "websocket" | "rest"
-): Promise<SaveResult[]> => {
-  const results: SaveResult[] = [];
-  const orderValues: DbOrder[] = [];
-
-  const handleOrder = async ({ orderParams, metadata }: FullListingOrderInfo) => {
-    try {
-      const order = new Sdk.Blur.Order(config.chainId, orderParams);
-      const id = order.hash();
-
-      // Check: order doesn't already exist
-      const orderExists = await idb.oneOrNone(`SELECT 1 FROM orders WHERE orders.id = $/id/`, {
-        id,
-      });
-      if (orderExists) {
-        return results.push({
-          id,
-          status: "already-exists",
-        });
-      }
-
-      // Handle: get order kind
-      const kind = await commonHelpers.getContractKind(order.params.collection);
-      if (!kind) {
-        return results.push({
-          id,
-          status: "unknown-order-kind",
-        });
-      }
-
-      // const isFiltered = await checkMarketplaceIsFiltered(order.params.collection, "blur");
-      // if (isFiltered) {
-      //   return results.push({
-      //     id,
-      //     status: "filtered",
-      //   });
-      // }
-
-      const currentTime = now();
-      const expirationTime = order.params.expirationTime;
-
-      // Check: order is not expired
-      if (currentTime >= Number(expirationTime)) {
-        return results.push({
-          id,
-          status: "expired",
-        });
-      }
-
-      // Check: order is not a bid
-      if (order.params.side === Sdk.Blur.Types.TradeDirection.BUY) {
-        return results.push({
-          id,
-          status: "unsupported-side",
-        });
-      }
-
-      // Check: sell order has Eth as payment token
-      if (
-        order.params.side === Sdk.Blur.Types.TradeDirection.SELL &&
-        order.params.paymentToken !== Sdk.Common.Addresses.Eth[config.chainId]
-      ) {
-        return results.push({
-          id,
-          status: "unsupported-payment-token",
-        });
-      }
-
-      // Check: order has a valid signature
-      try {
-        order.checkSignature();
-      } catch {
-        return results.push({
-          id,
-          status: "invalid-signature",
-        });
-      }
-
-      // Check: order fillability
-      let fillabilityStatus = "fillable";
-      let approvalStatus = "approved";
-      try {
-        await offChainCheck(order, metadata.originatedAt, {
-          onChainApprovalRecheck: true,
-          checkFilledOrCancelled: true,
-        });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (error: any) {
-        // Keep any orders that can potentially get valid in the future
-        if (error.message === "no-balance-no-approval") {
-          fillabilityStatus = "no-balance";
-          approvalStatus = "no-approval";
-        } else if (error.message === "no-approval") {
-          approvalStatus = "no-approval";
-        } else if (error.message === "no-balance") {
-          fillabilityStatus = "no-balance";
-        } else {
-          return results.push({
-            id,
-            status: "not-fillable",
-          });
-        }
-      }
-
-      // Check and save: associated token set
-      const schemaHash = metadata.schemaHash ?? generateSchemaHash(metadata.schema);
-
-      const [{ id: tokenSetId }] = await tokenSet.singleToken.save([
-        {
-          id: `token:${order.params.collection}:${order.params.tokenId}`,
-          schemaHash,
-          contract: order.params.collection,
-          tokenId: order.params.tokenId,
-        },
-      ]);
-
-      if (!tokenSetId) {
-        return results.push({
-          id,
-          status: "invalid-token-set",
-        });
-      }
-
-      // Handle: price and value
-      const price = bn(order.params.price);
-
-      // Handle: source
-      const sources = await Sources.getInstance();
-      let source = await sources.getOrInsert("blur.io");
-      if (metadata.source) {
-        source = await sources.getOrInsert(metadata.source);
-      }
-
-      // Handle: native Reservoir orders
-      const isReservoir = false;
-
-      // Handle: fees
-      const feeBps = order.params.fees.reduce((total, { rate }) => total + rate, 0);
-      const feeBreakdown = order.params.fees.map(({ recipient, rate }) => ({
-        kind: "royalty",
-        recipient,
-        bps: rate,
-      }));
-
-      // Handle: currency
-      const currency = order.params.paymentToken;
-
-      const validFrom = `date_trunc('seconds', to_timestamp(${order.params.listingTime}))`;
-      const validTo = `date_trunc('seconds', to_timestamp(${expirationTime}))`;
-      orderValues.push({
-        id,
-        kind: `blur`,
-        side: "sell",
-        fillability_status: fillabilityStatus,
-        approval_status: approvalStatus,
-        token_set_id: tokenSetId,
-        token_set_schema_hash: toBuffer(schemaHash),
-        maker: toBuffer(order.params.trader),
-        taker: toBuffer(AddressZero),
-        price: price.toString(),
-        value: price.toString(),
-        currency: toBuffer(currency),
-        currency_price: price.toString(),
-        currency_value: price.toString(),
-        needs_conversion: null,
-        quantity_remaining: order.params.amount ?? "1",
-        valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
-        nonce: order.params.nonce,
-        source_id_int: source?.id,
-        is_reservoir: isReservoir ? isReservoir : null,
-        contract: toBuffer(order.params.collection),
-        conduit: toBuffer(Sdk.Blur.Addresses.ExecutionDelegate[config.chainId]),
-        fee_bps: feeBps,
-        fee_breakdown: feeBreakdown || null,
-        dynamic: null,
-        raw_data: order.params,
-        expiration: validTo,
-        missing_royalties: null,
-        normalized_value: null,
-        currency_normalized_value: null,
-        originated_at: metadata.originatedAt ?? null,
-      });
-
-      const unfillable =
-        fillabilityStatus !== "fillable" || approvalStatus !== "approved" ? true : undefined;
-
-      results.push({
-        id,
-        status: "success",
-        unfillable,
-      });
-    } catch (error) {
-      logger.error(
-        "orders-blur-save",
-        `Failed to handle full listing with params ${JSON.stringify(orderParams)}: ${error}`
-      );
-    }
-  };
-
-  // Process all orders concurrently
-  const limit = pLimit(20);
-  await Promise.all(orderInfos.map((orderInfo) => limit(() => handleOrder(orderInfo))));
-
-  if (orderValues.length) {
-    const columns = new pgp.helpers.ColumnSet(
-      [
-        "id",
-        "kind",
-        "side",
-        "fillability_status",
-        "approval_status",
-        "token_set_id",
-        "token_set_schema_hash",
-        "maker",
-        "taker",
-        "price",
-        "value",
-        "currency",
-        "currency_price",
-        "currency_value",
-        "needs_conversion",
-        "quantity_remaining",
-        { name: "valid_between", mod: ":raw" },
-        "nonce",
-        "source_id_int",
-        "is_reservoir",
-        "contract",
-        "conduit",
-        "fee_bps",
-        { name: "fee_breakdown", mod: ":json" },
-        "dynamic",
-        "raw_data",
-        { name: "expiration", mod: ":raw" },
-        "originated_at",
-      ],
-      {
-        table: "orders",
-      }
-    );
-    await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
-
-    await ordersUpdateById.addToQueue(
-      results
-        .filter((r) => r.status === "success" && !r.unfillable)
-        .map(
-          ({ id }) =>
-            ({
-              context: `new-order-${id}`,
-              id,
-              trigger: {
-                kind: "new-order",
-              },
-              ingestMethod,
-            } as ordersUpdateById.OrderInfo)
-        )
-    );
-  }
-
-  return results;
+  triggerKind?: "new-order" | "reprice" | "revalidation";
 };
 
 // Listings (partial)
@@ -303,6 +34,8 @@ type PartialListingOrderParams = {
   // If empty then no Blur listing is available anymore
   price?: string;
   createdAt?: string;
+  // Additional metadata
+  fromWebsocket?: boolean;
 };
 
 export type PartialListingOrderInfo = {
@@ -332,6 +65,10 @@ export const savePartialListings = async (
 
   const handleOrder = async ({ orderParams }: PartialListingOrderInfo) => {
     try {
+      if (!orderParams.collection.match(regex.address)) {
+        return;
+      }
+
       // Fetch current owner
       const owner = await idb
         .oneOrNone(
@@ -367,17 +104,50 @@ export const savePartialListings = async (
       const sources = await Sources.getInstance();
       const source = await sources.getOrInsert("blur.io");
 
+      const isFiltered = await checkMarketplaceIsFiltered(orderParams.collection, [
+        Sdk.BlurV2.Addresses.Delegate[config.chainId],
+      ]);
+      if (isFiltered) {
+        // Force remove any orders
+        orderParams.price = undefined;
+      }
+
+      // Check if there is any transfer after the order's `createdAt`.
+      // If yes, then we treat the order as an `invalidation` message.
+      if (orderParams.createdAt) {
+        const existsNewerTransfer = await idb.oneOrNone(
+          `
+            SELECT
+              1
+            FROM nft_transfer_events
+            WHERE address = $/contract/
+              AND token_id = $/tokenId/
+              AND timestamp > $/createdAt/
+            LIMIT 1
+          `,
+          {
+            contract: toBuffer(orderParams.collection),
+            tokenId: orderParams.tokenId,
+            createdAt: Math.floor(new Date(orderParams.createdAt).getTime() / 1000),
+          }
+        );
+        if (existsNewerTransfer) {
+          // Force remove any older orders
+          orderParams.price = undefined;
+        }
+      }
+
       // Invalidate any old orders
       const anyActiveOrders = orderParams.price;
       const invalidatedOrderIds = await idb.manyOrNone(
         `
           UPDATE orders SET
-            fillability_status = 'cancelled',
+            approval_status = 'disabled',
             expiration = now(),
             updated_at = now()
           WHERE orders.token_set_id = $/tokenSetId/
-            AND orders.source_id_int = $/sourceId/
             AND orders.fillability_status = 'fillable'
+            AND orders.approval_status = 'approved'
             AND orders.raw_data->>'createdAt' IS NOT NULL
             AND orders.id != $/excludeOrderId/
             ${
@@ -398,7 +168,7 @@ export const savePartialListings = async (
         results.push({
           id,
           status: "success",
-          triggerKind: "cancel",
+          triggerKind: "revalidation",
         });
       }
 
@@ -411,6 +181,12 @@ export const savePartialListings = async (
       }
 
       const id = getBlurListingId(orderParams, owner);
+      if (isFiltered) {
+        return results.push({
+          id,
+          status: "filtered",
+        });
+      }
 
       // Handle: royalties
       let feeBps = 0;
@@ -426,7 +202,7 @@ export const savePartialListings = async (
       }
 
       // Handle: currency
-      const currency = Sdk.Common.Addresses.Eth[config.chainId];
+      const currency = Sdk.Common.Addresses.Native[config.chainId];
 
       // Handle: price
       const price = parseEther(orderParams.price!).toString();
@@ -474,7 +250,7 @@ export const savePartialListings = async (
           approval_status: "approved",
           token_set_id: tokenSetId,
           token_set_schema_hash: toBuffer(schemaHash),
-          maker: toBuffer(owner),
+          maker: toBuffer((orderParams.owner ?? owner).toLowerCase()),
           taker: toBuffer(AddressZero),
           price: price.toString(),
           value: price.toString(),
@@ -505,12 +281,17 @@ export const savePartialListings = async (
           status: "success",
           triggerKind: "new-order",
         });
+
+        if (!orderParams.fromWebsocket) {
+          logger.info("blur-debug", JSON.stringify(orderParams));
+        }
       } else {
         // Order already exists
         const wasUpdated = await idb.oneOrNone(
           `
             UPDATE orders SET
               fillability_status = 'fillable',
+              approval_status = 'approved',
               price = $/price/,
               currency_price = $/price/,
               value = $/price/,
@@ -521,8 +302,7 @@ export const savePartialListings = async (
               updated_at = now(),
               raw_data = $/rawData:json/
             WHERE orders.id = $/id/
-              AND orders.fillability_status != 'fillable'
-              AND orders.approval_status = 'approved'
+              AND (orders.fillability_status != 'fillable' OR orders.approval_status != 'approved')
             RETURNING orders.id
           `,
           {
@@ -535,7 +315,7 @@ export const savePartialListings = async (
           results.push({
             id,
             status: "success",
-            triggerKind: "reprice",
+            triggerKind: "revalidation",
           });
         }
       }
@@ -581,6 +361,7 @@ export const savePartialListings = async (
         "dynamic",
         "raw_data",
         { name: "expiration", mod: ":raw" },
+        "originated_at",
       ],
       {
         table: "orders",
@@ -589,7 +370,7 @@ export const savePartialListings = async (
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
   }
 
-  await ordersUpdateById.addToQueue(
+  await orderUpdatesByIdJob.addToQueue(
     results
       .filter((r) => r.status === "success")
       .map(
@@ -601,7 +382,7 @@ export const savePartialListings = async (
               kind: triggerKind,
             },
             ingestMethod,
-          } as ordersUpdateById.OrderInfo)
+          } as OrderUpdatesByIdJobPayload)
       )
   );
 
@@ -628,13 +409,17 @@ export const savePartialBids = async (
   const orderValues: DbOrder[] = [];
 
   const handleOrder = async ({ orderParams, fullUpdate }: PartialBidOrderInfo) => {
+    if (!orderParams.collection.match(regex.address)) {
+      return;
+    }
+
     if (!fullUpdate && !orderParams.pricePoints.length) {
       return;
     }
 
     const id = getBlurBidId(orderParams.collection);
     const isFiltered = await checkMarketplaceIsFiltered(orderParams.collection, [
-      Sdk.Blur.Addresses.ExecutionDelegate[config.chainId],
+      Sdk.BlurV2.Addresses.Delegate[config.chainId],
     ]);
 
     try {
@@ -861,6 +646,9 @@ export const savePartialBids = async (
                 fillability_status = 'fillable',
                 price = $/price/,
                 currency_price = $/price/,
+                normalized_value = null,
+                currency_normalized_value = null,
+                missing_royalties = null,
                 value = $/value/,
                 currency_value = $/value/,
                 quantity_remaining = $/totalQuantity/,
@@ -936,7 +724,7 @@ export const savePartialBids = async (
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
   }
 
-  await ordersUpdateById.addToQueue(
+  await orderUpdatesByIdJob.addToQueue(
     results
       .filter((r) => r.status === "success")
       .map(
@@ -948,7 +736,7 @@ export const savePartialBids = async (
               kind: triggerKind,
             },
             ingestMethod,
-          } as ordersUpdateById.OrderInfo)
+          } as OrderUpdatesByIdJobPayload)
       )
   );
 

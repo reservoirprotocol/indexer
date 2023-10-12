@@ -10,7 +10,6 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Sources } from "@/models/sources";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import {
@@ -22,6 +21,10 @@ import {
 import * as tokenSet from "@/orderbook/token-sets";
 import * as nftx from "@/utils/nftx";
 import * as royalties from "@/utils/royalties";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 export type OrderInfo = {
   orderParams: {
@@ -221,8 +224,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               collection: pool.nft,
               pool: pool.address,
               specificIds: [],
-              currency: Sdk.Common.Addresses.Weth[config.chainId],
-              path: [pool.address, Sdk.Common.Addresses.Weth[config.chainId]],
+              currency: Sdk.Common.Addresses.WNative[config.chainId],
+              path: [pool.address, Sdk.Common.Addresses.WNative[config.chainId]],
               price: price.toString(),
               extra: {
                 prices,
@@ -280,7 +283,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 taker: toBuffer(AddressZero),
                 price: price.toString(),
                 value,
-                currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
+                currency: toBuffer(Sdk.Common.Addresses.Native[config.chainId]),
                 currency_price: price.toString(),
                 currency_value: value,
                 needs_conversion: null,
@@ -347,7 +350,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   currencyNormalizedValue: normalizedValue.toString(),
                   feeBps,
                   feeBreakdown,
-                  currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
+                  currency: toBuffer(Sdk.Common.Addresses.Native[config.chainId]),
                   blockNumber: orderParams.txBlock,
                   logIndex: orderParams.logIndex,
                 }
@@ -530,9 +533,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                       collection: pool.nft,
                       pool: pool.address,
                       specificIds: [tokenId],
-                      currency: Sdk.Common.Addresses.Weth[config.chainId],
+                      currency: Sdk.Common.Addresses.WNative[config.chainId],
                       amount: "1",
-                      path: [Sdk.Common.Addresses.Weth[config.chainId], pool.address],
+                      path: [Sdk.Common.Addresses.WNative[config.chainId], pool.address],
                       price: price.toString(),
                       extra: {
                         prices,
@@ -579,7 +582,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                         taker: toBuffer(AddressZero),
                         price: price.toString(),
                         value: value.toString(),
-                        currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
+                        currency: toBuffer(Sdk.Common.Addresses.Native[config.chainId]),
                         currency_price: price.toString(),
                         currency_value: value.toString(),
                         needs_conversion: null,
@@ -645,7 +648,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                           currencyNormalizedValue: normalizedValue.toString(),
                           feeBps,
                           feeBreakdown,
-                          currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
+                          currency: toBuffer(Sdk.Common.Addresses.Native[config.chainId]),
                           blockNumber: orderParams.txBlock,
                           logIndex: orderParams.logIndex,
                         }
@@ -752,7 +755,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
   }
 
-  await ordersUpdateById.addToQueue(
+  await orderUpdatesByIdJob.addToQueue(
     results
       .filter(({ status }) => status === "success")
       .map(
@@ -765,7 +768,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               txHash: txHash,
               txTimestamp: txTimestamp,
             },
-          } as ordersUpdateById.OrderInfo)
+          } as OrderUpdatesByIdJobPayload)
       )
   );
 

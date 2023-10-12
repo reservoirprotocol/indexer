@@ -54,7 +54,7 @@ export const setupElementListings = async (listings: ElementListing[]) => {
         maker: seller.address,
         contract: nft.contract.address,
         tokenId: nft.id,
-        paymentToken: paymentToken ?? Sdk.Element.Addresses.Eth[chainId],
+        paymentToken: paymentToken ?? Sdk.ZeroExV4.Addresses.Native[chainId],
         price,
         hashNonce: 0,
         listingTime: await getCurrentTimestamp(ethers.provider),
@@ -68,7 +68,7 @@ export const setupElementListings = async (listings: ElementListing[]) => {
         maker: seller.address,
         contract: nft.contract.address,
         tokenId: nft.id,
-        paymentToken: paymentToken ?? Element.Addresses.Eth[chainId],
+        paymentToken: paymentToken ?? Element.Addresses.Native[chainId],
         price,
         hashNonce: 0,
         expiry: (await getCurrentTimestamp(ethers.provider)) + 60,
@@ -109,7 +109,7 @@ export const setupElementOffers = async (offers: ElementOffer[]) => {
   for (const offer of offers) {
     const { buyer, nft, price } = offer;
 
-    const weth = new Sdk.Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Sdk.Common.Helpers.WNative(ethers.provider, chainId);
     await weth.deposit(buyer, price);
     await weth.approve(buyer, Sdk.Element.Addresses.Exchange[chainId]);
 
@@ -120,7 +120,7 @@ export const setupElementOffers = async (offers: ElementOffer[]) => {
       maker: buyer.address,
       contract: nft.contract.address,
       tokenId: nft.id,
-      paymentToken: Sdk.Common.Addresses.Weth[chainId],
+      paymentToken: Sdk.Common.Addresses.WNative[chainId],
       price,
       hashNonce: 0,
       expiry: (await getCurrentTimestamp(ethers.provider)) + 60,

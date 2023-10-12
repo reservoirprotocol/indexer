@@ -7,7 +7,7 @@ import Joi from "joi";
 import { logger } from "@/common/logger";
 import { regex } from "@/common/utils";
 import { config } from "@/config/index";
-import * as eventsSyncProcessResyncRequest from "@/jobs/events-sync/process-resync-request-queue";
+import { processResyncRequestJob } from "@/jobs/events-sync/process-resync-request-queue-job";
 
 export const postSyncEventsOptions: RouteOptions = {
   description: "Trigger syncing of events.",
@@ -52,7 +52,7 @@ export const postSyncEventsOptions: RouteOptions = {
       const blocksPerBatch = payload.blocksPerBatch;
       const backfill = payload.backfill;
 
-      await eventsSyncProcessResyncRequest.addToQueue(fromBlock, toBlock, {
+      await processResyncRequestJob.addToQueue(fromBlock, toBlock, {
         backfill,
         syncDetails,
         blocksPerBatch,

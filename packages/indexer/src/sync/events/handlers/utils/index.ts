@@ -1,34 +1,40 @@
-import { config } from "@/config/index";
-import { logger } from "@/common/logger";
-
 import { Log } from "@ethersproject/abstract-provider";
+import { AddressZero } from "@ethersproject/constants";
+import _ from "lodash";
 
 import { concat } from "@/common/utils";
 import { EventKind, EventSubKind } from "@/events-sync/data";
-import { assignSourceToFillEvents } from "@/events-sync/handlers/utils/fills";
+import {
+  assignMintCommentToFillEvents,
+  assignSourceToFillEvents,
+} from "@/events-sync/handlers/utils/fills";
 import { BaseEventParams } from "@/events-sync/parser";
 import * as es from "@/events-sync/storage";
 
-import * as fillUpdates from "@/jobs/fill-updates/queue";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
-import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
-import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
-import * as mintsProcess from "@/jobs/mints/process";
-import * as fillPostProcess from "@/jobs/fill-updates/fill-post-process";
-import { AddressZero } from "@ethersproject/constants";
-import { RecalcCollectionOwnerCountInfo } from "@/jobs/collection-updates/recalc-owner-count-queue";
-import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
-import { mintQueueJob, MintQueueJobPayload } from "@/jobs/token-updates/mint-queue-job";
+import { GenericOrderInfo } from "@/jobs/orderbook/utils";
 import {
-  WebsocketEventKind,
-  WebsocketEventRouter,
-} from "@/jobs/websocket-events/websocket-event-router";
-
+  recalcOwnerCountQueueJob,
+  RecalcOwnerCountQueueJobPayload,
+} from "@/jobs/collection-updates/recalc-owner-count-queue-job";
+import { mintQueueJob, MintQueueJobPayload } from "@/jobs/token-updates/mint-queue-job";
 import {
   processActivityEventJob,
   EventKind as ProcessActivityEventKind,
   ProcessActivityEventJobPayload,
 } from "@/jobs/activities/process-activity-event-job";
+import { fillUpdatesJob, FillUpdatesJobPayload } from "@/jobs/fill-updates/fill-updates-job";
+import { fillPostProcessJob } from "@/jobs/fill-updates/fill-post-process-job";
+import { mintsProcessJob, MintsProcessJobPayload } from "@/jobs/mints/mints-process-job";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
+import {
+  orderUpdatesByMakerJob,
+  OrderUpdatesByMakerJobPayload,
+} from "@/jobs/order-updates/order-updates-by-maker-job";
+import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
+import { transferUpdatesJob } from "@/jobs/transfer-updates/transfer-updates-job";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -36,6 +42,14 @@ export type EnhancedEvent = {
   subKind: EventSubKind;
   baseEventParams: BaseEventParams;
   log: Log;
+};
+
+export type MintComment = {
+  token: string;
+  tokenId?: string;
+  quantity: number;
+  comment: string;
+  baseEventParams: BaseEventParams;
 };
 
 // Data extracted from purely on-chain information
@@ -63,16 +77,17 @@ export type OnChainData = {
   nftTransferEvents: es.nftTransfers.Event[];
 
   // For keeping track of mints and last sales
-  fillInfos: fillUpdates.FillInfo[];
+  fillInfos: FillUpdatesJobPayload[];
   mintInfos: MintQueueJobPayload[];
-  mints: mintsProcess.Mint[];
+  mints: MintsProcessJobPayload[];
+  mintComments: MintComment[];
 
   // For properly keeping orders validated on the go
-  orderInfos: orderUpdatesById.OrderInfo[];
-  makerInfos: orderUpdatesByMaker.MakerInfo[];
+  orderInfos: OrderUpdatesByIdJobPayload[];
+  makerInfos: OrderUpdatesByMakerJobPayload[];
 
   // Orders
-  orders: orderbookOrders.GenericOrderInfo[];
+  orders: GenericOrderInfo[];
 };
 
 export const initOnChainData = (): OnChainData => ({
@@ -93,6 +108,7 @@ export const initOnChainData = (): OnChainData => ({
   fillInfos: [],
   mintInfos: [],
   mints: [],
+  mintComments: [],
 
   orderInfos: [],
   makerInfos: [],
@@ -105,6 +121,25 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   // Post-process fill events
 
   const allFillEvents = concat(data.fillEvents, data.fillEventsPartial, data.fillEventsOnChain);
+  const nonFillTransferEvents = _.filter(data.nftTransferEvents, (transfer) => {
+    return (
+      transfer.from !== AddressZero &&
+      !_.some(
+        allFillEvents,
+        (fillEvent) =>
+          fillEvent.baseEventParams.txHash === transfer.baseEventParams.txHash &&
+          fillEvent.baseEventParams.logIndex === transfer.baseEventParams.logIndex &&
+          fillEvent.baseEventParams.batchIndex === transfer.baseEventParams.batchIndex
+      )
+    );
+  });
+
+  const startAssignMintCommentToFillEvents = Date.now();
+  if (!backfill) {
+    await Promise.all([assignMintCommentToFillEvents(allFillEvents, data.mintComments)]);
+  }
+  const endAssignMintCommentToFillEvents = Date.now();
+
   const startAssignSourceToFillEvents = Date.now();
   if (!backfill) {
     await Promise.all([assignSourceToFillEvents(allFillEvents)]);
@@ -122,13 +157,6 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   ]);
   const endPersistEvents = Date.now();
 
-  // concat all fill events
-  const allFillEventsForWebsocket = concat(
-    data.fillEvents,
-    data.fillEventsPartial,
-    data.fillEventsOnChain
-  );
-
   // Persist other events
   const startPersistOtherEvents = Date.now();
   await Promise.all([
@@ -143,73 +171,6 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
 
   const endPersistOtherEvents = Date.now();
 
-  try {
-    if (config.doOldOrderWebsocketWork) {
-      await Promise.all([
-        ...allFillEventsForWebsocket.map((event) =>
-          WebsocketEventRouter({
-            eventInfo: {
-              tx_hash: event.baseEventParams.txHash,
-              log_index: event.baseEventParams.logIndex,
-              batch_index: event.baseEventParams.batchIndex,
-              trigger: "insert",
-              offset: "",
-            },
-            eventKind: WebsocketEventKind.SaleEvent,
-          })
-        ),
-        ...data.nftApprovalEvents.map((event) =>
-          WebsocketEventRouter({
-            eventInfo: {
-              address: event.baseEventParams.address,
-              block: event.baseEventParams.block.toString(),
-              block_hash: event.baseEventParams.blockHash,
-              timestamp: event.baseEventParams.timestamp.toString(),
-              owner: event.owner,
-              operator: event.operator,
-              approved: event.approved.toString(),
-              tx_hash: event.baseEventParams.txHash,
-              tx_index: event.baseEventParams.txIndex.toString(),
-              log_index: event.baseEventParams.logIndex.toString(),
-              batch_index: event.baseEventParams.batchIndex.toString(),
-              offset: "",
-              trigger: "insert",
-            },
-            eventKind: WebsocketEventKind.ApprovalEvent,
-          })
-        ),
-
-        ...data.nftTransferEvents.map((event) =>
-          WebsocketEventRouter({
-            eventInfo: {
-              address: event.baseEventParams.address,
-              block: event.baseEventParams.block.toString(),
-              block_hash: event.baseEventParams.blockHash,
-              timestamp: event.baseEventParams.timestamp.toString(),
-              tx_hash: event.baseEventParams.txHash,
-              tx_index: event.baseEventParams.txIndex.toString(),
-              log_index: event.baseEventParams.logIndex.toString(),
-              batch_index: event.baseEventParams.batchIndex.toString(),
-              to: event.to,
-              from: event.from,
-              amount: event.amount.toString(),
-              token_id: event.tokenId.toString(),
-              created_at: new Date(event.baseEventParams.timestamp).toISOString(),
-              offset: "",
-              trigger: "insert",
-            },
-            eventKind: WebsocketEventKind.TransferEvent,
-          })
-        ),
-      ]);
-    }
-  } catch (error) {
-    logger.error(
-      "processOnChainData",
-      `Error processing websocket event. error=${JSON.stringify(error)}`
-    );
-  }
-
   // Trigger further processes:
   // - revalidate potentially-affected orders
   // - store on-chain orders
@@ -220,28 +181,29 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     // stale data which will cause inconsistencies (eg. orders can
     // have wrong statuses)
     await Promise.all([
-      orderUpdatesById.addToQueue(data.orderInfos),
-      orderUpdatesByMaker.addToQueue(data.makerInfos),
-      orderbookOrders.addToQueue(data.orders),
+      orderUpdatesByIdJob.addToQueue(data.orderInfos),
+      orderUpdatesByMakerJob.addToQueue(data.makerInfos),
+      orderbookOrdersJob.addToQueue(data.orders),
     ]);
   }
 
   // Mints and last sales
+  await transferUpdatesJob.addToQueue(nonFillTransferEvents);
   await mintQueueJob.addToQueue(data.mintInfos);
-  await fillUpdates.addToQueue(data.fillInfos);
+  await fillUpdatesJob.addToQueue(data.fillInfos);
   if (!backfill) {
-    await mintsProcess.addToQueue(data.mints);
+    await mintsProcessJob.addToQueue(data.mints);
   }
 
   const startFillPostProcess = Date.now();
   if (allFillEvents.length) {
-    await fillPostProcess.addToQueue([allFillEvents]);
+    await fillPostProcessJob.addToQueue([allFillEvents]);
   }
   const endFillPostProcess = Date.now();
 
   // TODO: Is this the best place to handle activities?
 
-  const recalcCollectionOwnerCountInfo: RecalcCollectionOwnerCountInfo[] =
+  const recalcCollectionOwnerCountInfo: RecalcOwnerCountQueueJobPayload[] =
     data.nftTransferEvents.map((event) => ({
       context: "event-sync",
       kind: "contactAndTokenId",
@@ -260,7 +222,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     return {
       kind: ProcessActivityEventKind.fillEvent,
       data: {
-        transactionHash: event.baseEventParams.txHash,
+        txHash: event.baseEventParams.txHash,
         logIndex: event.baseEventParams.logIndex,
         batchIndex: event.baseEventParams.batchIndex,
       },
@@ -280,7 +242,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
       const fillActivityInfoData = fillActivityInfo.data;
 
       return (
-        fillActivityInfoData.transactionHash === event.baseEventParams.txHash &&
+        fillActivityInfoData.txHash === event.baseEventParams.txHash &&
         fillActivityInfoData.logIndex === event.baseEventParams.logIndex &&
         fillActivityInfoData.batchIndex === event.baseEventParams.batchIndex
       );
@@ -292,7 +254,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     (event) => ({
       kind: ProcessActivityEventKind.nftTransferEvent,
       data: {
-        transactionHash: event.baseEventParams.txHash,
+        txHash: event.baseEventParams.txHash,
         logIndex: event.baseEventParams.logIndex,
         batchIndex: event.baseEventParams.batchIndex,
       },
@@ -304,7 +266,9 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   const endProcessTransferActivityEvent = Date.now();
 
   return {
-    // return the time it took to process each step
+    // Return the time it took to process each step
+    assignMintCommentToFillEvents:
+      endAssignMintCommentToFillEvents - startAssignMintCommentToFillEvents,
     assignSourceToFillEvents: endAssignSourceToFillEvents - startAssignSourceToFillEvents,
     persistEvents: endPersistEvents - startPersistEvents,
     persistOtherEvents: endPersistOtherEvents - startPersistOtherEvents,
@@ -313,7 +277,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     processTransferActivityEvent:
       endProcessTransferActivityEvent - startProcessTransferActivityEvent,
 
-    // return the number of events processed
+    // Return the number of events processed
     fillEvents: data.fillEvents.length,
     fillEventsPartial: data.fillEventsPartial.length,
     fillEventsOnChain: data.fillEventsOnChain.length,
@@ -329,6 +293,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     makerInfos: data.makerInfos.length,
     orders: data.orders.length,
     mints: data.mints.length,
+    mintComments: data.mintComments.length,
     mintInfos: data.mintInfos.length,
   };
 };

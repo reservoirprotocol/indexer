@@ -2,25 +2,20 @@ import { idb, pgp, PgPromiseQuery } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
-import MetadataApi from "@/utils/metadata-api";
+import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 import _ from "lodash";
 import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
-import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
-import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
 import { config } from "@/config/index";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import { getNetworkSettings } from "@/config/network";
 import * as royalties from "@/utils/royalties";
 import * as marketplaceFees from "@/utils/marketplace-fees";
-import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 
 export type FetchCollectionMetadataJobPayload = {
   contract: string;
   tokenId: string;
   mintedTimestamp?: number;
-  newCollection?: boolean;
-  oldCollectionId?: string;
   allowFallbackCollectionMetadata?: boolean;
   context?: string;
 };
@@ -35,13 +30,20 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
   } as BackoffStrategy;
 
   protected async process(payload: FetchCollectionMetadataJobPayload) {
-    const { contract, tokenId, mintedTimestamp, newCollection, oldCollectionId } = payload;
+    const { contract, tokenId, mintedTimestamp } = payload;
 
     try {
       // Fetch collection metadata
-      const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, "", {
-        allowFallback: !newCollection,
+      let collection = await MetadataProviderRouter.getCollectionMetadata(contract, tokenId, "", {
+        allowFallback: true,
       });
+
+      if (config.metadataIndexingMethod === "opensea" && collection?.isFallback) {
+        collection = await MetadataProviderRouter.getCollectionMetadata(contract, tokenId, "", {
+          allowFallback: false,
+          indexingMethod: "simplehash",
+        });
+      }
 
       let tokenIdRange: string | null = null;
       if (collection.tokenIdRange) {
@@ -66,7 +68,8 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
               "token_id_range",
               "token_set_id",
               "minted_timestamp",
-              "payment_tokens"
+              "payment_tokens",
+              "creator"
             ) VALUES (
               $/id/,
               $/slug/,
@@ -77,7 +80,8 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
               ${tokenIdRangeParam},
               $/tokenSetId/,
               $/mintedTimestamp/,
-              $/paymentTokens/
+              $/paymentTokens/,
+              $/creator/
             ) ON CONFLICT DO NOTHING;
           `,
         values: {
@@ -91,11 +95,12 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
           tokenSetId: collection.tokenSetId,
           mintedTimestamp: mintedTimestamp ?? null,
           paymentTokens: collection.paymentTokens ? { opensea: collection.paymentTokens } : {},
+          creator: collection.creator ? toBuffer(collection.creator) : null,
         },
       });
 
       let tokenFilter = `AND "token_id" <@ ${tokenIdRangeParam}`;
-      if (newCollection || _.isNull(tokenIdRange)) {
+      if (_.isNull(tokenIdRange)) {
         tokenFilter = `AND "token_id" = $/tokenId/`;
       }
 
@@ -126,42 +131,18 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
         { context: this.queueName, kind: "collectionId", data: { collectionId: collection.id } },
       ]);
 
-      // If token has moved collections, update the old collection's token count
-      if (oldCollectionId) {
-        await recalcTokenCountQueueJob.addToQueue({
-          collection: oldCollectionId,
-          force: true,
-        });
-      }
-
-      // If this is a new collection, recalculate floor price
-      if (collection?.id && newCollection) {
-        const floorAskInfo = {
-          kind: "revalidation",
-          contract,
-          tokenId,
-          txHash: null,
-          txTimestamp: null,
-        };
-
-        await Promise.all([
-          collectionUpdatesFloorAsk.addToQueue([floorAskInfo]),
-          nonFlaggedFloorQueueJob.addToQueue([floorAskInfo]),
-          collectionUpdatesNormalizedFloorAsk.addToQueue([floorAskInfo]),
-        ]);
-      }
-
       if (collection?.id && !config.disableRealtimeMetadataRefresh) {
-        await metadataIndexFetch.addToQueue(
+        await metadataIndexFetchJob.addToQueue(
           [
             {
               kind: "single-token",
               data: {
-                method: metadataIndexFetch.getIndexingMethod(collection.community),
+                method: metadataIndexFetchJob.getIndexingMethod(collection.community),
                 contract,
                 tokenId,
                 collection: collection.id,
               },
+              context: this.queueName,
             },
           ],
           true,
@@ -175,6 +156,7 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
         collection.royalties as royalties.Royalty[] | undefined,
         collection.openseaRoyalties as royalties.Royalty[] | undefined
       );
+
       await royalties.refreshDefaultRoyalties(collection.id);
 
       // Refresh marketplace fees
