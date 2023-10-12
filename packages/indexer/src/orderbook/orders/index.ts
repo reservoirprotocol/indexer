@@ -322,16 +322,26 @@ export const generateListingDetailsV6 = (
           order: new Sdk.SeaportV15.Order(config.chainId, order.rawData),
         };
       } else {
-        // Sorry for all the below `any` types
-        return {
-          kind: "seaport-v1.5-partial" as any,
-          ...common,
-          order: {
-            contract: token.contract,
-            tokenId: token.tokenId,
-            id: order.id,
-          } as any,
-        };
+        if (order.rawData.okxOrderId) {
+          return {
+            kind: "seaport-v1.5-partial-okx",
+            ...common,
+            order: {
+              okxId: order.rawData.okxOrderId,
+              id: order.id,
+            } as Sdk.SeaportBase.Types.OkxPartialOrder,
+          };
+        } else {
+          return {
+            kind: "seaport-v1.5-partial",
+            ...common,
+            order: {
+              contract: token.contract,
+              tokenId: token.tokenId,
+              id: order.id,
+            } as Sdk.SeaportBase.Types.OpenseaPartialOrder,
+          };
+        }
       }
     }
 
@@ -582,16 +592,15 @@ export const generateBidDetailsV6 = async (
           order: sdkOrder,
         };
       } else {
-        // Sorry for all the below `any` types
         return {
-          kind: "seaport-v1.5-partial" as any,
+          kind: "seaport-v1.5-partial",
           ...common,
           order: {
             contract: token.contract,
             tokenId: token.tokenId,
             id: order.id,
             unitPrice: order.unitPrice,
-          } as any,
+          } as Sdk.SeaportBase.Types.OpenseaPartialOrder,
         };
       }
     }

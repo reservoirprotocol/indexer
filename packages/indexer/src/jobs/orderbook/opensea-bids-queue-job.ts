@@ -1,5 +1,5 @@
-import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
+import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { GenericOrderInfo } from "@/jobs/orderbook/utils";
 import * as orders from "@/orderbook/orders";
 

@@ -103,16 +103,16 @@ export type GenericOrder =
       order: Sdk.SeaportV14.Order;
     }
   | {
-      kind: "seaport-v1.4-partial";
-      order: Sdk.SeaportBase.Types.PartialOrder;
-    }
-  | {
       kind: "seaport-v1.5";
       order: Sdk.SeaportV15.Order;
     }
   | {
       kind: "seaport-v1.5-partial";
-      order: Sdk.SeaportBase.Types.PartialOrder;
+      order: Sdk.SeaportBase.Types.OpenseaPartialOrder;
+    }
+  | {
+      kind: "seaport-v1.5-partial-okx";
+      order: Sdk.SeaportBase.Types.OkxPartialOrder;
     }
   | {
       kind: "alienswap";
