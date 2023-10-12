@@ -216,6 +216,15 @@ export class Collections {
       creator: collection.creator ? toBuffer(collection.creator) : null,
     };
 
+    logger.info(
+      "updateCollectionCache",
+      JSON.stringify({
+        topic: "debugCollectionUpdates",
+        message: `Update collection. collection=${collection.id}`,
+        values,
+      })
+    );
+
     const result = await idb.oneOrNone(query, values);
 
     try {
@@ -278,6 +287,15 @@ export class Collections {
         SET ${updateString}
       WHERE id = $/collectionId/
     `;
+
+    logger.info(
+      "updateCollection",
+      JSON.stringify({
+        topic: "debugCollectionUpdates",
+        message: `Update collection. collection=${collectionId}`,
+        replacementValues,
+      })
+    );
 
     return await idb.none(query, replacementValues);
   }
