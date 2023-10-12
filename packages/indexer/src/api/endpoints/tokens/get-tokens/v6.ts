@@ -12,9 +12,11 @@ import { logger } from "@/common/logger";
 import {
   getJoiPriceObject,
   getJoiSaleObject,
+  getJoiSourceObject,
   JoiAttributeValue,
   JoiPrice,
   JoiSale,
+  JoiSource,
 } from "@/common/joi";
 import {
   bn,
@@ -323,7 +325,7 @@ export const getTokensV6Options: RouteOptions = {
                 kind: Joi.string().valid("dutch", "pool"),
                 data: Joi.object(),
               }).description("Can be null if no active ask."),
-              source: Joi.object().allow(null),
+              source: JoiSource.allow(null),
             },
             topBid: Joi.object({
               id: Joi.string().allow(null),
@@ -331,7 +333,7 @@ export const getTokensV6Options: RouteOptions = {
               maker: Joi.string().lowercase().pattern(regex.address).allow(null),
               validFrom: Joi.number().unsafe().allow(null),
               validUntil: Joi.number().unsafe().allow(null),
-              source: Joi.object().allow(null),
+              source: JoiSource.allow(null),
               feeBreakdown: Joi.array()
                 .items(
                   Joi.object({
@@ -356,8 +358,6 @@ export const getTokensV6Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
-
-    let nullsPosition = "LAST";
 
     // Include attributes
     let selectAttributes = "";
@@ -782,8 +782,15 @@ export const getTokensV6Options: RouteOptions = {
       }
 
       if (query.tokenName) {
-        query.tokenName = "%" + query.tokenName + "%";
-        conditions.push(`t.name ILIKE $/tokenName/`);
+        (query as any).tokenNameAsId = query.tokenName;
+        query.tokenName = `%${query.tokenName}%`;
+
+        conditions.push(`
+          CASE
+            WHEN t.name IS NULL THEN t.token_id::text = $/tokenNameAsId/
+            ELSE t.name ILIKE $/tokenName/
+          END
+        `);
       }
 
       if (query.tokenSetId) {
@@ -814,6 +821,9 @@ export const getTokensV6Options: RouteOptions = {
           conditions.push(`floor_sell_currency IN ($/currenciesFilter:raw/)`);
         }
       }
+
+      // Determine whether we need to order by contract or not
+      const contractSort = !(query.collection || (query.contract && query.contract.length == 1));
 
       // Continue with the next page, this depends on the sorting used
       if (query.continuation && !query.token) {
@@ -892,7 +902,11 @@ export const getTokensV6Options: RouteOptions = {
 
                 if (contArr[0] !== "null") {
                   conditions.push(`(
-                    (${sortColumn}, t.contract, t.token_id) ${sign} ($/floorSellValue/, $/contContract/, $/contTokenId/)
+                    (${sortColumn}, ${
+                    contractSort
+                      ? `t.contract, t.token_id) ${sign} ($/floorSellValue/, $/contContract/, $/contTokenId/)`
+                      : `t.token_id) ${sign} ($/floorSellValue/, $/contTokenId/)`
+                  }
                     OR (${sortColumn} IS null)
                   )`);
                   (query as any).floorSellValue = contArr[0];
@@ -900,9 +914,12 @@ export const getTokensV6Options: RouteOptions = {
                   (query as any).contTokenId = contArr[2];
                 } else {
                   conditions.push(
-                    `(${sortColumn} is null AND (t.contract, t.token_id) ${sign} ($/contContract/, $/contTokenId/))`
+                    `(${sortColumn} is null AND ${
+                      contractSort
+                        ? `(t.contract, t.token_id) ${sign} ($/contContract/, $/contTokenId/))`
+                        : `(t.token_id) ${sign} ($/contTokenId/))`
+                    }`
                   );
-                  nullsPosition = "FIRST";
                   (query as any).contContract = toBuffer(contArr[1]);
                   (query as any).contTokenId = contArr[2];
                 }
@@ -931,7 +948,7 @@ export const getTokensV6Options: RouteOptions = {
           case "rarity": {
             return ` ORDER BY ${union ? "" : "t."}rarity_rank ${
               query.sortDirection || "ASC"
-            } NULLS ${nullsPosition}, t_contract ${query.sortDirection || "ASC"}, t_token_id ${
+            } NULLS LAST, t_contract ${query.sortDirection || "ASC"}, t_token_id ${
               query.sortDirection || "ASC"
             }`;
           }
@@ -956,11 +973,9 @@ export const getTokensV6Options: RouteOptions = {
                 ? `${union ? "" : "t."}normalized_floor_sell_value`
                 : `${union ? "" : "t."}floor_sell_value`;
 
-            return ` ORDER BY ${sortColumn} ${
-              query.sortDirection || "ASC"
-            } NULLS ${nullsPosition}, t_contract ${query.sortDirection || "ASC"}, t_token_id ${
-              query.sortDirection || "ASC"
-            }`;
+            return ` ORDER BY ${sortColumn} ${query.sortDirection || "ASC"} NULLS LAST, ${
+              contractSort ? `t_contract ${query.sortDirection || "ASC"}, ` : ""
+            }t_token_id ${query.sortDirection || "ASC"}`;
           }
         }
       };
@@ -1353,13 +1368,7 @@ export const getTokensV6Options: RouteOptions = {
                   ? r.floor_sell_quantity_remaining
                   : undefined,
               dynamicPricing,
-              source: {
-                id: floorSellSource?.address,
-                domain: floorSellSource?.domain,
-                name: floorSellSource?.getTitle(),
-                icon: floorSellSource?.getIcon(),
-                url: floorSellSource?.metadata.url,
-              },
+              source: getJoiSourceObject(floorSellSource),
             },
             topBid: query.includeTopBid
               ? {
@@ -1387,13 +1396,7 @@ export const getTokensV6Options: RouteOptions = {
                   maker: r.top_buy_maker ? fromBuffer(r.top_buy_maker) : null,
                   validFrom: r.top_buy_valid_from,
                   validUntil: r.top_buy_value ? r.top_buy_valid_until : null,
-                  source: {
-                    id: topBuySource?.address,
-                    domain: topBuySource?.domain,
-                    name: topBuySource?.getTitle(),
-                    icon: topBuySource?.getIcon(),
-                    url: topBuySource?.metadata.url,
-                  },
+                  source: getJoiSourceObject(topBuySource),
                   feeBreakdown: feeBreakdown,
                 }
               : undefined,

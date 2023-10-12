@@ -163,6 +163,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 
         if (parsedMetadata) {
           (parsedMetadata as MetadataIndexWriteJobPayload).isFromWebhook = true;
+          (parsedMetadata as MetadataIndexWriteJobPayload).metadataMethod = "opensea";
           await metadataIndexWriteJob.addToQueue([parsedMetadata]);
         }
       } catch (error) {

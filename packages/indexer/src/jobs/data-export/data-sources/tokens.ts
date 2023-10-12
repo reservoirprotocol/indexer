@@ -52,28 +52,31 @@ export class TokensDataSource extends BaseDataSource {
     if (result.length) {
       const sources = await Sources.getInstance();
 
-      const data = result.map((r) => ({
-        id: crypto
-          .createHash("sha256")
-          .update(`${fromBuffer(r.contract)}${r.token_id}`)
-          .digest("hex"),
-        contract: fromBuffer(r.contract),
-        token_id: r.token_id,
-        name: r.name,
-        description: r.description,
-        collection_id: r.collection_id,
-        owner: r.owner ? fromBuffer(r.owner) : null,
-        floor_ask_id: r.floor_sell_id,
-        floor_ask_value: r.floor_sell_value ? r.floor_sell_value.toString() : null,
-        floor_ask_maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
-        floor_ask_valid_from: r.floor_sell_valid_from ? r.floor_sell_valid_from : null,
-        floor_ask_valid_to: r.floor_sell_valid_to ? r.floor_sell_valid_to : null,
-        floor_ask_source: sources.get(r.floor_sell_source_id_int)?.name,
-        last_sale_value: r.last_sell_value ? r.last_sell_value.toString() : null,
-        last_sale_timestamp: r.last_sell_timestamp,
-        created_at: new Date(r.created_at).toISOString(),
-        updated_at: new Date(r.updated_ts * 1000).toISOString(),
-      }));
+      const data = result.map((r) => {
+        const floor_ask_source = sources.get(r.floor_sell_source_id_int);
+        return {
+          id: crypto
+            .createHash("sha256")
+            .update(`${fromBuffer(r.contract)}${r.token_id}`)
+            .digest("hex"),
+          contract: fromBuffer(r.contract),
+          token_id: r.token_id,
+          name: r.name,
+          description: r.description,
+          collection_id: r.collection_id,
+          owner: r.owner ? fromBuffer(r.owner) : null,
+          floor_ask_id: r.floor_sell_id,
+          floor_ask_value: r.floor_sell_value ? r.floor_sell_value.toString() : null,
+          floor_ask_maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
+          floor_ask_valid_from: r.floor_sell_valid_from ? r.floor_sell_valid_from : null,
+          floor_ask_valid_to: r.floor_sell_valid_to ? r.floor_sell_valid_to : null,
+          floor_ask_source: floor_ask_source ? floor_ask_source.name : null,
+          last_sale_value: r.last_sell_value ? r.last_sell_value.toString() : null,
+          last_sale_timestamp: r.last_sell_timestamp,
+          created_at: new Date(r.created_at).toISOString(),
+          updated_at: new Date(r.updated_ts * 1000).toISOString(),
+        };
+      });
 
       const lastResult = result[result.length - 1];
 

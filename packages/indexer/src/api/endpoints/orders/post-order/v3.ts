@@ -120,7 +120,11 @@ export const postOrderV3Options: RouteOptions = {
             s,
           };
         } catch {
-          // Skip errors
+          // To cover non-splittable signatures (eg. eip1271 or bulk signatures)
+          order.data = {
+            ...order.data,
+            signature,
+          };
         }
       }
 

@@ -1,14 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { idb, pgp } from "@/common/db";
-import { fromBuffer, toBuffer } from "@/common/utils";
-import { Sources } from "@/models/sources";
-import { logger } from "@/common/logger";
-import { TriggerKind } from "@/jobs/order-updates/types";
 import { AddressZero } from "@ethersproject/constants";
-import { OrderKind } from "@/orderbook/orders";
+
+import { idb, pgp } from "@/common/db";
+import { logger } from "@/common/logger";
+import { fromBuffer, toBuffer } from "@/common/utils";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
+import { TriggerKind } from "@/jobs/order-updates/types";
+import { Sources } from "@/models/sources";
+import { OrderKind } from "@/orderbook/orders";
 import { fetchAndUpdateFtApproval } from "@/utils/on-chain-data";
 
 export type OrderUpdatesByMakerJobPayload = {

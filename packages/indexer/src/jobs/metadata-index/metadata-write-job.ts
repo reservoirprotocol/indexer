@@ -5,7 +5,7 @@ import _ from "lodash";
 import { logger } from "@/common/logger";
 import { idb, ridb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
-import { getUnixTime } from "date-fns";
+import { add, getUnixTime, isAfter } from "date-fns";
 import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
 import PgPromise from "pg-promise";
 import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attribute-key-counts-job";
@@ -15,6 +15,9 @@ import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribu
 import { TokenMetadata } from "@/metadata/types";
 import { newCollectionForTokenJob } from "@/jobs/token-updates/new-collection-for-token-job";
 import { config } from "@/config/index";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { redis } from "@/common/redis";
+import { tokenWebsocketEventsTriggerJob } from "@/jobs/websocket-events/token-websocket-events-trigger-job";
 
 export type MetadataIndexWriteJobPayload = {
   collection: string;
@@ -43,12 +46,13 @@ export type MetadataIndexWriteJobPayload = {
     kind: "string" | "number" | "date" | "range";
     rank?: number;
   }[];
+  metadataMethod?: string;
 };
 
 export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
   queueName = "metadata-index-write-queue";
   maxRetries = 10;
-  concurrency = 40;
+  concurrency = config.chainId === 7777777 ? 10 : 40;
   lazyMode = true;
   timeout = 60000;
   backoff = {
@@ -77,9 +81,8 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       flagged,
       isFromWebhook,
       attributes,
+      metadataMethod,
     } = payload;
-
-    // const startSaveTokenMetadataTime = Date.now();
 
     // Update the token's metadata
     const result = await idb.oneOrNone(
@@ -107,7 +110,7 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
           metadata_updated_at = now()
         WHERE tokens.contract = $/contract/
         AND tokens.token_id = $/tokenId/
-        RETURNING collection_id, created_at, (
+        RETURNING collection_id, created_at, image, name, (
           SELECT
           json_build_object(
             'name', tokens.name,
@@ -136,8 +139,6 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
         media: mediaUrl || null,
       }
     );
-
-    // const endSaveTokenMetadataTime = Date.now();
 
     // Skip if there is no associated entry in the `tokens` table
     if (!result) {
@@ -174,6 +175,43 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
+    // If this is a new token and there's still no metadata (exclude mainnet)
+    const keyName = `retry-metadata-${contract}-${tokenId}`;
+    if (
+      config.chainId !== 1 &&
+      _.isNull(result.image) &&
+      _.isNull(result.name) &&
+      isAfter(add(new Date(result.created_at), { minutes: 25 }), Date.now())
+    ) {
+      await redis.set(keyName, _.now(), "EX", 2 * 60 * 60);
+
+      // Requeue the token for metadata fetching and stop processing
+      return metadataIndexFetchJob.addToQueue(
+        [
+          {
+            kind: "single-token",
+            data: {
+              method: metadataMethod || config.metadataIndexingMethod,
+              contract,
+              tokenId,
+              collection,
+            },
+          },
+        ],
+        false,
+        20 * 60
+      );
+    }
+
+    if (
+      config.chainId !== 1 &&
+      (!_.isNull(result.image) || !_.isNull(result.name)) &&
+      (await redis.get(keyName))
+    ) {
+      await redis.del(keyName);
+      logger.info(this.queueName, `metadata fetched for ${JSON.stringify(payload)}`);
+    }
+
     if (flagged != null) {
       await flagStatusUpdateJob.addToQueue([
         {
@@ -183,8 +221,6 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
         },
       ]);
     }
-
-    // const startHandleTokenAttributesTime = Date.now();
 
     // Fetch all existing keys
     const addedTokenAttributes = [];
@@ -432,8 +468,6 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       }
     );
 
-    // const endHandleTokenAttributesTime = Date.now();
-
     // Schedule attribute refresh
     _.forEach(removedTokenAttributes, (attribute) => {
       (tokenAttributeCounter as any)[attribute.attribute_id] = -1;
@@ -454,28 +488,22 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
     // If any attributes changed
     if (!_.isEmpty(attributesToRefresh)) {
       await rarityQueueJob.addToQueue({ collectionId: collection }); // Recalculate the collection rarity
+
+      await tokenWebsocketEventsTriggerJob.addToQueue([
+        {
+          kind: "ForcedChange",
+          data: {
+            contract,
+            tokenId,
+            changed: ["attributes"],
+          },
+        },
+      ]);
     }
 
     if (!_.isEmpty(tokenAttributeCounter)) {
       await resyncAttributeCountsJob.addToQueue({ tokenAttributeCounter });
     }
-
-    // const endTime = Date.now();
-    //
-    // if (config.chainId === 8453) {
-    //   logger.info(
-    //     this.queueName,
-    //     JSON.stringify({
-    //       message: `Latencies`,
-    //       payload,
-    //       times: {
-    //         saveTokenMetadataTime: endSaveTokenMetadataTime - startSaveTokenMetadataTime,
-    //         handleTokenAttributesTime: endHandleTokenAttributesTime - startHandleTokenAttributesTime,
-    //         totalTime: endTime - startTime,
-    //       }
-    //     })
-    //   );
-    // }
   }
 
   public updateActivities(contract: string) {

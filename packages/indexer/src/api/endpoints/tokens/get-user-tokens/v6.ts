@@ -19,8 +19,10 @@ import { config } from "@/config/index";
 import {
   getJoiDynamicPricingObject,
   getJoiPriceObject,
+  getJoiSourceObject,
   JoiDynamicPrice,
   JoiPrice,
+  JoiSource,
 } from "@/common/joi";
 import { Sources } from "@/models/sources";
 import _ from "lodash";
@@ -162,7 +164,7 @@ export const getUserTokensV6Options: RouteOptions = {
               validFrom: Joi.number().unsafe().allow(null),
               validUntil: Joi.number().unsafe().allow(null),
               dynamicPricing: JoiDynamicPrice.allow(null),
-              source: Joi.object().allow(null),
+              source: JoiSource.allow(null),
             },
             acquiredAt: Joi.string().allow(null),
           }),
@@ -608,13 +610,7 @@ export const getUserTokensV6Options: RouteOptions = {
                     r.floor_sell_missing_royalties ? r.floor_sell_missing_royalties : undefined
                   )
                 : null,
-              source: {
-                id: floorSellSource?.address,
-                domain: floorSellSource?.domain,
-                name: floorSellSource?.metadata.title || floorSellSource?.name,
-                icon: floorSellSource?.getIcon(),
-                url: floorSellSource?.metadata.url,
-              },
+              source: getJoiSourceObject(floorSellSource),
             },
             acquiredAt: acquiredTime,
           },

@@ -3,6 +3,7 @@ import { config } from "@/config/index";
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
 import crypto from "crypto";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { Network } from "@reservoir0x/sdk/dist/utils";
 
 export type TransferWebsocketEventsTriggerQueueJobPayload = {
   data: TransferWebsocketEventInfo;
@@ -59,12 +60,41 @@ export class TransferWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobH
           }
 
           if (!changed.length) {
-            // logger.info(
-            //   this.queueName,
-            //   `No changes detected for event. before=${JSON.stringify(
-            //     data.before
-            //   )}, after=${JSON.stringify(data.after)}`
-            // );
+            if (config.chainId === Network.Ethereum) {
+              try {
+                for (const key in data.after) {
+                  const beforeValue = data.before[key as keyof TransferInfo];
+                  const afterValue = data.after[key as keyof TransferInfo];
+
+                  if (beforeValue !== afterValue) {
+                    changed.push(key as keyof TransferInfo);
+                  }
+                }
+
+                logger.info(
+                  this.queueName,
+                  JSON.stringify({
+                    message: `No changes detected for transfer. contract=${data.after.address}, tokenId=${data.after.token_id}`,
+                    data,
+                    beforeJson: JSON.stringify(data.before),
+                    afterJson: JSON.stringify(data.after),
+                    changed,
+                    changedJson: JSON.stringify(changed),
+                    hasChanged: changed.length > 0,
+                  })
+                );
+              } catch (error) {
+                logger.error(
+                  this.queueName,
+                  JSON.stringify({
+                    message: `No changes detected for transfer error. contract=${data.after.address}, tokenId=${data.after.token_id}`,
+                    data,
+                    changed,
+                    error,
+                  })
+                );
+              }
+            }
 
             return;
           }

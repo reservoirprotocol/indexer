@@ -108,26 +108,6 @@ jobs:
         working-directory: k8s-configs
         run: |
           ./utils/version_update.sh \
-            ./dev/platform/indexer-goerli.yaml \
-            ${{ github.sha }} \
-            indexer-goerli
-          ./utils/version_update.sh \
-            ./dev/platform/indexer-worker-goerli.yaml \
-            ${{ github.sha }} \
-            indexer-worker-goerli
-          ./utils/version_update.sh \
-            ./dev/platform/indexer-worker-goerli-master.yaml \
-            ${{ github.sha }} \
-            indexer-worker-goerli-master
-          ./utils/version_update.sh \
-            ./dev/platform/indexer-websocket-goerli.yaml \
-            ${{ github.sha }} \
-            indexer-websocket-goerli
-          ./utils/version_update.sh \
-            ./dev/platform/indexer-kafka-worker-goerli.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-goerli
-          ./utils/version_update.sh \
             ./dev/platform/indexer-sepolia.yaml \
             ${{ github.sha }} \
             indexer-sepolia
@@ -267,25 +247,13 @@ jobs:
             ${{ github.sha }} \
             indexer-worker-optimism
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-polygon-1.yaml \
+            ./prod/platform/indexer-worker-polygon.yaml \
             ${{ github.sha }} \
-            indexer-worker-polygon-1
+            indexer-worker-polygon
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-polygon-2.yaml \
+            ./prod/platform/indexer-worker-bsc.yaml \
             ${{ github.sha }} \
-            indexer-worker-polygon-2
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-polygon-3.yaml \
-            ${{ github.sha }} \
-            indexer-worker-polygon-3
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-bsc-1.yaml \
-            ${{ github.sha }} \
-            indexer-worker-bsc-1
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-bsc-2.yaml \
-            ${{ github.sha }} \
-            indexer-worker-bsc-2
+            indexer-worker-bsc
           ./utils/version_update.sh \
             ./prod/platform/indexer-worker-sepolia.yaml \
             ${{ github.sha }} \
@@ -377,7 +345,7 @@ jobs:
           ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-base-goerli.yaml \
             ${{ github.sha }} \
-            indexer-websocket-base-goerli   
+            indexer-websocket-base-goerli
           ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-zora-testnet.yaml \
             ${{ github.sha }} \

@@ -16,7 +16,7 @@ import {
 } from "@/jobs/websocket-events/transfer-websocket-events-trigger-job";
 import {
   tokenWebsocketEventsTriggerJob,
-  TokenWebsocketEventInfo,
+  TokenCDCEventInfo,
 } from "@/jobs/websocket-events/token-websocket-events-trigger-job";
 import {
   collectionWebsocketEventsTriggerQueueJob,
@@ -77,7 +77,8 @@ export const WebsocketEventRouter = async ({
     case WebsocketEventKind.TokenEvent:
       await tokenWebsocketEventsTriggerJob.addToQueue([
         {
-          data: eventInfo as TokenWebsocketEventInfo,
+          kind: "CDCEvent",
+          data: eventInfo as TokenCDCEventInfo,
         },
       ]);
       break;
@@ -116,6 +117,6 @@ export type EventInfo =
   | OrderWebsocketEventInfo
   | SaleWebsocketEventInfo
   | TransferWebsocketEventInfo
-  | TokenWebsocketEventInfo
+  | TokenCDCEventInfo
   | CollectionWebsocketEventInfo
   | TokenAttributeWebsocketEventInfo;

@@ -7,7 +7,7 @@ import Joi from "joi";
 import { logger } from "@/common/logger";
 import { formatEth, regex } from "@/common/utils";
 import { Sources } from "@/models/sources";
-import { JoiOrderMetadata } from "@/common/joi";
+import { JoiOrderMetadata, JoiSource, getJoiSourceObject } from "@/common/joi";
 import { ActivityType } from "@/elasticsearch/indexes/activities/base";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { CollectionSets } from "@/models/collection-sets";
@@ -108,7 +108,7 @@ export const getCollectionActivityV4Options: RouteOptions = {
           order: Joi.object({
             id: Joi.string().allow(null),
             side: Joi.string().valid("ask", "bid").allow(null),
-            source: Joi.object().allow(null),
+            source: JoiSource.allow(null),
             metadata: JoiOrderMetadata.allow(null).optional(),
           }),
         })
@@ -195,13 +195,7 @@ export const getCollectionActivityV4Options: RouteOptions = {
                     ? "ask"
                     : "bid"
                   : undefined,
-                source: orderSource
-                  ? {
-                      domain: orderSource?.domain,
-                      name: orderSource?.getTitle(),
-                      icon: orderSource?.getIcon(),
-                    }
-                  : undefined,
+                source: getJoiSourceObject(orderSource, false),
                 metadata: orderCriteria,
               }
             : undefined;

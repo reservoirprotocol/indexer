@@ -1,23 +1,24 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { HashZero } from "@ethersproject/constants";
+
 import { idb } from "@/common/db";
-import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";
-import { tokenFloorQueueJob } from "@/jobs/token-updates/token-floor-queue-job";
-import { normalizedFloorQueueJob } from "@/jobs/token-updates/normalized-floor-queue-job";
+import { logger } from "@/common/logger";
 import { fromBuffer, toBuffer } from "@/common/utils";
-import { nftBalanceUpdateFloorAskJob } from "@/jobs/nft-balance-updates/update-floor-ask-price-job";
-import { BidEventsList } from "@/models/bid-events-list";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import {
   EventKind as ProcessActivityEventKind,
   processActivityEventJob,
   ProcessActivityEventJobPayload,
 } from "@/jobs/activities/process-activity-event-job";
-import { Sources } from "@/models/sources";
-import { logger } from "@/common/logger";
+import { nftBalanceUpdateFloorAskJob } from "@/jobs/nft-balance-updates/update-floor-ask-price-job";
 import { TriggerKind } from "@/jobs/order-updates/types";
-import { HashZero } from "@ethersproject/constants";
+import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";
 import { topBidSingleTokenQueueJob } from "@/jobs/token-set-updates/top-bid-single-token-queue-job";
+import { normalizedFloorQueueJob } from "@/jobs/token-updates/normalized-floor-queue-job";
+import { tokenFloorQueueJob } from "@/jobs/token-updates/token-floor-queue-job";
+import { BidEventsList } from "@/models/bid-events-list";
+import { Sources } from "@/models/sources";
 
 export type OrderUpdatesByIdJobPayload = {
   // The context represents a deterministic id for what triggered
@@ -329,7 +330,7 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
               "order-latency",
               JSON.stringify({
                 latency: orderCreated - orderStart - Number(ingestDelay ?? 0),
-                source: source?.getTitle(),
+                source: source?.getTitle() ?? null,
                 orderId: order.id,
                 orderKind: order.kind,
                 orderType,

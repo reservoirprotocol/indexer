@@ -7,11 +7,12 @@ import { idb } from "@/common/db";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { getNetAmount } from "@/common/utils";
-import { getJoiPriceObject } from "@/common/joi";
+import { getJoiPriceObject, getJoiSourceObject } from "@/common/joi";
 import _ from "lodash";
 import * as Sdk from "@reservoir0x/sdk";
 import { OrderWebsocketEventInfo } from "@/jobs/websocket-events/ask-websocket-events-trigger-job";
 import { formatStatus, formatValidBetween } from "@/jobs/websocket-events/utils";
+import { Network } from "@reservoir0x/sdk/dist/utils";
 
 export type BidWebsocketEventsTriggerQueueJobPayload = {
   data: OrderWebsocketEventInfo;
@@ -65,16 +66,45 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
           }
         }
 
-        // if (!changed.length) {
-        //   logger.info(
-        //     this.queueName,
-        //     `No changes detected for event. before=${JSON.stringify(
-        //       data.before
-        //     )}, after=${JSON.stringify(data.after)}`
-        //   );
+        if (!changed.length) {
+          if (config.chainId === Network.Ethereum) {
+            try {
+              for (const key in data.after) {
+                const beforeValue = data.before[key as keyof OrderInfo];
+                const afterValue = data.after[key as keyof OrderInfo];
 
-        //   return;
-        // }
+                if (beforeValue !== afterValue) {
+                  changed.push(key as keyof OrderInfo);
+                }
+              }
+
+              logger.info(
+                this.queueName,
+                JSON.stringify({
+                  message: `No changes detected for bid. orderId=${data.after.id}`,
+                  data,
+                  beforeJson: JSON.stringify(data.before),
+                  afterJson: JSON.stringify(data.after),
+                  changed,
+                  changedJson: JSON.stringify(changed),
+                  hasChanged: changed.length > 0,
+                })
+              );
+            } catch (error) {
+              logger.error(
+                this.queueName,
+                JSON.stringify({
+                  message: `No changes detected for bid error. orderId=${data.after.id}`,
+                  data,
+                  changed,
+                  error,
+                })
+              );
+            }
+          }
+
+          return;
+        }
       }
 
       const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", true);
@@ -138,13 +168,7 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         quantityFilled: Number(data.after.quantity_filled),
         quantityRemaining: Number(data.after.quantity_remaining),
         criteria: rawResult.criteria,
-        source: {
-          id: source?.address,
-          domain: source?.domain,
-          name: source?.getTitle(),
-          icon: source?.getIcon(),
-          url: source?.metadata.url,
-        },
+        source: getJoiSourceObject(source),
         feeBps: data.after.fee_bps || 0,
         feeBreakdown: data.after.fee_breakdown ? JSON.parse(data.after.fee_breakdown) : [],
         expiration: Math.floor(new Date(data.after.expiration).getTime() / 1000),

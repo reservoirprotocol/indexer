@@ -54,7 +54,7 @@ export const ConduitController: ChainIdToAddress = {
   [Network.Base]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Linea]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.PolygonZkevm]: "0x00000000f9490004c11cef243f5400493c00ad63",
-  [Network.Zksync]: "0xfc694213fd093f775bbdbf8cc831aa15a7504bc8",
+  [Network.Zksync]: "0x4c68886e1db29168a6672e614412191591aca502",
   [Network.Ancient8Testnet]: "0x00000000f9490004c11cef243f5400493c00ad63",
 };
 
@@ -105,6 +105,11 @@ export const OpenSeaProtectedOffersZone: ChainIdToAddress = {
   [Network.Arbitrum]: "0x000000e7ec00e7b300774b00001314b8610022b8",
   [Network.Avalanche]: "0x000000e7ec00e7b300774b00001314b8610022b8",
   [Network.Base]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+};
+
+export const FxHashPausableZone: ChainIdToAddress = {
+  [Network.EthereumGoerli]: "0x096cfb6826a5441a58fc13889f719651f9cf215d",
+  [Network.EthereumSepolia]: "0x096cfb6826a5441a58fc13889f719651f9cf215d",
 };
 
 // TODO: Deploy to all other supported networks

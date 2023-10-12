@@ -1,8 +1,12 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable no-console */
 
 import { Deployer } from "@matterlabs/hardhat-zksync-deploy";
+import * as Sdk from "@reservoir0x/sdk/src";
 import hre, { ethers } from "hardhat";
 import { Wallet } from "zksync-web3";
+
+export const DEPLOYER = "0xf3d63166F0Ca56C3c1A3508FcE03Ff0Cf3Fb691e";
 
 const main = async () => {
   const chainId = await ethers.provider.getNetwork().then((n) => n.chainId);
@@ -19,9 +23,6 @@ const main = async () => {
 
     return c.address;
   };
-
-  chainId;
-  deploy;
 };
 
 main()

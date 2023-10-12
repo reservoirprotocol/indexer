@@ -15,7 +15,7 @@ import {
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
 import _ from "lodash";
-import { JoiOrderCriteria } from "@/common/joi";
+import { JoiOrderCriteria, JoiSource, getJoiSourceObject } from "@/common/joi";
 import { Orders } from "@/utils/orders";
 
 const version = "v2";
@@ -93,7 +93,7 @@ export const getUserTopBidsV2Options: RouteOptions = {
           validFrom: Joi.number().unsafe(),
           validUntil: Joi.number().unsafe(),
           floorDifferencePercentage: Joi.number().unsafe(),
-          source: Joi.object().allow(null),
+          source: JoiSource.allow(null),
           feeBreakdown: Joi.array()
             .items(
               Joi.object({
@@ -258,13 +258,7 @@ export const getUserTopBidsV2Options: RouteOptions = {
           validFrom: r.top_bid_valid_from,
           validUntil: r.top_bid_valid_until,
           floorDifferencePercentage: _.round(r.floor_difference_percentage || 0, 2),
-          source: {
-            id: source?.address,
-            domain: source?.domain,
-            name: source?.getTitle(),
-            icon: source?.getIcon(),
-            url: source?.metadata.url,
-          },
+          source: getJoiSourceObject(source),
           feeBreakdown: r.fee_breakdown,
           criteria: r.bid_criteria,
           token: {

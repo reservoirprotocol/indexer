@@ -27,6 +27,7 @@ export interface TokenMetadata {
     kind: "string" | "number" | "date" | "range";
     rank?: number;
   }[];
+  metadataMethod?: string;
 }
 
 export interface CollectionMetadata {
