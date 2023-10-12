@@ -58,7 +58,6 @@ const log = (level: "error" | "info" | "warn" | "debug") => {
   };
 
   _logger = _logger || getLogger();
-  // _logger = getLogger();
 
   return (component: string, message: string) =>
     _logger.log(level, message, {
