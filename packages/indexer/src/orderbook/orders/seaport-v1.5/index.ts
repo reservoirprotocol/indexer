@@ -227,8 +227,10 @@ export const save = async (
           ![
             // No zone
             AddressZero,
-            // Cancellation zone
+            // Reservoir cancellation zone
             Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId],
+            // Okx cancellation zone
+            Sdk.SeaportBase.Addresses.OkxCancellationZone[config.chainId],
             // FxHash pausable zone
             Sdk.SeaportBase.Addresses.FxHashPausableZone[config.chainId],
           ].includes(order.params.zone) &&

@@ -829,7 +829,9 @@ export class Router {
       !options?.relayer &&
       !options?.usePermit
     ) {
-      const exchange = new Sdk.SeaportV15.Exchange(this.chainId);
+      const exchange = new Sdk.SeaportV15.Exchange(this.chainId, {
+        orderFetcherBaseUrl: this.options?.orderFetcherBaseUrl,
+      });
 
       const conduitKey = (details[0].order as Sdk.SeaportV15.Order).params.conduitKey;
       const conduit = exchange.deriveConduit(conduitKey);
@@ -1732,7 +1734,9 @@ export class Router {
 
     // Handle Seaport V1.5 listings
     if (Object.keys(seaportV15Details).length) {
-      const exchange = new Sdk.SeaportV15.Exchange(this.chainId);
+      const exchange = new Sdk.SeaportV15.Exchange(this.chainId, {
+        orderFetcherBaseUrl: this.options?.orderFetcherBaseUrl,
+      });
       for (const currency of Object.keys(seaportV15Details)) {
         const currencyDetails = seaportV15Details[currency];
 
@@ -3969,7 +3973,9 @@ export class Router {
             ...(detail.extraArgs ?? {}),
           });
 
-          const exchange = new Sdk.SeaportV15.Exchange(this.chainId);
+          const exchange = new Sdk.SeaportV15.Exchange(this.chainId, {
+            orderFetcherBaseUrl: this.options?.orderFetcherBaseUrl,
+          });
           executionsWithDetails.push({
             detail,
             execution: {

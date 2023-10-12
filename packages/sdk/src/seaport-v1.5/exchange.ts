@@ -15,17 +15,15 @@ import * as Types from "../seaport-base/types";
 import { bn } from "../utils";
 
 import ExchangeAbi from "./abis/Exchange.json";
-import { SeaportBaseExchange } from "../seaport-base/exchange";
+import { Options, SeaportBaseExchange } from "../seaport-base/exchange";
 
 export class Exchange extends SeaportBaseExchange {
   protected exchangeAddress: string;
-  protected cancellationZoneAddress: string;
   public contract: Contract;
 
-  constructor(chainId: number) {
-    super(chainId);
+  constructor(chainId: number, options?: Options) {
+    super(chainId, options);
     this.exchangeAddress = Addresses.Exchange[chainId];
-    this.cancellationZoneAddress = BaseAddresses.ReservoirCancellationZone[chainId];
     this.contract = new Contract(this.exchangeAddress, ExchangeAbi);
   }
 
@@ -148,7 +146,12 @@ export class Exchange extends SeaportBaseExchange {
   // --- Get extra data ---
 
   public requiresExtraData(order: IOrder): boolean {
-    if (order.params.zone === this.cancellationZoneAddress) {
+    if (
+      [
+        BaseAddresses.ReservoirCancellationZone[this.chainId],
+        BaseAddresses.OkxCancellationZone[this.chainId],
+      ].includes(order.params.zone)
+    ) {
       return true;
     }
     return false;
@@ -157,7 +160,7 @@ export class Exchange extends SeaportBaseExchange {
   // matchParams should always pass for seaport-v1.4
   public async getExtraData(order: IOrder, matchParams?: Types.MatchParams): Promise<string> {
     switch (order.params.zone) {
-      case this.cancellationZoneAddress: {
+      case BaseAddresses.ReservoirCancellationZone[this.chainId]: {
         return axios
           .post(
             `https://seaport-oracle-${
@@ -199,6 +202,16 @@ export class Exchange extends SeaportBaseExchange {
             }
           )
           .then((response) => response.data.orders[0].extraDataComponent);
+      }
+
+      case BaseAddresses.OkxCancellationZone[this.chainId]: {
+        // The `extraData` will be cached from a previous call
+        return axios
+          .post(`${this.options?.orderFetcherBaseUrl}/api/okx-listing`, {
+            orderHash: order.hash(),
+            chainId: this.chainId,
+          })
+          .then((response) => response.data.extraData);
       }
 
       default:
