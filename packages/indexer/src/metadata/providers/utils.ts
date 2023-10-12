@@ -161,3 +161,11 @@ export class RequestWasThrottledError extends Error {
     Object.setPrototypeOf(this, RequestWasThrottledError.prototype);
   }
 }
+
+export class CollectionNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+
+    Object.setPrototypeOf(this, CollectionNotFoundError.prototype);
+  }
+}

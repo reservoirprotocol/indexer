@@ -10,11 +10,10 @@ import { logger } from "@/common/logger";
 import { Tokens } from "@/models/tokens";
 import { Collections } from "@/models/collections";
 import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
-import { getSupportedChainName } from "@/websockets/opensea/utils";
 import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
 import { parseProtocolData } from "@/websockets/opensea";
 import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
-import { getNetworkSettings } from "@/config/network";
+import { getNetworkSettings, getOpenseaNetworkName } from "@/config/network";
 
 export class OpenseaOrdersFetchJob extends AbstractRabbitMqJobHandler {
   queueName = "opensea-orders-fetch-queue";
@@ -113,7 +112,7 @@ export class OpenseaOrdersFetchJob extends AbstractRabbitMqJobHandler {
     );
 
     for (const collectionOffer of collectionOffers) {
-      if (getSupportedChainName() === collectionOffer.chain) {
+      if (getOpenseaNetworkName() === collectionOffer.chain) {
         const openSeaOrderParams = {
           kind: "contract-wide",
           side: "buy",

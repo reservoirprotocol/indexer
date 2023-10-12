@@ -7,11 +7,12 @@ import { Contract } from "ethers";
 import { Interface } from "ethers/lib/utils";
 import { baseProvider } from "@/common/provider";
 import axios from "axios";
-import { RequestWasThrottledError, normalizeMetadata } from "./utils";
+import { CollectionNotFoundError, RequestWasThrottledError, normalizeMetadata } from "./utils";
 import _ from "lodash";
 import { AbstractBaseMetadataProvider } from "./abstract-base-metadata-provider";
 import { customHandleToken, hasCustomHandler } from "../custom";
 import { extendMetadata, hasExtendHandler } from "../extend";
+import { getOpenseaNetworkName } from "@/config/network";
 
 class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
   method = "opensea";
@@ -125,10 +126,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
 
   protected async _getTokensMetadataBySlug(
     slug: string,
-    continuation?: string | null,
-    options?: {
-      isRequestForFlaggedMetadata?: boolean;
-    }
+    continuation?: string | null
   ): Promise<TokenMetadataBySlugResult> {
     const searchParams = new URLSearchParams();
     if (continuation) {
@@ -141,10 +139,6 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
     }
     searchParams.append("limit", "200");
 
-    const API_KEY_TO_USE = options?.isRequestForFlaggedMetadata
-      ? config.openSeaFlaggedMetadataApiKey
-      : config.openSeaTokenMetadataBySlugApiKey;
-
     const url = `${
       !this.isOSTestnet() ? "https://api.opensea.io" : "https://testnets-api.opensea.io"
     }/api/v1/assets?${searchParams.toString()}`;
@@ -153,7 +147,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
         headers: !this.isOSTestnet()
           ? {
               url,
-              "X-API-KEY": API_KEY_TO_USE,
+              "X-API-KEY": config.openSeaTokenMetadataBySlugApiKey,
               Accept: "application/json",
             }
           : {
@@ -171,25 +165,14 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
     };
   }
 
-  async _getTokensFlagStatusByContract(
+  async _getTokenFlagStatus(
     contract: string,
-    continuation?: string
+    tokenId: string
   ): Promise<{
-    data: { contract: string; tokenId: string; isFlagged: boolean }[];
-    continuation: string | null;
+    data: { contract: string; tokenId: string; isFlagged: boolean };
   }> {
-    const searchParams = new URLSearchParams();
-    searchParams.append("asset_contract_addresses", contract);
-    if (continuation) {
-      searchParams.append("cursor", continuation);
-    }
-    searchParams.append("include_orders", "false");
-    searchParams.append("order_direction", "desc");
-    searchParams.append("limit", "200");
-
-    const url = `${
-      !this.isOSTestnet() ? "https://api.opensea.io" : "https://testnets-api.opensea.io"
-    }/api/v1/assets?${searchParams.toString()}`;
+    const domain = !this.isOSTestnet() ? "opensea.io" : "testnets-api.opensea.io";
+    const url = `${domain}/api/v2/chain/${getOpenseaNetworkName()}/contract/${contract}/nfts/${tokenId}`;
 
     const data = await axios
       .get(!this.isOSTestnet() ? config.openSeaApiUrl || url : url, {
@@ -205,24 +188,140 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
       })
       .then((response) => response.data)
       .catch((error) => {
-        // eslint-disable-next-line
-        console.log(error);
+        logger.error(
+          "opensea-fetcher",
+          `fetchTokensFlagStatusByContract error. url:${url}, message:${error.message},  status:${
+            error.response?.status
+          }, data:${JSON.stringify(error.response?.data)}, url:${JSON.stringify(
+            error.config?.url
+          )}, headers:${JSON.stringify(error.config?.headers?.url)}`
+        );
+
+        this.handleError(error);
       });
 
     return {
-      data: data.assets.map((asset: any) => ({
-        contract: asset.asset_contract.address,
-        tokenId: asset.token_id,
-        isFlagged: !asset.supports_wyvern,
+      data: {
+        contract: data.nft.contract,
+        tokenId: data.nft.identifier,
+        isFlagged: !data.nft.is_disabled,
+      },
+    };
+  }
+
+  async _getTokensFlagStatusByCollectionPaginationViaSlug(
+    slug: string,
+    continuation?: string
+  ): Promise<{
+    data: { contract: string; tokenId: string; isFlagged: boolean }[];
+    continuation: string | null;
+  }> {
+    const searchParams = new URLSearchParams();
+
+    if (continuation) searchParams.append("next", continuation);
+    searchParams.append("limit", "50");
+
+    const domain = !this.isOSTestnet() ? "opensea.io" : "testnets-api.opensea.io";
+    const url = `${domain}/api/v2/chain/${getOpenseaNetworkName()}/collection/${slug}/nfts?${searchParams.toString()}`;
+
+    const data = await axios
+      .get(!this.isOSTestnet() ? config.openSeaApiUrl || url : url, {
+        headers: !this.isOSTestnet()
+          ? {
+              url,
+              "X-API-KEY": config.openSeaFlaggedMetadataApiKey.trim(),
+              Accept: "application/json",
+            }
+          : {
+              Accept: "application/json",
+            },
+      })
+      .then((response) => response.data)
+      .catch((error) => {
+        logger.error(
+          "opensea-fetcher",
+          `fetchTokensFlagStatusByContract error. url:${url}, message:${error.message},  status:${
+            error.response?.status
+          }, data:${JSON.stringify(error.response?.data)}, url:${JSON.stringify(
+            error.config?.url
+          )}, headers:${JSON.stringify(error.config?.headers?.url)}`
+        );
+
+        this.handleError(error);
+      });
+
+    return {
+      data: data.nfts.map((asset: any) => ({
+        contract: asset.contract,
+        tokenId: asset.identifier,
+        isFlagged: !asset.is_disabled,
+      })),
+      continuation: data.next ?? undefined,
+    };
+  }
+
+  async _getTokensFlagStatusByCollectionPaginationViaContract(
+    contract: string,
+    continuation?: string
+  ): Promise<{
+    data: { contract: string; tokenId: string; isFlagged: boolean }[];
+    continuation: string | null;
+  }> {
+    const searchParams = new URLSearchParams();
+
+    if (continuation) searchParams.append("next", continuation);
+    searchParams.append("limit", "50");
+
+    const domain = !this.isOSTestnet() ? "opensea.io" : "testnets-api.opensea.io";
+    const url = `${domain}/api/v2/chain/${getOpenseaNetworkName()}/contract/${contract}/nfts?${searchParams.toString()}`;
+
+    const data = await axios
+      .get(!this.isOSTestnet() ? config.openSeaApiUrl || url : url, {
+        headers: !this.isOSTestnet()
+          ? {
+              url,
+              "X-API-KEY": config.openSeaFlaggedMetadataApiKey.trim(),
+              Accept: "application/json",
+            }
+          : {
+              Accept: "application/json",
+            },
+      })
+      .then((response) => response.data)
+      .catch((error) => {
+        logger.error(
+          "opensea-fetcher",
+          `fetchTokensFlagStatusByContract error. url:${url}, message:${error.message},  status:${
+            error.response?.status
+          }, data:${JSON.stringify(error.response?.data)}, url:${JSON.stringify(
+            error.config?.url
+          )}, headers:${JSON.stringify(error.config?.headers?.url)}`
+        );
+
+        this.handleError(error);
+      });
+
+    return {
+      data: data.nfts.map((asset: any) => ({
+        contract: asset.contract,
+        tokenId: asset.identifier,
+        isFlagged: !asset.is_disabled,
       })),
       continuation: data.next ?? undefined,
     };
   }
 
   handleError(error: any) {
-    if (error.response?.status === 429 || error.response?.status === 503) {
+    if (
+      error.response?.status === 429 ||
+      error.response?.status === 503 ||
+      error.response?.status === 400
+    ) {
       let delay = 1;
 
+      if (error.response.data.errors.includes("not found")) {
+        throw new CollectionNotFoundError(error.response.data.errors);
+      }
       if (error.response.data.detail?.startsWith("Request was throttled. Expected available in")) {
         try {
           delay = error.response.data.detail.split(" ")[6];
@@ -426,43 +525,6 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
     };
   }
 
-  getOSNetworkName(): string {
-    switch (config.chainId) {
-      case 1:
-        return "ethereum";
-      case 4:
-        return "rinkeby";
-      case 5:
-        return "goerli";
-      case 10:
-        return "optimism";
-      case 56:
-        return "bsc";
-      case 137:
-        return "matic";
-      case 42161:
-        return "arbitrum";
-      case 42170:
-        return "arbitrum_nova";
-      case 43114:
-        return "avalanche";
-      case 8453:
-        return "base";
-      case 7777777:
-        return "zora";
-      case 11155111:
-        return "sepolia";
-      case 80001:
-        return "mumbai";
-      case 84531:
-        return "base_goerli";
-      case 999:
-        return "zora_testnet";
-      default:
-        throw new Error(`Unknown chainId for metadata provider opensea: ${config.chainId}`);
-    }
-  }
-
   isOSTestnet(): boolean {
     switch (config.chainId) {
       case 4:
@@ -507,7 +569,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
   }
 
   async getOSData(api: string, contract: string, tokenId?: string, slug?: string): Promise<any> {
-    const network = this.getOSNetworkName();
+    const network = getOpenseaNetworkName();
     const url = this.getUrlForApi(api, contract, tokenId, network, slug);
 
     const headers = !this.isOSTestnet()

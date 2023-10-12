@@ -1,17 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-
 import { config } from "@/config/index";
-import { getTokensFlagStatusWithTokenIds } from "@/jobs/flag-status/utils";
 import { acquireLock, getLockExpiration } from "@/common/redis";
 import { logger } from "@/common/logger";
-import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
 import { RequestWasThrottledError } from "../orderbook/post-order-external/api/errors";
+import { PendingFlagStatusSyncCollectionSlugs } from "@/models/pending-flag-status-sync-collection-slugs";
+import { getTokensFlagStatusForCollectionBySlug } from "./utils";
 
-export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
-  queueName = "token-flag-status-sync-queue";
+export class CollectionSlugFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
+  queueName = "collection-slug-flag-status-sync-queue";
   maxRetries = 10;
   concurrency = 1;
   lazyMode = true;
@@ -28,16 +27,22 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
-    const tokensToGetFlagStatusFor = await PendingFlagStatusSyncTokens.get(1);
+    const collectionToGetFlagStatusFor = await PendingFlagStatusSyncCollectionSlugs.get();
 
-    if (!tokensToGetFlagStatusFor.length) return;
+    if (!collectionToGetFlagStatusFor.length) return;
 
-    let tokens: { contract: string; tokenId: string; isFlagged: boolean | null };
+    let tokens: { contract: string; tokenId: string; isFlagged: boolean | null }[] = [];
+    let nextContinuation: string | null = null;
+
     try {
-      tokens = await getTokensFlagStatusWithTokenIds(
-        tokensToGetFlagStatusFor[0].contract,
-        tokensToGetFlagStatusFor[0].tokenId
+      const data = await getTokensFlagStatusForCollectionBySlug(
+        collectionToGetFlagStatusFor[0].slug,
+        collectionToGetFlagStatusFor[0].contract,
+        collectionToGetFlagStatusFor[0].collectionId,
+        collectionToGetFlagStatusFor[0].continuation
       );
+      tokens = data.tokens;
+      nextContinuation = data.nextContinuation;
     } catch (error) {
       if (error instanceof RequestWasThrottledError) {
         logger.info(
@@ -48,15 +53,29 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
         const expiresIn = error.delay;
 
         await acquireLock(this.getLockName(), expiresIn * 1000);
-        await PendingFlagStatusSyncTokens.add(tokensToGetFlagStatusFor, true);
+        await PendingFlagStatusSyncCollectionSlugs.add(collectionToGetFlagStatusFor, true);
         return;
       } else {
-        logger.error(this.queueName, `Error: ${error}`);
+        logger.error(this.queueName, `Error: ${JSON.stringify(error)}`);
         throw error;
       }
     }
 
-    await flagStatusUpdateJob.addToQueue([tokens]);
+    await flagStatusUpdateJob.addToQueue(tokens);
+
+    if (nextContinuation) {
+      await PendingFlagStatusSyncCollectionSlugs.add(
+        [
+          {
+            slug: collectionToGetFlagStatusFor[0].slug,
+            contract: collectionToGetFlagStatusFor[0].contract,
+            collectionId: collectionToGetFlagStatusFor[0].collectionId,
+            continuation: nextContinuation,
+          },
+        ],
+        true
+      );
+    }
   }
 
   public getLockName() {
@@ -68,4 +87,4 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
   }
 }
 
-export const tokenFlagStatusSyncJob = new TokenFlagStatusSyncJob();
+export const collectionSlugFlugStatusSyncJob = new CollectionSlugFlagStatusSyncJob();

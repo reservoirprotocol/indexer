@@ -9,8 +9,9 @@ import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pendi
 import { PendingActivityEventsQueue } from "@/elasticsearch/indexes/activities/pending-activity-events-queue";
 import { EventKind } from "@/jobs/activities/process-activity-event-job";
 import { PendingExpiredBidActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-expired-bid-activities-queue";
-import { PendingFlagStatusSyncCollections } from "@/models/pending-flag-status-sync-collections";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
+import { PendingFlagStatusSyncContracts } from "@/models/pending-flag-status-sync-contracts";
+import { PendingFlagStatusSyncCollectionSlugs } from "@/models/pending-flag-status-sync-collection-slugs";
 
 if (config.doBackgroundWork) {
   cron.schedule(
@@ -69,14 +70,24 @@ if (config.doBackgroundWork) {
             })
           );
 
-          const pendingFlagStatusSyncCollectionsCount =
-            await PendingFlagStatusSyncCollections.count();
+          const pendingFlagStatusSyncCollectionSlugsCount =
+            await PendingFlagStatusSyncCollectionSlugs.count();
 
           logger.info(
             "pending-flag-status-sync-collections-queue-metric",
             JSON.stringify({
               topic: "queue-monitoring",
-              pendingFlagStatusSyncCollectionsCount,
+              pendingFlagStatusSyncCollectionSlugsCount,
+            })
+          );
+
+          const pendingFlagStatusSyncContractsCount = await PendingFlagStatusSyncContracts.count();
+
+          logger.info(
+            "pending-flag-status-sync-contracts-queue-metric",
+            JSON.stringify({
+              topic: "queue-monitoring",
+              pendingFlagStatusSyncContractsCount,
             })
           );
 
