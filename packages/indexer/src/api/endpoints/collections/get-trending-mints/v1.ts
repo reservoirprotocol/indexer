@@ -83,6 +83,9 @@ export const getTrendingMintsV1Options: RouteOptions = {
               .allow(null)
               .description("Lowest Ask Price."),
           },
+          mintPrice: Joi.number().allow(null),
+          mintVolume: Joi.number().allow(null),
+          mintCount: Joi.number().allow(null),
           mintType: Joi.string().allow("free", "paid", "", null),
           mintStatus: Joi.string().allow("", null),
           mintStages: Joi.array().items(
@@ -115,19 +118,21 @@ export const getTrendingMintsV1Options: RouteOptions = {
     },
   },
   handler: async (request: Request, h) => {
-    const { normalizeRoyalties, useNonFlaggedFloorAsk, status } = request.query;
+    const { normalizeRoyalties, useNonFlaggedFloorAsk, status, limit } = request.query;
 
     try {
       const mintsResult = await getMintsResult(request);
 
       const collectionsMetadata = await getCollectionsMetadata(mintsResult, status);
 
-      const mints = await formatCollections(
+      let mints = await formatCollections(
         mintsResult,
         collectionsMetadata,
         normalizeRoyalties,
         useNonFlaggedFloorAsk
       );
+
+      mints = mints.length > limit ? mints.splice(0, limit) : mints;
 
       const response = h.response({ mints });
       return response;
@@ -145,16 +150,12 @@ async function formatCollections(
   useNonFlaggedFloorAsk: boolean
 ) {
   const sources = await Sources.getInstance();
-  const metadataKeys = Object.keys(collectionsMetadata);
 
   const collections = await Promise.all(
     collectionsResult
-      .filter((res) => {
-        if (metadataKeys.includes(res.id)) {
-          return res;
-        }
-      })
-      .map(async (response: any) => {
+      .filter((res) => Object.keys(collectionsMetadata).includes(res.id))
+      .map(async (response: Record<string | number, any>) => {
+        const elasticData = collectionsResult.find((c) => c.id === response.id);
         const metadata = collectionsMetadata[response.id] || {};
         let floorAsk;
         let prefix = "";
@@ -191,28 +192,28 @@ async function formatCollections(
               : null,
           };
         }
-        const mintStages = metadata.mint_stages
-          ? await Promise.all(
-              metadata.mint_stages.map(async (m: any) => {
-                return {
-                  stage: m?.stage || null,
-                  kind: m?.kind || null,
-                  tokenId: m?.tokenId || null,
-                  price: m?.price
-                    ? await getJoiPriceObject({ gross: { amount: m.price } }, m.currency)
-                    : m?.price,
-                  startTime: m?.startTime,
-                  endTime: m?.endTime,
-                  maxMintsPerWallet: m?.maxMintsPerWallet,
-                };
-              })
-            )
-          : [];
+
         return {
           ...response,
-          mintType: mintStages?.[0]?.price?.amount?.decimal > 0 ? "paid" : "free",
+          mintType: elasticData?.mintPrice > 0 ? "paid" : "free",
           mintStatus: metadata.mint_status,
-          mintStages,
+          mintStages: metadata.mint_stages
+            ? await Promise.all(
+                metadata.mint_stages.map(async (m: any) => {
+                  return {
+                    stage: m?.stage || null,
+                    kind: m?.kind || null,
+                    tokenId: m?.tokenId || null,
+                    price: m?.price
+                      ? await getJoiPriceObject({ gross: { amount: m.price } }, m.currency)
+                      : m?.price,
+                    startTime: m?.startTime,
+                    endTime: m?.endTime,
+                    maxMintsPerWallet: m?.maxMintsPerWallet,
+                  };
+                })
+              )
+            : [],
           image: metadata?.metadata?.imageUrl,
           name: metadata?.name,
           volumeChange: {
@@ -369,5 +370,5 @@ async function getMintsResult(request: Request) {
     });
   }
 
-  return mintsResult.slice(0, 50);
+  return mintsResult;
 }
