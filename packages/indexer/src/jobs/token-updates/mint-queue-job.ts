@@ -94,17 +94,6 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
           isFirstToken = true;
         }
 
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "debugTokenUpdate",
-            message: `Update token. contract=${contract}, tokenId=${tokenId}`,
-            token: `${contract}:${tokenId}`,
-            existingToken: JSON.stringify(existingToken),
-            existingTokenMatchesTokenId: existingToken?.token_id === tokenId,
-          })
-        );
-
         if (existingToken?.token_id !== tokenId) {
           const queries: PgPromiseQuery[] = [];
 
