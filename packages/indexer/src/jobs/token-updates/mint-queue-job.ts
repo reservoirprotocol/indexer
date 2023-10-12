@@ -94,9 +94,20 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
           isFirstToken = true;
         }
 
-        const queries: PgPromiseQuery[] = [];
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "debugTokenUpdate",
+            message: `Update token. contract=${contract}, tokenId=${tokenId}`,
+            token: `${contract}:${tokenId}`,
+            existingToken: JSON.stringify(existingToken),
+            existingTokenMatchesTokenId: existingToken?.token_id === tokenId,
+          })
+        );
 
         if (existingToken?.token_id !== tokenId) {
+          const queries: PgPromiseQuery[] = [];
+
           // associate collection with the token
           queries.push({
             query: `
@@ -113,23 +124,11 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
               collection: collection.id,
             },
           });
-        }
 
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "debugTokenUpdate",
-            message: `Update token. contract=${contract}, tokenId=${tokenId}`,
-            token: `${contract}:${tokenId}`,
-            existingToken: JSON.stringify(existingToken),
-            existingTokenMatchesTokenId: existingToken?.token_id === tokenId,
-          })
-        );
-
-        // Include the new token to any collection-wide token set
-        if (collection.token_set_id) {
-          queries.push({
-            query: `
+          // Include the new token to any collection-wide token set
+          if (collection.token_set_id) {
+            queries.push({
+              query: `
                 WITH x AS (
                   SELECT DISTINCT
                     token_sets.id
@@ -148,16 +147,68 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
                   FROM x
                 ) ON CONFLICT DO NOTHING
               `,
-            values: {
-              contract: toBuffer(contract),
-              tokenId,
-              tokenSetId: collection.token_set_id,
-            },
-          });
-        }
+              values: {
+                contract: toBuffer(contract),
+                tokenId,
+                tokenSetId: collection.token_set_id,
+              },
+            });
+          }
 
-        // Trigger the queries
-        await idb.none(pgp.helpers.concat(queries));
+          // Trigger the queries
+          await idb.none(pgp.helpers.concat(queries));
+
+          // Refresh any dynamic token set
+          const cacheKey = `refresh-collection-non-flagged-token-set:${collection.id}`;
+
+          if (!(await redis.get(cacheKey))) {
+            const tokenSet = await tokenSets.dynamicCollectionNonFlagged.get({
+              collection: collection.id,
+            });
+            const tokenSetResult = await idb.oneOrNone(
+              `
+              SELECT 1 FROM token_sets
+              WHERE token_sets.id = $/id/
+            `,
+              {
+                id: tokenSet.id,
+              }
+            );
+
+            if (tokenSetResult) {
+              await tokenSets.dynamicCollectionNonFlagged.save(
+                { collection: collection.id },
+                undefined,
+                true
+              );
+            }
+
+            await redis.set(cacheKey, "locked", "EX", 10 * 60);
+          }
+
+          // Refresh the metadata for the new token
+          if (!config.disableRealtimeMetadataRefresh) {
+            const delay = getNetworkSettings().metadataMintDelay;
+            const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
+
+            await metadataIndexFetchJob.addToQueue(
+              [
+                {
+                  kind: "single-token",
+                  data: {
+                    method,
+                    contract,
+                    tokenId,
+                    collection: collection.id,
+                  },
+                  context: this.queueName,
+                },
+              ],
+              true,
+              delay
+            );
+          }
+        }
 
         // Schedule a job to re-count tokens in the collection with different delays based on the amount of tokens
         let delay = 5 * 60 * 1000;
@@ -168,55 +219,6 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
         }
 
         await recalcTokenCountQueueJob.addToQueue({ collection: collection.id }, delay);
-
-        // Refresh any dynamic token set
-        const cacheKey = `refresh-collection-non-flagged-token-set:${collection.id}`;
-        if (!(await redis.get(cacheKey))) {
-          const tokenSet = await tokenSets.dynamicCollectionNonFlagged.get({
-            collection: collection.id,
-          });
-          const tokenSetResult = await idb.oneOrNone(
-            `
-              SELECT 1 FROM token_sets
-              WHERE token_sets.id = $/id/
-            `,
-            {
-              id: tokenSet.id,
-            }
-          );
-          if (tokenSetResult) {
-            await tokenSets.dynamicCollectionNonFlagged.save(
-              { collection: collection.id },
-              undefined,
-              true
-            );
-          }
-
-          await redis.set(cacheKey, "locked", "EX", 10 * 60);
-        }
-
-        // Refresh the metadata for the new token
-        if (!config.disableRealtimeMetadataRefresh) {
-          const delay = getNetworkSettings().metadataMintDelay;
-          const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
-
-          await metadataIndexFetchJob.addToQueue(
-            [
-              {
-                kind: "single-token",
-                data: {
-                  method,
-                  contract,
-                  tokenId,
-                  collection: collection.id,
-                },
-                context: this.queueName,
-              },
-            ],
-            true,
-            delay
-          );
-        }
       } else {
         // We fetch the collection metadata from upstream
         await fetchCollectionMetadataJob.addToQueue([

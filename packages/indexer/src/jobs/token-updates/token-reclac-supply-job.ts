@@ -45,6 +45,19 @@ export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
       );
     }
 
+    logger.info(
+      this.queueName,
+      JSON.stringify({
+        topic: "debugTokenUpdate",
+        message: `Update token. contract=${contract}, tokenId=${tokenId}`,
+        token: `${contract}:${tokenId}`,
+        tokenSupply: token?.supply,
+        tokenRemainingSupply: token?.remainingSupply,
+        totalSupply,
+        remainingSupply: Math.min(totalSupply, totalRemainingSupply),
+      })
+    );
+
     await Tokens.update(contract, tokenId, {
       supply: totalSupply,
       remainingSupply: Math.min(totalSupply, totalRemainingSupply),
