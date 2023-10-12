@@ -8,7 +8,7 @@ import { idb } from "@/common/db";
 import { redis } from "@/common/redis";
 import { Sources } from "@/models/sources";
 import { formatValidBetween } from "@/jobs/websocket-events/utils";
-import { Network } from "@reservoir0x/sdk/dist/utils";
+// import { Network } from "@reservoir0x/sdk/dist/utils";
 
 interface CollectionInfo {
   id: string;
@@ -151,42 +151,6 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
         }
 
         if (!changed.length) {
-          if (config.chainId === Network.Ethereum) {
-            try {
-              for (const key in data.after) {
-                const beforeValue = data.before[key as keyof CollectionInfo];
-                const afterValue = data.after[key as keyof CollectionInfo];
-
-                if (beforeValue !== afterValue) {
-                  changed.push(key as keyof CollectionInfo);
-                }
-              }
-
-              logger.info(
-                this.queueName,
-                JSON.stringify({
-                  message: `No changes detected for collection. contract=${data.after.contract}, collectionId=${data.after.id}`,
-                  data,
-                  beforeJson: JSON.stringify(data.before),
-                  afterJson: JSON.stringify(data.after),
-                  changed,
-                  changedJson: JSON.stringify(changed),
-                  hasChanged: changed.length > 0,
-                })
-              );
-            } catch (error) {
-              logger.error(
-                this.queueName,
-                JSON.stringify({
-                  message: `No changes detected for collection error. contract=${data.after.contract}, collectionId=${data.after.id}`,
-                  data,
-                  changed,
-                  error,
-                })
-              );
-            }
-          }
-
           return;
         }
       }
@@ -195,7 +159,41 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
       const metadata = JSON.parse(r.metadata);
       const sources = await Sources.getInstance();
 
-      const top_buy_source = r.top_buy_id ? sources.get(r.top_buy_source_id_int) : null;
+      // if (config.chainId === Network.Ethereum) {
+      //   try {
+      //     for (const key in data.after) {
+      //       const beforeValue = data.before[key as keyof CollectionInfo];
+      //       const afterValue = data.after[key as keyof CollectionInfo];
+      //
+      //       if (beforeValue !== afterValue) {
+      //         changed.push(key as keyof CollectionInfo);
+      //       }
+      //     }
+      //
+      //     logger.info(
+      //       this.queueName,
+      //       JSON.stringify({
+      //         message: `No changes detected for collection. contract=${data.after.contract}, collectionId=${data.after.id}`,
+      //         data,
+      //         beforeJson: JSON.stringify(data.before),
+      //         afterJson: JSON.stringify(data.after),
+      //         changed,
+      //         changedJson: JSON.stringify(changed),
+      //         hasChanged: changed.length > 0,
+      //       })
+      //     );
+      //   } catch (error) {
+      //     logger.error(
+      //       this.queueName,
+      //       JSON.stringify({
+      //         message: `No changes detected for collection error. contract=${data.after.contract}, collectionId=${data.after.id}`,
+      //         data,
+      //         changed,
+      //         error,
+      //       })
+      //     );
+      //   }
+      // }    const top_buy_source = r.top_buy_id ? sources.get(r.top_buy_source_id_int) : null;
       const floor_sell_source = r.floor_sell_id ? sources.get(r.floor_sell_source_id_int) : null;
       const normalized_floor_sell_source = r.normalized_floor_sell_id
         ? sources.get(r.normalized_floor_sell_source_id_int)
