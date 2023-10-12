@@ -121,11 +121,16 @@ export type CriteriaResolver = {
   criteriaProof: string[];
 };
 
-export type PartialOrder = {
+export type OpenseaPartialOrder = {
   id: string;
   contract: string;
   tokenId: string;
   unitPrice?: string;
+};
+
+export type OkxPartialOrder = {
+  id: string;
+  okxId: string;
 };
 
 type MatchOrdersFulfillmentComponent = {
