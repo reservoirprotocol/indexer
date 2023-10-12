@@ -12,19 +12,13 @@ import { TxData, bn, generateSourceBytes, lc, n, s } from "../utils";
 
 import { ConduitController } from "../seaport-base";
 
-export type Options = {
-  orderFetcherBaseUrl?: string;
-};
-
 export abstract class SeaportBaseExchange {
   public chainId: number;
   public abstract contract: Contract;
   public conduitController: ConduitController;
-  public options?: Options;
 
-  constructor(chainId: number, options?: Options) {
+  constructor(chainId: number) {
     this.chainId = chainId;
-    this.options = options;
 
     this.conduitController = new ConduitController(this.chainId);
   }

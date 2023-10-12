@@ -786,6 +786,10 @@ export class Router {
               ...detail,
               kind: "seaport-v1.5",
               order: new Sdk.SeaportV15.Order(this.chainId, result.data.order),
+              extraArgs: {
+                ...details[i].extraArgs,
+                extraData: result.data.extraData,
+              },
             };
           } catch (error) {
             if (options?.onError) {
@@ -829,9 +833,7 @@ export class Router {
       !options?.relayer &&
       !options?.usePermit
     ) {
-      const exchange = new Sdk.SeaportV15.Exchange(this.chainId, {
-        orderFetcherBaseUrl: this.options?.orderFetcherBaseUrl,
-      });
+      const exchange = new Sdk.SeaportV15.Exchange(this.chainId);
 
       const conduitKey = (details[0].order as Sdk.SeaportV15.Order).params.conduitKey;
       const conduit = exchange.deriveConduit(conduitKey);
@@ -862,7 +864,10 @@ export class Router {
               txData: await exchange.fillOrderTx(
                 taker,
                 order,
-                order.buildMatching({ amount: details[0].amount }),
+                {
+                  ...order.buildMatching({ amount: details[0].amount }),
+                  extraData: details[0].extraArgs?.extraData,
+                },
                 {
                   ...options,
                   conduitKey,
@@ -889,7 +894,10 @@ export class Router {
               txData: await exchange.fillOrdersTx(
                 taker,
                 orders,
-                orders.map((order, i) => order.buildMatching({ amount: details[i].amount })),
+                orders.map((order, i) => ({
+                  ...order.buildMatching({ amount: details[i].amount }),
+                  extraData: details[i].extraArgs?.extraData,
+                })),
                 {
                   ...options,
                   conduitKey,
@@ -1734,9 +1742,7 @@ export class Router {
 
     // Handle Seaport V1.5 listings
     if (Object.keys(seaportV15Details).length) {
-      const exchange = new Sdk.SeaportV15.Exchange(this.chainId, {
-        orderFetcherBaseUrl: this.options?.orderFetcherBaseUrl,
-      });
+      const exchange = new Sdk.SeaportV15.Exchange(this.chainId);
       for (const currency of Object.keys(seaportV15Details)) {
         const currencyDetails = seaportV15Details[currency];
 
@@ -1776,6 +1782,7 @@ export class Router {
                         signature: orders[0].params.signature,
                         extraData: await exchange.getExtraData(orders[0], {
                           amount: currencyDetails[0].amount ?? 1,
+                          extraData: currencyDetails[0].extraArgs?.extraData,
                         }),
                       },
                       {
@@ -1805,8 +1812,9 @@ export class Router {
                             numerator: filledAmount,
                             denominator: totalAmount,
                             signature: order.params.signature,
-                            extraData: await exchange.getExtraData(orders[0], {
+                            extraData: await exchange.getExtraData(order, {
                               amount: filledAmount,
+                              extraData: currencyDetails[i].extraArgs?.extraData,
                             }),
                           };
 
@@ -3973,9 +3981,7 @@ export class Router {
             ...(detail.extraArgs ?? {}),
           });
 
-          const exchange = new Sdk.SeaportV15.Exchange(this.chainId, {
-            orderFetcherBaseUrl: this.options?.orderFetcherBaseUrl,
-          });
+          const exchange = new Sdk.SeaportV15.Exchange(this.chainId);
           executionsWithDetails.push({
             detail,
             execution: {

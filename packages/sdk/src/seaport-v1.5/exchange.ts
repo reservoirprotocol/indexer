@@ -15,14 +15,14 @@ import * as Types from "../seaport-base/types";
 import { bn } from "../utils";
 
 import ExchangeAbi from "./abis/Exchange.json";
-import { Options, SeaportBaseExchange } from "../seaport-base/exchange";
+import { SeaportBaseExchange } from "../seaport-base/exchange";
 
 export class Exchange extends SeaportBaseExchange {
   protected exchangeAddress: string;
   public contract: Contract;
 
-  constructor(chainId: number, options?: Options) {
-    super(chainId, options);
+  constructor(chainId: number) {
+    super(chainId);
     this.exchangeAddress = Addresses.Exchange[chainId];
     this.contract = new Contract(this.exchangeAddress, ExchangeAbi);
   }
@@ -160,6 +160,7 @@ export class Exchange extends SeaportBaseExchange {
   // matchParams should always pass for seaport-v1.4
   public async getExtraData(order: IOrder, matchParams?: Types.MatchParams): Promise<string> {
     switch (order.params.zone) {
+      // TODO: Move this logic to the indexer, outside of the router
       case BaseAddresses.ReservoirCancellationZone[this.chainId]: {
         return axios
           .post(
@@ -204,18 +205,8 @@ export class Exchange extends SeaportBaseExchange {
           .then((response) => response.data.orders[0].extraDataComponent);
       }
 
-      case BaseAddresses.OkxCancellationZone[this.chainId]: {
-        // The `extraData` will be cached from a previous call
-        return axios
-          .post(`${this.options?.orderFetcherBaseUrl}/api/okx-listing`, {
-            orderHash: order.hash(),
-            chainId: this.chainId,
-          })
-          .then((response) => response.data.extraData);
-      }
-
       default:
-        return "0x";
+        return matchParams?.extraData ?? "0x";
     }
   }
 }
