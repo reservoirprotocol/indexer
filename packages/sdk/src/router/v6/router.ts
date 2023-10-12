@@ -21,6 +21,7 @@ import {
   BidDetails,
   ExecutionInfo,
   FTApproval,
+  Fee,
   FillBidsResult,
   FillListingsResult,
   FillMintsResult,
@@ -727,9 +728,9 @@ export class Router {
 
     await Promise.all(
       details.map(async (detail, i) => {
-        if (["seaport-v1.4-partial", "seaport-v1.5-partial"].includes(detail.kind)) {
-          const protocolVersion = detail.kind === "seaport-v1.4-partial" ? "v1.4" : "v1.5";
-          const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
+        if (["seaport-v1.5-partial"].includes(detail.kind)) {
+          const protocolVersion = "v1.5";
+          const order = detail.order as Sdk.SeaportBase.Types.OpenseaPartialOrder;
 
           try {
             const result = await axios.post(`${this.options?.orderFetcherBaseUrl}/api/listing`, {
@@ -747,19 +748,48 @@ export class Router {
             // Override the details
             details[i] = {
               ...detail,
-              ...(protocolVersion === "v1.4"
-                ? {
-                    kind: "seaport-v1.4",
-                    order: new Sdk.SeaportV14.Order(this.chainId, result.data.order),
-                  }
-                : {
-                    kind: "seaport-v1.5",
-                    order: new Sdk.SeaportV15.Order(this.chainId, result.data.order),
-                  }),
+              kind: "seaport-v1.5",
+              order: new Sdk.SeaportV15.Order(this.chainId, result.data.order),
             };
           } catch (error) {
             if (options?.onError) {
               options.onError("order-fetcher-opensea-listing", error, {
+                orderId: detail.orderId,
+                additionalInfo: {
+                  detail,
+                  taker,
+                },
+              });
+            }
+
+            if (!options?.partial) {
+              throw new Error(getErrorMessage(error));
+            }
+          }
+        } else if (["seaport-v1.5-partial-okx"].includes(detail.kind)) {
+          const order = detail.order as Sdk.SeaportBase.Types.OkxPartialOrder;
+
+          try {
+            const result = await axios.post(
+              `${this.options?.orderFetcherBaseUrl}/api/okx-listing`,
+              {
+                okxOrderId: order.okxId,
+                orderHash: order.id,
+                taker,
+                chainId: this.chainId,
+                metadata: this.options?.orderFetcherMetadata,
+              }
+            );
+
+            // Override the details
+            details[i] = {
+              ...detail,
+              kind: "seaport-v1.5",
+              order: new Sdk.SeaportV15.Order(this.chainId, result.data.order),
+            };
+          } catch (error) {
+            if (options?.onError) {
+              options.onError("order-fetcher-okx-listing", error, {
                 orderId: detail.orderId,
                 additionalInfo: {
                   detail,
@@ -3308,7 +3338,7 @@ export class Router {
       }
 
       if (options?.usePermit) {
-        const supportedPermitCurrencies = [Sdk.Common.Addresses.Usdc[this.chainId]];
+        const supportedPermitCurrencies = Sdk.Common.Addresses.Usdc[this.chainId] ?? [];
         if (!supportedPermitCurrencies.includes(buyInCurrency)) {
           throw new Error("Buying with permit not supported");
         }
@@ -3649,8 +3679,7 @@ export class Router {
           break;
         }
 
-        case "seaport-v1.4":
-        case "seaport-v1.4-partial": {
+        case "seaport-v1.4": {
           module = this.contracts.seaportV14Module;
           break;
         }
@@ -3779,6 +3808,15 @@ export class Router {
       routerTxTags.bids![orderKind] += numBids;
       routerTxTags.feesOnTop! += numFeesOnTop;
     };
+
+    // We aggregate all protected offers and fill them together
+    const protectedSeaportV15Offers: {
+      detail: BidDetails;
+      order: Sdk.SeaportV15.Order;
+      fees: Fee[];
+      criteriaResolvers: Sdk.SeaportBase.Types.CriteriaResolver[];
+      extraData: string;
+    }[] = [];
 
     for (let i = 0; i < details.length; i++) {
       const detail = details[i];
@@ -3968,7 +4006,7 @@ export class Router {
         }
 
         case "seaport-v1.5-partial": {
-          const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
+          const order = detail.order as Sdk.SeaportBase.Types.OpenseaPartialOrder;
           const module = this.contracts.seaportV15Module;
 
           try {
@@ -3987,72 +4025,12 @@ export class Router {
 
             const fullOrder = new Sdk.SeaportV15.Order(this.chainId, result.data.order);
             if (detail.isProtected) {
-              const contract = detail.contract;
-              const owner = taker;
-              const operator = new Sdk.SeaportBase.ConduitController(this.chainId).deriveConduit(
-                Sdk.SeaportBase.Addresses.OpenseaConduitKey[this.chainId]
-              );
-
-              const { order: counterOrder, fulfillments } =
-                constructOfferCounterOrderAndFulfillments(fullOrder.params, taker, {
-                  counter: await new Sdk.SeaportV15.Exchange(this.chainId).getCounter(
-                    this.provider,
-                    taker
-                  ),
-                  tips: fees,
-                  tokenId: result.data.criteriaResolvers[0]?.identifier,
-                });
-
-              const calldata = new Interface(SeaportV15Abi).encodeFunctionData(
-                "matchAdvancedOrders",
-                [
-                  [
-                    {
-                      parameters: {
-                        ...fullOrder.params,
-                        totalOriginalConsiderationItems: fullOrder.params.consideration.length,
-                      },
-                      signature: fullOrder.params.signature!,
-                      extraData: result.data.extraData,
-                      numerator: detail.amount ?? 1,
-                      denominator: fullOrder.params.consideration[0].startAmount,
-                    },
-                    {
-                      parameters: counterOrder.parameters,
-                      signature: counterOrder.signature,
-                      extraData: "0x",
-                      numerator: detail.amount ?? 1,
-                      denominator: fullOrder.params.consideration[0].startAmount,
-                    },
-                  ],
-                  result.data.criteriaResolvers ?? [],
-                  fulfillments,
-                  taker,
-                ]
-              );
-
-              // Fill directly
-              txs.push({
-                txTags: {
-                  kind: "sale",
-                  bids: { "seaport-v1.5": 1 },
-                },
-                txData: {
-                  from: taker,
-                  to: Sdk.SeaportV15.Addresses.Exchange[this.chainId],
-                  data: calldata + generateSourceBytes(options?.source),
-                },
-                approvals: [
-                  {
-                    orderIds: [detail.orderId],
-                    contract,
-                    owner,
-                    operator,
-                    txData: generateNFTApprovalTxData(contract, owner, operator),
-                  },
-                ],
-                preSignatures: [],
-                orderIds: [detail.orderId],
+              protectedSeaportV15Offers.push({
+                detail,
+                order: fullOrder,
+                fees,
+                criteriaResolvers: result.data.criteriaResolvers ?? [],
+                extraData: result.data.extraData,
               });
             } else {
               executionsWithDetails.push({
@@ -4629,6 +4607,119 @@ export class Router {
           break;
         }
       }
+    }
+
+    // Batch fill all protected offers in a single transaction
+    if (protectedSeaportV15Offers.length) {
+      const approvals: NFTApproval[] = [];
+      const batch: {
+        orders: Sdk.SeaportBase.Types.AdvancedOrder[];
+        criteriaResolvers: Sdk.SeaportBase.Types.CriteriaResolver[];
+        fulfillments: Sdk.SeaportBase.Types.MatchOrdersFulfillment[];
+      } = {
+        orders: [],
+        criteriaResolvers: [],
+        fulfillments: [],
+      };
+
+      for (let i = 0; i < protectedSeaportV15Offers.length; i++) {
+        const { detail, order, fees, criteriaResolvers, extraData } = protectedSeaportV15Offers[i];
+
+        const contract = detail.contract;
+        const owner = taker;
+        const operator = new Sdk.SeaportBase.ConduitController(this.chainId).deriveConduit(
+          Sdk.SeaportBase.Addresses.OpenseaConduitKey[this.chainId]
+        );
+
+        const { order: counterOrder, fulfillments } = constructOfferCounterOrderAndFulfillments(
+          order.params,
+          taker,
+          {
+            counter: await new Sdk.SeaportV15.Exchange(this.chainId).getCounter(
+              this.provider,
+              taker
+            ),
+            tips: fees,
+            tokenId: detail.tokenId,
+          }
+        );
+
+        batch.orders.push(
+          {
+            parameters: {
+              ...order.params,
+              totalOriginalConsiderationItems: order.params.consideration.length,
+            },
+            signature: order.params.signature!,
+            extraData,
+            numerator: String(detail.amount ?? 1),
+            denominator: order.params.consideration[0].startAmount,
+          },
+          {
+            parameters: counterOrder.parameters,
+            signature: counterOrder.signature,
+            extraData: "0x",
+            numerator: String(detail.amount ?? 1),
+            denominator: order.params.consideration[0].startAmount,
+          }
+        );
+
+        // All `orderIndex` fields must be adjusted
+        batch.criteriaResolvers.push(
+          ...criteriaResolvers.map((cr) => ({
+            ...cr,
+            orderIndex: cr.orderIndex + i * 2,
+          }))
+        );
+        batch.fulfillments.push(
+          ...fulfillments.map((f) => ({
+            offerComponents: f.offerComponents.map((c) => ({
+              ...c,
+              orderIndex: c.orderIndex + i * 2,
+            })),
+            considerationComponents: f.considerationComponents.map((c) => ({
+              ...c,
+              orderIndex: c.orderIndex + i * 2,
+            })),
+          }))
+        );
+
+        approvals.push({
+          orderIds: [detail.orderId],
+          contract,
+          owner,
+          operator,
+          txData: generateNFTApprovalTxData(contract, owner, operator),
+        });
+      }
+
+      const calldata = new Interface(SeaportV15Abi).encodeFunctionData("matchAdvancedOrders", [
+        batch.orders,
+        batch.criteriaResolvers,
+        batch.fulfillments,
+        taker,
+      ]);
+
+      // Fill directly
+      txs.push({
+        txTags: {
+          kind: "sale",
+          bids: { "seaport-v1.5": protectedSeaportV15Offers.length },
+        },
+        txData: {
+          from: taker,
+          to: Sdk.SeaportV15.Addresses.Exchange[this.chainId],
+          data: calldata + generateSourceBytes(options?.source),
+        },
+        // Ensure approvals are unique
+        approvals: uniqBy(
+          // TODO: Exclude approvals for unsuccessful items
+          approvals,
+          ({ txData: { from, to, data } }) => `${from}-${to}-${data}`
+        ),
+        preSignatures: [],
+        orderIds: protectedSeaportV15Offers.map(({ detail }) => detail.orderId),
+      });
     }
 
     if (executionsWithDetails.length === 1 && !options?.forceApprovalProxy) {

@@ -160,7 +160,7 @@ export const SeaportV15Module: ChainIdToAddress = {
   [Network.Linea]: "0x4e9aaa72727a2f5aa5d2bef80ab5642661e29ef6",
   [Network.Avalanche]: "0x00ca04c45da318d5b7e7b14d5381ca59f09c73f0",
   [Network.PolygonZkevm]: "0x00ca04c45da318d5b7e7b14d5381ca59f09c73f0",
-  [Network.Zksync]: "0x07d8903aaf93e24a03e82fabb9ac9f501e9f6904",
+  [Network.Zksync]: "0x0da7fe8aa50e8cecedf3242597bd9560bffbf8ec",
   [Network.Ancient8Testnet]: "0x4e9aaa72727a2f5aa5d2bef80ab5642661e29ef6",
 };
 
@@ -200,6 +200,7 @@ export const X2Y2Module: ChainIdToAddress = {
 export const ZeroExV4Module: ChainIdToAddress = {
   [Network.Ethereum]: "0xb6c0cf204d7872fff613fa090f723d9d520ede2a",
   [Network.EthereumGoerli]: "0xb6c0cf204d7872fff613fa090f723d9d520ede2a",
+  [Network.Polygon]: "0xb6c0cf204d7872fff613fa090f723d9d520ede2a",
   [Network.Bsc]: "0xb6c0cf204d7872fff613fa090f723d9d520ede2a",
 };
 
