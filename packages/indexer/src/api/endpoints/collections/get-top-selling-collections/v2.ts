@@ -4,7 +4,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import _ from "lodash";
 import Joi from "joi";
 import { logger } from "@/common/logger";
-import { fromBuffer, regex, toBuffer } from "@/common/utils";
+import { fromBuffer, regex } from "@/common/utils";
 import { redb } from "@/common/db";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
@@ -13,8 +13,9 @@ import { getStartTime } from "@/models/top-selling-collections/top-selling-colle
 import { redis } from "@/common/redis";
 
 import {
-  getTopSellingCollections,
+  getTopSellingCollectionsV2 as getTopSellingCollections,
   TopSellingFillOptions,
+  getRecentSalesByCollection,
 } from "@/elasticsearch/indexes/activities";
 
 import { getJoiPriceObject, JoiPrice } from "@/common/joi";
@@ -24,11 +25,12 @@ const version = "v2";
 
 export const getTopSellingCollectionsV2Options: RouteOptions = {
   cache: {
+    expiresIn: 60 * 1000,
     privacy: "public",
   },
   description: "Top Selling Collections",
   notes: "Get top selling and minting collections",
-  tags: ["api", "Collections"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 3,
@@ -83,6 +85,8 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
           primaryContract: Joi.string().lowercase().pattern(regex.address),
           count: Joi.number().integer(),
           volume: Joi.number(),
+          volumePercentChange: Joi.number().unsafe().allow(null),
+          countPercentChange: Joi.number().unsafe().allow(null),
           floorAsk: {
             id: Joi.string().allow(null),
             sourceDomain: Joi.string().allow("", null),
@@ -152,7 +156,7 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
       let collectionsResult = [];
       const period = request.query.period === "24h" ? "1d" : request.query.period;
 
-      const cacheKey = `topSellingCollections:v2:${period}:${fillType}:${sortBy}`;
+      const cacheKey = `top-selling-collections:v2:${period}:${fillType}:${sortBy}`;
 
       const cachedResults = await redis.get(cacheKey);
 
@@ -169,7 +173,6 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
           startTime,
           fillType,
           limit,
-          includeRecentSales,
           sortBy,
         });
 
@@ -213,13 +216,14 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
       let collections = [];
 
       if (collectionsResult.length) {
-        request.query.contract = collectionsResult.map((collection: any) =>
-          toBuffer(collection.primaryContract)
-        );
+        const collectionIdList = collectionsResult
+          .map((collection: any) => `'${collection.id}'`)
+          .join(", ");
 
         const baseQuery = `
         SELECT
           collections.id,
+          collections.name,
           collections.contract,
           collections.token_count,
           collections.owner_count,
@@ -227,19 +231,31 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
           collections.day7_volume_change,
           collections.day30_volume_change,
           (collections.metadata ->> 'bannerImageUrl')::TEXT AS "banner",
+          (collections.metadata ->> 'imageUrl')::TEXT AS "image",
           (collections.metadata ->> 'description')::TEXT AS "description",
           ${floorAskSelectQuery}
           FROM collections
-          WHERE collections.contract IN ($/contract:csv/)
+          WHERE collections.id IN (${collectionIdList})
       `;
 
-        const resultsPromise = redb.manyOrNone(baseQuery, request.query);
+        let recentSalesPerCollection: any = {};
+
+        if (includeRecentSales) {
+          recentSalesPerCollection = await getRecentSalesByCollection(
+            collectionsResult.map((collection: any) => collection.id),
+            fillType
+          );
+        }
+
+        const resultsPromise = redb.manyOrNone(baseQuery);
         const recentSalesPromise = collectionsResult.map(async (collection: any) => {
+          const recentSales = recentSalesPerCollection[collection.id] || [];
+
           return {
             ...collection,
-            recentSales: includeRecentSales
+            recentSales: recentSales
               ? await Promise.all(
-                  collection.recentSales.map(async (sale: any) => {
+                  recentSales.map(async (sale: any) => {
                     const { pricing, ...salesData } = sale;
                     const price = pricing
                       ? await getJoiPriceObject(
@@ -270,14 +286,14 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
         const collectionsMetadata: Record<string, any> = {};
         if (collectionMetadataResponse && Array.isArray(collectionMetadataResponse)) {
           collectionMetadataResponse.forEach((metadata: any) => {
-            collectionsMetadata[fromBuffer(metadata.contract)] = metadata;
+            collectionsMetadata[metadata.id] = metadata;
           });
         }
         const sources = await Sources.getInstance();
 
         collections = await Promise.all(
           responses.map(async (response: any) => {
-            const metadata = collectionsMetadata[(response as any).primaryContract] || {};
+            const metadata = collectionsMetadata[(response as any).id] || {};
             let floorAsk;
             if (metadata) {
               const floorAskCurrency = metadata.floor_sell_currency
@@ -307,8 +323,10 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
                 "7day": metadata.day7_volume_change,
                 "30day": metadata.day30_volume_change,
               },
+              name: metadata.name,
               tokenCount: Number(metadata.token_count || 0),
               ownerCount: Number(metadata.owner_count || 0),
+              image: metadata.image,
               banner: metadata.banner,
               description: metadata.description,
               floorAsk,
