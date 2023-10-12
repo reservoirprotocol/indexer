@@ -230,7 +230,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
         payload: { type, cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
         jobId,
       },
-      keepGoing ? 5000 : 1000
+      1000
     );
   }
 }
