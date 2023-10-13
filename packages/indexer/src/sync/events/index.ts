@@ -266,6 +266,10 @@ export const extractEventsBatches = async (
             kind: "metadata-update",
             data: kindToEvents.get("metadata-update") ?? [],
           },
+          {
+            kind: "soundxyz",
+            data: kindToEvents.get("soundxyz") ?? [],
+          },
         ];
 
         txHashToEventsBatch.set(txHash, {

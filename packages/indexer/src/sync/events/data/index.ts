@@ -46,6 +46,7 @@ import * as seadrop from "@/events-sync/data/seadrop";
 import * as erc721c from "@/events-sync/data/erc721c";
 import * as joepeg from "@/events-sync/data/joepeg";
 import * as metadataUpdate from "@/events-sync/data/metadata-update";
+import * as soundxyz from "@/events-sync/data/soundxyz";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -94,7 +95,8 @@ export type EventKind =
   | "blur-v2"
   | "erc721c"
   | "joepeg"
-  | "metadata-update";
+  | "metadata-update"
+  | "soundxyz";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -310,7 +312,9 @@ export type EventSubKind =
   | "metadata-update-batch-tokens-opensea"
   | "metadata-update-uri-opensea"
   | "metadata-update-contract-uri-thirdweb"
-  | "metadata-update-zora";
+  | "metadata-update-zora"
+  | "soundxyz-range-edition-mint-created"
+  | "soundxyz-merkle-drop-mint-created";
 
 export type EventData = {
   kind: EventKind;
@@ -533,6 +537,8 @@ const allEventData = [
   metadataUpdate.metadataUpdateURIOpensea,
   metadataUpdate.contractURIUpdateThirdweb,
   metadataUpdate.metadataUpdateURIZora,
+  soundxyz.rangeEditionMintCreated,
+  soundxyz.merkleDropMintCreated,
 ];
 
 export const getEventData = (events?: string[]) => {
