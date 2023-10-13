@@ -577,7 +577,7 @@ export const refreshByCollection = async (collection: string) => {
     // Fetch and save/update the currently available mints
     const latestCollectionMints = tokenId
       ? await extractByCollectionERC1155(collection, tokenId)
-      : await extractByCollectionERC721(collection, details.info!.instanceId!);
+      : await extractByCollectionERC721(collection, (details.info! as Info).instanceId!);
     for (const collectionMint of latestCollectionMints) {
       await simulateAndUpsertCollectionMint(collectionMint);
     }
@@ -614,7 +614,7 @@ export const generateProofValue = async (
     .get(cacheKey)
     .then((response) => (response ? JSON.parse(response) : undefined));
   if (!result) {
-    const info = collectionMint.details.info!;
+    const info = collectionMint.details.info! as Info;
     result = await axios
       .get(
         `https://apps.api.manifoldxyz.dev/public/merkleTree/${info.merkleTreeId}/merkleInfo?address=${address}`
