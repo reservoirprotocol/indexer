@@ -54,9 +54,9 @@ export const postRoutersOptions: RouteOptions = {
           `,
           {
             address: toBuffer(address),
-            sourceId: await Sources.getInstance().then(
-              (sources) => sources.getByDomain(domain)?.id
-            ),
+            sourceId: await Sources.getInstance()
+              .then((sources) => sources.getOrInsert(domain))
+              .then((source) => source.id),
           }
         );
 
