@@ -762,7 +762,7 @@ export const search = async (
   }
 
   // Backward compatibility
-  if (searchAfter?.length != 1) {
+  if (searchAfter?.length != 1 && !params.continuationAsInt) {
     esSort.push({ id: { order: "desc" } });
   }
 
