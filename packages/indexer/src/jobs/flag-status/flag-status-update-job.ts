@@ -1,8 +1,7 @@
-import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
+import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
-import { generateCollectionTokenSetJob } from "@/jobs/flag-status/generate-collection-token-set-job";
 import * as tokenSets from "@/orderbook/token-sets";
 
 export type FlagStatusUpdateJobPayload = {
@@ -68,12 +67,7 @@ export class FlagStatusUpdateJob extends AbstractRabbitMqJobHandler {
               txTimestamp: null,
             },
           ]),
-          // Regenerate a new non-flagged token set
-          // TODO: Is this needed anymore (we should always use the dynamic token set going forward)?
-          generateCollectionTokenSetJob.addToQueue({
-            contract,
-            collectionId: result.collection_id,
-          }),
+
           // Update the dynamic collection non-flagged token set
           tokenSets.dynamicCollectionNonFlagged.update(
             { collection: result.collection_id },
