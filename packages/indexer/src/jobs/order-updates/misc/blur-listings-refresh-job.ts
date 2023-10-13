@@ -28,82 +28,87 @@ export class BlurListingsRefreshJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: BlurListingsRefreshJobPayload) {
     const { collection } = payload;
 
+    if (config.chainId !== 1) {
+      return;
+    }
+
     try {
       // First fetch the most up-to-date state of the listings
-      const blurListings = await axios
+      await axios
         .get(`${config.orderFetcherBaseUrl}/api/blur-collection-listings?collection=${collection}`)
-        .then(
-          (response) =>
-            response.data.listings as {
-              owner: string;
-              contractAddress: string;
-              tokenId: string;
-              price: string;
-              createdAt: string;
-            }[]
-        );
+        .then(async (response) => {
+          const blurListings = response.data.listings as {
+            owner: string;
+            contractAddress: string;
+            tokenId: string;
+            price: string;
+            createdAt: string;
+          }[];
 
-      logger.info(this.queueName, JSON.stringify(blurListings));
-
-      // And add them to the queue (duplicates will simply be ignored)
-      await orderbookOrdersJob.addToQueue(
-        blurListings.map((l) => ({
-          kind: "blur-listing",
-          info: {
-            orderParams: {
-              collection,
-              tokenId: l.tokenId,
-              owner: l.owner,
-              price: l.price,
-              createdAt: l.createdAt,
-            },
-            metadata: {},
-          },
-        }))
-      );
-
-      const listingsMap: { [id: string]: boolean } = {};
-      for (const l of blurListings) {
-        const id = `${l.contractAddress}-${l.tokenId}-${l.price}-${l.createdAt}`;
-        listingsMap[id] = true;
-      }
-
-      // Then fetch any own listings
-      const ownListings = await idb.manyOrNone(
-        `
-          SELECT
-            orders.raw_data
-          FROM orders
-          WHERE orders.contract = $/contract/
-            AND orders.kind = 'blur'
-            AND orders.side = 'sell'
-            AND orders.fillability_status = 'fillable'
-            AND orders.approval_status = 'approved'
-            AND orders.raw_data->>'createdAt' IS NOT NULL
-        `,
-        {
-          contract: toBuffer(collection),
-        }
-      );
-      // And make sure to remove any listings that were not retireved via the previous call
-      for (const l of ownListings) {
-        const id = `${l.raw_data.collection}-${l.raw_data.tokenId}-${l.raw_data.price}-${l.raw_data.createdAt}`;
-        if (!listingsMap[id]) {
-          await orderbookOrdersJob.addToQueue([
-            {
+          // And add them to the queue (duplicates will simply be ignored)
+          await orderbookOrdersJob.addToQueue(
+            blurListings.map((l) => ({
               kind: "blur-listing",
               info: {
                 orderParams: {
                   collection,
-                  tokenId: l.raw_data.tokenId,
-                  createdAt: l.raw_data.createdAt,
+                  tokenId: l.tokenId,
+                  owner: l.owner,
+                  price: l.price,
+                  createdAt: l.createdAt,
                 },
                 metadata: {},
               },
-            },
-          ]);
-        }
-      }
+            }))
+          );
+
+          const listingsMap: { [id: string]: boolean } = {};
+          for (const l of blurListings) {
+            const id = `${l.contractAddress}-${l.tokenId}-${l.price}-${l.createdAt}`;
+            listingsMap[id] = true;
+          }
+
+          // Then fetch any own listings
+          const ownListings = await idb.manyOrNone(
+            `
+              SELECT
+                orders.raw_data
+              FROM orders
+              WHERE orders.contract = $/contract/
+                AND orders.kind = 'blur'
+                AND orders.side = 'sell'
+                AND orders.fillability_status = 'fillable'
+                AND orders.approval_status = 'approved'
+                AND orders.raw_data->>'createdAt' IS NOT NULL
+            `,
+            {
+              contract: toBuffer(collection),
+            }
+          );
+
+          // And make sure to remove any listings that were not retireved via the previous call
+          for (const l of ownListings) {
+            const id = `${l.raw_data.collection}-${l.raw_data.tokenId}-${l.raw_data.price}-${l.raw_data.createdAt}`;
+            if (!listingsMap[id]) {
+              await orderbookOrdersJob.addToQueue([
+                {
+                  kind: "blur-listing",
+                  info: {
+                    orderParams: {
+                      collection,
+                      tokenId: l.raw_data.tokenId,
+                      createdAt: l.raw_data.createdAt,
+                    },
+                    metadata: {},
+                  },
+                },
+              ]);
+            }
+          }
+        })
+        .catch(() => {
+          // Skip any errors
+        });
 
       // Also refresh the royalties
       const lockKey = `blur-royalties-refresh-lock:${collection}`;
