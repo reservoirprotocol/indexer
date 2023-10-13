@@ -140,7 +140,7 @@ export const extractByCollection = async (
             maxMintsPerWallet: mintInfo.maxMintablePerAccount,
             maxSupply: mintInfo.maxMintableUpper,
             startTime: toSafeTimestamp(mintInfo.startTime),
-            endTime: toSafeTimestamp(mintInfo.endTime),
+            endTime: toSafeTimestamp(mintInfo.cutoffTime),
           },
         ];
       }
@@ -240,7 +240,7 @@ export const extractByCollection = async (
             maxMintsPerWallet: mintInfo.maxMintablePerAccount,
             maxSupply: mintInfo.maxMintable,
             startTime: toSafeTimestamp(mintInfo.startTime),
-            endTime: toSafeTimestamp(mintInfo.endTime),
+            endTime: toSafeTimestamp(mintInfo.cutoffTime),
             allowlistId: mintInfo.merkleRoot,
           },
         ];
