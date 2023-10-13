@@ -347,11 +347,12 @@ export async function extractRoyalties(
       // Skip errors
     }
   }
+
   for (const address in state) {
     const { tokenBalanceState } = state[address];
     const globalChange = globalState[address];
 
-    const balanceChange =
+    let balanceChange =
       currency === ETH
         ? // The fill event will map any BETH fills to ETH so we need to cover that here
           tokenBalanceState[`native:${ETH}`] || tokenBalanceState[`erc20:${BETH}`]
@@ -391,6 +392,32 @@ export async function extractRoyalties(
     const matchRangePayment = currentFillEvent?.relatedPayments.find(
       (c) => c.to.toLowerCase() === address.toLowerCase()
     );
+
+    const multipleTransfers = paymentsToAnalyze.filter(
+      (c) => c.to === address && c.token === `native:${ETH}`
+    );
+
+    // If there have multiple transfers to the same address
+    if (multipleTransfers.length > 1) {
+      const totalAmount = multipleTransfers.reduce(
+        (total, item) => total.add(bn(item.amount)),
+        bn(0)
+      );
+      const sortedTransfers = multipleTransfers.sort((c, b) =>
+        bn(c.amount).gte(bn(b.amount)) ? -1 : 1
+      );
+
+      const otherAmount = sortedTransfers
+        .slice(1)
+        .reduce((total, item) => total.add(bn(item.amount)), bn(0));
+
+      const otherBps = otherAmount.mul(PRECISION_BASE).div(fillEvent.price).toNumber();
+
+      // If totalAmount match with sale price then fix the balanceChange by exclude the largest one
+      if (totalAmount.eq(fillEvent.price) && otherBps < BPS_LIMIT) {
+        balanceChange = otherAmount.toString();
+      }
+    }
 
     // If the balance change is positive that means a payment was received
     if (balanceChange && !balanceChange.startsWith("-")) {
@@ -486,12 +513,15 @@ export async function extractRoyalties(
 
         const excludeOtherRecipients = shareSameRecipient ? true : notInOtherDef;
         const matchFee = feeRecipient.getByAddress(address, "marketplace");
+
+        const inRoyaltyRecipient = royalties.find((c) => c.find((d) => d.recipient === address));
+
         const recipientIsEligible =
           bps > 0 &&
           bps < BPS_LIMIT &&
           !matchFee &&
           excludeOtherRecipients &&
-          !notRoyaltyRecipients.has(address);
+          (!notRoyaltyRecipients.has(address) || inRoyaltyRecipient);
 
         // For multiple sales, we should check if the current payment is
         // in the range of payments associated to the current fill event

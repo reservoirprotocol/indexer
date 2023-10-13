@@ -129,4 +129,7 @@ export const OkxCancellationZone: ChainIdToAddress = {
   [Network.Arbitrum]: "0x2de95b9afd737b0814e5e6013593a9437c5532d5",
   [Network.ArbitrumNova]: "0x2de95b9afd737b0814e5e6013593a9437c5532d5",
   [Network.Avalanche]: "0x2de95b9afd737b0814e5e6013593a9437c5532d5",
+  [Network.Zksync]: "0xea93132c3a66383d89713570fc580dc3fd296083",
+  [Network.Linea]: "0x633ac791c6967b89aebf9e385f47ac03182d96c9",
+  [Network.PolygonZkevm]: "0x10a8c9065692dffd48df1935e67a2744667fd9d0",
 };
