@@ -3,7 +3,7 @@
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 import { logger } from "@/common/logger";
-import { fromBuffer, regex } from "@/common/utils";
+import { fromBuffer, regex, formatEth } from "@/common/utils";
 import { redb } from "@/common/db";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
@@ -84,6 +84,7 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
           volumePercentChange: Joi.number().unsafe().allow(null),
           countPercentChange: Joi.number().unsafe().allow(null),
           creator: Joi.string().allow("", null),
+          onSaleCount: Joi.number().integer(),
           floorAsk: {
             id: Joi.string().allow(null),
             sourceDomain: Joi.string().allow("", null),
@@ -102,11 +103,18 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
           },
           tokenCount: Joi.number().description("Total tokens within the collection."),
           ownerCount: Joi.number().description("Unique number of owners."),
-          volumeChange: Joi.object({
+
+          collectionVolume: Joi.object({
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
             allTime: Joi.number().unsafe().allow(null),
+          }).description("Total volume in given time period."),
+
+          volumeChange: Joi.object({
+            "1day": Joi.number().unsafe().allow(null),
+            "7day": Joi.number().unsafe().allow(null),
+            "30day": Joi.number().unsafe().allow(null),
           }).description(
             "Total volume change X-days vs previous X-days. (e.g. 7day [days 1-7] vs 7day prior [days 8-14]). A value over 1 is a positive gain, under 1 is a negative loss. e.g. 1 means no change; 1.1 means 10% increase; 0.9 means 10% decrease."
           ),
@@ -197,18 +205,26 @@ async function formatCollections(
 
       return {
         ...response,
-        image: metadata.metadata.imageUrl,
-        name: metadata.name,
+        image: metadata?.metadata?.imageUrl,
+        name: metadata?.name || "",
+        onSaleCount: Number(metadata.on_sale_count) || 0,
         volumeChange: {
-          "1day": metadata.day1_volume_change,
-          "7day": metadata.day7_volume_change,
-          "30day": metadata.day30_volume_change,
-          allTime: metadata.all_time_volume,
+          "1day": Number(metadata.day1_volume_change),
+          "7day": Number(metadata.day7_volume_change),
+          "30day": Number(metadata.day30_volume_change),
         },
+
+        collectionVolume: {
+          "1day": metadata.day1_volume ? formatEth(metadata.day1_volume) : null,
+          "7day": metadata.day7_volume ? formatEth(metadata.day7_volume) : null,
+          "30day": metadata.day30_volume ? formatEth(metadata.day30_volume) : null,
+          allTime: metadata.all_time_volume ? formatEth(metadata.all_time_volume) : null,
+        },
+
         tokenCount: Number(metadata.token_count || 0),
         ownerCount: Number(metadata.owner_count || 0),
-        banner: metadata.metadata.bannerImageUrl,
-        description: metadata.metadata.description,
+        banner: metadata?.metadata?.bannerImageUrl,
+        description: metadata?.metadata?.description,
         floorAsk,
       };
     })
@@ -258,6 +274,9 @@ async function getCollectionsMetadata(collectionsResult: any[]) {
       collections.day1_volume_change,
       collections.day7_volume_change,
       collections.day30_volume_change,
+      collections.day1_volume,
+      collections.day7_volume,
+      collections.day30_volume,
       collections.all_time_volume,
       json_build_object(
         'imageUrl', (collections.metadata ->> 'imageUrl')::TEXT,
@@ -283,7 +302,16 @@ async function getCollectionsMetadata(collectionsResult: any[]) {
       collections.top_buy_value,
       collections.top_buy_maker,
       collections.top_buy_valid_between,
-      collections.top_buy_source_id_int
+
+      collections.top_buy_source_id_int,
+
+      (
+            SELECT
+              COUNT(*)
+            FROM tokens
+            WHERE tokens.collection_id = collections.id
+              AND tokens.floor_sell_value IS NOT NULL
+          ) AS on_sale_count
     FROM collections
     WHERE collections.id IN (${collectionIdList})
   `;
