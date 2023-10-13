@@ -12,6 +12,7 @@ import { currenciesFetchJob } from "@/jobs/currencies/currencies-fetch-job";
 type CurrencyMetadata = {
   coingeckoCurrencyId?: string;
   image?: string;
+  erc20Incompatible?: boolean;
 };
 
 export type Currency = {
@@ -124,13 +125,32 @@ export const tryGetCurrencyDetails = async (currencyAddress: string) => {
     "function name() view returns (string)",
     "function symbol() view returns (string)",
     "function decimals() view returns (uint8)",
+    "function balanceOf(address owner) view returns (uint256)",
+    "function allowance(address owner, address spender) public view returns (uint256)",
   ]);
 
   const contract = new Contract(currencyAddress, iface, baseProvider);
   const name = await contract.name();
   const symbol = await contract.symbol();
   const decimals = await contract.decimals();
-  const metadata: CurrencyMetadata = {};
+
+  // Detect if the currency follows the ERC20 standard
+  let erc20Incompatible: boolean | undefined;
+  try {
+    const randomAddress1 = "0xb5cec8cf2cfe69b949a4d3221cff19c5c94233be";
+    const randomAddress2 = "0x270a8ad54fed804f4bac1118dabfa2df4f41089c";
+    await contract.balanceOf(randomAddress1);
+    await contract.allowance(randomAddress1, randomAddress2);
+  } catch {
+    // As an example, the MATIC ERC20 token on Polygon is not ERC20-compatible
+    // since it's missing some standard methods that we depend on:
+    // https://polygonscan.com/address/0x0000000000000000000000000000000000001010
+    erc20Incompatible = true;
+  }
+
+  const metadata: CurrencyMetadata = {
+    erc20Incompatible,
+  };
 
   const coingeckoNetworkId = getNetworkSettings().coingecko?.networkId;
   if (coingeckoNetworkId) {
