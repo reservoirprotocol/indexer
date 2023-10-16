@@ -135,9 +135,10 @@ export class ProcessConsecutiveTransferJob extends AbstractRabbitMqJobHandler {
 
     // Split the log processing to batches
     let jobsCounter = 0;
+    const jobs = [];
     for (let from = fromNumber; from <= toNumber; from += tokensPerBatch + 1) {
       ++jobsCounter;
-      await this.send({
+      jobs.push({
         payload: {
           fromAddress,
           toAddress,
@@ -148,6 +149,7 @@ export class ProcessConsecutiveTransferJob extends AbstractRabbitMqJobHandler {
       });
     }
 
+    await this.sendBatch(jobs);
     await this.setJobsCounter(baseEventParams.txHash, baseEventParams.logIndex, jobsCounter);
   }
 }
