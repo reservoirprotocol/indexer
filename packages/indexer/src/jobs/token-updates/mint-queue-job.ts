@@ -62,7 +62,7 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
       // check if there are any tokens that exist already for the collection
       // if there are not, we need to fetch the collection metadata from upstream
       if (collection) {
-        // If the collection is readily available in the database then
+        // If the collection is readily available in the database then check if the token already exists / or the first token in the colleciton
         const existingToken = await idb.oneOrNone(
           `
               SELECT token_id
@@ -95,6 +95,7 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
         }
 
         if (existingToken?.token_id !== tokenId) {
+          // If it's the first time we see this token id (for erc1155, its possible we would already have the token)
           const queries: PgPromiseQuery[] = [];
 
           // associate collection with the token
