@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { config } from "@/config/index";
 import { acquireLock, getLockExpiration } from "@/common/redis";
 import { logger } from "@/common/logger";
 import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
@@ -15,7 +14,6 @@ export class ContractFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
   concurrency = 1;
   lazyMode = true;
   useSharedChannel = true;
-  disableConsuming = !config.disableFlagStatusRefreshJob || !config.liquidityOnly;
   singleActiveConsumer = true;
 
   protected async process() {
