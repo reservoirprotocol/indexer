@@ -1,5 +1,8 @@
 import _ from "lodash";
 import { MergeRefs, ReqRefDefaults } from "@hapi/hapi";
+import jwt from "jsonwebtoken";
+import { config } from "../config";
+import { logger } from "@/common/logger";
 
 export enum ImageSize {
   small = 250,
@@ -50,6 +53,14 @@ export class Assets {
   }
 
   public static getResizedImageUrl(imageUrl: string, size: number): string {
+    try {
+      if (config.enableImageResizing) {
+        return Assets.signImage(imageUrl, size);
+      }
+    } catch (error) {
+      logger.error("getResizedImageUrl", `Error: ${error}`);
+    }
+
     if (imageUrl?.includes("lh3.googleusercontent.com")) {
       if (imageUrl.match(/=s\d+$/)) {
         return imageUrl.replace(/=s\d+$/, `=s${size}`);
@@ -67,5 +78,28 @@ export class Assets {
     }
 
     return imageUrl;
+  }
+
+  public static signImage(imageUrl: string, width: number): string {
+    if (config.imageResizingBaseUrl == null) {
+      throw new Error("Image resizing base URL is not set");
+    } else if (config.privateImageResizingSigningKey == null) {
+      throw new Error("Private image resizing signing key is not set");
+    }
+    const token = jwt.sign(
+      {
+        image: imageUrl,
+        width: width,
+        // TODO: Do we want to expire the token?
+        // exp: Math.floor(Date.now() / 1000) + 2 * (60 * 60), // Expires: Now + 2h
+      },
+      config.privateImageResizingSigningKey,
+
+      {
+        algorithm: "RS256",
+      }
+    );
+
+    return `${config.imageResizingBaseUrl}?token=${token}`;
   }
 }
