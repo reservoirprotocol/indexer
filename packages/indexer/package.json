@@ -73,6 +73,7 @@
     "jest": "^29.0.3",
     "joi": "17.x",
     "json-stable-stringify": "^1.0.1",
+    "jsonwebtoken": "^9.0.2",
     "kafkajs": "^2.2.4",
     "module-alias": "^2.2.2",
     "node-cron": "^3.0.0",
