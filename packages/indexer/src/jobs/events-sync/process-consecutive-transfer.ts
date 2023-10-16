@@ -100,8 +100,18 @@ export class ProcessConsecutiveTransferJob extends AbstractRabbitMqJobHandler {
     await handleMints(mintedTokens, onChainData);
     await processOnChainData(onChainData, false);
 
+    logger.info(
+      this.queueName,
+      `Consecutive tokens processed contract ${baseEventParams.address} tokens ${fromTokenId} - ${toTokenId} for tx (${baseEventParams.txHash} log index ${baseEventParams.logIndex}`
+    );
+
     // In the last job trigger a block check for an orphaned blocks
     if ((await this.countJob(baseEventParams.txHash, baseEventParams.logIndex)) === 0) {
+      logger.info(
+        this.queueName,
+        `All jobs processed for tx (${baseEventParams.txHash} log index ${baseEventParams.logIndex}`
+      );
+
       await blockCheckJob.addToQueue({
         block: baseEventParams.block,
         blockHash: baseEventParams.blockHash,
@@ -109,11 +119,6 @@ export class ProcessConsecutiveTransferJob extends AbstractRabbitMqJobHandler {
       });
       await this.removeJobsCounter(baseEventParams.txHash, baseEventParams.logIndex);
     }
-
-    logger.info(
-      this.queueName,
-      `Consecutive tokens processed contract ${baseEventParams.address} tokens ${fromTokenId} - ${toTokenId} for tx (${baseEventParams.txHash}`
-    );
   }
 
   public async addToQueue(log: Log, baseEventParams: BaseEventParams) {
