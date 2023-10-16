@@ -76,10 +76,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
   }
 
   protected async _getTokensMetadata(
-    tokens: { contract: string; tokenId: string }[],
-    options?: {
-      isRequestForFlaggedMetadata?: boolean;
-    }
+    tokens: { contract: string; tokenId: string }[]
   ): Promise<TokenMetadata[]> {
     const searchParams = new URLSearchParams();
     for (const { contract, tokenId } of tokens) {
@@ -91,16 +88,12 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
       !this.isOSTestnet() ? "https://api.opensea.io" : "https://testnets-api.opensea.io"
     }/api/v1/assets?${searchParams.toString()}`;
 
-    const API_KEY_TO_USE = options?.isRequestForFlaggedMetadata
-      ? config.openSeaFlaggedMetadataApiKey
-      : config.openSeaTokenMetadataApiKey;
-
     const data = await axios
       .get(!this.isOSTestnet() ? config.openSeaApiUrl || url : url, {
         headers: !this.isOSTestnet()
           ? {
               url,
-              "X-API-KEY": API_KEY_TO_USE.trim(),
+              "X-API-KEY": config.openSeaTokenMetadataApiKey.trim(),
               Accept: "application/json",
             }
           : {
@@ -181,7 +174,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
         headers: !this.isOSTestnet()
           ? {
               url,
-              "X-API-KEY": config.openSeaFlaggedMetadataApiKey.trim(),
+              "X-API-KEY": config.openSeaTokenFlagStatusApiKey.trim(),
               Accept: "application/json",
             }
           : {
@@ -233,7 +226,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
         headers: !this.isOSTestnet()
           ? {
               url,
-              "X-API-KEY": config.openSeaFlaggedMetadataApiKey.trim(),
+              "X-API-KEY": config.openSeaTokenFlagStatusApiKey.trim(),
               Accept: "application/json",
             }
           : {
@@ -286,7 +279,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
         headers: !this.isOSTestnet()
           ? {
               url,
-              "X-API-KEY": config.openSeaFlaggedMetadataApiKey.trim(),
+              "X-API-KEY": config.openSeaTokenFlagStatusApiKey.trim(),
               Accept: "application/json",
             }
           : {
@@ -318,16 +311,13 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
   }
 
   handleError(error: any) {
-    if (
-      error.response?.status === 429 ||
-      error.response?.status === 503 ||
-      error.response?.status === 400
-    ) {
-      let delay = 1;
-
-      if (error.response.data.errors.includes("not found")) {
+    if (error.response?.status === 400) {
+      if (error.response.data.errors?.includes("not found")) {
         throw new CollectionNotFoundError(error.response.data.errors);
       }
+    } else if (error.response?.status === 429 || error.response?.status === 503) {
+      let delay = 1;
+
       if (error.response.data.detail?.startsWith("Request was throttled. Expected available in")) {
         try {
           delay = error.response.data.detail.split(" ")[6];
