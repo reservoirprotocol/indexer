@@ -28,10 +28,7 @@ export abstract class AbstractBaseMetadataProvider {
   }
 
   async getTokensMetadata(
-    tokens: { contract: string; tokenId: string }[],
-    options?: {
-      isRequestForFlaggedMetadata?: boolean;
-    }
+    tokens: { contract: string; tokenId: string }[]
   ): Promise<TokenMetadata[]> {
     const customMetadata = await Promise.all(
       tokens.map(async (token) => {
@@ -61,7 +58,7 @@ export abstract class AbstractBaseMetadataProvider {
     let metadataFromProvider: TokenMetadata[] = [];
 
     if (tokensWithoutCustomMetadata.length > 0) {
-      metadataFromProvider = await this._getTokensMetadata(tokensWithoutCustomMetadata, options);
+      metadataFromProvider = await this._getTokensMetadata(tokensWithoutCustomMetadata);
     }
 
     // merge custom metadata with metadata-api metadata
@@ -82,12 +79,9 @@ export abstract class AbstractBaseMetadataProvider {
 
   async getTokensMetadataBySlug(
     slug: string,
-    continuation: string,
-    options?: {
-      isRequestForFlaggedMetadata?: boolean;
-    }
+    continuation: string
   ): Promise<TokenMetadataBySlugResult> {
-    return this._getTokensMetadataBySlug(slug, continuation, options);
+    return this._getTokensMetadataBySlug(slug, continuation);
   }
 
   // Internal methods for subclasses
@@ -97,18 +91,12 @@ export abstract class AbstractBaseMetadataProvider {
   ): Promise<CollectionMetadata>;
 
   protected abstract _getTokensMetadata(
-    tokens: { contract: string; tokenId: string }[],
-    options?: {
-      isRequestForFlaggedMetadata?: boolean;
-    }
+    tokens: { contract: string; tokenId: string }[]
   ): Promise<TokenMetadata[]>;
 
   protected abstract _getTokensMetadataBySlug(
     slug: string,
-    continuation?: string,
-    options?: {
-      isRequestForFlaggedMetadata?: boolean;
-    }
+    continuation?: string
   ): Promise<TokenMetadataBySlugResult>;
 
   // Parsers

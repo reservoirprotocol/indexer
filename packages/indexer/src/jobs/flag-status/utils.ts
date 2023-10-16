@@ -9,7 +9,7 @@ import { PendingFlagStatusSyncContracts } from "@/models/pending-flag-status-syn
 export const getTokenFlagStatus = async (
   contract: string,
   tokenId: string
-): Promise<{ contract: string; tokenId: string; isFlagged: boolean | null }> => {
+): Promise<{ contract: string; tokenId: string; isFlagged: boolean }> => {
   const result = await openseaMetadataProvider._getTokenFlagStatus(contract, tokenId);
 
   return result.data;

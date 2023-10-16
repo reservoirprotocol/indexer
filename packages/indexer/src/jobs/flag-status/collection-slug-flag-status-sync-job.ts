@@ -1,12 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { acquireLock, getLockExpiration } from "@/common/redis";
+import { acquireLock, getLockExpiration, redlock } from "@/common/redis";
 import { logger } from "@/common/logger";
 import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
 import { RequestWasThrottledError } from "../orderbook/post-order-external/api/errors";
 import { PendingFlagStatusSyncCollectionSlugs } from "@/models/pending-flag-status-sync-collection-slugs";
 import { getTokensFlagStatusForCollectionBySlug } from "./utils";
+import { config } from "@/config/index";
+import cron from "node-cron";
 
 export class CollectionSlugFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
   queueName = "collection-slug-flag-status-sync-queue";
@@ -17,6 +19,8 @@ export class CollectionSlugFlagStatusSyncJob extends AbstractRabbitMqJobHandler 
   singleActiveConsumer = true;
 
   protected async process() {
+    logger.info(this.queueName, "Start");
+
     // check redis to see if we have a lock for this job saying we are sleeping due to rate limiting. This lock only exists if we have been rate limited.
     const expiration = await getLockExpiration(this.getLockName());
     if (expiration > 0) {
@@ -86,3 +90,20 @@ export class CollectionSlugFlagStatusSyncJob extends AbstractRabbitMqJobHandler 
 }
 
 export const collectionSlugFlugStatusSyncJob = new CollectionSlugFlagStatusSyncJob();
+
+if (
+  config.doBackgroundWork &&
+  !config.disableFlagStatusRefreshJob &&
+  config.metadataIndexingMethodCollection === "opensea"
+) {
+  cron.schedule(
+    "*/5 * * * * *",
+    async () =>
+      await redlock
+        .acquire([`${collectionSlugFlugStatusSyncJob.queueName}-cron-lock`], (5 - 1) * 1000)
+        .then(async () => collectionSlugFlugStatusSyncJob.addToQueue())
+        .catch(() => {
+          // Skip on any errors
+        })
+  );
+}

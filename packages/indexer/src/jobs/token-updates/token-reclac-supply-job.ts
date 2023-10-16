@@ -8,8 +8,6 @@ import _ from "lodash";
 import { acquireLock } from "@/common/redis";
 import { getNetworkSettings } from "@/config/network";
 import { logger } from "@/common/logger";
-import { config } from "@/config/index";
-import { Network } from "@reservoir0x/sdk/dist/utils";
 
 export type TokenRecalcSupplyPayload = {
   contract: string;
@@ -64,17 +62,6 @@ export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
         totalRemainingSupply,
       }
     );
-
-    if (config.chainId === Network.Polygon) {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "debugTokenUpdate",
-          message: `Update token. contract=${contract}, tokenId=${tokenId}`,
-          token: `${contract}:${tokenId}`,
-        })
-      );
-    }
   }
 
   public async calcRemainingSupply(contract: string, tokenId: string) {

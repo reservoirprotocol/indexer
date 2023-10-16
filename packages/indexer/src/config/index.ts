@@ -87,17 +87,23 @@ export const config = {
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
   openSeaApiUrl: String(process.env.OPENSEA_API_URL || ""),
 
-  openSeaTokenMetadataBySlugApiKey: String(
-    process.env.OPENSEA_SLUG_API_KEY || process.env.OPENSEA_API_KEY
-  ),
-  openSeaCollectionMetadataApiKey: String(
-    process.env.OPENSEA_COLLECTION_API_KEY || process.env.OPENSEA_API_KEY
-  ),
   openSeaTokenMetadataApiKey: String(
     process.env.OPENSEA_TOKENS_API_KEY || process.env.OPENSEA_API_KEY
   ),
-  openSeaFlaggedMetadataApiKey: String(
-    process.env.OPENSEA_FLAGGED_API_KEY || process.env.OPENSEA_API_KEY
+  openSeaTokenMetadataBySlugApiKey: String(
+    process.env.OPENSEA_SLUG_API_KEY ||
+      process.env.OPENSEA_TOKENS_API_KEY ||
+      process.env.OPENSEA_API_KEY
+  ),
+  openSeaCollectionMetadataApiKey: String(
+    process.env.OPENSEA_COLLECTION_API_KEY ||
+      process.env.OPENSEA_TOKENS_API_KEY ||
+      process.env.OPENSEA_API_KEY
+  ),
+  openSeaTokenFlagStatusApiKey: String(
+    process.env.OPENSEA_TOKEN_FLAG_STATUS_API_KEY ||
+      process.env.OPENSEA_TOKENS_API_KEY ||
+      process.env.OPENSEA_API_KEY
   ),
 
   openSeaCrossPostingApiKey: String(
