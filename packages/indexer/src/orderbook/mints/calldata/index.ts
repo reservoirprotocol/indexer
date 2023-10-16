@@ -349,6 +349,8 @@ export const refreshMintsForCollection = async (collection: string) => {
   );
   if (standardResult) {
     switch (standardResult.standard) {
+      case "createdotfun":
+        return mints.createdotfun.refreshByCollection(collection);
       case "decent":
         return mints.decent.refreshByCollection(collection);
       case "foundation":
