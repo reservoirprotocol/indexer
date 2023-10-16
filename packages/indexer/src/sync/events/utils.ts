@@ -240,6 +240,7 @@ export const extractAttributionData = async (
     fillSource = await sources.getOrInsert(source);
   } else if (router) {
     fillSource = router;
+    aggregatorSource = router;
   } else {
     fillSource = orderSource;
   }
