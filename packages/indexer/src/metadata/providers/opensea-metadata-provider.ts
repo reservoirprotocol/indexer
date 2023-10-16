@@ -171,7 +171,9 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
   ): Promise<{
     data: { contract: string; tokenId: string; isFlagged: boolean };
   }> {
-    const domain = !this.isOSTestnet() ? "opensea.io" : "testnets-api.opensea.io";
+    const domain = !this.isOSTestnet()
+      ? "https://api.opensea.io"
+      : "https://testnets-api.opensea.io";
     const url = `${domain}/api/v2/chain/${getOpenseaNetworkName()}/contract/${contract}/nfts/${tokenId}`;
 
     const data = await axios
@@ -221,7 +223,9 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
     if (continuation) searchParams.append("next", continuation);
     searchParams.append("limit", "50");
 
-    const domain = !this.isOSTestnet() ? "opensea.io" : "testnets-api.opensea.io";
+    const domain = !this.isOSTestnet()
+      ? "https://api.opensea.io"
+      : "https://testnets-api.opensea.io";
     const url = `${domain}/api/v2/chain/${getOpenseaNetworkName()}/collection/${slug}/nfts?${searchParams.toString()}`;
 
     const data = await axios
@@ -272,7 +276,9 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
     if (continuation) searchParams.append("next", continuation);
     searchParams.append("limit", "50");
 
-    const domain = !this.isOSTestnet() ? "opensea.io" : "testnets-api.opensea.io";
+    const domain = !this.isOSTestnet()
+      ? "https://api.opensea.io"
+      : "https://testnets-api.opensea.io";
     const url = `${domain}/api/v2/chain/${getOpenseaNetworkName()}/contract/${contract}/nfts?${searchParams.toString()}`;
 
     const data = await axios

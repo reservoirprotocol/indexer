@@ -25,7 +25,7 @@ export class BackfillDeleteExpiredBidsElasticsearchJob extends AbstractRabbitMqJ
       logger.info(this.queueName, `Start - V3. payload=${JSON.stringify(payload)}`);
     }
 
-    const limit = (await redis.get(`${this.queueName}-limit`)) || 3000;
+    const limit = (await redis.get(`${this.queueName}-limit`)) || 1000;
 
     const { activities, continuation } = await ActivitiesIndex.search(
       {

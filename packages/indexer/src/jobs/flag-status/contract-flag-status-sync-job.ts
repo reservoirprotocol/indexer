@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { config } from "@/config/index";
 import { acquireLock, getLockExpiration } from "@/common/redis";
 import { logger } from "@/common/logger";
 import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
@@ -15,13 +14,12 @@ export class ContractFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
   concurrency = 1;
   lazyMode = true;
   useSharedChannel = true;
-  disableConsuming = !config.disableFlagStatusRefreshJob || !config.liquidityOnly;
   singleActiveConsumer = true;
 
   protected async process() {
     // check redis to see if we have a lock for this job saying we are sleeping due to rate limiting. This lock only exists if we have been rate limited.
     const expiration = await getLockExpiration(this.getLockName());
-    if (expiration) {
+    if (expiration > 0) {
       await this.send({}, expiration - Date.now());
       logger.info(this.queueName, "Sleeping due to rate limiting");
       return;
