@@ -1,5 +1,5 @@
 import tracer from "dd-trace";
-import { Network } from "@reservoir0x/sdk/dist/utils";
+// import { Network } from "@reservoir0x/sdk/dist/utils";
 
 import { getServiceName } from "@/config/network";
 import { config } from "@/config/index";
@@ -15,32 +15,41 @@ if (process.env.DATADOG_AGENT_URL) {
     service,
     url: process.env.DATADOG_AGENT_URL,
     env: config.environment,
-    samplingRules:
-      config.chainId === Network.Ancient8Testnet
-        ? [
-            {
-              service: `${service}-postgres`,
-              sampleRate: 0.5,
-            },
-          ]
-        : undefined,
+    samplingRules: [
+      {
+        service: `${service}-postgres`,
+        sampleRate: 0,
+      },
+      {
+        service: `${service}-redis`,
+        sampleRate: 0,
+      },
+      {
+        service: `${service}-amqp`,
+        sampleRate: 0,
+      },
+      {
+        service: `${service}-elasticsearch`,
+        sampleRate: 0,
+      },
+    ],
   });
 
   tracer.use("hapi", {
     headers: ["x-api-key", "referer"],
   });
 
-  tracer.use("ioredis", {
-    enabled: config.chainId === Network.Ancient8Testnet,
-  });
-
-  tracer.use("amqplib", {
-    enabled: config.chainId === Network.Ancient8Testnet,
-  });
-
-  tracer.use("pg", {
-    enabled: config.chainId === Network.Ancient8Testnet,
-  });
+  // tracer.use("ioredis", {
+  //   enabled: config.chainId === Network.Ancient8Testnet,
+  // });
+  //
+  // tracer.use("amqplib", {
+  //   enabled: config.chainId === Network.Ancient8Testnet,
+  // });
+  //
+  // tracer.use("pg", {
+  //   enabled: config.chainId === Network.Ancient8Testnet,
+  // });
 }
 
 export default tracer;
