@@ -43,6 +43,8 @@ const extendCollection: any = {};
 const extend: any = {};
 
 export const hasExtendHandler = (contract: string) => extend[`${config.chainId},${contract}`];
+export const hasExtendCollectionHandler = (contract: string) =>
+  extendCollection[`${config.chainId},${contract}`];
 
 export const extendCollectionMetadata = async (metadata: any, tokenId?: string) => {
   if (metadata) {

@@ -55,7 +55,7 @@ export interface CollectionMetadata {
 
 export interface TokenMetadataBySlugResult {
   metadata: TokenMetadata[];
-  continuation?: string;
+  continuation: string | null;
   previous: string;
 }
 

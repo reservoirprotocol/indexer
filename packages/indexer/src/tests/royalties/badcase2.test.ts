@@ -172,4 +172,51 @@ describe("Royalties", () => {
       }
     }
   });
+
+  it("duplicate-recipients", async () => {
+    const { fillEvents } = await getFillEventsFromTx(
+      "0x64b4a3fde77a98ea57e55a3ff2e72433c267a0ab840af381b1f82db0864068b4"
+    );
+
+    const testCollectionRoyalties = [
+      {
+        collection: "0xe13efbeeb249b52c0de2a07635d9a816605176c5",
+        data: [
+          {
+            bps: 1000,
+            recipient: "0xbf3ca180806dbcafa50fdaf8c46d7765e0f901f4",
+          },
+        ],
+      },
+    ];
+
+    mockGetRoyalties.mockImplementation(async (contract: string) => {
+      const matched = testCollectionRoyalties.find((c) => c.collection === contract);
+      return matched?.data ?? [];
+    });
+
+    const feesList = [
+      {
+        contract: "0xe13efbeeb249b52c0de2a07635d9a816605176c5",
+        tokenId: "5",
+        royaltyFeeBps: 1000,
+        marketplaceFeeBps: 0,
+        paidFullRoyalty: true,
+      },
+    ];
+
+    await assignRoyaltiesToFillEvents(fillEvents, false, true);
+    for (let index = 0; index < fillEvents.length; index++) {
+      const fillEvent = fillEvents[index];
+      const matchFee = feesList.find(
+        (c) => c.contract === fillEvent.contract && c.tokenId === fillEvent.tokenId
+      );
+
+      if (matchFee) {
+        expect(fillEvent.royaltyFeeBps).toEqual(matchFee.royaltyFeeBps);
+        expect(fillEvent.marketplaceFeeBps).toEqual(matchFee.marketplaceFeeBps);
+        expect(fillEvent.paidFullRoyalty).toEqual(matchFee.paidFullRoyalty);
+      }
+    }
+  });
 });

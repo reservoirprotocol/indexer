@@ -29,6 +29,7 @@ export const config = {
       "opensea"
   ),
   metadataApiBaseUrl: String(process.env.METADATA_API_BASE_URL),
+  disableFlagStatusRefreshJob: Boolean(Number(process.env.DISABLE_FLAG_STATUS_REFRESH_JOB)),
 
   disableRealtimeMetadataRefresh: Boolean(Number(process.env.DISABLE_REALTIME_METADATA_REFRESH)),
 
@@ -86,9 +87,24 @@ export const config = {
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
   openSeaApiUrl: String(process.env.OPENSEA_API_URL || ""),
 
-  openSeaTokenMetadataBySlugApiKey: String(process.env.OPENSEA_SLUG_API_KEY),
-  openSeaCollectionMetadataApiKey: String(process.env.OPENSEA_COLLECTION_API_KEY),
-  openSeaTokenMetadataApiKey: String(process.env.OPENSEA_TOKENS_API_KEY),
+  openSeaTokenMetadataApiKey: String(
+    process.env.OPENSEA_TOKENS_API_KEY || process.env.OPENSEA_API_KEY
+  ),
+  openSeaTokenMetadataBySlugApiKey: String(
+    process.env.OPENSEA_SLUG_API_KEY ||
+      process.env.OPENSEA_TOKENS_API_KEY ||
+      process.env.OPENSEA_API_KEY
+  ),
+  openSeaCollectionMetadataApiKey: String(
+    process.env.OPENSEA_COLLECTION_API_KEY ||
+      process.env.OPENSEA_TOKENS_API_KEY ||
+      process.env.OPENSEA_API_KEY
+  ),
+  openSeaTokenFlagStatusApiKey: String(
+    process.env.OPENSEA_TOKEN_FLAG_STATUS_API_KEY ||
+      process.env.OPENSEA_TOKENS_API_KEY ||
+      process.env.OPENSEA_API_KEY
+  ),
 
   openSeaCrossPostingApiKey: String(
     process.env.OPENSEA_CROSS_POSTING_API_KEY || process.env.OPENSEA_API_KEY
