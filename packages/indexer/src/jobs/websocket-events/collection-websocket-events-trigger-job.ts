@@ -8,7 +8,6 @@ import { idb } from "@/common/db";
 import { redis } from "@/common/redis";
 import { Sources } from "@/models/sources";
 import { formatValidBetween } from "@/jobs/websocket-events/utils";
-import { Network } from "@reservoir0x/sdk/dist/utils";
 
 interface CollectionInfo {
   id: string;
@@ -151,40 +150,38 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
         }
 
         if (!changed.length) {
-          if (config.chainId === Network.Ethereum) {
-            try {
-              for (const key in data.after) {
-                const beforeValue = data.before[key as keyof CollectionInfo];
-                const afterValue = data.after[key as keyof CollectionInfo];
+          try {
+            for (const key in data.after) {
+              const beforeValue = data.before[key as keyof CollectionInfo];
+              const afterValue = data.after[key as keyof CollectionInfo];
 
-                if (beforeValue !== afterValue) {
-                  changed.push(key as keyof CollectionInfo);
-                }
+              if (beforeValue !== afterValue) {
+                changed.push(key as keyof CollectionInfo);
               }
+            }
 
-              // logger.info(
-              //   this.queueName,
-              //   JSON.stringify({
-              //     message: `No changes detected for collection. contract=${data.after.contract}, collectionId=${data.after.id}`,
-              //     data,
-              //     beforeJson: JSON.stringify(data.before),
-              //     afterJson: JSON.stringify(data.after),
-              //     changed,
-              //     changedJson: JSON.stringify(changed),
-              //     hasChanged: changed.length > 0,
-              //   })
-              // );
-            } catch (error) {
-              logger.error(
+            if (changed.length === 1) {
+              logger.info(
                 this.queueName,
                 JSON.stringify({
-                  message: `No changes detected for collection error. contract=${data.after.contract}, collectionId=${data.after.id}`,
-                  data,
+                  topic: "debugCollectionUpdates",
+                  message: `No changes detected for collection. contract=${data.after.contract}, collectionId=${data.after.id}`,
                   changed,
-                  error,
+                  changedJson: JSON.stringify(changed),
+                  collectionId: data.after.id,
                 })
               );
             }
+          } catch (error) {
+            logger.error(
+              this.queueName,
+              JSON.stringify({
+                message: `No changes detected for collection error. contract=${data.after.contract}, collectionId=${data.after.id}`,
+                data,
+                changed,
+                error,
+              })
+            );
           }
 
           return;

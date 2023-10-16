@@ -86,7 +86,8 @@ export class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler {
           UPDATE "collections"
           SET "token_count" = $/totalCurrentCount/,
               "updated_at" = now()
-          WHERE "id" = $/collection/;
+          WHERE "id" = $/collection/
+          AND ("token_count" IS DISTINCT FROM $/totalCurrentCount/)
       `;
 
       await idb.none(query, {
