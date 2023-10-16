@@ -3,7 +3,7 @@
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
 import { config } from "@/config/index";
-import { getTokensFlagStatusWithTokenIds } from "@/jobs/flag-status/utils";
+import { getTokenFlagStatus } from "@/jobs/flag-status/utils";
 import { acquireLock, getLockExpiration } from "@/common/redis";
 import { logger } from "@/common/logger";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
@@ -22,6 +22,7 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
   protected async process() {
     // check redis to see if we have a lock for this job saying we are sleeping due to rate limiting. This lock only exists if we have been rate limited.
     const expiration = await getLockExpiration(this.getLockName());
+
     if (expiration) {
       await this.send({}, expiration - Date.now());
       logger.info(this.queueName, "Sleeping due to rate limiting");
@@ -32,11 +33,19 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
 
     if (!tokensToGetFlagStatusFor.length) return;
 
-    let tokens: { contract: string; tokenId: string; isFlagged: boolean | null };
     try {
-      tokens = await getTokensFlagStatusWithTokenIds(
+      const tokenFlagStatus = await getTokenFlagStatus(
         tokensToGetFlagStatusFor[0].contract,
         tokensToGetFlagStatusFor[0].tokenId
+      );
+
+      await flagStatusUpdateJob.addToQueue([tokenFlagStatus]);
+
+      logger.info(
+        this.queueName,
+        `Debug. tokensToGetFlagStatusForCount=${
+          tokensToGetFlagStatusFor.length
+        }, tokenFlagStatus=${JSON.stringify(tokenFlagStatus)}`
       );
     } catch (error) {
       if (error instanceof RequestWasThrottledError) {
@@ -49,14 +58,18 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
 
         await acquireLock(this.getLockName(), expiresIn * 1000);
         await PendingFlagStatusSyncTokens.add(tokensToGetFlagStatusFor, true);
-        return;
       } else {
-        logger.error(this.queueName, `Error: ${error}`);
+        logger.error(
+          this.queueName,
+          JSON.stringify({
+            message: `Error: ${error}`,
+            tokensToGetFlagStatusFor,
+            error,
+          })
+        );
         throw error;
       }
     }
-
-    await flagStatusUpdateJob.addToQueue([tokens]);
   }
 
   public getLockName() {
