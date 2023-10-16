@@ -151,7 +151,7 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
         }
 
         if (!changed.length) {
-          if (config.chainId === Network.Ethereum) {
+          if (config.chainId === Network.EthereumSepolia) {
             try {
               for (const key in data.after) {
                 const beforeValue = data.before[key as keyof CollectionInfo];
@@ -162,18 +162,17 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
                 }
               }
 
-              // logger.info(
-              //   this.queueName,
-              //   JSON.stringify({
-              //     message: `No changes detected for collection. contract=${data.after.contract}, collectionId=${data.after.id}`,
-              //     data,
-              //     beforeJson: JSON.stringify(data.before),
-              //     afterJson: JSON.stringify(data.after),
-              //     changed,
-              //     changedJson: JSON.stringify(changed),
-              //     hasChanged: changed.length > 0,
-              //   })
-              // );
+              logger.info(
+                this.queueName,
+                JSON.stringify({
+                  topic: "debugCollectionUpdates",
+                  message: `No changes detected for collection. contract=${data.after.contract}, collectionId=${data.after.id}`,
+                  data,
+                  changed,
+                  changedJson: JSON.stringify(changed),
+                  hasChanged: changed.length > 0,
+                })
+              );
             } catch (error) {
               logger.error(
                 this.queueName,

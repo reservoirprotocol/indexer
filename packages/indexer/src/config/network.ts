@@ -922,6 +922,17 @@ export const getNetworkSettings = (): NetworkSettings => {
           // PaymentProcessor WETH
           "0xfff9976782d46cc05630d1f6ebab18b2324d6b14": true,
         },
+        whitelistedCurrencies: new Map([
+          [
+            "0x75f94f04d2144cb6056ccd0cff1771573d838974",
+            {
+              contract: "0x75f94f04d2144cb6056ccd0cff1771573d838974",
+              name: "Taiko Token Jolnir",
+              symbol: "TTKOj",
+              decimals: 18,
+            },
+          ],
+        ]),
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([

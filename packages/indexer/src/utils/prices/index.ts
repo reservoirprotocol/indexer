@@ -81,8 +81,8 @@ const getUpstreamUSDPrice = async (
         };
       }
     } else if (isWhitelistedCurrency(currencyAddress) || isTestnetCurrency(currencyAddress)) {
-      // Whitelisted currencies don't have a price, so we just hardcode the minimum possible value
-      let value = "1";
+      // Whitelisted currencies don't have a price, so we just hardcode a very high number
+      let value = "10000000000000"; // 10000000:1 to USD
       if (Sdk.Common.Addresses.Usdc[config.chainId]?.includes(currencyAddress)) {
         // 1:1 to USD
         value = "1000000";
@@ -261,11 +261,7 @@ export const getUSDAndNativePrices = async (
   let usdPrice: string | undefined;
   let nativePrice: string | undefined;
 
-  if (
-    getNetworkSettings().coingecko?.networkId ||
-    isTestnetCurrency(currencyAddress) ||
-    isWhitelistedCurrency(currencyAddress)
-  ) {
+  if (getNetworkSettings().coingecko?.networkId || isTestnetCurrency(currencyAddress)) {
     const currencyUSDPrice = await getAvailableUSDPrice(
       currencyAddress,
       timestamp,
@@ -299,6 +295,12 @@ export const getUSDAndNativePrices = async (
   // Make sure to handle equivalent currencies
   if (areEquivalentCurrencies(currencyAddress, Sdk.Common.Addresses.Native[config.chainId])) {
     nativePrice = price;
+  }
+
+  // Set community tokens native/usd value to 0
+  if (isWhitelistedCurrency(currencyAddress)) {
+    usdPrice = "0";
+    nativePrice = "0";
   }
 
   return { usdPrice, nativePrice };
@@ -366,6 +368,12 @@ export const getUSDAndCurrencyPrices = async (
   // Make sure to handle equivalent currencies
   if (areEquivalentCurrencies(fromCurrencyAddress, toCurrencyAddress)) {
     currencyPrice = price;
+  }
+
+  // Set community tokens native/usd value to 0
+  if (isWhitelistedCurrency(fromCurrencyAddress)) {
+    usdPrice = "0";
+    currencyPrice = "0";
   }
 
   return { usdPrice, currencyPrice };

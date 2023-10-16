@@ -2,6 +2,7 @@ import { idb } from "@/common/db";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import _ from "lodash";
 import { toBuffer } from "@/common/utils";
+import { logger } from "@/common/logger";
 
 export type RecalcTokenCountQueueJobPayload = {
   collection: string;
@@ -86,8 +87,18 @@ export class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler {
           UPDATE "collections"
           SET "token_count" = $/totalCurrentCount/,
               "updated_at" = now()
-          WHERE "id" = $/collection/;
+          WHERE "id" = $/collection/
+          AND ("token_count" IS DISTINCT FROM $/totalCurrentCount/)
       `;
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "debugCollectionUpdates",
+          message: `Update collection. collection=${collection}`,
+          totalCurrentCount,
+        })
+      );
 
       await idb.none(query, {
         collection,
