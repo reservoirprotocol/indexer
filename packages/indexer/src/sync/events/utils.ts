@@ -234,6 +234,8 @@ export const extractAttributionData = async (
       aggregatorSource = await sources.getOrInsert("alphasharks.io");
     } else if (source === "magically.gg") {
       aggregatorSource = await sources.getOrInsert("magically.gg");
+    } else if (router) {
+      aggregatorSource = router;
     }
     fillSource = await sources.getOrInsert(source);
   } else if (router) {
