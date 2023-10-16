@@ -26,7 +26,6 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
     const expiration = await getLockExpiration(this.getLockName());
 
     if (expiration > 0) {
-      await this.send({}, expiration - Date.now());
       logger.info(this.queueName, "Sleeping due to rate limiting");
       return;
     }
@@ -49,6 +48,8 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
       );
 
       await flagStatusUpdateJob.addToQueue([tokenFlagStatus]);
+
+      await this.addToQueue();
     } catch (error) {
       if (error instanceof RequestWasThrottledError) {
         logger.info(
