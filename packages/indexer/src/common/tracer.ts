@@ -20,7 +20,7 @@ if (process.env.DATADOG_AGENT_URL) {
         ? [
             {
               service: `${service}-postgres`,
-              sampleRate: 0,
+              sampleRate: 0.5,
             },
           ]
         : undefined,
