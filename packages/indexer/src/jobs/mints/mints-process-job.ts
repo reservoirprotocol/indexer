@@ -225,6 +225,13 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
             );
             break;
           }
+
+          case "createdotfun": {
+            collectionMints = await detector.createdotfun.extractByCollectionERC721(
+              data.collection
+            );
+            break;
+          }
         }
 
         // Also refresh (to clean up any old stages)

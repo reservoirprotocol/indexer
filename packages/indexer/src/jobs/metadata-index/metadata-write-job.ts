@@ -93,7 +93,13 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
           image = $/image/,
           metadata = $/metadata:json/,
           media = $/media/,
-          updated_at = now(),
+          updated_at = CASE WHEN (name IS DISTINCT FROM $/name/
+                                 OR image IS DISTINCT FROM $/image/
+                                 OR media IS DISTINCT FROM $/media/
+                                 OR description IS DISTINCT FROM $/description/
+                                 OR metadata IS DISTINCT FROM $/metadata:json/) THEN now()
+                            ELSE updated_at
+                       END,       
           collection_id = collection_id,
           created_at = created_at,
           metadata_indexed_at = CASE 
@@ -107,7 +113,13 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
                                         ELSE metadata_initialized_at
                                     END,
           metadata_changed_at = CASE WHEN metadata_initialized_at IS NOT NULL AND NULLIF(image, $/image/) IS NOT NULL THEN now() ELSE metadata_changed_at END,
-          metadata_updated_at = now()
+          metadata_updated_at = CASE WHEN (name IS DISTINCT FROM $/name/
+                       OR image IS DISTINCT FROM $/image/
+                       OR media IS DISTINCT FROM $/media/
+                       OR description IS DISTINCT FROM $/description/
+                       OR metadata IS DISTINCT FROM $/metadata:json/) THEN now()
+                  ELSE metadata_updated_at
+             END
         WHERE tokens.contract = $/contract/
         AND tokens.token_id = $/tokenId/
         RETURNING collection_id, created_at, image, name, (

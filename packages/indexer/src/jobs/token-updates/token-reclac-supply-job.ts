@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Tokens } from "@/models/tokens";
-import { redb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import _ from "lodash";
@@ -45,10 +45,23 @@ export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
       );
     }
 
-    await Tokens.update(contract, tokenId, {
-      supply: totalSupply,
-      remainingSupply: Math.min(totalSupply, totalRemainingSupply),
-    });
+    await idb.none(
+      `
+              UPDATE tokens SET
+                supply = $/totalSupply/,
+                remaining_supply = $/totalRemainingSupply/,
+                updated_at = now()
+              WHERE tokens.contract = $/contract/
+                AND tokens.token_id = $/tokenId/
+                AND (supply IS DISTINCT FROM $/totalSupply/ OR remaining_supply IS DISTINCT FROM $/totalRemainingSupply/)
+            `,
+      {
+        contract: toBuffer(contract),
+        tokenId,
+        totalSupply,
+        totalRemainingSupply,
+      }
+    );
   }
 
   public async calcRemainingSupply(contract: string, tokenId: string) {
