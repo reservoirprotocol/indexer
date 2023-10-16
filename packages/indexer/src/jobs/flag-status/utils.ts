@@ -6,7 +6,7 @@ import { logger } from "ethers";
 import { Tokens } from "@/models/tokens";
 import { PendingFlagStatusSyncContracts } from "@/models/pending-flag-status-sync-contracts";
 
-export const getTokensFlagStatusWithTokenIds = async (
+export const getTokenFlagStatus = async (
   contract: string,
   tokenId: string
 ): Promise<{ contract: string; tokenId: string; isFlagged: boolean | null }> => {
