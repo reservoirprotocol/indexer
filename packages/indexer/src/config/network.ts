@@ -447,8 +447,7 @@ export const getNetworkSettings = (): NetworkSettings => {
               symbol: "$VAL",
               decimals: 18,
               metadata: {
-                image:
-                  "https://i.ibb.co/s1k4Qvz/valeria-logo.png",
+                image: "https://i.ibb.co/s1k4Qvz/valeria-logo.png",
               },
             },
           ],
@@ -677,14 +676,14 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
-            '0xdc8b54313ed0ab1a0b6b8728c7d360c671a4b7cb',
+            "0xdc8b54313ed0ab1a0b6b8728c7d360c671a4b7cb",
             {
-              contract: '0xdc8b54313ed0ab1a0b6b8728c7d360c671a4b7cb',
-              name: 'FEWL',
-              symbol: 'FEWL',
+              contract: "0xdc8b54313ed0ab1a0b6b8728c7d360c671a4b7cb",
+              name: "FEWL",
+              symbol: "FEWL",
               decimals: 18,
-            }
-          ]
+            },
+          ],
         ]),
         coingecko: {
           networkId: "polygon-pos",
