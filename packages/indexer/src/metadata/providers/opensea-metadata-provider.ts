@@ -199,7 +199,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
       data: {
         contract: data.nft.contract,
         tokenId: data.nft.identifier,
-        isFlagged: !data.nft.is_disabled,
+        isFlagged: data.nft.is_disabled,
       },
     };
   }
@@ -251,7 +251,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
       data: data.nfts.map((asset: any) => ({
         contract: asset.contract,
         tokenId: asset.identifier,
-        isFlagged: !asset.is_disabled,
+        isFlagged: asset.is_disabled,
       })),
       continuation: data.next ?? undefined,
     };
@@ -304,7 +304,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
       data: data.nfts.map((asset: any) => ({
         contract: asset.contract,
         tokenId: asset.identifier,
-        isFlagged: !asset.is_disabled,
+        isFlagged: asset.is_disabled,
       })),
       continuation: data.next ?? undefined,
     };

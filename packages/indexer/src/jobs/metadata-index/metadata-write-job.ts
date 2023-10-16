@@ -221,7 +221,6 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       (await redis.get(keyName))
     ) {
       await redis.del(keyName);
-      logger.info(this.queueName, `metadata fetched for ${JSON.stringify(payload)}`);
     }
 
     if (flagged != null) {
