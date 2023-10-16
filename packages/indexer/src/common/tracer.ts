@@ -1,5 +1,4 @@
 import tracer from "dd-trace";
-// import { Network } from "@reservoir0x/sdk/dist/utils";
 
 import { getServiceName } from "@/config/network";
 import { config } from "@/config/index";
@@ -39,17 +38,21 @@ if (process.env.DATADOG_AGENT_URL) {
     headers: ["x-api-key", "referer"],
   });
 
-  // tracer.use("ioredis", {
-  //   enabled: config.chainId === Network.Ancient8Testnet,
-  // });
-  //
-  // tracer.use("amqplib", {
-  //   enabled: config.chainId === Network.Ancient8Testnet,
-  // });
-  //
-  // tracer.use("pg", {
-  //   enabled: config.chainId === Network.Ancient8Testnet,
-  // });
+  tracer.use("ioredis", {
+    enabled: false,
+  });
+
+  tracer.use("amqplib", {
+    enabled: false,
+  });
+
+  tracer.use("pg", {
+    enabled: false,
+  });
+
+  tracer.use("elasticsearch", {
+    enabled: false,
+  });
 }
 
 export default tracer;

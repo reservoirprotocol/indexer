@@ -16,7 +16,21 @@ export class Assets {
       return undefined;
     }
 
+    try {
+      if (config.enableImageResizing) {
+        if (_.isArray(assets)) {
+          return assets.map((asset) => {
+            return this.signImage(asset);
+          });
+        }
+        return this.signImage(assets);
+      }
+    } catch (error) {
+      logger.error("getLocalAssetsLink", `Error: ${error}`);
+    }
+
     return assets;
+
     // const baseUrl = `https://${getSubDomain()}.reservoir.tools/assets/v1?`;
     //
     // if (_.isArray(assets)) {
@@ -80,25 +94,29 @@ export class Assets {
     return imageUrl;
   }
 
-  public static signImage(imageUrl: string, width: number): string {
+  public static signImage(imageUrl: string, width?: number): string {
     if (config.imageResizingBaseUrl == null) {
       throw new Error("Image resizing base URL is not set");
     } else if (config.privateImageResizingSigningKey == null) {
       throw new Error("Private image resizing signing key is not set");
     }
-    const token = jwt.sign(
-      {
-        image: imageUrl,
-        width: width,
-        // TODO: Do we want to expire the token?
-        // exp: Math.floor(Date.now() / 1000) + 2 * (60 * 60), // Expires: Now + 2h
-      },
-      config.privateImageResizingSigningKey,
 
-      {
-        algorithm: "RS256",
-      }
-    );
+    const signingData: {
+      image: string;
+      width?: number;
+    } = {
+      image: imageUrl,
+      // TODO: Do we want to expire the token?
+      // exp: Math.floor(Date.now() / 1000) + 2 * (60 * 60), // Expires: Now + 2h
+    };
+
+    if (width) {
+      signingData["width"] = width;
+    }
+
+    const token = jwt.sign(signingData, config.privateImageResizingSigningKey, {
+      algorithm: "RS256",
+    });
 
     return `${config.imageResizingBaseUrl}?token=${token}`;
   }
