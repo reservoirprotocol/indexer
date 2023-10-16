@@ -311,16 +311,13 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
   }
 
   handleError(error: any) {
-    if (
-      error.response?.status === 429 ||
-      error.response?.status === 503 ||
-      error.response?.status === 400
-    ) {
-      let delay = 1;
-
-      if (error.response.data.errors.includes("not found")) {
+    if (error.response?.status === 400) {
+      if (error.response.data.errors?.includes("not found")) {
         throw new CollectionNotFoundError(error.response.data.errors);
       }
+    } else if (error.response?.status === 429 || error.response?.status === 503) {
+      let delay = 1;
+
       if (error.response.data.detail?.startsWith("Request was throttled. Expected available in")) {
         try {
           delay = error.response.data.detail.split(" ")[6];
