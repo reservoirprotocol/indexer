@@ -19,22 +19,23 @@ import { addPendingData } from "@/jobs/arweave-relay";
 import { Collections } from "@/models/collections";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
+import { topBidsCache } from "@/models/top-bids-caching";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck } from "@/orderbook/orders/seaport-base/check";
 import * as tokenSet from "@/orderbook/token-sets";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
+import { getCurrency } from "@/utils/currencies";
+import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
 import { isOpen } from "@/utils/seaport-conduits";
 
-import { topBidsCache } from "@/models/top-bids-caching";
 import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
 import {
   orderUpdatesByIdJob,
   OrderUpdatesByIdJobPayload,
 } from "@/jobs/order-updates/order-updates-by-id-job";
 import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
-import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 
 export type OrderInfo = {
   orderParams: Sdk.SeaportBase.Types.OrderComponents;
@@ -227,8 +228,10 @@ export const save = async (
           ![
             // No zone
             AddressZero,
-            // Cancellation zone
+            // Reservoir cancellation zone
             Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId],
+            // Okx cancellation zone
+            Sdk.SeaportBase.Addresses.OkxCancellationZone[config.chainId],
             // FxHash pausable zone
             Sdk.SeaportBase.Addresses.FxHashPausableZone[config.chainId],
           ].includes(order.params.zone) &&
@@ -618,6 +621,12 @@ export const save = async (
 
       // Handle: price conversion
       const currency = info.paymentToken;
+      if ((await getCurrency(currency)).metadata?.erc20Incompatible) {
+        return results.push({
+          id,
+          status: "incompatible-currency",
+        });
+      }
 
       const currencyPrice = price.toString();
       const currencyValue = value.toString();

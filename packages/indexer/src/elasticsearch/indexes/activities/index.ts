@@ -470,32 +470,37 @@ export const search = async (
 
   if (params.startTimestamp) {
     (esQuery as any).bool.filter.push({
-      range: { timestamp: { gte: params.endTimestamp } },
+      range: { timestamp: { gte: params.startTimestamp, format: "epoch_second" } },
     });
   }
 
   if (params.endTimestamp) {
     (esQuery as any).bool.filter.push({
-      range: { timestamp: { lt: params.endTimestamp } },
+      range: { timestamp: { lt: params.endTimestamp, format: "epoch_second" } },
     });
   }
 
-  const esSort: any[] = [];
-
-  if (params.sortBy == "timestamp") {
-    esSort.push({ timestamp: { order: "desc" } });
-  } else {
-    esSort.push({ createdAt: { order: "desc" } });
-  }
-
-  let searchAfter;
+  let searchAfter: string[] = [];
 
   if (params.continuation) {
     if (params.continuationAsInt) {
       searchAfter = [params.continuation];
     } else {
-      searchAfter = [splitContinuation(params.continuation)[0]];
+      searchAfter = _.split(splitContinuation(params.continuation)[0], "_");
     }
+  }
+
+  const esSort: any[] = [];
+
+  if (params.sortBy == "timestamp") {
+    esSort.push({ timestamp: { order: "desc", format: "epoch_second" } });
+  } else {
+    esSort.push({ createdAt: { order: "desc" } });
+  }
+
+  // Backward compatibility
+  if (searchAfter?.length != 1 && !params.continuationAsInt) {
+    esSort.push({ id: { order: "desc" } });
   }
 
   try {
@@ -504,7 +509,7 @@ export const search = async (
         query: esQuery,
         sort: esSort as Sort,
         size: params.limit,
-        search_after: searchAfter,
+        search_after: searchAfter?.length ? searchAfter : undefined,
       },
       0,
       debug
@@ -514,18 +519,16 @@ export const search = async (
 
     let continuation = null;
 
-    if (activities.length === params.limit) {
-      const lastActivity = _.last(activities);
+    if (esResult.hits.hits.length === params.limit) {
+      const lastResult = _.last(esResult.hits.hits);
 
-      if (lastActivity) {
+      if (lastResult) {
+        const lastResultSortValue = lastResult.sort!.join("_");
+
         if (params.continuationAsInt) {
-          continuation = `${lastActivity.timestamp}`;
+          continuation = `${lastResultSortValue}`;
         } else {
-          const continuationValue =
-            params.sortBy == "timestamp"
-              ? lastActivity.timestamp
-              : new Date(lastActivity.createdAt).toISOString();
-          continuation = buildContinuation(`${continuationValue}`);
+          continuation = buildContinuation(`${lastResultSortValue}`);
         }
       }
     }

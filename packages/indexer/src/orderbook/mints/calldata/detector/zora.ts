@@ -246,6 +246,7 @@ export const extractByCollectionERC1155 = async (
     new Interface([
       "function computeTotalReward(uint256 numTokens) view returns(uint256)",
       "function getPermissions(uint256 tokenId, address user) view returns (uint256)",
+      "function permissions(uint256 tokenId, address user) view returns (uint256)",
       "function mintFee() external view returns(uint256)",
       `function getTokenInfo(uint256 tokenId) view returns (
         (
@@ -259,12 +260,6 @@ export const extractByCollectionERC1155 = async (
   );
 
   try {
-    const zoraFactory = new Contract(
-      Sdk.Zora.Addresses.ERC1155Factory[config.chainId],
-      new Interface(["function defaultMinters() view returns (address[])"]),
-      baseProvider
-    );
-    const defaultMinters = await zoraFactory.defaultMinters();
     let totalRewards: BigNumber | undefined;
     try {
       totalRewards = await c.computeTotalReward(1);
@@ -272,8 +267,21 @@ export const extractByCollectionERC1155 = async (
       // Skip error for old version
     }
 
+    const zoraFactory = new Contract(
+      totalRewards
+        ? Sdk.Zora.Addresses.ERC1155FactoryV2[config.chainId]
+        : Sdk.Zora.Addresses.ERC1155Factory[config.chainId],
+      new Interface(["function defaultMinters() view returns (address[])"]),
+      baseProvider
+    );
+    const defaultMinters = await zoraFactory.defaultMinters();
+
     for (const minter of defaultMinters) {
-      const permissions = await c.getPermissions(tokenId, minter);
+      // Try both `getPermissions` and `permissions` to cover as many versions as possible
+      const permissions = await c
+        .getPermissions(tokenId, minter)
+        .catch(() => c.permissions(tokenId, minter));
+
       // Need to have mint permissions
       if (permissions.toNumber() === 4) {
         const s = new Contract(

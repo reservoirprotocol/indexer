@@ -2,6 +2,7 @@ import * as Sdk from "@reservoir0x/sdk";
 
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
+import { config } from "@/config/index";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { blurBidsRefreshJob } from "@/jobs/order-updates/misc/blur-bids-refresh-job";
 import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
@@ -22,6 +23,10 @@ export class BlurBidsBufferJob extends AbstractRabbitMqJobHandler {
 
   protected async process(payload: BlurBidsBufferJobPayload) {
     const { collection } = payload;
+
+    if (config.chainId !== 1) {
+      return;
+    }
 
     try {
       // This is not 100% atomic or consistent but it covers most scenarios

@@ -119,3 +119,17 @@ export const ReservoirCancellationZone: ChainIdToAddress = {
   [Network.Polygon]: "0xfb2b693819e866ec87e574903f6e4943723c8ff7",
   [Network.Mumbai]: "0xfb2b693819e866ec87e574903f6e4943723c8ff7",
 };
+
+export const OkxCancellationZone: ChainIdToAddress = {
+  [Network.Ethereum]: "0x2de95b9afd737b0814e5e6013593a9437c5532d5",
+  [Network.Optimism]: "0x2de95b9afd737b0814e5e6013593a9437c5532d5",
+  [Network.Bsc]: "0x2de95b9afd737b0814e5e6013593a9437c5532d5",
+  [Network.Polygon]: "0x2de95b9afd737b0814e5e6013593a9437c5532d5",
+  [Network.Base]: "0x2de95b9afd737b0814e5e6013593a9437c5532d5",
+  [Network.Arbitrum]: "0x2de95b9afd737b0814e5e6013593a9437c5532d5",
+  [Network.ArbitrumNova]: "0x2de95b9afd737b0814e5e6013593a9437c5532d5",
+  [Network.Avalanche]: "0x2de95b9afd737b0814e5e6013593a9437c5532d5",
+  [Network.Zksync]: "0xea93132c3a66383d89713570fc580dc3fd296083",
+  [Network.Linea]: "0x633ac791c6967b89aebf9e385f47ac03182d96c9",
+  [Network.PolygonZkevm]: "0x10a8c9065692dffd48df1935e67a2744667fd9d0",
+};

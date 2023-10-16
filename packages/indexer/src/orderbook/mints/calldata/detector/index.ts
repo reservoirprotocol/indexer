@@ -11,16 +11,29 @@ import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
 import { Sources } from "@/models/sources";
 import { getCollectionMints } from "@/orderbook/mints";
 
+import * as createdotfun from "@/orderbook/mints/calldata/detector/createdotfun";
 import * as decent from "@/orderbook/mints/calldata/detector/decent";
 import * as foundation from "@/orderbook/mints/calldata/detector/foundation";
 import * as generic from "@/orderbook/mints/calldata/detector/generic";
 import * as manifold from "@/orderbook/mints/calldata/detector/manifold";
 import * as mintdotfun from "@/orderbook/mints/calldata/detector/mintdotfun";
 import * as seadrop from "@/orderbook/mints/calldata/detector/seadrop";
+import * as soundxyz from "@/orderbook/mints/calldata/detector/soundxyz";
 import * as thirdweb from "@/orderbook/mints/calldata/detector/thirdweb";
 import * as zora from "@/orderbook/mints/calldata/detector/zora";
 
-export { decent, foundation, generic, manifold, mintdotfun, seadrop, thirdweb, zora };
+export {
+  decent,
+  foundation,
+  generic,
+  manifold,
+  mintdotfun,
+  seadrop,
+  soundxyz,
+  thirdweb,
+  zora,
+  createdotfun,
+};
 
 export const extractByTx = async (txHash: string, skipCache = false) => {
   // Fetch all transfers associated to the transaction
@@ -190,6 +203,18 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
   const thirdwebResults = await thirdweb.extractByTx(collection, tx);
   if (thirdwebResults.length) {
     return thirdwebResults;
+  }
+
+  // Soundxyz
+  const soundxyzResults = await soundxyz.extractByTx(collection, tx);
+  if (soundxyzResults.length) {
+    return soundxyzResults;
+  }
+
+  // Createdotfun
+  const createdotfunResults = await createdotfun.extractByTx(collection, tx);
+  if (createdotfunResults.length) {
+    return createdotfunResults;
   }
 
   // Generic

@@ -19,7 +19,7 @@ import { redis } from "@/common/redis";
 import { now } from "lodash";
 import { config } from "@/config/index";
 import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
-import { generateHash, getSupportedChainName } from "@/websockets/opensea/utils";
+import { generateHash } from "@/websockets/opensea/utils";
 import { GenericOrderInfo } from "@/jobs/orderbook/utils";
 import { handleEvent as handleItemListedEvent } from "@/websockets/opensea/handlers/item_listed";
 import { handleEvent as handleItemReceivedBidEvent } from "@/websockets/opensea/handlers/item_received_bid";
@@ -34,7 +34,7 @@ import {
   metadataIndexWriteJob,
 } from "@/jobs/metadata-index/metadata-write-job";
 import { openseaListingsJob } from "@/jobs/orderbook/opensea-listings-job";
-import { getNetworkSettings } from "@/config/network";
+import { getNetworkSettings, getOpenseaNetworkName } from "@/config/network";
 import { openseaMetadataProvider } from "@/metadata/providers/opensea-metadata-provider";
 import _ from "lodash";
 
@@ -134,7 +134,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
   if (config.metadataIndexingMethod === "opensea") {
     client.onItemMetadataUpdated("*", async (event) => {
       try {
-        if (getSupportedChainName() != event.payload.item.chain.name) {
+        if (getOpenseaNetworkName() != event.payload.item.chain.name) {
           return;
         }
 

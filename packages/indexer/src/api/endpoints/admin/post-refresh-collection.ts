@@ -21,6 +21,8 @@ import {
 } from "@/jobs/metadata-index/metadata-fetch-job";
 import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
 import { openseaOrdersProcessJob } from "@/jobs/opensea-orders/opensea-orders-process-job";
+import { PendingFlagStatusSyncCollectionSlugs } from "@/models/pending-flag-status-sync-collection-slugs";
+import { PendingFlagStatusSyncContracts } from "@/models/pending-flag-status-sync-contracts";
 
 export const postRefreshCollectionOptions: RouteOptions = {
   description: "Refresh a collection's orders and metadata",
@@ -186,6 +188,25 @@ export const postRefreshCollectionOptions: RouteOptions = {
 
         // Refresh the collection tokens metadata
         await metadataIndexFetchJob.addToQueue([metadataIndexInfo], true);
+
+        if (collection.slug) {
+          await PendingFlagStatusSyncCollectionSlugs.add([
+            {
+              slug: collection.slug,
+              contract: collection.contract,
+              collectionId: collection.id,
+              continuation: null,
+            },
+          ]);
+        } else {
+          await PendingFlagStatusSyncContracts.add([
+            {
+              contract: collection.contract,
+              collectionId: collection.id,
+              continuation: null,
+            },
+          ]);
+        }
       }
 
       return { message: "Request accepted" };

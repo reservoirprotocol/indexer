@@ -28,7 +28,10 @@ export abstract class AbstractBaseMetadataProvider {
   }
 
   async getTokensMetadata(
-    tokens: { contract: string; tokenId: string }[]
+    tokens: { contract: string; tokenId: string }[],
+    options?: {
+      isRequestForFlaggedMetadata?: boolean;
+    }
   ): Promise<TokenMetadata[]> {
     const customMetadata = await Promise.all(
       tokens.map(async (token) => {
@@ -58,7 +61,7 @@ export abstract class AbstractBaseMetadataProvider {
     let metadataFromProvider: TokenMetadata[] = [];
 
     if (tokensWithoutCustomMetadata.length > 0) {
-      metadataFromProvider = await this._getTokensMetadata(tokensWithoutCustomMetadata);
+      metadataFromProvider = await this._getTokensMetadata(tokensWithoutCustomMetadata, options);
     }
 
     // merge custom metadata with metadata-api metadata
@@ -78,15 +81,13 @@ export abstract class AbstractBaseMetadataProvider {
   }
 
   async getTokensMetadataBySlug(
-    contract: string,
     slug: string,
-    continuation: string
-  ): Promise<TokenMetadataBySlugResult> {
-    if (hasCustomHandler(contract) || hasExtendHandler(contract)) {
-      throw new Error("Custom handler is not supported with collection slug.");
+    continuation: string,
+    options?: {
+      isRequestForFlaggedMetadata?: boolean;
     }
-
-    return this._getTokensMetadataBySlug(slug, continuation);
+  ): Promise<TokenMetadataBySlugResult> {
+    return this._getTokensMetadataBySlug(slug, continuation, options);
   }
 
   // Internal methods for subclasses
@@ -96,13 +97,18 @@ export abstract class AbstractBaseMetadataProvider {
   ): Promise<CollectionMetadata>;
 
   protected abstract _getTokensMetadata(
-    tokens: { contract: string; tokenId: string }[]
+    tokens: { contract: string; tokenId: string }[],
+    options?: {
+      isRequestForFlaggedMetadata?: boolean;
+    }
   ): Promise<TokenMetadata[]>;
 
   protected abstract _getTokensMetadataBySlug(
-    contract: string,
     slug: string,
-    continuation?: string
+    continuation?: string,
+    options?: {
+      isRequestForFlaggedMetadata?: boolean;
+    }
   ): Promise<TokenMetadataBySlugResult>;
 
   // Parsers

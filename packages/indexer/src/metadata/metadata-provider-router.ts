@@ -43,14 +43,17 @@ export class MetadataProviderRouter {
 
   public static async getTokensMetadata(
     tokens: { contract: string; tokenId: string }[],
-    method = ""
+    method = "",
+    options?: {
+      isRequestForFlaggedMetadata?: boolean;
+    }
   ): Promise<TokenMetadata[]> {
     method = method === "" ? config.metadataIndexingMethod : method;
 
     if (!MetadataProvidersMap[method]) {
       throw new Error(`Metadata provider ${method} not found`);
     }
-    return await MetadataProvidersMap[method].getTokensMetadata(tokens);
+    return await MetadataProvidersMap[method].getTokensMetadata(tokens, options);
   }
 
   public static getCollectionIndexingMethod(community: string | null) {

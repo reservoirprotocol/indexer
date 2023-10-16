@@ -9,6 +9,7 @@ import { Collections } from "@/models/collections";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { acquireLock } from "@/common/redis";
 import { Tokens } from "@/models/tokens";
+import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 
 export class IndexerOrdersHandler extends KafkaEventHandler {
   topicName = "indexer.public.orders";
@@ -130,6 +131,16 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
                     collection: collection?.id || contract,
                   },
                   context: "kafka-event-handler",
+                },
+              ],
+              true
+            );
+
+            await PendingFlagStatusSyncTokens.add(
+              [
+                {
+                  contract,
+                  tokenId,
                 },
               ],
               true

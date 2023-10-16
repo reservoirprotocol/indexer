@@ -15,6 +15,7 @@ import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribut
 import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
+import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 
 export const postRefreshTokenOptions: RouteOptions = {
   description: "Refresh a token's orders and metadata",
@@ -72,6 +73,16 @@ export const postRefreshTokenOptions: RouteOptions = {
               collection: collection?.id || contract,
             },
             context: "post-refresh-token",
+          },
+        ],
+        true
+      );
+
+      await PendingFlagStatusSyncTokens.add(
+        [
+          {
+            contract,
+            tokenId,
           },
         ],
         true

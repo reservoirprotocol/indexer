@@ -23,6 +23,8 @@ export class OneDayVolumeJob extends AbstractRabbitMqJobHandler {
         "day-1-volumes",
         `Finished updating the 1day volume on collections table. retry=${retry}`
       );
+
+      await DailyVolume.updateAllTimeVolume();
     } else {
       if (retry < 5) {
         logger.warn(

@@ -201,6 +201,9 @@ export type ListingFillDetails = {
   isFlagged?: boolean;
   // Relevant for partially-fillable orders
   amount?: number | string;
+  // Relevant for special orders (eg. signed orders)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  extraArgs?: any;
   fees?: Fee[];
 };
 export type ListingDetails = GenericOrder & ListingFillDetails;

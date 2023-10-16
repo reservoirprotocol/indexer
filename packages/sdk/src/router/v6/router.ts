@@ -786,6 +786,10 @@ export class Router {
               ...detail,
               kind: "seaport-v1.5",
               order: new Sdk.SeaportV15.Order(this.chainId, result.data.order),
+              extraArgs: {
+                ...details[i].extraArgs,
+                extraData: result.data.extraData,
+              },
             };
           } catch (error) {
             if (options?.onError) {
@@ -860,7 +864,10 @@ export class Router {
               txData: await exchange.fillOrderTx(
                 taker,
                 order,
-                order.buildMatching({ amount: details[0].amount }),
+                {
+                  ...order.buildMatching({ amount: details[0].amount }),
+                  extraData: details[0].extraArgs?.extraData,
+                },
                 {
                   ...options,
                   conduitKey,
@@ -887,7 +894,10 @@ export class Router {
               txData: await exchange.fillOrdersTx(
                 taker,
                 orders,
-                orders.map((order, i) => order.buildMatching({ amount: details[i].amount })),
+                orders.map((order, i) => ({
+                  ...order.buildMatching({ amount: details[i].amount }),
+                  extraData: details[i].extraArgs?.extraData,
+                })),
                 {
                   ...options,
                   conduitKey,
@@ -1772,6 +1782,7 @@ export class Router {
                         signature: orders[0].params.signature,
                         extraData: await exchange.getExtraData(orders[0], {
                           amount: currencyDetails[0].amount ?? 1,
+                          extraData: currencyDetails[0].extraArgs?.extraData,
                         }),
                       },
                       {
@@ -1801,8 +1812,9 @@ export class Router {
                             numerator: filledAmount,
                             denominator: totalAmount,
                             signature: order.params.signature,
-                            extraData: await exchange.getExtraData(orders[0], {
+                            extraData: await exchange.getExtraData(order, {
                               amount: filledAmount,
+                              extraData: currencyDetails[i].extraArgs?.extraData,
                             }),
                           };
 

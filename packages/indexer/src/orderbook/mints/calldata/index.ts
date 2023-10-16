@@ -8,7 +8,6 @@ import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { mintsProcessJob } from "@/jobs/mints/mints-process-job";
 import { CollectionMint } from "@/orderbook/mints";
-
 import * as mints from "@/orderbook/mints/calldata/detector";
 
 // For now, use the deployer address
@@ -42,11 +41,11 @@ export type AbiParam =
       abiType: string;
     }
   | {
-      kind: "custom";
+      kind: "referrer";
       abiType: string;
     }
   | {
-      kind: "referrer";
+      kind: "custom";
       abiType: string;
     };
 
@@ -58,7 +57,7 @@ export type MintTxSchema = {
   };
 };
 
-export type CustomInfo = mints.manifold.Info;
+export type CustomInfo = mints.manifold.Info | mints.soundxyz.Info;
 
 export type PartialCollectionMint = Pick<
   CollectionMint,
@@ -248,6 +247,13 @@ export const generateCollectionMintTxData = async (
             break;
           }
 
+          case "soundxyz": {
+            if (allowlistItemIndex === 0) {
+              abiValue = await mints.soundxyz.generateProofValue(collectionMint, minter);
+            }
+            break;
+          }
+
           default: {
             throw new Error("Allowlist fields not supported");
           }
@@ -343,6 +349,8 @@ export const refreshMintsForCollection = async (collection: string) => {
   );
   if (standardResult) {
     switch (standardResult.standard) {
+      case "createdotfun":
+        return mints.createdotfun.refreshByCollection(collection);
       case "decent":
         return mints.decent.refreshByCollection(collection);
       case "foundation":
@@ -353,6 +361,8 @@ export const refreshMintsForCollection = async (collection: string) => {
         return mints.mintdotfun.refreshByCollection(collection);
       case "seadrop-v1.0":
         return mints.seadrop.refreshByCollection(collection);
+      case "soundxyz":
+        return mints.soundxyz.refreshByCollection(collection);
       case "thirdweb":
         return mints.thirdweb.refreshByCollection(collection);
       case "unknown":
