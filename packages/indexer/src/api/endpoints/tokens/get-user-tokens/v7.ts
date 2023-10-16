@@ -169,6 +169,7 @@ export const getUserTokensV7Options: RouteOptions = {
             collection: Joi.object({
               id: Joi.string().allow(null),
               name: Joi.string().allow("", null),
+              slug: Joi.string().allow("", null).description("Open Sea slug"),
               imageUrl: Joi.string().allow(null),
               openseaVerificationStatus: Joi.string().allow("", null),
               floorAskPrice: JoiPrice.allow(null).description("Can be null if no active asks."),
@@ -538,7 +539,7 @@ export const getUserTokensV7Options: RouteOptions = {
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value, top_bid_source_id_int,
                o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price,
                c.name as collection_name, con.kind, c.metadata, c.royalties, (c.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
-               c.royalties_bps, ot.kind AS floor_sell_kind,
+               c.royalties_bps, ot.kind AS floor_sell_kind, c.slug,
                ${query.includeRawData ? "ot.raw_data AS floor_sell_raw_data," : ""}
                ${
                  query.useNonFlaggedFloorAsk
@@ -693,6 +694,7 @@ export const getUserTokensV7Options: RouteOptions = {
             collection: {
               id: r.collection_id,
               name: r.collection_name,
+              slug: r.slug,
               imageUrl: r.metadata?.imageUrl,
               openseaVerificationStatus: r.opensea_verification_status,
               floorAskPrice: r.collection_floor_sell_value

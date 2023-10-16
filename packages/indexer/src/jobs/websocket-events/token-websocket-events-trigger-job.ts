@@ -9,7 +9,6 @@ import { Assets } from "@/utils/assets";
 import * as Sdk from "@reservoir0x/sdk";
 import { Sources } from "@/models/sources";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { Network } from "@reservoir0x/sdk/dist/utils";
 
 export type TokenWebsocketEventsTriggerJobPayload =
   | {
@@ -223,17 +222,17 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
           }
 
           if (!changed.length) {
-            if (config.chainId === Network.Polygon) {
-              try {
-                for (const key in data.after) {
-                  const beforeValue = data.before[key as keyof TokenInfo];
-                  const afterValue = data.after[key as keyof TokenInfo];
+            try {
+              for (const key in data.after) {
+                const beforeValue = data.before[key as keyof TokenInfo];
+                const afterValue = data.after[key as keyof TokenInfo];
 
-                  if (beforeValue !== afterValue) {
-                    changed.push(key as keyof TokenInfo);
-                  }
+                if (beforeValue !== afterValue) {
+                  changed.push(key as keyof TokenInfo);
                 }
+              }
 
+              if (changed.length === 1) {
                 logger.info(
                   this.queueName,
                   JSON.stringify({
@@ -244,17 +243,17 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
                     token: `${contract}:${tokenId}`,
                   })
                 );
-              } catch (error) {
-                logger.error(
-                  this.queueName,
-                  JSON.stringify({
-                    message: `No changes detected for token error. contract=${contract}, tokenId=${tokenId}`,
-                    data,
-                    changed,
-                    error,
-                  })
-                );
               }
+            } catch (error) {
+              logger.error(
+                this.queueName,
+                JSON.stringify({
+                  message: `No changes detected for token error. contract=${contract}, tokenId=${tokenId}`,
+                  data,
+                  changed,
+                  error,
+                })
+              );
             }
 
             return;
