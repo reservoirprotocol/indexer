@@ -219,7 +219,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
     const domain = !this.isOSTestnet()
       ? "https://api.opensea.io"
       : "https://testnets-api.opensea.io";
-    const url = `${domain}/api/v2/chain/${getOpenseaNetworkName()}/collection/${slug}/nfts?${searchParams.toString()}`;
+    const url = `${domain}/api/v2/collection/${slug}/nfts?${searchParams.toString()}`;
 
     const data = await axios
       .get(!this.isOSTestnet() ? config.openSeaApiUrl || url : url, {
