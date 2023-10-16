@@ -15,6 +15,7 @@ import "@/jobs/opensea-orders";
 import "@/jobs/monitoring";
 import "@/jobs/failed-messages";
 import "@/jobs/top-selling-collections-cache";
+import "@/jobs/flag-status/flag-status-cron";
 
 // Export all job queues for monitoring through the BullMQ UI
 
@@ -37,6 +38,7 @@ import * as backfillSalesUsdPrice from "@/jobs/backfill/backfill-sales-usd-price
 import * as backfillSales from "@/jobs/backfill/backfill-sales";
 import * as backfillReorgBlocks from "@/jobs/backfill/backfill-reorg-blocks";
 import * as backfillDeletedSalesElasticsearch from "@/jobs/activities/backfill/backfill-deleted-sales-elasticsearch";
+import * as backfillRouter from "@/jobs/backfill/backfill-router";
 
 import amqplib from "amqplib";
 import { config } from "@/config/index";
@@ -171,6 +173,7 @@ export const allJobQueues = [
   backfillSales.queue,
   backfillReorgBlocks.queue,
   backfillDeletedSalesElasticsearch.queue,
+  backfillRouter.queue,
 ];
 
 export class RabbitMqJobsConsumer {
