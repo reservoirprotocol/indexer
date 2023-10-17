@@ -20,8 +20,6 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
   singleActiveConsumer = true;
 
   protected async process() {
-    logger.info(this.queueName, "Start");
-
     // check redis to see if we have a lock for this job saying we are sleeping due to rate limiting. This lock only exists if we have been rate limited.
     const expiration = await getLockExpiration(this.getLockName());
 

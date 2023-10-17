@@ -15,7 +15,6 @@ import "@/jobs/opensea-orders";
 import "@/jobs/monitoring";
 import "@/jobs/failed-messages";
 import "@/jobs/top-selling-collections-cache";
-import "@/jobs/flag-status/flag-status-cron";
 
 // Export all job queues for monitoring through the BullMQ UI
 
