@@ -11,6 +11,7 @@ import { RequestWasThrottledError } from "../orderbook/post-order-external/api/e
 import { config } from "@/config/index";
 import cron from "node-cron";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
+import _ from "lodash";
 
 export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
   queueName = "token-flag-status-sync-queue";
@@ -23,59 +24,54 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
   protected async process() {
     let addToQueue = false;
 
-    // check redis to see if we have a lock for this job saying we are sleeping due to rate limiting. This lock only exists if we have been rate limited.
-    // const expiration = await getLockExpiration(this.getLockName());
-    //
-    // if (expiration > 0) {
-    //   logger.info(this.queueName, "Sleeping due to rate limiting");
-    //   return;
-    // }
-
     const lockAcquired = await acquireLock(this.getLockName(), 1);
 
-    if (!lockAcquired) {
-      logger.info(this.queueName, "Unable to take lock.");
-      return;
-    }
+    if (lockAcquired) {
+      const tokensToGetFlagStatusFor = await PendingFlagStatusSyncTokens.get(2);
 
-    const tokensToGetFlagStatusFor = await PendingFlagStatusSyncTokens.get(1);
+      if (tokensToGetFlagStatusFor.length) {
+        const tokensToGetFlagStatusForChunks = _.chunk(tokensToGetFlagStatusFor, 1);
 
-    if (tokensToGetFlagStatusFor.length) {
-      try {
-        const tokenFlagStatus = await getTokenFlagStatus(
-          tokensToGetFlagStatusFor[0].contract,
-          tokensToGetFlagStatusFor[0].tokenId
+        const results = await Promise.all(
+          tokensToGetFlagStatusForChunks.map((tokensToGetFlagStatusForChunk) =>
+            getTokenFlagStatus(
+              tokensToGetFlagStatusForChunk[0].contract,
+              tokensToGetFlagStatusForChunk[0].tokenId
+            ).catch(async (error) => {
+              if (error instanceof RequestWasThrottledError) {
+                logger.warn(
+                  this.queueName,
+                  `Too Many Requests.  error: ${JSON.stringify((error as any).response.data)}`
+                );
+
+                await PendingFlagStatusSyncTokens.add(tokensToGetFlagStatusFor, true);
+              } else {
+                logger.error(
+                  this.queueName,
+                  JSON.stringify({
+                    message: `getTokenFlagStatus error. error=${error}`,
+                    tokensToGetFlagStatusFor,
+                    error,
+                  })
+                );
+              }
+
+              return [];
+            })
+          )
         );
 
-        logger.info(
-          this.queueName,
-          `Debug. tokensToGetFlagStatusForCount=${
-            tokensToGetFlagStatusFor.length
-          }, tokenFlagStatus=${JSON.stringify(tokenFlagStatus)}`
-        );
+        if (results.length) {
+          const tokensFlagStatus = results.flat(1);
 
-        await flagStatusUpdateJob.addToQueue([tokenFlagStatus]);
-
-        addToQueue = true;
-      } catch (error) {
-        if (error instanceof RequestWasThrottledError) {
           logger.info(
             this.queueName,
-            `Too Many Requests.  error: ${JSON.stringify((error as any).response.data)}`
+            `Debug. tokensToGetFlagStatusFor=${tokensToGetFlagStatusFor.length}, tokensFlagStatus=${tokensFlagStatus.length}`
           );
 
-          await acquireLock(this.getLockName(), 5);
+          await flagStatusUpdateJob.addToQueue(tokensFlagStatus);
 
-          await PendingFlagStatusSyncTokens.add(tokensToGetFlagStatusFor, true);
-        } else {
-          logger.error(
-            this.queueName,
-            JSON.stringify({
-              message: `getTokenFlagStatus error. error=${error}`,
-              tokensToGetFlagStatusFor,
-              error,
-            })
-          );
+          addToQueue = true;
         }
       }
     }
