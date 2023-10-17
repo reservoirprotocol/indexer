@@ -38,6 +38,7 @@ import * as tfoust from "./tfoust";
 import * as utopiaAvatars from "./utopia-avatars";
 import * as superrareShared from "./superrare-shared";
 import * as foundationShared from "./foundation-shared";
+import * as kanpaiPandas from "./kanpai-pandas";
 
 const extendCollection: any = {};
 const extend: any = {};
@@ -313,3 +314,6 @@ extend["1,0xb932a70a57673d89f4acffbe830e8ed7f75fb9e0"] = superrareShared;
 
 //Foundation Shared
 extend["1,0x3b3ee1931dc30c1957379fac9aba94d1c48a5405"] = foundationShared;
+
+// Kanpai Pandas
+extend["1,0xacf63e56fd08970b43401492a02f6f38b6635c91"] = kanpaiPandas;
