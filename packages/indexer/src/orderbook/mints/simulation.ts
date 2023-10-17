@@ -159,10 +159,10 @@ const simulateMintTxData = async (
     let logs: Log[];
     try {
       logs = await getEmittedEvents(txData, config.chainId);
-      logger.info("mints-process", `Emitted events: ${JSON.stringify(logs)}`);
+      logger.info("mints-simulation", `Emitted events: ${JSON.stringify(logs)}`);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      logger.info("mints-process", `Error fetching events: ${error} (${error.stack})`);
+      logger.info("mints-simulation", `Error fetching events: ${error} (${error.stack})`);
       return false;
     }
 
@@ -209,10 +209,10 @@ const simulateMintTxData = async (
 
     try {
       const result = await triggerCall(txData);
-      logger.info("mints-process", `Call result: ${result}`);
+      logger.info("mints-simulation", `Call result: ${result}`);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      logger.info("mints-process", `Error simulating call: ${error} (${error.stack})`);
+      logger.info("mints-simulation", `Error simulating call: ${error} (${error.stack})`);
       return false;
     }
 
