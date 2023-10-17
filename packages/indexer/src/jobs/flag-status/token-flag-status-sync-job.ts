@@ -21,6 +21,8 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
   singleActiveConsumer = true;
 
   protected async process() {
+    logger.info(this.queueName, `Start.`);
+
     let addToQueue = false;
 
     // check redis to see if we have a lock for this job saying we are sleeping due to rate limiting. This lock only exists if we have been rate limited.
@@ -87,12 +89,12 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
     }
   ) {
     if (processResult?.addToQueue) {
-      await this.addToQueue();
+      await this.addToQueue(1000);
     }
   }
 
   public async addToQueue(delay = 0) {
-    await this.send({ payload: {}, jobId: this.queueName }, delay);
+    await this.send({}, delay);
   }
 }
 

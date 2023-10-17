@@ -84,7 +84,7 @@ export class CollectionSlugFlagStatusSyncJob extends AbstractRabbitMqJobHandler 
   }
 
   public async addToQueue(delay = 0) {
-    await this.send({ payload: {}, jobId: this.queueName }, delay);
+    await this.send({}, delay);
   }
 }
 
