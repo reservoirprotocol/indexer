@@ -13,4 +13,5 @@ export type BaseBuildParams = {
   delegateType?: Types.DelegationType;
   contract: string;
   salt?: BigNumberish;
+  taker?: string;
 };

@@ -46,6 +46,7 @@ export type Order = {
 export type LocalOrder = {
   salt: string;
   user: string;
+  taker?: string;
   network: number;
   intent: number;
   delegateType: number;

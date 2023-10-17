@@ -26,9 +26,8 @@ import * as blurSellToken from "@/orderbook/orders/blur/build/sell/token";
 import * as looksRareV2SellToken from "@/orderbook/orders/looks-rare-v2/build/sell/token";
 import * as looksRareV2Check from "@/orderbook/orders/looks-rare-v2/check";
 
-import * as seaportBaseCheck from "@/orderbook/orders/seaport-base/check";
-
 // Seaport v1.5
+import * as seaportBaseCheck from "@/orderbook/orders/seaport-base/check";
 import * as seaportV15SellToken from "@/orderbook/orders/seaport-v1.5/build/sell/token";
 
 // Alienswap
@@ -177,6 +176,13 @@ export const getExecuteListV5Options: RouteOptions = {
             currency: Joi.string()
               .pattern(regex.address)
               .default(Sdk.Common.Addresses.Native[config.chainId]),
+            taker: Joi.string()
+              .lowercase()
+              .pattern(regex.address)
+              .description(
+                "Address of wallet taking the private order. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
+              )
+              .optional(),
           })
         )
         .min(1),
@@ -252,6 +258,7 @@ export const getExecuteListV5Options: RouteOptions = {
       salt?: string;
       nonce?: string;
       currency?: string;
+      taker?: string;
     }[];
 
     const perfTime1 = performance.now();
@@ -409,6 +416,13 @@ export const getExecuteListV5Options: RouteOptions = {
             const [feeRecipient, fee] = feeData.split(":");
             (params as any).fee.push(fee);
             (params as any).feeRecipient.push(feeRecipient);
+          }
+
+          if (params.taker && !["seaport-v1.5", "x2y2"].includes(params.orderKind)) {
+            return errors.push({
+              message: "Private orders are only supported for seaport-v1.5 and x2y2",
+              orderIndex: i,
+            });
           }
 
           try {
