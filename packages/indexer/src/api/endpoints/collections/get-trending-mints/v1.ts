@@ -116,6 +116,7 @@ export interface Metadata {
 export interface ElasticMintResult {
   volume: number;
   count: number;
+  addresses: string[];
   id: string;
 }
 
@@ -164,9 +165,6 @@ export const getTrendingMintsV1Options: RouteOptions = {
           banner: Joi.string().allow("", null),
           description: Joi.string().allow("", null),
           primaryContract: Joi.string().lowercase().pattern(regex.address),
-          count: Joi.number().integer(),
-          volume: Joi.number(),
-          mints: Joi.number(),
           creator: Joi.string().allow("", null),
           floorAsk: {
             id: Joi.string().allow(null),
@@ -200,6 +198,7 @@ export const getTrendingMintsV1Options: RouteOptions = {
               maxMintsPerWallet: Joi.number().unsafe().allow(null),
             })
           ),
+          addresses: Joi.array().items(Joi.string()),
           tokenCount: Joi.number().description("Total tokens within the collection."),
           ownerCount: Joi.number().description("Unique number of owners."),
           volumeChange: Joi.object({
@@ -356,8 +355,14 @@ async function formatCollections(
       }
 
       return {
-        ...r,
+        id: r.id,
+        banner: metadata.metadata.bannerImageUrl,
+        description: metadata.metadata.description,
+        image: metadata?.metadata?.imageUrl,
+        name: metadata?.name,
         mintType: Number(mintData?.price) > 0 ? "paid" : "free",
+        mintCount: r.count,
+        mintVolume: r.volume,
         mintStatus: mintData?.status,
         mintStages: mintData?.mint_stages
           ? await Promise.all(
@@ -376,8 +381,7 @@ async function formatCollections(
               })
             )
           : [],
-        image: metadata?.metadata?.imageUrl,
-        name: metadata?.name,
+        addresses: [...r.addresses],
         volumeChange: {
           "1day": metadata.day1_volume_change,
           "7day": metadata.day7_volume_change,
@@ -386,8 +390,6 @@ async function formatCollections(
         },
         tokenCount: Number(metadata.token_count || 0),
         ownerCount: Number(metadata.owner_count || 0),
-        banner: metadata.metadata?.bannerImageUrl,
-        description: metadata.metadata?.description,
         floorAsk,
       };
     })
