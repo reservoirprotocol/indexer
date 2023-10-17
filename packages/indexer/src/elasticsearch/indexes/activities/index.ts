@@ -672,6 +672,12 @@ export const getTrendingMintsV2 = async (params: {
             field: "pricing.priceDecimal",
           },
         },
+        addresses_agg: {
+          terms: {
+            field: "toAddress",
+            size: 50,
+          },
+        },
       },
     },
   } as any;
@@ -687,121 +693,9 @@ export const getTrendingMintsV2 = async (params: {
 
   return esResult?.aggregations?.collections?.buckets?.map((bucket: any) => {
     return {
+      addresses: bucket?.addresses_agg?.buckets?.map((addrBucket: any) => addrBucket.key) || [], // Extracting the toAddress values
       volume: bucket?.total_volume?.value,
       count: bucket?.total_mints.value,
-      id: bucket.key,
-    };
-  });
-};
-
-export const getTrendingMints = async (params: {
-  startTime: number;
-  type: "free" | "paid" | "any";
-}): Promise<CollectionAggregation[]> => {
-  const { startTime, type } = params;
-
-  const { trendingExcludedContracts } = getNetworkSettings();
-
-  let priceFilter: any;
-
-  if (type === "free") {
-    priceFilter = {
-      range: {
-        "pricing.priceDecimal": {
-          lte: 1,
-        },
-      },
-    };
-  } else if (type === "paid") {
-    priceFilter = {
-      range: {
-        "pricing.priceDecimal": {
-          gt: 0,
-        },
-      },
-    };
-  }
-
-  const salesQuery = {
-    bool: {
-      filter: [
-        {
-          terms: {
-            type: ["mint"],
-          },
-        },
-        {
-          range: {
-            timestamp: {
-              gte: startTime,
-              format: "epoch_second",
-            },
-          },
-        },
-        ...(priceFilter ? [priceFilter] : []),
-      ],
-      ...(trendingExcludedContracts && {
-        must_not: [
-          {
-            terms: {
-              "collection.id": trendingExcludedContracts,
-            },
-          },
-        ],
-      }),
-    },
-  } as any;
-
-  const collectionAggregation = {
-    collections: {
-      terms: {
-        field: "collection.id",
-        size: 2500,
-        order: {
-          total_transactions: "desc",
-        },
-      },
-      aggs: {
-        total_mints: {
-          value_count: {
-            field: "id",
-          },
-        },
-        total_transactions: {
-          cardinality: {
-            field: "event.txHash",
-          },
-        },
-        total_volume: {
-          sum: {
-            field: "pricing.priceDecimal",
-          },
-        },
-        price_for_collection: {
-          terms: {
-            field: "pricing.priceDecimal",
-            size: 1,
-          },
-        },
-      },
-    },
-  } as any;
-
-  const esResult = (await elasticsearch.search({
-    index: INDEX_NAME,
-    size: 0,
-    body: {
-      query: salesQuery,
-      aggs: collectionAggregation,
-    },
-  })) as any;
-  return esResult?.aggregations?.collections?.buckets?.map((bucket: any) => {
-    return {
-      mintVolume: bucket?.total_volume?.value,
-      mintCount: bucket?.total_mints.value,
-      mintPrice: bucket.price_for_collection.buckets.length
-        ? bucket.price_for_collection.buckets[0].key
-        : 0,
       id: bucket.key,
     };
   });
