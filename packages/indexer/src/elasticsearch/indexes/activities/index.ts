@@ -653,7 +653,7 @@ export const getTrendingMintsV2 = async (params: {
         field: "collection.id",
         size: 50,
         order: {
-          total_transactions: "desc",
+          total_mints: "desc",
         },
       },
       aggs: {
