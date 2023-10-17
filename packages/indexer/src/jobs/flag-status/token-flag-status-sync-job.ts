@@ -3,7 +3,7 @@
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
 import { getTokenFlagStatus } from "@/jobs/flag-status/utils";
-import { acquireLock, getLockExpiration, redlock } from "@/common/redis";
+import { acquireLock, redlock } from "@/common/redis";
 import { logger } from "@/common/logger";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
@@ -21,15 +21,20 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
   singleActiveConsumer = true;
 
   protected async process() {
-    logger.info(this.queueName, `Start.`);
-
     let addToQueue = false;
 
     // check redis to see if we have a lock for this job saying we are sleeping due to rate limiting. This lock only exists if we have been rate limited.
-    const expiration = await getLockExpiration(this.getLockName());
+    // const expiration = await getLockExpiration(this.getLockName());
+    //
+    // if (expiration > 0) {
+    //   logger.info(this.queueName, "Sleeping due to rate limiting");
+    //   return;
+    // }
 
-    if (expiration > 0) {
-      logger.info(this.queueName, "Sleeping due to rate limiting");
+    const lockAcquired = await acquireLock(this.getLockName(), 1);
+
+    if (!lockAcquired) {
+      logger.info(this.queueName, "Unable to take lock.");
       return;
     }
 
