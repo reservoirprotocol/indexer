@@ -5,6 +5,7 @@ import axios from "axios";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
+import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { getNetworkSettings } from "@/config/network";
 import { currenciesFetchJob } from "@/jobs/currencies/currencies-fetch-job";
@@ -41,7 +42,7 @@ export const getCurrency = async (currencyAddress: string): Promise<Currency> =>
       }
     );
 
-    if (result) {
+    if (result && result.name && result.symbol && result.decimals) {
       CURRENCY_MEMORY_CACHE.set(currencyAddress, {
         contract: currencyAddress,
         name: result.name,
@@ -55,8 +56,16 @@ export const getCurrency = async (currencyAddress: string): Promise<Currency> =>
       let decimals: number | undefined;
       let metadata: CurrencyMetadata | undefined;
 
-      // If the currency is not available, then we try to retrieve its details
+      // If the currency or important fields are not available, then we try to retrieve its details
       try {
+        // At most 1 attempt per minute
+        const lockKey = `try-get-currency-details-lock:${currencyAddress}`;
+        if (await redis.get(lockKey)) {
+          throw new Error("Locked");
+        } else {
+          await redis.set(lockKey, "locked", "EX", 60);
+        }
+
         ({ name, symbol, decimals, metadata } = await tryGetCurrencyDetails(currencyAddress));
       } catch (error) {
         logger.error(
@@ -80,30 +89,50 @@ export const getCurrency = async (currencyAddress: string): Promise<Currency> =>
 
       metadata = metadata || {};
 
-      await idb.none(
-        `
-          INSERT INTO currencies (
-            contract,
+      if (!result) {
+        await idb.none(
+          `
+            INSERT INTO currencies (
+              contract,
+              name,
+              symbol,
+              decimals,
+              metadata
+            ) VALUES (
+              $/contract/,
+              $/name/,
+              $/symbol/,
+              $/decimals/,
+              $/metadata:json/
+            ) ON CONFLICT DO NOTHING
+          `,
+          {
+            contract: toBuffer(currencyAddress),
             name,
             symbol,
             decimals,
-            metadata
-          ) VALUES (
-            $/contract/,
-            $/name/,
-            $/symbol/,
-            $/decimals/,
-            $/metadata:json/
-          ) ON CONFLICT DO NOTHING
-        `,
-        {
-          contract: toBuffer(currencyAddress),
-          name,
-          symbol,
-          decimals,
-          metadata,
-        }
-      );
+            metadata,
+          }
+        );
+      } else {
+        await idb.none(
+          `
+            UPDATE currencies SET
+              name = $/name/,
+              symbol = $/symbol/,
+              decimals = $/decimals/,
+              metadata = $/metadata:json/
+            WHERE contract = $/contract/
+          `,
+          {
+            contract: toBuffer(currencyAddress),
+            name,
+            symbol,
+            decimals,
+            metadata,
+          }
+        );
+      }
 
       // Update the in-memory cache
       CURRENCY_MEMORY_CACHE.set(currencyAddress, {

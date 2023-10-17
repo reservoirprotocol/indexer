@@ -23,13 +23,13 @@ export class CurrenciesFetchJob extends AbstractRabbitMqJobHandler {
     const details = await tryGetCurrencyDetails(currency);
     await idb.none(
       `
-          UPDATE currencies SET
-            name = $/name/,
-            symbol = $/symbol/,
-            decimals = $/decimals/,
-            metadata = $/metadata:json/
-          WHERE contract = $/contract/
-        `,
+        UPDATE currencies SET
+          name = $/name/,
+          symbol = $/symbol/,
+          decimals = $/decimals/,
+          metadata = $/metadata:json/
+        WHERE contract = $/contract/
+      `,
       {
         contract: toBuffer(currency),
         ...details,
