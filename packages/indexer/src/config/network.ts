@@ -447,7 +447,6 @@ export const getNetworkSettings = (): NetworkSettings => {
           indexes: {
             activities: {
               numberOfShards: 50,
-              disableMappingsUpdate: true,
             },
           },
         },

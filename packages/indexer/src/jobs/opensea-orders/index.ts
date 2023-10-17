@@ -36,7 +36,7 @@ const getCollections = async () => {
 };
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork) {
+if (config.doBackgroundWork && config.metadataIndexingMethodCollection === "opensea") {
   cron.schedule(
     "*/30 * * * *",
     async () =>

@@ -94,6 +94,7 @@ export type AdvancedOrder = {
 };
 
 export type MatchParams = {
+  extraData?: string;
   amount?: BigNumberish;
   criteriaResolvers?: CriteriaResolver[];
 };
