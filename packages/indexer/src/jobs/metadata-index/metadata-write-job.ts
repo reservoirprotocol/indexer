@@ -16,7 +16,6 @@ import { newCollectionForTokenJob } from "@/jobs/token-updates/new-collection-fo
 import { config } from "@/config/index";
 import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
-import { redis } from "@/common/redis";
 import { tokenWebsocketEventsTriggerJob } from "@/jobs/websocket-events/token-websocket-events-trigger-job";
 
 export type MetadataIndexWriteJobPayload = {
@@ -188,15 +187,12 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
     }
 
     // If this is a new token and there's still no metadata (exclude mainnet)
-    const keyName = `retry-metadata-${contract}-${tokenId}`;
     if (
       config.chainId !== 1 &&
       _.isNull(result.image) &&
       _.isNull(result.name) &&
       isAfter(add(new Date(result.created_at), { minutes: 25 }), Date.now())
     ) {
-      await redis.set(keyName, _.now(), "EX", 2 * 60 * 60);
-
       // Requeue the token for metadata fetching and stop processing
       return metadataIndexFetchJob.addToQueue(
         [
@@ -213,14 +209,6 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
         false,
         20 * 60
       );
-    }
-
-    if (
-      config.chainId !== 1 &&
-      (!_.isNull(result.image) || !_.isNull(result.name)) &&
-      (await redis.get(keyName))
-    ) {
-      await redis.del(keyName);
     }
 
     if (flagged != null) {

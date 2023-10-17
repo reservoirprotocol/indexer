@@ -375,7 +375,7 @@ export class DailyVolume {
         LEFT JOIN daily_volumes ON collections.id = daily_volumes.collection_id
         WHERE collections.id != '-1'
         AND collections.day1_volume > 0
-        ${collectionId ? "AND collection_id = $/collectionId/" : ""}
+        ${collectionId ? "AND collections.id = $/collectionId/" : ""}
         GROUP BY collections.id
       `,
         { collectionId }
@@ -398,13 +398,13 @@ export class DailyVolume {
           `,
             {
               recentTimestamp: row?.recent_timestamp ?? 0,
-              collectionId: row.collection_id,
+              collectionId: row.id,
             }
           );
 
           let totalVolume = { total_volume: 0 };
 
-          const redisTotalVolume = await redis.get(`all_time_volume_${row.collection_id}`);
+          const redisTotalVolume = await redis.get(`all_time_volume_${row.id}`);
           if (redisTotalVolume) {
             totalVolume.total_volume = parseInt(redisTotalVolume, 10);
           } else {
@@ -417,13 +417,13 @@ export class DailyVolume {
               GROUP BY collection_id
             `,
               {
-                collectionId: row.collection_id,
+                collectionId: row.id,
               }
             );
 
             if (pgTotalVolume) {
               await redis.set(
-                `all_time_volume_${row.collection_id}`,
+                `all_time_volume_${row.id}`,
                 totalVolume.total_volume,
                 "EX",
                 60 * 60 * 24
@@ -433,11 +433,9 @@ export class DailyVolume {
               totalVolume = { total_volume: 0 };
             }
           }
-
           return {
-            collection_id: row.collection_id,
+            collection_id: row.id,
             volume_since_recent: volumeSinceRecent ? volumeSinceRecent.volume_since_recent : 0,
-            past_total_volume: totalVolume ? totalVolume.total_volume : 0,
             total_new_volume: totalVolume
               ? totalVolume.total_volume + volumeSinceRecent.volume_since_recent
               : volumeSinceRecent.volume_since_recent,
@@ -452,8 +450,8 @@ export class DailyVolume {
           query: `
           UPDATE collections
           SET all_time_volume = $/total_new_volume/,
-            7day_volume = CASE WHEN 7day_volume < $/volume_since_recent/ THEN $/volume_since_recent/ ELSE 7day_volume END,
-            30day_volume = CASE WHEN 30day_volume < $/volume_since_recent/ THEN $/volume_since_recent/ ELSE 30day_volume END
+            day7_volume = CASE WHEN day7_volume < $/volume_since_recent/ THEN $/volume_since_recent/ ELSE day7_volume END,
+            day30_volume = CASE WHEN day30_volume < $/volume_since_recent/ THEN $/volume_since_recent/ ELSE day30_volume END
           WHERE id = $/collection_id/
         `,
           values: values,

@@ -185,11 +185,11 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
       .catch((error) => {
         logger.error(
           "opensea-fetcher",
-          `fetchTokensFlagStatusByContract error. url:${url}, message:${error.message},  status:${
-            error.response?.status
-          }, data:${JSON.stringify(error.response?.data)}, url:${JSON.stringify(
-            error.config?.url
-          )}, headers:${JSON.stringify(error.config?.headers?.url)}`
+          JSON.stringify({
+            message: `_getTokensFlagStatusByCollectionPaginationViaSlug error. contract:${contract}, tokenId:${tokenId}, error:${error}`,
+            url,
+            error,
+          })
         );
 
         this.handleError(error);
@@ -237,11 +237,11 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
       .catch((error) => {
         logger.error(
           "opensea-fetcher",
-          `fetchTokensFlagStatusByContract error. url:${url}, message:${error.message},  status:${
-            error.response?.status
-          }, data:${JSON.stringify(error.response?.data)}, url:${JSON.stringify(
-            error.config?.url
-          )}, headers:${JSON.stringify(error.config?.headers?.url)}`
+          JSON.stringify({
+            message: `_getTokensFlagStatusByCollectionPaginationViaSlug error. slug:${slug}, continuation:${continuation}, error:${error}`,
+            url,
+            error,
+          })
         );
 
         this.handleError(error);
@@ -290,11 +290,11 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
       .catch((error) => {
         logger.error(
           "opensea-fetcher",
-          `fetchTokensFlagStatusByContract error. url:${url}, message:${error.message},  status:${
-            error.response?.status
-          }, data:${JSON.stringify(error.response?.data)}, url:${JSON.stringify(
-            error.config?.url
-          )}, headers:${JSON.stringify(error.config?.headers?.url)}`
+          JSON.stringify({
+            message: `_getTokensFlagStatusByCollectionPaginationViaContract error. contract:${contract}, continuation:${continuation}, error:${error}`,
+            url,
+            error,
+          })
         );
 
         this.handleError(error);
