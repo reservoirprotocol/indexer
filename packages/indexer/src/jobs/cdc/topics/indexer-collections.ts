@@ -42,13 +42,12 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
     });
 
     try {
-      logger.info("top-selling-collections", `updating collection ${payload.after.id}`);
-
       const collectionKey = `collection-cache:v1:${payload.after.id}`;
 
       const cachedCollection = await redis.get(collectionKey);
 
       if (cachedCollection !== null) {
+        logger.info("top-selling-collections", `updating collection ${payload.after.id}`);
         // If the collection exists, fetch the on_sale_count
         const listedCountQuery = `
         SELECT
@@ -69,9 +68,9 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
         };
 
         await redis.set(collectionKey, JSON.stringify(updatedPayload), "XX");
-      }
 
-      logger.info("top-selling-collections", `updated collection ${payload.after.id}`);
+        logger.info("top-selling-collections", `updated collection ${payload.after.id}`);
+      }
     } catch (err) {
       logger.error(
         "top-selling-collections",
