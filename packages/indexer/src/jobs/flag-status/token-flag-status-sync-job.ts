@@ -27,7 +27,7 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
     const lockAcquired = await acquireLock(this.getLockName(), 1);
 
     if (lockAcquired) {
-      const tokensToGetFlagStatusFor = await PendingFlagStatusSyncTokens.get(2);
+      const tokensToGetFlagStatusFor = await PendingFlagStatusSyncTokens.get(4);
 
       if (tokensToGetFlagStatusFor.length) {
         const tokensToGetFlagStatusForChunks = _.chunk(tokensToGetFlagStatusFor, 1);
@@ -44,13 +44,13 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
                   `Too Many Requests.  error: ${JSON.stringify((error as any).response.data)}`
                 );
 
-                await PendingFlagStatusSyncTokens.add(tokensToGetFlagStatusFor, true);
+                await PendingFlagStatusSyncTokens.add(tokensToGetFlagStatusForChunk, true);
               } else {
                 logger.error(
                   this.queueName,
                   JSON.stringify({
                     message: `getTokenFlagStatus error. error=${error}`,
-                    tokensToGetFlagStatusFor,
+                    tokensToGetFlagStatusForChunk,
                     error,
                   })
                 );
