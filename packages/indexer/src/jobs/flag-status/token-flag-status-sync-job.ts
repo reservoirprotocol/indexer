@@ -64,13 +64,11 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
           logger.error(
             this.queueName,
             JSON.stringify({
-              message: `Error: ${error}`,
+              message: `getTokenFlagStatus error. error=${error}`,
               tokensToGetFlagStatusFor,
               error,
             })
           );
-
-          throw error;
         }
       }
     }
@@ -106,10 +104,10 @@ if (
   config.metadataIndexingMethodCollection === "opensea"
 ) {
   cron.schedule(
-    "*/30 * * * * *",
+    "*/5 * * * * *",
     async () =>
       await redlock
-        .acquire([`${tokenFlagStatusSyncJob.queueName}-cron-lock`], (30 - 1) * 1000)
+        .acquire([`${tokenFlagStatusSyncJob.queueName}-cron-lock`], (5 - 1) * 1000)
         .then(async () => tokenFlagStatusSyncJob.addToQueue())
         .catch(() => {
           // Skip on any errors
