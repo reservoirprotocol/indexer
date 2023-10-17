@@ -87,6 +87,7 @@ export const getBuildInfo = async (
 
   const buildParams: Sdk.SeaportBase.BaseBuildParams = {
     offerer: options.maker,
+    taker: options.taker,
     side,
     tokenKind: collectionResult.kind,
     // TODO: Fix types

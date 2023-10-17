@@ -5,6 +5,7 @@ import { bn } from "@/common/utils";
 
 export interface BaseOrderBuildOptions {
   maker: string;
+  taker?: string;
   contract?: string;
   weiPrice: string;
   endWeiPrice?: string;

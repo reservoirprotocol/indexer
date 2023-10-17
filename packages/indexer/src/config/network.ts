@@ -556,6 +556,20 @@ export const getNetworkSettings = (): NetworkSettings => {
         lastBlockLatency: 15,
         backfillBlockBatchSize: 60,
         reorgCheckFrequency: [30],
+        whitelistedCurrencies: new Map([
+          [
+            Sdk.Common.Addresses.Usdc[config.chainId][1],
+            {
+              contract: Sdk.Common.Addresses.Usdc[config.chainId][1],
+              name: "USD Coin",
+              symbol: "USDC",
+              decimals: 6,
+              metadata: {
+                image: "https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png",
+              },
+            },
+          ],
+        ]),
         coingecko: {
           networkId: "optimistic-ethereum",
         },
@@ -648,6 +662,18 @@ export const getNetworkSettings = (): NetworkSettings => {
         backfillBlockBatchSize: 32,
         reorgCheckFrequency: [30],
         whitelistedCurrencies: new Map([
+          [
+            Sdk.Common.Addresses.Usdc[config.chainId][1],
+            {
+              contract: Sdk.Common.Addresses.Usdc[config.chainId][1],
+              name: "USD Coin",
+              symbol: "USDC",
+              decimals: 6,
+              metadata: {
+                image: "https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png",
+              },
+            },
+          ],
           [
             "0xba777ae3a3c91fcd83ef85bfe65410592bdd0f7c",
             {
@@ -776,6 +802,20 @@ export const getNetworkSettings = (): NetworkSettings => {
           // Prohibition Contracts - ArtBlocks Engine
           "0x47a91457a3a1f700097199fd63c039c4784384ab",
         ],
+        whitelistedCurrencies: new Map([
+          [
+            Sdk.Common.Addresses.Usdc[config.chainId][1],
+            {
+              contract: Sdk.Common.Addresses.Usdc[config.chainId][1],
+              name: "USD Coin",
+              symbol: "USDC",
+              decimals: 6,
+              metadata: {
+                image: "https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png",
+              },
+            },
+          ],
+        ]),
         coingecko: {
           networkId: "arbitrum-one",
         },
@@ -1180,6 +1220,20 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
+        whitelistedCurrencies: new Map([
+          [
+            Sdk.Common.Addresses.Usdc[config.chainId][1],
+            {
+              contract: Sdk.Common.Addresses.Usdc[config.chainId][1],
+              name: "USD Coin",
+              symbol: "USDC",
+              decimals: 6,
+              metadata: {
+                image: "https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png",
+              },
+            },
+          ],
+        ]),
         coingecko: {
           networkId: "base",
         },
