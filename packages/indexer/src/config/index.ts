@@ -118,9 +118,7 @@ export const config = {
   ordinalsApiKey: String(process.env.ORDINALS_API_KEY),
 
   enableImageResizing: Boolean(Number(process.env.ENABLE_IMAGE_RESIZING)),
-  privateImageResizingSigningKey: String(process.env.PRIVATE_IMAGE_RESIZING_SIGNING_KEY)
-    ? Buffer.from(String(process.env.PRIVATE_IMAGE_RESIZING_SIGNING_KEY), "base64").toString("utf8")
-    : undefined,
+  privateImageResizingSigningKey: String(process.env.PRIVATE_IMAGE_RESIZING_SIGNING_KEY),
   imageResizingBaseUrl: String(process.env.IMAGE_RESIZING_BASE_URL),
 
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),

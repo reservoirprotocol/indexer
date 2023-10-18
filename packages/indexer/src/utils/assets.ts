@@ -1,8 +1,8 @@
 import _ from "lodash";
 import { MergeRefs, ReqRefDefaults } from "@hapi/hapi";
-import jwt from "jsonwebtoken";
 import { config } from "../config";
 import { logger } from "@/common/logger";
+import crypto from "crypto-js";
 
 export enum ImageSize {
   small = 250,
@@ -94,6 +94,20 @@ export class Assets {
     return imageUrl;
   }
 
+  public static computeKeccakHash(queryString: string) {
+    return crypto.SHA3(queryString, { outputLength: 256 });
+  }
+
+  public static deriveSignature(hash: crypto.lib.WordArray) {
+    if (config.privateImageResizingSigningKey == null) {
+      throw new Error("Private image resizing signing key is not set");
+    }
+
+    const hmac = crypto.HmacSHA256(hash, config.privateImageResizingSigningKey);
+    const signature = hmac.toString(crypto.enc.Hex);
+    return signature;
+  }
+
   public static signImage(imageUrl: string, width?: number): string {
     if (config.imageResizingBaseUrl == null) {
       throw new Error("Image resizing base URL is not set");
@@ -101,23 +115,11 @@ export class Assets {
       throw new Error("Private image resizing signing key is not set");
     }
 
-    const signingData: {
-      image: string;
-      width?: number;
-    } = {
-      image: imageUrl,
-      // TODO: Do we want to expire the token?
-      // exp: Math.floor(Date.now() / 1000) + 2 * (60 * 60), // Expires: Now + 2h
-    };
+    const queryString = "image=" + imageUrl + (width ? "&width=" + width : "");
+    const hash = this.computeKeccakHash(queryString);
+    const signature = this.deriveSignature(hash);
+    const shortSignature = signature.substr(0, 6);
 
-    if (width) {
-      signingData["width"] = width;
-    }
-
-    const token = jwt.sign(signingData, config.privateImageResizingSigningKey, {
-      algorithm: "RS256",
-    });
-
-    return `${config.imageResizingBaseUrl}?token=${token}`;
+    return `${config.imageResizingBaseUrl}?${queryString}&signature=${shortSignature}`;
   }
 }
