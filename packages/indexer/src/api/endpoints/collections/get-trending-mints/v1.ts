@@ -145,10 +145,10 @@ export const getTrendingMintsV1Options: RouteOptions = {
       limit: Joi.number()
         .integer()
         .min(1)
-        .max(100)
-        .default(100)
+        .max(50)
+        .default(50)
         .description(
-          "Amount of items returned in response. Default is 100 and max is 100. Expected to be sorted and filtered on client side."
+          "Amount of items returned in response. Default is 50 and max is 50. Expected to be sorted and filtered on client side."
         ),
     }),
   },
