@@ -1,6 +1,6 @@
 import _ from "lodash";
 import { redis } from "@/common/redis";
-import { config } from "@/config/index";
+import { getOpenseaNetworkName } from "@/config/network";
 
 export type PendingFlagStatusSyncCollection = {
   slug: string;
@@ -16,9 +16,10 @@ export class PendingFlagStatusSyncCollectionSlugs {
   public static key = "pending-flag-status-sync-collection-slugs";
 
   public static async add(syncCollection: PendingFlagStatusSyncCollection[], prioritized = false) {
-    if (config.metadataIndexingMethodCollection !== "opensea") {
+    if (!getOpenseaNetworkName()) {
       return;
     }
+
     if (prioritized) {
       return await redis.lpush(
         this.key,
