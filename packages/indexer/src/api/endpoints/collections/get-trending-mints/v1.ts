@@ -2,7 +2,7 @@
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { fromBuffer, regex, toBuffer } from "@/common/utils";
+import { fromBuffer, regex } from "@/common/utils";
 import { config } from "@/config/index";
 import { getStartTime } from "@/models/top-selling-collections/top-selling-collections";
 import { Request, RouteOptions } from "@hapi/hapi";
