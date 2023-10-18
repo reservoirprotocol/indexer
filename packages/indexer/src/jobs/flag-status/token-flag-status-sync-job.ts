@@ -1,17 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import _ from "lodash";
+import cron from "node-cron";
+
+import { config } from "@/config/index";
+import { logger } from "@/common/logger";
+import { acquireLock, redlock } from "@/common/redis";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-
 import { getTokenFlagStatus } from "@/jobs/flag-status/utils";
-import { acquireLock, redlock } from "@/common/redis";
-import { logger } from "@/common/logger";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
-import { RequestWasThrottledError } from "../orderbook/post-order-external/api/errors";
-import { config } from "@/config/index";
-import cron from "node-cron";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
-import _ from "lodash";
+import { RequestWasThrottledError } from "@/metadata/providers/utils";
 
 export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
   queueName = "token-flag-status-sync-queue";

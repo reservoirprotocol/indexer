@@ -382,10 +382,23 @@ export class DailyVolume {
       );
 
       // Step 2: Calculate the volume since the most recent timestamp for each collection
-      const recentVolumes = await Promise.all(
-        mostRecentTimestamps.map(async (row: any) => {
-          const volumeSinceRecent = await redb.oneOrNone(
-            `
+
+      // batch the the queries to get the volume since the most recent timestamp for each collection
+      // to avoid hitting the max query size limit
+
+      const mostRecentTimestampsChunks = _.chunk(mostRecentTimestamps, 100);
+      let recentVolumes: {
+        collection_id: string;
+        volume_since_recent: number;
+        total_new_volume: number;
+      }[] = [];
+
+      await Promise.all(
+        mostRecentTimestampsChunks.map(async (chunk: any) => {
+          for (const row of chunk) {
+            try {
+              const volumeSinceRecent = await redb.oneOrNone(
+                `
             SELECT SUM("fe"."price") as volume_since_recent
             FROM "fill_events_2" "fe"
             JOIN "tokens" "t" ON "fe"."token_id" = "t"."token_id" AND "fe"."contract" = "t"."contract"
@@ -396,52 +409,69 @@ export class DailyVolume {
               AND fe.is_primary IS NOT TRUE 
               AND coalesce(fe.wash_trading_score, 0) = 0
           `,
-            {
-              recentTimestamp: row?.recent_timestamp ?? 0,
-              collectionId: row.id,
-            }
-          );
+                {
+                  recentTimestamp: row?.recent_timestamp ?? 0,
+                  collectionId: row.id,
+                }
+              );
 
-          let totalVolume = { total_volume: 0 };
+              let totalVolume = { total_volume: 0 };
 
-          const redisTotalVolume = await redis.get(`all_time_volume_${row.id}`);
-          if (redisTotalVolume) {
-            totalVolume.total_volume = parseInt(redisTotalVolume, 10);
-          } else {
-            const pgTotalVolume = await redb.oneOrNone(
-              `
+              const redisTotalVolume = await redis.get(`all_time_volume_${row.id}`);
+              if (redisTotalVolume) {
+                totalVolume.total_volume = parseInt(redisTotalVolume, 10);
+              } else {
+                const pgTotalVolume = await redb.oneOrNone(
+                  `
               SELECT SUM(volume) as total_volume
               FROM daily_volumes
               WHERE collection_id != '-1'
                 AND collection_id = $/collectionId/
               GROUP BY collection_id
             `,
-              {
-                collectionId: row.id,
-              }
-            );
+                  {
+                    collectionId: row.id,
+                  }
+                );
 
-            if (pgTotalVolume) {
-              await redis.set(
-                `all_time_volume_${row.id}`,
-                totalVolume.total_volume,
-                "EX",
-                60 * 60 * 24
+                if (pgTotalVolume) {
+                  await redis.set(
+                    `all_time_volume_${row.id}`,
+                    totalVolume.total_volume,
+                    "EX",
+                    60 * 60 * 24
+                  );
+                  totalVolume = pgTotalVolume;
+                } else {
+                  totalVolume = { total_volume: 0 };
+                }
+              }
+
+              recentVolumes.push({
+                collection_id: row.id,
+                volume_since_recent: volumeSinceRecent ? volumeSinceRecent.volume_since_recent : 0,
+                total_new_volume: totalVolume
+                  ? Number(totalVolume.total_volume) + Number(volumeSinceRecent.volume_since_recent)
+                  : volumeSinceRecent.volume_since_recent,
+              });
+            } catch (error) {
+              logger.error(
+                "all-time-volumes",
+                `Error while calculating all time volume. collectionId=${row.id}, error=${error}`
               );
-              totalVolume = pgTotalVolume;
-            } else {
-              totalVolume = { total_volume: 0 };
+
+              return false;
             }
           }
-          return {
-            collection_id: row.id,
-            volume_since_recent: volumeSinceRecent ? volumeSinceRecent.volume_since_recent : 0,
-            total_new_volume: totalVolume
-              ? totalVolume.total_volume + volumeSinceRecent.volume_since_recent
-              : volumeSinceRecent.volume_since_recent,
-          };
         })
       );
+
+      // filter out errors
+      recentVolumes = recentVolumes.filter((v) => v);
+
+      if (!recentVolumes.length) {
+        return true;
+      }
 
       // Step 3: Update the volumes in collections
       const queries: PgPromiseQuery[] = [];
@@ -463,10 +493,7 @@ export class DailyVolume {
 
       return true;
     } catch (error: any) {
-      logger.error(
-        "all-time-volumes",
-        `Error while updating all time volumes. collectionId=${collectionId}, error=${error}`
-      );
+      logger.error("all-time-volumes", `Error while updating all time volumes. error=${error}`);
 
       return false;
     }

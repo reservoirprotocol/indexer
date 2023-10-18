@@ -5,6 +5,7 @@ import { hexZeroPad, splitSignature } from "@ethersproject/bytes";
 import { Contract } from "@ethersproject/contracts";
 import { verifyTypedData } from "@ethersproject/wallet";
 
+import * as CommonAddresses from "../../common/addresses";
 import { Network, TxData, bn, getCurrentTimestamp } from "../../utils";
 import * as Addresses from "./addresses";
 import * as ApprovalProxy from "./approval-proxy";
@@ -102,19 +103,22 @@ export class PermitHandler {
 
     return {
       signatureKind: "eip712",
-      domain: [Network.Polygon, Network.Mumbai].includes(this.chainId)
-        ? {
-            name,
-            version,
-            salt: hexZeroPad(bn(this.chainId).toHexString(), 32),
-            verifyingContract: permit.token,
-          }
-        : {
-            name,
-            version,
-            chainId: this.chainId,
-            verifyingContract: permit.token,
-          },
+      domain:
+        // The bridged USDC on Polygon and Mumbai have a custom domain
+        [Network.Polygon, Network.Mumbai].includes(this.chainId) &&
+        permit.token === CommonAddresses.Usdc[this.chainId][0]
+          ? {
+              name,
+              version,
+              salt: hexZeroPad(bn(this.chainId).toHexString(), 32),
+              verifyingContract: permit.token,
+            }
+          : {
+              name,
+              version,
+              chainId: this.chainId,
+              verifyingContract: permit.token,
+            },
       types: {
         Permit: [
           { name: "owner", type: "address" },

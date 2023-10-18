@@ -1,14 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import cron from "node-cron";
+
+import { config } from "@/config/index";
+import { logger } from "@/common/logger";
+import { acquireLock, getLockExpiration, redlock } from "@/common/redis";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { acquireLock, getLockExpiration, redlock } from "@/common/redis";
-import { logger } from "@/common/logger";
 import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
-import { RequestWasThrottledError } from "../orderbook/post-order-external/api/errors";
 import { PendingFlagStatusSyncContracts } from "@/models/pending-flag-status-sync-contracts";
-import { getTokensFlagStatusForCollectionByContract } from "./utils";
-import { config } from "@/config/index";
-import cron from "node-cron";
+import { getTokensFlagStatusForCollectionByContract } from "@/jobs/flag-status/utils";
+import { RequestWasThrottledError } from "@/metadata/providers/utils";
 
 export class ContractFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
   queueName = "contract-flag-status-sync-queue";
