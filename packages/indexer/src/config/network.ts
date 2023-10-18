@@ -210,7 +210,11 @@ export const getNetworkSettings = (): NetworkSettings => {
     nonSimulatableContracts: [],
     multiCollectionContracts: [],
     mintsAsSalesBlacklist: [],
-    mintAddresses: [AddressZero],
+    mintAddresses: [
+      AddressZero,
+      // Limitbreak
+      "0x00000089e8825c9a59b4503398faacf2e9a9cdb0",
+    ],
     burnAddresses: [AddressZero, "0x000000000000000000000000000000000000dead"],
     reorgCheckFrequency: [1, 5, 10, 30, 60], // In minutes
     whitelistedCurrencies: new Map<string, Currency>(),
