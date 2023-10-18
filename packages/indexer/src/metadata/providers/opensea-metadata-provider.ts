@@ -566,7 +566,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
 
   async getOSData(api: string, contract: string, tokenId?: string, slug?: string): Promise<any> {
     const network = getOpenseaNetworkName();
-    const url = this.getUrlForApi(api, contract, tokenId, network, slug);
+    const url = this.getUrlForApi(api, contract, tokenId, network!, slug);
 
     const headers = !this.isOSTestnet()
       ? {
