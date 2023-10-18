@@ -42,7 +42,7 @@ import { Column, Entity, Index } from "typeorm";
 )
 @Index("tokens_pk", ["contract", "tokenId"], { unique: true })
 @Index("tokens_last_flag_change_is_flagged_index", ["isFlagged", "lastFlagChange"], {})
-@Entity("tokens", { schema: "public" })
+@Entity("tokens")
 export class Tokens {
   @Column("bytea", { primary: true, name: "contract" })
   contract: Buffer;
@@ -161,7 +161,6 @@ export class Tokens {
   @Column("double precision", {
     name: "rarity_score",
     nullable: true,
-    precision: 53,
   })
   rarityScore: number | null;
 

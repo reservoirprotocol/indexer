@@ -1,7 +1,7 @@
 import { Column, Entity, Index } from "typeorm";
 
 @Index("ft_approvals_pk", ["owner", "spender", "token"], { unique: true })
-@Entity("ft_approvals", { schema: "public" })
+@Entity("ft_approvals")
 export class FtApprovals {
   @Column("bytea", { primary: true, name: "token" })
   token: Buffer;

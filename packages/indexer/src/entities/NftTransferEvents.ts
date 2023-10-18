@@ -25,7 +25,7 @@ import { Column, Entity, Index } from "typeorm";
 })
 @Index("nft_transfer_events_block_block_hash_index", ["block", "blockHash"], {})
 @Index("nft_transfer_events_timestamp_index", ["timestamp"], {})
-@Entity("nft_transfer_events", { schema: "public" })
+@Entity("nft_transfer_events")
 export class NftTransferEvents {
   @Column("bytea", { name: "address" })
   address: Buffer;

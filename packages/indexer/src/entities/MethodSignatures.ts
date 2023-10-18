@@ -1,7 +1,7 @@
 import { Column, Entity, Index } from "typeorm";
 
 @Index("method_signatures_pk", ["params", "signature"], { unique: true })
-@Entity("method_signatures", { schema: "public" })
+@Entity("method_signatures")
 export class MethodSignatures {
   @Column("bytea", { primary: true, name: "signature" })
   signature: Buffer;

@@ -1,7 +1,7 @@
 import { Column, Entity, Index } from "typeorm";
 
 @Index("nftx_ft_pools_pk", ["address"], { unique: true })
-@Entity("nftx_ft_pools", { schema: "public" })
+@Entity("nftx_ft_pools")
 export class NftxFtPools {
   @Column("bytea", { primary: true, name: "address" })
   address: Buffer;

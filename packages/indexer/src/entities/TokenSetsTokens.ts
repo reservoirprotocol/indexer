@@ -4,7 +4,7 @@ import { Column, Entity, Index } from "typeorm";
   unique: true,
 })
 @Index("token_sets_tokens_contract_token_id_index", ["contract", "tokenId", "tokenSetId"], {})
-@Entity("token_sets_tokens", { schema: "public" })
+@Entity("token_sets_tokens")
 export class TokenSetsTokens {
   @Column("text", { primary: true, name: "token_set_id" })
   tokenSetId: string;

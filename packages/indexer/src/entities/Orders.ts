@@ -37,7 +37,7 @@ import { Column, Entity, Index } from "typeorm";
 @Index("orders_upper_valid_between_index", ["id"], {})
 @Index("orders_expired_bids_updated_at_id_index", ["id", "updatedAt"], {})
 @Index("orders_kind_maker_nonce_full_index", ["kind", "maker", "nonce"], {})
-@Entity("orders", { schema: "public" })
+@Entity("orders")
 export class Orders {
   @Column("text", { primary: true, name: "id" })
   id: string;

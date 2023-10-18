@@ -11,7 +11,7 @@ import { Column, Entity, Index } from "typeorm";
   ["lastTokenAppraisalValue", "owner"],
   {}
 )
-@Entity("nft_balances", { schema: "public" })
+@Entity("nft_balances")
 export class NftBalances {
   @Column("bytea", { primary: true, name: "contract" })
   contract: Buffer;

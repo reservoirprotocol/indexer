@@ -1,7 +1,7 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from "typeorm";
 
 @Index("data_export_tasks_pkey", ["id"], { unique: true })
-@Entity("data_export_tasks", { schema: "public" })
+@Entity("data_export_tasks")
 export class DataExportTasks {
   @PrimaryGeneratedColumn({ type: "integer", name: "id" })
   id: number;

@@ -1,7 +1,7 @@
 import { Column, Entity, Index } from "typeorm";
 
 @Index("collection_mint_standards_pk", ["collectionId"], { unique: true })
-@Entity("collection_mint_standards", { schema: "public" })
+@Entity("collection_mint_standards")
 export class CollectionMintStandards {
   @Column("text", { primary: true, name: "collection_id" })
   collectionId: string;

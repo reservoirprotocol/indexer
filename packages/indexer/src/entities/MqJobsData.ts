@@ -1,7 +1,7 @@
 import { Column, Entity, Index } from "typeorm";
 
 @Index("mq_jobs_data_pkey", ["id"], { unique: true })
-@Entity("mq_jobs_data", { schema: "public" })
+@Entity("mq_jobs_data")
 export class MqJobsData {
   @Column("uuid", {
     primary: true,

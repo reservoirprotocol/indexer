@@ -1,7 +1,7 @@
 import { Column, Entity, Index } from "typeorm";
 
 @Index("daily_volumes_pk", ["collectionId", "timestamp"], { unique: true })
-@Entity("daily_volumes", { schema: "public" })
+@Entity("daily_volumes")
 export class DailyVolumes {
   @Column("text", { primary: true, name: "collection_id" })
   collectionId: string;

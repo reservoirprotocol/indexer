@@ -4316,7 +4316,7 @@
   resolved "https://registry.yarnpkg.com/@types/node/-/node-16.18.39.tgz#aa39a1a87a40ef6098ee69689a1acb0c1b034832"
   integrity sha512-8q9ZexmdYYyc5/cfujaXb4YOucpQxAV4RMG0himLyDUOEr8Mr79VrqsFI+cQ2M2h89YIuy95lbxuYjxT4Hk4kQ==
 
-"@types/node@^17.0.0":
+"@types/node@^17.0.0", "@types/node@^17.0.23":
   version "17.0.45"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-17.0.45.tgz#2c0fafd78705e7a18b7906b5201a522719dc5190"
   integrity sha512-w+tIMs3rq2afQdsPJlODhoUEKzFP1ayaoyl1CcnwtIlsVe7K7bA1NGm4s3PraqTLlXnbIN84zuBlxBWo1u9BLw==
@@ -6677,7 +6677,7 @@ chalk@^2.0.0, chalk@^2.3.2, chalk@^2.4.1, chalk@^2.4.2:
     escape-string-regexp "^1.0.5"
     supports-color "^5.3.0"
 
-chalk@^5.2.0:
+chalk@^5.0.1, chalk@^5.2.0:
   version "5.3.0"
   resolved "https://registry.yarnpkg.com/chalk/-/chalk-5.3.0.tgz#67c20a7ebef70e7f3970a01f90fa210cb6860385"
   integrity sha512-dLitG79d+GV1Nb/VYcCDFivJeK1hiukt9QjRNVOsUtTy1rR1YJsmpGGTZ3qJos+uw7WmWF4wUwBd9jxjocFC2w==
@@ -17737,6 +17737,17 @@ typedarray@^0.0.6:
   resolved "https://registry.yarnpkg.com/typedarray/-/typedarray-0.0.6.tgz#867ac74e3864187b1d3d47d996a78ec5c8830777"
   integrity sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==
 
+typeorm-codebase-sync@^1.1.2:
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/typeorm-codebase-sync/-/typeorm-codebase-sync-1.1.2.tgz#5e429e279a39b836b23a75c9cde3b77c1f782a47"
+  integrity sha512-GJsmhFLFu8Vxy+osfEaSyhN85811aYX4duD6b5mfiyDpgvSqheoHeJEVAIlrp+haTlMLbSPS3QRJJ3i1z0CXJA==
+  dependencies:
+    "@types/node" "^17.0.23"
+    chalk "^5.0.1"
+    glob "^7.2.0"
+    tslib "^2.3.1"
+    yargs "^17.4.0"
+
 typeorm@^0.3.17:
   version "0.3.17"
   resolved "https://registry.yarnpkg.com/typeorm/-/typeorm-0.3.17.tgz#a73c121a52e4fbe419b596b244777be4e4b57949"
@@ -18823,7 +18834,7 @@ yargs@16.2.0, yargs@^16.0.0, yargs@^16.2.0:
     y18n "^5.0.5"
     yargs-parser "^20.2.2"
 
-yargs@^17.0.0, yargs@^17.0.1, yargs@^17.3.1, yargs@^17.5.1, yargs@^17.6.2:
+yargs@^17.0.0, yargs@^17.0.1, yargs@^17.3.1, yargs@^17.4.0, yargs@^17.5.1, yargs@^17.6.2:
   version "17.7.2"
   resolved "https://registry.yarnpkg.com/yargs/-/yargs-17.7.2.tgz#991df39aca675a192b816e1e0363f9d75d2aa269"
   integrity sha512-7dSzzRQ++CKnNI/krKnYRV7JKKPUXMEh61soaHKg9mrWEhzFWhFnxPxGl+69cD1Ou63C13NUPCnmIcrvqCuM6w==

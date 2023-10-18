@@ -5,7 +5,7 @@ import { Column, Entity, Index } from "typeorm";
 })
 @Index("nonce_cancel_events_block_block_hash_index", ["block", "blockHash"], {})
 @Index("nonce_cancel_events_order_kind_maker_nonce_index", ["maker", "nonce", "orderKind"], {})
-@Entity("nonce_cancel_events", { schema: "public" })
+@Entity("nonce_cancel_events")
 export class NonceCancelEvents {
   @Column("bytea", { name: "address" })
   address: Buffer;

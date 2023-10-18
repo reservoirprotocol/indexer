@@ -13,7 +13,7 @@ import { Column, Entity, Index } from "typeorm";
 @Index("collections_minted_timestamp_index", ["mintedTimestamp"], {})
 @Index("collections_name_index", ["name"], {})
 @Index("collections_slug_index", ["slug"], {})
-@Entity("collections", { schema: "public" })
+@Entity("collections")
 export class Collections {
   @Column("text", { primary: true, name: "id" })
   id: string;
@@ -145,21 +145,18 @@ export class Collections {
   @Column("double precision", {
     name: "day1_volume_change",
     nullable: true,
-    precision: 53,
   })
   day1VolumeChange: number | null;
 
   @Column("double precision", {
     name: "day7_volume_change",
     nullable: true,
-    precision: 53,
   })
   day7VolumeChange: number | null;
 
   @Column("double precision", {
     name: "day30_volume_change",
     nullable: true,
-    precision: 53,
   })
   day30VolumeChange: number | null;
 
@@ -274,7 +271,6 @@ export class Collections {
   @Column("double precision", {
     name: "day0_volume_change",
     nullable: true,
-    precision: 53,
   })
   day0VolumeChange: number | null;
 

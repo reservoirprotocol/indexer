@@ -33,7 +33,7 @@ import { Column, Entity, Index } from "typeorm";
 @Index("fill_events_2_maker_taker_contract", ["contract", "maker", "taker"], {})
 @Index("fill_events_2_order_id_timestamp_index", ["orderId", "timestamp"], {})
 @Index("fill_events_2_taker_index", ["taker"], {})
-@Entity("fill_events_2", { schema: "public" })
+@Entity("fill_events_2")
 export class FillEvents_2 {
   @Column("bytea", { name: "address" })
   address: Buffer;
@@ -214,7 +214,6 @@ export class FillEvents_2 {
   @Column("double precision", {
     name: "wash_trading_score",
     nullable: true,
-    precision: 53,
   })
   washTradingScore: number | null;
 

@@ -1,7 +1,7 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from "typeorm";
 
 @Index("execution_results_pk", ["id"], { unique: true })
-@Entity("execution_results", { schema: "public" })
+@Entity("execution_results")
 export class ExecutionResults {
   @PrimaryGeneratedColumn({ type: "bigint", name: "id" })
   id: string;

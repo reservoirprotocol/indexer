@@ -1,7 +1,7 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from "typeorm";
 
 @Index("cross_posting_orders_pk", ["id"], { unique: true })
-@Entity("cross_posting_orders", { schema: "public" })
+@Entity("cross_posting_orders")
 export class CrossPostingOrders {
   @PrimaryGeneratedColumn({ type: "bigint", name: "id" })
   id: string;

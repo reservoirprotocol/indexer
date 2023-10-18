@@ -1,7 +1,7 @@
 import { Column, Entity, Index } from "typeorm";
 
 @Index("collectionxyz_pools_pk", ["address"], { unique: true })
-@Entity("collectionxyz_pools", { schema: "public" })
+@Entity("collectionxyz_pools")
 export class CollectionxyzPools {
   @Column("bytea", { primary: true, name: "address" })
   address: Buffer;

@@ -1,7 +1,7 @@
 import { Column, Entity, Index } from "typeorm";
 
 @Index("transaction_logs_pk", ["hash"], { unique: true })
-@Entity("transaction_logs", { schema: "public" })
+@Entity("transaction_logs")
 export class TransactionLogs {
   @Column("bytea", { primary: true, name: "hash" })
   hash: Buffer;

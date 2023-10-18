@@ -5,7 +5,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from "typeorm";
 })
 @Index("collection_mints_expired_index", ["endTime"], {})
 @Index("collection_mints_pk", ["id"], { unique: true })
-@Entity("collection_mints", { schema: "public" })
+@Entity("collection_mints")
 export class CollectionMints {
   @Column("text", { name: "collection_id" })
   collectionId: string;

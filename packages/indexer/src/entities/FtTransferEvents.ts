@@ -2,7 +2,7 @@ import { Column, Entity, Index } from "typeorm";
 
 @Index("ft_transfer_events_block_block_hash_index", ["block", "blockHash"], {})
 @Index("ft_transfer_events_pk", ["logIndex", "txHash"], { unique: true })
-@Entity("ft_transfer_events", { schema: "public" })
+@Entity("ft_transfer_events")
 export class FtTransferEvents {
   @Column("bytea", { name: "address" })
   address: Buffer;

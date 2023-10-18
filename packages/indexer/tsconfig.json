@@ -8,6 +8,7 @@
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
+    "strictPropertyInitialization": false,
     "resolveJsonModule": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
@@ -16,6 +17,7 @@
     "outDir": "dist",
     "baseUrl": "src",
     "paths": {
+      "@/entities/*": ["entities/*"],
       "@/api/*": ["api/*"],
       "@/arweave-sync/*": ["sync/arweave/*"],
       "@/common/*": ["common/*"],

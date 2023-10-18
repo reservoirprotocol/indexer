@@ -2,7 +2,7 @@ import { Column, Entity, Index } from "typeorm";
 
 @Index("erc721c_configs_pk", ["contract"], { unique: true })
 @Index("erc721c_configs_transfer_validator_index", ["transferValidator"], {})
-@Entity("erc721c_configs", { schema: "public" })
+@Entity("erc721c_configs")
 export class Erc721cConfigs {
   @Column("bytea", { primary: true, name: "contract" })
   contract: Buffer;

@@ -5,7 +5,7 @@ import { Column, Entity, Index } from "typeorm";
 })
 @Index("bulk_cancel_events_block_block_hash_index", ["block", "blockHash"], {})
 @Index("bulk_cancel_events_order_kind_maker_min_nonce", ["maker", "minNonce", "orderKind"], {})
-@Entity("bulk_cancel_events", { schema: "public" })
+@Entity("bulk_cancel_events")
 export class BulkCancelEvents {
   @Column("bytea", { name: "address" })
   address: Buffer;

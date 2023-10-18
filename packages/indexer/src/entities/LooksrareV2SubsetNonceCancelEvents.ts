@@ -4,7 +4,7 @@ import { Column, Entity, Index } from "typeorm";
   unique: true,
 })
 @Index("looksrare_v2_subset_nonce_cancel_events_maker_nonce_index", ["maker", "nonce"], {})
-@Entity("looksrare_v2_subset_nonce_cancel_events", { schema: "public" })
+@Entity("looksrare_v2_subset_nonce_cancel_events")
 export class LooksrareV2SubsetNonceCancelEvents {
   @Column("bytea", { name: "address" })
   address: Buffer;

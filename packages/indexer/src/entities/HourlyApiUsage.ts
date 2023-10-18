@@ -6,7 +6,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from "typeorm";
   { unique: true }
 )
 @Index("hourly_api_usage_pk", ["id"], { unique: true })
-@Entity("hourly_api_usage", { schema: "public" })
+@Entity("hourly_api_usage")
 export class HourlyApiUsage {
   @Column("text", { name: "api_key" })
   apiKey: string;

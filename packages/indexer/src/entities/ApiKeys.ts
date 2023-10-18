@@ -1,7 +1,7 @@
 import { Column, Entity, Index } from "typeorm";
 
 @Index("api_keys_pk", ["key"], { unique: true })
-@Entity("api_keys", { schema: "public" })
+@Entity("api_keys")
 export class ApiKeys {
   @Column("text", { primary: true, name: "key" })
   key: string;

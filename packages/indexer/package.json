@@ -9,12 +9,16 @@
     "compile": "tsc -b",
     "build": "yarn clean; yarn compile",
     "dev": "tsc-watch --onSuccess \"node -r module-alias/register ./dist/index.js\"",
-    "start": "yarn migrate up; node -r module-alias/register ./dist/index.js",
+    "start": "node -r module-alias/register ./dist/index.js",
     "migrate": "node ../../node_modules/node-pg-migrate/bin/node-pg-migrate -m ./src/migrations --no-check-order",
     "debug": "yarn build && yarn migrate up; node --inspect -r module-alias/register ./dist/index.js",
     "format": "prettier --write \"src/**/*.+(js|ts|json)\"",
     "cli": "node -r module-alias/register ./dist/cli/index.js",
-    "test": "jest --no-watchman"
+    "test": "jest --no-watchman",
+    "typeorm-sync": "typeorm-codebase-sync addReferences --dataSource ./src/data-source.ts --migrations ./src/migration --entities ./src/entities",
+    "typeorm-migrate": "yarn build && node -r module-alias/register ./node_modules/typeorm/cli.js migration:run -d ./dist/data-source.js",
+    "typeorm-revert": "yarn build && node -r module-alias/register ./node_modules/typeorm/cli.js migration:revert -d ./dist/data-source.js",
+    "typeorm-migrate-init": "yarn build && node -r module-alias/register ./node_modules/typeorm/cli.js migration:run --fake -d ./dist/data-source.js"
   },
   "dependencies": {
     "@bull-board/hapi": "4.0.1",
@@ -102,6 +106,7 @@
     "yargs-parser": "21.1.1"
   },
   "devDependencies": {
-    "tsconfig-paths": "^4.1.0"
+    "tsconfig-paths": "^4.1.0",
+    "typeorm-codebase-sync": "^1.1.2"
   }
 }

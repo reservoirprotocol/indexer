@@ -23,7 +23,7 @@ import { Column, Entity, Index } from "typeorm";
   ["contract", "key", "tokenId", "value"],
   {}
 )
-@Entity("token_attributes", { schema: "public" })
+@Entity("token_attributes")
 export class TokenAttributes {
   @Column("bytea", { primary: true, name: "contract" })
   contract: Buffer;

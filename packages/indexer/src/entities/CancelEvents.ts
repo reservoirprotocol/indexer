@@ -5,7 +5,7 @@ import { Column, Entity, Index } from "typeorm";
   unique: true,
 })
 @Index("cancel_events_order_id_timestamp_index", ["orderId", "timestamp"], {})
-@Entity("cancel_events", { schema: "public" })
+@Entity("cancel_events")
 export class CancelEvents {
   @Column("bytea", { name: "address" })
   address: Buffer;

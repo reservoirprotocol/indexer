@@ -8,7 +8,7 @@ import { Column, Entity, Index } from "typeorm";
 @Index("removed_token_attributes_pk", ["attributeId", "contract", "tokenId"], {
   unique: true,
 })
-@Entity("removed_token_attributes", { schema: "public" })
+@Entity("removed_token_attributes")
 export class RemovedTokenAttributes {
   @Column("bytea", { primary: true, name: "contract" })
   contract: Buffer;

@@ -4,7 +4,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from "typeorm";
   unique: true,
 })
 @Index("rate_limit_rules_pkey", ["id"], { unique: true })
-@Entity("rate_limit_rules", { schema: "public" })
+@Entity("rate_limit_rules")
 export class RateLimitRules {
   @PrimaryGeneratedColumn({ type: "integer", name: "id" })
   id: number;

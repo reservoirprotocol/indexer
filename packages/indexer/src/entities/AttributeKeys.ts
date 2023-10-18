@@ -4,7 +4,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from "typeorm";
 @Index("attribute_keys_collection_id_key_unique_index", ["collectionId", "key"], { unique: true })
 @Index("attribute_keys_updated_at_id_index", ["id", "updatedAt"], {})
 @Index("attribute_keys_pk", ["id"], { unique: true })
-@Entity("attribute_keys", { schema: "public" })
+@Entity("attribute_keys")
 export class AttributeKeys {
   @PrimaryGeneratedColumn({ type: "bigint", name: "id" })
   id: string;

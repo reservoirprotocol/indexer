@@ -9,7 +9,7 @@ import { Column, Entity, Index } from "typeorm";
   unique: true,
 })
 @Index("nft_approval_events_block_block_hash_index", ["block", "blockHash"], {})
-@Entity("nft_approval_events", { schema: "public" })
+@Entity("nft_approval_events")
 export class NftApprovalEvents {
   @Column("bytea", { name: "address" })
   address: Buffer;

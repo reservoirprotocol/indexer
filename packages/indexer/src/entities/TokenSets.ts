@@ -3,7 +3,7 @@ import { Column, Entity, Index } from "typeorm";
 @Index("token_sets_attribute_id_top_buy_value_index", ["attributeId", "topBuyValue"], {})
 @Index("token_sets_collection_id_top_buy_value_index", ["collectionId", "topBuyValue"], {})
 @Index("token_sets_pk", ["id", "schemaHash"], { unique: true })
-@Entity("token_sets", { schema: "public" })
+@Entity("token_sets")
 export class TokenSets {
   @Column("text", { primary: true, name: "id" })
   id: string;

@@ -1,7 +1,7 @@
 import { Column, Entity, Index } from "typeorm";
 
 @Index("usd_prices_pk", ["currency", "timestamp"], { unique: true })
-@Entity("usd_prices", { schema: "public" })
+@Entity("usd_prices")
 export class UsdPrices {
   @Column("bytea", { primary: true, name: "currency" })
   currency: Buffer;

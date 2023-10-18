@@ -1,7 +1,7 @@
 import { Column, Entity, Index } from "typeorm";
 
 @Index("sudoswap_v2_pools_pk", ["address"], { unique: true })
-@Entity("sudoswap_v2_pools", { schema: "public" })
+@Entity("sudoswap_v2_pools")
 export class SudoswapV2Pools {
   @Column("bytea", { primary: true, name: "address" })
   address: Buffer;

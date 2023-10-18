@@ -2,7 +2,7 @@ import { Column, Entity, Index } from "typeorm";
 
 @Index("removed_attributes_deleted_at_id_index", ["deletedAt", "id"], {})
 @Index("removed_attributes_pk", ["id"], { unique: true })
-@Entity("removed_attributes", { schema: "public" })
+@Entity("removed_attributes")
 export class RemovedAttributes {
   @Column("bigint", { primary: true, name: "id" })
   id: string;

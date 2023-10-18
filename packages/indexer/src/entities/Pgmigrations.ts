@@ -1,7 +1,7 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from "typeorm";
 
 @Index("pgmigrations_pkey", ["id"], { unique: true })
-@Entity("pgmigrations", { schema: "public" })
+@Entity("pgmigrations")
 export class Pgmigrations {
   @PrimaryGeneratedColumn({ type: "integer", name: "id" })
   id: number;

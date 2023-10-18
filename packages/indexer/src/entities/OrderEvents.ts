@@ -4,7 +4,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from "typeorm";
 @Index("order_events_created_at_id_index", ["createdAt", "id"], {})
 @Index("order_events_pk", ["id"], { unique: true })
 @Index("order_events_order_id_index", ["orderId"], {})
-@Entity("order_events", { schema: "public" })
+@Entity("order_events")
 export class OrderEvents {
   @PrimaryGeneratedColumn({ type: "bigint", name: "id" })
   id: string;

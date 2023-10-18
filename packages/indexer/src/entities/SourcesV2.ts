@@ -5,7 +5,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from "typeorm";
 @Index("sources_domain_hash_unique_index", ["domainHash"], { unique: true })
 @Index("sources_v2_pkey", ["id"], { unique: true })
 @Index("sources_name_unique_index", ["name"], { unique: true })
-@Entity("sources_v2", { schema: "public" })
+@Entity("sources_v2")
 export class SourcesV2 {
   @PrimaryGeneratedColumn({ type: "integer", name: "id" })
   id: number;

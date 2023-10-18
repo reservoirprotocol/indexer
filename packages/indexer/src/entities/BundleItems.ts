@@ -2,7 +2,7 @@ import { Column, Entity, Index } from "typeorm";
 
 @Index("bundle_items_token_set_id_bundle_id_index", ["bundleId", "tokenSetId"], {})
 @Index("bundle_items_pk", ["bundleId", "tokenSetId"], { unique: true })
-@Entity("bundle_items", { schema: "public" })
+@Entity("bundle_items")
 export class BundleItems {
   @Column("bigint", { primary: true, name: "bundle_id" })
   bundleId: string;

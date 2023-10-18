@@ -11,7 +11,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from "typeorm";
 @Index("attributes_collection_id_floor_sell_value_index", ["collectionId", "floorSellValue"], {})
 @Index("attributes_pk", ["id"], { unique: true })
 @Index("attributes_updated_at_id_index", ["id", "updatedAt"], {})
-@Entity("attributes", { schema: "public" })
+@Entity("attributes")
 export class Attributes {
   @PrimaryGeneratedColumn({ type: "bigint", name: "id" })
   id: string;
