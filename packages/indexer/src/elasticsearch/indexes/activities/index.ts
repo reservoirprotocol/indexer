@@ -662,26 +662,23 @@ export const getTrendingMintsV2 = async (params: {
             field: "id",
           },
         },
-        total_transactions: {
-          cardinality: {
-            field: "event.txHash",
-          },
-        },
         total_volume: {
           sum: {
             field: "pricing.priceDecimal",
           },
         },
-        addresses_agg: {
+      },
+    },
+  } as any;
+  
+  /**
+   *         addresses_agg: {
           terms: {
             field: "toAddress",
             size: 50,
           },
         },
-      },
-    },
-  } as any;
-
+   */
   const esResult = (await elasticsearch.search({
     index: INDEX_NAME,
     size: 0,
@@ -693,7 +690,7 @@ export const getTrendingMintsV2 = async (params: {
 
   return esResult?.aggregations?.collections?.buckets?.map((bucket: any) => {
     return {
-      addresses: bucket?.addresses_agg?.buckets?.map((addrBucket: any) => addrBucket.key) || [], // Extracting the toAddress values
+      addresses: [], // bucket?.addresses_agg?.buckets?.map((addrBucket: any) => addrBucket.key) || [], // Extracting the toAddress values
       volume: bucket?.total_volume?.value,
       count: bucket?.total_mints.value,
       id: bucket.key,

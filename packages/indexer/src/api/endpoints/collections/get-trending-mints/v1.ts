@@ -12,6 +12,7 @@ import Joi from "joi";
 import { redis } from "@/common/redis";
 
 const REDIS_EXPIRATION = 60 * 60 * 24; // 24 hours
+const REDIS_EXPIRATION_MINTS = 120; // Assuming an hour, adjust as needed.
 
 import { getTrendingMintsV2 } from "@/elasticsearch/indexes/activities";
 
@@ -141,17 +142,13 @@ export const getTrendingMintsV1Options: RouteOptions = {
         .valid("free", "paid", "any")
         .default("any")
         .description("The type of the mint (free/paid)."),
-      status: Joi.string()
-        .allow("open", "closed")
-        .default("any")
-        .description("The collection's minting status."),
       limit: Joi.number()
         .integer()
         .min(1)
-        .max(50)
-        .default(50)
+        .max(100)
+        .default(100)
         .description(
-          "Amount of items returned in response. Default is 50 and max is 50. Expected to be sorted and filtered on client side."
+          "Amount of items returned in response. Default is 100 and max is 100. Expected to be sorted and filtered on client side."
         ),
     }),
   },
@@ -183,7 +180,7 @@ export const getTrendingMintsV1Options: RouteOptions = {
               .description("Lowest Ask Price."),
           },
           mintPrice: Joi.number().allow(null),
-          mintVolume: Joi.number().allow(null),
+          mintVolume: Joi.any(),
           mintCount: Joi.number().allow(null),
           mintType: Joi.string().allow("free", "paid", "", null),
           mintStatus: Joi.string().allow("", null),
@@ -218,10 +215,10 @@ export const getTrendingMintsV1Options: RouteOptions = {
     },
   },
   handler: async ({ query }: Request, h) => {
-    const { normalizeRoyalties, useNonFlaggedFloorAsk, status, limit, type, period } = query;
+    const { normalizeRoyalties, useNonFlaggedFloorAsk, limit, type, period } = query;
 
     try {
-      const mintingCollections = await getMintingCollections(status, type, period, limit);
+      const mintingCollections = await getMintingCollections(type, period, limit);
 
       const contractIds = mintingCollections.map(({ collection_id }) => collection_id);
 
@@ -236,7 +233,6 @@ export const getTrendingMintsV1Options: RouteOptions = {
         normalizeRoyalties,
         useNonFlaggedFloorAsk
       );
-
       const response = h.response({ mints });
       return response;
     } catch (error) {
@@ -254,25 +250,33 @@ async function getElasticMints(
 }
 
 async function getMintingCollections(
-  status: "open" | "closed" | "any",
   type: "paid" | "free" | "any",
   period: "5m" | "10m" | "30m" | "1h" | "2h" | "6h" | "24h" | "1d",
   limit: number
 ): Promise<Mint[]> {
-  const conditions: string[] = [];
+  const cacheKey = `minting-collections:v1:${type}:${period}`;
 
-  if (status && status !== "any") {
-    conditions.push(`status = '${status}'`);
-  }
+  const cachedString: string | null = await redis.get(cacheKey);
+  const cachedResults: Mint[] = cachedString ? JSON.parse(cachedString) : [];
 
-  if (type && type !== "any") {
-    conditions.push(`price ${type === "free" ? "= 0" : "> 0"}`);
-  }
+  let resultsFromDB: Mint[] = [];
 
-  const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-  const limitClause = `LIMIT ${limit}`;
+  if (cachedResults.length < limit) {
+    const dbLimit = limit - cachedResults.length;
 
-  const baseQuery = `
+    const conditions: string[] = [];
+
+    conditions.push(`status = 'open'`);
+
+    if (type && type !== "any") {
+      conditions.push(`price ${type === "free" ? "= 0" : "> 0"}`);
+    }
+
+    const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const limitClause = `LIMIT ${dbLimit}`;
+    const offsetClause = `OFFSET ${cachedResults.length}`;
+
+    const baseQuery = `
     WITH y AS (
       SELECT 
         collection_id,
@@ -292,16 +296,27 @@ async function getMintingCollections(
       ${whereClause} 
       GROUP BY collection_id
     )
-
+  
     SELECT x.*, m.mint_stages 
     FROM collection_mints AS x 
-    LEFT JOIN y AS m ON x.collection_id = m.collection_id
-    ${whereClause} 
-    ORDER BY x.created_at DESC 
-    ${limitClause};
+    INNER JOIN y AS m ON x.collection_id = m.collection_id
+    ${whereClause}
+    ORDER BY x.created_at DESC
+    ${limitClause}
+    ${offsetClause}
   `;
 
-  return redb.manyOrNone<Mint>(baseQuery);
+    resultsFromDB = await redb.manyOrNone<Mint>(baseQuery);
+  }
+
+  const combinedResults = cachedResults.concat(resultsFromDB);
+
+  if (resultsFromDB.length > 0) {
+    await redis.set(cacheKey, JSON.stringify(combinedResults));
+    await redis.expire(cacheKey, REDIS_EXPIRATION_MINTS);
+  }
+
+  return combinedResults.slice(0, limit);
 }
 
 async function formatCollections(
@@ -362,8 +377,7 @@ async function formatCollections(
         name: metadata?.name,
         mintType: Number(mintData?.price) > 0 ? "paid" : "free",
         mintCount: r.count,
-        mintVolume: r.volume,
-        mintStatus: mintData?.status,
+        mintVolume: (r.count * Number(mintData?.price)).toFixed(2),
         mintStages: mintData?.mint_stages
           ? await Promise.all(
               mintData.mint_stages.map(async (m: any) => {
