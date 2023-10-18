@@ -2,7 +2,8 @@ import tracer from "dd-trace";
 
 import { getServiceName } from "@/config/network";
 import { config } from "@/config/index";
-import { Network } from "@reservoir0x/sdk/dist/utils";
+// import { Network } from "@reservoir0x/sdk/dist/utils";
+
 if (process.env.DATADOG_AGENT_URL) {
   const service = getServiceName();
 
@@ -39,19 +40,19 @@ if (process.env.DATADOG_AGENT_URL) {
   });
 
   tracer.use("ioredis", {
-    enabled: config.chainId === Network.Ethereum,
+    enabled: false,
   });
 
   tracer.use("amqplib", {
-    enabled: config.chainId === Network.Ethereum,
+    enabled: false,
   });
 
   tracer.use("pg", {
-    enabled: config.chainId === Network.Ethereum,
+    enabled: false,
   });
 
   tracer.use("elasticsearch", {
-    enabled: config.chainId === Network.Ethereum,
+    enabled: false,
   });
 }
 
