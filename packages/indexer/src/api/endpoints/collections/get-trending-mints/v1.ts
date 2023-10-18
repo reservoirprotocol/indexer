@@ -2,7 +2,7 @@
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { fromBuffer, regex } from "@/common/utils";
+import { fromBuffer, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getStartTime } from "@/models/top-selling-collections/top-selling-collections";
 import { Request, RouteOptions } from "@hapi/hapi";
@@ -20,7 +20,10 @@ import { getJoiPriceObject, JoiPrice } from "@/common/joi";
 import { Sources } from "@/models/sources";
 
 const version = "v1";
-
+export interface MintResult {
+  contract: Buffer;
+  takers: Buffer[];
+}
 export interface Mint {
   collection_id: string;
   kind: string;
@@ -117,7 +120,6 @@ export interface Metadata {
 export interface ElasticMintResult {
   volume: number;
   count: number;
-  addresses: string[];
   id: string;
 }
 
@@ -327,6 +329,7 @@ async function formatCollections(
   useNonFlaggedFloorAsk: boolean
 ): Promise<any[]> {
   const sources = await Sources.getInstance();
+  const recentMints = await getRecentMints(collectionsResult.map((c) => c.id));
 
   const collections = await Promise.all(
     collectionsResult.map(async (r) => {
@@ -377,7 +380,7 @@ async function formatCollections(
         name: metadata?.name,
         mintType: Number(mintData?.price) > 0 ? "paid" : "free",
         mintCount: r.count,
-        mintVolume: (r.count * Number(mintData?.price)).toFixed(2),
+        mintVolume: r.volume,
         mintStages: mintData?.mint_stages
           ? await Promise.all(
               mintData.mint_stages.map(async (m: any) => {
@@ -395,7 +398,7 @@ async function formatCollections(
               })
             )
           : [],
-        addresses: [...r.addresses],
+        addresses: recentMints[r.id] ? recentMints[r.id] : [],
         volumeChange: {
           "1day": metadata.day1_volume_change,
           "7day": metadata.day7_volume_change,
@@ -503,4 +506,28 @@ async function getCollectionsMetadata(collectionIds: string[]): Promise<Record<s
   });
 
   return collectionsMetadata;
+}
+
+async function getRecentMints(collectionIds: string[]): Promise<Record<string, string[]>> {
+  const idsList = collectionIds.map((id) => `'${id.replace("0x", "\\x")}'`).join(",");
+
+  const results: MintResult[] = await redb.manyOrNone(`
+    WITH LimitedTakers AS (
+      SELECT contract, taker, created_at
+      FROM fill_events_2
+      WHERE order_kind = 'mint' AND contract IN (${idsList})
+      ORDER BY created_at DESC
+      LIMIT 50
+    )
+
+    SELECT contract, ARRAY_AGG(taker) AS takers
+    FROM LimitedTakers
+    GROUP BY contract;
+  `);
+
+  const hashMap: Record<string, string[]> = {};
+  for (const result of results) {
+    hashMap[fromBuffer(result.contract)] = result.takers.map((taker) => fromBuffer(taker));
+  }
+  return hashMap;
 }

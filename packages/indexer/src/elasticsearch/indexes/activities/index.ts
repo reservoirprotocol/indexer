@@ -651,7 +651,7 @@ export const getTrendingMintsV2 = async (params: {
     collections: {
       terms: {
         field: "collection.id",
-        size: 10,
+        size: 50,
         order: {
           total_mints: "desc",
         },
@@ -660,12 +660,6 @@ export const getTrendingMintsV2 = async (params: {
         total_mints: {
           value_count: {
             field: "id",
-          },
-        },
-        addresses_agg: {
-          terms: {
-            field: "toAddress",
-            size: 10,
           },
         },
         total_volume: {
@@ -688,7 +682,6 @@ export const getTrendingMintsV2 = async (params: {
 
   return esResult?.aggregations?.collections?.buckets?.map((bucket: any) => {
     return {
-      addresses: bucket?.addresses_agg?.buckets?.map((addrBucket: any) => addrBucket.key) || [],
       volume: bucket?.total_volume?.value,
       count: bucket?.total_mints.value,
       id: bucket.key,
