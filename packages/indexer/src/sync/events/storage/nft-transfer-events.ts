@@ -282,7 +282,7 @@ function buildTokenValuesQueries(tokenValuesChunk: erc721Token[] | erc1155Token[
       columnSet
     )}
     ON CONFLICT (contract, token_id) DO UPDATE
-    SET minted_timestamp = EXCLUDED.minted_timestamp
+    SET minted_timestamp = EXCLUDED.minted_timestamp, updated_at = NOW()
     WHERE EXCLUDED.minted_timestamp < tokens.minted_timestamp
   `;
 }

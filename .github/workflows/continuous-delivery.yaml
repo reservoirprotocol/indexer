@@ -522,6 +522,22 @@ jobs:
             ./prod/platform/indexer-kafka-worker-ancient8-testnet.yaml \
             ${{ github.sha }} \
             indexer-worker-ancient8-testnet
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-api-scroll.yaml \
+            ${{ github.sha }} \
+            indexer-api-scroll
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-scroll.yaml \
+            ${{ github.sha }} \
+            indexer-worker-scroll
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-scroll.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-scroll
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-master-scroll.yaml \
+            ${{ github.sha }} \
+            indexer-worker-master-scroll
       - name: Post to Slack
         if: ${{ always() }}
         id: slack-deploy-prod

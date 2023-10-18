@@ -177,7 +177,8 @@ export const updateRoyaltySpec = async (
       await idb.none(
         `
           UPDATE collections
-            SET new_royalties = $/royalties:json/
+            SET new_royalties = $/royalties:json/,
+                updated_at = NOW()
           WHERE collections.id = $/collection/
         `,
         {
