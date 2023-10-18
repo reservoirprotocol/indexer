@@ -10,7 +10,7 @@ export type FixActivitiesMissingCollectionJobPayload = {
   retry?: number;
 };
 
-export class FixActivitiesMissingCollectionJob extends AbstractRabbitMqJobHandler {
+export default class FixActivitiesMissingCollectionJob extends AbstractRabbitMqJobHandler {
   queueName = "fix-activities-missing-collection-queue";
   maxRetries = 10;
   concurrency = 3;

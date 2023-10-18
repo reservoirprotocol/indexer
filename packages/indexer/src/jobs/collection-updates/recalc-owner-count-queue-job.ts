@@ -21,7 +21,7 @@ export type RecalcOwnerCountQueueJobPayload =
       };
     };
 
-export class RecalcOwnerCountQueueJob extends AbstractRabbitMqJobHandler {
+export default class RecalcOwnerCountQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "collection-recalc-owner-count-queue";
   maxRetries = 10;
   concurrency = 10;

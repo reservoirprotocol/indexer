@@ -27,7 +27,7 @@ export type OrderRevalidationsJobPayload =
       };
     };
 
-export class OrderRevalidationsJob extends AbstractRabbitMqJobHandler {
+export default class OrderRevalidationsJob extends AbstractRabbitMqJobHandler {
   queueName = "order-revalidations";
   maxRetries = 10;
   concurrency = 20;

@@ -11,7 +11,7 @@ export type RarityQueueJobPayload = {
   collectionId: string;
 };
 
-export class RarityQueueJob extends AbstractRabbitMqJobHandler {
+export default class RarityQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "rarity-queue";
   maxRetries = 10;
   concurrency = 1;

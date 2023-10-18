@@ -19,7 +19,7 @@ export type MintQueueJobPayload = {
   mintedTimestamp: number;
 };
 
-export class MintQueueJob extends AbstractRabbitMqJobHandler {
+export default class MintQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "token-updates-mint-queue";
   maxRetries = 10;
   concurrency = 30;

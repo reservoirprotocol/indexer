@@ -12,7 +12,7 @@ import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activit
 
 const BATCH_SIZE = 500;
 
-export class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
+export default class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler {
   queueName = "save-pending-activities-queue";
   maxRetries = 10;
   concurrency = 1;

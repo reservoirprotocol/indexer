@@ -51,7 +51,7 @@ export type OrderFixesJobPayload =
       };
     };
 
-export class OrderFixesJob extends AbstractRabbitMqJobHandler {
+export default class OrderFixesJob extends AbstractRabbitMqJobHandler {
   queueName = "order-fixes";
   maxRetries = 5;
   concurrency = 20;

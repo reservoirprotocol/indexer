@@ -11,7 +11,7 @@ export type UpdateCollectionDailyVolumeJobPayload = {
   contract: string;
 };
 
-export class UpdateCollectionDailyVolumeJob extends AbstractRabbitMqJobHandler {
+export default class UpdateCollectionDailyVolumeJob extends AbstractRabbitMqJobHandler {
   queueName = "update-collection-daily-volume-queue";
   maxRetries = 10;
   concurrency = 1;
@@ -32,7 +32,7 @@ export class UpdateCollectionDailyVolumeJob extends AbstractRabbitMqJobHandler {
       limit: 1,
     });
 
-    if (_.isEmpty(result.activities)) {
+    if (!_.isEmpty(result.activities)) {
       const currentTime = getUnixTime(new Date());
       let saleDate = fromUnixTime(result.activities[0].timestamp);
       saleDate.setUTCHours(0, 0, 0, 0);

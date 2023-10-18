@@ -18,7 +18,7 @@ export type ProcessResyncRequestJobPayload = {
   blocksPerBatch?: number;
 };
 
-export class ProcessResyncRequestJob extends AbstractRabbitMqJobHandler {
+export default class ProcessResyncRequestJob extends AbstractRabbitMqJobHandler {
   queueName = "process-resync-request";
   maxRetries = 10;
   concurrency = 10;

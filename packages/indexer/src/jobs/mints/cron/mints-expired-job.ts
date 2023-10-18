@@ -6,7 +6,7 @@ import { redlock } from "@/common/redis";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { config } from "@/config/index";
 
-export class MintsExpiredJob extends AbstractRabbitMqJobHandler {
+export default class MintsExpiredJob extends AbstractRabbitMqJobHandler {
   queueName = "expired-mints";
   maxRetries = 1;
   concurrency = 1;

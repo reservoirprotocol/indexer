@@ -7,7 +7,7 @@ export type ResyncAttributeCacheJobPayload = {
   tokenId: string;
 };
 
-export class ResyncAttributeCacheJob extends AbstractRabbitMqJobHandler {
+export default class ResyncAttributeCacheJob extends AbstractRabbitMqJobHandler {
   queueName = "resync-attribute-cache-queue";
   maxRetries = 10;
   concurrency = 3;

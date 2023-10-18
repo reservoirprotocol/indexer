@@ -8,7 +8,7 @@ export type FetchSourceInfoJobPayload = {
   sourceDomain: string;
 };
 
-export class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
+export default class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
   queueName = "fetch-source-info-queue";
   maxRetries = 10;
   concurrency = 3;
