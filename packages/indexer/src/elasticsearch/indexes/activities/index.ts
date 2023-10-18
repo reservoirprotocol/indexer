@@ -651,7 +651,7 @@ export const getTrendingMintsV2 = async (params: {
     collections: {
       terms: {
         field: "collection.id",
-        size: 50,
+        size: 10,
         order: {
           total_mints: "desc",
         },
