@@ -104,6 +104,17 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
         tokenFilter = `AND "token_id" = $/tokenId/`;
       }
 
+      if (config.chainId === 11155111) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "debugTokenUpdate",
+            message: `Update token. contract=${contract}, tokenId=${tokenId}`,
+            token: `${contract}:${tokenId}`,
+          })
+        );
+      }
+
       // Since this is the first time we run into this collection,
       // we update all tokens that match its token definition
       queries.push({

@@ -1,14 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import cron from "node-cron";
+import _ from "lodash";
+
+import { config } from "@/config/index";
+import { logger } from "@/common/logger";
+import { acquireLock, redlock } from "@/common/redis";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { acquireLock, getLockExpiration, redlock } from "@/common/redis";
-import { logger } from "@/common/logger";
 import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
-import { RequestWasThrottledError } from "../orderbook/post-order-external/api/errors";
 import { PendingFlagStatusSyncContracts } from "@/models/pending-flag-status-sync-contracts";
-import { getTokensFlagStatusForCollectionByContract } from "./utils";
-import { config } from "@/config/index";
-import cron from "node-cron";
+import { getTokensFlagStatusForCollectionByContract } from "@/jobs/flag-status/utils";
+import { RabbitMQMessage } from "@/common/rabbit-mq";
+import { RequestWasThrottledError } from "@/metadata/providers/utils";
+
+export const MAX_PARALLEL_CONTRACTS = 1;
+export const DEFAULT_JOB_DELAY_SECONDS = 1;
 
 export class ContractFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
   queueName = "contract-flag-status-sync-queue";
@@ -19,65 +25,106 @@ export class ContractFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
   singleActiveConsumer = true;
 
   protected async process() {
-    logger.info(this.queueName, "Start");
+    let addToQueue = false;
 
-    // check redis to see if we have a lock for this job saying we are sleeping due to rate limiting. This lock only exists if we have been rate limited.
-    const expiration = await getLockExpiration(this.getLockName());
-    if (expiration > 0) {
-      logger.info(this.queueName, "Sleeping due to rate limiting");
-      return;
-    }
+    const lockAcquired = await acquireLock(this.getLockName(), DEFAULT_JOB_DELAY_SECONDS);
 
-    const collectionToGetFlagStatusFor = await PendingFlagStatusSyncContracts.get();
-
-    if (!collectionToGetFlagStatusFor.length) return;
-
-    let tokens: { contract: string; tokenId: string; isFlagged: boolean | null }[] = [];
-    let nextContinuation: string | null = null;
-
-    try {
-      const data = await getTokensFlagStatusForCollectionByContract(
-        collectionToGetFlagStatusFor[0].contract,
-        collectionToGetFlagStatusFor[0].continuation
+    if (lockAcquired) {
+      const contractsToGetFlagStatusFor = await PendingFlagStatusSyncContracts.get(
+        MAX_PARALLEL_CONTRACTS
       );
-      tokens = data.tokens;
-      nextContinuation = data.nextContinuation;
-    } catch (error) {
-      if (error instanceof RequestWasThrottledError) {
-        logger.info(
-          this.queueName,
-          `Too Many Requests.  error: ${JSON.stringify((error as any).response.data)}`
+
+      if (contractsToGetFlagStatusFor.length) {
+        const contractsToGetFlagStatusForChunks = _.chunk(contractsToGetFlagStatusFor, 1);
+
+        const results = await Promise.all(
+          contractsToGetFlagStatusForChunks.map((contractsToGetFlagStatusForChunk) =>
+            getTokensFlagStatusForCollectionByContract(
+              contractsToGetFlagStatusForChunk[0].contract,
+              contractsToGetFlagStatusForChunk[0].continuation
+            )
+              .then(async (data) => {
+                if (data.nextContinuation) {
+                  logger.info(
+                    this.queueName,
+                    `Debug contract. contractsToGetFlagStatusForChunk= ${JSON.stringify(
+                      contractsToGetFlagStatusForChunk
+                    )}, nextContinuation=${data.nextContinuation}`
+                  );
+
+                  await PendingFlagStatusSyncContracts.add(
+                    [
+                      {
+                        contract: contractsToGetFlagStatusForChunk[0].contract,
+                        collectionId: contractsToGetFlagStatusForChunk[0].collectionId,
+                        continuation: data.nextContinuation,
+                      },
+                    ],
+                    true
+                  );
+                }
+
+                return data.tokens;
+              })
+              .catch(async (error) => {
+                if (error instanceof RequestWasThrottledError) {
+                  logger.warn(
+                    this.queueName,
+                    JSON.stringify({
+                      message: `Too Many Requests. error=${error}`,
+                      contractsToGetFlagStatusForChunk,
+                      error,
+                    })
+                  );
+
+                  await PendingFlagStatusSyncContracts.add(contractsToGetFlagStatusForChunk, true);
+                } else {
+                  logger.error(
+                    this.queueName,
+                    JSON.stringify({
+                      message: `getTokensFlagStatusForCollectionByContract error. error=${error}`,
+                      contractsToGetFlagStatusForChunk,
+                      error,
+                    })
+                  );
+                }
+
+                return [];
+              })
+          )
         );
 
-        const expiresIn = error.delay;
+        if (results.length) {
+          const tokensFlagStatus = results.flat(1);
 
-        await acquireLock(this.getLockName(), expiresIn * 1000);
-        await PendingFlagStatusSyncContracts.add(collectionToGetFlagStatusFor, true);
-        return;
-      } else {
-        logger.error(this.queueName, `Error: ${JSON.stringify(error)}`);
-        throw error;
+          logger.info(
+            this.queueName,
+            `Debug. contractsToGetFlagStatusFor=${contractsToGetFlagStatusFor.length}, tokensFlagStatus=${tokensFlagStatus.length}`
+          );
+
+          await flagStatusUpdateJob.addToQueue(tokensFlagStatus);
+
+          addToQueue = true;
+        }
       }
     }
 
-    await flagStatusUpdateJob.addToQueue(tokens);
-
-    if (nextContinuation) {
-      await PendingFlagStatusSyncContracts.add(
-        [
-          {
-            contract: collectionToGetFlagStatusFor[0].contract,
-            collectionId: collectionToGetFlagStatusFor[0].collectionId,
-            continuation: nextContinuation,
-          },
-        ],
-        true
-      );
-    }
+    return { addToQueue };
   }
 
   public getLockName() {
     return `${this.queueName}-lock`;
+  }
+
+  public async onCompleted(
+    rabbitMqMessage: RabbitMQMessage,
+    processResult: {
+      addToQueue: boolean;
+    }
+  ) {
+    if (processResult?.addToQueue) {
+      await this.addToQueue(DEFAULT_JOB_DELAY_SECONDS * 1000);
+    }
   }
 
   public async addToQueue(delay = 0) {
@@ -85,7 +132,7 @@ export class ContractFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
   }
 }
 
-export const contractFlugStatusSyncJob = new ContractFlagStatusSyncJob();
+export const contractFlagStatusSyncJob = new ContractFlagStatusSyncJob();
 
 if (
   config.doBackgroundWork &&
@@ -96,8 +143,8 @@ if (
     "*/5 * * * * *",
     async () =>
       await redlock
-        .acquire([`${contractFlugStatusSyncJob.queueName}-cron-lock`], (5 - 1) * 1000)
-        .then(async () => contractFlugStatusSyncJob.addToQueue())
+        .acquire([`${contractFlagStatusSyncJob.queueName}-cron-lock`], (5 - 1) * 1000)
+        .then(async () => contractFlagStatusSyncJob.addToQueue())
         .catch(() => {
           // Skip on any errors
         })

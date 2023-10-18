@@ -95,15 +95,17 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           baseProvider
         );
 
-        const isWhitelisted = await exchange.isPaymentMethodApproved(
-          ppConfig.securityPolicy.id,
-          order.params.coin
-        );
-        if (!isWhitelisted) {
-          return results.push({
-            id,
-            status: "payment-token-not-whitelisted",
-          });
+        if (order.params.coin !== Sdk.Common.Addresses.Native[config.chainId]) {
+          const isWhitelisted = await exchange.isPaymentMethodApproved(
+            ppConfig.securityPolicy.id,
+            order.params.coin
+          );
+          if (!isWhitelisted) {
+            return results.push({
+              id,
+              status: "payment-token-not-whitelisted",
+            });
+          }
         }
       }
 

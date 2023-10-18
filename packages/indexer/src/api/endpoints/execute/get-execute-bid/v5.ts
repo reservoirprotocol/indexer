@@ -182,6 +182,7 @@ export const getExecuteBidV5Options: RouteOptions = {
             nonce: Joi.string().pattern(regex.number).description("Optional. Set a custom nonce"),
             currency: Joi.string()
               .pattern(regex.address)
+              .lowercase()
               .default(Sdk.Common.Addresses.WNative[config.chainId]),
           })
             .or("token", "collection", "tokenSetId")

@@ -1,9 +1,10 @@
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
-import { ridb } from "@/common/db";
-import { toBuffer } from "@/common/utils";
 import { add, fromUnixTime, getUnixTime } from "date-fns";
 import { DailyVolume } from "@/models/daily-volumes/daily-volume";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { ActivityType } from "@/elasticsearch/indexes/activities/base";
+import _ from "lodash";
 
 export type UpdateCollectionDailyVolumeJobPayload = {
   newCollectionId: string;
@@ -22,28 +23,18 @@ export class UpdateCollectionDailyVolumeJob extends AbstractRabbitMqJobHandler {
   useSharedChannel = true;
 
   protected async process(payload: UpdateCollectionDailyVolumeJobPayload) {
-    // Get the first sale date for the new collection
-    const query = `
-        SELECT timestamp
-        FROM fill_events_2 fe
-        WHERE contract = $/contract/
-        AND token_id IN (
-          SELECT token_id
-          FROM tokens
-          WHERE collection_id = $/newCollectionId/
-        )
-        ORDER by timestamp ASC
-        LIMIT 1
-      `;
-
-    const result = await ridb.oneOrNone(query, {
-      newCollectionId: payload.newCollectionId,
-      contract: toBuffer(payload.contract),
+    const result = await ActivitiesIndex.search({
+      types: [ActivityType.sale],
+      contracts: [payload.contract],
+      collections: [payload.newCollectionId],
+      sortBy: "timestamp",
+      sortDirection: "asc",
+      limit: 1,
     });
 
-    if (result) {
+    if (_.isEmpty(result.activities)) {
       const currentTime = getUnixTime(new Date());
-      let saleDate = fromUnixTime(result.timestamp);
+      let saleDate = fromUnixTime(result.activities[0].timestamp);
       saleDate.setUTCHours(0, 0, 0, 0);
 
       // Recalculate daily volumes from the first sale date

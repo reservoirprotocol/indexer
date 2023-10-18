@@ -28,6 +28,7 @@ import {
 import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
 import { Contracts } from "@/models/contracts";
 import * as registry from "@/utils/royalties/registry";
+import { config } from "@/config/index";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -186,6 +187,17 @@ export class Collections {
         data: { collectionId: collection.id },
       },
     ]);
+
+    if (config.chainId === 11155111) {
+      logger.info(
+        "updateCollectionCache",
+        JSON.stringify({
+          topic: "debugCollectionUpdates",
+          message: `Update collection. collectionId=${collection.id}`,
+          collection,
+        })
+      );
+    }
 
     const query = `
       UPDATE collections SET
