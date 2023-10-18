@@ -16,7 +16,7 @@ export type OrderUpdatesErc20OrderJobPayload = {
   continuation?: string;
 };
 
-export class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandler {
+export default class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandler {
   queueName = "erc20-orders";
   maxRetries = 1;
   concurrency = 1;

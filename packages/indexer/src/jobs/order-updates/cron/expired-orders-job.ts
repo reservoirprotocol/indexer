@@ -8,7 +8,7 @@ import { config } from "@/config/index";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders";
 
-export class OrderUpdatesExpiredOrderJob extends AbstractRabbitMqJobHandler {
+export default class OrderUpdatesExpiredOrderJob extends AbstractRabbitMqJobHandler {
   queueName = "expired-orders";
   maxRetries = 1;
   concurrency = 1;

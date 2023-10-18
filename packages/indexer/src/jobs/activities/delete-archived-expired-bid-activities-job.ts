@@ -7,7 +7,7 @@ import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
 const BATCH_SIZE = 1000;
 
-export class DeleteArchivedExpiredBidActivitiesJob extends AbstractRabbitMqJobHandler {
+export default class DeleteArchivedExpiredBidActivitiesJob extends AbstractRabbitMqJobHandler {
   queueName = "delete-archived-expired-bid-activities-queue";
   maxRetries = 10;
   concurrency = 1;

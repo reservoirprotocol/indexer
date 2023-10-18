@@ -7,7 +7,7 @@ export type MintsRefreshJobPayload = {
   collection: string;
 };
 
-export class MintsRefreshJob extends AbstractRabbitMqJobHandler {
+export default class MintsRefreshJob extends AbstractRabbitMqJobHandler {
   queueName = "mints-refresh";
   maxRetries = 1;
   concurrency = 10;

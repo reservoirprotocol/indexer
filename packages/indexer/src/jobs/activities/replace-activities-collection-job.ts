@@ -10,7 +10,7 @@ export type ReplaceActivitiesCollectionJobPayload = {
   oldCollectionId: string;
 };
 
-export class ReplaceActivitiesCollectionJob extends AbstractRabbitMqJobHandler {
+export default class ReplaceActivitiesCollectionJob extends AbstractRabbitMqJobHandler {
   queueName = "replace-activities-collection-queue";
   maxRetries = 10;
   concurrency = 1;

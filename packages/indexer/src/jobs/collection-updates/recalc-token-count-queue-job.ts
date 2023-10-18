@@ -10,7 +10,7 @@ export type RecalcTokenCountQueueJobPayload = {
   force?: boolean;
 };
 
-export class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler {
+export default class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "collection-recalc-token-count-queue";
   maxRetries = 10;
   concurrency = 10;

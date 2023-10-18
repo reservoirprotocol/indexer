@@ -53,7 +53,7 @@ export type OrderUpdatesByIdJobPayload = {
   ingestDelay?: number;
 };
 
-export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
+export default class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
   queueName = "order-updates-by-id";
   maxRetries = 10;
   concurrency = 80;

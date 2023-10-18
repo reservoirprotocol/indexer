@@ -20,7 +20,7 @@ export type FetchCollectionMetadataJobPayload = {
   context?: string;
 };
 
-export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
+export default class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
   queueName = "token-updates-fetch-collection-metadata-queue";
   maxRetries = 10;
   concurrency = 5;

@@ -9,7 +9,7 @@ export type NftBalanceUpdateFloorAskJobPayload = {
   owner: string;
 };
 
-export class NftBalanceUpdateFloorAskJob extends AbstractRabbitMqJobHandler {
+export default class NftBalanceUpdateFloorAskJob extends AbstractRabbitMqJobHandler {
   queueName = "nft-balance-updates-update-floor-ask-price-queue";
   maxRetries = 10;
   concurrency = 15;

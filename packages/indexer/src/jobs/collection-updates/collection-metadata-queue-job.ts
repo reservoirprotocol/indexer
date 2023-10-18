@@ -19,7 +19,7 @@ export type MetadataQueueJobPayload = {
   forceRefresh?: boolean;
 };
 
-export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
+export default class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "collections-metadata-queue";
   maxRetries = 10;
   concurrency = 1;

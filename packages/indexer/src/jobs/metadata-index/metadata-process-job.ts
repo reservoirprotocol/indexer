@@ -12,7 +12,7 @@ export type MetadataIndexProcessJobPayload = {
   method: string;
 };
 
-export class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler {
+export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler {
   queueName = "metadata-index-process-queue";
   maxRetries = 10;
   concurrency = 1;

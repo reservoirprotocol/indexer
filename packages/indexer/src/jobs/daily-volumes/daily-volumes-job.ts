@@ -8,7 +8,7 @@ export type DailyVolumeJobPayload = {
   retry?: number;
 };
 
-export class DailyVolumeJob extends AbstractRabbitMqJobHandler {
+export default class DailyVolumeJob extends AbstractRabbitMqJobHandler {
   queueName = "calculate-daily-volumes";
   maxRetries = 10;
   concurrency = 1;

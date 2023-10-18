@@ -11,7 +11,7 @@ export type HandleNewSellOrderJobPayload = {
   previousPrice: number | null;
 };
 
-export class HandleNewSellOrderJob extends AbstractRabbitMqJobHandler {
+export default class HandleNewSellOrderJob extends AbstractRabbitMqJobHandler {
   queueName = "handle-new-sell-order-queue";
   maxRetries = 10;
   concurrency = 2;

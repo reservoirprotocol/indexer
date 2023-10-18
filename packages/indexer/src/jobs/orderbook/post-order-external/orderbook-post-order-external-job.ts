@@ -1,7 +1,7 @@
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { PostOrderExternalParams, processOrder } from "@/jobs/orderbook/post-order-external/utils";
 
-export class OrderbookPostOrderExternalJob extends AbstractRabbitMqJobHandler {
+export default class OrderbookPostOrderExternalJob extends AbstractRabbitMqJobHandler {
   queueName = "orderbook-post-order-external-queue";
   maxRetries = 5;
   concurrency = 5;
