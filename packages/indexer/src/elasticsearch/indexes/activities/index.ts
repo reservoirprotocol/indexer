@@ -541,7 +541,7 @@ export const getTopSellingCollectionsV2 = async (params: {
     },
   } as any;
 
-  const sort = sortBy == "volume" ? { total_volume: "desc" } : { total_transactions: "desc" };
+  const sort = sortBy == "volume" ? { total_volume: "desc" } : { total_sales: "desc" };
   const collectionAggregation = {
     collections: {
       terms: {

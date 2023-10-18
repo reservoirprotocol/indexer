@@ -6,7 +6,6 @@ export type TopSellingCollectionsJobPayload = {
   retry: number;
 };
 
-TopSellingCollections.updateTopSellingCollections();
 export class TopSellingCollectionsJob extends AbstractRabbitMqJobHandler {
   queueName = "save-top-selling-collections";
   maxRetries = 1;

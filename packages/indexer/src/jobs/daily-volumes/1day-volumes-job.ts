@@ -23,8 +23,28 @@ export class OneDayVolumeJob extends AbstractRabbitMqJobHandler {
         "day-1-volumes",
         `Finished updating the 1day volume on collections table. retry=${retry}`
       );
+      const updateAllTimeResult = await DailyVolume.updateAllTimeVolume();
+      if (updateAllTimeResult) {
+        logger.info(
+          "day-1-volumes",
+          `Finished updating the all time volume on collections table. retry=${retry}`
+        );
+      } else {
+        if (retry < 5) {
+          logger.warn(
+            "day-1-volumes",
+            `Something went wrong with updating the all time volume on collections, will retry in a couple of minutes. retry=${retry}`
+          );
+          retry++;
 
-      await DailyVolume.updateAllTimeVolume();
+          await this.addToQueue({ retry });
+        } else {
+          logger.error(
+            "day-1-volumes",
+            `Something went wrong with retrying during updating the all time volume on collection, stopping. retry=${retry}`
+          );
+        }
+      }
     } else {
       if (retry < 5) {
         logger.warn(

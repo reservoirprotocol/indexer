@@ -702,6 +702,18 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
+            "0x011e128ec62840186f4a07e85e3ace28858c5606",
+            {
+              contract: "0x011e128ec62840186f4a07e85e3ace28858c5606",
+              name: "WVAL",
+              symbol: "$VAL",
+              decimals: 18,
+              metadata: {
+                image: "https://i.ibb.co/s1k4Qvz/valeria-logo.png",
+              },
+            },
+          ],
+          [
             "0xdc8b54313ed0ab1a0b6b8728c7d360c671a4b7cb",
             {
               contract: "0xdc8b54313ed0ab1a0b6b8728c7d360c671a4b7cb",

@@ -186,7 +186,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
         logger.error(
           "opensea-fetcher",
           JSON.stringify({
-            message: `_getTokensFlagStatusByCollectionPaginationViaSlug error. contract:${contract}, tokenId:${tokenId}, error:${error}`,
+            message: `_getTokenFlagStatus error. contract:${contract}, tokenId:${tokenId}, error:${error}`,
             url,
             error,
           })

@@ -8,7 +8,7 @@ import { topSellingCollectionsJob } from "@/jobs/top-selling-collections-cache/s
 // Function to run the job
 async function runJob() {
   try {
-    if (await acquireLock("top-selling-collections", 10)) {
+    if (await acquireLock("top-selling-collections", 20)) {
       logger.info("top-selling-collections", "Starting top selling collections job");
 
       try {
