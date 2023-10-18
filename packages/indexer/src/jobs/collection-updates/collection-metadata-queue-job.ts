@@ -2,6 +2,7 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { acquireLock, releaseLock } from "@/common/redis";
 import { logger } from "@/common/logger";
 import { Collections } from "@/models/collections";
+
 import _ from "lodash";
 
 export type CollectionMetadataInfo = {
@@ -18,7 +19,7 @@ export type MetadataQueueJobPayload = {
   forceRefresh?: boolean;
 };
 
-export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
+export default class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "collections-metadata-queue";
   maxRetries = 10;
   concurrency = 1;
@@ -31,22 +32,13 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
     if (forceRefresh || (await acquireLock(`${this.queueName}:${contract}`, 5 * 60))) {
       if (await acquireLock(this.queueName, 1)) {
         try {
-          if (isNaN(Number(tokenId)) || tokenId == null) {
-            logger.error(
-              this.queueName,
-              `Invalid tokenId. contract=${contract}, tokenId=${tokenId}, community=${community}`
-            );
-          }
-
           await Collections.updateCollectionCache(contract, tokenId, community);
         } catch (error) {
           logger.error(
             this.queueName,
             JSON.stringify({
-              message: `updateCollectionCache error. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}, error=${JSON.stringify(
-                error
-              )}`,
-              jobData: payload,
+              message: `updateCollectionCache error. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}, error=${error}`,
+              payload,
               error,
             })
           );
@@ -61,22 +53,7 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
     }
   }
 
-  public async addToQueueBulk(
-    collectionMetadataInfos: CollectionMetadataInfo[],
-    delay = 0,
-    context?: string
-  ) {
-    collectionMetadataInfos.forEach((collectionMetadataInfo) => {
-      if (isNaN(Number(collectionMetadataInfo.tokenId)) || collectionMetadataInfo.tokenId == null) {
-        logger.error(
-          this.queueName,
-          `Invalid tokenId. collectionMetadataInfo=${JSON.stringify(
-            collectionMetadataInfo
-          )}, context=${context}`
-        );
-      }
-    });
-
+  public async addToQueueBulk(collectionMetadataInfos: CollectionMetadataInfo[], delay = 0) {
     await this.sendBatch(collectionMetadataInfos.map((params) => ({ payload: params, delay })));
   }
 
@@ -84,18 +61,11 @@ export class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
     params: {
       contract: string | { contract: string; community: string }[];
       tokenId?: string;
-      community?: string;
+      community?: string | null;
       forceRefresh?: boolean;
     },
-    delay = 0,
-    context?: string
+    delay = 0
   ) {
-    if (isNaN(Number(params.tokenId)) || params.tokenId == null) {
-      logger.error(
-        this.queueName,
-        `Invalid tokenId. contract=${params.contract}, tokenId=${params.tokenId}, community=${params.community}, context=${context}`
-      );
-    }
     params.tokenId = params.tokenId ?? "1";
     params.community = params.community ?? "";
     params.forceRefresh = params.forceRefresh ?? false;

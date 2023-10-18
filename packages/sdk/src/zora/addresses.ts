@@ -33,3 +33,9 @@ export const ERC1155Factory: ChainIdToAddress = {
   [Network.Optimism]: "0x78b524931e9d847c40bcbf225c25e154a7b05fda",
   [Network.Zora]: "0x35ca784918bf11692708c1d530691704aacea95e",
 };
+
+export const ERC1155FactoryV2: ChainIdToAddress = {
+  [Network.Ethereum]: "0x777777c338d93e2c7adf08d102d45ca7cc4ed021",
+  [Network.Optimism]: "0x777777c338d93e2c7adf08d102d45ca7cc4ed021",
+  [Network.Zora]: "0x777777c338d93e2c7adf08d102d45ca7cc4ed021",
+};

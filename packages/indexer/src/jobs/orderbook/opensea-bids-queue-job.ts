@@ -1,14 +1,14 @@
-import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
+import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { GenericOrderInfo } from "@/jobs/orderbook/utils";
 import * as orders from "@/orderbook/orders";
 
-export class OpenseaBidsQueueJob extends AbstractRabbitMqJobHandler {
+export default class OpenseaBidsQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "orderbook-opensea-bids-queue";
   maxRetries = 10;
   concurrency = 100;
   lazyMode = true;
-  consumerTimeout = 120000;
+  timeout = 120000;
 
   protected async process(payload: GenericOrderInfo) {
     const { kind, info, validateBidValue, ingestMethod, ingestDelay } = payload;

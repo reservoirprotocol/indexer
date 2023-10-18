@@ -133,7 +133,7 @@ export const buildCollectionOffer = async (
           "opensea-orderbook-api",
           `Build OpenSea collection offer error. options=${JSON.stringify(
             options
-          )}, error=${error}, responseStatus=${
+          )}, error=${JSON.stringify(error)}, responseStatus=${
             error.response?.status
           }, responseData=${JSON.stringify(error.response?.data)}`
         );

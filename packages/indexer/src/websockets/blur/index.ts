@@ -10,7 +10,7 @@ import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
 const COMPONENT = "blur-websocket";
 
 // Bids
-if (config.doWebsocketWork && config.blurWsUrl && config.blurWsApiKey) {
+if (config.doWebsocketWork && config.blurWsUrl && config.blurWsApiKey && config.chainId === 1) {
   const clientBids = io(config.blurWsUrl, {
     transports: ["websocket"],
     auth: {
@@ -43,7 +43,7 @@ if (config.doWebsocketWork && config.blurWsUrl && config.blurWsApiKey) {
 }
 
 // Listings
-if (config.doWebsocketWork && config.blurWsListingsUrl) {
+if (config.doWebsocketWork && config.blurWsListingsUrl && config.chainId === 1) {
   const clientListings = io(config.blurWsListingsUrl, {
     transports: ["websocket"],
   });

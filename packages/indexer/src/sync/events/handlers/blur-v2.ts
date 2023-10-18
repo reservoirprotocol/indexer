@@ -171,34 +171,34 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             }
           });
 
-          let orderId: string | undefined;
           if (relevantEvent) {
             const eventData = getEventData([relevantEvent.subKind])[0];
             const { args } = eventData.abi.parseLog(relevantEvent.log);
-            orderId = args.orderHash.toLowerCase();
-          }
 
-          onChainData.fillEventsPartial.push({
-            orderId,
-            orderKind,
-            orderSide,
-            maker,
-            taker,
-            price: priceData.nativePrice,
-            currency,
-            currencyPrice,
-            usdPrice: priceData.usdPrice,
-            contract: collection.toLowerCase(),
-            tokenId: tokenId.toString(),
-            amount: amount.toString(),
-            orderSourceId: attributionData.orderSource?.id,
-            aggregatorSourceId: attributionData.aggregatorSource?.id,
-            fillSourceId: attributionData.fillSource?.id,
-            baseEventParams: {
-              ...baseEventParams,
-              logIndex: baseEventParams.logIndex + i,
-            },
-          });
+            const orderId = args.orderHash.toLowerCase();
+            onChainData.fillEventsPartial.push({
+              orderId,
+              orderKind,
+              orderSide,
+              maker,
+              taker,
+              price: priceData.nativePrice,
+              currency,
+              currencyPrice,
+              usdPrice: priceData.usdPrice,
+              contract: collection.toLowerCase(),
+              tokenId: tokenId.toString(),
+              amount: amount.toString(),
+              orderSourceId: attributionData.orderSource?.id,
+              aggregatorSourceId: attributionData.aggregatorSource?.id,
+              fillSourceId: attributionData.fillSource?.id,
+              baseEventParams: {
+                ...baseEventParams,
+                // TODO: The log index is wrong (should be taken from `relevantEvent`)
+                logIndex: baseEventParams.logIndex + i,
+              },
+            });
+          }
         }
 
         trades.order.set(`${txHash}-${exchangeAddress}`, tradeRank + 1);

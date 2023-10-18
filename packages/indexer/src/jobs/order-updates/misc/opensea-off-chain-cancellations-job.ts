@@ -1,6 +1,6 @@
-import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { logger } from "@/common/logger";
 import { idb } from "@/common/db";
+import { logger } from "@/common/logger";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import {
   orderUpdatesByIdJob,
   OrderUpdatesByIdJobPayload,
@@ -10,7 +10,7 @@ export type OpenseaOffChainCancellationsJobPayload = {
   orderId: string;
 };
 
-export class OpenseaOffChainCancellationsJob extends AbstractRabbitMqJobHandler {
+export default class OpenseaOffChainCancellationsJob extends AbstractRabbitMqJobHandler {
   queueName = "opensea-off-chain-cancellations";
   maxRetries = 3;
   concurrency = 30;

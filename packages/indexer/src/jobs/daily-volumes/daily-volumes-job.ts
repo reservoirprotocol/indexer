@@ -8,13 +8,13 @@ export type DailyVolumeJobPayload = {
   retry?: number;
 };
 
-export class DailyVolumeJob extends AbstractRabbitMqJobHandler {
+export default class DailyVolumeJob extends AbstractRabbitMqJobHandler {
   queueName = "calculate-daily-volumes";
   maxRetries = 10;
   concurrency = 1;
   useSharedChannel = true;
   persistent = false;
-  consumerTimeout = 2 * 60 * 60 * 1000;
+  timeout = 2 * 60 * 60 * 1000;
 
   protected async process(payload: DailyVolumeJobPayload) {
     const startTime = Number(payload.startTime);

@@ -6,9 +6,9 @@ import { now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { InvalidRequestError } from "@/jobs/orderbook/post-order-external/api/errors";
 
-// X2Y2 default rate limit - 120 requests per minute
-export const RATE_LIMIT_REQUEST_COUNT = 120;
-export const RATE_LIMIT_INTERVAL = 60;
+// X2Y2 default rate limit - 2 requests per seconds
+export const RATE_LIMIT_REQUEST_COUNT = 2;
+export const RATE_LIMIT_INTERVAL = 1;
 
 export const postOrder = async (order: Sdk.X2Y2.Types.LocalOrder, apiKey: string) => {
   const exchange = new Sdk.X2Y2.Exchange(config.chainId, apiKey);

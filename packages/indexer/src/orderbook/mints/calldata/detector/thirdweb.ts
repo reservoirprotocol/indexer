@@ -25,6 +25,8 @@ import {
 
 const STANDARD = "thirdweb";
 
+const NATIVE_CURRENCY = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+
 export const extractByCollectionERC721 = async (collection: string): Promise<CollectionMint[]> => {
   const c = new Contract(
     collection,
@@ -64,13 +66,16 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
       const claimCondition = await c.getClaimConditionById(claimConditionId);
 
       const currency = claimCondition.currency.toLowerCase();
-      if (currency === Sdk.ZeroExV4.Addresses.Native[config.chainId]) {
+      if (currency === NATIVE_CURRENCY) {
         const price = claimCondition.pricePerToken.toString();
         const maxMintsPerWallet =
           claimCondition.quantityLimitPerWallet.eq(0) ||
           claimCondition.quantityLimitPerWallet.eq(MaxUint256)
             ? null
             : claimCondition.quantityLimitPerWallet.toString();
+        const maxSupply = claimCondition.maxClaimableSupply.eq(MaxUint256)
+          ? null
+          : claimCondition.maxClaimableSupply.toString();
 
         // Public sale
         if (claimCondition.merkleRoot === HashZero) {
@@ -123,7 +128,7 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
             currency: Sdk.Common.Addresses.Native[config.chainId],
             price,
             maxMintsPerWallet,
-            maxSupply: claimCondition.maxClaimableSupply.toString(),
+            maxSupply,
             startTime: toSafeTimestamp(claimCondition.startTimestamp),
           });
         }
@@ -186,7 +191,7 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
                       {
                         kind: "unknown",
                         abiType: "address",
-                        abiValue: Sdk.ZeroExV4.Addresses.Native[config.chainId],
+                        abiValue: NATIVE_CURRENCY,
                       },
                       {
                         kind: "allowlist",
@@ -206,7 +211,7 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
                 },
               },
               currency: Sdk.Common.Addresses.Native[config.chainId],
-              maxSupply: claimCondition.maxClaimableSupply.toString(),
+              maxSupply,
               startTime: toSafeTimestamp(claimCondition.startTimestamp),
               allowlistId: claimCondition.merkleRoot,
             });
@@ -273,13 +278,16 @@ export const extractByCollectionERC1155 = async (
       const claimCondition = await c.getClaimConditionById(tokenId, claimConditionId);
 
       const currency = claimCondition.currency.toLowerCase();
-      if (currency === Sdk.ZeroExV4.Addresses.Native[config.chainId]) {
+      if (currency === NATIVE_CURRENCY) {
         const price = claimCondition.pricePerToken.toString();
         const maxMintsPerWallet =
           claimCondition.quantityLimitPerWallet.eq(0) ||
           claimCondition.quantityLimitPerWallet.eq(MaxUint256)
             ? null
             : claimCondition.quantityLimitPerWallet.toString();
+        const maxSupply = claimCondition.maxClaimableSupply.eq(MaxUint256)
+          ? null
+          : claimCondition.maxClaimableSupply.toString();
 
         // Public sale
         if (claimCondition.merkleRoot === HashZero) {
@@ -338,7 +346,7 @@ export const extractByCollectionERC1155 = async (
             price,
             tokenId,
             maxMintsPerWallet,
-            maxSupply: claimCondition.maxClaimableSupply.toString(),
+            maxSupply,
             startTime: toSafeTimestamp(claimCondition.startTimestamp),
           });
         }
@@ -406,7 +414,7 @@ export const extractByCollectionERC1155 = async (
                       {
                         kind: "unknown",
                         abiType: "address",
-                        abiValue: Sdk.ZeroExV4.Addresses.Native[config.chainId],
+                        abiValue: NATIVE_CURRENCY,
                       },
                       {
                         kind: "allowlist",
@@ -427,7 +435,7 @@ export const extractByCollectionERC1155 = async (
               },
               currency: Sdk.Common.Addresses.Native[config.chainId],
               tokenId,
-              maxSupply: claimCondition.maxClaimableSupply.toString(),
+              maxSupply,
               startTime: toSafeTimestamp(claimCondition.startTimestamp),
               allowlistId: claimCondition.merkleRoot,
             });

@@ -1,14 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { idb, pgp } from "@/common/db";
-import { fromBuffer, toBuffer } from "@/common/utils";
-import { Sources } from "@/models/sources";
-import { logger } from "@/common/logger";
-import { TriggerKind } from "@/jobs/order-updates/types";
 import { AddressZero } from "@ethersproject/constants";
-import { OrderKind } from "@/orderbook/orders";
+
+import { idb, pgp } from "@/common/db";
+import { logger } from "@/common/logger";
+import { fromBuffer, toBuffer } from "@/common/utils";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
+import { TriggerKind } from "@/jobs/order-updates/types";
+import { Sources } from "@/models/sources";
+import { OrderKind } from "@/orderbook/orders";
 import { fetchAndUpdateFtApproval } from "@/utils/on-chain-data";
 
 export type OrderUpdatesByMakerJobPayload = {
@@ -65,7 +66,7 @@ export type OrderUpdatesByMakerJobPayload = {
       };
 };
 
-export class OrderUpdatesByMakerJob extends AbstractRabbitMqJobHandler {
+export default class OrderUpdatesByMakerJob extends AbstractRabbitMqJobHandler {
   queueName = "order-updates-by-maker";
   maxRetries = 10;
   concurrency = 30;
@@ -404,6 +405,11 @@ export class OrderUpdatesByMakerJob extends AbstractRabbitMqJobHandler {
             // TODO: Is the below filtering needed anymore?
             // Exclude escrowed orders
             .filter(({ kind }) => kind !== "foundation" && kind !== "cryptopunks")
+            // Exclude orders for which the current price in the database might be stale
+            // (we already have other processes to revalidate such orders)
+            .filter(({ new_status, kind }) =>
+              ["sudoswap", "sudoswap-v2", "nftx"].includes(kind) ? new_status !== "fillable" : true
+            )
             // Some orders should never get revalidated
             .map((data) =>
               data.new_status === "no-balance" &&

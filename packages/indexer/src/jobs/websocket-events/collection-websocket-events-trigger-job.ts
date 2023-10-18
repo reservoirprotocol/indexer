@@ -103,7 +103,7 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
   queueName = "collection-websocket-events-trigger-queue";
   maxRetries = 5;
   concurrency = 10;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 1000,
@@ -150,12 +150,40 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
         }
 
         if (!changed.length) {
-          logger.info(
-            this.queueName,
-            `No changes detected for event. before=${JSON.stringify(
-              data.before
-            )}, after=${JSON.stringify(data.after)}`
-          );
+          try {
+            for (const key in data.after) {
+              const beforeValue = data.before[key as keyof CollectionInfo];
+              const afterValue = data.after[key as keyof CollectionInfo];
+
+              if (beforeValue !== afterValue) {
+                changed.push(key as keyof CollectionInfo);
+              }
+            }
+
+            if (changed.length === 1 && config.chainId === 11155111) {
+              logger.info(
+                this.queueName,
+                JSON.stringify({
+                  topic: "debugCollectionUpdates",
+                  message: `No changes detected for collection. contract=${data.after.contract}, collectionId=${data.after.id}`,
+                  changed,
+                  changedJson: JSON.stringify(changed),
+                  collectionId: data.after.id,
+                })
+              );
+            }
+          } catch (error) {
+            logger.error(
+              this.queueName,
+              JSON.stringify({
+                message: `No changes detected for collection error. contract=${data.after.contract}, collectionId=${data.after.id}`,
+                data,
+                changed,
+                error,
+              })
+            );
+          }
+
           return;
         }
       }

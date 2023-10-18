@@ -7,10 +7,11 @@ import { idb } from "@/common/db";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { getNetAmount } from "@/common/utils";
-import { getJoiPriceObject } from "@/common/joi";
+import { getJoiPriceObject, getJoiSourceObject } from "@/common/joi";
 import _ from "lodash";
 import * as Sdk from "@reservoir0x/sdk";
 import { formatStatus, formatValidBetween } from "@/jobs/websocket-events/utils";
+import { Network } from "@reservoir0x/sdk/dist/utils";
 
 export type AskWebsocketEventsTriggerQueueJobPayload = {
   data: OrderWebsocketEventInfo;
@@ -23,13 +24,14 @@ const changedMapping = {
   quantity_remaining: "quantityRemaining",
   expiration: "expiration",
   price: "price.gross.amount",
+  valid_between: ["validFrom", "validUntil"],
 };
 
 export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "ask-websocket-events-trigger-queue";
   maxRetries = 5;
   concurrency = 10;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 1000,
@@ -45,20 +47,63 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
 
       if (data.trigger === "update" && data.before) {
         for (const key in changedMapping) {
-          if (data.before[key as keyof OrderInfo] !== data.after[key as keyof OrderInfo]) {
-            changed.push(changedMapping[key as keyof typeof changedMapping]);
+          const value = changedMapping[key as keyof typeof changedMapping];
+
+          if (Array.isArray(value)) {
+            const beforeArrayJSON = data.before[key as keyof OrderInfo] as string;
+            const afterArrayJSON = data.after[key as keyof OrderInfo] as string;
+
+            const beforeArray = JSON.parse(beforeArrayJSON.replace("infinity", "null"));
+            const afterArray = JSON.parse(afterArrayJSON.replace("infinity", "null"));
+
+            for (let i = 0; i < value.length; i++) {
+              if (beforeArray[i] !== afterArray[i]) {
+                changed.push(value[i]);
+              }
+            }
+          } else if (data.before[key as keyof OrderInfo] !== data.after[key as keyof OrderInfo]) {
+            changed.push(value);
           }
         }
 
         if (!changed.length) {
-          logger.info(
-            this.queueName,
-            `No changes detected for event. before=${JSON.stringify(
-              data.before
-            )}, after=${JSON.stringify(data.after)}`
-          );
+          if (config.chainId === Network.Ethereum) {
+            try {
+              for (const key in data.after) {
+                const beforeValue = data.before[key as keyof OrderInfo];
+                const afterValue = data.after[key as keyof OrderInfo];
 
-          // return;
+                if (beforeValue !== afterValue) {
+                  changed.push(key as keyof OrderInfo);
+                }
+              }
+
+              logger.info(
+                this.queueName,
+                JSON.stringify({
+                  message: `No changes detected for ask. orderId=${data.after.id}`,
+                  data,
+                  beforeJson: JSON.stringify(data.before),
+                  afterJson: JSON.stringify(data.after),
+                  changed,
+                  changedJson: JSON.stringify(changed),
+                  hasChanged: changed.length > 0,
+                })
+              );
+            } catch (error) {
+              logger.error(
+                this.queueName,
+                JSON.stringify({
+                  message: `No changes detected for ask error. orderId=${data.after.id}`,
+                  data,
+                  changed,
+                  error,
+                })
+              );
+            }
+          }
+
+          return;
         }
       }
 
@@ -89,7 +134,7 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         id: data.after.id,
         kind: data.after.kind,
         side: data.after.side,
-        status: formatStatus(data.after.fillability_status),
+        status: formatStatus(data.after.fillability_status, data.after.approval_status),
         tokenSetId: data.after.token_set_id,
         tokenSetSchemaHash: data.after.token_set_schema_hash,
         nonce: data.after.nonce,
@@ -124,16 +169,10 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         quantityFilled: Number(data.after.quantity_filled),
         quantityRemaining: Number(data.after.quantity_remaining),
         criteria: rawResult.criteria,
-        source: {
-          id: source?.address,
-          domain: source?.domain,
-          name: source?.getTitle(),
-          icon: source?.getIcon(),
-          url: source?.metadata.url,
-        },
+        source: getJoiSourceObject(source),
         feeBps: Number(data.after.fee_bps.toString()),
         feeBreakdown: data.after.fee_breakdown ? JSON.parse(data.after.fee_breakdown) : undefined,
-        expiration: data.after.expiration,
+        expiration: Math.floor(new Date(data.after.expiration).getTime() / 1000),
         isReservoir: data.after.is_reservoir,
         isDynamic: Boolean(data.after.dynamic || data.after.kind === "sudoswap"),
         createdAt: new Date(data.after.created_at).toISOString(),

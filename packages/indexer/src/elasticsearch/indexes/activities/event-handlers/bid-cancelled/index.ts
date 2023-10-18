@@ -1,9 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { ActivityType } from "@/elasticsearch/indexes/activities/base";
+import { ActivityDocument, ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { getActivityHash } from "@/elasticsearch/indexes/activities/utils";
 import { BidCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-created";
 import { Orders } from "@/utils/orders";
+import { OrderEventInfo } from "@/elasticsearch/indexes/activities/event-handlers/base";
+import { idb } from "@/common/db";
+import _ from "lodash";
+import { logger } from "@/common/logger";
 
 export class BidCancelledEventHandler extends BidCreatedEventHandler {
   getActivityType(): ActivityType {
@@ -80,5 +84,52 @@ export class BidCancelledEventHandler extends BidCreatedEventHandler {
     }
 
     data.timestamp = data.event_timestamp ?? Math.floor(data.updated_ts);
+  }
+
+  static async generateActivities(events: OrderEventInfo[]): Promise<ActivityDocument[]> {
+    const activities: ActivityDocument[] = [];
+
+    const eventsFilter = [];
+
+    for (const event of events) {
+      eventsFilter.push(`('${event.orderId}')`);
+    }
+
+    const results = await idb.manyOrNone(
+      `
+                ${BidCancelledEventHandler.buildBaseQuery()}
+                WHERE (id) IN ($/eventsFilter:raw/);  
+                `,
+      { eventsFilter: _.join(eventsFilter, ",") }
+    );
+
+    for (const result of results) {
+      try {
+        const event = events.find((event) => event.orderId === result.order_id);
+
+        const eventHandler = new BidCancelledEventHandler(
+          result.order_id,
+          event?.txHash,
+          event?.logIndex,
+          event?.batchIndex
+        );
+
+        const activity = eventHandler.buildDocument(result);
+
+        activities.push(activity);
+      } catch (error) {
+        logger.error(
+          "bid-created-event-handler",
+          JSON.stringify({
+            topic: "generate-activities",
+            message: `Error build document. error=${error}`,
+            result,
+            error,
+          })
+        );
+      }
+    }
+
+    return activities;
   }
 }

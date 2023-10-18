@@ -24,6 +24,8 @@ import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
 import { blurBidsRefreshJob } from "@/jobs/order-updates/misc/blur-bids-refresh-job";
 import { blurListingsRefreshJob } from "@/jobs/order-updates/misc/blur-listings-refresh-job";
 import { openseaOrdersProcessJob } from "@/jobs/opensea-orders/opensea-orders-process-job";
+import { PendingFlagStatusSyncCollectionSlugs } from "@/models/pending-flag-status-sync-collection-slugs";
+import { PendingFlagStatusSyncContracts } from "@/models/pending-flag-status-sync-contracts";
 
 const version = "v2";
 
@@ -113,16 +115,12 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionMetadataQueueJob.addToQueue(
-          {
-            contract: collection.contract,
-            tokenId,
-            community: collection.community,
-            forceRefresh: true,
-          },
-          0,
-          "post-refresh-collection-v2"
-        );
+        await collectionMetadataQueueJob.addToQueue({
+          contract: collection.contract,
+          tokenId,
+          community: collection.community,
+          forceRefresh: true,
+        });
 
         if (collection.slug) {
           // Refresh opensea collection offers
@@ -139,7 +137,7 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         }
 
         // Refresh listings
-        await OpenseaIndexerApi.fastContractSync(collection.contract);
+        await OpenseaIndexerApi.fastContractSync(collection.id);
       } else {
         isLargeCollection = collection.tokenCount > 30000;
 
@@ -186,16 +184,12 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionMetadataQueueJob.addToQueue(
-          {
-            contract: collection.contract,
-            tokenId,
-            community: collection.community,
-            forceRefresh: payload.overrideCoolDown,
-          },
-          0,
-          "post-refresh-collection-v2"
-        );
+        await collectionMetadataQueueJob.addToQueue({
+          contract: collection.contract,
+          tokenId,
+          community: collection.community,
+          forceRefresh: payload.overrideCoolDown,
+        });
 
         if (collection.slug) {
           // Refresh opensea collection offers
@@ -212,7 +206,7 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         }
 
         // Refresh listings
-        await OpenseaIndexerApi.fastContractSync(collection.contract);
+        await OpenseaIndexerApi.fastContractSync(collection.id);
 
         // Refresh the contract floor sell and top bid
         await collectionRefreshCacheJob.addToQueue({ collection: collection.id });
@@ -248,6 +242,25 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
 
           // Refresh the collection tokens metadata
           await metadataIndexFetchJob.addToQueue([metadataIndexInfo], true);
+
+          if (collection.slug) {
+            await PendingFlagStatusSyncCollectionSlugs.add([
+              {
+                slug: collection.slug,
+                contract: collection.contract,
+                collectionId: collection.id,
+                continuation: null,
+              },
+            ]);
+          } else {
+            await PendingFlagStatusSyncContracts.add([
+              {
+                contract: collection.contract,
+                collectionId: collection.id,
+                continuation: null,
+              },
+            ]);
+          }
         }
       }
 

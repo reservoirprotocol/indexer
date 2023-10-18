@@ -10,7 +10,6 @@ import {
   EventCursorInfo,
 } from "@/jobs/activities/backfill/backfill-activities-elasticsearch-job";
 import { AskCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-created";
-import { RabbitMQMessage } from "@/common/rabbit-mq";
 import { elasticsearch } from "@/common/elasticsearch";
 import { AskCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-cancelled";
 import { BidCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-created";
@@ -19,6 +18,10 @@ import { FillEventCreatedEventHandler } from "@/elasticsearch/indexes/activities
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { NftTransferEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/nft-transfer-event-created";
 import { redis } from "@/common/redis";
+import crypto from "crypto";
+import { ActivityDocument } from "@/elasticsearch/indexes/activities/base";
+import { RabbitMQMessage } from "@/common/rabbit-mq";
+// import cron from "node-cron";
 
 export type BackfillSaveActivitiesElasticsearchJobPayload = {
   type: "ask" | "ask-cancel" | "bid" | "bid-cancel" | "sale" | "transfer";
@@ -27,14 +30,17 @@ export type BackfillSaveActivitiesElasticsearchJobPayload = {
   toTimestamp?: number;
   indexName?: string;
   keepGoing?: boolean;
+  upsert?: boolean;
 };
 
 export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-save-activities-elasticsearch-queue";
   maxRetries = 10;
-  concurrency = 2;
+  concurrency = 1;
   persistent = true;
   lazyMode = true;
+  timeout = 5 * 60 * 1000;
+
   backoff = {
     type: "fixed",
     delay: 5000,
@@ -47,14 +53,22 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
     const toTimestamp = payload.toTimestamp || 9999999999;
     const indexName = payload.indexName ?? ActivitiesIndex.getIndexName();
     const keepGoing = payload.keepGoing;
+    const upsert = payload.upsert || false;
 
     const fromTimestampISO = new Date(fromTimestamp * 1000).toISOString();
     const toTimestampISO = new Date(toTimestamp * 1000).toISOString();
 
-    const limit = Number(await redis.get(`${this.queueName}-limit`)) || 1000;
-
     let addToQueue = false;
     let addToQueueCursor: OrderCursorInfo | EventCursorInfo | undefined;
+
+    const limit = Number(await redis.get(`${this.queueName}-limit`)) || 1000;
+
+    const jobId = crypto
+      .createHash("sha256")
+      .update(
+        `${type}:${JSON.stringify(cursor)}${fromTimestamp}:${toTimestamp}:${indexName}:${keepGoing}`
+      )
+      .digest("hex");
 
     try {
       const { activities, nextCursor } = await getActivities(
@@ -66,26 +80,25 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
       );
 
       if (activities.length) {
-        addToQueue = true;
-        addToQueueCursor = nextCursor;
+        if (activities.length === limit || keepGoing) {
+          addToQueue = true;
+          addToQueueCursor = nextCursor;
+        }
 
         const bulkResponse = await elasticsearch.bulk({
           body: activities.flatMap((activity) => [
-            { index: { _index: indexName, _id: activity.id } },
+            { [upsert ? "index" : "create"]: { _index: indexName, _id: activity.id } },
             activity,
           ]),
         });
 
-        await redis.hincrby(
-          `backfill-activities-elasticsearch-job-backfilled:${type}`,
-          `${fromTimestamp}:${toTimestamp}`,
-          activities.length
-        );
+        let errorActivities: ActivityDocument[] = [];
 
-        await redis.incrby(
-          `backfill-activities-elasticsearch-job-backfilled-total:${type}`,
-          activities.length
-        );
+        if (bulkResponse.errors) {
+          const errorItems = bulkResponse.items.filter((item) => item.index?.error);
+          const errorItemsIds = errorItems.map((item) => item.index?._id);
+          errorActivities = activities.filter((activity) => errorItemsIds.includes(activity.id));
+        }
 
         logger.info(
           this.queueName,
@@ -100,10 +113,13 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
             cursor,
             indexName,
             keepGoing,
+            jobId,
             nextCursor,
             hasNextCursor: !!nextCursor,
             hasErrors: bulkResponse.errors,
-            errors: bulkResponse.items.filter((item) => item.index?.error),
+            errorItems: bulkResponse.items.filter((item) => item.index?.error),
+            errorActivities,
+            payloadJSON: JSON.stringify(payload),
           })
         );
       } else if (keepGoing) {
@@ -120,33 +136,12 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
             cursor,
             indexName,
             keepGoing,
+            jobId,
           })
         );
 
         addToQueue = true;
         addToQueueCursor = cursor;
-      } else {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "backfill-activities",
-            message: `End. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}, limit=${limit}`,
-            type,
-            fromTimestamp,
-            fromTimestampISO,
-            toTimestamp,
-            toTimestampISO,
-            cursor,
-            indexName,
-            keepGoing,
-          })
-        );
-
-        await redis.hdel(
-          `backfill-activities-elasticsearch-job:${type}`,
-          `${fromTimestamp}:${toTimestamp}`
-        );
-        await redis.decr(`backfill-activities-elasticsearch-job-count:${type}`);
       }
     } catch (error) {
       logger.error(
@@ -162,53 +157,53 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
           cursor,
           indexName,
           keepGoing,
+          jobId,
+          payloadJSON: JSON.stringify(payload),
         })
       );
 
       throw error;
     }
 
-    return { addToQueue, nextCursor: addToQueueCursor };
+    if (!addToQueue) {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "backfill-activities",
+          message: `End. type=${type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${keepGoing}, limit=${limit}`,
+          type,
+          fromTimestamp,
+          fromTimestampISO,
+          toTimestamp,
+          toTimestampISO,
+          cursor,
+          indexName,
+          keepGoing,
+          jobId,
+        })
+      );
+    }
+
+    return { addToQueue, addToQueueCursor };
   }
 
-  public events() {
-    this.once(
-      "onCompleted",
-      async (
-        message: RabbitMQMessage,
-        processResult: { addToQueue: boolean; nextCursor?: OrderCursorInfo | EventCursorInfo }
-      ) => {
-        if (processResult.addToQueue) {
-          await this.addToQueue(
-            message.payload.type,
-            processResult.nextCursor,
-            message.payload.fromTimestamp,
-            message.payload.toTimestamp,
-            message.payload.indexName,
-            message.payload.keepGoing
-          );
-        } else {
-          const fromTimestampISO = new Date(message.payload.fromTimestamp * 1000).toISOString();
-          const toTimestampISO = new Date(message.payload.toTimestamp * 1000).toISOString();
-
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              topic: "backfill-activities",
-              message: `onCompleted - Skip addToQueue. type=${message.payload.type}, fromTimestamp=${fromTimestampISO}, toTimestamp=${toTimestampISO}, keepGoing=${message.payload.keepGoing}`,
-              type: message.payload.type,
-              fromTimestamp: message.payload.fromTimestamp,
-              fromTimestampISO,
-              toTimestamp: message.payload.toTimestamp,
-              toTimestampISO,
-              cursor: message.payload.cursor,
-              indexName: message.payload.indexName,
-              keepGoing: message.payload.keepGoing,
-            })
-          );
-        }
-      }
-    );
+  public async onCompleted(
+    rabbitMqMessage: RabbitMQMessage,
+    processResult: {
+      addToQueue: boolean;
+      addToQueueCursor: OrderCursorInfo | EventCursorInfo | undefined;
+    }
+  ) {
+    if (processResult.addToQueue) {
+      await this.addToQueue(
+        rabbitMqMessage.payload.type,
+        processResult.addToQueueCursor,
+        rabbitMqMessage.payload.fromTimestamp,
+        rabbitMqMessage.payload.toTimestamp,
+        rabbitMqMessage.payload.indexName,
+        rabbitMqMessage.payload.keepGoing
+      );
+    }
   }
 
   public async addToQueue(
@@ -223,14 +218,19 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
       return;
     }
 
+    const jobId = crypto
+      .createHash("sha256")
+      .update(
+        `${type}:${JSON.stringify(cursor)}${fromTimestamp}:${toTimestamp}:${indexName}:${keepGoing}`
+      )
+      .digest("hex");
+
     return this.send(
       {
         payload: { type, cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
-        jobId: `${type}:${JSON.stringify(
-          cursor
-        )}${fromTimestamp}:${toTimestamp}:${indexName}:${keepGoing}`,
+        jobId,
       },
-      keepGoing ? 5000 : 1000
+      1000
     );
   }
 }
@@ -625,3 +625,68 @@ const getTransferActivities = async (
 
   return { activities, nextCursor };
 };
+
+// if (config.doBackgroundWork && config.doElasticsearchWork) {
+//   cron.schedule(
+//     "*/5 * * * *",
+//     async () =>
+//       await redlock
+//         .acquire(["backfill-activities-lock"], (5 * 60 - 5) * 1000)
+//         .then(async () => {
+//           const lastRunsJson = await redis.hgetall(
+//             `${backfillSaveActivitiesElasticsearchJob.queueName}-last-run`
+//           );
+//
+//           for (const lastRunType in lastRunsJson) {
+//             const lastRunTimestamp = new Date(lastRunsJson[lastRunType]);
+//             const lastRunDelay = new Date().getTime() - lastRunTimestamp.getTime() > 5 * 60 * 1000;
+//
+//             logger.info(
+//               backfillSaveActivitiesElasticsearchJob.queueName,
+//               JSON.stringify({
+//                 topic: "backfill-activities",
+//                 message: `Delay check! type=${lastRunType}, delay=${lastRunDelay}`,
+//               })
+//             );
+//
+//             if (lastRunDelay) {
+//               const payloadJson = await redis.hget(
+//                 `${backfillSaveActivitiesElasticsearchJob.queueName}-last-payload`,
+//                 lastRunType
+//               );
+//
+//               if (payloadJson) {
+//                 const payload = JSON.parse(payloadJson);
+//
+//                 await backfillSaveActivitiesElasticsearchJob.addToQueue(
+//                   lastRunType as "ask" | "ask-cancel" | "bid" | "bid-cancel" | "sale" | "transfer",
+//                   payload.cursor ?? undefined,
+//                   payload.fromTimestamp,
+//                   payload.toTimestamp,
+//                   payload.indexName
+//                 );
+//
+//                 logger.info(
+//                   backfillSaveActivitiesElasticsearchJob.queueName,
+//                   JSON.stringify({
+//                     topic: "backfill-activities",
+//                     message: `Backfill delayed, retriggering! type=${lastRunType}`,
+//                     payload,
+//                   })
+//                 );
+//               }
+//             }
+//           }
+//         })
+//         .catch((error) => {
+//           logger.error(
+//             backfillSaveActivitiesElasticsearchJob.queueName,
+//             JSON.stringify({
+//               topic: "backfill-activities",
+//               message: `cron error. error=${error}`,
+//               error,
+//             })
+//           );
+//         })
+//   );
+// }

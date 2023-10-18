@@ -18,12 +18,19 @@ contract MintProxy is ReentrancyGuard {
     bytes data;
     uint256 value;
     Fee[] fees;
+    address token;
+    uint256 quantity;
+    string comment;
   }
 
   struct MintParams {
     address refundTo;
     bool revertIfIncomplete;
   }
+
+  // --- Events ---
+
+  event MintComment(address indexed token, uint256 quantity, string comment);
 
   // --- Errors ---
 
@@ -70,6 +77,10 @@ contract MintProxy is ReentrancyGuard {
           unchecked {
             ++j;
           }
+        }
+
+        if (bytes(mintDetail.comment).length > 0) {
+          emit MintComment(mintDetail.token, mintDetail.quantity, mintDetail.comment);
         }
       }
 

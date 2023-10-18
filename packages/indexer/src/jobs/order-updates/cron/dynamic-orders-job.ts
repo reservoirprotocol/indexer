@@ -1,23 +1,24 @@
-import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import * as Sdk from "@reservoir0x/sdk";
+import _ from "lodash";
+import cron from "node-cron";
+
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
+import { redlock } from "@/common/redis";
+import { fromBuffer, now } from "@/common/utils";
+import { config } from "@/config/index";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import {
   orderUpdatesByIdJob,
   OrderUpdatesByIdJobPayload,
 } from "@/jobs/order-updates/order-updates-by-id-job";
-import _ from "lodash";
-import * as Sdk from "@reservoir0x/sdk";
-import { config } from "@/config/index";
 import { getUSDAndNativePrices } from "@/utils/prices";
-import { fromBuffer, now } from "@/common/utils";
-import cron from "node-cron";
-import { redlock } from "@/common/redis";
 
 export type OrderUpdatesDynamicOrderJobPayload = {
   continuation?: string;
 };
 
-export class OrderUpdatesDynamicOrderJob extends AbstractRabbitMqJobHandler {
+export default class OrderUpdatesDynamicOrderJob extends AbstractRabbitMqJobHandler {
   queueName = "dynamic-orders";
   maxRetries = 1;
   concurrency = 1;

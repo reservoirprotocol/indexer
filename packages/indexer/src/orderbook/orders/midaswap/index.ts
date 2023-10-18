@@ -144,6 +144,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
         const price = prices[0].price;
         const value = price;
+        if (!price || !value) {
+          return;
+        }
 
         // Handle: core sdk order
         const sdkOrder: Sdk.Midaswap.Order = new Sdk.Midaswap.Order(config.chainId, {
@@ -216,15 +219,19 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       };
 
       const repriceOrder = async (id: string, order: Sdk.Midaswap.Order) => {
+        const price = order.params.extra.prices[0];
+        const fillabilityStatus = price ? "fillable" : "cancelled";
+        const approvalStatus = price ? "approved" : "disabled";
+
         await idb.none(
           `
             UPDATE orders SET
-              fillability_status = 'fillable',
-              approval_status = 'approved',
+              fillability_status = $/fillabilityStatus/,
+              approval_status = $/approvalStatus/,
               price = $/price/,
               currency_price = $/price/,
-              value = $/value/,
-              currency_value = $/value/,
+              value = $/price/,
+              currency_value = $/price/,
               valid_between = tstzrange(date_trunc('seconds', to_timestamp(${orderParams.txTimestamp})), 'Infinity', '[]'),
               updated_at = now(),
               raw_data = $/rawData:json/,
@@ -233,8 +240,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           `,
           {
             id,
-            price: order.params.extra.prices[0],
-            value: order.params.extra.prices[0],
+            fillabilityStatus,
+            approvalStatus,
+            price,
             rawData: order.params,
             quantityRemaining: order.params.extra.prices.length.toString(),
             blockNumber: orderParams.txBlock,

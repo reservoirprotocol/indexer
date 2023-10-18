@@ -91,6 +91,10 @@ export const getLockExpiration = async (name: string) => {
   return await redis.ttl(name);
 };
 
+export const doesLockExist = async (name: string) => {
+  return Boolean(await redis.exists(name));
+};
+
 export const getMemUsage = async () => {
   const memoryInfo = await redis.info("memory");
   const usedMemory = memoryInfo.match(/used_memory:\d+/);

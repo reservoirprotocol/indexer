@@ -234,6 +234,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               currency_normalized_value: normalizedValue.toString(),
               block_number: orderParams.txBlock ?? null,
               log_index: orderParams.logIndex ?? null,
+              originated_at: `to_timestamp(${orderParams.txTimestamp})`,
             });
 
             results.push({
@@ -464,6 +465,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     currency_normalized_value: normalizedValue.toString(),
                     block_number: orderParams.txBlock ?? null,
                     log_index: orderParams.logIndex ?? null,
+                    originated_at: `to_timestamp(${orderParams.txTimestamp})`,
                   });
 
                   results.push({
@@ -579,6 +581,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         "currency_normalized_value",
         "block_number",
         "log_index",
+        { name: "originated_at", mod: ":raw" },
       ],
       {
         table: "orders",

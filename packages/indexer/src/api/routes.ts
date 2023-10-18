@@ -185,15 +185,15 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
-    method: "POST",
-    path: "/admin/update-api-key",
-    options: adminEndpoints.postUpdateApiKeyOptions,
+    method: "GET",
+    path: "/admin/provider-metadata/{type}",
+    options: adminEndpoints.getProviderMetadata,
   });
 
   server.route({
     method: "POST",
-    path: "/admin/refresh-collection-flags",
-    options: adminEndpoints.postRefreshCollectionFlagsOptions,
+    path: "/admin/update-api-key",
+    options: adminEndpoints.postUpdateApiKeyOptions,
   });
 
   server.route({
@@ -206,6 +206,12 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/admin/trigger-job",
     options: adminEndpoints.postTriggerJobOptions,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/admin/trigger-rabbit-job",
+    options: adminEndpoints.postTriggerRabbitJobOptions,
   });
 
   server.route({
@@ -314,12 +320,6 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/admin/get-marketplaces",
     options: adminEndpoints.getMarketplaces,
-  });
-
-  server.route({
-    method: "POST",
-    path: "/admin/flag-address",
-    options: adminEndpoints.postFlagAddressOptions,
   });
 
   server.route({
@@ -468,6 +468,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/collections/v7",
+    options: collectionsEndpoints.getCollectionsV7Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/collections/{collectionOrSlug}/v1",
     options: collectionsEndpoints.getCollectionDeprecatedV1Options,
   });
@@ -498,9 +504,20 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
-
     path: "/collections/top-selling/v1",
-    options: collectionsEndpoints.getTopSellingCollectionsOptions,
+    options: collectionsEndpoints.getTopSellingCollectionsV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/collections/top-selling/v2",
+    options: collectionsEndpoints.getTopSellingCollectionsV2Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/collections/trending/v1",
+    options: collectionsEndpoints.getTrendingCollectionsV1Options,
   });
 
   server.route({
@@ -751,6 +768,12 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/execute/results/v1",
     options: executeEndpoints.postExecuteResultsV1,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/execute/transfer/v1",
+    options: executeEndpoints.postExecuteTransferV1Options,
   });
 
   server.route({

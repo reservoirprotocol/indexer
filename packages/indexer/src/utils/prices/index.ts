@@ -80,19 +80,10 @@ const getUpstreamUSDPrice = async (
           value,
         };
       }
-    } else if (
-      getNetworkSettings().whitelistedCurrencies.has(currencyAddress) ||
-      isTestnetCurrency(currencyAddress)
-    ) {
+    } else if (isWhitelistedCurrency(currencyAddress) || isTestnetCurrency(currencyAddress)) {
       // Whitelisted currencies don't have a price, so we just hardcode the minimum possible value
       let value = "1";
-      if (
-        [
-          Sdk.Common.Addresses.Usdc[config.chainId],
-          // Only needed for Goerli
-          "0x2f3a40a3db8a7e3d09b0adfefbce4f6f81927557",
-        ].includes(currencyAddress)
-      ) {
+      if (Sdk.Common.Addresses.Usdc[config.chainId]?.includes(currencyAddress)) {
         // 1:1 to USD
         value = "1000000";
       } else if (
@@ -223,11 +214,14 @@ const isTestnetCurrency = (currencyAddress: string) => {
     return [
       Sdk.Common.Addresses.Native[config.chainId],
       Sdk.Common.Addresses.WNative[config.chainId],
-      Sdk.Common.Addresses.Usdc[config.chainId],
+      ...(Sdk.Common.Addresses.Usdc[config.chainId] ?? []),
       ...Object.keys(getNetworkSettings().supportedBidCurrencies),
     ].includes(currencyAddress);
   }
 };
+
+const isWhitelistedCurrency = (currencyAddress: string) =>
+  getNetworkSettings().whitelistedCurrencies.has(currencyAddress.toLowerCase());
 
 const areEquivalentCurrencies = (currencyAddress1: string, currencyAddress2: string) => {
   const equivalentCurrencySets = [
@@ -267,7 +261,11 @@ export const getUSDAndNativePrices = async (
   let usdPrice: string | undefined;
   let nativePrice: string | undefined;
 
-  if (getNetworkSettings().coingecko?.networkId || isTestnetCurrency(currencyAddress)) {
+  if (
+    getNetworkSettings().coingecko?.networkId ||
+    isTestnetCurrency(currencyAddress) ||
+    isWhitelistedCurrency(currencyAddress)
+  ) {
     const currencyUSDPrice = await getAvailableUSDPrice(
       currencyAddress,
       timestamp,
@@ -327,7 +325,8 @@ export const getUSDAndCurrencyPrices = async (
   // Only try to get pricing data if the network supports it
   if (
     getNetworkSettings().coingecko?.networkId ||
-    (isTestnetCurrency(fromCurrencyAddress) && isTestnetCurrency(toCurrencyAddress))
+    (isTestnetCurrency(fromCurrencyAddress) && isTestnetCurrency(toCurrencyAddress)) ||
+    (isWhitelistedCurrency(fromCurrencyAddress) && isWhitelistedCurrency(toCurrencyAddress))
   ) {
     // Get the FROM currency price
     const fromCurrencyUSDPrice = await getAvailableUSDPrice(

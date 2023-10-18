@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { logger } from "@/common/logger";
 import { KafkaEventHandler } from "./KafkaEventHandler";
 import {
   WebsocketEventKind,
@@ -22,6 +23,19 @@ export class IndexerFillEventsHandler extends KafkaEventHandler {
       },
       eventKind: WebsocketEventKind.SaleEvent,
     });
+
+    logger.info(
+      "sales-latency",
+      JSON.stringify({
+        latency: new Date(payload.after.created_at).getTime() / 1000 - payload.after.timestamp,
+        tx_hash: payload.after.tx_hash,
+        log_index: payload.after.log_index,
+        batch_index: payload.after.batch_index,
+        block: payload.after.block,
+        block_hash: payload.after.block_hash,
+        order_kind: payload.after.order_kind,
+      })
+    );
   }
 
   protected async handleUpdate(payload: any, offset: string): Promise<void> {

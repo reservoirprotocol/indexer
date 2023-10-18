@@ -5,6 +5,11 @@ import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
+import { Collections } from "@/models/collections";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { acquireLock } from "@/common/redis";
+import { Tokens } from "@/models/tokens";
+import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 import {
   EventKind,
   processTokenListingEventJob,
@@ -51,6 +56,10 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
       },
       eventKind,
     });
+
+    if (payload.after.side === "sell") {
+      await this.handleSellOrder(payload);
+    }
   }
 
   protected async handleUpdate(payload: any, offset: string): Promise<void> {
@@ -88,5 +97,78 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
 
   protected async handleDelete(): Promise<void> {
     // probably do nothing here
+  }
+
+  async handleSellOrder(payload: any): Promise<void> {
+    try {
+      if (
+        payload.after.fillability_status === "fillable" &&
+        payload.after.approval_status === "approved"
+      ) {
+        const [, contract, tokenId] = payload.after.token_set_id.split(":");
+
+        const acquiredLock = await acquireLock(
+          `fetch-ask-token-metadata-lock:${contract}:${tokenId}`,
+          86400
+        );
+
+        if (acquiredLock) {
+          const token = await Tokens.getByContractAndTokenId(contract, tokenId);
+
+          if (!token?.image && !token?.name) {
+            logger.info(
+              "kafka-event-handler",
+              JSON.stringify({
+                topic: "handleSellOrder",
+                message: `Refreshing token metadata. contract=${contract}, tokenId=${tokenId}`,
+                payload,
+                contract,
+                tokenId,
+              })
+            );
+
+            const collection = await Collections.getByContractAndTokenId(contract, tokenId);
+
+            await metadataIndexFetchJob.addToQueue(
+              [
+                {
+                  kind: "single-token",
+                  data: {
+                    method: collection?.community
+                      ? metadataIndexFetchJob.getIndexingMethod(collection?.community)
+                      : "simplehash",
+                    contract,
+                    tokenId,
+                    collection: collection?.id || contract,
+                  },
+                  context: "kafka-event-handler",
+                },
+              ],
+              true
+            );
+
+            await PendingFlagStatusSyncTokens.add(
+              [
+                {
+                  contract,
+                  tokenId,
+                },
+              ],
+              true
+            );
+          }
+        }
+      }
+    } catch (error) {
+      logger.error(
+        "kafka-event-handler",
+        JSON.stringify({
+          topic: "handleSellOrder",
+          message: "Handle sell order error. error=${error}",
+          payload,
+          error,
+        })
+      );
+    }
   }
 }

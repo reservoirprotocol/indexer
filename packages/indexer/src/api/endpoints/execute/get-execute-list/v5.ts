@@ -26,9 +26,8 @@ import * as blurSellToken from "@/orderbook/orders/blur/build/sell/token";
 import * as looksRareV2SellToken from "@/orderbook/orders/looks-rare-v2/build/sell/token";
 import * as looksRareV2Check from "@/orderbook/orders/looks-rare-v2/check";
 
-import * as seaportBaseCheck from "@/orderbook/orders/seaport-base/check";
-
 // Seaport v1.5
+import * as seaportBaseCheck from "@/orderbook/orders/seaport-base/check";
 import * as seaportV15SellToken from "@/orderbook/orders/seaport-v1.5/build/sell/token";
 
 // Alienswap
@@ -76,102 +75,117 @@ export const getExecuteListV5Options: RouteOptions = {
       blurAuth: Joi.string().description(
         "Advanced use case to pass personal blurAuthToken; the API will generate one if left empty."
       ),
-      params: Joi.array().items(
-        Joi.object({
-          token: Joi.string()
-            .lowercase()
-            .pattern(regex.token)
-            .required()
-            .description(
-              "Filter to a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
+      params: Joi.array()
+        .items(
+          Joi.object({
+            token: Joi.string()
+              .lowercase()
+              .pattern(regex.token)
+              .required()
+              .description(
+                "Filter to a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
+              ),
+            quantity: Joi.number().description(
+              "Quantity of tokens user is listing. Only compatible with ERC1155 tokens. Example: `5`"
             ),
-          quantity: Joi.number().description(
-            "Quantity of tokens user is listing. Only compatible with ERC1155 tokens. Example: `5`"
-          ),
-          weiPrice: Joi.string()
-            .pattern(regex.number)
-            .required()
-            .description(
-              "Amount seller is willing to sell for in the smallest denomination for the specific currency. Example: `1000000000000000000`"
-            ),
-          orderKind: Joi.string()
-            .valid(
-              "blur",
-              "looks-rare",
-              "looks-rare-v2",
-              "zeroex-v4",
-              "seaport",
-              "seaport-v1.4",
-              "seaport-v1.5",
-              "x2y2",
-              "alienswap",
-              "payment-processor"
-            )
-            .default("seaport-v1.5")
-            .description("Exchange protocol used to create order. Example: `seaport-v1.5`"),
-          options: Joi.object({
-            "seaport-v1.4": Joi.object({
-              conduitKey: Joi.string().pattern(regex.bytes32),
-              useOffChainCancellation: Joi.boolean().required(),
-              replaceOrderId: Joi.string().when("useOffChainCancellation", {
-                is: true,
-                then: Joi.optional(),
-                otherwise: Joi.forbidden(),
+            weiPrice: Joi.string()
+              .pattern(regex.number)
+              .required()
+              .description(
+                "Amount seller is willing to sell for in the smallest denomination for the specific currency. Example: `1000000000000000000`"
+              ),
+            endWeiPrice: Joi.string()
+              .pattern(regex.number)
+              .optional()
+              .description(
+                "Amount seller is willing to sell for Dutch auction in the largest denomination for the specific currency. Example: `2000000000000000000`"
+              ),
+            orderKind: Joi.string()
+              .valid(
+                "blur",
+                "looks-rare",
+                "looks-rare-v2",
+                "zeroex-v4",
+                "seaport",
+                "seaport-v1.4",
+                "seaport-v1.5",
+                "x2y2",
+                "alienswap",
+                "payment-processor"
+              )
+              .default("seaport-v1.5")
+              .description("Exchange protocol used to create order. Example: `seaport-v1.5`"),
+            options: Joi.object({
+              "seaport-v1.4": Joi.object({
+                conduitKey: Joi.string().pattern(regex.bytes32),
+                useOffChainCancellation: Joi.boolean().required(),
+                replaceOrderId: Joi.string().when("useOffChainCancellation", {
+                  is: true,
+                  then: Joi.optional(),
+                  otherwise: Joi.forbidden(),
+                }),
               }),
-            }),
-            "seaport-v1.5": Joi.object({
-              conduitKey: Joi.string().pattern(regex.bytes32),
-              useOffChainCancellation: Joi.boolean().required(),
-              replaceOrderId: Joi.string().when("useOffChainCancellation", {
-                is: true,
-                then: Joi.optional(),
-                otherwise: Joi.forbidden(),
+              "seaport-v1.5": Joi.object({
+                conduitKey: Joi.string().pattern(regex.bytes32),
+                useOffChainCancellation: Joi.boolean().required(),
+                replaceOrderId: Joi.string().when("useOffChainCancellation", {
+                  is: true,
+                  then: Joi.optional(),
+                  otherwise: Joi.forbidden(),
+                }),
               }),
-            }),
-            alienswap: Joi.object({
-              useOffChainCancellation: Joi.boolean().required(),
-              replaceOrderId: Joi.string().when("useOffChainCancellation", {
-                is: true,
-                then: Joi.optional(),
-                otherwise: Joi.forbidden(),
+              alienswap: Joi.object({
+                useOffChainCancellation: Joi.boolean().required(),
+                replaceOrderId: Joi.string().when("useOffChainCancellation", {
+                  is: true,
+                  then: Joi.optional(),
+                  otherwise: Joi.forbidden(),
+                }),
               }),
-            }),
-          }).description("Additional options."),
-          orderbook: Joi.string()
-            .valid("blur", "opensea", "looks-rare", "reservoir", "x2y2")
-            .default("reservoir")
-            .description("Orderbook where order is placed. Example: `Reservoir`"),
-          orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
-          automatedRoyalties: Joi.boolean()
-            .default(true)
-            .description("If true, royalty amounts and recipients will be set automatically."),
-          royaltyBps: Joi.number().description(
-            "Set a maximum amount of royalties to pay, rather than the full amount. Only relevant when using automated royalties. 1 BPS = 0.01% Note: OpenSea does not support values below 50 bps."
-          ),
-          fees: Joi.array()
-            .items(Joi.string().pattern(regex.fee))
-            .description(
-              "List of fees (formatted as `feeRecipient:feeBps`) to be bundled within the order. 1 BPS = 0.01% Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:100`"
+            }).description("Additional options."),
+            orderbook: Joi.string()
+              .valid("blur", "opensea", "looks-rare", "reservoir", "x2y2")
+              .default("reservoir")
+              .description("Orderbook where order is placed. Example: `Reservoir`"),
+            orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
+            automatedRoyalties: Joi.boolean()
+              .default(true)
+              .description("If true, royalty amounts and recipients will be set automatically."),
+            royaltyBps: Joi.number().description(
+              "Set a maximum amount of royalties to pay, rather than the full amount. Only relevant when using automated royalties. 1 BPS = 0.01% Note: OpenSea does not support values below 50 bps."
             ),
-          listingTime: Joi.string()
-            .pattern(regex.unixTimestamp)
-            .description(
-              "Unix timestamp (seconds) indicating when listing will be listed. Example: `1656080318`"
-            ),
-          expirationTime: Joi.string()
-            .pattern(regex.unixTimestamp)
-            .description(
-              "Unix timestamp (seconds) indicating when listing will expire. Example: `1656080318`"
-            ),
-          salt: Joi.string()
-            .pattern(regex.number)
-            .description("Optional. Random string to make the order unique"),
-          nonce: Joi.string().pattern(regex.number).description("Optional. Set a custom nonce"),
-          currency: Joi.string()
-            .pattern(regex.address)
-            .default(Sdk.Common.Addresses.Native[config.chainId]),
-        })
-      ),
+            fees: Joi.array()
+              .items(Joi.string().pattern(regex.fee))
+              .description(
+                "List of fees (formatted as `feeRecipient:feeBps`) to be bundled within the order. 1 BPS = 0.01% Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:100`"
+              ),
+            listingTime: Joi.string()
+              .pattern(regex.unixTimestamp)
+              .description(
+                "Unix timestamp (seconds) indicating when listing will be listed. Example: `1656080318`"
+              ),
+            expirationTime: Joi.string()
+              .pattern(regex.unixTimestamp)
+              .description(
+                "Unix timestamp (seconds) indicating when listing will expire. Example: `1656080318`"
+              ),
+            salt: Joi.string()
+              .pattern(regex.number)
+              .description("Optional. Random string to make the order unique"),
+            nonce: Joi.string().pattern(regex.number).description("Optional. Set a custom nonce"),
+            currency: Joi.string()
+              .pattern(regex.address)
+              .default(Sdk.Common.Addresses.Native[config.chainId]),
+            taker: Joi.string()
+              .lowercase()
+              .pattern(regex.address)
+              .description(
+                "Address of wallet taking the private order. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
+              )
+              .optional(),
+          })
+        )
+        .min(1),
     }),
   },
   response: {
@@ -231,6 +245,7 @@ export const getExecuteListV5Options: RouteOptions = {
       token: string;
       quantity?: number;
       weiPrice: string;
+      endWeiPrice?: string;
       orderKind: string;
       orderbook: string;
       fees: string[];
@@ -243,6 +258,7 @@ export const getExecuteListV5Options: RouteOptions = {
       salt?: string;
       nonce?: string;
       currency?: string;
+      taker?: string;
     }[];
 
     const perfTime1 = performance.now();
@@ -391,14 +407,6 @@ export const getExecuteListV5Options: RouteOptions = {
           // Blacklist checks
           await checkBlacklistAndFallback(contract, params);
 
-          // For now, ERC20 listings are only supported on Seaport
-          if (
-            params.orderKind !== "seaport-v1.5" &&
-            params.currency !== Sdk.Common.Addresses.Native[config.chainId]
-          ) {
-            return errors.push({ message: "Unsupported currency", orderIndex: i });
-          }
-
           // Handle fees
           // TODO: Refactor the builders to get rid of the separate fee/feeRecipient arrays
           // TODO: Refactor the builders to get rid of the API params naming dependency
@@ -408,6 +416,13 @@ export const getExecuteListV5Options: RouteOptions = {
             const [feeRecipient, fee] = feeData.split(":");
             (params as any).fee.push(fee);
             (params as any).feeRecipient.push(feeRecipient);
+          }
+
+          if (params.taker && !["seaport-v1.5", "x2y2"].includes(params.orderKind)) {
+            return errors.push({
+              message: "Private orders are only supported for seaport-v1.5 and x2y2",
+              orderIndex: i,
+            });
           }
 
           try {
@@ -567,17 +582,6 @@ export const getExecuteListV5Options: RouteOptions = {
               case "seaport-v1.5": {
                 if (!["reservoir", "opensea", "looks-rare"].includes(params.orderbook)) {
                   return errors.push({ message: "Unsupported orderbook", orderIndex: i });
-                }
-
-                // OpenSea expects a royalty of at least 0.5%
-                if (
-                  params.orderbook === "opensea" &&
-                  params.royaltyBps !== undefined &&
-                  Number(params.royaltyBps) < 50
-                ) {
-                  throw getExecuteError(
-                    "Royalties should be at least 0.5% when posting to OpenSea"
-                  );
                 }
 
                 const options = (params.options?.["seaport-v1.4"] ??

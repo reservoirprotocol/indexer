@@ -12,7 +12,7 @@ import {
   OrderUpdatesByIdJobPayload,
 } from "@/jobs/order-updates/order-updates-by-id-job";
 
-export class OrderUpdatesOracleOrderJob extends AbstractRabbitMqJobHandler {
+export default class OrderUpdatesOracleOrderJob extends AbstractRabbitMqJobHandler {
   queueName = "oracle-orders";
   maxRetries = 1;
   concurrency = 1;

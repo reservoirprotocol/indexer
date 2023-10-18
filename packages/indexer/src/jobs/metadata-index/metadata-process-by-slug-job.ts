@@ -4,7 +4,6 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 import _ from "lodash";
 import { config } from "@/config/index";
 import { logger } from "@/common/logger";
-import MetadataApi from "@/utils/metadata-api";
 import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
 import {
   PendingRefreshTokensBySlug,
@@ -14,18 +13,20 @@ import { Tokens } from "@/models/tokens";
 import { Collections } from "@/models/collections";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
+import { RabbitMQMessage } from "@/common/rabbit-mq";
+import { openseaMetadataProvider } from "@/metadata/providers/opensea-metadata-provider";
 
 export type MetadataIndexProcessBySlugJobPayload = {
   method: string;
 };
 
-export class MetadataIndexProcessBySlugJob extends AbstractRabbitMqJobHandler {
+export default class MetadataIndexProcessBySlugJob extends AbstractRabbitMqJobHandler {
   queueName = "metadata-index-process-queue-by-slug";
   maxRetries = 10;
   concurrency = 1;
   singleActiveConsumer = true;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 5 * 60 * 1000;
   backoff = {
     type: "fixed",
     delay: 5000,
@@ -51,11 +52,9 @@ export class MetadataIndexProcessBySlugJob extends AbstractRabbitMqJobHandler {
 
     async function processSlug(refreshTokenBySlug: RefreshTokenBySlug) {
       try {
-        const results = await MetadataApi.getTokensMetadataBySlug(
-          refreshTokenBySlug.contract,
+        const results = await openseaMetadataProvider.getTokensMetadataBySlug(
           refreshTokenBySlug.slug,
-          method,
-          refreshTokenBySlug.continuation
+          refreshTokenBySlug.continuation ?? ""
         );
         if (results.metadata.length === 0) {
           //  Slug might be missing or might be wrong.
@@ -127,6 +126,7 @@ export class MetadataIndexProcessBySlugJob extends AbstractRabbitMqJobHandler {
     await metadataIndexWriteJob.addToQueue(
       metadata.map((m) => ({
         ...m,
+        metadataMethod: method,
       }))
     );
 
@@ -166,27 +166,21 @@ export class MetadataIndexProcessBySlugJob extends AbstractRabbitMqJobHandler {
           ],
           true
         ),
-        collectionMetadataQueueJob.addToQueue(
-          {
-            contract: refreshTokenBySlug.contract,
-            tokenId,
-            community: collection.community,
-            forceRefresh: false,
-          },
-          0,
-          this.queueName
-        ),
+        collectionMetadataQueueJob.addToQueue({
+          contract: refreshTokenBySlug.contract,
+          tokenId,
+          community: collection.community,
+          forceRefresh: false,
+        }),
       ]);
     }
   }
 
-  public events() {
-    this.once("onCompleted", async (rabbitMqMessage, processResult) => {
-      if (processResult) {
-        const { method } = rabbitMqMessage.payload;
-        await this.addToQueue({ method }, processResult * 1000);
-      }
-    });
+  public async onCompleted(rabbitMqMessage: RabbitMQMessage, processResult: undefined | number) {
+    if (processResult) {
+      const { method } = rabbitMqMessage.payload;
+      await this.addToQueue({ method }, processResult * 1000);
+    }
   }
 
   public async addToQueue(

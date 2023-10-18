@@ -99,6 +99,12 @@ export const getOpenApiOptions: RouteOptions = {
         {
           url: "https://api-avalanche.reservoir.tools",
         },
+        {
+          url: "https://api-zksync.reservoir.tools",
+        },
+        {
+          url: "https://api-polygon-zkevm.reservoir.tools",
+        },
       ];
 
       // Preset list of tags.

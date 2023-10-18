@@ -19,7 +19,7 @@ import { redis } from "@/common/redis";
 import { now } from "lodash";
 import { config } from "@/config/index";
 import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
-import { generateHash, getSupportedChainName } from "@/websockets/opensea/utils";
+import { generateHash } from "@/websockets/opensea/utils";
 import { GenericOrderInfo } from "@/jobs/orderbook/utils";
 import { handleEvent as handleItemListedEvent } from "@/websockets/opensea/handlers/item_listed";
 import { handleEvent as handleItemReceivedBidEvent } from "@/websockets/opensea/handlers/item_received_bid";
@@ -27,12 +27,16 @@ import { handleEvent as handleCollectionOfferEvent } from "@/websockets/opensea/
 import { handleEvent as handleItemCancelled } from "@/websockets/opensea/handlers/item_cancelled";
 import { handleEvent as handleOrderRevalidate } from "@/websockets/opensea/handlers/order_revalidate";
 import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handlers/trait_offer";
-import MetadataApi from "@/utils/metadata-api";
 
 import { openseaBidsQueueJob } from "@/jobs/orderbook/opensea-bids-queue-job";
-import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
+import {
+  MetadataIndexWriteJobPayload,
+  metadataIndexWriteJob,
+} from "@/jobs/metadata-index/metadata-write-job";
 import { openseaListingsJob } from "@/jobs/orderbook/opensea-listings-job";
-import { getNetworkSettings } from "@/config/network";
+import { getNetworkSettings, getOpenseaNetworkName } from "@/config/network";
+import { openseaMetadataProvider } from "@/metadata/providers/opensea-metadata-provider";
+import _ from "lodash";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = getNetworkSettings().isTestnet ? Network.TESTNET : Network.MAINNET;
@@ -46,7 +50,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       transport: WebSocket,
     },
     onError: async (error) => {
-      logger.warn("opensea-websocket", `network=${network}, error=${error}`);
+      logger.warn("opensea-websocket", `network=${network}, error=${JSON.stringify(error)}`);
     },
   });
 
@@ -74,7 +78,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
         const openSeaOrderParams = await handleEvent(eventType, event.payload);
 
         // Reduce amount of logs by only total the amount of events received from Ethereum mainnet.
-        if (openSeaOrderParams || config.chainId === 1) {
+        if (_.random(100) <= 50 && (openSeaOrderParams || config.chainId === 1)) {
           logger.debug(
             "opensea-websocket",
             JSON.stringify({
@@ -130,7 +134,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
   if (config.metadataIndexingMethod === "opensea") {
     client.onItemMetadataUpdated("*", async (event) => {
       try {
-        if (getSupportedChainName() != event.payload.item.chain.name) {
+        if (getOpenseaNetworkName() != event.payload.item.chain.name) {
           return;
         }
 
@@ -155,9 +159,11 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
           traits: event.payload.item.metadata.traits,
         };
 
-        const parsedMetadata = await MetadataApi.parseTokenMetadata(metadata, "opensea");
+        const parsedMetadata = await openseaMetadataProvider.parseTokenMetadata(metadata);
 
         if (parsedMetadata) {
+          (parsedMetadata as MetadataIndexWriteJobPayload).isFromWebhook = true;
+          (parsedMetadata as MetadataIndexWriteJobPayload).metadataMethod = "opensea";
           await metadataIndexWriteJob.addToQueue([parsedMetadata]);
         }
       } catch (error) {

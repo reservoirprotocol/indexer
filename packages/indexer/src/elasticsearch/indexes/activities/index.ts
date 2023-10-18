@@ -2,7 +2,13 @@
 
 import { elasticsearch } from "@/common/elasticsearch";
 
-import { QueryDslQueryContainer, Sort } from "@elastic/elasticsearch/lib/api/types";
+import {
+  AggregationsAggregate,
+  QueryDslQueryContainer,
+  SearchResponse,
+  Sort,
+} from "@elastic/elasticsearch/lib/api/types";
+
 import { SortResults } from "@elastic/elasticsearch/lib/api/typesWithBodyKey";
 import { logger } from "@/common/logger";
 import { CollectionsEntity } from "@/models/collections/collections-entity";
@@ -20,8 +26,18 @@ import * as CONFIG from "@/elasticsearch/indexes/activities/config";
 
 const INDEX_NAME = `${getNetworkName()}.activities`;
 
-export const save = async (activities: ActivityDocument[], upsert = true): Promise<void> => {
+export const save = async (
+  activities: ActivityDocument[],
+  upsert = true,
+  overrideIndexedAt = true
+): Promise<void> => {
   try {
+    if (overrideIndexedAt) {
+      activities.forEach((activity) => {
+        activity.indexedAt = new Date();
+      });
+    }
+
     const response = await elasticsearch.bulk({
       body: activities.flatMap((activity) => [
         { [upsert ? "index" : "create"]: { _index: INDEX_NAME, _id: activity.id } },
@@ -34,23 +50,9 @@ export const save = async (activities: ActivityDocument[], upsert = true): Promi
         logger.error(
           "elasticsearch-activities",
           JSON.stringify({
-            topic: "save-errors",
+            message: "save activities errors",
+            topic: "save",
             upsert,
-            data: {
-              activities: JSON.stringify(activities),
-            },
-            response,
-          })
-        );
-      } else {
-        logger.debug(
-          "elasticsearch-activities",
-          JSON.stringify({
-            topic: "save-conflicts",
-            upsert,
-            data: {
-              activities: JSON.stringify(activities),
-            },
             response,
           })
         );
@@ -60,11 +62,9 @@ export const save = async (activities: ActivityDocument[], upsert = true): Promi
     logger.error(
       "elasticsearch-activities",
       JSON.stringify({
+        message: `error saving activities. error=${error}`,
         topic: "save",
         upsert,
-        data: {
-          activities: JSON.stringify(activities),
-        },
         error,
       })
     );
@@ -112,6 +112,7 @@ export const getChainStatsFromActivity = async () => {
                       range: {
                         timestamp: {
                           gte: period.startTime,
+                          format: "epoch_second",
                         },
                       },
                     },
@@ -127,7 +128,9 @@ export const getChainStatsFromActivity = async () => {
               },
               aggs: {
                 sales_count: {
-                  value_count: { field: "id" },
+                  value_count: {
+                    field: "id",
+                  },
                 },
                 total_volume: {
                   sum: { field: "pricing.priceDecimal" },
@@ -183,7 +186,8 @@ export enum TopSellingFillOptions {
 }
 
 const mapBucketToCollection = (bucket: any, includeRecentSales: boolean) => {
-  const collectionData = bucket?.top_collection_hits?.hits?.hits[0]?._source.collection;
+  const data = bucket?.top_collection_hits?.hits?.hits[0]?._source;
+  const collectionData = data.collection;
 
   const recentSales = bucket?.top_collection_hits?.hits?.hits.map((hit: any) => {
     const sale = hit._source;
@@ -205,7 +209,7 @@ const mapBucketToCollection = (bucket: any, includeRecentSales: boolean) => {
     id: collectionData?.id,
     name: collectionData?.name,
     image: collectionData?.image,
-    primaryContract: collectionData?.contract,
+    primaryContract: data?.contract,
     recentSales: includeRecentSales ? recentSales : [],
   };
 };
@@ -214,10 +218,11 @@ export const getTopSellingCollections = async (params: {
   startTime: number;
   endTime?: number;
   fillType: TopSellingFillOptions;
+  sortBy?: "volume" | "sales";
   limit: number;
   includeRecentSales: boolean;
 }): Promise<CollectionAggregation[]> => {
-  const { startTime, endTime, fillType, limit } = params;
+  const { startTime, endTime, fillType, limit, sortBy } = params;
 
   const { trendingExcludedContracts } = getNetworkSettings();
 
@@ -234,6 +239,7 @@ export const getTopSellingCollections = async (params: {
             timestamp: {
               gte: startTime,
               ...(endTime ? { lte: endTime } : {}),
+              format: "epoch_second",
             },
           },
         },
@@ -250,12 +256,13 @@ export const getTopSellingCollections = async (params: {
     },
   } as any;
 
+  const sort = sortBy == "volume" ? { total_volume: "desc" } : { total_transactions: "desc" };
   const collectionAggregation = {
     collections: {
       terms: {
         field: "collection.id",
         size: limit,
-        order: { total_transactions: "desc" },
+        order: sort,
       },
       aggs: {
         total_sales: {
@@ -268,7 +275,6 @@ export const getTopSellingCollections = async (params: {
             field: "event.txHash",
           },
         },
-
         total_volume: {
           sum: {
             field: "pricing.priceDecimal",
@@ -335,6 +341,269 @@ export const getTopSellingCollections = async (params: {
   );
 };
 
+export const getRecentSalesByCollection = async (
+  collections: string[],
+  fillType: TopSellingFillOptions
+) => {
+  const salesQuery = {
+    bool: {
+      filter: [
+        {
+          terms: {
+            "collection.id": collections,
+          },
+        },
+        {
+          terms: {
+            type: fillType == "any" ? ["sale", "mint"] : [fillType],
+          },
+        },
+      ],
+    },
+  } as any;
+
+  const collectionAggregation = {
+    collections: {
+      terms: {
+        field: "collection.id",
+      },
+      aggs: {
+        recent_sales: {
+          top_hits: {
+            sort: [
+              {
+                timestamp: {
+                  order: "desc",
+                },
+              },
+            ],
+            _source: {
+              includes: [
+                "contract",
+                "collection.name",
+                "collection.image",
+                "collection.id",
+                "name",
+                "toAddress",
+                "token.id",
+                "token.name",
+                "token.image",
+                "type",
+                "timestamp",
+                "pricing.price",
+                "pricing.priceDecimal",
+                "pricing.currencyPrice",
+                "pricing.usdPrice",
+                "pricing.feeBps",
+                "pricing.currency",
+                "pricing.value",
+                "pricing.valueDecimal",
+                "pricing.currencyValue",
+                "pricing.normalizedValue",
+                "pricing.normalizedValueDecimal",
+                "pricing.currencyNormalizedValue",
+              ],
+            },
+            size: 8,
+          },
+        },
+      },
+    },
+  } as any;
+
+  const esResult = (await elasticsearch.search({
+    index: INDEX_NAME,
+    size: 0,
+    body: {
+      query: salesQuery,
+      aggs: collectionAggregation,
+    },
+  })) as any;
+
+  const result = esResult?.aggregations?.collections?.buckets?.reduce((acc: any, bucket: any) => {
+    acc[bucket.key] = bucket.recent_sales.hits.hits.map((hit: any) => hit._source);
+    return acc;
+  }, {});
+
+  return result;
+};
+
+const getPastResults = async (
+  collections: string[],
+  startTime: number,
+  fillType: TopSellingFillOptions
+) => {
+  const now = Math.floor(new Date().getTime() / 1000);
+  const period = now - startTime;
+  const previousPeriodStartTime = startTime - period;
+
+  const salesQuery = {
+    bool: {
+      filter: [
+        {
+          terms: {
+            "collection.id": collections,
+          },
+        },
+
+        {
+          terms: {
+            type: fillType == "any" ? ["sale", "mint"] : [fillType],
+          },
+        },
+        {
+          range: {
+            timestamp: {
+              gte: previousPeriodStartTime,
+              lte: startTime,
+              format: "epoch_second",
+            },
+          },
+        },
+      ],
+    },
+  } as any;
+
+  const collectionAggregation = {
+    collections: {
+      terms: {
+        field: "collection.id",
+      },
+      aggs: {
+        total_sales: {
+          value_count: {
+            field: "id",
+          },
+        },
+        total_volume: {
+          sum: {
+            field: "pricing.priceDecimal",
+          },
+        },
+      },
+    },
+  } as any;
+
+  const esResult = (await elasticsearch.search({
+    index: INDEX_NAME,
+    size: 0,
+    body: {
+      query: salesQuery,
+      aggs: collectionAggregation,
+    },
+  })) as any;
+
+  return esResult?.aggregations?.collections?.buckets?.map((bucket: any) => {
+    return {
+      volume: bucket?.total_volume?.value,
+      count: bucket?.total_sales.value,
+      id: bucket.key,
+    };
+  });
+};
+
+export const getTopSellingCollectionsV2 = async (params: {
+  startTime: number;
+  fillType: TopSellingFillOptions;
+  sortBy?: "volume" | "sales";
+  limit: number;
+}): Promise<CollectionAggregation[]> => {
+  const { startTime, fillType, limit, sortBy } = params;
+
+  const { trendingExcludedContracts } = getNetworkSettings();
+
+  const salesQuery = {
+    bool: {
+      filter: [
+        {
+          terms: {
+            type: fillType == "any" ? ["sale", "mint"] : [fillType],
+          },
+        },
+        {
+          range: {
+            timestamp: {
+              gte: startTime,
+              format: "epoch_second",
+            },
+          },
+        },
+      ],
+      ...(trendingExcludedContracts && {
+        must_not: [
+          {
+            terms: {
+              "collection.id": trendingExcludedContracts,
+            },
+          },
+        ],
+      }),
+    },
+  } as any;
+
+  const sort = sortBy == "volume" ? { total_volume: "desc" } : { total_sales: "desc" };
+  const collectionAggregation = {
+    collections: {
+      terms: {
+        field: "collection.id",
+        size: limit,
+        order: sort,
+      },
+      aggs: {
+        total_sales: {
+          value_count: {
+            field: "id",
+          },
+        },
+        total_transactions: {
+          cardinality: {
+            field: "event.txHash",
+          },
+        },
+        total_volume: {
+          sum: {
+            field: "pricing.priceDecimal",
+          },
+        },
+      },
+    },
+  } as any;
+
+  const esResult = (await elasticsearch.search({
+    index: INDEX_NAME,
+    size: 0,
+    body: {
+      query: salesQuery,
+      aggs: collectionAggregation,
+    },
+  })) as any;
+
+  const collections = esResult?.aggregations?.collections?.buckets;
+  const pastResults = await getPastResults(
+    collections.map((collection: any) => collection.key),
+    startTime,
+    fillType
+  );
+
+  return esResult?.aggregations?.collections?.buckets?.map((bucket: any) => {
+    const pastResult = pastResults.find((result: any) => result.id == bucket.key);
+
+    return {
+      volume: bucket?.total_volume?.value,
+      volumePercentChange: _.round(
+        ((bucket?.total_volume?.value || 0) / (pastResult?.volume || 1)) * 100 - 100,
+        2
+      ),
+      count: bucket?.total_sales.value,
+      countPercentChange: _.round(
+        ((bucket?.total_sales.value || 0) / (pastResult?.count || 1)) * 100 - 100,
+        2
+      ),
+      id: bucket.key,
+    };
+  });
+};
+
 export const deleteActivitiesById = async (ids: string[]): Promise<void> => {
   try {
     const response = await elasticsearch.bulk({
@@ -380,6 +649,7 @@ export const search = async (
     startTimestamp?: number;
     endTimestamp?: number;
     sortBy?: "timestamp" | "createdAt";
+    sortDirection?: "desc" | "asc";
     limit?: number;
     continuation?: string | null;
     continuationAsInt?: boolean;
@@ -387,6 +657,7 @@ export const search = async (
   debug = false
 ): Promise<{ activities: ActivityDocument[]; continuation: string | null }> => {
   const esQuery = {};
+  params.sortDirection = params.sortDirection ?? "desc";
 
   (esQuery as any).bool = { filter: [] };
 
@@ -464,60 +735,65 @@ export const search = async (
 
   if (params.startTimestamp) {
     (esQuery as any).bool.filter.push({
-      range: { timestamp: { gte: params.endTimestamp } },
+      range: { timestamp: { gte: params.startTimestamp, format: "epoch_second" } },
     });
   }
 
   if (params.endTimestamp) {
     (esQuery as any).bool.filter.push({
-      range: { timestamp: { lt: params.endTimestamp } },
+      range: { timestamp: { lt: params.endTimestamp, format: "epoch_second" } },
     });
   }
 
-  const esSort: any[] = [];
-
-  if (params.sortBy == "timestamp") {
-    esSort.push({ timestamp: { order: "desc" } });
-  } else {
-    esSort.push({ createdAt: { order: "desc" } });
-  }
-
-  let searchAfter;
+  let searchAfter: string[] = [];
 
   if (params.continuation) {
     if (params.continuationAsInt) {
       searchAfter = [params.continuation];
     } else {
-      searchAfter = [splitContinuation(params.continuation)[0]];
+      searchAfter = _.split(splitContinuation(params.continuation)[0], "_");
     }
   }
 
+  const esSort: any[] = [];
+
+  if (params.sortBy == "timestamp") {
+    esSort.push({ timestamp: { order: params.sortDirection, format: "epoch_second" } });
+  } else {
+    esSort.push({ createdAt: { order: params.sortDirection } });
+  }
+
+  // Backward compatibility
+  if (searchAfter?.length != 1 && !params.continuationAsInt) {
+    esSort.push({ id: { order: params.sortDirection } });
+  }
+
   try {
-    const activities = await _search(
+    const esResult = await _search(
       {
         query: esQuery,
         sort: esSort as Sort,
         size: params.limit,
-        search_after: searchAfter,
+        search_after: searchAfter?.length ? searchAfter : undefined,
       },
       0,
       debug
     );
 
+    const activities: ActivityDocument[] = esResult.hits.hits.map((hit) => hit._source!);
+
     let continuation = null;
 
-    if (activities.length === params.limit) {
-      const lastActivity = _.last(activities);
+    if (esResult.hits.hits.length === params.limit) {
+      const lastResult = _.last(esResult.hits.hits);
 
-      if (lastActivity) {
+      if (lastResult) {
+        const lastResultSortValue = lastResult.sort!.join("_");
+
         if (params.continuationAsInt) {
-          continuation = `${lastActivity.timestamp}`;
+          continuation = `${lastResultSortValue}`;
         } else {
-          const continuationValue =
-            params.sortBy == "timestamp"
-              ? lastActivity.timestamp
-              : new Date(lastActivity.createdAt).toISOString();
-          continuation = buildContinuation(`${continuationValue}`);
+          continuation = buildContinuation(`${lastResultSortValue}`);
         }
       }
     }
@@ -541,6 +817,7 @@ export const search = async (
 
 export const _search = async (
   params: {
+    _source?: string[] | undefined;
     query?: QueryDslQueryContainer | undefined;
     sort?: Sort | undefined;
     size?: number | undefined;
@@ -549,7 +826,7 @@ export const _search = async (
   },
   retries = 0,
   debug = false
-): Promise<ActivityDocument[]> => {
+): Promise<SearchResponse<ActivityDocument, Record<string, AggregationsAggregate>>> => {
   try {
     params.track_total_hits = params.track_total_hits ?? false;
 
@@ -558,21 +835,21 @@ export const _search = async (
       ...params,
     });
 
-    const results = esResult.hits.hits.map((hit) => hit._source!);
-
     if (retries > 0 || debug) {
       logger.info(
         "elasticsearch-activities",
         JSON.stringify({
           topic: "_search",
           latency: esResult.took,
-          params: JSON.stringify(params),
+          paramsJSON: JSON.stringify(params),
           retries,
+          esResult: debug ? esResult : undefined,
+          params: debug ? params : undefined,
         })
       );
     }
 
-    return results;
+    return esResult;
   } catch (error) {
     const retryableError =
       (error as any).meta?.meta?.aborted ||
@@ -651,6 +928,7 @@ export const initIndex = async (): Promise<void> => {
           message: "Index already exists.",
           indexName: INDEX_NAME,
           indexConfig,
+          indexSettings: getNetworkSettings().elasticsearch?.indexes?.activities,
         })
       );
 
@@ -662,6 +940,7 @@ export const initIndex = async (): Promise<void> => {
             message: "Mappings update disabled.",
             indexName: INDEX_NAME,
             indexConfig,
+            indexSettings: getNetworkSettings().elasticsearch?.indexes?.activities,
           })
         );
 
@@ -684,6 +963,7 @@ export const initIndex = async (): Promise<void> => {
           message: "Updated mappings.",
           indexName: INDEX_NAME,
           indexConfig,
+          indexSettings: getNetworkSettings().elasticsearch?.indexes?.activities,
           putMappingResponse,
         })
       );
@@ -695,6 +975,7 @@ export const initIndex = async (): Promise<void> => {
           message: "Creating Index.",
           indexName: INDEX_NAME,
           indexConfig,
+          indexSettings: getNetworkSettings().elasticsearch?.indexes?.activities,
         })
       );
 
@@ -715,6 +996,7 @@ export const initIndex = async (): Promise<void> => {
           message: "Index Created!",
           indexName: INDEX_NAME,
           indexConfig,
+          indexSettings: getNetworkSettings().elasticsearch?.indexes?.activities,
           params,
           createIndexResponse,
         })
@@ -729,6 +1011,7 @@ export const initIndex = async (): Promise<void> => {
         topic: "initIndex",
         message: "Error.",
         indexName: INDEX_NAME,
+        indexSettings: getNetworkSettings().elasticsearch?.indexes?.activities,
         error,
       })
     );
@@ -769,7 +1052,8 @@ export const updateActivitiesMissingCollection = async (
   };
 
   try {
-    const pendingUpdateActivities = await _search({
+    const esResult = await _search({
+      _source: ["id"],
       // This is needed due to issue with elasticsearch DSL.
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
@@ -777,10 +1061,12 @@ export const updateActivitiesMissingCollection = async (
       size: 1000,
     });
 
+    const pendingUpdateActivities: string[] = esResult.hits.hits.map((hit) => hit._source!.id);
+
     if (pendingUpdateActivities.length) {
       const bulkParams = {
-        body: pendingUpdateActivities.flatMap((activity) => [
-          { update: { _index: INDEX_NAME, _id: activity.id, retry_on_conflict: 3 } },
+        body: pendingUpdateActivities.flatMap((activityId) => [
+          { update: { _index: INDEX_NAME, _id: activityId, retry_on_conflict: 3 } },
           {
             script: {
               source:
@@ -819,21 +1105,21 @@ export const updateActivitiesMissingCollection = async (
       } else {
         keepGoing = pendingUpdateActivities.length === 1000;
 
-        logger.info(
-          "elasticsearch-activities",
-          JSON.stringify({
-            topic: "updateActivitiesMissingCollection",
-            message: `Success`,
-            data: {
-              contract,
-              tokenId,
-              collection,
-            },
-            bulkParams,
-            response,
-            keepGoing,
-          })
-        );
+        // logger.info(
+        //   "elasticsearch-activities",
+        //   JSON.stringify({
+        //     topic: "updateActivitiesMissingCollection",
+        //     message: `Success`,
+        //     data: {
+        //       contract,
+        //       tokenId,
+        //       collection,
+        //     },
+        //     bulkParams,
+        //     response,
+        //     keepGoing,
+        //   })
+        // );
       }
     }
   } catch (error) {
@@ -889,6 +1175,13 @@ export const updateActivitiesCollection = async (
 
   const query = {
     bool: {
+      must_not: [
+        {
+          term: {
+            "collection.id": newCollection.id,
+          },
+        },
+      ],
       must: [
         {
           term: {
@@ -905,18 +1198,27 @@ export const updateActivitiesCollection = async (
   };
 
   try {
-    const pendingUpdateActivities = await _search({
-      // This is needed due to issue with elasticsearch DSL.
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      query,
-      size: 1000,
-    });
+    const esResult = await _search(
+      {
+        _source: ["id"],
+        // This is needed due to issue with elasticsearch DSL.
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        query,
+        size: 1000,
+      },
+      0,
+      true
+    );
 
-    if (pendingUpdateActivities.length) {
+    const pendingUpdateDocuments: { id: string; index: string }[] = esResult.hits.hits.map(
+      (hit) => ({ id: hit._source!.id, index: hit._index })
+    );
+
+    if (pendingUpdateDocuments.length) {
       const bulkParams = {
-        body: pendingUpdateActivities.flatMap((activity) => [
-          { update: { _index: INDEX_NAME, _id: activity.id, retry_on_conflict: 3 } },
+        body: pendingUpdateDocuments.flatMap((document) => [
+          { update: { _index: document.index, _id: document.id, retry_on_conflict: 3 } },
           {
             script: {
               source:
@@ -953,24 +1255,24 @@ export const updateActivitiesCollection = async (
           })
         );
       } else {
-        keepGoing = pendingUpdateActivities.length === 1000;
+        keepGoing = pendingUpdateDocuments.length === 1000;
 
-        logger.info(
-          "elasticsearch-activities",
-          JSON.stringify({
-            topic: "updateActivitiesCollection",
-            message: `Success`,
-            data: {
-              contract,
-              tokenId,
-              newCollection,
-              oldCollectionId,
-            },
-            bulkParams,
-            response,
-            keepGoing,
-          })
-        );
+        // logger.info(
+        //   "elasticsearch-activities",
+        //   JSON.stringify({
+        //     topic: "updateActivitiesCollection",
+        //     message: `Success`,
+        //     data: {
+        //       contract,
+        //       tokenId,
+        //       newCollection,
+        //       oldCollectionId,
+        //     },
+        //     bulkParams,
+        //     response,
+        //     keepGoing,
+        //   })
+        // );
       }
     }
   } catch (error) {
@@ -1093,20 +1395,27 @@ export const updateActivitiesTokenMetadata = async (
 
   const query = {
     bool: {
-      must: [
-        {
-          term: {
-            contract: contract.toLowerCase(),
-          },
-        },
-        {
-          term: {
-            "token.id": tokenId,
-          },
-        },
-      ],
       filter: {
         bool: {
+          must: [
+            {
+              term: {
+                contract: "0xb76fbbb30e31f2c3bdaa2466cfb1cfe39b220d06",
+              },
+            },
+            {
+              term: {
+                "token.id": "7514",
+              },
+            },
+          ],
+          must_not: [
+            {
+              term: {
+                type: "bid",
+              },
+            },
+          ],
           should,
         },
       },
@@ -1114,8 +1423,9 @@ export const updateActivitiesTokenMetadata = async (
   };
 
   try {
-    const pendingUpdateActivities = await _search(
+    const esResult = await _search(
       {
+        _source: ["id"],
         // This is needed due to issue with elasticsearch DSL.
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
@@ -1125,10 +1435,14 @@ export const updateActivitiesTokenMetadata = async (
       0
     );
 
-    if (pendingUpdateActivities.length) {
+    const pendingUpdateDocuments: { id: string; index: string }[] = esResult.hits.hits.map(
+      (hit) => ({ id: hit._source!.id, index: hit._index })
+    );
+
+    if (pendingUpdateDocuments.length) {
       const bulkParams = {
-        body: pendingUpdateActivities.flatMap((activity) => [
-          { update: { _index: INDEX_NAME, _id: activity.id, retry_on_conflict: 3 } },
+        body: pendingUpdateDocuments.flatMap((document) => [
+          { update: { _index: document.index, _id: document.id, retry_on_conflict: 3 } },
           {
             script: {
               source:
@@ -1164,23 +1478,23 @@ export const updateActivitiesTokenMetadata = async (
           })
         );
       } else {
-        keepGoing = pendingUpdateActivities.length === 1000;
+        keepGoing = pendingUpdateDocuments.length === 1000;
 
-        logger.info(
-          "elasticsearch-activities",
-          JSON.stringify({
-            topic: "updateActivitiesTokenMetadata",
-            message: `Success`,
-            data: {
-              contract,
-              tokenId,
-              tokenData,
-            },
-            bulkParams,
-            response,
-            keepGoing,
-          })
-        );
+        // logger.info(
+        //   "elasticsearch-activities",
+        //   JSON.stringify({
+        //     topic: "updateActivitiesTokenMetadata",
+        //     message: `Success`,
+        //     data: {
+        //       contract,
+        //       tokenId,
+        //       tokenData,
+        //     },
+        //     bulkParams,
+        //     response,
+        //     keepGoing,
+        //   })
+        // );
       }
     }
   } catch (error) {
@@ -1295,18 +1609,27 @@ export const updateActivitiesCollectionMetadata = async (
   };
 
   try {
-    const pendingUpdateActivities = await _search({
-      // This is needed due to issue with elasticsearch DSL.
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      query,
-      size: 1000,
-    });
+    const esResult = await _search(
+      {
+        _source: ["id"],
+        // This is needed due to issue with elasticsearch DSL.
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        query,
+        size: 1000,
+      },
+      0,
+      true
+    );
 
-    if (pendingUpdateActivities.length) {
+    const pendingUpdateDocuments: { id: string; index: string }[] = esResult.hits.hits.map(
+      (hit) => ({ id: hit._source!.id, index: hit._index })
+    );
+
+    if (pendingUpdateDocuments.length) {
       const bulkParams = {
-        body: pendingUpdateActivities.flatMap((activity) => [
-          { update: { _index: INDEX_NAME, _id: activity.id, retry_on_conflict: 3 } },
+        body: pendingUpdateDocuments.flatMap((document) => [
+          { update: { _index: document.index, _id: document.id, retry_on_conflict: 3 } },
           {
             script: {
               source:
@@ -1330,31 +1653,37 @@ export const updateActivitiesCollectionMetadata = async (
           "elasticsearch-activities",
           JSON.stringify({
             topic: "updateActivitiesCollectionMetadata",
-            message: `Errors in response`,
+            message: `Errors in response. collectionId=${collectionId}, collectionData=${JSON.stringify(
+              collectionData
+            )}`,
             data: {
               collectionId,
               collectionData,
             },
-            bulkParams,
+            bulkParams: JSON.stringify(bulkParams),
             response,
             keepGoing,
+            queryJson: JSON.stringify(query),
           })
         );
       } else {
-        keepGoing = pendingUpdateActivities.length === 1000;
+        keepGoing = pendingUpdateDocuments.length === 1000;
 
         logger.info(
           "elasticsearch-activities",
           JSON.stringify({
             topic: "updateActivitiesCollectionMetadata",
-            message: `Success`,
+            message: `Success. collectionId=${collectionId}, collectionData=${JSON.stringify(
+              collectionData
+            )}`,
             data: {
               collectionId,
               collectionData,
             },
-            bulkParams,
+            bulkParams: JSON.stringify(bulkParams),
             response,
             keepGoing,
+            queryJson: JSON.stringify(query),
           })
         );
       }
@@ -1416,7 +1745,8 @@ export const deleteActivitiesByBlockHash = async (blockHash: string): Promise<bo
   };
 
   try {
-    const pendingDeleteActivities = await _search({
+    const esResult = await _search({
+      _source: ["id"],
       // This is needed due to issue with elasticsearch DSL.
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
@@ -1424,10 +1754,14 @@ export const deleteActivitiesByBlockHash = async (blockHash: string): Promise<bo
       size: 1000,
     });
 
-    if (pendingDeleteActivities.length) {
+    const pendingUpdateDocuments: { id: string; index: string }[] = esResult.hits.hits.map(
+      (hit) => ({ id: hit._source!.id, index: hit._index })
+    );
+
+    if (pendingUpdateDocuments.length) {
       const bulkParams = {
-        body: pendingDeleteActivities.flatMap((activity) => [
-          { delete: { _index: INDEX_NAME, _id: activity.id } },
+        body: pendingUpdateDocuments.flatMap((document) => [
+          { delete: { _index: document.index, _id: document.id } },
         ]),
         filter_path: "items.*.error",
       };
@@ -1451,21 +1785,21 @@ export const deleteActivitiesByBlockHash = async (blockHash: string): Promise<bo
           })
         );
       } else {
-        keepGoing = pendingDeleteActivities.length === 1000;
+        keepGoing = pendingUpdateDocuments.length === 1000;
 
-        logger.info(
-          "elasticsearch-activities",
-          JSON.stringify({
-            topic: "deleteActivitiesByBlockHash",
-            message: `Success`,
-            data: {
-              blockHash,
-            },
-            bulkParams,
-            response,
-            keepGoing,
-          })
-        );
+        // logger.info(
+        //   "elasticsearch-activities",
+        //   JSON.stringify({
+        //     topic: "deleteActivitiesByBlockHash",
+        //     message: `Success`,
+        //     data: {
+        //       blockHash,
+        //     },
+        //     bulkParams,
+        //     response,
+        //     keepGoing,
+        //   })
+        // );
       }
     }
   } catch (error) {

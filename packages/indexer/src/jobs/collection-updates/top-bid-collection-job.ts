@@ -15,11 +15,11 @@ export type TopBidCollectionJobPayload = {
   txTimestamp: number | null;
 };
 
-export class TopBidCollectionJob extends AbstractRabbitMqJobHandler {
+export default class TopBidCollectionJob extends AbstractRabbitMqJobHandler {
   queueName = "collection-updates-top-bid-queue";
   maxRetries = 10;
   concurrency = 5;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 20000,

@@ -1,17 +1,20 @@
-import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { logger } from "@/common/logger";
-import { redis } from "@/common/redis";
 import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
+import cron from "node-cron";
+
+import { logger } from "@/common/logger";
+import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
-import { updateBlurRoyalties } from "@/utils/blur";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { RabbitMqJobsConsumer } from "@/jobs/index";
 import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
+import { updateBlurRoyalties } from "@/utils/blur";
 
 export type BlurBidsRefreshJobPayload = {
   collection: string;
 };
 
-export class BlurBidsRefreshJob extends AbstractRabbitMqJobHandler {
+export default class BlurBidsRefreshJob extends AbstractRabbitMqJobHandler {
   queueName = "blur-bids-refresh";
   maxRetries = 3;
   concurrency = 1;
@@ -24,24 +27,32 @@ export class BlurBidsRefreshJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: BlurBidsRefreshJobPayload) {
     const { collection } = payload;
 
-    try {
-      const pricePoints = await axios
-        .get(`${config.orderFetcherBaseUrl}/api/blur-collection-bids?collection=${collection}`)
-        .then((response) => response.data.bids as Sdk.Blur.Types.BlurBidPricePoint[]);
+    if (config.chainId !== 1) {
+      return;
+    }
 
-      await orderbookOrdersJob.addToQueue([
-        {
-          kind: "blur-bid",
-          info: {
-            orderParams: {
-              collection,
-              pricePoints,
+    try {
+      await axios
+        .get(`${config.orderFetcherBaseUrl}/api/blur-collection-bids?collection=${collection}`)
+        .then(async (response) => {
+          const pricePoints = response.data.bids as Sdk.Blur.Types.BlurBidPricePoint[];
+          await orderbookOrdersJob.addToQueue([
+            {
+              kind: "blur-bid",
+              info: {
+                orderParams: {
+                  collection,
+                  pricePoints,
+                },
+                metadata: {},
+                fullUpdate: true,
+              },
             },
-            metadata: {},
-            fullUpdate: true,
-          },
-        },
-      ]);
+          ]);
+        })
+        .catch(() => {
+          // Skip any errors
+        });
 
       // Also refresh the royalties
       const lockKey = `blur-royalties-refresh-lock:${collection}`;
@@ -79,3 +90,19 @@ export class BlurBidsRefreshJob extends AbstractRabbitMqJobHandler {
 }
 
 export const blurBidsRefreshJob = new BlurBidsRefreshJob();
+
+if (config.doBackgroundWork) {
+  cron.schedule(
+    // Every hour
+    "*/60 * * * *",
+    async () =>
+      await redlock
+        .acquire(["blur-bids-refresh-retry-lock"], (60 * 60 - 3) * 1000)
+        .then(async () => {
+          await RabbitMqJobsConsumer.retryQueue(blurBidsRefreshJob.queueName);
+        })
+        .catch(() => {
+          // Skip any errors
+        })
+  );
+}

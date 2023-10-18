@@ -7,11 +7,11 @@ export type CurrenciesFetchJobPayload = {
   currency: string;
 };
 
-export class CurrenciesFetchJob extends AbstractRabbitMqJobHandler {
+export default class CurrenciesFetchJob extends AbstractRabbitMqJobHandler {
   queueName = "currencies-fetch";
   maxRetries = 10;
   concurrency = 10;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 10000,
@@ -23,13 +23,13 @@ export class CurrenciesFetchJob extends AbstractRabbitMqJobHandler {
     const details = await tryGetCurrencyDetails(currency);
     await idb.none(
       `
-          UPDATE currencies SET
-            name = $/name/,
-            symbol = $/symbol/,
-            decimals = $/decimals/,
-            metadata = $/metadata:json/
-          WHERE contract = $/contract/
-        `,
+        UPDATE currencies SET
+          name = $/name/,
+          symbol = $/symbol/,
+          decimals = $/decimals/,
+          metadata = $/metadata:json/
+        WHERE contract = $/contract/
+      `,
       {
         contract: toBuffer(currency),
         ...details,

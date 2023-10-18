@@ -202,7 +202,7 @@ export const trigger = {
         Sdk.Nftx.Addresses.ZeroExMarketplaceZap[chainId],
       ]),
     RaribleModule: async (chainId: number) =>
-      dv("RaribleModule", "v1", [
+      dv("RaribleModule", "v3", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.Rarible.Addresses.Exchange[chainId],
@@ -263,14 +263,14 @@ export const trigger = {
         Sdk.SuperRare.Addresses.Bazaar[chainId],
       ]),
     SwapModule: async (chainId: number) =>
-      dv("SwapModule", "v2", [
+      dv("SwapModule", "v3", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.Common.Addresses.WNative[chainId],
         Sdk.Common.Addresses.SwapRouter[chainId],
       ]),
     OneInchSwapModule: async (chainId: number) =>
-      dv("OneInchSwapModule", "v1", [
+      dv("OneInchSwapModule", "v2", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.Common.Addresses.WNative[chainId],
@@ -309,12 +309,12 @@ export const trigger = {
         Sdk.CryptoPunks.Addresses.Exchange[chainId],
       ]),
     PaymentProcessorModule: async (chainId: number) =>
-      dv("PaymentProcessorModule", "v3", [
+      dv("PaymentProcessorModule", "v4", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.PaymentProcessor.Addresses.Exchange[chainId],
       ]),
-    MintModule: async () => dv("MintModule", "v2", []),
+    MintModule: async () => dv("MintModule", "v3", []),
   },
   // Utilities
   Utilities: {
@@ -364,12 +364,16 @@ export const trigger = {
         DEPLOYER,
         "https://test-tokens-metadata.vercel.app/api/erc721/",
         "https://test-tokens-metadata.vercel.app/api/erc721/contract",
+        DEPLOYER,
+        1000,
       ]),
     Erc1155: async () =>
       dv("ReservoirErc1155", "v1", [
         DEPLOYER,
         "https://test-tokens-metadata.vercel.app/api/erc1155/",
         "https://test-tokens-metadata.vercel.app/api/erc1155/contract",
+        DEPLOYER,
+        1000,
       ]),
   },
 };

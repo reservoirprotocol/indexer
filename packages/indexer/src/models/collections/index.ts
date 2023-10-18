@@ -10,12 +10,11 @@ import {
   CollectionsEntityParams,
   CollectionsEntityUpdateParams,
 } from "@/models/collections/collections-entity";
-import { Tokens } from "@/models/tokens";
 import { updateBlurRoyalties } from "@/utils/blur";
 import * as erc721c from "@/utils/erc721c";
 import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
-import MetadataApi from "@/utils/metadata-api";
+import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 import * as royalties from "@/utils/royalties";
 
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
@@ -26,6 +25,10 @@ import {
   topBidCollectionJob,
   TopBidCollectionJobPayload,
 } from "@/jobs/collection-updates/top-bid-collection-job";
+import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
+import { Contracts } from "@/models/contracts";
+import * as registry from "@/utils/royalties/registry";
+import { config } from "@/config/index";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -95,7 +98,16 @@ export class Collections {
   }
 
   public static async updateCollectionCache(contract: string, tokenId: string, community = "") {
-    const collectionExists = await idb.oneOrNone(
+    try {
+      await Contracts.updateContractMetadata(contract);
+    } catch (error) {
+      logger.error(
+        "updateCollectionCache",
+        `updateContractMetadataError. contract=${contract}, tokenId=${tokenId}, community=${community}`
+      );
+    }
+
+    const collectionResult = await idb.oneOrNone(
       `
         SELECT
           collections.id
@@ -111,20 +123,33 @@ export class Collections {
       }
     );
 
-    if (!collectionExists) {
+    if (!collectionResult?.id) {
       // If the collection doesn't exist, push a job to retrieve it
       await fetchCollectionMetadataJob.addToQueue([
         {
           contract,
           tokenId,
-          context: "updateCollectionCache",
         },
       ]);
 
       return;
     }
 
-    const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, community);
+    try {
+      await registry.refreshRegistryRoyalties(collectionResult.id);
+      await royalties.refreshDefaultRoyalties(collectionResult.id);
+    } catch (error) {
+      logger.error(
+        "updateCollectionCache",
+        `refreshRegistryRoyaltiesError. contract=${contract}, tokenId=${tokenId}, community=${community}`
+      );
+    }
+
+    const collection = await MetadataProviderRouter.getCollectionMetadata(
+      contract,
+      tokenId,
+      community
+    );
 
     if (collection.isCopyrightInfringement) {
       collection.name = collection.id;
@@ -154,8 +179,7 @@ export class Collections {
       }
     }
 
-    const tokenCount = await Tokens.countTokensInCollection(collection.id);
-
+    await recalcTokenCountQueueJob.addToQueue({ collection: collection.id });
     await recalcOwnerCountQueueJob.addToQueue([
       {
         context: "updateCollectionCache",
@@ -164,12 +188,22 @@ export class Collections {
       },
     ]);
 
+    if (config.chainId === 11155111) {
+      logger.info(
+        "updateCollectionCache",
+        JSON.stringify({
+          topic: "debugCollectionUpdates",
+          message: `Update collection. collectionId=${collection.id}`,
+          collection,
+        })
+      );
+    }
+
     const query = `
       UPDATE collections SET
         metadata = $/metadata:json/,
         name = $/name/,
         slug = $/slug/,
-        token_count = $/tokenCount/,
         payment_tokens = $/paymentTokens/,
         creator = $/creator/,
         updated_at = now()
@@ -190,32 +224,38 @@ export class Collections {
       metadata: collection.metadata || {},
       name: collection.name,
       slug: collection.slug,
-      tokenCount,
       paymentTokens: collection.paymentTokens ? { opensea: collection.paymentTokens } : {},
       creator: collection.creator ? toBuffer(collection.creator) : null,
     };
 
     const result = await idb.oneOrNone(query, values);
 
-    if (
-      result?.old_metadata.name != collection.name ||
-      result?.old_metadata.metadata.imageUrl != (collection.metadata as any)?.imageUrl
-    ) {
-      await refreshActivitiesCollectionMetadataJob.addToQueue({
-        collectionId: collection.id,
-        collectionUpdateData: {
-          name: collection.name || null,
-          image: (collection.metadata as any)?.imageUrl || null,
-        },
-      });
+    try {
+      if (
+        result?.old_metadata.name != collection.name ||
+        result?.old_metadata.metadata?.imageUrl != (collection.metadata as any)?.imageUrl
+      ) {
+        await refreshActivitiesCollectionMetadataJob.addToQueue({
+          collectionId: collection.id,
+        });
+      }
+    } catch (error) {
+      logger.error(
+        "updateCollectionCache",
+        `refreshActivitiesCollectionMetadataJobError. contract=${contract}, tokenId=${tokenId}, community=${community}, collection=${JSON.stringify(
+          collection
+        )}, result=${JSON.stringify(result)}`
+      );
     }
 
     // Refresh all royalty specs and the default royalties
     await royalties.refreshAllRoyaltySpecs(
       collection.id,
       collection.royalties as royalties.Royalty[] | undefined,
-      collection.openseaRoyalties as royalties.Royalty[] | undefined
+      collection.openseaRoyalties as royalties.Royalty[] | undefined,
+      false
     );
+
     await royalties.refreshDefaultRoyalties(collection.id);
 
     // Refresh Blur royalties (which get stored separately)
@@ -250,6 +290,17 @@ export class Collections {
         SET ${updateString}
       WHERE id = $/collectionId/
     `;
+
+    if (config.chainId === 11155111) {
+      logger.info(
+        "updateCollection",
+        JSON.stringify({
+          topic: "debugCollectionUpdates",
+          message: `Update collection. collectionId=${collectionId}`,
+          collectionId,
+        })
+      );
+    }
 
     return await idb.none(query, replacementValues);
   }

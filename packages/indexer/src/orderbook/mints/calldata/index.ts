@@ -1,13 +1,17 @@
 import { defaultAbiCoder } from "@ethersproject/abi";
 import { AddressZero } from "@ethersproject/constants";
+import * as Sdk from "@reservoir0x/sdk";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
 
 import { idb } from "@/common/db";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
+import { config } from "@/config/index";
 import { mintsProcessJob } from "@/jobs/mints/mints-process-job";
 import { CollectionMint } from "@/orderbook/mints";
-
 import * as mints from "@/orderbook/mints/calldata/detector";
+
+// For now, use the deployer address
+const DEFAULT_REFERRER = "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e";
 
 export type AbiParam =
   | {
@@ -29,7 +33,15 @@ export type AbiParam =
       abiType: string;
     }
   | {
+      kind: "comment";
+      abiType: string;
+    }
+  | {
       kind: "allowlist";
+      abiType: string;
+    }
+  | {
+      kind: "referrer";
       abiType: string;
     }
   | {
@@ -45,12 +57,37 @@ export type MintTxSchema = {
   };
 };
 
-export type CustomInfo = mints.manifold.Info;
+export type CustomInfo = mints.manifold.Info | mints.soundxyz.Info;
+
+export type PartialCollectionMint = Pick<
+  CollectionMint,
+  "collection" | "details" | "price" | "contract"
+>;
+
+export const normalizePartialCollectionMint = (
+  partialCm: PartialCollectionMint
+): CollectionMint => {
+  return {
+    collection: partialCm.collection ?? partialCm.contract,
+    contract: partialCm.contract ?? partialCm.collection,
+    stage: "claim",
+    kind: "public",
+    status: "open",
+    standard: "unknown",
+    details: partialCm.details,
+    currency: Sdk.Common.Addresses.Native[config.chainId],
+    price: partialCm.price ?? "0",
+  };
+};
 
 export const generateCollectionMintTxData = async (
   collectionMint: CollectionMint,
   minter: string,
-  quantity: number
+  quantity: number,
+  options?: {
+    comment?: string;
+    referrer?: string;
+  }
 ): Promise<{ txData: TxData; price: string }> => {
   // For `allowlist` mints
   const allowlistData =
@@ -107,6 +144,24 @@ export const generateCollectionMintTxData = async (
         abiData.push({
           abiType: p.abiType,
           abiValue: minter,
+        });
+
+        break;
+      }
+
+      case "comment": {
+        abiData.push({
+          abiType: p.abiType,
+          abiValue: options?.comment ?? "",
+        });
+
+        break;
+      }
+
+      case "referrer": {
+        abiData.push({
+          abiType: p.abiType,
+          abiValue: options?.referrer ?? DEFAULT_REFERRER,
         });
 
         break;
@@ -181,6 +236,24 @@ export const generateCollectionMintTxData = async (
             break;
           }
 
+          case "mintdotfun": {
+            if (allowlistItemIndex === 0) {
+              abiValue = await mints.mintdotfun.generateProofValue(
+                collectionMint,
+                minter,
+                options?.referrer ?? DEFAULT_REFERRER
+              );
+            }
+            break;
+          }
+
+          case "soundxyz": {
+            if (allowlistItemIndex === 0) {
+              abiValue = await mints.soundxyz.generateProofValue(collectionMint, minter);
+            }
+            break;
+          }
+
           default: {
             throw new Error("Allowlist fields not supported");
           }
@@ -246,7 +319,7 @@ export const generateCollectionMintTxData = async (
       : "");
 
   let price = collectionMint.price;
-  if (!price) {
+  if (!price && allowlistData) {
     // If the price is not available on the main `CollectionMint`, get it from the allowlist
     price = allowlistData.actual_price!;
   }
@@ -276,14 +349,20 @@ export const refreshMintsForCollection = async (collection: string) => {
   );
   if (standardResult) {
     switch (standardResult.standard) {
+      case "createdotfun":
+        return mints.createdotfun.refreshByCollection(collection);
       case "decent":
         return mints.decent.refreshByCollection(collection);
       case "foundation":
         return mints.foundation.refreshByCollection(collection);
       case "manifold":
         return mints.manifold.refreshByCollection(collection);
+      case "mintdotfun":
+        return mints.mintdotfun.refreshByCollection(collection);
       case "seadrop-v1.0":
         return mints.seadrop.refreshByCollection(collection);
+      case "soundxyz":
+        return mints.soundxyz.refreshByCollection(collection);
       case "thirdweb":
         return mints.thirdweb.refreshByCollection(collection);
       case "unknown":

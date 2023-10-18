@@ -51,6 +51,30 @@ export type Permit = {
   data: PermitWithTransfers;
 };
 
+export type PreSignature = {
+  kind: "payment-processor-take-order";
+  signer: string;
+  signature?: string;
+  uniqueId: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: any;
+};
+
+export type TxKind = "sale" | "mint" | "swap";
+export type TxTags = {
+  kind: TxKind;
+  // Number of listings for each order kind
+  listings?: { [orderKind: string]: number };
+  // Number of bids for each order kind
+  bids?: { [orderKind: string]: number };
+  // Number of mints
+  mints?: number;
+  // Number of swaps
+  swaps?: number;
+  // Number of fees on top
+  feesOnTop?: number;
+};
+
 // Orders
 
 export type GenericOrder =
@@ -79,16 +103,16 @@ export type GenericOrder =
       order: Sdk.SeaportV14.Order;
     }
   | {
-      kind: "seaport-v1.4-partial";
-      order: Sdk.SeaportBase.Types.PartialOrder;
-    }
-  | {
       kind: "seaport-v1.5";
       order: Sdk.SeaportV15.Order;
     }
   | {
       kind: "seaport-v1.5-partial";
-      order: Sdk.SeaportBase.Types.PartialOrder;
+      order: Sdk.SeaportBase.Types.OpenseaPartialOrder;
+    }
+  | {
+      kind: "seaport-v1.5-partial-okx";
+      order: Sdk.SeaportBase.Types.OkxPartialOrder;
     }
   | {
       kind: "alienswap";
@@ -105,6 +129,10 @@ export type GenericOrder =
   | {
       kind: "collectionxyz";
       order: Sdk.CollectionXyz.Order;
+    }
+  | {
+      kind: "ditto";
+      order: Sdk.Ditto.Order;
     }
   | {
       kind: "zora";
@@ -173,6 +201,9 @@ export type ListingFillDetails = {
   isFlagged?: boolean;
   // Relevant for partially-fillable orders
   amount?: number | string;
+  // Relevant for special orders (eg. signed orders)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  extraArgs?: any;
   fees?: Fee[];
 };
 export type ListingDetails = GenericOrder & ListingFillDetails;
@@ -182,19 +213,11 @@ export type PerCurrencyListingDetails = {
   [currency: string]: ListingDetails[];
 };
 
-export type PreSignature = {
-  kind: "payment-processor-take-order";
-  signer: string;
-  signature?: string;
-  uniqueId: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data: any;
-};
-
 export type FillListingsResult = {
   txs: {
     approvals: FTApproval[];
     txData: TxData;
+    txTags?: TxTags;
     orderIds: string[];
     permits: Permit[];
     preSignatures: PreSignature[];
@@ -228,6 +251,7 @@ export type FillBidsResult = {
   txs: {
     approvals: NFTApproval[];
     txData: TxData;
+    txTags?: TxTags;
     orderIds: string[];
     preSignatures: PreSignature[];
   }[];
@@ -240,15 +264,28 @@ export type FillBidsResult = {
 export type MintDetails = {
   orderId: string;
   txData: TxData;
-  fees?: Fee[];
+  fees: Fee[];
+  token: string;
+  quantity: number;
+  comment?: string;
 };
 
 export type FillMintsResult = {
   txs: {
     txData: TxData;
+    txTags?: TxTags;
     orderIds: string[];
   }[];
   success: { [orderId: string]: boolean };
+};
+
+// Transfers
+
+export type TransfersResult = {
+  txs: {
+    approvals: NFTApproval[];
+    txData: TxData;
+  }[];
 };
 
 // Swaps
@@ -264,5 +301,6 @@ export type SwapDetail = {
   recipient: string;
   refundTo: string;
   details: ListingDetails[];
-  executionIndex: number;
+  txIndex?: number;
+  executionIndex?: number;
 };

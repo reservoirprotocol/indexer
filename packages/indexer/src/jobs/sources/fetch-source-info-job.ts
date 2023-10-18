@@ -8,7 +8,7 @@ export type FetchSourceInfoJobPayload = {
   sourceDomain: string;
 };
 
-export class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
+export default class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
   queueName = "fetch-source-info-queue";
   maxRetries = 10;
   concurrency = 3;
@@ -112,6 +112,8 @@ export class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
     const tokenUrlZoraTestnet = this.getTokenUrl(html, url, "zora-testnet");
     const tokenUrlBase = this.getTokenUrl(html, url, "base");
     const tokenUrlZksync = this.getTokenUrl(html, url, "zksync");
+    const tokenUrlPolygonZkevm = this.getTokenUrl(html, url, "polygon-zkevm");
+    const tokenUrlScroll = this.getTokenUrl(html, url, "scroll");
 
     // Update the source data
     const sources = await Sources.getInstance();
@@ -138,6 +140,8 @@ export class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
       tokenUrlZoraTestnet,
       tokenUrlBase,
       tokenUrlZksync,
+      tokenUrlPolygonZkevm,
+      tokenUrlScroll,
     });
   }
 

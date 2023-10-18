@@ -21,12 +21,12 @@ export type ProcessResyncRequestJobPayload = {
   blocksPerBatch?: number;
 };
 
-export class EventsSyncBackfillJob extends AbstractRabbitMqJobHandler {
+export default class EventsSyncBackfillJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-backfill";
   maxRetries = 10;
   concurrency = 2;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 10000,
@@ -37,7 +37,7 @@ export class EventsSyncBackfillJob extends AbstractRabbitMqJobHandler {
 
     try {
       await syncEvents(fromBlock, toBlock, { backfill, syncDetails });
-      logger.info(this.queueName, `Events backfill syncing block range [${fromBlock}, ${toBlock}]`);
+      //logger.info(this.queueName, `Events backfill syncing block range [${fromBlock}, ${toBlock}]`);
     } catch (error) {
       logger.error(
         this.queueName,

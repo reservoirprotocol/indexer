@@ -1,9 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { KafkaEventHandler } from "./KafkaEventHandler";
+import { redis } from "@/common/redis";
+
 import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
+import { redb } from "@/common/db";
+import { logger } from "@/common/logger";
 
 export class IndexerCollectionsHandler extends KafkaEventHandler {
   topicName = "indexer.public.collections";
@@ -36,6 +40,44 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
       },
       eventKind: WebsocketEventKind.CollectionEvent,
     });
+
+    try {
+      // logger.info("top-selling-collections", `updating collection ${payload.after.id}`);
+
+      const collectionKey = `collection-cache:v1:${payload.after.id}`;
+
+      const cachedCollection = await redis.get(collectionKey);
+
+      if (cachedCollection !== null) {
+        // If the collection exists, fetch the on_sale_count
+        const listedCountQuery = `
+        SELECT
+          COUNT(*) AS on_sale_count
+        FROM tokens
+        WHERE tokens.collection_id = $/collectionId/
+          AND tokens.floor_sell_value IS NOT NULL
+      `;
+
+        const listCountResult = await redb.one(listedCountQuery, {
+          collectionId: payload.after.id,
+        });
+        const listCount = listCountResult.on_sale_count;
+
+        const updatedPayload = {
+          ...payload.after,
+          on_sale_count: listCount,
+        };
+
+        await redis.set(collectionKey, JSON.stringify(updatedPayload), "XX");
+      }
+
+      // logger.info("top-selling-collections", `updated collection ${payload.after.id}`);
+    } catch (err) {
+      logger.error(
+        "top-selling-collections",
+        `failed to update collection ${payload.after.id}, ${err}`
+      );
+    }
   }
 
   protected async handleDelete(): Promise<void> {

@@ -63,58 +63,62 @@ export const extractByTx = async (
   const params: AbiParam[] = [];
 
   try {
-    methodSignature.params.split(",").forEach((abiType, i) => {
-      const decodedValue = methodSignature.decodedCalldata[i];
+    if (methodSignature.params.length) {
+      methodSignature.params.split(",").forEach((abiType, i) => {
+        const decodedValue = methodSignature.decodedCalldata[i];
 
-      if (abiType.includes("int") && bn(decodedValue).eq(amountMinted)) {
-        params.push({
-          kind: "quantity",
-          abiType,
-        });
-      } else if (abiType.includes("address") && decodedValue.toLowerCase() === collection) {
-        params.push({
-          kind: "contract",
-          abiType,
-        });
-      } else if (abiType.includes("address") && decodedValue.toLowerCase() === tx.from) {
-        params.push({
-          kind: "recipient",
-          abiType,
-        });
-      } else {
-        params.push({
-          kind: "unknown",
-          abiType,
-          abiValue: decodedValue.toString().toLowerCase(),
-        });
-      }
-    });
+        if (abiType.includes("int") && bn(decodedValue).eq(amountMinted)) {
+          params.push({
+            kind: "quantity",
+            abiType,
+          });
+        } else if (abiType.includes("address") && decodedValue.toLowerCase() === collection) {
+          params.push({
+            kind: "contract",
+            abiType,
+          });
+        } else if (abiType.includes("address") && decodedValue.toLowerCase() === tx.from) {
+          params.push({
+            kind: "recipient",
+            abiType,
+          });
+        } else {
+          params.push({
+            kind: "unknown",
+            abiType,
+            abiValue: decodedValue.toString().toLowerCase(),
+          });
+        }
+      });
+    }
   } catch (error) {
     logger.error("mint-detector", JSON.stringify({ kind: STANDARD, error }));
   }
 
-  return [
-    {
-      collection,
-      contract: collection,
-      stage: "public-sale",
-      kind: "public",
-      status: "open",
-      standard: STANDARD,
-      details: {
-        tx: {
-          to: tx.to,
-          data: {
-            signature: methodSignature.signature,
-            params,
-          },
+  const collectionMint: CollectionMint = {
+    collection,
+    contract: collection,
+    stage: "public-sale",
+    kind: "public",
+    status: "open",
+    standard: STANDARD,
+    details: {
+      tx: {
+        to: tx.to,
+        data: {
+          signature: methodSignature.signature,
+          params,
         },
       },
-      currency: Sdk.Common.Addresses.Native[config.chainId],
-      price: pricePerAmountMinted.toString(),
-      maxSupply,
     },
-  ];
+    currency: Sdk.Common.Addresses.Native[config.chainId],
+    price: pricePerAmountMinted.toString(),
+    maxSupply,
+  };
+
+  const results = [collectionMint];
+
+  return results;
 };
 
 export const refreshByCollection = async (collection: string) => {

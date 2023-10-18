@@ -18,6 +18,7 @@ import {
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
 import { JoiAttributeKeyValueObject } from "@/common/joi";
+import * as Boom from "@hapi/boom";
 
 const version = "v3";
 
@@ -290,7 +291,7 @@ export const getTokensDetailsV3Options: RouteOptions = {
               })
             );
 
-            throw new Error("Invalid continuation string used");
+            throw Boom.badRequest("Invalid continuation string used");
           }
           switch (query.sortBy) {
             case "topBidValue":
@@ -429,12 +430,14 @@ export const getTokensDetailsV3Options: RouteOptions = {
               maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
               validFrom: r.floor_sell_valid_from,
               validUntil: r.floor_sell_value ? r.floor_sell_valid_until : null,
-              source: {
-                id: source?.address,
-                name: source?.getTitle(),
-                icon: source?.getIcon(),
-                url: source?.metadata.url,
-              },
+              source: source
+                ? {
+                    id: source.address,
+                    name: source.getTitle(),
+                    icon: source.getIcon(),
+                    url: source.metadata.url,
+                  }
+                : null,
             },
             topBid: {
               id: r.top_buy_id,

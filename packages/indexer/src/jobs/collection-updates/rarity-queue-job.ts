@@ -11,10 +11,10 @@ export type RarityQueueJobPayload = {
   collectionId: string;
 };
 
-export class RarityQueueJob extends AbstractRabbitMqJobHandler {
+export default class RarityQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "rarity-queue";
   maxRetries = 10;
-  concurrency = 5;
+  concurrency = 1;
   persistent = false;
   backoff = {
     type: "exponential",
@@ -75,7 +75,7 @@ export class RarityQueueJob extends AbstractRabbitMqJobHandler {
                                FROM (VALUES ${updateTokensString}) AS x(tokenId, rarityTraitSum, rarityTraitSumRank)
                                WHERE contract = $/contract/
                                AND token_id = x.tokenId
-                               AND (rarity_score <> x.rarityTraitSum OR rarity_rank <> x.rarityTraitSumRank)
+                               AND (rarity_score IS NULL OR rarity_rank IS NULL OR rarity_score <> x.rarityTraitSum OR rarity_rank <> x.rarityTraitSumRank)
                                `;
 
         await idb.none(updateQuery, replacementParams);

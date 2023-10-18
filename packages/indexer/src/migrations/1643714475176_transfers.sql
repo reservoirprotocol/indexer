@@ -19,7 +19,7 @@ CREATE TABLE "nft_transfer_events" (
 
 ALTER TABLE "nft_transfer_events"
   ADD CONSTRAINT "nft_transfer_events_pk"
-  PRIMARY KEY ("tx_hash", "log_index", "batch_index");
+  PRIMARY KEY ("tx_hash", "log_index", "batch_index", "block_hash");
 
 CREATE INDEX "nft_transfer_events_block_block_hash_index"
   ON "nft_transfer_events" ("block", "block_hash");

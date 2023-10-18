@@ -10,18 +10,17 @@ import { logger } from "@/common/logger";
 import { Tokens } from "@/models/tokens";
 import { Collections } from "@/models/collections";
 import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
-import { getSupportedChainName } from "@/websockets/opensea/utils";
 import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
 import { parseProtocolData } from "@/websockets/opensea";
 import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
-import { getNetworkSettings } from "@/config/network";
+import { getNetworkSettings, getOpenseaNetworkName } from "@/config/network";
 
 export class OpenseaOrdersFetchJob extends AbstractRabbitMqJobHandler {
   queueName = "opensea-orders-fetch-queue";
   maxRetries = 10;
   concurrency = 1;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 5 * 60 * 1000;
   singleActiveConsumer = true;
   backoff = {
     type: "fixed",
@@ -85,16 +84,12 @@ export class OpenseaOrdersFetchJob extends AbstractRabbitMqJobHandler {
               refreshOpenseaCollectionOffersCollections[0].collection
             );
 
-            await collectionMetadataQueueJob.addToQueue(
-              {
-                contract: collectionResult!.contract,
-                tokenId,
-                community: collectionResult!.community,
-                forceRefresh: false,
-              },
-              0,
-              this.queueName
-            );
+            await collectionMetadataQueueJob.addToQueue({
+              contract: collectionResult!.contract,
+              tokenId,
+              community: collectionResult!.community,
+              forceRefresh: false,
+            });
           } catch {
             // Skip on any errors
           }
@@ -117,7 +112,7 @@ export class OpenseaOrdersFetchJob extends AbstractRabbitMqJobHandler {
     );
 
     for (const collectionOffer of collectionOffers) {
-      if (getSupportedChainName() === collectionOffer.chain) {
+      if (getOpenseaNetworkName() === collectionOffer.chain) {
         const openSeaOrderParams = {
           kind: "contract-wide",
           side: "buy",

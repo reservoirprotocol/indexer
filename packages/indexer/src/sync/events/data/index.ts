@@ -44,6 +44,10 @@ import * as thirdweb from "@/events-sync/data/thirdweb";
 import * as blurV2 from "@/events-sync/data/blur-v2";
 import * as seadrop from "@/events-sync/data/seadrop";
 import * as erc721c from "@/events-sync/data/erc721c";
+import * as joepeg from "@/events-sync/data/joepeg";
+import * as metadataUpdate from "@/events-sync/data/metadata-update";
+import * as soundxyz from "@/events-sync/data/soundxyz";
+import * as createdotfun from "@/events-sync/data/createdotfun";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -90,7 +94,11 @@ export type EventKind =
   | "thirdweb"
   | "seadrop"
   | "blur-v2"
-  | "erc721c";
+  | "erc721c"
+  | "joepeg"
+  | "metadata-update"
+  | "soundxyz"
+  | "createdotfun";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -167,6 +175,8 @@ export type EventSubKind =
   | "zora-auction-ended"
   | "zora-sales-config-changed"
   | "zora-updated-token"
+  | "zora-mint-comment"
+  | "zora-custom-mint-comment"
   | "nouns-auction-settled"
   | "cryptopunks-punk-offered"
   | "cryptopunks-punk-no-longer-for-sale"
@@ -282,6 +292,9 @@ export type EventSubKind =
   | "payment-processor-nonce-invalidated"
   | "payment-processor-sweep-collection-erc1155"
   | "payment-processor-sweep-collection-erc721"
+  | "payment-processor-created-or-updated-security-policy"
+  | "payment-processor-updated-collection-payment-coin"
+  | "payment-processor-updated-collection-security-policy"
   | "thirdweb-claim-conditions-updated-erc721"
   | "thirdweb-claim-conditions-updated-erc1155"
   | "seadrop-public-drop-updated"
@@ -291,7 +304,20 @@ export type EventSubKind =
   | "blur-v2-execution-721-maker-fee-packed"
   | "erc721c-verified-eoa-signature"
   | "erc721c-added-to-allowlist"
-  | "erc721c-removed-from-allowlist";
+  | "erc721c-removed-from-allowlist"
+  | "joepeg-taker-ask"
+  | "joepeg-taker-bid"
+  | "erc721c-set-allowlist"
+  | "erc721c-set-transfer-security-level"
+  | "erc721c-transfer-validator-updated"
+  | "metadata-update-single-token-opensea"
+  | "metadata-update-batch-tokens-opensea"
+  | "metadata-update-uri-opensea"
+  | "metadata-update-contract-uri-thirdweb"
+  | "metadata-update-zora"
+  | "soundxyz-range-edition-mint-created"
+  | "soundxyz-merkle-drop-mint-created"
+  | "createdotfun-configuration-updated";
 
 export type EventData = {
   kind: EventKind;
@@ -381,6 +407,8 @@ const allEventData = [
   zora.auctionEnded,
   zora.salesConfigChanged,
   zora.updatedToken,
+  zora.mintComment,
+  zora.customMintComment,
   nouns.auctionSettled,
   cryptoPunks.punkOffered,
   cryptoPunks.punkNoLongerForSale,
@@ -489,6 +517,9 @@ const allEventData = [
   paymentProcessor.nonceInvalidated,
   paymentProcessor.sweepCollectionERC1155,
   paymentProcessor.sweepCollectionERC721,
+  paymentProcessor.createdOrUpdatedSecurityPolicy,
+  paymentProcessor.updatedCollectionSecurityPolicy,
+  paymentProcessor.updatedCollectionPaymentCoin,
   thirdweb.claimConditionsUpdatedERC721,
   thirdweb.claimConditionsUpdatedERC1155,
   blurV2.execution,
@@ -499,6 +530,19 @@ const allEventData = [
   erc721c.verifiedEOASignature,
   erc721c.addedToAllowlist,
   erc721c.removedFromAllowlist,
+  erc721c.transferValidatorUpdated,
+  erc721c.setTransferSecurityLevel,
+  erc721c.setAllowlist,
+  joepeg.takerAsk,
+  joepeg.takerBid,
+  metadataUpdate.metadataUpdateOpensea,
+  metadataUpdate.batchMetadataUpdateOpensea,
+  metadataUpdate.metadataUpdateURIOpensea,
+  metadataUpdate.contractURIUpdateThirdweb,
+  metadataUpdate.metadataUpdateURIZora,
+  soundxyz.rangeEditionMintCreated,
+  soundxyz.merkleDropMintCreated,
+  createdotfun.configurationUpdated,
 ];
 
 export const getEventData = (events?: string[]) => {

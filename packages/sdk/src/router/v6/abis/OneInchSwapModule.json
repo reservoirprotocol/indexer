@@ -191,14 +191,19 @@
             "type": "tuple[]"
           }
         ],
-        "internalType": "struct OneInchSwapModule.Swap",
-        "name": "swap",
-        "type": "tuple"
+        "internalType": "struct OneInchSwapModule.Swap[]",
+        "name": "swaps",
+        "type": "tuple[]"
       },
       {
         "internalType": "address",
         "name": "refundTo",
         "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "revertIfIncomplete",
+        "type": "bool"
       }
     ],
     "name": "erc20ToExactOutput",
@@ -265,14 +270,19 @@
             "type": "tuple[]"
           }
         ],
-        "internalType": "struct OneInchSwapModule.Swap",
-        "name": "swap",
-        "type": "tuple"
+        "internalType": "struct OneInchSwapModule.Swap[]",
+        "name": "swaps",
+        "type": "tuple[]"
       },
       {
         "internalType": "address",
         "name": "refundTo",
         "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "revertIfIncomplete",
+        "type": "bool"
       }
     ],
     "name": "ethToExactOutput",

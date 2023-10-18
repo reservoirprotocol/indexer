@@ -14,12 +14,12 @@ export type BlockCheckJobPayload = {
   delay?: number;
 };
 
-export class BlockCheckJob extends AbstractRabbitMqJobHandler {
+export default class BlockCheckJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-block-check";
   maxRetries = 10;
-  concurrency = 10;
+  concurrency = 1;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 30000,
@@ -114,7 +114,15 @@ export class BlockCheckJob extends AbstractRabbitMqJobHandler {
         }
       }
     } catch (error) {
-      logger.error(this.queueName, `Block check failed: ${error}`);
+      logger.error(
+        this.queueName,
+        JSON.stringify({
+          message: `Failed to process block ${block} with hash ${blockHash}. error=${error}`,
+          payload,
+          error,
+        })
+      );
+
       throw error;
     }
   }

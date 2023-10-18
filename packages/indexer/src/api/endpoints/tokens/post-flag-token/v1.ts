@@ -12,6 +12,7 @@ import { ApiKeyManager } from "@/models/api-keys";
 import { TokensEntityUpdateParams } from "@/models/tokens/tokens-entity";
 import { Collections } from "@/models/collections";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 
 const version = "v1";
 
@@ -73,6 +74,16 @@ export const postFlagTokenV1Options: RouteOptions = {
                 collection: token.collectionId,
               },
               context: "post-flag-token-v1",
+            },
+          ],
+          true
+        );
+
+        await PendingFlagStatusSyncTokens.add(
+          [
+            {
+              contract,
+              tokenId,
             },
           ],
           true

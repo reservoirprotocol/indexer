@@ -11,7 +11,7 @@ export type ResyncAttributeValueCountsJobPayload = {
   value: string;
 };
 
-export class ResyncAttributeValueCountsJob extends AbstractRabbitMqJobHandler {
+export default class ResyncAttributeValueCountsJob extends AbstractRabbitMqJobHandler {
   queueName = "resync-attribute-value-counts-queue";
   maxRetries = 10;
   concurrency = 3;
@@ -59,7 +59,10 @@ export class ResyncAttributeValueCountsJob extends AbstractRabbitMqJobHandler {
             );
 
             await orderRevalidationsJob.addToQueue(
-              orders.map((order) => ({ id: order.id, status: "inactive" }))
+              orders.map((order) => ({
+                by: "id",
+                data: { id: order.id, status: "inactive" },
+              }))
             );
           }
         } catch (error) {

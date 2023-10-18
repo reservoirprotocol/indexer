@@ -9,6 +9,7 @@ import { logger } from "@/common/logger";
 import { buildContinuation, formatEth, fromBuffer, regex, splitContinuation } from "@/common/utils";
 import { Assets } from "@/utils/assets";
 import { JoiAttributeValue } from "@/common/joi";
+import * as Boom from "@hapi/boom";
 
 const version = "v5";
 
@@ -217,7 +218,7 @@ export const getAttributesExploreV5Options: RouteOptions = {
       if (query.continuation) {
         const contArr = splitContinuation(query.continuation, /^[0-9]+_[^_]+_[^_]+$/);
         if (contArr.length !== 3) {
-          throw new Error("Invalid continuation string used");
+          throw Boom.badRequest("Invalid continuation string used");
         }
         conditions.push(
           `COALESCE(CAST(floor_sell_value AS numeric), CAST(0 AS numeric)) <= CAST($/contFloorSellValue/ AS numeric)`
