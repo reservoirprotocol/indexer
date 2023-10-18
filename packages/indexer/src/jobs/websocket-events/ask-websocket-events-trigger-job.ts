@@ -24,6 +24,7 @@ const changedMapping = {
   quantity_remaining: "quantityRemaining",
   expiration: "expiration",
   price: "price.gross.amount",
+  valid_between: ["validFrom", "validUntil"],
 };
 
 export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandler {
@@ -46,8 +47,22 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
 
       if (data.trigger === "update" && data.before) {
         for (const key in changedMapping) {
-          if (data.before[key as keyof OrderInfo] !== data.after[key as keyof OrderInfo]) {
-            changed.push(changedMapping[key as keyof typeof changedMapping]);
+          const value = changedMapping[key as keyof typeof changedMapping];
+
+          if (Array.isArray(value)) {
+            const beforeArrayJSON = data.before[key as keyof OrderInfo] as string;
+            const afterArrayJSON = data.after[key as keyof OrderInfo] as string;
+
+            const beforeArray = JSON.parse(beforeArrayJSON.replace("infinity", "null"));
+            const afterArray = JSON.parse(afterArrayJSON.replace("infinity", "null"));
+
+            for (let i = 0; i < value.length; i++) {
+              if (beforeArray[i] !== afterArray[i]) {
+                changed.push(value[i]);
+              }
+            }
+          } else if (data.before[key as keyof OrderInfo] !== data.after[key as keyof OrderInfo]) {
+            changed.push(value);
           }
         }
 

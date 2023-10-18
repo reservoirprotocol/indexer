@@ -241,7 +241,8 @@ export default class MintQueueJob extends AbstractRabbitMqJobHandler {
         await idb.none(
           `
             UPDATE collections SET
-              minted_timestamp = $/mintedTimestamp/
+              minted_timestamp = $/mintedTimestamp/,
+              updated_at = NOW()
             WHERE collections.id = $/collection/
             AND collections.minted_timestamp IS NULL
           `,
