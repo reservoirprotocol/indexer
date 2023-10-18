@@ -106,7 +106,6 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
                 updated_at = now()
               WHERE tokens.contract = $/contract/
                 AND tokens.token_id = $/tokenId/
-                
             `,
             values: {
               contract: toBuffer(contract),
@@ -114,6 +113,17 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
               collection: collection.id,
             },
           });
+
+          if (config.chainId === 11155111) {
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                topic: "debugTokenUpdate",
+                message: `Update token. contract=${contract}, tokenId=${tokenId}`,
+                token: `${contract}:${tokenId}`,
+              })
+            );
+          }
 
           // Include the new token to any collection-wide token set
           if (collection.token_set_id) {

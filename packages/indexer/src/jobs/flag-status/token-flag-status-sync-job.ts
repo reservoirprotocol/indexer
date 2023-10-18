@@ -44,7 +44,11 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
               if (error instanceof RequestWasThrottledError) {
                 logger.warn(
                   this.queueName,
-                  `Too Many Requests.  error: ${JSON.stringify((error as any).response.data)}`
+                  JSON.stringify({
+                    message: `Too Many Requests. error=${error}`,
+                    tokensToGetFlagStatusForChunk,
+                    error,
+                  })
                 );
 
                 await PendingFlagStatusSyncTokens.add(tokensToGetFlagStatusForChunk, true);
