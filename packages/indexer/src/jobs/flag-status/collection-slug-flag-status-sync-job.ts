@@ -4,11 +4,11 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { acquireLock, getLockExpiration, redlock } from "@/common/redis";
 import { logger } from "@/common/logger";
 import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
-import { RequestWasThrottledError } from "../orderbook/post-order-external/api/errors";
 import { PendingFlagStatusSyncCollectionSlugs } from "@/models/pending-flag-status-sync-collection-slugs";
 import { getTokensFlagStatusForCollectionBySlug } from "./utils";
 import { config } from "@/config/index";
 import cron from "node-cron";
+import { RequestWasThrottledError } from "@/metadata/providers/utils";
 
 export class CollectionSlugFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
   queueName = "collection-slug-flag-status-sync-queue";
