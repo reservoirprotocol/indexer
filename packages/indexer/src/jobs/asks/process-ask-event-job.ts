@@ -2,8 +2,8 @@ import { logger } from "@/common/logger";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
-import * as tokenListingsIndex from "@/elasticsearch/indexes/token-listings";
-import { TokenListingBuilder } from "@/elasticsearch/indexes/token-listings/base";
+import * as asksIndex from "@/elasticsearch/indexes/asks";
+import { AskDocumentBuilder } from "@/elasticsearch/indexes/asks/base";
 import { Orders } from "@/utils/orders";
 import { idb } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
@@ -12,20 +12,20 @@ export enum EventKind {
   newSellOrder = "newSellOrder",
 }
 
-export type ProcessTokenListingEventJobPayload = {
+export type ProcessAskEventJobPayload = {
   kind: EventKind.newSellOrder;
   data: OrderInfo;
   context?: string;
 };
 
-export class ProcessTokenListingEventJob extends AbstractRabbitMqJobHandler {
-  queueName = "process-token-listing-event-queue";
+export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
+  queueName = "process-ask-event-queue";
   maxRetries = 10;
   concurrency = 15;
   persistent = true;
   lazyMode = true;
 
-  protected async process(payload: ProcessTokenListingEventJobPayload) {
+  protected async process(payload: ProcessAskEventJobPayload) {
     const { kind, data } = payload;
 
     logger.info(
@@ -37,7 +37,7 @@ export class ProcessTokenListingEventJob extends AbstractRabbitMqJobHandler {
       })
     );
 
-    let tokenListing;
+    let askDocument;
 
     try {
       const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", true);
@@ -104,7 +104,7 @@ export class ProcessTokenListingEventJob extends AbstractRabbitMqJobHandler {
           })
         );
 
-        tokenListing = new TokenListingBuilder().buildDocument({
+        askDocument = new AskDocumentBuilder().buildDocument({
           id,
           created_at: new Date(data.created_at),
           contract: toBuffer(data.contract),
@@ -137,7 +137,7 @@ export class ProcessTokenListingEventJob extends AbstractRabbitMqJobHandler {
       logger.error(
         this.queueName,
         JSON.stringify({
-          message: `Error generating token listing. kind=${kind}, error=${error}`,
+          message: `Error generating ask document. kind=${kind}, error=${error}`,
           error,
           data,
         })
@@ -146,17 +146,17 @@ export class ProcessTokenListingEventJob extends AbstractRabbitMqJobHandler {
       throw error;
     }
 
-    if (tokenListing) {
-      await tokenListingsIndex.save([tokenListing]);
+    if (askDocument) {
+      await asksIndex.save([askDocument]);
     }
   }
 
-  public async addToQueue(payloads: ProcessTokenListingEventJobPayload[]) {
+  public async addToQueue(payloads: ProcessAskEventJobPayload[]) {
     await this.sendBatch(payloads.map((payload) => ({ payload })));
   }
 }
 
-export const processTokenListingEventJob = new ProcessTokenListingEventJob();
+export const processAskEventJob = new ProcessAskEventJob();
 
 interface OrderInfo {
   id: string;

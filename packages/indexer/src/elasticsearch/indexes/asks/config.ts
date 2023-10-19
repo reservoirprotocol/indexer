@@ -82,7 +82,7 @@ export const CONFIG_DEFAULT = {
   } as MappingTypeMapping,
   settings: {
     number_of_shards:
-      getNetworkSettings().elasticsearch?.indexes?.tokenListings?.numberOfShards ||
+      getNetworkSettings().elasticsearch?.indexes?.asks?.numberOfShards ||
       getNetworkSettings().elasticsearch?.numberOfShards ||
       1,
     number_of_replicas: 0,

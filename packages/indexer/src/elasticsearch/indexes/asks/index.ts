@@ -5,41 +5,41 @@ import { logger } from "@/common/logger";
 
 import { getNetworkName, getNetworkSettings } from "@/config/network";
 
-import * as CONFIG from "@/elasticsearch/indexes/token-listings/config";
-import { TokenListingDocument } from "@/elasticsearch/indexes/token-listings/base";
+import * as CONFIG from "@/elasticsearch/indexes/asks/config";
+import { AskDocument } from "@/elasticsearch/indexes/asks/base";
 
-const INDEX_NAME = `${getNetworkName()}.token-listings`;
+const INDEX_NAME = `${getNetworkName()}.asks`;
 
-export const save = async (tokenListings: TokenListingDocument[], upsert = true): Promise<void> => {
+export const save = async (asks: AskDocument[], upsert = true): Promise<void> => {
   try {
     const response = await elasticsearch.bulk({
-      body: tokenListings.flatMap((tokenListing) => [
-        { [upsert ? "index" : "create"]: { _index: INDEX_NAME, _id: tokenListing.id } },
-        tokenListing,
+      body: asks.flatMap((ask) => [
+        { [upsert ? "index" : "create"]: { _index: INDEX_NAME, _id: ask.id } },
+        ask,
       ]),
     });
 
     if (response.errors) {
       if (upsert) {
         logger.error(
-          "elasticsearch-token-listings",
+          "elasticsearch-asks",
           JSON.stringify({
             topic: "save-errors",
             upsert,
             data: {
-              tokenListings: JSON.stringify(tokenListings),
+              asks: JSON.stringify(asks),
             },
             response,
           })
         );
       } else {
         logger.debug(
-          "elasticsearch-token-listings",
+          "elasticsearch-asks",
           JSON.stringify({
             topic: "save-conflicts",
             upsert,
             data: {
-              tokenListings: JSON.stringify(tokenListings),
+              asks: JSON.stringify(asks),
             },
             response,
           })
@@ -48,12 +48,12 @@ export const save = async (tokenListings: TokenListingDocument[], upsert = true)
     }
   } catch (error) {
     logger.error(
-      "elasticsearch-token-listings",
+      "elasticsearch-asks",
       JSON.stringify({
         topic: "save",
         upsert,
         data: {
-          tokenListings: JSON.stringify(tokenListings),
+          asks: JSON.stringify(asks),
         },
         error,
       })
@@ -70,7 +70,7 @@ export const getIndexName = (): string => {
 export const initIndex = async (): Promise<void> => {
   try {
     const indexConfigName =
-      getNetworkSettings().elasticsearch?.indexes?.tokenListings?.configName ?? "CONFIG_DEFAULT";
+      getNetworkSettings().elasticsearch?.indexes?.asks?.configName ?? "CONFIG_DEFAULT";
 
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
@@ -78,7 +78,7 @@ export const initIndex = async (): Promise<void> => {
 
     if (await elasticsearch.indices.exists({ index: INDEX_NAME })) {
       logger.info(
-        "elasticsearch-token-listings",
+        "elasticsearch-asks",
         JSON.stringify({
           topic: "initIndex",
           message: "Index already exists.",
@@ -87,9 +87,9 @@ export const initIndex = async (): Promise<void> => {
         })
       );
 
-      if (getNetworkSettings().elasticsearch?.indexes?.tokenListings?.disableMappingsUpdate) {
+      if (getNetworkSettings().elasticsearch?.indexes?.asks?.disableMappingsUpdate) {
         logger.info(
-          "elasticsearch-token-listings",
+          "elasticsearch-asks",
           JSON.stringify({
             topic: "initIndex",
             message: "Mappings update disabled.",
@@ -111,7 +111,7 @@ export const initIndex = async (): Promise<void> => {
       });
 
       logger.info(
-        "elasticsearch-token-listings",
+        "elasticsearch-asks",
         JSON.stringify({
           topic: "initIndex",
           message: "Updated mappings.",
@@ -122,7 +122,7 @@ export const initIndex = async (): Promise<void> => {
       );
     } else {
       logger.info(
-        "elasticsearch-token-listings",
+        "elasticsearch-asks",
         JSON.stringify({
           topic: "initIndex",
           message: "Creating Index.",
@@ -142,7 +142,7 @@ export const initIndex = async (): Promise<void> => {
       const createIndexResponse = await elasticsearch.indices.create(params);
 
       logger.info(
-        "elasticsearch-token-listings",
+        "elasticsearch-asks",
         JSON.stringify({
           topic: "initIndex",
           message: "Index Created!",
@@ -155,7 +155,7 @@ export const initIndex = async (): Promise<void> => {
     }
   } catch (error) {
     logger.error(
-      "elasticsearch-token-listings",
+      "elasticsearch-asks",
       JSON.stringify({
         topic: "initIndex",
         message: "Error.",

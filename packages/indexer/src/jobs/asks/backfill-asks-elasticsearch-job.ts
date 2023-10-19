@@ -6,22 +6,21 @@ import { redis } from "@/common/redis";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
 import { Orders } from "@/utils/orders";
-import { fromBuffer } from "@/common/utils";
-import { TokenListingBuilder } from "@/elasticsearch/indexes/token-listings/base";
-import * as tokenListingsIndex from "@/elasticsearch/indexes/token-listings";
+import { AskDocumentBuilder } from "@/elasticsearch/indexes/asks/base";
+import * as asksIndex from "@/elasticsearch/indexes/asks";
 
-export class BackfillTokenListingsElasticsearchJob extends AbstractRabbitMqJobHandler {
-  queueName = "backfill-token-listings-elasticsearch-queue";
+export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
+  queueName = "backfill-asks-elasticsearch-queue";
   maxRetries = 10;
   concurrency = 1;
   persistent = true;
   lazyMode = true;
 
-  protected async process(payload: BackfillTokenListingsElasticsearchJobPayload) {
+  protected async process(payload: BackfillAsksElasticsearchJobPayload) {
     logger.info(
       this.queueName,
       JSON.stringify({
-        topic: "backfill-token-listings",
+        topic: "backfill-asks",
         message: `Start.`,
         payload,
       })
@@ -29,7 +28,7 @@ export class BackfillTokenListingsElasticsearchJob extends AbstractRabbitMqJobHa
 
     let nextCursor;
 
-    const tokenListings = [];
+    const askDocuments = [];
 
     try {
       let continuationFilter = "";
@@ -112,12 +111,8 @@ export class BackfillTokenListingsElasticsearchJob extends AbstractRabbitMqJobHa
 
       if (rawResults.length) {
         for (const rawResult of rawResults) {
-          const id = `${fromBuffer(rawResult.ownership_owner)}:${fromBuffer(rawResult.contract)}:${
-            rawResult.token_id
-          }:${rawResult.order_id}`;
-
-          const tokenListing = new TokenListingBuilder().buildDocument({
-            id,
+          const askDocument = new AskDocumentBuilder().buildDocument({
+            id: rawResult.order_id,
             created_at: new Date(rawResult.created_at),
             contract: rawResult.contract,
             ownership_address: rawResult.ownership_owner,
@@ -145,7 +140,7 @@ export class BackfillTokenListingsElasticsearchJob extends AbstractRabbitMqJobHa
               rawResult.order_pricing_currency_normalized_value,
           });
 
-          tokenListings.push(tokenListing);
+          askDocuments.push(askDocument);
         }
 
         const lastResult = rawResults[rawResults.length - 1];
@@ -159,7 +154,7 @@ export class BackfillTokenListingsElasticsearchJob extends AbstractRabbitMqJobHa
       logger.error(
         this.queueName,
         JSON.stringify({
-          message: `Error generating token listing. error=${error}`,
+          message: `Error generating ask document. error=${error}`,
           error,
           payload,
         })
@@ -168,10 +163,10 @@ export class BackfillTokenListingsElasticsearchJob extends AbstractRabbitMqJobHa
       throw error;
     }
 
-    if (tokenListings.length) {
-      await tokenListingsIndex.save(tokenListings);
+    if (askDocuments.length) {
+      await asksIndex.save(askDocuments);
 
-      await backfillTokenListingsElasticsearchJob.addToQueue(payload.fromTimestamp, nextCursor);
+      await backfillAsksElasticsearchJob.addToQueue(payload.fromTimestamp, nextCursor);
     }
   }
 
@@ -195,9 +190,9 @@ export class BackfillTokenListingsElasticsearchJob extends AbstractRabbitMqJobHa
   }
 }
 
-export const backfillTokenListingsElasticsearchJob = new BackfillTokenListingsElasticsearchJob();
+export const backfillAsksElasticsearchJob = new BackfillAsksElasticsearchJob();
 
-export type BackfillTokenListingsElasticsearchJobPayload = {
+export type BackfillAsksElasticsearchJobPayload = {
   fromTimestamp?: number;
   cursor?: {
     updatedAt: string;

@@ -7,7 +7,7 @@ import { config } from "@/config/index";
 import { BuildDocumentData, BaseDocument, DocumentBuilder } from "@/elasticsearch/indexes/base";
 import { logger } from "@/common/logger";
 
-export interface TokenListingDocument extends BaseDocument {
+export interface AskDocument extends BaseDocument {
   contract: string;
   ownership: {
     address: string;
@@ -60,7 +60,7 @@ export interface TokenListingDocument extends BaseDocument {
   };
 }
 
-export interface BuildTokenListingData extends BuildDocumentData {
+export interface BuildAskDocumentData extends BuildDocumentData {
   id: string;
   created_at: Date;
   contract: Buffer;
@@ -93,12 +93,12 @@ export interface BuildTokenListingData extends BuildDocumentData {
   order_pricing_currency_normalized_value?: number;
 }
 
-export class TokenListingBuilder extends DocumentBuilder {
-  public buildDocument(data: BuildTokenListingData): TokenListingDocument {
+export class AskDocumentBuilder extends DocumentBuilder {
+  public buildDocument(data: BuildAskDocumentData): AskDocument {
     const baseDocument = super.buildDocument(data);
 
     logger.info(
-      "process-token-listing-event-queue",
+      "process-ask-event-queue",
       JSON.stringify({
         message: `buildDocument`,
         data,
@@ -166,6 +166,6 @@ export class TokenListingBuilder extends DocumentBuilder {
               : undefined,
           }
         : undefined,
-    } as TokenListingDocument;
+    } as AskDocument;
   }
 }
