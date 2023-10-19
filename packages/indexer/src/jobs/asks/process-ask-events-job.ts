@@ -26,19 +26,41 @@ export default class ProcessAskEventsJob extends AbstractRabbitMqJobHandler {
       try {
         logger.info(this.queueName, `Debug. pendingAskEvents=${pendingAskEvents.length}`);
 
-        await elasticsearch.bulk({
-          body: pendingAskEvents.flatMap((pendingAskEvent) => [
-            {
-              [pendingAskEvent.kind]: {
+        const bulkOps = [];
+
+        for (const pendingAskEvent of pendingAskEvents) {
+          if (pendingAskEvent.kind === "index") {
+            bulkOps.push({
+              index: {
                 _index: AskIndex.getIndexName(),
                 _id: pendingAskEvent.document.id,
               },
-            },
-            pendingAskEvent.document,
-          ]),
+            });
+            bulkOps.push(pendingAskEvent.document);
+          }
+
+          if (pendingAskEvent.kind === "delete") {
+            bulkOps.push({
+              delete: {
+                _index: AskIndex.getIndexName(),
+                _id: pendingAskEvent.document.id,
+              },
+            });
+          }
+        }
+
+        await elasticsearch.bulk({
+          body: bulkOps,
         });
       } catch (error) {
-        logger.error(this.queueName, `failed to index asks. error=${error}`);
+        logger.error(
+          this.queueName,
+          JSON.stringify({
+            message: `failed to index asks. error=${error}`,
+            pendingAskEvents,
+            error,
+          })
+        );
 
         await pendingAskEventsQueue.add(pendingAskEvents);
       }
