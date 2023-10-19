@@ -11,7 +11,6 @@ import { acquireLock } from "@/common/redis";
 import { Tokens } from "@/models/tokens";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 import { EventKind, processAskEventJob } from "@/jobs/asks/process-ask-event-job";
-import * as asksIndex from "@/elasticsearch/indexes/asks";
 import { formatStatus } from "@/jobs/websocket-events/utils";
 
 export class IndexerOrdersHandler extends KafkaEventHandler {
@@ -146,7 +145,12 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
             })
           );
 
-          await asksIndex.deleteAsksById([payload.after.id]);
+          await processAskEventJob.addToQueue([
+            {
+              kind: EventKind.SellOrderInactive,
+              data: payload.after,
+            },
+          ]);
         }
       } catch (error) {
         logger.error(

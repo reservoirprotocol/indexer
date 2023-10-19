@@ -104,6 +104,7 @@ export class AskDocumentBuilder extends DocumentBuilder {
     logger.info(
       "process-ask-event-queue",
       JSON.stringify({
+        topic: "debugAskIndex",
         message: `buildDocument`,
         data,
       })

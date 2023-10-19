@@ -22,7 +22,6 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
       JSON.stringify({
         topic: "debugAskIndex",
         message: `Start.`,
-        payload,
       })
     );
 
@@ -49,6 +48,8 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
       const rawResults = await idb.manyOrNone(
         `
             SELECT        
+              orders.contract AS "contract",     
+              orders.id AS "order_id",    
               orders.price AS "order_pricing_price",
               orders.currency AS "order_pricing_currency",
               orders.currency_price AS "order_pricing_currency_price",
@@ -69,6 +70,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
               ) AS "order_valid_until",
               orders.token_set_id AS "order_token_set_id",
               (${criteriaBuildQuery}) AS order_criteria,
+              extract(epoch from orders.updated_at) updated_ts,
               t.*
             FROM orders
             JOIN LATERAL (
@@ -105,8 +107,8 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
       if (rawResults.length) {
         for (const rawResult of rawResults) {
           const askDocument = new AskDocumentBuilder().buildDocument({
-            id: rawResult.id,
-            created_at: new Date(rawResult.created_at),
+            id: rawResult.order_id,
+            created_at: new Date(rawResult.updated_ts * 1000),
             contract: rawResult.contract,
             token_id: rawResult.token_id,
             token_name: rawResult.token_name,
@@ -115,7 +117,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
             collection_id: rawResult.collection_id,
             collection_name: rawResult.collection_name,
             collection_image: rawResult.collection_image,
-            order_id: rawResult.id,
+            order_id: rawResult.order_id,
             order_source_id_int: Number(rawResult.order_source_id_int),
             order_criteria: rawResult.order_criteria,
             order_quantity_filled: Number(rawResult.order_quantity_filled),
