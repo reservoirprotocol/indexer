@@ -9,11 +9,6 @@ import { logger } from "@/common/logger";
 
 export interface AskDocument extends BaseDocument {
   contract: string;
-  ownership: {
-    address: string;
-    amount: number;
-    acquiredAt: Date;
-  };
   token: {
     id: string;
     name: string;
@@ -27,8 +22,14 @@ export interface AskDocument extends BaseDocument {
   };
   order?: {
     id: string;
+    maker: string;
+    taker: string;
+    tokenSetId: string;
     sourceId: number;
-    quantity: number;
+    quantityFilled: number;
+    quantityRemaining: number;
+    validFrom: number;
+    validUntil: number;
     criteria: {
       kind: string;
       data: {
@@ -72,17 +73,18 @@ export interface BuildAskDocumentData extends BuildDocumentData {
   token_media?: string;
   collection_name?: string;
   collection_image?: string;
-  ownership_address: Buffer;
-  ownership_amount: number;
-  ownership_acquired_at: Date;
   order_id?: string | null;
-  order_quantity: number;
+  order_valid_from: number;
+  order_valid_until: number;
+  order_quantity_filled: number;
+  order_quantity_remaining: number;
   order_source_id_int?: number;
   order_kind?: string;
   order_criteria?: {
     kind: string;
     data: Record<string, unknown>;
   };
+  order_token_set_id: string;
   order_pricing_price?: number;
   order_pricing_currency_price?: number;
   order_pricing_fee_bps?: number;
@@ -91,6 +93,8 @@ export interface BuildAskDocumentData extends BuildDocumentData {
   order_pricing_currency_value?: number;
   order_pricing_normalized_value?: number;
   order_pricing_currency_normalized_value?: number;
+  order_maker: Buffer;
+  order_taker?: Buffer;
 }
 
 export class AskDocumentBuilder extends DocumentBuilder {
@@ -109,11 +113,6 @@ export class AskDocumentBuilder extends DocumentBuilder {
       ...baseDocument,
       createdAt: data.created_at,
       contract: fromBuffer(data.contract),
-      ownership: {
-        address: fromBuffer(data.ownership_address),
-        amount: Number(data.ownership_amount),
-        acquiredAt: data.ownership_acquired_at,
-      },
       token: data.token_id
         ? {
             id: data.token_id,
@@ -132,9 +131,15 @@ export class AskDocumentBuilder extends DocumentBuilder {
         ? {
             id: data.order_id,
             kind: data.order_kind,
+            maker: fromBuffer(data.order_maker),
+            taker: data.order_taker ? fromBuffer(data.order_taker) : undefined,
+            tokenSetId: data.order_token_set_id,
+            validFrom: Number(data.order_valid_from),
+            validUntil: Number(data.order_valid_until),
             sourceId: data.order_source_id_int,
             criteria: data.order_criteria,
-            quantity: Number(data.order_quantity),
+            quantityFilled: Number(data.order_quantity_filled),
+            quantityRemaining: Number(data.order_quantity_remaining),
             pricing: data.order_pricing_price
               ? {
                   price: String(data.order_pricing_price),

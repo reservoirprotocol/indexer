@@ -26,7 +26,13 @@ export const CONFIG_DEFAULT = {
       order: {
         properties: {
           id: { type: "keyword" },
-          quantity: { type: "long" },
+          maker: { type: "keyword" },
+          taker: { type: "keyword" },
+          validFrom: { type: "date" },
+          validUntil: { type: "date" },
+          quantityFilled: { type: "long" },
+          quantityRemaining: { type: "long" },
+          tokenSetId: { type: "keyword" },
           sourceId: { type: "integer" },
           criteria: {
             properties: {
@@ -69,13 +75,6 @@ export const CONFIG_DEFAULT = {
               currencyNormalizedValue: { type: "keyword" },
             },
           },
-        },
-      },
-      ownership: {
-        properties: {
-          address: { type: "keyword" },
-          amount: { type: "long" },
-          acquiredAt: { type: "date" },
         },
       },
     },
