@@ -12,7 +12,7 @@ import { elasticsearch } from "@/common/elasticsearch";
 const BATCH_SIZE = 500;
 
 export default class ProcessAskEventsJob extends AbstractRabbitMqJobHandler {
-  queueName = "process-pending-ask-events-queue";
+  queueName = "process-ask-events-queue";
   maxRetries = 10;
   concurrency = 1;
   persistent = true;
