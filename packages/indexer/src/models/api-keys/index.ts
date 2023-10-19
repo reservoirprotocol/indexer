@@ -30,6 +30,8 @@ export type NewApiKeyResponse = {
 };
 
 export class ApiKeyManager {
+  public static defaultRevShareBps = 3000;
+
   private static apiKeys: Map<string, ApiKeyEntity> = new Map();
 
   /**
@@ -112,6 +114,7 @@ export class ApiKeyManager {
         permissions: {},
         ips: [],
         origins: [],
+        revShareBps: null,
       });
     }
 
