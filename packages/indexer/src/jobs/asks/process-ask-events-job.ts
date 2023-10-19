@@ -34,7 +34,7 @@ export default class ProcessAskEventsJob extends AbstractRabbitMqJobHandler {
                 _id: pendingAskEvent.document.id,
               },
             },
-            pendingAskEvent.kind === "index" ? pendingAskEvent.document : undefined,
+            pendingAskEvent.document,
           ]),
         });
       } catch (error) {
