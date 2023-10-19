@@ -114,7 +114,7 @@ export class ApiKeyManager {
         permissions: {},
         ips: [],
         origins: [],
-        revShareBps: null,
+        revShareBps: ApiKeyManager.defaultRevShareBps,
       });
     }
 

@@ -1,3 +1,5 @@
+import { ApiKeyManager } from "@/models/api-keys/index";
+
 export enum ApiKeyPermission {
   override_collection_refresh_cool_down = "override_collection_refresh_cool_down",
   assign_collection_to_community = "assign_collection_to_community",
@@ -51,6 +53,6 @@ export class ApiKeyEntity {
     this.permissions = params.permissions;
     this.ips = params.ips;
     this.origins = params.origins;
-    this.revShareBps = params.revShareBps;
+    this.revShareBps = params.revShareBps ?? ApiKeyManager.defaultRevShareBps;
   }
 }

@@ -61,7 +61,7 @@ export const getApiKeyDetails: RouteOptions = {
       ips: apiKey.ips ?? [],
       origins: apiKey.origins ?? [],
       createdAt: new Date(apiKey.createdAt).toISOString(),
-      revShareBps: apiKey.revShareBps ?? ApiKeyManager.defaultRevShareBps,
+      revShareBps: apiKey.revShareBps,
     };
   },
 };
