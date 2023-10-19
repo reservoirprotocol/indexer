@@ -131,8 +131,8 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
             order_pricing_normalized_value: rawResult.order_pricing_normalized_value,
             order_pricing_currency_normalized_value:
               rawResult.order_pricing_currency_normalized_value,
-            order_maker: rawResult.maker,
-            order_taker: rawResult.taker,
+            order_maker: rawResult.order_maker,
+            order_taker: rawResult.order_taker,
             order_token_set_id: rawResult.order_token_set_id,
             order_valid_from: Number(rawResult.order_valid_from),
             order_valid_until: Number(rawResult.order_valid_until),
