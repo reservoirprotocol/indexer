@@ -26,7 +26,7 @@ export type ApiKeyEntityParams = {
   permissions: Record<string, unknown>;
   ips: string[];
   origins: string[];
-  revShareBps: number | null;
+  rev_share_bps: number | null;
 };
 
 export class ApiKeyEntity {
@@ -53,6 +53,6 @@ export class ApiKeyEntity {
     this.permissions = params.permissions;
     this.ips = params.ips;
     this.origins = params.origins;
-    this.revShareBps = params.revShareBps ?? ApiKeyManager.defaultRevShareBps;
+    this.revShareBps = params.rev_share_bps ?? ApiKeyManager.defaultRevShareBps;
   }
 }
