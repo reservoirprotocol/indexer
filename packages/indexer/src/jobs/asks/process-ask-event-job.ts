@@ -7,6 +7,7 @@ import { AskDocumentBuilder } from "@/elasticsearch/indexes/asks/base";
 import { Orders } from "@/utils/orders";
 import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
+import { config } from "@/config/index";
 
 export enum EventKind {
   newSellOrder = "newSellOrder",
@@ -169,6 +170,8 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue(payloads: ProcessAskEventJobPayload[]) {
+    if (config.environment !== "dev" && config.chainId !== 1) return;
+
     await this.sendBatch(payloads.map((payload) => ({ payload })));
   }
 }
