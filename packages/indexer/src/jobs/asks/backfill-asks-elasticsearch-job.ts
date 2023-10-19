@@ -20,7 +20,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
     logger.info(
       this.queueName,
       JSON.stringify({
-        topic: "backfill-asks",
+        topic: "debugAskIndex",
         message: `Start.`,
         payload,
       })
@@ -154,6 +154,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
       logger.error(
         this.queueName,
         JSON.stringify({
+          topic: "debugAskIndex",
           message: `Error generating ask document. error=${error}`,
           error,
           payload,
