@@ -160,6 +160,7 @@ import { newCollectionForTokenJob } from "@/jobs/token-updates/new-collection-fo
 import { backfillTokensWithMissingCollectionJob } from "@/jobs/backfill/backfill-tokens-with-missing-collection-job";
 import { processConsecutiveTransferJob } from "@/jobs/events-sync/process-consecutive-transfer";
 import { processAskEventJob } from "@/jobs/asks/process-ask-event-job";
+import { processAskEventsJob } from "@/jobs/asks/process-ask-events-job";
 import { backfillAsksElasticsearchJob } from "@/jobs/asks/backfill-asks-elasticsearch-job";
 
 export const allJobQueues = [
@@ -303,6 +304,7 @@ export class RabbitMqJobsConsumer {
       backfillTokensWithMissingCollectionJob,
       processConsecutiveTransferJob,
       processAskEventJob,
+      processAskEventsJob,
       backfillAsksElasticsearchJob,
     ];
   }

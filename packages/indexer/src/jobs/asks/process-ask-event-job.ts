@@ -2,11 +2,12 @@ import { logger } from "@/common/logger";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
-import * as asksIndex from "@/elasticsearch/indexes/asks";
+import { PendingAskEventsQueue } from "@/elasticsearch/indexes/asks/pending-ask-events-queue";
 import { AskDocumentBuilder } from "@/elasticsearch/indexes/asks/base";
 import { Orders } from "@/utils/orders";
 import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
+import { config } from "@/config/index";
 
 export enum EventKind {
   newSellOrder = "newSellOrder",
@@ -30,6 +31,7 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: ProcessAskEventJobPayload) {
     const { kind, data } = payload;
 
+    const pendingAskEventsQueue = new PendingAskEventsQueue();
     logger.info(
       this.queueName,
       JSON.stringify({
@@ -42,7 +44,7 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
 
     if (kind === EventKind.SellOrderInactive) {
       try {
-        await asksIndex.deleteAsksById([data.id]);
+        await pendingAskEventsQueue.add([{ document: { id: data.id }, kind: "delete" }]);
       } catch (error) {
         logger.error(
           this.queueName,
@@ -163,12 +165,14 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
       }
 
       if (askDocument) {
-        await asksIndex.save([askDocument]);
+        await pendingAskEventsQueue.add([{ document: askDocument, kind: "index" }]);
       }
     }
   }
 
   public async addToQueue(payloads: ProcessAskEventJobPayload[]) {
+    if (config.environment !== "dev" && config.chainId !== 1) return;
+
     await this.sendBatch(payloads.map((payload) => ({ payload })));
   }
 }
