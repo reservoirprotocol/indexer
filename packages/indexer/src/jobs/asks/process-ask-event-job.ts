@@ -10,10 +10,11 @@ import { fromBuffer, toBuffer } from "@/common/utils";
 
 export enum EventKind {
   newSellOrder = "newSellOrder",
+  sellOrderUpdated = "sellOrderUpdated",
 }
 
 export type ProcessAskEventJobPayload = {
-  kind: EventKind.newSellOrder;
+  kind: EventKind.newSellOrder | EventKind.sellOrderUpdated;
   data: OrderInfo;
   context?: string;
 };
