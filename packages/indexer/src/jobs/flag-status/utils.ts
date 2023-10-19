@@ -100,8 +100,9 @@ export const getTokensFlagStatusForCollectionByContract = async (
     // for now, just log that we are refreshing all tokens
     logger.info(
       "getTokensFlagStatusForCollection",
-      "Shared collection, stopping processing for now"
+      `Shared contract, stopping processing for now. contract=${contract}`
     );
+
     return { tokens: [], nextContinuation: null };
   }
 
