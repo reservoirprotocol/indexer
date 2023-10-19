@@ -983,11 +983,11 @@ export const getNetworkSettings = (): NetworkSettings => {
         },
         whitelistedCurrencies: new Map([
           [
-            "0x75f94f04d2144cb6056ccd0cff1771573d838974",
+            "0x570e40a09f77f0a098dc7a7ba803adf1d04dd8ec",
             {
-              contract: "0x75f94f04d2144cb6056ccd0cff1771573d838974",
-              name: "Taiko Token Jolnir",
-              symbol: "TTKOj",
+              contract: "0x570e40a09f77f0a098dc7a7ba803adf1d04dd8ec",
+              name: "Angel community Token",
+              symbol: "ACT",
               decimals: 18,
             },
           ],
