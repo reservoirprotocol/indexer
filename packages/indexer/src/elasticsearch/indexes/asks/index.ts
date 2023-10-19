@@ -167,3 +167,37 @@ export const initIndex = async (): Promise<void> => {
     throw error;
   }
 };
+
+export const deleteAsksById = async (ids: string[]): Promise<void> => {
+  try {
+    const response = await elasticsearch.bulk({
+      body: ids.flatMap((id) => ({ delete: { _index: INDEX_NAME, _id: id } })),
+    });
+
+    if (response.errors) {
+      logger.warn(
+        "elasticsearch-asks",
+        JSON.stringify({
+          topic: "delete-by-id-conflicts",
+          data: {
+            ids: JSON.stringify(ids),
+          },
+          response,
+        })
+      );
+    }
+  } catch (error) {
+    logger.error(
+      "elasticsearch-asks",
+      JSON.stringify({
+        topic: "delete-by-id-error",
+        data: {
+          ids: JSON.stringify(ids),
+        },
+        error,
+      })
+    );
+
+    throw error;
+  }
+};

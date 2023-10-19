@@ -11,6 +11,8 @@ import { acquireLock } from "@/common/redis";
 import { Tokens } from "@/models/tokens";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 import { EventKind, processAskEventJob } from "@/jobs/asks/process-ask-event-job";
+import * as asksIndex from "@/elasticsearch/indexes/asks";
+import { formatStatus } from "@/jobs/websocket-events/utils";
 
 export class IndexerOrdersHandler extends KafkaEventHandler {
   topicName = "indexer.public.orders";
@@ -90,6 +92,58 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
       },
       eventKind,
     });
+
+    if (payload.after.side === "sell") {
+      try {
+        const beforeStatus = formatStatus(
+          payload.before.fillability_status,
+          payload.before.approval_status
+        );
+        const afterStatus = formatStatus(
+          payload.after.fillability_status,
+          payload.after.approval_status
+        );
+
+        if (afterStatus === "active") {
+          logger.info(
+            "kafka-event-handler",
+            JSON.stringify({
+              topic: "debugAskIndex",
+              message: `ReIndexing ask. orderId=${payload.after.id}`,
+              payload,
+            })
+          );
+
+          await processAskEventJob.addToQueue([
+            {
+              kind: EventKind.newSellOrder,
+              data: payload.after,
+            },
+          ]);
+        } else if (beforeStatus === "active") {
+          logger.info(
+            "kafka-event-handler",
+            JSON.stringify({
+              topic: "debugAskIndex",
+              message: `Deleting ask. orderId=${payload.after.id}`,
+              payload,
+            })
+          );
+
+          await asksIndex.deleteAsksById(payload.after.id);
+        }
+      } catch (error) {
+        logger.error(
+          "kafka-event-handler",
+          JSON.stringify({
+            topic: "debugAskIndex",
+            message: `Handle ask error. error=${error}`,
+            payload,
+            error,
+          })
+        );
+      }
+    }
   }
 
   protected async handleDelete(): Promise<void> {
@@ -161,7 +215,7 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
         "kafka-event-handler",
         JSON.stringify({
           topic: "handleSellOrder",
-          message: "Handle sell order error. error=${error}",
+          message: `Handle sell order error. error=${error}`,
           payload,
           error,
         })
