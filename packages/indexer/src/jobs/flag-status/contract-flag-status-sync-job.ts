@@ -44,14 +44,14 @@ export class ContractFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
               contractsToGetFlagStatusForChunk[0].continuation
             )
               .then(async (data) => {
-                if (data.nextContinuation) {
-                  logger.info(
-                    this.queueName,
-                    `Debug contract. contractsToGetFlagStatusForChunk= ${JSON.stringify(
-                      contractsToGetFlagStatusForChunk
-                    )}, nextContinuation=${data.nextContinuation}`
-                  );
+                logger.info(
+                  this.queueName,
+                  `Debug contract. contractsToGetFlagStatusForChunk= ${JSON.stringify(
+                    contractsToGetFlagStatusForChunk
+                  )}, nextContinuation=${data.nextContinuation}`
+                );
 
+                if (data.nextContinuation) {
                   await PendingFlagStatusSyncContracts.add(
                     [
                       {
@@ -99,7 +99,9 @@ export class ContractFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
 
           logger.info(
             this.queueName,
-            `Debug. contractsToGetFlagStatusFor=${contractsToGetFlagStatusFor.length}, tokensFlagStatus=${tokensFlagStatus.length}`
+            `Debug. contractsToGetFlagStatusFor=${JSON.stringify(
+              contractsToGetFlagStatusFor
+            )}, tokensFlagStatus=${tokensFlagStatus.length}`
           );
 
           await flagStatusUpdateJob.addToQueue(tokensFlagStatus);
