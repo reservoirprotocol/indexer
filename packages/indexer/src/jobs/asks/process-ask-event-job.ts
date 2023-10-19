@@ -6,7 +6,7 @@ import * as asksIndex from "@/elasticsearch/indexes/asks";
 import { AskDocumentBuilder } from "@/elasticsearch/indexes/asks/base";
 import { Orders } from "@/utils/orders";
 import { idb } from "@/common/db";
-import { fromBuffer, toBuffer } from "@/common/utils";
+import { toBuffer } from "@/common/utils";
 
 export enum EventKind {
   newSellOrder = "newSellOrder",
@@ -32,7 +32,8 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
     logger.info(
       this.queueName,
       JSON.stringify({
-        message: `Start. kind=${kind}`,
+        topic: "debugAskIndex",
+        message: `Start. kind=${kind}, id=${data.id}`,
         kind,
         data,
       })
@@ -92,21 +93,18 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
       );
 
       if (rawResult) {
-        const id = `${fromBuffer(rawResult.ownership_owner)}:${data.contract}:${
-          rawResult.token_id
-        }:${data.id}`;
-
         logger.info(
           this.queueName,
           JSON.stringify({
-            message: `Debug. kind=${kind}, id=${id}`,
+            topic: "debugAskIndex",
+            message: `Debug. kind=${kind}, id=${data.id}`,
             kind,
             data,
           })
         );
 
         askDocument = new AskDocumentBuilder().buildDocument({
-          id,
+          id: data.id,
           created_at: new Date(data.created_at),
           contract: toBuffer(data.contract),
           ownership_address: rawResult.ownership_owner,
@@ -138,7 +136,8 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
       logger.error(
         this.queueName,
         JSON.stringify({
-          message: `Error generating ask document. kind=${kind}, error=${error}`,
+          topic: "debugAskIndex",
+          message: `Error generating ask document. kind=${kind}, id=${data.id}, error=${error}`,
           error,
           data,
         })
