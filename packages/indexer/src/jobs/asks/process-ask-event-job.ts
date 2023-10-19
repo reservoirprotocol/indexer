@@ -11,6 +11,7 @@ import { toBuffer } from "@/common/utils";
 export enum EventKind {
   newSellOrder = "newSellOrder",
   sellOrderUpdated = "sellOrderUpdated",
+  SellOrderInactive = "SellOrderInactive",
 }
 
 export type ProcessAskEventJobPayload = {
@@ -39,13 +40,28 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
       })
     );
 
-    let askDocument;
+    if (kind === EventKind.SellOrderInactive) {
+      try {
+        await asksIndex.deleteAsksById([data.id]);
+      } catch (error) {
+        logger.error(
+          this.queueName,
+          JSON.stringify({
+            topic: "debugAskIndex",
+            message: `SellOrderInactive error. id=${data.id}, error=${error}`,
+            data,
+            error,
+          })
+        );
+      }
+    } else {
+      let askDocument;
 
-    try {
-      const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", true);
+      try {
+        const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", true);
 
-      const rawResult = await idb.oneOrNone(
-        `
+        const rawResult = await idb.oneOrNone(
+          `
             SELECT           
               orders.price AS "order_pricing_price",
               orders.currency AS "order_pricing_currency",
@@ -67,7 +83,6 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
               ) AS "order_valid_until",
               orders.token_set_id AS "order_token_set_id",
               (${criteriaBuildQuery}) AS order_criteria,
-
               t.*
             FROM orders
             JOIN LATERAL (
@@ -87,68 +102,69 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
                  ) t ON TRUE
             WHERE orders.id = $/orderId/
           `,
-        { orderId: data.id }
-      );
+          { orderId: data.id }
+        );
 
-      if (rawResult) {
-        logger.info(
+        if (rawResult) {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              topic: "debugAskIndex",
+              message: `Debug. kind=${kind}, id=${data.id}`,
+              kind,
+              data,
+            })
+          );
+
+          askDocument = new AskDocumentBuilder().buildDocument({
+            id: data.id,
+            created_at: new Date(data.created_at),
+            contract: toBuffer(data.contract),
+            token_id: rawResult.token_id,
+            token_name: rawResult.token_name,
+            token_image: rawResult.token_image,
+            token_media: rawResult.token_media,
+            collection_id: rawResult.collection_id,
+            collection_name: rawResult.collection_name,
+            collection_image: rawResult.collection_image,
+            order_id: data.id,
+            order_source_id_int: Number(rawResult.order_source_id_int),
+            order_criteria: rawResult.order_criteria,
+            order_quantity_filled: Number(rawResult.order_quantity_filled),
+            order_quantity_remaining: Number(rawResult.order_quantity_remaining),
+            order_pricing_currency: rawResult.order_pricing_currency,
+            order_pricing_fee_bps: rawResult.order_pricing_fee_bps,
+            order_pricing_price: rawResult.order_pricing_price,
+            order_pricing_currency_price: rawResult.order_pricing_currency_price,
+            order_pricing_value: rawResult.order_pricing_value,
+            order_pricing_currency_value: rawResult.order_pricing_currency_value,
+            order_pricing_normalized_value: rawResult.order_pricing_normalized_value,
+            order_pricing_currency_normalized_value:
+              rawResult.order_pricing_currency_normalized_value,
+            order_maker: toBuffer(rawResult.maker),
+            order_taker: rawResult.taker ? toBuffer(rawResult.taker) : undefined,
+            order_token_set_id: rawResult.order_token_set_id,
+            order_valid_from: Number(rawResult.order_valid_from),
+            order_valid_until: Number(rawResult.order_valid_until),
+          });
+        }
+      } catch (error) {
+        logger.error(
           this.queueName,
           JSON.stringify({
             topic: "debugAskIndex",
-            message: `Debug. kind=${kind}, id=${data.id}`,
-            kind,
+            message: `Error generating ask document. kind=${kind}, id=${data.id}, error=${error}`,
+            error,
             data,
           })
         );
 
-        askDocument = new AskDocumentBuilder().buildDocument({
-          id: data.id,
-          created_at: new Date(data.created_at),
-          contract: toBuffer(data.contract),
-          token_id: rawResult.token_id,
-          token_name: rawResult.token_name,
-          token_image: rawResult.token_image,
-          token_media: rawResult.token_media,
-          collection_id: rawResult.collection_id,
-          collection_name: rawResult.collection_name,
-          collection_image: rawResult.collection_image,
-          order_id: data.id,
-          order_source_id_int: Number(rawResult.order_source_id_int),
-          order_criteria: rawResult.order_criteria,
-          order_quantity_filled: Number(rawResult.order_quantity_filled),
-          order_quantity_remaining: Number(rawResult.order_quantity_remaining),
-          order_pricing_currency: rawResult.order_pricing_currency,
-          order_pricing_fee_bps: rawResult.order_pricing_fee_bps,
-          order_pricing_price: rawResult.order_pricing_price,
-          order_pricing_currency_price: rawResult.order_pricing_currency_price,
-          order_pricing_value: rawResult.order_pricing_value,
-          order_pricing_currency_value: rawResult.order_pricing_currency_value,
-          order_pricing_normalized_value: rawResult.order_pricing_normalized_value,
-          order_pricing_currency_normalized_value:
-            rawResult.order_pricing_currency_normalized_value,
-          order_maker: toBuffer(rawResult.maker),
-          order_taker: rawResult.taker ? toBuffer(rawResult.taker) : undefined,
-          order_token_set_id: rawResult.order_token_set_id,
-          order_valid_from: Number(rawResult.order_valid_from),
-          order_valid_until: Number(rawResult.order_valid_until),
-        });
+        throw error;
       }
-    } catch (error) {
-      logger.error(
-        this.queueName,
-        JSON.stringify({
-          topic: "debugAskIndex",
-          message: `Error generating ask document. kind=${kind}, id=${data.id}, error=${error}`,
-          error,
-          data,
-        })
-      );
 
-      throw error;
-    }
-
-    if (askDocument) {
-      await asksIndex.save([askDocument]);
+      if (askDocument) {
+        await asksIndex.save([askDocument]);
+      }
     }
   }
 
