@@ -26,13 +26,6 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
 
     if (payload.after.side === "sell") {
       eventKind = WebsocketEventKind.SellOrder;
-
-      await processAskEventJob.addToQueue([
-        {
-          kind: EventKind.newSellOrder,
-          data: payload.after,
-        },
-      ]);
     } else if (payload.after.side === "buy") {
       eventKind = WebsocketEventKind.BuyOrder;
     } else {
@@ -58,6 +51,29 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
 
     if (payload.after.side === "sell") {
       await this.handleSellOrder(payload);
+
+      const afterStatus = formatStatus(
+        payload.after.fillability_status,
+        payload.after.approval_status
+      );
+
+      if (afterStatus === "active") {
+        logger.info(
+          "kafka-event-handler",
+          JSON.stringify({
+            topic: "debugAskIndex",
+            message: `Indexing ask. orderId=${payload.after.id}`,
+            payload,
+          })
+        );
+
+        await processAskEventJob.addToQueue([
+          {
+            kind: EventKind.newSellOrder,
+            data: payload.after,
+          },
+        ]);
+      }
     }
   }
 
@@ -116,7 +132,7 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
 
           await processAskEventJob.addToQueue([
             {
-              kind: EventKind.newSellOrder,
+              kind: EventKind.sellOrderUpdated,
               data: payload.after,
             },
           ]);
