@@ -46,14 +46,14 @@ export class CollectionSlugFlagStatusSyncJob extends AbstractRabbitMqJobHandler 
               collectionsToGetFlagStatusForChunk[0].continuation
             )
               .then(async (data) => {
-                if (data.nextContinuation) {
-                  logger.info(
-                    this.queueName,
-                    `Debug contract. contractsToGetFlagStatusForChunk= ${JSON.stringify(
-                      collectionsToGetFlagStatusForChunk
-                    )}, nextContinuation=${data.nextContinuation}`
-                  );
+                logger.info(
+                  this.queueName,
+                  `Debug contract. contractsToGetFlagStatusForChunk= ${JSON.stringify(
+                    collectionsToGetFlagStatusForChunk
+                  )}, nextContinuation=${data.nextContinuation}`
+                );
 
+                if (data.nextContinuation) {
                   await PendingFlagStatusSyncCollectionSlugs.add(
                     [
                       {
