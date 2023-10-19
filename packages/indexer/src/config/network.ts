@@ -148,9 +148,8 @@ export const getServiceName = () => {
 };
 
 export const getSubDomain = () => {
-  return `${config.chainId === 1 ? "api" : `api-${getNetworkName()}`}${
-    config.environment === "dev" ? ".dev" : ""
-  }`;
+  return `${config.chainId === 1 ? "api" : `api-${getNetworkName()}`}${config.environment === "dev" ? ".dev" : ""
+    }`;
 };
 
 type NetworkSettings = {
@@ -721,18 +720,18 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
-            "0x456f931298065b1852647de005dd27227146d8b9",
+            "0x87cc4e6a40c6d3500403a83bbbb5de065fd46ef0",
             {
-              contract: "0x456f931298065b1852647de005dd27227146d8b9",
+              contract: "0x87cc4e6a40c6d3500403a83bbbb5de065fd46ef0",
               name: "p_TAVA",
               symbol: "TAVA",
               decimals: 18,
             }
           ],
           [
-            "0x456f931298065b1852647de005dd27227146d8b9",
+            "0xca80e0a5c8d56617894eac6737c11965af56cef5",
             {
-              contract: "0x456f931298065b1852647de005dd27227146d8b9",
+              contract: "0xca80e0a5c8d56617894eac6737c11965af56cef5",
               name: "Altava Fashion Link",
               symbol: "$FLT",
               decimals: 18,
