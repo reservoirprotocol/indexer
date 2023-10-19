@@ -709,9 +709,9 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
-            "0x011e128ec62840186f4a07e85e3ace28858c5606",
+            "0x456f931298065b1852647de005dd27227146d8b9",
             {
-              contract: "0x011e128ec62840186f4a07e85e3ace28858c5606",
+              contract: "0x456f931298065b1852647de005dd27227146d8b9",
               name: "WVAL",
               symbol: "$VAL",
               decimals: 18,
