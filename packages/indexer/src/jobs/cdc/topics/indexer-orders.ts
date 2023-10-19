@@ -146,7 +146,7 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
             })
           );
 
-          await asksIndex.deleteAsksById(payload.after.id);
+          await asksIndex.deleteAsksById([payload.after.id]);
         }
       } catch (error) {
         logger.error(

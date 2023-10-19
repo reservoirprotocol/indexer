@@ -8,6 +8,7 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { Orders } from "@/utils/orders";
 import { AskDocumentBuilder } from "@/elasticsearch/indexes/asks/base";
 import * as asksIndex from "@/elasticsearch/indexes/asks";
+import { toBuffer } from "@/common/utils";
 
 export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-asks-elasticsearch-queue";
@@ -49,8 +50,6 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
       const rawResults = await idb.manyOrNone(
         `
             SELECT        
-              orders.contract AS "contract",     
-              orders.id AS "order_id",     
               orders.price AS "order_pricing_price",
               orders.currency AS "order_pricing_currency",
               orders.currency_price AS "order_pricing_currency_price",
@@ -58,25 +57,21 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
               orders.currency_value AS "order_pricing_currency_value",
               orders.normalized_value AS "order_pricing_normalized_value",
               orders.currency_normalized_value AS "order_pricing_currency_normalized_value",
-              (orders.quantity_filled + orders.quantity_remaining) AS "order_quantity",
+              orders.quantity_filled AS "order_quantity_filled",
+              orders.quantity_remaining AS "order_quantity_remaining",
               orders.fee_bps AS "order_pricing_fee_bps",
               orders.source_id_int AS "order_source_id_int",
+              orders.maker AS "order_maker",
+              orders.taker AS "order_taker",
+              DATE_PART('epoch', LOWER(orders.valid_between)) AS "order_valid_from",
+              COALESCE(
+                NULLIF(DATE_PART('epoch', UPPER(orders.valid_between)), 'Infinity'),
+                0
+              ) AS "order_valid_until",
+              orders.token_set_id AS "order_token_set_id",
               (${criteriaBuildQuery}) AS order_criteria,
-              extract(epoch from orders.updated_at) updated_ts,
-              nb.*,
               t.*
             FROM orders
-            JOIN LATERAL (
-                    SELECT
-                        nft_balances.owner AS "ownership_owner",
-                        nft_balances.amount AS "ownership_amount",
-                        nft_balances.acquired_at AS "ownership_acquired_at"
-                    FROM nft_balances
-                    WHERE orders.maker = nft_balances.owner
-                    AND decode(substring(split_part(orders.token_set_id, ':', 2) from 3), 'hex') = nft_balances.contract
-                    AND (split_part(orders.token_set_id, ':', 3)::NUMERIC(78, 0)) = nft_balances.token_id
-                    LIMIT 1
-                 ) nb ON TRUE
             JOIN LATERAL (
                     SELECT
                         tokens.token_id,
@@ -95,7 +90,6 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
                   WHERE orders.side = 'sell'
                   AND orders.fillability_status = 'fillable'
                   AND orders.approval_status = 'approved'
-                  AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
                   ${continuationFilter}
                   ${fromTimestampFilter}
                   ORDER BY updated_at, id
@@ -112,12 +106,9 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
       if (rawResults.length) {
         for (const rawResult of rawResults) {
           const askDocument = new AskDocumentBuilder().buildDocument({
-            id: rawResult.order_id,
+            id: rawResult.id,
             created_at: new Date(rawResult.created_at),
             contract: rawResult.contract,
-            ownership_address: rawResult.ownership_owner,
-            ownership_amount: Number(rawResult.ownership_amount),
-            ownership_acquired_at: new Date(rawResult.ownership_acquired_at),
             token_id: rawResult.token_id,
             token_name: rawResult.token_name,
             token_image: rawResult.token_image,
@@ -125,10 +116,11 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
             collection_id: rawResult.collection_id,
             collection_name: rawResult.collection_name,
             collection_image: rawResult.collection_image,
-            order_id: rawResult.order_id,
+            order_id: rawResult.id,
             order_source_id_int: Number(rawResult.order_source_id_int),
             order_criteria: rawResult.order_criteria,
-            order_quantity: Number(rawResult.order_quantity),
+            order_quantity_filled: Number(rawResult.order_quantity_filled),
+            order_quantity_remaining: Number(rawResult.order_quantity_remaining),
             order_pricing_currency: rawResult.order_pricing_currency,
             order_pricing_fee_bps: rawResult.order_pricing_fee_bps,
             order_pricing_price: rawResult.order_pricing_price,
@@ -138,6 +130,11 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
             order_pricing_normalized_value: rawResult.order_pricing_normalized_value,
             order_pricing_currency_normalized_value:
               rawResult.order_pricing_currency_normalized_value,
+            order_maker: toBuffer(rawResult.maker),
+            order_taker: rawResult.taker ? toBuffer(rawResult.taker) : undefined,
+            order_token_set_id: rawResult.order_token_set_id,
+            order_valid_from: Number(rawResult.order_valid_from),
+            order_valid_until: Number(rawResult.order_valid_until),
           });
 
           askDocuments.push(askDocument);
