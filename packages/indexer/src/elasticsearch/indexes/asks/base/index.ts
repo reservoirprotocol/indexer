@@ -5,7 +5,6 @@ import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 
 import { BuildDocumentData, BaseDocument, DocumentBuilder } from "@/elasticsearch/indexes/base";
-import { logger } from "@/common/logger";
 
 export interface AskDocument extends BaseDocument {
   contract: string;
@@ -100,15 +99,6 @@ export interface BuildAskDocumentData extends BuildDocumentData {
 export class AskDocumentBuilder extends DocumentBuilder {
   public buildDocument(data: BuildAskDocumentData): AskDocument {
     const baseDocument = super.buildDocument(data);
-
-    logger.info(
-      "process-ask-event-queue",
-      JSON.stringify({
-        topic: "debugAskIndex",
-        message: `buildDocument`,
-        data,
-      })
-    );
 
     return {
       ...baseDocument,
