@@ -24,8 +24,6 @@ export default class ProcessAskEventsJob extends AbstractRabbitMqJobHandler {
 
     if (pendingAskEvents.length > 0) {
       try {
-        logger.info(this.queueName, `Debug. pendingAskEvents=${pendingAskEvents.length}`);
-
         const bulkOps = [];
 
         for (const pendingAskEvent of pendingAskEvents) {
