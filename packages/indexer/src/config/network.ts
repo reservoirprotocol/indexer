@@ -471,10 +471,6 @@ export const getNetworkSettings = (): NetworkSettings => {
               ...defaultNetworkSettings.elasticsearch?.indexes?.activities,
               numberOfShards: 50,
             },
-            asks: {
-              ...defaultNetworkSettings.elasticsearch?.indexes?.asks,
-              numberOfShards: 5,
-            },
           },
         },
         onStartup: async () => {
