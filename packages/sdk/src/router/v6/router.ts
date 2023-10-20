@@ -2726,7 +2726,7 @@ export class Router {
           // Track any possibly required swap
           swapDetails.push({
             tokenIn: buyInCurrency,
-            tokenOut: Sdk.Common.Addresses.Native[this.chainId],
+            tokenOut: currency,
             tokenOutAmount: totalPrice,
             recipient: module.address,
             refundTo: relayer,
@@ -2847,7 +2847,7 @@ export class Router {
           // Track any possibly required swap
           swapDetails.push({
             tokenIn: buyInCurrency,
-            tokenOut: Sdk.Common.Addresses.Native[this.chainId],
+            tokenOut: currency,
             tokenOutAmount: totalPrice,
             recipient: module.address,
             refundTo: relayer,
