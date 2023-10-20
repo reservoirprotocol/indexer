@@ -724,6 +724,27 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
+            "0x87cc4e6a40c6d3500403a83bbbb5de065fd46ef0",
+            {
+              contract: "0x87cc4e6a40c6d3500403a83bbbb5de065fd46ef0",
+              name: "p_TAVA",
+              symbol: "TAVA",
+              decimals: 18,
+            }
+          ],
+          [
+            "0xca80e0a5c8d56617894eac6737c11965af56cef5",
+            {
+              contract: "0xca80e0a5c8d56617894eac6737c11965af56cef5",
+              name: "Altava Fashion Link",
+              symbol: "$FLT",
+              decimals: 18,
+              metadata: {
+                image: "https://i.ibb.co/s91hZsX/FLT-256-Circle.png",
+              },
+            },
+          ],
+          [
             "0xdc8b54313ed0ab1a0b6b8728c7d360c671a4b7cb",
             {
               contract: "0xdc8b54313ed0ab1a0b6b8728c7d360c671a4b7cb",
