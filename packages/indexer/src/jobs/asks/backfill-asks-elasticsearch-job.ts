@@ -22,6 +22,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
       JSON.stringify({
         topic: "debugAskIndex",
         message: `Start.`,
+        payload,
       })
     );
 
