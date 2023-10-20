@@ -730,7 +730,7 @@ export const getNetworkSettings = (): NetworkSettings => {
               name: "p_TAVA",
               symbol: "TAVA",
               decimals: 18,
-            }
+            },
           ],
           [
             "0xca80e0a5c8d56617894eac6737c11965af56cef5",

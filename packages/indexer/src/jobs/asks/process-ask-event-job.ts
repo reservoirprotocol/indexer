@@ -100,8 +100,8 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
                           token_attributes ta 
                           JOIN attributes ON ta.attribute_id = attributes.id 
                         WHERE 
-                          ta.contract = $/contract/ 
-                          AND ta.token_id = $/tokenId/ 
+                          ta.contract = tokens.contract
+                          AND ta.token_id = tokens.token_id
                           AND ta.key != ''
                       ) AS "token_attributes" 
                     FROM tokens
