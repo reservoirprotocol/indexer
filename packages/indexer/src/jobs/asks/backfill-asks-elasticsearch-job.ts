@@ -92,6 +92,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
                   WHERE orders.side = 'sell'
                   AND orders.fillability_status = 'fillable'
                   AND orders.approval_status = 'approved'
+                  AND kind != 'element-erc1155'
                   ${continuationFilter}
                   ${fromTimestampFilter}
                   ORDER BY updated_at, id
