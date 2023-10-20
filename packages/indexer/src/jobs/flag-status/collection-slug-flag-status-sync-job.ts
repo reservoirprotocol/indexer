@@ -13,7 +13,7 @@ import { getTokensFlagStatusForCollectionBySlug } from "@/jobs/flag-status/utils
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import { RequestWasThrottledError } from "@/metadata/providers/utils";
 
-export const MAX_PARALLEL_COLLECTIONS = 1;
+export const MAX_PARALLEL_COLLECTIONS = 2;
 export const DEFAULT_JOB_DELAY_SECONDS = 1;
 
 export class CollectionSlugFlagStatusSyncJob extends AbstractRabbitMqJobHandler {

@@ -234,6 +234,9 @@ export const getNetworkSettings = (): NetworkSettings => {
           numberOfShards: 2,
           configName: "CONFIG_1689873821",
         },
+        asks: {
+          numberOfShards: 1,
+        },
       },
     },
     isTestnet: false,
@@ -467,6 +470,10 @@ export const getNetworkSettings = (): NetworkSettings => {
             activities: {
               ...defaultNetworkSettings.elasticsearch?.indexes?.activities,
               numberOfShards: 50,
+            },
+            asks: {
+              ...defaultNetworkSettings.elasticsearch?.indexes?.asks,
+              numberOfShards: 5,
             },
           },
         },
