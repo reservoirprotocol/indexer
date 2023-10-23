@@ -74,7 +74,8 @@ export const postOrdersV1Options: RouteOptions = {
             orderParams: data,
             metadata: {
               originatedAt,
-              source,
+              source:
+                source === "okx" ? "okx.com" : source === "opensea" ? "opensea.io" : undefined,
             },
             isOpenSea: source === "opensea",
             isOkx: source === "okx",
