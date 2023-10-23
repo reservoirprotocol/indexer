@@ -234,6 +234,9 @@ export const getNetworkSettings = (): NetworkSettings => {
           numberOfShards: 2,
           configName: "CONFIG_1689873821",
         },
+        asks: {
+          numberOfShards: 1,
+        },
       },
     },
     isTestnet: false,
@@ -717,6 +720,27 @@ export const getNetworkSettings = (): NetworkSettings => {
               decimals: 18,
               metadata: {
                 image: "https://i.ibb.co/s1k4Qvz/valeria-logo.png",
+              },
+            },
+          ],
+          [
+            "0x87cc4e6a40c6d3500403a83bbbb5de065fd46ef0",
+            {
+              contract: "0x87cc4e6a40c6d3500403a83bbbb5de065fd46ef0",
+              name: "p_TAVA",
+              symbol: "TAVA",
+              decimals: 18,
+            },
+          ],
+          [
+            "0xca80e0a5c8d56617894eac6737c11965af56cef5",
+            {
+              contract: "0xca80e0a5c8d56617894eac6737c11965af56cef5",
+              name: "Altava Fashion Link",
+              symbol: "$FLT",
+              decimals: 18,
+              metadata: {
+                image: "https://i.ibb.co/s91hZsX/FLT-256-Circle.png",
               },
             },
           ],
@@ -1394,7 +1418,6 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 534352: {
       return {
         ...defaultNetworkSettings,
-        isTestnet: true,
         enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,

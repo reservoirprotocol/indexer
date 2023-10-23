@@ -772,6 +772,18 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/execute/solve/v1",
+    options: executeEndpoints.postExecuteSolveV1Options,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/execute/status/v1",
+    options: executeEndpoints.postExecuteStatusV1Options,
+  });
+
+  server.route({
+    method: "POST",
     path: "/execute/transfer/v1",
     options: executeEndpoints.postExecuteTransferV1Options,
   });

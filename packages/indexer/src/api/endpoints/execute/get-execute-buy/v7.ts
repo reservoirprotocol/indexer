@@ -221,6 +221,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 gasEstimate: Joi.number().description(
                   "Approximation of gas used (only applies to `transaction` items)"
                 ),
+                check: Joi.object({
+                  endpoint: Joi.string().required(),
+                  method: Joi.string().valid("POST").required(),
+                  body: Joi.any(),
+                }).description("The details of the endpoint for checking the status of the step"),
               })
             )
             .required(),
@@ -1434,6 +1439,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
           orderIds?: string[];
           data?: object;
           gasEstimate?: number;
+          check?: {
+            endpoint: string;
+            method: "POST";
+            body: object;
+          };
         }[];
       }[] = [
         {
@@ -1486,7 +1496,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         payload.currencyChainId !== undefined &&
         payload.currencyChainId !== config.chainId &&
         items[0].token &&
-        ([5, 11155111].includes(config.chainId) || [1, 10, 7777777].includes(config.chainId))
+        config.crossChainSolverBaseUrl
       ) {
         if (items.length > 1) {
           throw Boom.badRequest("Only a single item can be purchased cross-chain");
@@ -1498,57 +1508,69 @@ export const getExecuteBuyV7Options: RouteOptions = {
           throw Boom.badRequest("Fees on top not supported cross-chain");
         }
 
-        const supportedCrossChains: { [chainId: number]: number[] } = {
-          5: [11155111],
-          11155111: [5],
-          1: [10, 7777777],
-          10: [1, 7777777],
-          7777777: [1, 10],
-        };
-        if (!supportedCrossChains[payload.currencyChainId]?.includes(config.chainId)) {
-          throw Boom.badRequest("Cross-chain swap not supported");
+        const fromChainId = payload.currencyChainId;
+        const toChainId = config.chainId;
+
+        const ccConfig: {
+          enabled: boolean;
+          swapEscrow?: string;
+        } = await axios
+          .get(
+            `${config.crossChainSolverBaseUrl}/config?fromChainId=${fromChainId}&toChainId=${toChainId}`
+          )
+          .then((response) => response.data);
+
+        if (!ccConfig.enabled) {
+          throw Boom.badRequest("Cross-chain swap not supported between requested chains");
         }
 
         const quote = await axios
-          .post(
-            `https://relayer-${
-              [5, 11155111].includes(config.chainId) ? "testnets" : "mainnets"
-            }.up.railway.app/quote`,
-            {
-              fromChainId: payload.currencyChainId,
-              toChainId: config.chainId,
-              token: items[0].token,
-              amount: items[0].quantity,
-            }
-          )
+          .post(`${config.crossChainSolverBaseUrl}/intents/quote`, {
+            fromChainId,
+            toChainId,
+            token: items[0].token,
+            amount: items[0].quantity,
+          })
           .then((response) => response.data.price);
 
         path[0].totalPrice = formatPrice(quote);
         path[0].totalRawPrice = quote;
         path[0].fromChainId = payload.currencyChainId;
 
-        const swapEscrow: { [chainId: number]: string } = {
-          5: "0x78c1d7aba94f51185f6afb9ef13535c3629b6dc5",
-          11155111: "0x440dd22a077923c36d4afad804a2e1a4a2e7abb9",
-          1: "0xe493c1a47f63d93db966b827a496d2431395e030",
-          10: "0x20794ef7693441799a3f38fcc22a12b3e04b9572",
-          7777777: "0xfb3f14829f15b1303d6ca677e3fae5a558e064d1",
-        };
+        const params = [
+          config.chainId,
+          items[0].token.split(":")[0],
+          items[0].token.split(":")[1],
+          items[0].quantity,
+          Math.floor(Date.now() / 1000) + 10 * 60,
+        ];
+        const id = keccak256(
+          ["address", "uint96", "address", "uint256", "uint128", "uint32", "uint256"],
+          [payload.taker, params[0], params[1], params[2], params[3], params[4], quote]
+        );
 
         steps[5].items.push({
           status: "incomplete",
           data: {
-            to: swapEscrow[payload.currencyChainId],
+            to: ccConfig.swapEscrow!,
             data: new Interface([
-              "function makeRequest(uint96 chainId, address token, uint256 tokenId, uint128 amount, uint32 deadline) payable",
-            ]).encodeFunctionData("makeRequest", [
-              config.chainId,
-              items[0].token.split(":")[0],
-              items[0].token.split(":")[1],
-              items[0].quantity,
-              Math.floor(Date.now() / 1000) + 10 * 60,
-            ]),
+              `function makeRequest(
+                uint96 chainId,
+                address token,
+                uint256 tokenId,
+                uint128 amount,
+                uint32 deadline
+              ) payable`,
+            ]).encodeFunctionData("makeRequest", params),
             value: quote,
+          },
+          check: {
+            endpoint: "/execute/status/v1",
+            method: "POST",
+            body: {
+              kind: "cross-chain-intent",
+              id,
+            },
           },
         });
 
@@ -1849,6 +1871,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
               status: "incomplete",
               data: {
                 ...approval.txData,
+                check: {
+                  endpoint: "/execute/status/v1",
+                  method: "POST",
+                  body: {
+                    kind: "transaction",
+                  },
+                },
                 maxFeePerGas,
                 maxPriorityFeePerGas,
               },
@@ -1974,6 +2003,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   erc721cAuth!.signature
                 )
               : undefined,
+          check: {
+            endpoint: "/execute/status/v1",
+            method: "POST",
+            body: {
+              kind: "transaction",
+            },
+          },
         });
       }
 
@@ -1993,6 +2029,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   maxPriorityFeePerGas,
                 }
               : undefined,
+          check: {
+            endpoint: "/execute/status/v1",
+            method: "POST",
+            body: {
+              kind: "transaction",
+            },
+          },
           gasEstimate: txTags ? estimateGas(txTags) : undefined,
         });
       }

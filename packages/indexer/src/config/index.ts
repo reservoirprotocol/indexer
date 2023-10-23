@@ -87,6 +87,9 @@ export const config = {
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
   openSeaApiUrl: String(process.env.OPENSEA_API_URL || ""),
 
+  crossChainSolverBaseUrl: process.env.CROSS_CHAIN_SOLVER_BASE_URL,
+  solverBaseUrl: process.env.SOLVER_BASE_URL,
+
   openSeaTokenMetadataApiKey: String(
     process.env.OPENSEA_TOKENS_API_KEY || process.env.OPENSEA_API_KEY
   ),

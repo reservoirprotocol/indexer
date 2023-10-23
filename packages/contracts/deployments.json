@@ -300,6 +300,10 @@
       "137": "0x273c845e0ad06530dfa408dc2531accd80d170a9",
       "80001": "0x273c845e0ad06530dfa408dc2531accd80d170a9",
       "11155111": "0x273c845e0ad06530dfa408dc2531accd80d170a9"
+    },
+    "v5": {
+      "1": "0x806ccd909e94218a08545eb9ea88a5a0dde6e0c6",
+      "137": "0x806ccd909e94218a08545eb9ea88a5a0dde6e0c6"
     }
   },
   "PermitProxy": {

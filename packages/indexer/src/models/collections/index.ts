@@ -194,7 +194,7 @@ export class Collections {
         JSON.stringify({
           topic: "debugCollectionUpdates",
           message: `Update collection. collectionId=${collection.id}`,
-          collection,
+          collectionId: collection.id,
         })
       );
     }
@@ -208,6 +208,12 @@ export class Collections {
         creator = $/creator/,
         updated_at = now()
       WHERE id = $/id/
+      AND (metadata IS DISTINCT FROM $/metadata:json/ 
+            OR name IS DISTINCT FROM $/name/ 
+            OR slug IS DISTINCT FROM $/slug/ 
+            OR payment_tokens IS DISTINCT FROM $/paymentTokens/ 
+            OR creator IS DISTINCT FROM $/creator/
+            )
       RETURNING (
                   SELECT
                   json_build_object(
@@ -287,6 +293,7 @@ export class Collections {
 
     const query = `
       UPDATE collections
+        SET updated_at = now(),
         SET ${updateString}
       WHERE id = $/collectionId/
     `;

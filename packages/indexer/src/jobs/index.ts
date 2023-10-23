@@ -159,6 +159,9 @@ import { topSellingCollectionsJob } from "@/jobs/top-selling-collections-cache/s
 import { newCollectionForTokenJob } from "@/jobs/token-updates/new-collection-for-token-job";
 import { backfillTokensWithMissingCollectionJob } from "@/jobs/backfill/backfill-tokens-with-missing-collection-job";
 import { processConsecutiveTransferJob } from "@/jobs/events-sync/process-consecutive-transfer";
+import { processAskEventJob } from "@/jobs/asks/process-ask-event-job";
+import { processAskEventsJob } from "@/jobs/asks/process-ask-events-job";
+import { backfillAsksElasticsearchJob } from "@/jobs/asks/backfill-asks-elasticsearch-job";
 
 export const allJobQueues = [
   backfillWrongNftBalances.queue,
@@ -300,6 +303,9 @@ export class RabbitMqJobsConsumer {
       newCollectionForTokenJob,
       backfillTokensWithMissingCollectionJob,
       processConsecutiveTransferJob,
+      processAskEventJob,
+      processAskEventsJob,
+      backfillAsksElasticsearchJob,
     ];
   }
 
