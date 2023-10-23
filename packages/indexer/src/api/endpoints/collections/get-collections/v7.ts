@@ -194,6 +194,7 @@ export const getCollectionsV7Options: RouteOptions = {
           twitterUsername: Joi.string().allow("", null),
           openseaVerificationStatus: Joi.string().allow("", null),
           description: Joi.string().allow("", null),
+          isSpam: Joi.boolean().default(false),
           sampleImages: Joi.array().items(Joi.string().allow("", null)),
           tokenCount: Joi.string().description("Total tokens within the collection."),
           onSaleCount: Joi.string().description("Total tokens currently on sale."),
@@ -486,6 +487,7 @@ export const getCollectionsV7Options: RouteOptions = {
           collections.day1_floor_sell_value,
           collections.day7_floor_sell_value,
           collections.day30_floor_sell_value,
+          collections.is_spam,
           ${floorAskSelectQuery}
           collections.token_count,
           collections.owner_count,
@@ -766,6 +768,7 @@ export const getCollectionsV7Options: RouteOptions = {
             twitterUsername: r.twitter_username,
             openseaVerificationStatus: r.opensea_verification_status,
             description: r.description,
+            isSpam: Boolean(Number(r.is_spam)),
             sampleImages: Assets.getLocalAssetsLink(sampleImages) ?? [],
             tokenCount: String(r.token_count),
             onSaleCount: String(r.on_sale_count),
