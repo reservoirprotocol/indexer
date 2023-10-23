@@ -232,7 +232,6 @@ export const getNetworkSettings = (): NetworkSettings => {
       indexes: {
         activities: {
           numberOfShards: 2,
-          configName: "CONFIG_1689873821",
         },
         asks: {
           numberOfShards: 1,
