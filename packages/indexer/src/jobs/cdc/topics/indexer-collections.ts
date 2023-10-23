@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { KafkaEventHandler } from "./KafkaEventHandler";
 import { redis } from "@/common/redis";
+import { config } from "@/config/index";
+import { fromBuffer } from "@/common/utils";
+import * as Sdk from "@reservoir0x/sdk";
 
 import {
   WebsocketEventKind,
@@ -71,13 +74,17 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
           askOrderId: payload.after.floor_sell_id,
         });
 
-        const { metadata, ...updatedCollection } = payload.after;
+        const { contract, floor_sell_currency, metadata, ...updatedCollection } = payload.after;
 
         const updatedPayload = {
           ...updatedCollection,
+
+          contract: fromBuffer(contract),
+          floor_sell_currency: floor_sell_currency
+            ? fromBuffer(floor_sell_currency)
+            : Sdk.Common.Addresses.Native[config.chainId],
           metadata: JSON.parse(metadata),
           on_sale_count: result.on_sale_count,
-          floor_sell_currency: result.floor_sell_currency,
           normalized_floor_sell_currency_value: result.normalized_floor_sell_currency_value,
           floor_sell_currency_value: result.floor_sell_currency_value,
         };

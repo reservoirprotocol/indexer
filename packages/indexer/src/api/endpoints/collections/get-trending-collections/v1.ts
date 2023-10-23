@@ -79,6 +79,7 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
           banner: Joi.string().allow("", null),
           description: Joi.string().allow("", null),
           primaryContract: Joi.string().lowercase().pattern(regex.address),
+          contract: Joi.string().lowercase().pattern(regex.address),
           count: Joi.number().integer(),
           volume: Joi.number(),
           volumePercentChange: Joi.number().unsafe().allow(null),
@@ -178,15 +179,12 @@ async function formatCollections(
 
       const floorAskId = metadata[`${prefix}floor_sell_id`];
       const floorAskValue = metadata[`${prefix}floor_sell_value`];
-      let floorAskCurrency = metadata[`floor_sell_currency`];
+      const floorAskCurrency = metadata.floor_sell_currency;
       const floorAskSource = metadata[`${prefix}floor_sell_source_id_int`];
       const floorAskCurrencyValue =
         metadata[`${normalizeRoyalties ? "normalized_" : ""}floor_sell_currency_value`];
 
       if (metadata) {
-        floorAskCurrency = floorAskCurrency
-          ? fromBuffer(floorAskCurrency)
-          : Sdk.Common.Addresses.Native[config.chainId];
         floorAsk = {
           id: floorAskId,
           sourceDomain: sources.get(floorAskSource)?.domain,
@@ -194,7 +192,7 @@ async function formatCollections(
             ? await getJoiPriceObject(
                 {
                   gross: {
-                    amount: floorAskCurrencyValue || floorAskValue || 0,
+                    amount: floorAskCurrencyValue ?? floorAskValue,
                     nativeAmount: floorAskValue || 0,
                   },
                 },
@@ -330,6 +328,19 @@ async function getCollectionsMetadata(collectionsResult: any[]) {
   `;
 
     collectionMetadataResponse = await redb.manyOrNone(baseQuery);
+
+    // need to convert buffers before saving to redis
+    collectionMetadataResponse = collectionMetadataResponse.map((metadata: any) => {
+      const { contract, floor_sell_currency, ...rest } = metadata;
+
+      return {
+        ...rest,
+        contract: fromBuffer(contract),
+        floor_sell_currency: floor_sell_currency
+          ? fromBuffer(floor_sell_currency)
+          : Sdk.Common.Addresses.Native[config.chainId],
+      };
+    });
 
     const commands = flatMap(collectionMetadataResponse, (metadata: any) => {
       return [
