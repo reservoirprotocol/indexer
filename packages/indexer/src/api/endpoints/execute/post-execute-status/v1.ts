@@ -19,16 +19,15 @@ export const postExecuteStatusV1Options: RouteOptions = {
     },
   },
   validate: {
-    payload: Joi.alternatives(
-      Joi.object({
-        kind: Joi.string().valid("transaction").required(),
-        hash: Joi.string().required(),
-      }),
-      Joi.object({
-        kind: Joi.string().valid("seaport-v1.5-intent").required(),
-        hash: Joi.string().required(),
-      })
-    ),
+    payload: Joi.object({
+      kind: Joi.string()
+        .valid("cross-chain-intent", "seaport-v1.5-intent", "transaction")
+        .required()
+        .description("Execution kind"),
+      id: Joi.string()
+        .required()
+        .description("The id of the execution (eg. transaction / order / intent hash)"),
+    }),
   },
   response: {
     schema: Joi.object({
@@ -53,7 +52,7 @@ export const postExecuteStatusV1Options: RouteOptions = {
               SELECT 1 FROM transactions
               WHERE transactions.hash = $/hash/
             `,
-            { hash: toBuffer(payload.hash) }
+            { hash: toBuffer(payload.id) }
           );
           if (result) {
             return { status: "success" };
@@ -62,13 +61,29 @@ export const postExecuteStatusV1Options: RouteOptions = {
           }
         }
 
+        case "cross-chain-intent": {
+          const result: {
+            status: string;
+            details?: string;
+            time?: number;
+          } = await axios
+            .get(`${config.crossChainSolverBaseUrl}/intents/status?hash=${payload.id}`)
+            .then((response) => response.data);
+
+          return {
+            status: result.status,
+            details: result.details,
+            time: result.time,
+          };
+        }
+
         case "seaport-v1.5-intent": {
           const result: {
             status: string;
             details?: string;
             time?: number;
           } = await axios
-            .get(`${config.solverBaseUrl}/intents/seaport/status?hash=${payload.hash}`)
+            .get(`${config.solverBaseUrl}/intents/seaport/status?hash=${payload.id}`)
             .then((response) => response.data);
 
           return {
