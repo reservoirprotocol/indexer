@@ -471,10 +471,6 @@ export const getNetworkSettings = (): NetworkSettings => {
               ...defaultNetworkSettings.elasticsearch?.indexes?.activities,
               numberOfShards: 50,
             },
-            asks: {
-              ...defaultNetworkSettings.elasticsearch?.indexes?.asks,
-              numberOfShards: 5,
-            },
           },
         },
         onStartup: async () => {
@@ -724,6 +720,27 @@ export const getNetworkSettings = (): NetworkSettings => {
               decimals: 18,
               metadata: {
                 image: "https://i.ibb.co/s1k4Qvz/valeria-logo.png",
+              },
+            },
+          ],
+          [
+            "0x87cc4e6a40c6d3500403a83bbbb5de065fd46ef0",
+            {
+              contract: "0x87cc4e6a40c6d3500403a83bbbb5de065fd46ef0",
+              name: "p_TAVA",
+              symbol: "TAVA",
+              decimals: 18,
+            },
+          ],
+          [
+            "0xca80e0a5c8d56617894eac6737c11965af56cef5",
+            {
+              contract: "0xca80e0a5c8d56617894eac6737c11965af56cef5",
+              name: "Altava Fashion Link",
+              symbol: "$FLT",
+              decimals: 18,
+              metadata: {
+                image: "https://i.ibb.co/s91hZsX/FLT-256-Circle.png",
               },
             },
           ],

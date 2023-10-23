@@ -86,6 +86,7 @@ export const config = {
   looksRareApiKey: String(process.env.LOOKSRARE_API_KEY),
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
   openSeaApiUrl: String(process.env.OPENSEA_API_URL || ""),
+  solverBaseUrl: process.env.SOLVER_BASE_URL,
 
   openSeaTokenMetadataApiKey: String(
     process.env.OPENSEA_TOKENS_API_KEY || process.env.OPENSEA_API_KEY

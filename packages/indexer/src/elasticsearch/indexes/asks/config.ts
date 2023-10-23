@@ -14,6 +14,7 @@ export const CONFIG_DEFAULT = {
           id: { type: "keyword" },
           name: { type: "keyword" },
           image: { type: "keyword" },
+          attributes: { type: "flattened" },
         },
       },
       collection: {

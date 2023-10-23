@@ -772,8 +772,20 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/execute/match/v1",
+    options: executeEndpoints.postExecuteMatchV1Options,
+  });
+
+  server.route({
+    method: "POST",
     path: "/execute/results/v1",
     options: executeEndpoints.postExecuteResultsV1,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/execute/status/v1",
+    options: executeEndpoints.postExecuteStatusV1Options,
   });
 
   server.route({

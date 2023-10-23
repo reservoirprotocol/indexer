@@ -13,6 +13,10 @@ export interface AskDocument extends BaseDocument {
     name: string;
     image: string;
     media: string;
+    attributes: {
+      key: string;
+      value: string;
+    }[];
   };
   collection?: {
     id: string;
@@ -70,6 +74,10 @@ export interface BuildAskDocumentData extends BuildDocumentData {
   token_name?: string;
   token_image?: string;
   token_media?: string;
+  token_attributes?: {
+    key: string;
+    value: string;
+  }[];
   collection_name?: string;
   collection_image?: string;
   order_id?: string | null;
@@ -109,6 +117,7 @@ export class AskDocumentBuilder extends DocumentBuilder {
             id: data.token_id,
             name: data.token_name,
             image: data.token_image,
+            attributes: data.token_attributes,
           }
         : undefined,
       collection: data.collection_id
