@@ -16,6 +16,7 @@ import { startKafkaConsumer } from "@/jobs/cdc";
 import { RabbitMqJobsConsumer } from "@/jobs/index";
 import { FeeRecipients } from "@/models/fee-recipients";
 import { Sources } from "@/models/sources";
+import { AppDataSource } from "./data-source";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 process.on("unhandledRejection", (error: any) => {
@@ -28,6 +29,8 @@ process.on("unhandledRejection", (error: any) => {
 const setup = async () => {
   // Configure the SDK
   Sdk.Global.Config.aggregatorSource = "reservoir.tools";
+
+  await AppDataSource.initialize();
 
   if (process.env.LOCAL_TESTING) {
     return;
