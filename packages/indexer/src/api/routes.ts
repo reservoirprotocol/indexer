@@ -772,14 +772,14 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
-    path: "/execute/match/v1",
-    options: executeEndpoints.postExecuteMatchV1Options,
+    path: "/execute/results/v1",
+    options: executeEndpoints.postExecuteResultsV1,
   });
 
   server.route({
     method: "POST",
-    path: "/execute/results/v1",
-    options: executeEndpoints.postExecuteResultsV1,
+    path: "/execute/solve/v1",
+    options: executeEndpoints.postExecuteSolveV1Options,
   });
 
   server.route({

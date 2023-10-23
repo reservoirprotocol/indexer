@@ -9,7 +9,7 @@ import { logger } from "@/common/logger";
 
 const version = "v1";
 
-export const postExecuteMatchV1Options: RouteOptions = {
+export const postExecuteSolveV1Options: RouteOptions = {
   description: "Indirectly fill an order via a relayer",
   tags: ["api", "Misc"],
   plugins: {
@@ -32,9 +32,9 @@ export const postExecuteMatchV1Options: RouteOptions = {
         method: Joi.string().valid("POST").required(),
         body: Joi.any(),
       }),
-    }).label(`postExecuteMatch${version.toUpperCase()}Response`),
+    }).label(`postExecuteSolve${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
-      logger.error(`post-execute-match-${version}-handler`, `Wrong response schema: ${error}`);
+      logger.error(`post-execute-solve-${version}-handler`, `Wrong response schema: ${error}`);
       throw error;
     },
   },
@@ -68,7 +68,7 @@ export const postExecuteMatchV1Options: RouteOptions = {
         }
       }
     } catch (error) {
-      logger.error(`post-execute-match-${version}-handler`, `Handler failure: ${error}`);
+      logger.error(`post-execute-solve-${version}-handler`, `Handler failure: ${error}`);
       throw error;
     }
   },
