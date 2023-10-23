@@ -234,7 +234,7 @@ async function formatCollections(
 
 async function getCollectionsMetadata(collectionsResult: any[]) {
   const collectionIds = collectionsResult.map((collection: any) => collection.id);
-  const collectionsToFetch = collectionIds.map((id: string) => `collection-cache:v1:${id}`);
+  const collectionsToFetch = collectionIds.map((id: string) => `collection-cache:v2:${id}`);
   const batches = chunk(collectionsToFetch, REDIS_BATCH_SIZE);
   const tasks = batches.map(async (batch) => redis.mget(batch));
   const results = await Promise.all(tasks);
@@ -344,8 +344,8 @@ async function getCollectionsMetadata(collectionsResult: any[]) {
 
     const commands = flatMap(collectionMetadataResponse, (metadata: any) => {
       return [
-        ["set", `collection-cache:v1:${metadata.id}`, JSON.stringify(metadata)],
-        ["expire", `collection-cache:v1:${metadata.id}`, REDIS_EXPIRATION],
+        ["set", `collection-cache:v2:${metadata.id}`, JSON.stringify(metadata)],
+        ["expire", `collection-cache:v2:${metadata.id}`, REDIS_EXPIRATION],
       ];
     });
 
