@@ -111,6 +111,9 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
                     LIMIT 1
                  ) t ON TRUE
             WHERE orders.id = $/orderId/
+            AND orders.side = 'sell'
+            AND orders.fillability_status = 'fillable'
+            AND orders.approval_status = 'approved'
           `,
           { orderId: data.id }
         );
