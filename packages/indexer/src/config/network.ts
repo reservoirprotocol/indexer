@@ -109,26 +109,12 @@ export const getOpenseaNetworkName = () => {
       return "base";
     case 84531:
       return "base_goerli";
-    case 324:
-      return "zksync";
     case 7777777:
       return "zora";
     case 999:
       return "zora_testnet";
     default:
       return null;
-  }
-};
-
-export const getOpenseaSubDomain = () => {
-  switch (config.chainId) {
-    case 5:
-    case 80001:
-    case 11155111:
-      return "testnets-api";
-
-    default:
-      return "api";
   }
 };
 

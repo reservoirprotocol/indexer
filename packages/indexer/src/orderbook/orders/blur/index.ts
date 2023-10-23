@@ -657,6 +657,14 @@ export const savePartialBids = async (
                 updated_at = now(),
                 raw_data = $/rawData:json/
               WHERE orders.id = $/id/
+              AND (
+                price IS DISTINCT FROM $/price/ 
+                OR currency_price IS DISTINCT FROM $/price/
+                OR value IS DISTINCT FROM $/value/
+                OR currency_value IS DISTINCT FROM $/value/
+                OR quantity_remaining IS DISTINCT FROM $/totalQuantity/
+                OR raw_data IS DISTINCT FROM $/rawData:json/
+              )
             `,
             {
               id,
