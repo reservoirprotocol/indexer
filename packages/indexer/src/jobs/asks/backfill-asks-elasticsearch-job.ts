@@ -12,7 +12,7 @@ import * as asksIndex from "@/elasticsearch/indexes/asks";
 export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-asks-elasticsearch-queue";
   maxRetries = 10;
-  concurrency = 1;
+  concurrency = 5;
   persistent = true;
   lazyMode = true;
 

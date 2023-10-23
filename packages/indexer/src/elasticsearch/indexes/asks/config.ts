@@ -27,6 +27,7 @@ export const CONFIG_DEFAULT = {
       order: {
         properties: {
           id: { type: "keyword" },
+          kind: { type: "keyword" },
           maker: { type: "keyword" },
           taker: { type: "keyword" },
           validFrom: { type: "date" },
