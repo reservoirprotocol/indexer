@@ -26,6 +26,7 @@ export type CollectionsEntityUpdateParams = {
   lastMetadataSync?: string;
   floorSellValue?: number;
   creator?: string;
+  isSpam?: number;
 };
 
 export type CollectionsMetadata = {
@@ -71,6 +72,7 @@ export type CollectionsEntityParams = {
   minted_timestamp: number;
   floor_sell_value: number;
   creator: Buffer;
+  is_spam: number;
 };
 
 export class CollectionsEntity {
@@ -101,6 +103,7 @@ export class CollectionsEntity {
   mintedTimestamp: number;
   floorSellValue: number;
   creator: string;
+  isSpam: number;
 
   constructor(params: CollectionsEntityParams) {
     this.id = params.id;
@@ -130,5 +133,6 @@ export class CollectionsEntity {
     this.mintedTimestamp = params.minted_timestamp;
     this.floorSellValue = params.floor_sell_value;
     this.creator = params.creator ? fromBuffer(params.creator) : params.creator;
+    this.isSpam = params.is_spam;
   }
 }

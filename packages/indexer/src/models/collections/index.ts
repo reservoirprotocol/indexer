@@ -29,6 +29,7 @@ import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token
 import { Contracts } from "@/models/contracts";
 import * as registry from "@/utils/royalties/registry";
 import { config } from "@/config/index";
+import { AlchemyApi } from "@/utils/alchemy";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -199,6 +200,8 @@ export class Collections {
       );
     }
 
+    const isSpamContract = await AlchemyApi.isSpamContract(collection.contract);
+
     const query = `
       UPDATE collections SET
         metadata = $/metadata:json/,
@@ -206,6 +209,7 @@ export class Collections {
         slug = $/slug/,
         payment_tokens = $/paymentTokens/,
         creator = $/creator/,
+        is_spam = $/isSpamContract/,
         updated_at = now()
       WHERE id = $/id/
       AND (metadata IS DISTINCT FROM $/metadata:json/ 
@@ -232,6 +236,7 @@ export class Collections {
       slug: collection.slug,
       paymentTokens: collection.paymentTokens ? { opensea: collection.paymentTokens } : {},
       creator: collection.creator ? toBuffer(collection.creator) : null,
+      isSpamContract,
     };
 
     logger.info(

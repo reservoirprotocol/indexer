@@ -27,6 +27,7 @@ export type TokensEntityUpdateParams = {
   lastFlagChange?: string;
   supply?: number;
   remainingSupply?: number;
+  isSpam?: number;
 };
 
 // Define the fields need to instantiate the entity
@@ -59,6 +60,7 @@ export type TokensEntityParams = {
   media: string;
   supply: number | null;
   remaining_supply: number | null;
+  is_spam: number;
 };
 
 export class TokensEntity {
@@ -90,6 +92,7 @@ export class TokensEntity {
   media: string;
   supply: number;
   remainingSupply: number;
+  isSpam: number;
 
   constructor(params: TokensEntityParams) {
     this.contract = fromBuffer(params.contract);
@@ -124,5 +127,6 @@ export class TokensEntity {
     this.media = params.media;
     this.supply = Number(params.supply);
     this.remainingSupply = Number(params.remaining_supply);
+    this.isSpam = params.is_spam;
   }
 }
