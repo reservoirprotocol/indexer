@@ -178,9 +178,10 @@ async function formatCollections(
 
       const floorAskId = metadata[`${prefix}floor_sell_id`];
       const floorAskValue = metadata[`${prefix}floor_sell_value`];
-      let floorAskCurrency = metadata[`${prefix}floor_sell_currency`];
+      let floorAskCurrency = metadata[`floor_sell_currency`];
       const floorAskSource = metadata[`${prefix}floor_sell_source_id_int`];
-      const floorAskCurrencyValue = metadata[`${prefix}floor_sell_currency_value`];
+      const floorAskCurrencyValue =
+        metadata[`${normalizeRoyalties ? "normalized_" : ""}floor_sell_currency_value`];
 
       if (metadata) {
         floorAskCurrency = floorAskCurrency
@@ -298,6 +299,9 @@ async function getCollectionsMetadata(collectionsResult: any[]) {
       collections.normalized_floor_sell_maker,
       collections.normalized_floor_sell_valid_between,
       collections.normalized_floor_sell_source_id_int,
+      y.floor_sell_currency,
+      y.normalized_floor_sell_currency_value,
+      y.floor_sell_currency_value,
       collections.top_buy_id,
       collections.top_buy_value,
       collections.top_buy_maker,
@@ -313,6 +317,15 @@ async function getCollectionsMetadata(collectionsResult: any[]) {
               AND tokens.floor_sell_value IS NOT NULL
           ) AS on_sale_count
     FROM collections
+
+    LEFT JOIN LATERAL (
+      SELECT
+        orders.currency AS floor_sell_currency,
+        orders.currency_normalized_value AS normalized_floor_sell_currency_value,
+        orders.currency_value AS floor_sell_currency_value
+      FROM orders
+      WHERE orders.id = collections.floor_sell_id
+    ) y ON TRUE
     WHERE collections.id IN (${collectionIdList})
   `;
 

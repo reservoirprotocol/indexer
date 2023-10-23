@@ -50,22 +50,36 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
 
       if (cachedCollection !== null) {
         // If the collection exists, fetch the on_sale_count
-        const listedCountQuery = `
-        SELECT
-          COUNT(*) AS on_sale_count
-        FROM tokens
-        WHERE tokens.collection_id = $/collectionId/
-          AND tokens.floor_sell_value IS NOT NULL
-      `;
+        const collectionMetadataQuery = `
+          SELECT
+            count_query.on_sale_count,
+            orders.currency AS floor_sell_currency,
+            orders.currency_normalized_value AS normalized_floor_sell_currency_value,
+            orders.currency_value AS floor_sell_currency_value
+          FROM (
+            SELECT
+              COUNT(*) AS on_sale_count
+              FROM tokens
+              WHERE tokens.collection_id = $/collectionId/
+              AND tokens.floor_sell_value IS NOT NULL
+          ) AS count_query 
+          LEFT JOIN orders ON orders.id = $/askOrderId/;
+        `;
 
-        const listCountResult = await redb.one(listedCountQuery, {
+        const result = await redb.one(collectionMetadataQuery, {
           collectionId: payload.after.id,
+          askOrderId: payload.after.floor_sell_id,
         });
-        const listCount = listCountResult.on_sale_count;
+
+        const { metadata, ...updatedCollection } = payload.after;
 
         const updatedPayload = {
-          ...payload.after,
-          on_sale_count: listCount,
+          ...updatedCollection,
+          metadata: JSON.parse(metadata),
+          on_sale_count: result.on_sale_count,
+          floor_sell_currency: result.floor_sell_currency,
+          normalized_floor_sell_currency_value: result.normalized_floor_sell_currency_value,
+          floor_sell_currency_value: result.floor_sell_currency_value,
         };
 
         await redis.set(collectionKey, JSON.stringify(updatedPayload), "XX");
