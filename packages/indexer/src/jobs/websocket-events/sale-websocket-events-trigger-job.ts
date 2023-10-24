@@ -14,6 +14,27 @@ export type SaleWebsocketEventsTriggerQueueJobPayload = {
   data: SaleWebsocketEventInfo;
 };
 
+export async function getTokenMetadata(tokenId: string, contract: string) {
+  const r = await idb.oneOrNone(
+    `
+    SELECT
+      tokens.name,
+      tokens.image,
+      tokens.collection_id,
+      collections.name AS collection_name
+    FROM tokens
+    LEFT JOIN collections 
+      ON tokens.collection_id = collections.id
+    WHERE tokens.contract = $/contract/ AND tokens.token_id = $/token_id/
+  `,
+    {
+      token_id: tokenId,
+      contract: toBuffer(contract),
+    }
+  );
+  return r;
+}
+
 const changedMapping = {
   wash_trading_score: "washTradingScore",
   royalty_fee_bps: "fees.royaltyFeeBps",
@@ -37,24 +58,7 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
     const { data } = payload;
 
     try {
-      const r = await idb.oneOrNone(
-        `
-        SELECT
-          tokens.name,
-          tokens.image,
-          tokens.collection_id,
-          collections.name AS collection_name
-        FROM tokens
-        LEFT JOIN collections 
-          ON tokens.collection_id = collections.id
-        WHERE tokens.contract = $/contract/ AND tokens.token_id = $/token_id/
-      `,
-        {
-          token_id: data.after.token_id,
-          contract: toBuffer(data.after.contract),
-        }
-      );
-
+      const r = await getTokenMetadata(data.after.token_id, data.after.contract);
       const result = await getJoiSaleObject({
         prices: {
           gross: {
