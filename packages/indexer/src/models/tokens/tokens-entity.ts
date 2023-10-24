@@ -60,7 +60,7 @@ export type TokensEntityParams = {
   media: string;
   supply: number | null;
   remaining_supply: number | null;
-  is_spam: number;
+  is_spam: number | null;
 };
 
 export class TokensEntity {
@@ -127,6 +127,6 @@ export class TokensEntity {
     this.media = params.media;
     this.supply = Number(params.supply);
     this.remainingSupply = Number(params.remaining_supply);
-    this.isSpam = params.is_spam;
+    this.isSpam = Number(params.is_spam);
   }
 }

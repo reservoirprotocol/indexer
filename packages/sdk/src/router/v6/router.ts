@@ -248,6 +248,8 @@ export class Router {
       partial?: boolean;
       // Force direct filling
       forceDirectFilling?: boolean;
+      // Wallet used for relaying the fill transaction
+      relayer?: string;
     }
   ): Promise<FillMintsResult> {
     const txs: FillMintsResult["txs"][0][] = [];
@@ -255,6 +257,7 @@ export class Router {
 
     if (
       !Addresses.MintModule[this.chainId] ||
+      !options?.relayer ||
       options?.forceDirectFilling ||
       (details.length === 1 && !details[0].fees?.length && !details[0].comment)
     ) {
@@ -308,7 +311,7 @@ export class Router {
         .toHexString();
       txs.push({
         txData: {
-          from: taker,
+          from: options?.relayer || taker,
           to: this.contracts.router.address,
           data:
             this.contracts.router.interface.encodeFunctionData("execute", [
