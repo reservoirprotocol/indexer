@@ -221,7 +221,6 @@ const simulateMintTxData = async (
   } else {
     // CASE 2
     // Default to using `eth_call` (which isn't very accurate)
-
     try {
       const result = await triggerCall(txData);
       logger.info("mints-simulation", `Call result: ${result}`);
