@@ -74,14 +74,13 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
           askOrderId: payload.after.floor_sell_id,
         });
 
-        const { contract, floor_sell_currency, metadata, ...updatedCollection } = payload.after;
+        const { contract, metadata, ...updatedCollection } = payload.after;
 
         const updatedPayload = {
           ...updatedCollection,
-
           contract: fromBuffer(contract),
-          floor_sell_currency: floor_sell_currency
-            ? fromBuffer(floor_sell_currency)
+          floor_sell_currency: result.floor_sell_currency
+            ? fromBuffer(result.floor_sell_currency)
             : Sdk.Common.Addresses.Native[config.chainId],
           metadata: JSON.parse(metadata),
           on_sale_count: result.on_sale_count,
@@ -89,10 +88,13 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
           floor_sell_currency_value: result.floor_sell_currency_value,
         };
 
+        logger.info(
+          "debug-top-selling-collection",
+          `updatedPayload for ${payload.after.id}: ${JSON.stringify(updatedPayload)}`
+        );
+
         await redis.set(collectionKey, JSON.stringify(updatedPayload), "XX");
       }
-
-      // logger.info("top-selling-collections", `updated collection ${payload.after.id}`);
     } catch (err) {
       logger.error(
         "top-selling-collections",
