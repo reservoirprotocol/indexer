@@ -57,7 +57,7 @@ export const ConduitController: ChainIdToAddress = {
   [Network.PolygonZkevm]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Zksync]: "0x4c68886e1db29168a6672e614412191591aca502",
   [Network.Ancient8Testnet]: "0x00000000f9490004c11cef243f5400493c00ad63",
-  [Network.Scroll]: "0x856523801f13fb8ca62e597ac8b738d40d0df38e",
+  [Network.Scroll]: "0x00000000f9490004c11cef243f5400493c00ad63",
 };
 
 // https://github.com/ProjectOpenSea/seaport/blob/0a8e82ce7262b5ce0e67fa98a2131fd4c47c84e9/contracts/conduit/ConduitController.sol#L493
@@ -82,7 +82,7 @@ export const ConduitControllerCodeHash: ChainIdToAddress = {
   [Network.Linea]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.PolygonZkevm]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.Ancient8Testnet]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
-  [Network.Scroll]: "0xca3b49f03ccc47553ada9bdfa0d40ed99b5eca14ba728bd3450e073e47c7a624",
+  [Network.Scroll]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
 };
 
 export const OperatorFilterRegistry: ChainIdToAddress = {

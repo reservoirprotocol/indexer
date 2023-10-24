@@ -1592,7 +1592,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         payload.currencyChainId !== config.chainId &&
         config.crossChainSolverBaseUrl
       ) {
-        if (items.length > 1) {
+        if (path.length > 1) {
           throw Boom.badRequest("Only single item cross-chain purchases are supported");
         }
         if (payload.normalizeRoyalties) {
@@ -1620,12 +1620,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
           throw Boom.badRequest("Cross-chain swap not supported between requested chains");
         }
 
-        const item = items[0];
-        if (!item.token && !item.collection) {
-          throw Boom.badRequest("Can only purchase cross-chain via `token` or `collection`");
-        }
-
-        const token = item.token ?? `${item.collection!}:${MaxUint256.toString()}`;
+        const item = path[0];
+        const token = item.tokenId
+          ? `${item.contract}:${item.tokenId}`.toLowerCase()
+          : `${item.contract}:${MaxUint256.toString()}`.toLowerCase();
 
         const quote = await axios
           .post(`${config.crossChainSolverBaseUrl}/intents/quote`, {
@@ -1633,7 +1631,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
             toChainId,
             token,
             amount: item.quantity,
-            fillType: item.fillType,
           })
           .then((response) => response.data.price);
 
@@ -1667,6 +1664,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               ) payable`,
             ]).encodeFunctionData("makeRequest", params),
             value: quote,
+            chainId: fromChainId,
           },
           check: {
             endpoint: "/execute/status/v1",
