@@ -77,7 +77,7 @@ export abstract class KafkaEventHandler {
 
   getTopics(): string[] {
     // return this topic name, as well as an error topic name
-    return [`${getNetworkName()}.${this.topicName}`, `${getNetworkName()}.${this.topicName}-error`];
+    return [`${getNetworkName()}.${this.topicName}`];
   }
 
   convertPayloadHexToString(payload: any) {
