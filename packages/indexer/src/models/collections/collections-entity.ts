@@ -72,7 +72,7 @@ export type CollectionsEntityParams = {
   minted_timestamp: number;
   floor_sell_value: number;
   creator: Buffer;
-  is_spam: number;
+  is_spam: number | null;
 };
 
 export class CollectionsEntity {
@@ -133,6 +133,6 @@ export class CollectionsEntity {
     this.mintedTimestamp = params.minted_timestamp;
     this.floorSellValue = params.floor_sell_value;
     this.creator = params.creator ? fromBuffer(params.creator) : params.creator;
-    this.isSpam = params.is_spam;
+    this.isSpam = Number(params.is_spam);
   }
 }

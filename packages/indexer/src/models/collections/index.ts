@@ -30,6 +30,7 @@ import { Contracts } from "@/models/contracts";
 import * as registry from "@/utils/royalties/registry";
 import { config } from "@/config/index";
 import { AlchemyApi } from "@/utils/alchemy";
+import { AlchemySpamContracts } from "@/models/alchemy-spam-contracts";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -201,6 +202,9 @@ export class Collections {
     }
 
     const isSpamContract = await AlchemyApi.isSpamContract(collection.contract);
+    if (isSpamContract) {
+      await AlchemySpamContracts.add(collection.contract);
+    }
 
     const query = `
       UPDATE collections SET
@@ -217,6 +221,7 @@ export class Collections {
             OR slug IS DISTINCT FROM $/slug/ 
             OR payment_tokens IS DISTINCT FROM $/paymentTokens/ 
             OR creator IS DISTINCT FROM $/creator/
+            OR $/isSpamContract/ = 1
             )
       RETURNING (
                   SELECT
@@ -236,7 +241,7 @@ export class Collections {
       slug: collection.slug,
       paymentTokens: collection.paymentTokens ? { opensea: collection.paymentTokens } : {},
       creator: collection.creator ? toBuffer(collection.creator) : null,
-      isSpamContract,
+      isSpamContract: Number(isSpamContract),
     };
 
     logger.info(
@@ -307,8 +312,7 @@ export class Collections {
 
     const query = `
       UPDATE collections
-        SET updated_at = now(),
-        SET ${updateString}
+        SET updated_at = now(), ${updateString}
       WHERE id = $/collectionId/
     `;
 

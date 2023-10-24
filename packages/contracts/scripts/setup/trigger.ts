@@ -318,7 +318,7 @@ export const trigger = {
   },
   // Utilities
   Utilities: {
-    LiteRoyaltyEngine: async () => dv("LiteRoyaltyEngine", "v1", []),
+    // LiteRoyaltyEngine: async () => dv("LiteRoyaltyEngine", "v1", []),
     OffChainCancellationZone: async (chainId: number) => {
       if ([1, 5, 137, 80001].includes(chainId)) {
         if (!(await readDeployment("SignedZoneController", "v1", chainId))) {
