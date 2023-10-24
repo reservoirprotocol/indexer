@@ -1,4 +1,4 @@
-import { OfferTokenType } from "../../types";
+import { OfferTokenType, OrderParameters } from "../../types";
 import { BigNumberish } from "@ethersproject/bignumber";
 import { HashZero, AddressZero } from "@ethersproject/constants";
 import { getCurrentTimestamp } from "../../../utils";
@@ -35,7 +35,10 @@ export abstract class BaseBuilder {
 
   public abstract isValid(order: Order): boolean;
   public abstract build(params: BaseBuildParams): Order;
-  /* public abstract buildMatching(
-    order: Order
-  ): OrderParameters; */
+  public abstract buildMatching(
+    order: Order,
+    receiver: string,
+    buyerPendingAmount: BigNumberish,
+    offererPendingAmount: BigNumberish
+  ): Promise<OrderParameters>;
 }

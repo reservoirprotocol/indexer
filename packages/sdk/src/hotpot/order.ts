@@ -1,10 +1,16 @@
 import { _TypedDataEncoder } from "@ethersproject/hash";
 import { TypedDataSigner } from "@ethersproject/abstract-signer";
-import { Types } from ".";
+import { Addresses, Types } from ".";
 //import * as Addresses from "./addresses";
-import { lc, n, s } from "../utils";
+import { bn, lc, n, s } from "../utils";
 import { Exchange } from "./exchange";
 import { verifyTypedData } from "@ethersproject/wallet";
+import { SingleTokenBuilder } from "./builders/single-token";
+import { Provider } from "@ethersproject/abstract-provider";
+import { EIP712_TYPES, OfferTokenType } from "./types";
+import * as Common from "../common";
+import { Network } from "../utils";
+import { BigNumberish } from "@ethersproject/bignumber";
 
 export class Order {
   public chainId: number;
@@ -20,9 +26,9 @@ export class Order {
     }
 
     // Detect kind
-    /* if (!params.kind) {
+    if (!params.kind) {
       this.params.kind = this.detectKind();
-    } */
+    }
 
     // Perform light validations
     if (
@@ -74,6 +80,18 @@ export class Order {
     };
   }
 
+  private detectKind(): Types.OrderKind {
+    // single-token
+    {
+      const builder = new SingleTokenBuilder(this.chainId);
+      if (builder.isValid(this)) {
+        return "single-token";
+      }
+    }
+
+    throw new Error("Could not detect order kind (order might have unsupported params/calldata)");
+  }
+
   public checkOrderSignature() {
     const signature = this.params.orderSignature!;
 
@@ -87,32 +105,66 @@ export class Order {
       throw new Error("Invalid signature (offerer is not signer)");
     }
   }
-}
 
-const EIP712_TYPES = {
-  OfferItem: [
-    { name: "offerToken", type: "address" },
-    { name: "offerTokenId", type: "uint256" },
-    { name: "offerAmount", type: "uint256" },
-    { name: "endTime", type: "uint256" },
-    { name: "amount", type: "uint256" },
-  ],
-  RoyaltyData: [
-    { name: "royaltyPercent", type: "uint256" },
-    { name: "royaltyRecipient", type: "address" },
-  ],
-  PendingAmountData: [
-    { name: "offererPendingAmount", type: "uint256" },
-    { name: "buyerPendingAmount", type: "uint256" },
-    { name: "orderHash", type: "bytes32" },
-  ],
-  Order: [
-    { name: "offerer", type: "address" },
-    { name: "offerItem", type: "OfferItem" },
-    { name: "royalty", type: "RoyaltyData" },
-    { name: "salt", type: "uint256" },
-  ],
-};
+  public async checkFillability(provider: Provider) {
+    const exchange: Exchange = this.exchange();
+    const order_hash = this.hash();
+
+    // check order status
+    const fulfilledOrCancelled = await exchange.fulfilledOrCancelled(provider, order_hash);
+    if (fulfilledOrCancelled) {
+      throw new Error("Order already fulfilled or cancelled");
+    }
+
+    if (this.params.tokenType == OfferTokenType.ERC721) {
+      const erc721 = new Common.Helpers.Erc721(provider, this.params.offerItem.offerToken);
+      // Check ownership
+      const owner = await erc721.getOwner(this.params.offerItem.offerTokenId);
+      if (lc(owner) !== lc(this.params.offerer)) {
+        throw new Error("erc721 no ownership");
+      }
+      // Check approval
+      const isApproved = await erc721.isApproved(
+        this.params.offerer,
+        Addresses.Exchange[Network.Ethereum]
+      );
+      if (!isApproved) {
+        throw new Error("erc721 not approved");
+      }
+    } else if (this.params.tokenType == OfferTokenType.ERC1155) {
+      const erc1155 = new Common.Helpers.Erc1155(provider, this.params.offerItem.offerToken);
+      // Check balance
+      const balance = await erc1155.getBalance(
+        this.params.offerer,
+        this.params.offerItem.offerTokenId
+      );
+      if (bn(balance).lt(this.params.offerItem.amount)) {
+        // no partial fills
+        throw new Error("erc1155 not enough balance");
+      }
+
+      // Check approval
+      const isApproved = await erc1155.isApproved(
+        this.params.offerer,
+        Addresses.Exchange[Network.Ethereum]
+      );
+      if (!isApproved) {
+        throw new Error("erc1155 no approval");
+      }
+    } else {
+      throw new Error("Invalid collection type");
+    }
+  }
+
+  public async buildMatching(
+    receiver: string,
+    buyerPendingAmount: BigNumberish,
+    offererPendingAmount: BigNumberish
+  ) {
+    const builder = new SingleTokenBuilder(this.chainId);
+    return await builder.buildMatching(this, receiver, buyerPendingAmount, offererPendingAmount);
+  }
+}
 
 const normalize = (order: Types.OrderParameters): Types.OrderParameters => {
   // Perform some normalization operations on the order:
