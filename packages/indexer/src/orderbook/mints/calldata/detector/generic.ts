@@ -20,6 +20,11 @@ const STANDARD = "unknown";
 function isEmptyArray(arr: string[], def: string) {
   return arr.length === 0 ? true : arr.every((c: string) => c == def);
 }
+
+export type Info = {
+  amountMinted: string;
+};
+
 export const extractByTx = async (
   collection: string,
   tx: Transaction,
@@ -146,6 +151,9 @@ export const extractByTx = async (
           signature: methodSignature.signature,
           params,
         },
+      },
+      info: {
+        amountMinted: amountMinted.toString(),
       },
     },
     currency: Sdk.Common.Addresses.Native[config.chainId],

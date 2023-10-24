@@ -57,7 +57,7 @@ export type MintTxSchema = {
   };
 };
 
-export type CustomInfo = mints.manifold.Info | mints.soundxyz.Info;
+export type CustomInfo = mints.manifold.Info | mints.soundxyz.Info | mints.generic.Info;
 
 export type PartialCollectionMint = Pick<
   CollectionMint,

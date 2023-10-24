@@ -4,6 +4,7 @@ dotEnvConfig();
 import { jest, describe, it, expect } from "@jest/globals";
 import { config } from "@/config/index";
 import * as detector from "@/orderbook/mints/calldata/detector";
+import { simulateCollectionMint } from "@/orderbook/mints/simulation";
 
 jest.setTimeout(1000 * 1000);
 
@@ -17,8 +18,12 @@ describe("Mints - Detector", () => {
       "0x13dcd467192096bbd652d934dd0d7a40581bc6d39d38d9e8a874e7a77151d732",
     ];
     for (const txId of txIds) {
-      const mints = await detector.extractByTx(txId, true);
-      expect(mints.length).not.toBe(0);
+      const collectionMints = await detector.extractByTx(txId, true);
+      for (const collectionMint of collectionMints) {
+        const result = await simulateCollectionMint(collectionMint);
+        expect(result).toBe(true);
+      }
+      expect(collectionMints.length).not.toBe(0);
     }
   });
 });

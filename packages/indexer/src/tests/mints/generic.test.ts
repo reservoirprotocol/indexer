@@ -7,7 +7,7 @@ import * as utils from "@/events-sync/utils";
 import { BigNumber } from "ethers";
 import { parseEther } from "ethers/lib/utils";
 import { config } from "@/config/index";
-// import { simulateCollectionMint } from "@/orderbook/mints/simulation";
+import { simulateCollectionMint } from "@/orderbook/mints/simulation";
 // import { defaultAbiCoder } from "@ethersproject/abi";
 
 jest.setTimeout(1000 * 1000);
@@ -119,10 +119,10 @@ describe("Mints - Generic", () => {
       BigNumber.from("10")
     );
 
-    // for (const collectionMint of collectionMints) {
-    //   const result = await simulateCollectionMint(collectionMint);
-    //   console.log("result", result);
-    // }
+    for (const collectionMint of collectionMints) {
+      const result = await simulateCollectionMint(collectionMint);
+      expect(result).toBe(true);
+    }
 
     expect(collectionMints.length).not.toBe(0);
   });

@@ -9,6 +9,7 @@ import { bn, fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { CollectionMint } from "@/orderbook/mints";
 import { generateCollectionMintTxData } from "@/orderbook/mints/calldata";
+import * as mints from "@/orderbook/mints/calldata/detector";
 
 import { EventData } from "@/events-sync/data";
 import * as erc721 from "@/events-sync/data/erc721";
@@ -60,9 +61,23 @@ export const simulateCollectionMint = async (
 
   if (detectMaxMintsPerWallet && collectionMint.maxMintsPerWallet === undefined) {
     // TODO: Improve accuracy of `maxMintsPerWallet` via binary search
-    const results = await Promise.all([simulate(1), simulate(2)]);
+    const fixedAmount =
+      collectionMint.standard === "unknown"
+        ? (collectionMint.details.info as mints.generic.Info).amountMinted
+        : undefined;
+    const results = await Promise.all([
+      simulate(1),
+      simulate(2),
+      fixedAmount ? simulate(parseInt(fixedAmount)) : Promise.resolve(false),
+    ]);
     if (results[0] && !results[1]) {
       collectionMint.maxMintsPerWallet = "1";
+    }
+
+    // Fixed custom amount
+    if (results[2]) {
+      collectionMint.maxMintsPerWallet = fixedAmount;
+      return results[2];
     }
 
     return results[0];
