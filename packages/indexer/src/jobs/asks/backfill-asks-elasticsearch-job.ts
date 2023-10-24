@@ -22,7 +22,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
       this.queueName,
       JSON.stringify({
         topic: "debugAskIndex",
-        message: `Start.`,
+        message: `Start. fromTimestamp=${payload.fromTimestamp}, onlyActive=${payload.onlyActive}, cursor=${payload.cursor}`,
         payload,
       })
     );
@@ -232,6 +232,16 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
       await elasticsearch.bulk({
         body: bulkOps,
       });
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "debugAskIndex",
+          message: `Processed ${bulkOps.length} ask events. nextCursor=${nextCursor}`,
+          payload,
+          nextCursor,
+        })
+      );
 
       await backfillAsksElasticsearchJob.addToQueue(
         payload.fromTimestamp,
