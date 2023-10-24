@@ -261,7 +261,11 @@ export const getUSDAndNativePrices = async (
   let usdPrice: string | undefined;
   let nativePrice: string | undefined;
 
-  if (getNetworkSettings().coingecko?.networkId || isTestnetCurrency(currencyAddress)) {
+  if (
+    getNetworkSettings().coingecko?.networkId ||
+    isTestnetCurrency(currencyAddress) ||
+    isWhitelistedCurrency(currencyAddress)
+  ) {
     const currencyUSDPrice = await getAvailableUSDPrice(
       currencyAddress,
       timestamp,
@@ -297,11 +301,11 @@ export const getUSDAndNativePrices = async (
     nativePrice = price;
   }
 
-  // Set community tokens native/usd value to 0
-  if (isWhitelistedCurrency(currencyAddress)) {
-    usdPrice = "0";
-    nativePrice = "0";
-  }
+  // // Set community tokens native/usd value to 0
+  // if (isWhitelistedCurrency(currencyAddress)) {
+  //   usdPrice = "0";
+  //   nativePrice = "0";
+  // }
 
   return { usdPrice, nativePrice };
 };
