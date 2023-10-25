@@ -94,20 +94,6 @@ export class Assets {
     return imageUrl;
   }
 
-  public static computeKeccakHash(queryString: string) {
-    return crypto.SHA3(queryString, { outputLength: 256 });
-  }
-
-  public static deriveSignature(hash: crypto.lib.WordArray) {
-    if (config.privateImageResizingSigningKey == null) {
-      throw new Error("Private image resizing signing key is not set");
-    }
-
-    const hmac = crypto.HmacSHA256(hash, config.privateImageResizingSigningKey);
-    const signature = hmac.toString(crypto.enc.Hex);
-    return signature;
-  }
-
   public static signImage(imageUrl: string, width?: number): string {
     if (config.imageResizingBaseUrl == null) {
       throw new Error("Image resizing base URL is not set");
@@ -115,11 +101,13 @@ export class Assets {
       throw new Error("Private image resizing signing key is not set");
     }
 
-    const queryString = "image=" + imageUrl + (width ? "&width=" + width : "");
-    const hash = this.computeKeccakHash(queryString);
-    const signature = this.deriveSignature(hash);
-    const shortSignature = signature.substr(0, 6);
+    const ciphertext = crypto.AES.encrypt(
+      imageUrl,
+      config.privateImageResizingSigningKey
+    ).toString();
 
-    return `${config.imageResizingBaseUrl}?${queryString}&signature=${shortSignature}`;
+    return `${config.imageResizingBaseUrl}/${encodeURIComponent(ciphertext)}${
+      width ? "?width=" + width : ""
+    }`;
   }
 }
