@@ -14,7 +14,7 @@ export type BlockCheckJobPayload = {
   delay?: number;
 };
 
-export class BlockCheckJob extends AbstractRabbitMqJobHandler {
+export default class BlockCheckJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-block-check";
   maxRetries = 10;
   concurrency = 1;

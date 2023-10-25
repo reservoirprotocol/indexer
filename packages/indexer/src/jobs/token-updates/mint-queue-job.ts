@@ -19,7 +19,7 @@ export type MintQueueJobPayload = {
   mintedTimestamp: number;
 };
 
-export class MintQueueJob extends AbstractRabbitMqJobHandler {
+export default class MintQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "token-updates-mint-queue";
   maxRetries = 10;
   concurrency = 30;
@@ -106,7 +106,6 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
                 updated_at = now()
               WHERE tokens.contract = $/contract/
                 AND tokens.token_id = $/tokenId/
-                
             `,
             values: {
               contract: toBuffer(contract),
@@ -114,6 +113,17 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
               collection: collection.id,
             },
           });
+
+          if (config.chainId === 11155111) {
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                topic: "debugTokenUpdate",
+                message: `Update token. contract=${contract}, tokenId=${tokenId}`,
+                token: `${contract}:${tokenId}`,
+              })
+            );
+          }
 
           // Include the new token to any collection-wide token set
           if (collection.token_set_id) {
@@ -231,7 +241,8 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
         await idb.none(
           `
             UPDATE collections SET
-              minted_timestamp = $/mintedTimestamp/
+              minted_timestamp = $/mintedTimestamp/,
+              updated_at = NOW()
             WHERE collections.id = $/collection/
             AND collections.minted_timestamp IS NULL
           `,

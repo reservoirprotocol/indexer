@@ -11,7 +11,7 @@ export type NormalizedFloorQueueJobPayload = {
   txTimestamp: number | null;
 };
 
-export class NormalizedFloorQueueJob extends AbstractRabbitMqJobHandler {
+export default class NormalizedFloorQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "token-updates-normalized-floor-ask-queue";
   maxRetries = 10;
   concurrency = 30;

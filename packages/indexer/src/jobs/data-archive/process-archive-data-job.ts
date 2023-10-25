@@ -11,7 +11,7 @@ export type ProcessArchiveDataJobPayload = {
   nextBatchTime?: string | null;
 };
 
-export class ProcessArchiveDataJob extends AbstractRabbitMqJobHandler {
+export default class ProcessArchiveDataJob extends AbstractRabbitMqJobHandler {
   queueName = "process-archive-data-queue";
   maxRetries = 10;
   concurrency = 1;

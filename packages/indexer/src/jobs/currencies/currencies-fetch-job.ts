@@ -7,7 +7,7 @@ export type CurrenciesFetchJobPayload = {
   currency: string;
 };
 
-export class CurrenciesFetchJob extends AbstractRabbitMqJobHandler {
+export default class CurrenciesFetchJob extends AbstractRabbitMqJobHandler {
   queueName = "currencies-fetch";
   maxRetries = 10;
   concurrency = 10;

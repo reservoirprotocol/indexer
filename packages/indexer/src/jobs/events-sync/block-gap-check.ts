@@ -12,7 +12,7 @@ export type BlockGapCheckJobPayload = {
   limit?: number;
 };
 
-export class BlockGapCheckJob extends AbstractRabbitMqJobHandler {
+export default class BlockGapCheckJob extends AbstractRabbitMqJobHandler {
   queueName = "block-gap-check";
   maxRetries = 30;
   concurrency = 1;

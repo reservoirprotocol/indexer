@@ -6,7 +6,7 @@ export type RemoveUnsyncedEventsActivitiesJobPayload = {
   blockHash: string;
 };
 
-export class RemoveUnsyncedEventsActivitiesJob extends AbstractRabbitMqJobHandler {
+export default class RemoveUnsyncedEventsActivitiesJob extends AbstractRabbitMqJobHandler {
   queueName = "remove-unsynced-events-activities-queue";
   maxRetries = 10;
   concurrency = 1;

@@ -17,7 +17,7 @@ export const postTriggerRabbitJobOptions: RouteOptions = {
     payload: Joi.object({
       path: Joi.string().allow(""),
       params: Joi.any(),
-    }),
+    }).description(`Should be passed in array [{"contract": "...", "tokenId": "..."}]`),
   },
   handler: async (request: Request) => {
     if (request.headers["x-admin-api-key"] !== config.adminApiKey) {
@@ -27,8 +27,8 @@ export const postTriggerRabbitJobOptions: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      const { job } = await import(`@/jobs/${payload.path}`);
-      const jobObject = new job();
+      const job = await import(`@/jobs/${payload.path}`);
+      const jobObject = new job.default();
       jobObject.addToQueue(...payload.params);
 
       return { message: `triggered @/jobs/${payload.path} with ${JSON.stringify(payload.params)}` };

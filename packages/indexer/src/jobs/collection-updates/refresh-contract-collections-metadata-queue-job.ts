@@ -12,7 +12,7 @@ export type RefreshContractCollectionsMetadataQueueJobPayload = {
   contract: string;
 };
 
-export class RefreshContractCollectionsMetadataQueueJob extends AbstractRabbitMqJobHandler {
+export default class RefreshContractCollectionsMetadataQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "refresh-contract-collections-metadata-queue";
   maxRetries = 10;
   concurrency = 1;

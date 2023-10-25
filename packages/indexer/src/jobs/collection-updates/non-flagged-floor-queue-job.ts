@@ -12,7 +12,7 @@ export type NonFlaggedFloorQueueJobPayload = {
   txTimestamp: number | null;
 };
 
-export class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler {
+export default class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "collection-updates-non-flagged-floor-ask-queue";
   maxRetries = 10;
   concurrency = 5;

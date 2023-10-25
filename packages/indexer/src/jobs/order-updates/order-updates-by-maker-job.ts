@@ -66,7 +66,7 @@ export type OrderUpdatesByMakerJobPayload = {
       };
 };
 
-export class OrderUpdatesByMakerJob extends AbstractRabbitMqJobHandler {
+export default class OrderUpdatesByMakerJob extends AbstractRabbitMqJobHandler {
   queueName = "order-updates-by-maker";
   maxRetries = 10;
   concurrency = 30;

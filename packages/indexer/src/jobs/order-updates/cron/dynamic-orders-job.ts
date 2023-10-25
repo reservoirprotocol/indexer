@@ -18,7 +18,7 @@ export type OrderUpdatesDynamicOrderJobPayload = {
   continuation?: string;
 };
 
-export class OrderUpdatesDynamicOrderJob extends AbstractRabbitMqJobHandler {
+export default class OrderUpdatesDynamicOrderJob extends AbstractRabbitMqJobHandler {
   queueName = "dynamic-orders";
   maxRetries = 1;
   concurrency = 1;

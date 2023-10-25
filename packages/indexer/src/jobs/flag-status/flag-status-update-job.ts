@@ -10,7 +10,7 @@ export type FlagStatusUpdateJobPayload = {
   isFlagged: boolean | null;
 };
 
-export class FlagStatusUpdateJob extends AbstractRabbitMqJobHandler {
+export default class FlagStatusUpdateJob extends AbstractRabbitMqJobHandler {
   queueName = "flag-status-update";
   maxRetries = 10;
   concurrency = 20;

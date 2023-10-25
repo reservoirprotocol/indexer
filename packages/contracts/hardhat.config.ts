@@ -58,6 +58,9 @@ const getNetworkConfig = (chainId?: number) => {
       case 7777777:
         url = "https://rpc.zora.co";
         break;
+      case 534352:
+        url = "https://rpc.scroll.io";
+        break;
       // Testnets
       case 5:
         url = `https://eth-goerli.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
@@ -155,6 +158,7 @@ const config: HardhatUserConfig = {
     avalanche: getNetworkConfig(43114),
     linea: getNetworkConfig(59144),
     zora: getNetworkConfig(7777777),
+    scroll: getNetworkConfig(534352),
     // Testnets
     goerli: getNetworkConfig(5),
     zoraTestnet: getNetworkConfig(999),

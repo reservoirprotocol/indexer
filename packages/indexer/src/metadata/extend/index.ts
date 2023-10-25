@@ -147,6 +147,7 @@ extendCollection["1,0x46ac8540d698167fcbb9e846511beb8cf8af9bd8"] = quantumArt;
 extendCollection["1,0x059edd72cd353df5106d2b9cc5ab83a52287ac3a"] = artblocks;
 extendCollection["1,0xa7d8d9ef8d8ce8992df33d8b8cf4aebabd5bd270"] = artblocks;
 extendCollection["1,0x99a9b7c1116f9ceeb1652de04d5969cce509b069"] = artblocks;
+extendCollection["1,0x8cdbd7010bd197848e95c1fd7f6e870aac9b0d3c"] = artblocks;
 extendCollection["5,0xda62f67be7194775a75be91cbf9feedcc5776d4b"] = artblocks;
 extendCollection["5,0xb614c578062a62714c927cd8193f0b8bfb90055c"] = artblocks;
 
@@ -259,6 +260,7 @@ extend["1,0x165BD6E2ae984D9C13D94808e9A6ba2b7348c800"] = shreddingSassy;
 extend["1,0x059edd72cd353df5106d2b9cc5ab83a52287ac3a"] = artblocks;
 extend["1,0xa7d8d9ef8d8ce8992df33d8b8cf4aebabd5bd270"] = artblocks;
 extend["1,0x99a9b7c1116f9ceeb1652de04d5969cce509b069"] = artblocks;
+extend["1,0x8cdbd7010bd197848e95c1fd7f6e870aac9b0d3c"] = artblocks;
 extend["5,0xda62f67be7194775a75be91cbf9feedcc5776d4b"] = artblocks;
 extend["5,0xb614c578062a62714c927cd8193f0b8bfb90055c"] = artblocks;
 

@@ -160,18 +160,18 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
               }
             }
 
-            // if (changed.length === 1) {
-            //   logger.info(
-            //     this.queueName,
-            //     JSON.stringify({
-            //       topic: "debugCollectionUpdates",
-            //       message: `No changes detected for collection. contract=${data.after.contract}, collectionId=${data.after.id}`,
-            //       changed,
-            //       changedJson: JSON.stringify(changed),
-            //       collectionId: data.after.id,
-            //     })
-            //   );
-            // }
+            if (changed.length === 1 && config.chainId === 11155111) {
+              logger.info(
+                this.queueName,
+                JSON.stringify({
+                  topic: "debugCollectionUpdates",
+                  message: `No changes detected for collection. contract=${data.after.contract}, collectionId=${data.after.id}`,
+                  changed,
+                  changedJson: JSON.stringify(changed),
+                  collectionId: data.after.id,
+                })
+              );
+            }
           } catch (error) {
             logger.error(
               this.queueName,

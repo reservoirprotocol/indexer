@@ -3,7 +3,7 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { logger } from "@/common/logger";
 import { EventsBatch, processEventsBatch } from "@/events-sync/handlers";
 
-export class EventsSyncProcessBackfillJob extends AbstractRabbitMqJobHandler {
+export default class EventsSyncProcessBackfillJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-process-backfill";
   maxRetries = 10;
   concurrency = 5;

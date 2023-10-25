@@ -734,6 +734,7 @@ export const search = async (
     startTimestamp?: number;
     endTimestamp?: number;
     sortBy?: "timestamp" | "createdAt";
+    sortDirection?: "desc" | "asc";
     limit?: number;
     continuation?: string | null;
     continuationAsInt?: boolean;
@@ -741,6 +742,7 @@ export const search = async (
   debug = false
 ): Promise<{ activities: ActivityDocument[]; continuation: string | null }> => {
   const esQuery = {};
+  params.sortDirection = params.sortDirection ?? "desc";
 
   (esQuery as any).bool = { filter: [] };
 
@@ -841,14 +843,14 @@ export const search = async (
   const esSort: any[] = [];
 
   if (params.sortBy == "timestamp") {
-    esSort.push({ timestamp: { order: "desc", format: "epoch_second" } });
+    esSort.push({ timestamp: { order: params.sortDirection, format: "epoch_second" } });
   } else {
-    esSort.push({ createdAt: { order: "desc" } });
+    esSort.push({ createdAt: { order: params.sortDirection } });
   }
 
   // Backward compatibility
   if (searchAfter?.length != 1 && !params.continuationAsInt) {
-    esSort.push({ id: { order: "desc" } });
+    esSort.push({ id: { order: params.sortDirection } });
   }
 
   try {
