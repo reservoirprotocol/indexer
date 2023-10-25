@@ -12,8 +12,31 @@ import Joi from "joi";
 import { redis } from "@/common/redis";
 
 const REDIS_EXPIRATION = 60 * 60 * 24; // 24 hours
-// const REDIS_EXPIRATION_MINTS = 120; // Assuming an hour, adjust as needed.
+const REDIS_EXPIRATION_MINTS = 120; // Assuming an hour, adjust as needed.
 
+/**
+  const baseQuery = `
+SELECT 
+    collection_id,
+    array_agg(
+      json_build_object(
+        'stage', stage,
+        'tokenId', token_id::TEXT,
+        'kind', kind,
+        'currency', concat('0x', encode(currency, 'hex')),
+        'price', price::TEXT,
+        'startTime', floor(extract(epoch from start_time)),
+        'endTime', floor(extract(epoch from end_time)),
+        'maxMintsPerWallet', max_mints_per_wallet
+      )
+    ) AS mint_stages
+FROM 
+    collection_mints 
+${whereClause}
+GROUP BY 
+    collection_id
+  `;
+   */
 import { getTrendingMintsV2 } from "@/elasticsearch/indexes/activities";
 
 import { getJoiPriceObject, JoiPrice } from "@/common/joi";
@@ -222,11 +245,14 @@ export const getTrendingMintsV1Options: RouteOptions = {
     try {
       const mintingCollections = await getMintingCollections(type);
 
-      const contractIds = mintingCollections.map(({ collection_id }) => collection_id);
+      const elasticMintData = await getTrendingMintsV2({
+        contracts: mintingCollections.map(({ collection_id }) => collection_id),
+        startTime: getStartTime(period),
+      });
 
-      const elasticMintData = await getElasticMints(contractIds, getStartTime(period));
-
-      const collectionsMetadata = await getCollectionsMetadata(contractIds);
+      const collectionsMetadata = await getCollectionsMetadata(
+        elasticMintData.map((res) => res.id)
+      );
 
       const mints = await formatCollections(
         mintingCollections,
@@ -245,18 +271,16 @@ export const getTrendingMintsV1Options: RouteOptions = {
   },
 };
 
-async function getElasticMints(
-  contracts: string[],
-  startTime: number
-): Promise<ElasticMintResult[]> {
-  return getTrendingMintsV2({ contracts, startTime });
-}
+async function getMintingCollections(type: "paid" | "free" | "any"): Promise<Mint[]> {
+  const cacheKey = `minting-collections-cache:v1:${type}`;
 
-function getMintingCollections(type: "paid" | "free" | "any"): Promise<Mint[]> {
+  const cachedResult = await redis.get(cacheKey);
+  if (cachedResult) {
+    return JSON.parse(cachedResult);
+  }
+
   const conditions: string[] = [];
-
   conditions.push(`kind = 'public'`, `status = 'open'`);
-
   type && type !== "any" && conditions.push(`price ${type === "free" ? "= 0" : "> 0"}`);
 
   const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -283,7 +307,11 @@ GROUP BY
     collection_id
   `;
 
-  return redb.manyOrNone<Mint>(baseQuery);
+  const result = await redb.manyOrNone<Mint>(baseQuery);
+
+  await redis.set(cacheKey, JSON.stringify(result), "EX", REDIS_EXPIRATION_MINTS);
+
+  return result;
 }
 
 async function formatCollections(
@@ -300,6 +328,7 @@ async function formatCollections(
     collectionsResult.map(async (r) => {
       const mintData = mintingCollections.find((c) => c.collection_id == r.id);
       const metadata = collectionsMetadata[r.id];
+
       let floorAsk;
       let prefix = "";
 
@@ -452,14 +481,8 @@ async function getCollectionsMetadata(collectionIds: string[]): Promise<Record<s
     const redisMulti = redis.multi();
 
     for (const metadata of collectionMetadataResponse) {
-      redisMulti.set(
-        `collection-cache:v1:${metadata.id}:${metadata.mint_status}`,
-        JSON.stringify(metadata)
-      );
-      redisMulti.expire(
-        `collection-cache:v1:${metadata.id}:${metadata.mint_status}`,
-        REDIS_EXPIRATION
-      );
+      redisMulti.set(`collection-cache:v1:${metadata.id}`, JSON.stringify(metadata));
+      redisMulti.expire(`collection-cache:v1:${metadata.id}`, REDIS_EXPIRATION);
     }
     await redisMulti.exec();
   }
@@ -477,16 +500,16 @@ async function getRecentMints(collectionIds: string[]): Promise<Record<string, s
   const idsList = collectionIds.map((id) => `'${id.replace("0x", "\\x")}'`).join(",");
 
   const results: MintResult[] = await redb.manyOrNone(`
-    WITH LimitedTakers AS (
+    WITH ltakers AS (
       SELECT contract, taker, created_at
       FROM fill_events_2
       WHERE order_kind = 'mint' AND contract IN (${idsList})
       ORDER BY created_at DESC
-      LIMIT 50
+      LIMIT 100
     )
 
     SELECT contract, ARRAY_AGG(taker) AS takers
-    FROM LimitedTakers
+    FROM ltakers
     GROUP BY contract;
   `);
 
