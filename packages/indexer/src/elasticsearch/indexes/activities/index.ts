@@ -611,11 +611,14 @@ export const getTrendingMintsV2 = async (params: {
 }): Promise<ElasticMintResult[]> => {
   const { contracts, startTime } = params;
 
-  const { trendingExcludedContracts } = getNetworkSettings();
-
   const salesQuery = {
     bool: {
       filter: [
+        {
+          terms: {
+            "collection.id": contracts,
+          },
+        },
         {
           terms: {
             type: ["mint"],
@@ -635,15 +638,6 @@ export const getTrendingMintsV2 = async (params: {
           },
         },
       ],
-      ...(trendingExcludedContracts && {
-        must_not: [
-          {
-            terms: {
-              "collection.id": trendingExcludedContracts,
-            },
-          },
-        ],
-      }),
     },
   } as any;
 
@@ -651,7 +645,7 @@ export const getTrendingMintsV2 = async (params: {
     collections: {
       terms: {
         field: "collection.id",
-        size: 50,
+        //limit: 50,
         order: {
           total_mints: "desc",
         },

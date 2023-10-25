@@ -12,7 +12,7 @@ import Joi from "joi";
 import { redis } from "@/common/redis";
 
 const REDIS_EXPIRATION = 60 * 60 * 24; // 24 hours
-const REDIS_EXPIRATION_MINTS = 120; // Assuming an hour, adjust as needed.
+// const REDIS_EXPIRATION_MINTS = 120; // Assuming an hour, adjust as needed.
 
 import { getTrendingMintsV2 } from "@/elasticsearch/indexes/activities";
 
@@ -217,10 +217,10 @@ export const getTrendingMintsV1Options: RouteOptions = {
     },
   },
   handler: async ({ query }: Request, h) => {
-    const { normalizeRoyalties, useNonFlaggedFloorAsk, limit, type, period } = query;
+    const { normalizeRoyalties, useNonFlaggedFloorAsk, type, period } = query;
 
     try {
-      const mintingCollections = await getMintingCollections(type, period, limit);
+      const mintingCollections = await getMintingCollections(type);
 
       const contractIds = mintingCollections.map(({ collection_id }) => collection_id);
 
@@ -235,6 +235,7 @@ export const getTrendingMintsV1Options: RouteOptions = {
         normalizeRoyalties,
         useNonFlaggedFloorAsk
       );
+
       const response = h.response({ mints });
       return response;
     } catch (error) {
@@ -251,68 +252,38 @@ async function getElasticMints(
   return getTrendingMintsV2({ contracts, startTime });
 }
 
-async function getMintingCollections(
-  type: "paid" | "free" | "any",
-  period: "5m" | "10m" | "30m" | "1h" | "2h" | "6h" | "24h" | "1d",
-  limit: number
-): Promise<Mint[]> {
-  const cacheKey = `minting-collections:v1:${type}:${period}`;
+function getMintingCollections(type: "paid" | "free" | "any"): Promise<Mint[]> {
+  const conditions: string[] = [];
 
-  const cachedString: string | null = await redis.get(cacheKey);
-  const cachedResults: Mint[] = cachedString ? JSON.parse(cachedString) : [];
+  conditions.push(`kind = 'public'`, `status = 'open'`);
 
-  let resultsFromDB: Mint[] = [];
+  type && type !== "any" && conditions.push(`price ${type === "free" ? "= 0" : "> 0"}`);
 
-  if (cachedResults.length < limit) {
-    const conditions: string[] = [];
+  const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
-    conditions.push(`status = 'open'`);
-
-    if (type && type !== "any") {
-      conditions.push(`price ${type === "free" ? "= 0" : "> 0"}`);
-    }
-
-    const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-
-    const baseQuery = `
-    WITH y AS (
-      SELECT 
-        collection_id,
-        array_agg(
-          json_build_object(
-            'stage', stage,
-            'tokenId', token_id::TEXT,
-            'kind', kind,
-            'currency', concat('0x', encode(currency, 'hex')),
-            'price', price::TEXT,
-            'startTime', floor(extract(epoch from start_time)),
-            'endTime', floor(extract(epoch from end_time)),
-            'maxMintsPerWallet', max_mints_per_wallet
-          )
-        ) AS mint_stages
-      FROM collection_mints 
-      ${whereClause} 
-      GROUP BY collection_id
-    )
-  
-    SELECT x.*, m.mint_stages 
-    FROM collection_mints AS x 
-    INNER JOIN y AS m ON x.collection_id = m.collection_id
-    ${whereClause}
-    ORDER BY x.created_at DESC
+  const baseQuery = `
+SELECT 
+    collection_id,
+    array_agg(
+      json_build_object(
+        'stage', stage,
+        'tokenId', token_id::TEXT,
+        'kind', kind,
+        'currency', concat('0x', encode(currency, 'hex')),
+        'price', price::TEXT,
+        'startTime', floor(extract(epoch from start_time)),
+        'endTime', floor(extract(epoch from end_time)),
+        'maxMintsPerWallet', max_mints_per_wallet
+      )
+    ) AS mint_stages
+FROM 
+    collection_mints 
+${whereClause}
+GROUP BY 
+    collection_id
   `;
 
-    resultsFromDB = await redb.manyOrNone<Mint>(baseQuery);
-  }
-
-  const combinedResults = cachedResults.concat(resultsFromDB);
-
-  if (resultsFromDB.length > 0) {
-    await redis.set(cacheKey, JSON.stringify(combinedResults));
-    await redis.expire(cacheKey, REDIS_EXPIRATION_MINTS);
-  }
-
-  return combinedResults.slice(0, limit);
+  return redb.manyOrNone<Mint>(baseQuery);
 }
 
 async function formatCollections(
