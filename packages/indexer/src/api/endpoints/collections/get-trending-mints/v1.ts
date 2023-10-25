@@ -264,8 +264,6 @@ async function getMintingCollections(
   let resultsFromDB: Mint[] = [];
 
   if (cachedResults.length < limit) {
-    const dbLimit = limit - cachedResults.length;
-
     const conditions: string[] = [];
 
     conditions.push(`status = 'open'`);
@@ -275,8 +273,6 @@ async function getMintingCollections(
     }
 
     const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-    const limitClause = `LIMIT ${dbLimit}`;
-    const offsetClause = `OFFSET ${cachedResults.length}`;
 
     const baseQuery = `
     WITH y AS (
@@ -304,8 +300,6 @@ async function getMintingCollections(
     INNER JOIN y AS m ON x.collection_id = m.collection_id
     ${whereClause}
     ORDER BY x.created_at DESC
-    ${limitClause}
-    ${offsetClause}
   `;
 
     resultsFromDB = await redb.manyOrNone<Mint>(baseQuery);
