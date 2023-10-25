@@ -54,7 +54,10 @@ export const postExecuteSolveV1Options: RouteOptions = {
           });
 
           await axios
-            .post(`${config.solverBaseUrl}/intents/seaport`, { order: order.params })
+            .post(`${config.seaportSolverBaseUrl}/trigger`, {
+              chainId: config.chainId,
+              order: order.params,
+            })
             .then((response) => response.data);
 
           return {

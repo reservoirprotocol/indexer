@@ -67,7 +67,7 @@ export const postExecuteStatusV1Options: RouteOptions = {
             details?: string;
             time?: number;
           } = await axios
-            .get(`${config.crossChainSolverBaseUrl}/intents/status?hash=${payload.id}`)
+            .get(`${config.crossChainSolverBaseUrl}/status?hash=${payload.id}`)
             .then((response) => response.data);
 
           return {
@@ -83,7 +83,7 @@ export const postExecuteStatusV1Options: RouteOptions = {
             details?: string;
             time?: number;
           } = await axios
-            .get(`${config.solverBaseUrl}/intents/seaport/status?hash=${payload.id}`)
+            .get(`${config.seaportSolverBaseUrl}/status?hash=${payload.id}`)
             .then((response) => response.data);
 
           return {
