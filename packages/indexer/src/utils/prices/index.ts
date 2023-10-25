@@ -256,6 +256,7 @@ export const getUSDAndNativePrices = async (
   options?: {
     onlyUSD?: boolean;
     acceptStalePrice?: boolean;
+    nonZeroCommunityTokens?: boolean;
   }
 ): Promise<USDAndNativePrices> => {
   let usdPrice: string | undefined;
@@ -301,11 +302,11 @@ export const getUSDAndNativePrices = async (
     nativePrice = price;
   }
 
-  // // Set community tokens native/usd value to 0
-  // if (isWhitelistedCurrency(currencyAddress)) {
-  //   usdPrice = "0";
-  //   nativePrice = "0";
-  // }
+  // If zeroCommunityTokens and community tokens set native/usd value to 0
+  if (!options?.nonZeroCommunityTokens && isWhitelistedCurrency(currencyAddress)) {
+    usdPrice = "0";
+    nativePrice = "0";
+  }
 
   return { usdPrice, nativePrice };
 };
