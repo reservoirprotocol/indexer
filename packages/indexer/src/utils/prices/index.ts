@@ -82,7 +82,7 @@ const getUpstreamUSDPrice = async (
       }
     } else if (isWhitelistedCurrency(currencyAddress) || isTestnetCurrency(currencyAddress)) {
       // Whitelisted currencies don't have a price, so we just hardcode a very high number
-      let value = "10000000000000"; // 10000000:1 to USD
+      let value = "1000000000000000"; // 1,000,000,000:1 to USD
       if (Sdk.Common.Addresses.Usdc[config.chainId]?.includes(currencyAddress)) {
         // 1:1 to USD
         value = "1000000";
