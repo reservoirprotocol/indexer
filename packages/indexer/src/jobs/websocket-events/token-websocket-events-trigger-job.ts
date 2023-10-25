@@ -3,7 +3,7 @@ import { config } from "@/config/index";
 import _ from "lodash";
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
 import { idb } from "@/common/db";
-import { getJoiPriceObject, getJoiSourceObject } from "@/common/joi";
+import { getJoiPriceObject, getJoiSourceObject, getJoiTokenObject } from "@/common/joi";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { Assets } from "@/utils/assets";
 import * as Sdk from "@reservoir0x/sdk";
@@ -69,6 +69,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
           con.kind,
           c.name AS collection_name,
           c.slug,
+          c.is_takedown AS collection_is_takedown,
           (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
           (SELECT
             array_agg(
@@ -123,39 +124,42 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
         : Sdk.Common.Addresses.Native[config.chainId];
 
       const result = {
-        token: {
-          contract,
-          tokenId,
-          name: data.after.name,
-          description: data.after.description,
-          image: Assets.getLocalAssetsLink(data.after.image),
-          media: data.after.media,
-          kind: r?.kind,
-          isFlagged: Boolean(Number(data.after.is_flagged)),
-          lastFlagUpdate: data.after.last_flag_update
-            ? new Date(data.after.last_flag_update).toISOString()
-            : null,
-          lastFlagChange: data.after.last_flag_change
-            ? new Date(data.after.last_flag_change).toISOString()
-            : null,
-          supply: !_.isNull(data.after.supply) ? data.after.supply : null,
-          remainingSupply: !_.isNull(data.after.remaining_supply)
-            ? data.after.remaining_supply
-            : null,
-          rarity: data.after.rarity_score,
-          rarityRank: data.after.rarity_rank,
-          collection: {
-            id: data.after.collection_id,
-            name: r?.collection_name,
-            image: r?.collection_image ? Assets.getLocalAssetsLink(r.collection_image) : null,
-            slug: r?.slug,
+        token: getJoiTokenObject(
+          {
+            contract,
+            tokenId,
+            name: data.after.name,
+            description: data.after.description,
+            image: Assets.getLocalAssetsLink(data.after.image),
+            media: data.after.media,
+            kind: r?.kind,
+            isFlagged: Boolean(Number(data.after.is_flagged)),
+            lastFlagUpdate: data.after.last_flag_update
+              ? new Date(data.after.last_flag_update).toISOString()
+              : null,
+            lastFlagChange: data.after.last_flag_change
+              ? new Date(data.after.last_flag_change).toISOString()
+              : null,
+            supply: !_.isNull(data.after.supply) ? data.after.supply : null,
+            remainingSupply: !_.isNull(data.after.remaining_supply)
+              ? data.after.remaining_supply
+              : null,
+            rarity: data.after.rarity_score,
+            rarityRank: data.after.rarity_rank,
+            collection: {
+              id: data.after.collection_id,
+              name: r?.collection_name,
+              image: r?.collection_image ? Assets.getLocalAssetsLink(r.collection_image) : null,
+              slug: r?.slug,
+            },
+            attributes: _.map(r.attributes, (attribute) => ({
+              key: attribute.key,
+              kind: attribute.kind,
+              value: attribute.value,
+            })),
           },
-          attributes: _.map(r.attributes, (attribute) => ({
-            key: attribute.key,
-            kind: attribute.kind,
-            value: attribute.value,
-          })),
-        },
+          data.after.is_takedown || r.collection_is_takedown
+        ),
         market: {
           floorAsk: data.after.floor_sell_value && {
             id: data.after.floor_sell_id,
@@ -554,6 +558,7 @@ interface TokenInfo {
   normalized_floor_sell_currency: string;
   normalized_floor_sell_currency_value: string;
   last_flag_change: string;
+  is_takedown: number;
   supply: string;
   remaining_supply: string;
 }

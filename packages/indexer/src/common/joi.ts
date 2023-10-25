@@ -1011,3 +1011,75 @@ export const getJoiSourceObject = (source: SourcesEntity | undefined, full = tru
       }
     : null;
 };
+
+// --- Collections ---
+
+export const getJoiCollectionObject = (collection: any, isTakedown: boolean) => {
+  if (isTakedown) {
+    collection.id = collection.primaryContract;
+    collection.name = collection.primaryContract;
+
+    if (collection.slug) {
+      collection.slug = collection.primaryContract;
+    }
+    if (collection.metadata) {
+      collection.metadata = null;
+    }
+    if (collection.community) {
+      collection.community = null;
+    }
+    if (collection.tokenIdRange) {
+      collection.tokenIdRange = null;
+    }
+    if (collection.tokenSetId) {
+      collection.tokenSetId = `contract:${collection.primaryContract}`;
+    }
+    if (collection.royalties) {
+      collection.royalties = null;
+    }
+    if (collection.newRoyalties) {
+      collection.newRoyalties = null;
+    }
+  }
+
+  return collection;
+};
+
+// -- Tokens --
+
+export const getJoiTokenObject = (token: any, isTakedown: boolean) => {
+  if (isTakedown) {
+    token.collection.id = token.contract;
+    token.name = null;
+
+    if (token.collection.slug) {
+      token.collection.slug = token.contract;
+    }
+    if (token.collection.image) {
+      token.collection.image = null;
+    }
+    if (token.isFlagged !== undefined) {
+      token.isFlagged = false;
+    }
+    if (token.media) {
+      token.media = null;
+    }
+    if (token.description) {
+      token.description = null;
+    }
+    if (token.imageSmall) {
+      token.imageSmall = null;
+    }
+    if (token.imageLarge) {
+      token.imageLarge = null;
+    }
+    if (token.metadata) {
+      token.metadata = null;
+    }
+    if (token.attributes) {
+      token.attributes = [];
+    }
+  }
+
+  return token;
+};
