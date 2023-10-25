@@ -15,7 +15,11 @@ import { SourcesEntity } from "@/models/sources/sources-entity";
 import { OrderKind } from "@/orderbook/orders";
 import { Assets } from "@/utils/assets";
 import { Currency, getCurrency } from "@/utils/currencies";
-import { getUSDAndCurrencyPrices, getUSDAndNativePrices } from "@/utils/prices";
+import {
+  getUSDAndCurrencyPrices,
+  getUSDAndNativePrices,
+  isWhitelistedCurrency,
+} from "@/utils/prices";
 
 // --- Prices ---
 
@@ -119,7 +123,7 @@ export const getJoiPriceObject = async (
   totalFeeBps?: number
 ) => {
   let currency: Currency;
-  if (displayCurrency) {
+  if (displayCurrency && displayCurrency !== currencyAddress) {
     const currentTime = now();
     currency = await getCurrency(displayCurrency);
 
@@ -150,6 +154,12 @@ export const getJoiPriceObject = async (
     }
   } else {
     currency = await getCurrency(currencyAddress);
+  }
+
+  // Set community tokens native/usd value to 0
+  if (isWhitelistedCurrency(currency.contract)) {
+    prices.gross.nativeAmount = "0";
+    prices.gross.usdAmount = "0";
   }
 
   return {

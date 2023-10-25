@@ -220,7 +220,7 @@ const isTestnetCurrency = (currencyAddress: string) => {
   }
 };
 
-const isWhitelistedCurrency = (currencyAddress: string) =>
+export const isWhitelistedCurrency = (currencyAddress: string) =>
   getNetworkSettings().whitelistedCurrencies.has(currencyAddress.toLowerCase());
 
 const areEquivalentCurrencies = (currencyAddress1: string, currencyAddress2: string) => {
