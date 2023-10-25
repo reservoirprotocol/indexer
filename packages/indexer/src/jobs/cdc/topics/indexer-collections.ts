@@ -88,11 +88,6 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
           floor_sell_currency_value: result.floor_sell_currency_value,
         };
 
-        logger.info(
-          "debug-top-selling-collection",
-          `updatedPayload for ${payload.after.id}: ${JSON.stringify(updatedPayload)}`
-        );
-
         await redis.set(collectionKey, JSON.stringify(updatedPayload), "XX");
       }
     } catch (err) {
