@@ -1494,8 +1494,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
       // Seaport intent purchasing MVP
       if (payload.executionMethod === "seaport-v1.5-intent") {
+        if (!config.seaportSolverBaseUrl) {
+          throw Boom.badRequest("Intent purchasing not supported");
+        }
+
         if (listingDetails.length > 1) {
-          throw Boom.badRequest("Only single intent purchases are supported");
+          throw Boom.badRequest("Only single token intent purchases are supported");
         }
 
         const details = listingDetails[0];
@@ -1600,9 +1604,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
       if (
         payload.currency === Sdk.Common.Addresses.Native[config.chainId] &&
         payload.currencyChainId !== undefined &&
-        payload.currencyChainId !== config.chainId &&
-        config.crossChainSolverBaseUrl
+        payload.currencyChainId !== config.chainId
       ) {
+        if (!config.crossChainSolverBaseUrl) {
+          throw Boom.badRequest("Cross-chain purchasing not supported");
+        }
+
         if (path.length > 1) {
           throw Boom.badRequest("Only single item cross-chain purchases are supported");
         }
