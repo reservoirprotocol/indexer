@@ -7,6 +7,7 @@ import { config } from "@/config/index";
 import { BuildDocumentData, BaseDocument, DocumentBuilder } from "@/elasticsearch/indexes/base";
 
 export interface AskDocument extends BaseDocument {
+  contractAndTokenId: string;
   contract: string;
   token: {
     id: string;
@@ -111,6 +112,7 @@ export class AskDocumentBuilder extends DocumentBuilder {
     return {
       ...baseDocument,
       createdAt: data.created_at,
+      contractAndTokenId: `${fromBuffer(data.contract)}:${data.token_id}`,
       contract: fromBuffer(data.contract),
       token: data.token_id
         ? {
