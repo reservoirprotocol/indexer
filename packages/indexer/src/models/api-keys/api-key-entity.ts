@@ -1,3 +1,5 @@
+import { ApiKeyManager } from "@/models/api-keys/index";
+
 export enum ApiKeyPermission {
   override_collection_refresh_cool_down = "override_collection_refresh_cool_down",
   assign_collection_to_community = "assign_collection_to_community",
@@ -10,6 +12,7 @@ export type ApiKeyUpdateParams = {
   active?: boolean;
   ips?: string[];
   origins?: string[];
+  revShareBps?: number | null;
 };
 
 export type ApiKeyEntityParams = {
@@ -23,6 +26,7 @@ export type ApiKeyEntityParams = {
   permissions: Record<string, unknown>;
   ips: string[];
   origins: string[];
+  rev_share_bps: number | null;
 };
 
 export class ApiKeyEntity {
@@ -36,6 +40,7 @@ export class ApiKeyEntity {
   permissions: Record<ApiKeyPermission, unknown>;
   ips: string[];
   origins: string[];
+  revShareBps: number | null;
 
   constructor(params: ApiKeyEntityParams) {
     this.key = params.key;
@@ -48,5 +53,6 @@ export class ApiKeyEntity {
     this.permissions = params.permissions;
     this.ips = params.ips;
     this.origins = params.origins;
+    this.revShareBps = params.rev_share_bps ?? ApiKeyManager.defaultRevShareBps;
   }
 }

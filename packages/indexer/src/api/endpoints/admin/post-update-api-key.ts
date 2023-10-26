@@ -22,6 +22,7 @@ export const postUpdateApiKeyOptions: RouteOptions = {
       active: Joi.boolean().optional(),
       ips: Joi.array().items(Joi.string().lowercase().pattern(regex.ipv4)).optional(),
       origins: Joi.array().items(Joi.string().lowercase().pattern(regex.origin)).optional(),
+      revShareBps: Joi.number().allow(null).optional(),
     }),
   },
   handler: async (request: Request) => {
@@ -37,6 +38,7 @@ export const postUpdateApiKeyOptions: RouteOptions = {
         active: payload.active,
         ips: payload.ips,
         origins: payload.origins,
+        revShareBps: payload.revShareBps,
       });
 
       return {

@@ -384,6 +384,13 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
             marketplace.orderKind = "payment-processor";
             marketplace.partialBidSupported = false;
             marketplace.traitBidSupported = false;
+
+            if (
+              config.chainId === 137 &&
+              params.collection === "0xa87dbcfa18adb7c00593e2c2469d83213c87aecd"
+            ) {
+              marketplace.supportedBidCurrencies = ["0x456f931298065b1852647de005dd27227146d8b9"];
+            }
           } else if (blocked && marketplace.orderbook === "looks-rare") {
             const seaportBlocked = await checkMarketplaceIsFiltered(
               params.collection,

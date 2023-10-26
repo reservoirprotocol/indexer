@@ -59,7 +59,7 @@ const getNetworkConfig = (chainId?: number) => {
         url = "https://rpc.zora.co";
         break;
       case 534352:
-        url = "https://rpc.scroll.io";
+        url = "https://rpc.ankr.com/scroll";
         break;
       // Testnets
       case 5:

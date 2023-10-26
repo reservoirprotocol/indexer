@@ -309,7 +309,7 @@ export const trigger = {
         Sdk.CryptoPunks.Addresses.Exchange[chainId],
       ]),
     PaymentProcessorModule: async (chainId: number) =>
-      dv("PaymentProcessorModule", "v4", [
+      dv("PaymentProcessorModule", "v5", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.PaymentProcessor.Addresses.Exchange[chainId],
@@ -318,7 +318,7 @@ export const trigger = {
   },
   // Utilities
   Utilities: {
-    LiteRoyaltyEngine: async () => dv("LiteRoyaltyEngine", "v1", []),
+    // LiteRoyaltyEngine: async () => dv("LiteRoyaltyEngine", "v1", []),
     OffChainCancellationZone: async (chainId: number) => {
       if ([1, 5, 137, 80001].includes(chainId)) {
         if (!(await readDeployment("SignedZoneController", "v1", chainId))) {

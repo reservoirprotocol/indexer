@@ -272,6 +272,7 @@ export const getTokensV6Options: RouteOptions = {
             media: Joi.string().allow("", null),
             kind: Joi.string().allow("", null).description("Can be erc721, erc115, etc."),
             isFlagged: Joi.boolean().default(false),
+            isSpam: Joi.boolean().default(false),
             lastFlagUpdate: Joi.string().allow("", null),
             lastFlagChange: Joi.string().allow("", null),
             supply: Joi.number()
@@ -628,6 +629,7 @@ export const getTokensV6Options: RouteOptions = {
           t.rarity_score,
           t.rarity_rank,
           t.is_flagged,
+          t.is_spam AS t_is_spam,
           t.last_flag_update,
           t.last_flag_change,
           t.supply,
@@ -636,6 +638,7 @@ export const getTokensV6Options: RouteOptions = {
           c.slug,
           c.creator,
           c.token_count,
+          c.is_spam AS c_is_spam,
           (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
           (
             SELECT
@@ -1284,6 +1287,7 @@ export const getTokensV6Options: RouteOptions = {
             media: r.media,
             kind: r.kind,
             isFlagged: Boolean(Number(r.is_flagged)),
+            isSpam: Boolean(Number(r.t_is_spam)) || Boolean(Number(r.c_is_spam)),
             lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
             lastFlagChange: r.last_flag_change ? new Date(r.last_flag_change).toISOString() : null,
             supply: !_.isNull(r.supply) ? r.supply : null,

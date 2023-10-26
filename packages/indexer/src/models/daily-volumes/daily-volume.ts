@@ -338,7 +338,8 @@ export class DailyVolume {
             day1_volume = 0,
             day1_rank = NULL,
             day1_floor_sell_value = NULL,
-            day1_volume_change = NULL
+            day1_volume_change = NULL,
+            day1_sales_count = 0
           WHERE id = $/collection_id/
         `,
           values: { collection_id: c.id },
@@ -410,7 +411,7 @@ export class DailyVolume {
               AND coalesce(fe.wash_trading_score, 0) = 0
           `,
                 {
-                  recentTimestamp: row?.recent_timestamp ?? 0,
+                  recentTimestamp: row?.recent_timestamp ? row.recent_timestamp + 24 * 60 * 60 : 0,
                   collectionId: row.id,
                 }
               );
@@ -420,10 +421,11 @@ export class DailyVolume {
               const redisTotalVolume = await redis.get(`all_time_volume_${row.id}`);
               if (redisTotalVolume) {
                 totalVolume.total_volume = parseInt(redisTotalVolume, 10);
-              } else {
+              } else if (row?.recent_timestamp) {
+                // only try to get the total volume from postgres if we have a recent timestamp (that means we have daily_volume entries for this collection, but its not in redis for some reason)
                 const pgTotalVolume = await redb.oneOrNone(
                   `
-              SELECT SUM(volume) as total_volume
+              SELECT SUM(volume_clean) as total_volume
               FROM daily_volumes
               WHERE collection_id != '-1'
                 AND collection_id = $/collectionId/
@@ -445,6 +447,8 @@ export class DailyVolume {
                 } else {
                   totalVolume = { total_volume: 0 };
                 }
+              } else {
+                totalVolume = { total_volume: 0 };
               }
 
               recentVolumes.push({

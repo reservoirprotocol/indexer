@@ -83,9 +83,14 @@ export const config = {
     ? (JSON.parse(process.env.FORWARD_RESERVOIR_API_KEYS) as string[])
     : [],
 
+  alchemyApiKey: String(process.env.ALCHEMY_API_KEY),
   looksRareApiKey: String(process.env.LOOKSRARE_API_KEY),
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
   openSeaApiUrl: String(process.env.OPENSEA_API_URL || ""),
+
+  // Solvers
+  crossChainSolverBaseUrl: process.env.CROSS_CHAIN_SOLVER_BASE_URL,
+  seaportSolverBaseUrl: process.env.SEAPORT_SOLVER_BASE_URL,
 
   openSeaTokenMetadataApiKey: String(
     process.env.OPENSEA_TOKENS_API_KEY || process.env.OPENSEA_API_KEY

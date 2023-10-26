@@ -248,6 +248,8 @@ export class Router {
       partial?: boolean;
       // Force direct filling
       forceDirectFilling?: boolean;
+      // Wallet used for relaying the fill transaction
+      relayer?: string;
     }
   ): Promise<FillMintsResult> {
     const txs: FillMintsResult["txs"][0][] = [];
@@ -255,6 +257,7 @@ export class Router {
 
     if (
       !Addresses.MintModule[this.chainId] ||
+      !options?.relayer ||
       options?.forceDirectFilling ||
       (details.length === 1 && !details[0].fees?.length && !details[0].comment)
     ) {
@@ -308,7 +311,7 @@ export class Router {
         .toHexString();
       txs.push({
         txData: {
-          from: taker,
+          from: options?.relayer || taker,
           to: this.contracts.router.address,
           data:
             this.contracts.router.interface.encodeFunctionData("execute", [
@@ -1017,30 +1020,32 @@ export class Router {
     const ftTransferItems: ApprovalProxy.TransferItem[] = [];
 
     // Split all listings by their kind
+    // Supports ETH listings only
     const dittoDetails: ListingDetails[] = [];
     const elementErc721Details: ListingDetails[] = [];
     const elementErc721V2Details: ListingDetails[] = [];
     const elementErc1155Details: ListingDetails[] = [];
     const foundationDetails: ListingDetails[] = [];
     const looksRareV2Details: ListingDetails[] = [];
-    const seaportDetails: PerCurrencyListingDetails = {};
-    const seaportV14Details: PerCurrencyListingDetails = {};
-    const seaportV15Details: PerCurrencyListingDetails = {};
-    const alienswapDetails: PerCurrencyListingDetails = {};
     const sudoswapDetails: ListingDetails[] = [];
     const sudoswapV2Details: ListingDetails[] = [];
     const midaswapDetails: ListingDetails[] = [];
     const caviarV1Details: ListingDetails[] = [];
     const collectionXyzDetails: ListingDetails[] = [];
     const x2y2Details: ListingDetails[] = [];
-    const zeroexV4Erc721Details: ListingDetails[] = [];
-    const zeroexV4Erc1155Details: ListingDetails[] = [];
     const zoraDetails: ListingDetails[] = [];
     const nftxDetails: ListingDetails[] = [];
     const raribleDetails: ListingDetails[] = [];
     const superRareDetails: ListingDetails[] = [];
     const cryptoPunksDetails: ListingDetails[] = [];
+    // Supports ETH and ERC20 listings
+    const zeroexV4Erc721Details: PerCurrencyListingDetails = {};
+    const zeroexV4Erc1155Details: PerCurrencyListingDetails = {};
     const paymentProcessorDetails: PerCurrencyListingDetails = {};
+    const seaportDetails: PerCurrencyListingDetails = {};
+    const seaportV14Details: PerCurrencyListingDetails = {};
+    const seaportV15Details: PerCurrencyListingDetails = {};
+    const alienswapDetails: PerCurrencyListingDetails = {};
 
     for (const detail of details) {
       // Skip any listings handled in a previous step
@@ -1127,7 +1132,17 @@ export class Router {
           break;
 
         case "zeroex-v4":
-          detailsRef = contractKind === "erc721" ? zeroexV4Erc721Details : zeroexV4Erc1155Details;
+          if (contractKind === "erc721") {
+            if (!zeroexV4Erc721Details[currency]) {
+              zeroexV4Erc721Details[currency] = [];
+            }
+            detailsRef = zeroexV4Erc721Details[currency];
+          } else {
+            if (!zeroexV4Erc1155Details[currency]) {
+              zeroexV4Erc1155Details[currency] = [];
+            }
+            detailsRef = zeroexV4Erc1155Details[currency];
+          }
           break;
 
         case "zora":
@@ -2618,22 +2633,24 @@ export class Router {
     }
 
     // Handle ZeroExV4 ERC721 listings
-    if (zeroexV4Erc721Details.length) {
-      let orders = zeroexV4Erc721Details.map((d) => d.order as Sdk.ZeroExV4.Order);
-      const module = this.contracts.zeroExV4Module;
+    if (Object.keys(zeroexV4Erc721Details).length) {
+      const exchange = new Sdk.ZeroExV4.Exchange(this.chainId, String(this.options?.cbApiKey));
+      for (const currency of Object.keys(zeroexV4Erc721Details)) {
+        const currencyDetails = zeroexV4Erc721Details[currency];
 
-      const unsuccessfulCbIds: string[] = [];
-      for (const [i, order] of orders.entries()) {
-        const cbId = order.params.cbOrderId;
-        if (cbId) {
-          // Release the order's signature
-          await new Sdk.ZeroExV4.Exchange(this.chainId, String(this.options?.cbApiKey))
-            .releaseOrder(taker, order)
-            .catch(async (error) => {
+        let orders = currencyDetails.map((d) => d.order as Sdk.ZeroExV4.Order);
+        const module = this.contracts.zeroExV4Module;
+
+        const unsuccessfulCbIds: string[] = [];
+        for (const [i, order] of orders.entries()) {
+          const cbId = order.params.cbOrderId;
+          if (cbId) {
+            // Release the order's signature
+            await exchange.releaseOrder(taker, order).catch(async (error) => {
               if (options?.onError) {
                 await options.onError("zeroex-v4-erc721-listing", error, {
-                  orderId: zeroexV4Erc721Details[i].orderId,
-                  additionalInfo: { detail: zeroexV4Erc721Details[i], taker },
+                  orderId: currencyDetails[i].orderId,
+                  additionalInfo: { detail: currencyDetails[i], taker },
                 });
               }
 
@@ -2643,99 +2660,112 @@ export class Router {
                 unsuccessfulCbIds.push(cbId);
               }
             });
+          }
         }
-      }
-      // Remove any orders that were unsuccessfully released
-      if (unsuccessfulCbIds.length) {
-        orders = orders.filter((order) => !unsuccessfulCbIds.includes(order.params.cbOrderId!));
-      }
+        // Remove any orders that were unsuccessfully released
+        if (unsuccessfulCbIds.length) {
+          orders = orders.filter((order) => !unsuccessfulCbIds.includes(order.params.cbOrderId!));
+        }
 
-      if (orders.length) {
-        const fees = getFees(zeroexV4Erc721Details);
-        const price = orders
-          .map((order) =>
-            bn(order.params.erc20TokenAmount).add(
-              // For ZeroExV4, the fees are not included in the price
-              // TODO: Add order method to get the price including the fees
-              order.getFeeAmount()
+        if (orders.length) {
+          const fees = getFees(currencyDetails);
+          const price = orders
+            .map((order) =>
+              bn(order.params.erc20TokenAmount).add(
+                // For ZeroExV4, the fees are not included in the price
+                // TODO: Add order method to get the price including the fees
+                order.getFeeAmount()
+              )
             )
-          )
-          .reduce((a, b) => a.add(b), bn(0));
-        const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
-        const totalPrice = price.add(feeAmount);
+            .reduce((a, b) => a.add(b), bn(0));
+          const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+          const totalPrice = price.add(feeAmount);
 
-        executions.push({
-          info: {
-            module: module.address,
-            data:
-              orders.length === 1
-                ? module.interface.encodeFunctionData("acceptETHListingERC721", [
-                    orders[0].getRaw(),
-                    orders[0].params,
-                    {
-                      fillTo: taker,
-                      refundTo: relayer,
-                      revertIfIncomplete: Boolean(!options?.partial),
-                      amount: price,
-                    },
-                    fees,
-                  ])
-                : this.contracts.zeroExV4Module.interface.encodeFunctionData(
-                    "acceptETHListingsERC721",
-                    [
-                      orders.map((order) => order.getRaw()),
-                      orders.map((order) => order.params),
-                      {
-                        fillTo: taker,
-                        refundTo: relayer,
-                        revertIfIncomplete: Boolean(!options?.partial),
-                        amount: price,
-                      },
-                      fees,
-                    ]
-                  ),
-            value: totalPrice,
-          },
-          orderIds: zeroexV4Erc721Details.map((d) => d.orderId),
-        });
+          const currencyIsETH = isETH(this.chainId, currency);
+          const buyInCurrencyIsETH = isETH(this.chainId, buyInCurrency);
 
-        // Track any possibly required swap
-        swapDetails.push({
-          tokenIn: buyInCurrency,
-          tokenOut: Sdk.Common.Addresses.Native[this.chainId],
-          tokenOutAmount: totalPrice,
-          recipient: module.address,
-          refundTo: relayer,
-          details: zeroexV4Erc721Details,
-          executionIndex: executions.length - 1,
-        });
+          executions.push({
+            info: {
+              module: module.address,
+              data:
+                orders.length === 1
+                  ? module.interface.encodeFunctionData(
+                      `accept${currencyIsETH ? "ETH" : "ERC20"}ListingERC721`,
+                      [
+                        orders[0].getRaw(),
+                        orders[0].params,
+                        {
+                          fillTo: taker,
+                          refundTo: relayer,
+                          revertIfIncomplete: Boolean(!options?.partial),
+                          amount: price,
+                          // Only needed for ERC20 listings
+                          token: currency,
+                        },
+                        fees,
+                      ]
+                    )
+                  : this.contracts.zeroExV4Module.interface.encodeFunctionData(
+                      `accept${currencyIsETH ? "ETH" : "ERC20"}ListingsERC721`,
+                      [
+                        orders.map((order) => order.getRaw()),
+                        orders.map((order) => order.params),
+                        {
+                          fillTo: taker,
+                          refundTo: relayer,
+                          revertIfIncomplete: Boolean(!options?.partial),
+                          amount: price,
+                          // Only needed for ERC20 listings
+                          token: currency,
+                        },
+                        fees,
+                      ]
+                    ),
+              value: buyInCurrencyIsETH && currencyIsETH ? totalPrice : 0,
+            },
+            orderIds: currencyDetails.map((d) => d.orderId),
+          });
 
-        addRouterTags("zeroex-v4", orders.length, fees.length);
+          // Track any possibly required swap
+          swapDetails.push({
+            tokenIn: buyInCurrency,
+            tokenOut: currency,
+            tokenOutAmount: totalPrice,
+            recipient: module.address,
+            refundTo: relayer,
+            details: currencyDetails,
+            executionIndex: executions.length - 1,
+          });
 
-        // Mark the listings as successfully handled
-        for (const { orderId } of zeroexV4Erc721Details) {
-          success[orderId] = true;
+          addRouterTags("zeroex-v4", orders.length, fees.length);
+
+          // Mark the listings as successfully handled
+          for (const { orderId } of currencyDetails) {
+            success[orderId] = true;
+          }
         }
       }
     }
 
     // Handle ZeroExV4 ERC1155 listings
-    if (zeroexV4Erc1155Details.length) {
-      let orders = zeroexV4Erc1155Details.map((d) => d.order as Sdk.ZeroExV4.Order);
-      const module = this.contracts.zeroExV4Module;
+    if (Object.keys(zeroexV4Erc1155Details).length) {
+      const exchange = new Sdk.ZeroExV4.Exchange(this.chainId, String(this.options?.cbApiKey));
+      for (const currency of Object.keys(zeroexV4Erc1155Details)) {
+        const currencyDetails = zeroexV4Erc1155Details[currency];
 
-      const unsuccessfulCbIds: string[] = [];
-      for (const [i, order] of orders.entries()) {
-        const cbId = order.params.cbOrderId;
-        if (cbId) {
-          // Release the order's signature
-          await new Sdk.ZeroExV4.Exchange(this.chainId, String(this.options?.cbApiKey))
-            .releaseOrder(taker, order)
-            .catch(async (error) => {
+        let orders = currencyDetails.map((d) => d.order as Sdk.ZeroExV4.Order);
+        const module = this.contracts.zeroExV4Module;
+
+        const unsuccessfulCbIds: string[] = [];
+        for (const [i, order] of orders.entries()) {
+          const cbId = order.params.cbOrderId;
+          if (cbId) {
+            // Release the order's signature
+            await exchange.releaseOrder(taker, order).catch(async (error) => {
               if (options?.onError) {
                 await options.onError("zeroex-v4-erc1155-listing", error, {
-                  orderId: zeroexV4Erc1155Details[i].orderId,
-                  additionalInfo: { detail: zeroexV4Erc1155Details[i], taker },
+                  orderId: currencyDetails[i].orderId,
+                  additionalInfo: { detail: currencyDetails[i], taker },
                 });
               }
 
@@ -2745,84 +2775,95 @@ export class Router {
                 unsuccessfulCbIds.push(cbId);
               }
             });
+          }
         }
-      }
-      // Remove any orders that were unsuccessfully released
-      if (unsuccessfulCbIds.length) {
-        orders = orders.filter((order) => !unsuccessfulCbIds.includes(order.params.cbOrderId!));
-      }
+        // Remove any orders that were unsuccessfully released
+        if (unsuccessfulCbIds.length) {
+          orders = orders.filter((order) => !unsuccessfulCbIds.includes(order.params.cbOrderId!));
+        }
 
-      if (orders.length) {
-        const fees = getFees(zeroexV4Erc1155Details);
-        const price = orders
-          .map((order, i) =>
-            bn(order.params.erc20TokenAmount)
-              // For ZeroExV4, the fees are not included in the price
-              // TODO: Add order method to get the price including the fees
-              .add(order.getFeeAmount())
-              .mul(zeroexV4Erc1155Details[i].amount ?? 1)
-              // Round up
-              // TODO: ZeroExV4 ERC1155 orders are partially-fillable
-              .add(bn(order.params.nftAmount ?? 1).sub(1))
-              .div(order.params.nftAmount ?? 1)
-          )
-          .reduce((a, b) => a.add(b), bn(0));
-        const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
-        const totalPrice = price.add(feeAmount);
+        if (orders.length) {
+          const fees = getFees(currencyDetails);
+          const price = orders
+            .map((order, i) =>
+              bn(order.params.erc20TokenAmount)
+                // For ZeroExV4, the fees are not included in the price
+                // TODO: Add order method to get the price including the fees
+                .add(order.getFeeAmount())
+                .mul(currencyDetails[i].amount ?? 1)
+                // Round up
+                // TODO: ZeroExV4 ERC1155 orders are partially-fillable
+                .add(bn(order.params.nftAmount ?? 1).sub(1))
+                .div(order.params.nftAmount ?? 1)
+            )
+            .reduce((a, b) => a.add(b), bn(0));
+          const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+          const totalPrice = price.add(feeAmount);
 
-        executions.push({
-          info: {
-            module: module.address,
-            data:
-              orders.length === 1
-                ? module.interface.encodeFunctionData("acceptETHListingERC1155", [
-                    orders[0].getRaw(),
-                    orders[0].params,
-                    zeroexV4Erc1155Details[0].amount ?? 1,
-                    {
-                      fillTo: taker,
-                      refundTo: relayer,
-                      revertIfIncomplete: Boolean(!options?.partial),
-                      amount: price,
-                    },
-                    fees,
-                  ])
-                : this.contracts.zeroExV4Module.interface.encodeFunctionData(
-                    "acceptETHListingsERC1155",
-                    [
-                      orders.map((order) => order.getRaw()),
-                      orders.map((order) => order.params),
-                      zeroexV4Erc1155Details.map((d) => d.amount ?? 1),
-                      {
-                        fillTo: taker,
-                        refundTo: relayer,
-                        revertIfIncomplete: Boolean(!options?.partial),
-                        amount: price,
-                      },
-                      fees,
-                    ]
-                  ),
-            value: totalPrice,
-          },
-          orderIds: zeroexV4Erc1155Details.map((d) => d.orderId),
-        });
+          const currencyIsETH = isETH(this.chainId, currency);
+          const buyInCurrencyIsETH = isETH(this.chainId, buyInCurrency);
 
-        // Track any possibly required swap
-        swapDetails.push({
-          tokenIn: buyInCurrency,
-          tokenOut: Sdk.Common.Addresses.Native[this.chainId],
-          tokenOutAmount: totalPrice,
-          recipient: module.address,
-          refundTo: relayer,
-          details: zeroexV4Erc1155Details,
-          executionIndex: executions.length - 1,
-        });
+          executions.push({
+            info: {
+              module: module.address,
+              data:
+                orders.length === 1
+                  ? module.interface.encodeFunctionData(
+                      `accept${currencyIsETH ? "ETH" : "ERC20"}ListingERC1155`,
+                      [
+                        orders[0].getRaw(),
+                        orders[0].params,
+                        currencyDetails[0].amount ?? 1,
+                        {
+                          fillTo: taker,
+                          refundTo: relayer,
+                          revertIfIncomplete: Boolean(!options?.partial),
+                          amount: price,
+                          // Only needed for ERC20 listings
+                          token: currency,
+                        },
+                        fees,
+                      ]
+                    )
+                  : this.contracts.zeroExV4Module.interface.encodeFunctionData(
+                      `accept${currencyIsETH ? "ETH" : "ERC20"}ListingsERC1155`,
+                      [
+                        orders.map((order) => order.getRaw()),
+                        orders.map((order) => order.params),
+                        currencyDetails.map((d) => d.amount ?? 1),
+                        {
+                          fillTo: taker,
+                          refundTo: relayer,
+                          revertIfIncomplete: Boolean(!options?.partial),
+                          amount: price,
+                          // Only needed for ERC20 listings
+                          token: currency,
+                        },
+                        fees,
+                      ]
+                    ),
+              value: buyInCurrencyIsETH && currencyIsETH ? totalPrice : 0,
+            },
+            orderIds: currencyDetails.map((d) => d.orderId),
+          });
 
-        addRouterTags("zeroex-v4", orders.length, fees.length);
+          // Track any possibly required swap
+          swapDetails.push({
+            tokenIn: buyInCurrency,
+            tokenOut: currency,
+            tokenOutAmount: totalPrice,
+            recipient: module.address,
+            refundTo: relayer,
+            details: currencyDetails,
+            executionIndex: executions.length - 1,
+          });
 
-        // Mark the listings as successfully handled
-        for (const { orderId } of zeroexV4Erc1155Details) {
-          success[orderId] = true;
+          addRouterTags("zeroex-v4", orders.length, fees.length);
+
+          // Mark the listings as successfully handled
+          for (const { orderId } of currencyDetails) {
+            success[orderId] = true;
+          }
         }
       }
     }

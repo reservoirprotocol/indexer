@@ -145,7 +145,7 @@ export const getOrdersAsksV5Options: RouteOptions = {
         .valid("createdAt", "price", "updatedAt")
         .default("createdAt")
         .description(
-          "Order the items are returned in the response. Sorting by `price` allowed only when filtering by token & is ascending order."
+          "Order the items are returned in the response. Sorting by `price` is ascending order only."
         ),
       sortDirection: Joi.string()
         .lowercase()
