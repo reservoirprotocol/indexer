@@ -411,7 +411,7 @@ export class DailyVolume {
               AND coalesce(fe.wash_trading_score, 0) = 0
           `,
                 {
-                  recentTimestamp: row?.recent_timestamp ?? 0,
+                  recentTimestamp: row?.recent_timestamp ? row.recent_timestamp + 24 * 60 * 60 : 0,
                   collectionId: row.id,
                 }
               );
@@ -425,7 +425,7 @@ export class DailyVolume {
                 // only try to get the total volume from postgres if we have a recent timestamp (that means we have daily_volume entries for this collection, but its not in redis for some reason)
                 const pgTotalVolume = await redb.oneOrNone(
                   `
-              SELECT SUM(volume) as total_volume
+              SELECT SUM(volume_clean) as total_volume
               FROM daily_volumes
               WHERE collection_id != '-1'
                 AND collection_id = $/collectionId/
@@ -687,8 +687,15 @@ export class DailyVolume {
                 all_time_volume = $/all_time_volume/,
                 ${collectionId ? "" : `all_time_rank = $/all_time_rank/,`}
                 updated_at = now()
-            WHERE
-                id = $/collection_id/`,
+            WHERE id = $/collection_id/
+            AND (
+            day7_volume IS DISTINCT FROM $/day7_volume/
+            ${collectionId ? "" : `OR day7_rank IS DISTINCT FROM $/day7_rank/,`}
+            OR day30_volume IS DISTINCT FROM $/day30_volume/
+            ${collectionId ? "" : `OR day30_rank IS DISTINCT FROM $/day30_rank/,`}
+            OR all_time_volume IS DISTINCT FROM $/all_time_volume/
+            ${collectionId ? "" : `OR all_time_rank IS DISTINCT FROM $/all_time_rank/,`}
+            )`,
           values: row,
         });
       });

@@ -1,6 +1,6 @@
 import { Interface, Result } from "@ethersproject/abi";
 import { hexZeroPad } from "@ethersproject/bytes";
-import { AddressZero, HashZero } from "@ethersproject/constants";
+import { HashZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
 import { keccak256 } from "@ethersproject/keccak256";
 import { keccak256 as solidityKeccak256 } from "@ethersproject/solidity";
@@ -74,7 +74,7 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
       contract: collection,
       stage: "public-sale",
       kind: "public",
-      status: "open",
+      status: result.marketCanMint ? "open" : "closed",
       standard: STANDARD,
       details: {
         tx: {
@@ -92,9 +92,8 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
                 abiType: "uint256",
               },
               {
-                kind: "unknown",
+                kind: "referrer",
                 abiType: "address",
-                abiValue: AddressZero,
               },
             ],
           },
@@ -157,9 +156,8 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
                       abiType: "uint256",
                     },
                     {
-                      kind: "unknown",
+                      kind: "referrer",
                       abiType: "address",
-                      abiValue: AddressZero,
                     },
                     {
                       kind: "allowlist",

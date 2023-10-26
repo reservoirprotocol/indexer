@@ -18,12 +18,13 @@ export const postExecuteSolveV1Options: RouteOptions = {
     },
   },
   validate: {
-    payload: Joi.alternatives(
-      Joi.object({
-        kind: Joi.string().valid("seaport-v1.5-intent").required(),
-        order: Joi.any().required(),
-      })
-    ),
+    query: Joi.object({
+      signature: Joi.string().description("Signature for the solve request"),
+    }),
+    payload: Joi.object({
+      kind: Joi.string().valid("seaport-intent").required(),
+      order: Joi.any().required(),
+    }),
   },
   response: {
     schema: Joi.object({
@@ -40,15 +41,23 @@ export const postExecuteSolveV1Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const query = request.query as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload = request.payload as any;
 
     try {
       switch (payload.kind) {
-        case "seaport-v1.5-intent": {
-          const order = new Sdk.SeaportV15.Order(config.chainId, payload.order);
+        case "seaport-intent": {
+          const order = new Sdk.SeaportV15.Order(config.chainId, {
+            ...payload.order,
+            signature: payload.order.signature ?? query.signature,
+          });
 
           await axios
-            .post(`${config.solverBaseUrl}/intents/seaport`, { order: payload.order })
+            .post(`${config.seaportSolverBaseUrl}/trigger`, {
+              chainId: config.chainId,
+              order: order.params,
+            })
             .then((response) => response.data);
 
           return {

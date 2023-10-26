@@ -590,15 +590,13 @@ export const getTopSellingCollectionsV2 = async (params: {
 
     return {
       volume: bucket?.total_volume?.value,
-      volumePercentChange: _.round(
-        ((bucket?.total_volume?.value || 0) / (pastResult?.volume || 1)) * 100 - 100,
-        2
-      ),
+      volumePercentChange: pastResult?.volume
+        ? _.round(((bucket?.total_volume?.value || 0) / (pastResult?.volume || 1)) * 100 - 100, 2)
+        : null,
       count: bucket?.total_sales.value,
-      countPercentChange: _.round(
-        ((bucket?.total_sales.value || 0) / (pastResult?.count || 1)) * 100 - 100,
-        2
-      ),
+      countPercentChange: pastResult?.count
+        ? _.round(((bucket?.total_sales.value || 0) / (pastResult?.count || 1)) * 100 - 100, 2)
+        : null,
       id: bucket.key,
     };
   });

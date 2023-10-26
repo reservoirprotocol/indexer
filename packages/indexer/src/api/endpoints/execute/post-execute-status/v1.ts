@@ -21,7 +21,7 @@ export const postExecuteStatusV1Options: RouteOptions = {
   validate: {
     payload: Joi.object({
       kind: Joi.string()
-        .valid("cross-chain-intent", "seaport-v1.5-intent", "transaction")
+        .valid("cross-chain-intent", "seaport-intent", "transaction")
         .required()
         .description("Execution kind"),
       id: Joi.string()
@@ -31,7 +31,7 @@ export const postExecuteStatusV1Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
-      status: Joi.string().valid("unknown", "pending", "success", "failure").required(),
+      status: Joi.string().valid("unknown", "pending", "received", "success", "failure").required(),
       details: Joi.string(),
       time: Joi.number(),
     }).label(`postExecuteStatus${version.toUpperCase()}Response`),
@@ -67,7 +67,7 @@ export const postExecuteStatusV1Options: RouteOptions = {
             details?: string;
             time?: number;
           } = await axios
-            .get(`${config.crossChainSolverBaseUrl}/intents/status?hash=${payload.id}`)
+            .get(`${config.crossChainSolverBaseUrl}/status?hash=${payload.id}`)
             .then((response) => response.data);
 
           return {
@@ -77,13 +77,13 @@ export const postExecuteStatusV1Options: RouteOptions = {
           };
         }
 
-        case "seaport-v1.5-intent": {
+        case "seaport-intent": {
           const result: {
             status: string;
             details?: string;
             time?: number;
           } = await axios
-            .get(`${config.solverBaseUrl}/intents/seaport/status?hash=${payload.id}`)
+            .get(`${config.seaportSolverBaseUrl}/status?hash=${payload.id}`)
             .then((response) => response.data);
 
           return {

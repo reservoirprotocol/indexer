@@ -20,10 +20,9 @@ export default class MintsRefreshJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: MintsRefreshJobPayload) {
     const { collection } = payload;
 
-    logger.info(this.queueName, `Refreshing mints for collection ${collection}`);
-
     const lockKey = `mints-refresh:${collection}`;
     if (!(await redis.get(lockKey))) {
+      logger.info(this.queueName, `Refreshing mints for collection ${collection}`);
       await refreshMintsForCollection(collection);
       await redis.set(lockKey, "locked", "EX", 30 * 60);
     }
