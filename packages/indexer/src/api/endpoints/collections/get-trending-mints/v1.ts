@@ -14,29 +14,6 @@ import { redis } from "@/common/redis";
 const REDIS_EXPIRATION = 60 * 60 * 24; // 24 hours
 const REDIS_EXPIRATION_MINTS = 120; // Assuming an hour, adjust as needed.
 
-/**
-  const baseQuery = `
-SELECT 
-    collection_id,
-    array_agg(
-      json_build_object(
-        'stage', stage,
-        'tokenId', token_id::TEXT,
-        'kind', kind,
-        'currency', concat('0x', encode(currency, 'hex')),
-        'price', price::TEXT,
-        'startTime', floor(extract(epoch from start_time)),
-        'endTime', floor(extract(epoch from end_time)),
-        'maxMintsPerWallet', max_mints_per_wallet
-      )
-    ) AS mint_stages
-FROM 
-    collection_mints 
-${whereClause}
-GROUP BY 
-    collection_id
-  `;
-   */
 import { getTrendingMintsV2 } from "@/elasticsearch/indexes/activities";
 
 import { getJoiPriceObject, JoiPrice } from "@/common/joi";
@@ -240,7 +217,7 @@ export const getTrendingMintsV1Options: RouteOptions = {
     },
   },
   handler: async ({ query }: Request, h) => {
-    const { normalizeRoyalties, useNonFlaggedFloorAsk, type, period } = query;
+    const { normalizeRoyalties, useNonFlaggedFloorAsk, type, period, limit } = query;
 
     try {
       const mintingCollections = await getMintingCollections(type);
@@ -248,6 +225,7 @@ export const getTrendingMintsV1Options: RouteOptions = {
       const elasticMintData = await getTrendingMintsV2({
         contracts: mintingCollections.map(({ collection_id }) => collection_id),
         startTime: getStartTime(period),
+        limit,
       });
 
       const collectionsMetadata = await getCollectionsMetadata(

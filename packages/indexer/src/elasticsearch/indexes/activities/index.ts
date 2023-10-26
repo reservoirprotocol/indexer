@@ -608,17 +608,13 @@ export const getTopSellingCollectionsV2 = async (params: {
 export const getTrendingMintsV2 = async (params: {
   contracts: string[];
   startTime: number;
+  limit: number;
 }): Promise<ElasticMintResult[]> => {
-  const { contracts, startTime } = params;
+  const { contracts, startTime, limit } = params;
 
   const salesQuery = {
     bool: {
       filter: [
-        {
-          terms: {
-            "collection.id": contracts,
-          },
-        },
         {
           terms: {
             type: ["mint"],
@@ -645,6 +641,7 @@ export const getTrendingMintsV2 = async (params: {
     collections: {
       terms: {
         field: "collection.id",
+        size: limit,
         order: {
           total_mints: "desc",
         },
