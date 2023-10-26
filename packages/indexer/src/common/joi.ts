@@ -1025,6 +1025,9 @@ export const getJoiCollectionObject = (collection: any, isTakedown: boolean) => 
     if (collection.metadata) {
       collection.metadata = null;
     }
+    if (collection.image) {
+      collection.image = null;
+    }
     if (collection.banner) {
       collection.banner = null;
     }
@@ -1081,6 +1084,9 @@ export const getJoiTokenObject = (token: any, isTakedown: boolean) => {
     }
     if (token.description) {
       token.description = null;
+    }
+    if (token.image) {
+      token.image = null;
     }
     if (token.imageSmall) {
       token.imageSmall = null;
