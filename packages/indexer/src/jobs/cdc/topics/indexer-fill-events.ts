@@ -73,15 +73,6 @@ export class IndexerFillEventsHandler extends KafkaEventHandler {
             },
           },
         ]);
-
-        logger.info(
-          "kafka-event-handler",
-          JSON.stringify({
-            topic: "debugWashTradingScoreActivity",
-            message: `Refresh sale activity. txHash=${payload.after.tx_hash} logIndex=${payload.after.log_index} batchIndex=${payload.after.batch_index}`,
-            payload,
-          })
-        );
       }
     } catch (error) {
       logger.error(
