@@ -9,6 +9,7 @@ export const CONFIG_DEFAULT = {
       createdAt: { type: "date" },
       indexedAt: { type: "date" },
       contract: { type: "keyword" },
+      contractAndTokenId: { type: "keyword" },
       token: {
         properties: {
           id: { type: "keyword" },
