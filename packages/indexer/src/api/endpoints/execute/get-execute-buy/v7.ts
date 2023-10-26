@@ -1669,13 +1669,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 uint32 deadline
               ) payable`,
             ]).encodeFunctionData("makeRequest", [
-              [
-                config.chainId,
-                token.split(":")[0],
-                token.split(":")[1],
-                item.quantity,
-                Math.floor(Date.now() / 1000) + 10 * 60,
-              ],
+              config.chainId,
+              token.split(":")[0],
+              token.split(":")[1],
+              item.quantity,
+              Math.floor(Date.now() / 1000) + 10 * 60,
             ]),
             value: quote,
             chainId: fromChainId,
