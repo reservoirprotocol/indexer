@@ -25,7 +25,7 @@ export const Router: ChainIdToAddress = {
   [Network.PolygonZkevm]: "0xc2c862322e9c97d6244a3506655da95f05246fd8",
   [Network.Zksync]: "0x952a21a21079d09d31b0dbf8a1702ea6004919ab",
   [Network.Ancient8Testnet]: "0x1aed60a97192157fda7fb26267a439d523d09c5e",
-  [Network.Scroll]: "0x711177598e972b21398db06c81bafd1292148d00",
+  [Network.Scroll]: "0x1aed60a97192157fda7fb26267a439d523d09c5e",
 };
 
 // Approval proxy
@@ -51,7 +51,7 @@ export const ApprovalProxy: ChainIdToAddress = {
   [Network.Avalanche]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
   [Network.PolygonZkevm]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
   [Network.Ancient8Testnet]: "0x224ecb4eae96d31372d1090c3b0233c8310dbbab",
-  [Network.Scroll]: "0x0926a71ef20a3e4ea0bdb85b6f146cd15a1b4060",
+  [Network.Scroll]: "0x224ecb4eae96d31372d1090c3b0233c8310dbbab",
 };
 
 // Permit proxy
@@ -100,7 +100,7 @@ export const MintModule: ChainIdToAddress = {
   [Network.Avalanche]: "0x849ef788b40af342e2883c3112dd636f03a4203e",
   [Network.PolygonZkevm]: "0x849ef788b40af342e2883c3112dd636f03a4203e",
   [Network.Ancient8Testnet]: "0xe3de16f7ed5a124686cc27571898e394959e8b39",
-  [Network.Scroll]: "0xc3d6543f0c6a55109ac0fdcbd40a9d611bf44ca6",
+  [Network.Scroll]: "0xe3de16f7ed5a124686cc27571898e394959e8b39",
 };
 
 export const CollectionXyzModule: ChainIdToAddress = {
@@ -165,7 +165,7 @@ export const SeaportV15Module: ChainIdToAddress = {
   [Network.PolygonZkevm]: "0x00ca04c45da318d5b7e7b14d5381ca59f09c73f0",
   [Network.Zksync]: "0x0da7fe8aa50e8cecedf3242597bd9560bffbf8ec",
   [Network.Ancient8Testnet]: "0x4e9aaa72727a2f5aa5d2bef80ab5642661e29ef6",
-  [Network.Scroll]: "0x0f142e98a897da108f21b10cc85ff553ac0c5df2",
+  [Network.Scroll]: "0x4e9aaa72727a2f5aa5d2bef80ab5642661e29ef6",
 };
 
 export const AlienswapModule: ChainIdToAddress = {

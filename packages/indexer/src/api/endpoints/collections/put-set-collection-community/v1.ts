@@ -78,7 +78,10 @@ export const putSetCollectionCommunityV1Options: RouteOptions = {
 
       return { message: "Success" };
     } catch (error) {
-      logger.error(`put-set-collection-community-${version}-handler`, `Handler failure: ${error}`);
+      logger.error(
+        `put-set-collection-community-${version}-handler`,
+        `Handler failure: ${JSON.stringify(error)}`
+      );
       throw error;
     }
   },

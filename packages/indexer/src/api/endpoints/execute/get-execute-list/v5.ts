@@ -13,6 +13,7 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { now, regex } from "@/common/utils";
 import { config } from "@/config/index";
+import { FeeRecipients } from "@/models/fee-recipients";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { getExecuteError } from "@/orderbook/orders/errors";
 import { checkBlacklistAndFallback } from "@/orderbook/orders";
@@ -156,8 +157,16 @@ export const getExecuteListV5Options: RouteOptions = {
             ),
             fees: Joi.array()
               .items(Joi.string().pattern(regex.fee))
+              .description("Deprecated, use `marketplaceFees` and/or `customRoyalties`"),
+            marketplaceFees: Joi.array()
+              .items(Joi.string().pattern(regex.fee))
               .description(
-                "List of fees (formatted as `feeRecipient:feeBps`) to be bundled within the order. 1 BPS = 0.01% Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:100`"
+                "List of marketplace fees (formatted as `feeRecipient:feeBps`) to be bundled within the order. 1 BPS = 0.01% Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:100`"
+              ),
+            customRoyalties: Joi.array()
+              .items(Joi.string().pattern(regex.fee))
+              .description(
+                "List of custom royalties (formatted as `feeRecipient:feeBps`) to be bundled within the order. 1 BPS = 0.01% Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:100`"
               ),
             listingTime: Joi.string()
               .pattern(regex.unixTimestamp)
@@ -248,7 +257,9 @@ export const getExecuteListV5Options: RouteOptions = {
       endWeiPrice?: string;
       orderKind: string;
       orderbook: string;
-      fees: string[];
+      fees?: string[];
+      marketplaceFees?: string[];
+      customRoyalties?: string[];
       options?: any;
       orderbookApiKey?: string;
       automatedRoyalties: boolean;
@@ -386,8 +397,9 @@ export const getExecuteListV5Options: RouteOptions = {
         }
       }
 
-      const errors: { message: string; orderIndex: number }[] = [];
+      const feeRecipients = await FeeRecipients.getInstance();
 
+      const errors: { message: string; orderIndex: number }[] = [];
       await Promise.all(
         params.map(async (params, i) => {
           const [contract, tokenId] = params.token.split(":");
@@ -416,6 +428,18 @@ export const getExecuteListV5Options: RouteOptions = {
             const [feeRecipient, fee] = feeData.split(":");
             (params as any).fee.push(fee);
             (params as any).feeRecipient.push(feeRecipient);
+          }
+          for (const feeData of params.marketplaceFees ?? []) {
+            const [feeRecipient, fee] = feeData.split(":");
+            (params as any).fee.push(fee);
+            (params as any).feeRecipient.push(feeRecipient);
+            await feeRecipients.create(feeRecipient, "marketplace", source);
+          }
+          for (const feeData of params.customRoyalties ?? []) {
+            const [feeRecipient, fee] = feeData.split(":");
+            (params as any).fee.push(fee);
+            (params as any).feeRecipient.push(feeRecipient);
+            await feeRecipients.create(feeRecipient, "royalty", source);
           }
 
           if (params.taker && !["seaport-v1.5", "x2y2"].includes(params.orderKind)) {

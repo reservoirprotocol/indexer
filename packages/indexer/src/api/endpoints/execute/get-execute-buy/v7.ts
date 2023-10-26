@@ -1,6 +1,7 @@
 import { Interface } from "@ethersproject/abi";
 import { BigNumber } from "@ethersproject/bignumber";
-import { AddressZero } from "@ethersproject/constants";
+import { AddressZero, HashZero, MaxUint256 } from "@ethersproject/constants";
+import { randomBytes } from "@ethersproject/random";
 import { keccak256 } from "@ethersproject/solidity";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
@@ -184,6 +185,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         .description(
           "Choose a specific swapping provider when buying in a different currency (defaults to `uniswap`)"
         ),
+      executionMethod: Joi.string().valid("seaport-intent"),
       referrer: Joi.string()
         .pattern(regex.address)
         .optional()
@@ -1490,22 +1492,134 @@ export const getExecuteBuyV7Options: RouteOptions = {
         },
       ];
 
-      // Cross-chain purchasing MVP
+      // Seaport intent purchasing MVP
+      if (payload.executionMethod === "seaport-intent") {
+        if (!config.seaportSolverBaseUrl) {
+          throw Boom.badRequest("Intent purchasing not supported");
+        }
+
+        if (listingDetails.length > 1) {
+          throw Boom.badRequest("Only single token intent purchases are supported");
+        }
+
+        const details = listingDetails[0];
+        if (details.currency !== Sdk.Common.Addresses.Native[config.chainId]) {
+          throw Boom.badRequest("Only native token intent purchases are supported");
+        }
+        if (details.contractKind !== "erc721") {
+          throw Boom.badRequest("Only erc721 token intent purchases are supported");
+        }
+
+        const quote = await axios
+          .post(`${config.seaportSolverBaseUrl}/quote`, {
+            chainId: config.chainId,
+            token: `${details.contract}:${details.tokenId}`,
+            amount: details.amount ?? "1",
+          })
+          .then((response) => response.data.price);
+
+        path[0].totalPrice = formatPrice(quote);
+        path[0].totalRawPrice = quote;
+
+        const order = new Sdk.SeaportV15.Order(config.chainId, {
+          offerer: payload.taker,
+          zone: AddressZero,
+          offer: [
+            {
+              itemType: Sdk.SeaportBase.Types.ItemType.ERC20,
+              token: Sdk.Common.Addresses.WNative[config.chainId],
+              identifierOrCriteria: "0",
+              startAmount: quote.toString(),
+              endAmount: quote.toString(),
+            },
+          ],
+          consideration: [
+            {
+              itemType: Sdk.SeaportBase.Types.ItemType.ERC721,
+              token: path[0].contract,
+              identifierOrCriteria: path[0].tokenId!,
+              startAmount: "1",
+              endAmount: "1",
+              recipient: payload.taker,
+            },
+            ...((payload.feesOnTop ?? []) as string[])
+              .map((f) => {
+                const [recipient, amount] = f.split(":");
+                return { amount, recipient };
+              })
+              .map(({ amount, recipient }) => ({
+                itemType: Sdk.SeaportBase.Types.ItemType.ERC20,
+                token: Sdk.Common.Addresses.WNative[config.chainId],
+                identifierOrCriteria: "0",
+                startAmount: amount.toString(),
+                endAmount: amount.toString(),
+                recipient,
+              })),
+          ],
+          orderType: Sdk.SeaportBase.Types.OrderType.FULL_OPEN,
+          startTime: Math.floor(Date.now() / 1000),
+          endTime: Math.floor(Date.now() / 1000) + 5 * 60,
+          zoneHash: HashZero,
+          salt: bn(randomBytes(32)).toHexString(),
+          conduitKey: Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId],
+          counter: (
+            await new Sdk.SeaportV15.Exchange(config.chainId).getCounter(
+              baseProvider,
+              payload.taker
+            )
+          ).toString(),
+          totalOriginalConsiderationItems: 1 + (details.fees?.length ?? 0),
+        });
+
+        steps[3].items.push({
+          status: "incomplete",
+          data: {
+            sign: order.getSignatureData(),
+            post: {
+              endpoint: "/execute/solve/v1",
+              method: "POST",
+              body: {
+                kind: "seaport-intent",
+                data: order.params,
+              },
+            },
+          },
+          check: {
+            endpoint: "/execute/status/v1",
+            method: "POST",
+            body: {
+              kind: "seaport-intent",
+              id: order.hash(),
+            },
+          },
+        });
+
+        return {
+          steps: steps.filter((s) => s.items.length),
+          path,
+        };
+      }
+
+      // Cross-chain intent purchasing MVP
       if (
         payload.currency === Sdk.Common.Addresses.Native[config.chainId] &&
         payload.currencyChainId !== undefined &&
-        payload.currencyChainId !== config.chainId &&
-        items[0].token &&
-        config.crossChainSolverBaseUrl
+        payload.currencyChainId !== config.chainId
       ) {
-        if (items.length > 1) {
-          throw Boom.badRequest("Only a single item can be purchased cross-chain");
+        if (!config.crossChainSolverBaseUrl) {
+          throw Boom.badRequest("Cross-chain purchasing not supported");
+        }
+
+        if (path.length > 1) {
+          throw Boom.badRequest("Only single item cross-chain purchases are supported");
         }
         if (payload.normalizeRoyalties) {
-          throw Boom.badRequest("Royalty normalization not supported cross-chain");
+          throw Boom.badRequest(
+            "Royalty normalization is not supported when purchasing cross-chain"
+          );
         }
-        if (payload.feesOnTop) {
-          throw Boom.badRequest("Fees on top not supported cross-chain");
+        if (payload.feeOnTop) {
+          throw Boom.badRequest("Fees on top are not supported when purchasing cross-chain");
         }
 
         const fromChainId = payload.currencyChainId;
@@ -1524,30 +1638,23 @@ export const getExecuteBuyV7Options: RouteOptions = {
           throw Boom.badRequest("Cross-chain swap not supported between requested chains");
         }
 
+        const item = path[0];
+        const token = item.tokenId
+          ? `${item.contract}:${item.tokenId}`.toLowerCase()
+          : `${item.contract}:${MaxUint256.toString()}`.toLowerCase();
+
         const quote = await axios
-          .post(`${config.crossChainSolverBaseUrl}/intents/quote`, {
+          .post(`${config.crossChainSolverBaseUrl}/quote`, {
             fromChainId,
             toChainId,
-            token: items[0].token,
-            amount: items[0].quantity,
+            token,
+            amount: item.quantity,
           })
           .then((response) => response.data.price);
 
-        path[0].totalPrice = formatPrice(quote);
-        path[0].totalRawPrice = quote;
-        path[0].fromChainId = payload.currencyChainId;
-
-        const params = [
-          config.chainId,
-          items[0].token.split(":")[0],
-          items[0].token.split(":")[1],
-          items[0].quantity,
-          Math.floor(Date.now() / 1000) + 10 * 60,
-        ];
-        const id = keccak256(
-          ["address", "uint96", "address", "uint256", "uint128", "uint32", "uint256"],
-          [payload.taker, params[0], params[1], params[2], params[3], params[4], quote]
-        );
+        item.totalPrice = formatPrice(quote);
+        item.totalRawPrice = quote;
+        item.fromChainId = fromChainId;
 
         steps[5].items.push({
           status: "incomplete",
@@ -1561,15 +1668,21 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 uint128 amount,
                 uint32 deadline
               ) payable`,
-            ]).encodeFunctionData("makeRequest", params),
+            ]).encodeFunctionData("makeRequest", [
+              config.chainId,
+              token.split(":")[0],
+              token.split(":")[1],
+              item.quantity,
+              Math.floor(Date.now() / 1000) + 10 * 60,
+            ]),
             value: quote,
+            chainId: fromChainId,
           },
           check: {
             endpoint: "/execute/status/v1",
             method: "POST",
             body: {
               kind: "cross-chain-intent",
-              id,
             },
           },
         });
@@ -1781,6 +1894,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         let mintsResult = await router.fillMintsTx(mintDetails, payload.taker, {
           source: payload.source,
           partial: payload.partial,
+          relayer: payload.relayer,
         });
 
         // Minting via a smart contract proxy is complicated.
@@ -1818,6 +1932,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
         }
 
         if (!safeToUse) {
+          if (payload.relayer) {
+            throw Boom.badRequest("Relayer not supported for requested mints");
+          }
+
           mintsResult = await router.fillMintsTx(mintDetails, payload.taker, {
             source: payload.source,
             forceDirectFilling: true,

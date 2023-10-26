@@ -93,5 +93,10 @@
     "address": "0xe04d5cb7115e4015b2d3fa17dc2e6f88392f873c",
     "domain": null,
     "kind": "marketplace"
+  },
+  {
+    "address": "0xca9337244b5f04cb946391bc8b8a980e988f9a6a",
+    "domain": "magiceden.io",
+    "kind": "marketplace"
   }
 ]

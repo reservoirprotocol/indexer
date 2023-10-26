@@ -1,4 +1,6 @@
+import { ParamType } from "@ethersproject/abi";
 import { BigNumber } from "@ethersproject/bignumber";
+import { HashZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 
 import { logger } from "@/common/logger";
@@ -15,6 +17,9 @@ import { getMaxSupply } from "@/orderbook/mints/calldata/helpers";
 import { getMethodSignature } from "@/orderbook/mints/method-signatures";
 
 const STANDARD = "unknown";
+
+const isEmptyOrZero = (array: string[], emptyValue: string) =>
+  !array.length || array.every((i) => i === emptyValue);
 
 export const extractByTx = async (
   collection: string,
@@ -55,18 +60,48 @@ export const extractByTx = async (
     return [];
   }
 
-  // For now, we only support simple data types in the calldata
-  if (["(", ")", "[", "]", "bytes"].some((x) => methodSignature.params.includes(x))) {
-    return [];
+  // Support complex types as long as they're empty or contain "zero" values
+  const complexKeywords = ["(", ")", "[", "]", "bytes", "tuple"];
+
+  const parsedParams = methodSignature.inputs.map((c) => c.type!);
+  const hasComplexParams = parsedParams.some((abiType) =>
+    complexKeywords.some((x) => abiType.includes(x))
+  );
+
+  let emptyOrZero = false;
+  if (hasComplexParams) {
+    parsedParams.forEach((abiType, i) => {
+      const decodedValue = methodSignature.decodedCalldata[i];
+
+      const isComplexParam = complexKeywords.some((c) => abiType.includes(c));
+      if (isComplexParam && abiType.includes("tuple")) {
+        const subParams = methodSignature.inputs[i].components!;
+
+        emptyOrZero = subParams.every((param, i) => {
+          const value = decodedValue[i];
+          if (param.type === "bytes32") {
+            return value === HashZero;
+          } else if (param.type === "bytes32[]") {
+            return isEmptyOrZero(value, HashZero);
+          }
+          return false;
+        });
+      } else if (abiType.includes("bytes32[]")) {
+        emptyOrZero = isEmptyOrZero(decodedValue, HashZero);
+      }
+    });
+
+    if (!emptyOrZero) {
+      return [];
+    }
   }
 
   const params: AbiParam[] = [];
 
   try {
     if (methodSignature.params.length) {
-      methodSignature.params.split(",").forEach((abiType, i) => {
+      parsedParams.forEach((abiType, i) => {
         const decodedValue = methodSignature.decodedCalldata[i];
-
         if (abiType.includes("int") && bn(decodedValue).eq(amountMinted)) {
           params.push({
             kind: "quantity",
@@ -81,6 +116,12 @@ export const extractByTx = async (
           params.push({
             kind: "recipient",
             abiType,
+          });
+        } else if (abiType.includes("tuple") || abiType.includes("[]")) {
+          params.push({
+            kind: "unknown",
+            abiType: ParamType.fromObject(methodSignature.inputs[i]).format(),
+            abiValue: decodedValue,
           });
         } else {
           params.push({

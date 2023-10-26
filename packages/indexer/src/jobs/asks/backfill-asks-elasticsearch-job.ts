@@ -7,7 +7,8 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 
 import { Orders } from "@/utils/orders";
 import { AskDocumentBuilder } from "@/elasticsearch/indexes/asks/base";
-import * as asksIndex from "@/elasticsearch/indexes/asks";
+import * as AskIndex from "@/elasticsearch/indexes/asks";
+import { elasticsearch } from "@/common/elasticsearch";
 
 export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-asks-elasticsearch-queue";
@@ -21,14 +22,14 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
       this.queueName,
       JSON.stringify({
         topic: "debugAskIndex",
-        message: `Start.`,
+        message: `Start. fromTimestamp=${payload.fromTimestamp}, onlyActive=${payload.onlyActive}, cursor=${payload.cursor}`,
         payload,
       })
     );
 
     let nextCursor;
 
-    const askDocuments = [];
+    const askEvents = [];
 
     try {
       let continuationFilter = "";
@@ -73,6 +74,17 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
               orders.token_set_id AS "order_token_set_id",
               (${criteriaBuildQuery}) AS order_criteria,
               extract(epoch from orders.updated_at) updated_ts,
+                        (
+                CASE
+                  WHEN orders.fillability_status = 'filled' THEN 'filled'
+                  WHEN orders.fillability_status = 'cancelled' THEN 'cancelled'
+                  WHEN orders.fillability_status = 'expired' THEN 'expired'
+                  WHEN orders.fillability_status = 'no-balance' THEN 'inactive'
+                  WHEN orders.approval_status = 'no-approval' THEN 'inactive'
+                  WHEN orders.approval_status = 'disabled' THEN 'inactive'
+                  ELSE 'active'
+                END
+              ) AS status,
               t.*
             FROM orders
             JOIN LATERAL (
@@ -110,8 +122,11 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
                     LIMIT 1
                  ) t ON TRUE
                   WHERE orders.side = 'sell'
-                  AND orders.fillability_status = 'fillable'
-                  AND orders.approval_status = 'approved'
+                  ${
+                    payload.onlyActive
+                      ? `AND orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`
+                      : ""
+                  }
                   AND kind != 'element-erc1155'
                   ${continuationFilter}
                   ${fromTimestampFilter}
@@ -128,41 +143,45 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
 
       if (rawResults.length) {
         for (const rawResult of rawResults) {
-          const askDocument = new AskDocumentBuilder().buildDocument({
-            id: rawResult.order_id,
-            created_at: new Date(rawResult.updated_ts * 1000),
-            contract: rawResult.contract,
-            token_id: rawResult.token_id,
-            token_name: rawResult.token_name,
-            token_image: rawResult.token_image,
-            token_media: rawResult.token_media,
-            token_attributes: rawResult.token_attributes,
-            collection_id: rawResult.collection_id,
-            collection_name: rawResult.collection_name,
-            collection_image: rawResult.collection_image,
-            order_id: rawResult.order_id,
-            order_source_id_int: Number(rawResult.order_source_id_int),
-            order_criteria: rawResult.order_criteria,
-            order_quantity_filled: Number(rawResult.order_quantity_filled),
-            order_quantity_remaining: Number(rawResult.order_quantity_remaining),
-            order_pricing_currency: rawResult.order_pricing_currency,
-            order_pricing_fee_bps: rawResult.order_pricing_fee_bps,
-            order_pricing_price: rawResult.order_pricing_price,
-            order_pricing_currency_price: rawResult.order_pricing_currency_price,
-            order_pricing_value: rawResult.order_pricing_value,
-            order_pricing_currency_value: rawResult.order_pricing_currency_value,
-            order_pricing_normalized_value: rawResult.order_pricing_normalized_value,
-            order_pricing_currency_normalized_value:
-              rawResult.order_pricing_currency_normalized_value,
-            order_maker: rawResult.order_maker,
-            order_taker: rawResult.order_taker,
-            order_token_set_id: rawResult.order_token_set_id,
-            order_valid_from: Number(rawResult.order_valid_from),
-            order_valid_until: Number(rawResult.order_valid_until),
-            order_kind: rawResult.order_kind,
-          });
+          if (rawResult.status === "active") {
+            const askDocument = new AskDocumentBuilder().buildDocument({
+              id: rawResult.order_id,
+              created_at: new Date(rawResult.updated_ts * 1000),
+              contract: rawResult.contract,
+              token_id: rawResult.token_id,
+              token_name: rawResult.token_name,
+              token_image: rawResult.token_image,
+              token_media: rawResult.token_media,
+              token_attributes: rawResult.token_attributes,
+              collection_id: rawResult.collection_id,
+              collection_name: rawResult.collection_name,
+              collection_image: rawResult.collection_image,
+              order_id: rawResult.order_id,
+              order_source_id_int: Number(rawResult.order_source_id_int),
+              order_criteria: rawResult.order_criteria,
+              order_quantity_filled: Number(rawResult.order_quantity_filled),
+              order_quantity_remaining: Number(rawResult.order_quantity_remaining),
+              order_pricing_currency: rawResult.order_pricing_currency,
+              order_pricing_fee_bps: rawResult.order_pricing_fee_bps,
+              order_pricing_price: rawResult.order_pricing_price,
+              order_pricing_currency_price: rawResult.order_pricing_currency_price,
+              order_pricing_value: rawResult.order_pricing_value,
+              order_pricing_currency_value: rawResult.order_pricing_currency_value,
+              order_pricing_normalized_value: rawResult.order_pricing_normalized_value,
+              order_pricing_currency_normalized_value:
+                rawResult.order_pricing_currency_normalized_value,
+              order_maker: rawResult.order_maker,
+              order_taker: rawResult.order_taker,
+              order_token_set_id: rawResult.order_token_set_id,
+              order_valid_from: Number(rawResult.order_valid_from),
+              order_valid_until: Number(rawResult.order_valid_until),
+              order_kind: rawResult.order_kind,
+            });
 
-          askDocuments.push(askDocument);
+            askEvents.push({ kind: "index", document: askDocument });
+          } else {
+            askEvents.push({ kind: "delete", document: { id: rawResult.order_id } });
+          }
         }
 
         const lastResult = rawResults[rawResults.length - 1];
@@ -186,15 +205,55 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
       throw error;
     }
 
-    if (askDocuments.length) {
-      await asksIndex.save(askDocuments);
+    if (askEvents.length) {
+      const bulkOps = [];
 
-      await backfillAsksElasticsearchJob.addToQueue(payload.fromTimestamp, nextCursor);
+      for (const askEvent of askEvents) {
+        if (askEvent.kind === "index") {
+          bulkOps.push({
+            index: {
+              _index: AskIndex.getIndexName(),
+              _id: askEvent.document.id,
+            },
+          });
+          bulkOps.push(askEvent.document);
+        }
+
+        if (askEvent.kind === "delete") {
+          bulkOps.push({
+            delete: {
+              _index: AskIndex.getIndexName(),
+              _id: askEvent.document.id,
+            },
+          });
+        }
+      }
+
+      await elasticsearch.bulk({
+        body: bulkOps,
+      });
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "debugAskIndex",
+          message: `Processed ${bulkOps.length} ask events. nextCursor=${nextCursor}`,
+          payload,
+          nextCursor,
+        })
+      );
+
+      await backfillAsksElasticsearchJob.addToQueue(
+        payload.fromTimestamp,
+        payload.onlyActive,
+        nextCursor
+      );
     }
   }
 
   public async addToQueue(
     fromTimestamp?: number,
+    onlyActive?: boolean,
     cursor?: {
       updatedAt: string;
       id: string;
@@ -217,6 +276,7 @@ export const backfillAsksElasticsearchJob = new BackfillAsksElasticsearchJob();
 
 export type BackfillAsksElasticsearchJobPayload = {
   fromTimestamp?: number;
+  onlyActive?: boolean;
   cursor?: {
     updatedAt: string;
     id: string;
