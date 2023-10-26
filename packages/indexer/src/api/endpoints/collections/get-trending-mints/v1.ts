@@ -217,16 +217,20 @@ export const getTrendingMintsV1Options: RouteOptions = {
     },
   },
   handler: async ({ query }: Request, h) => {
-    const { normalizeRoyalties, useNonFlaggedFloorAsk, limit, type, period } = query;
+    const { normalizeRoyalties, useNonFlaggedFloorAsk, type, period, limit } = query;
 
     try {
-      const mintingCollections = await getMintingCollections(type, period, limit);
+      const mintingCollections = await getMintingCollections(type);
 
-      const contractIds = mintingCollections.map(({ collection_id }) => collection_id);
+      const elasticMintData = await getTrendingMintsV2({
+        contracts: mintingCollections.map(({ collection_id }) => collection_id),
+        startTime: getStartTime(period),
+        limit,
+      });
 
-      const elasticMintData = await getElasticMints(contractIds, getStartTime(period));
-
-      const collectionsMetadata = await getCollectionsMetadata(contractIds);
+      const collectionsMetadata = await getCollectionsMetadata(
+        elasticMintData.map((res) => res.id)
+      );
 
       const mints = await formatCollections(
         mintingCollections,
@@ -244,81 +248,47 @@ export const getTrendingMintsV1Options: RouteOptions = {
   },
 };
 
-async function getElasticMints(
-  contracts: string[],
-  startTime: number
-): Promise<ElasticMintResult[]> {
-  return getTrendingMintsV2({ contracts, startTime });
-}
+async function getMintingCollections(type: "paid" | "free" | "any"): Promise<Mint[]> {
+  const cacheKey = `minting-collections-cache:v1:${type}`;
 
-async function getMintingCollections(
-  type: "paid" | "free" | "any",
-  period: "5m" | "10m" | "30m" | "1h" | "2h" | "6h" | "24h" | "1d",
-  limit: number
-): Promise<Mint[]> {
-  const cacheKey = `minting-collections:v1:${type}:${period}`;
+  const cachedResult = await redis.get(cacheKey);
+  if (cachedResult) {
+    return JSON.parse(cachedResult);
+  }
 
-  const cachedString: string | null = await redis.get(cacheKey);
-  const cachedResults: Mint[] = cachedString ? JSON.parse(cachedString) : [];
+  const conditions: string[] = [];
+  conditions.push(`kind = 'public'`, `status = 'open'`);
+  type && type !== "any" && conditions.push(`price ${type === "free" ? "= 0" : "> 0"}`);
 
-  let resultsFromDB: Mint[] = [];
+  const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
-  if (cachedResults.length < limit) {
-    const dbLimit = limit - cachedResults.length;
-
-    const conditions: string[] = [];
-
-    conditions.push(`status = 'open'`);
-
-    if (type && type !== "any") {
-      conditions.push(`price ${type === "free" ? "= 0" : "> 0"}`);
-    }
-
-    const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-    const limitClause = `LIMIT ${dbLimit}`;
-    const offsetClause = `OFFSET ${cachedResults.length}`;
-
-    const baseQuery = `
-    WITH y AS (
-      SELECT 
-        collection_id,
-        array_agg(
-          json_build_object(
-            'stage', stage,
-            'tokenId', token_id::TEXT,
-            'kind', kind,
-            'currency', concat('0x', encode(currency, 'hex')),
-            'price', price::TEXT,
-            'startTime', floor(extract(epoch from start_time)),
-            'endTime', floor(extract(epoch from end_time)),
-            'maxMintsPerWallet', max_mints_per_wallet
-          )
-        ) AS mint_stages
-      FROM collection_mints 
-      ${whereClause} 
-      GROUP BY collection_id
-    )
-  
-    SELECT x.*, m.mint_stages 
-    FROM collection_mints AS x 
-    INNER JOIN y AS m ON x.collection_id = m.collection_id
-    ${whereClause}
-    ORDER BY x.created_at DESC
-    ${limitClause}
-    ${offsetClause}
+  const baseQuery = `
+SELECT 
+    collection_id,
+    array_agg(
+      json_build_object(
+        'stage', stage,
+        'tokenId', token_id::TEXT,
+        'kind', kind,
+        'currency', concat('0x', encode(currency, 'hex')),
+        'price', price::TEXT,
+        'startTime', floor(extract(epoch from start_time)),
+        'endTime', floor(extract(epoch from end_time)),
+        'maxMintsPerWallet', max_mints_per_wallet
+      )
+    ) AS mint_stages
+FROM 
+    collection_mints 
+${whereClause}
+GROUP BY 
+    collection_id
   `;
 
-    resultsFromDB = await redb.manyOrNone<Mint>(baseQuery);
-  }
+  const result = await redb.manyOrNone<Mint>(baseQuery);
 
-  const combinedResults = cachedResults.concat(resultsFromDB);
+  await redis.set(cacheKey, JSON.stringify(result), "EX", REDIS_EXPIRATION_MINTS);
 
-  if (resultsFromDB.length > 0) {
-    await redis.set(cacheKey, JSON.stringify(combinedResults));
-    await redis.expire(cacheKey, REDIS_EXPIRATION_MINTS);
-  }
-
-  return combinedResults.slice(0, limit);
+  return result;
 }
 
 async function formatCollections(
@@ -487,14 +457,8 @@ async function getCollectionsMetadata(collectionIds: string[]): Promise<Record<s
     const redisMulti = redis.multi();
 
     for (const metadata of collectionMetadataResponse) {
-      redisMulti.set(
-        `collection-cache:v1:${metadata.id}:${metadata.mint_status}`,
-        JSON.stringify(metadata)
-      );
-      redisMulti.expire(
-        `collection-cache:v1:${metadata.id}:${metadata.mint_status}`,
-        REDIS_EXPIRATION
-      );
+      redisMulti.set(`collection-cache:v1:${metadata.id}`, JSON.stringify(metadata));
+      redisMulti.expire(`collection-cache:v1:${metadata.id}`, REDIS_EXPIRATION);
     }
     await redisMulti.exec();
   }
@@ -512,16 +476,16 @@ async function getRecentMints(collectionIds: string[]): Promise<Record<string, s
   const idsList = collectionIds.map((id) => `'${id.replace("0x", "\\x")}'`).join(",");
 
   const results: MintResult[] = await redb.manyOrNone(`
-    WITH LimitedTakers AS (
+    WITH ltakers AS (
       SELECT contract, taker, created_at
       FROM fill_events_2
       WHERE order_kind = 'mint' AND contract IN (${idsList})
       ORDER BY created_at DESC
-      LIMIT 50
+      LIMIT 100
     )
 
     SELECT contract, ARRAY_AGG(taker) AS takers
-    FROM LimitedTakers
+    FROM ltakers
     GROUP BY contract;
   `);
 

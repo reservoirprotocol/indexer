@@ -591,15 +591,87 @@ export const getTopSellingCollectionsV2 = async (params: {
 
     return {
       volume: bucket?.total_volume?.value,
-      volumePercentChange: _.round(
-        ((bucket?.total_volume?.value || 0) / (pastResult?.volume || 1)) * 100 - 100,
-        2
-      ),
+      volumePercentChange: pastResult?.volume
+        ? _.round(((bucket?.total_volume?.value || 0) / (pastResult?.volume || 1)) * 100 - 100, 2)
+        : null,
       count: bucket?.total_sales.value,
-      countPercentChange: _.round(
-        ((bucket?.total_sales.value || 0) / (pastResult?.count || 1)) * 100 - 100,
-        2
-      ),
+      countPercentChange: pastResult?.count
+        ? _.round(((bucket?.total_sales.value || 0) / (pastResult?.count || 1)) * 100 - 100, 2)
+        : null,
+      id: bucket.key,
+    };
+  });
+};
+
+export const getTrendingMintsV2 = async (params: {
+  contracts: string[];
+  startTime: number;
+  limit: number;
+}): Promise<ElasticMintResult[]> => {
+  const { contracts, startTime, limit } = params;
+
+  const salesQuery = {
+    bool: {
+      filter: [
+        {
+          terms: {
+            type: ["mint"],
+          },
+        },
+        {
+          range: {
+            timestamp: {
+              gte: startTime,
+              format: "epoch_second",
+            },
+          },
+        },
+        {
+          terms: {
+            "collection.id": contracts,
+          },
+        },
+      ],
+    },
+  } as any;
+
+  const collectionAggregation = {
+    collections: {
+      terms: {
+        field: "collection.id",
+        size: limit,
+        order: {
+          total_mints: "desc",
+        },
+      },
+      aggs: {
+        total_mints: {
+          value_count: {
+            field: "id",
+          },
+        },
+        total_volume: {
+          sum: {
+            field: "pricing.priceDecimal",
+          },
+        },
+      },
+    },
+  } as any;
+
+  const esResult = (await elasticsearch.search({
+    index: INDEX_NAME,
+    size: 0,
+    body: {
+      query: salesQuery,
+      aggs: collectionAggregation,
+    },
+  })) as any;
+
+  return esResult?.aggregations?.collections?.buckets?.map((bucket: any) => {
+    return {
+      volume: bucket?.total_volume?.value,
+      count: bucket?.total_mints.value,
       id: bucket.key,
     };
   });
