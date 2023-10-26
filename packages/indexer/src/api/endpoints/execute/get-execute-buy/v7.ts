@@ -185,7 +185,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         .description(
           "Choose a specific swapping provider when buying in a different currency (defaults to `uniswap`)"
         ),
-      executionMethod: Joi.string().valid("seaport-v1.5-intent"),
+      executionMethod: Joi.string().valid("seaport-intent"),
       referrer: Joi.string()
         .pattern(regex.address)
         .optional()
@@ -1493,7 +1493,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       ];
 
       // Seaport intent purchasing MVP
-      if (payload.executionMethod === "seaport-v1.5-intent") {
+      if (payload.executionMethod === "seaport-intent") {
         if (!config.seaportSolverBaseUrl) {
           throw Boom.badRequest("Intent purchasing not supported");
         }
@@ -1579,7 +1579,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               endpoint: "/execute/solve/v1",
               method: "POST",
               body: {
-                kind: "seaport-v1.5-intent",
+                kind: "seaport-intent",
                 data: order.params,
               },
             },
@@ -1588,7 +1588,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
             endpoint: "/execute/status/v1",
             method: "POST",
             body: {
-              kind: "seaport-v1.5-intent",
+              kind: "seaport-intent",
               id: order.hash(),
             },
           },
@@ -1652,21 +1652,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
           })
           .then((response) => response.data.price);
 
-        path[0].totalPrice = formatPrice(quote);
-        path[0].totalRawPrice = quote;
-        path[0].fromChainId = fromChainId;
-
-        const params = [
-          config.chainId,
-          token.split(":")[0],
-          token.split(":")[1],
-          items[0].quantity,
-          Math.floor(Date.now() / 1000) + 10 * 60,
-        ];
-        const id = keccak256(
-          ["address", "uint96", "address", "uint256", "uint128", "uint32", "uint256"],
-          [payload.taker, params[0], params[1], params[2], params[3], params[4], quote]
-        );
+        item.totalPrice = formatPrice(quote);
+        item.totalRawPrice = quote;
+        item.fromChainId = fromChainId;
 
         steps[5].items.push({
           status: "incomplete",
@@ -1680,7 +1668,15 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 uint128 amount,
                 uint32 deadline
               ) payable`,
-            ]).encodeFunctionData("makeRequest", params),
+            ]).encodeFunctionData("makeRequest", [
+              [
+                config.chainId,
+                token.split(":")[0],
+                token.split(":")[1],
+                item.quantity,
+                Math.floor(Date.now() / 1000) + 10 * 60,
+              ],
+            ]),
             value: quote,
             chainId: fromChainId,
           },
@@ -1689,7 +1685,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
             method: "POST",
             body: {
               kind: "cross-chain-intent",
-              id,
             },
           },
         });

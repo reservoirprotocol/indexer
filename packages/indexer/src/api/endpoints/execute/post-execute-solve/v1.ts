@@ -22,7 +22,7 @@ export const postExecuteSolveV1Options: RouteOptions = {
       signature: Joi.string().description("Signature for the solve request"),
     }),
     payload: Joi.object({
-      kind: Joi.string().valid("seaport-v1.5-intent").required(),
+      kind: Joi.string().valid("seaport-intent").required(),
       order: Joi.any().required(),
     }),
   },
@@ -47,7 +47,7 @@ export const postExecuteSolveV1Options: RouteOptions = {
 
     try {
       switch (payload.kind) {
-        case "seaport-v1.5-intent": {
+        case "seaport-intent": {
           const order = new Sdk.SeaportV15.Order(config.chainId, {
             ...payload.order,
             signature: payload.order.signature ?? query.signature,
