@@ -644,7 +644,9 @@ export const save = async (
         // `price` and `value` from that currency denominations to the
         // ETH denomination
         {
-          const prices = await getUSDAndNativePrices(currency, price.toString(), currentTime);
+          const prices = await getUSDAndNativePrices(currency, price.toString(), currentTime, {
+            nonZeroCommunityTokens: true,
+          });
           if (!prices.nativePrice) {
             // Getting the native price is a must
             return results.push({
@@ -655,7 +657,9 @@ export const save = async (
           price = bn(prices.nativePrice);
         }
         {
-          const prices = await getUSDAndNativePrices(currency, value.toString(), currentTime);
+          const prices = await getUSDAndNativePrices(currency, value.toString(), currentTime, {
+            nonZeroCommunityTokens: true,
+          });
           if (!prices.nativePrice) {
             // Getting the native price is a must
             return results.push({
@@ -673,7 +677,9 @@ export const save = async (
           ? bn(currencyValue).add(missingRoyaltyAmount).toString()
           : bn(currencyValue).sub(missingRoyaltyAmount).toString();
 
-      const prices = await getUSDAndNativePrices(currency, currencyNormalizedValue, currentTime);
+      const prices = await getUSDAndNativePrices(currency, currencyNormalizedValue, currentTime, {
+        nonZeroCommunityTokens: true,
+      });
       if (!prices.nativePrice) {
         // Getting the native price is a must
         return results.push({

@@ -20,6 +20,7 @@ import {
   getJoiPriceObject,
   getJoiSaleObject,
   getJoiSourceObject,
+  getJoiTokenObject,
   JoiAttributeValue,
   JoiPrice,
   JoiSale,
@@ -418,6 +419,7 @@ export const getUserTokensV7Options: RouteOptions = {
           t.last_buy_timestamp,
           t.is_flagged,
           t.is_spam AS t_is_spam,
+          t.is_takedown AS t_is_takedown,
           t.last_flag_update,
           t.last_flag_change,
           null AS top_bid_id,
@@ -460,6 +462,7 @@ export const getUserTokensV7Options: RouteOptions = {
             t.last_buy_timestamp,
             t.is_flagged,
             t.is_spam AS t_is_spam,
+            t.is_takedown AS t_is_takedown,
             t.last_flag_update,
             t.last_flag_change,
             ${selectFloorData}
@@ -547,7 +550,7 @@ export const getUserTokensV7Options: RouteOptions = {
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value, top_bid_source_id_int,
                o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price,
                c.name as collection_name, con.kind, c.metadata, c.royalties, (c.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
-               c.royalties_bps, ot.kind AS floor_sell_kind, c.slug, c.is_spam AS c_is_spam,
+               c.royalties_bps, ot.kind AS floor_sell_kind, c.slug, c.is_spam AS c_is_spam, c.is_takedown AS c_is_takedown, t_is_takedown,
                ${query.includeRawData ? "ot.raw_data AS floor_sell_raw_data," : ""}
                ${
                  query.useNonFlaggedFloorAsk
@@ -679,118 +682,125 @@ export const getUserTokensV7Options: RouteOptions = {
           : undefined;
         const acquiredTime = new Date(r.acquired_at * 1000).toISOString();
         return {
-          token: {
-            chainId: config.chainId,
-            contract: contract,
-            tokenId: tokenId,
-            kind: r.kind,
-            name: r.name,
-            image: r.image,
-            imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small),
-            imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large),
-            metadata: r.token_metadata?.image_original_url
-              ? {
-                  imageOriginal: r.token_metadata.image_original_url,
-                }
-              : undefined,
-            rarityScore: r.rarity_score,
-            rarityRank: r.rarity_rank,
-            supply: !_.isNull(r.supply) ? r.supply : null,
-            remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : null,
-            media: r.media,
-            isFlagged: Boolean(Number(r.is_flagged)),
-            isSpam: Boolean(Number(r.t_is_spam)) || Boolean(Number(r.c_is_spam)),
-            lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
-            lastFlagChange: r.last_flag_change ? new Date(r.last_flag_change).toISOString() : null,
-            collection: {
-              id: r.collection_id,
-              name: r.collection_name,
-              slug: r.slug,
-              imageUrl: r.metadata?.imageUrl,
-              isSpam: Boolean(Number(r.c_is_spam)),
-              openseaVerificationStatus: r.opensea_verification_status,
-              floorAskPrice: r.collection_floor_sell_value
-                ? await getJoiPriceObject(
-                    {
-                      gross: {
-                        amount: String(
-                          r.collection_floor_sell_currency_price ?? r.collection_floor_sell_value
-                        ),
-                        nativeAmount: String(r.collection_floor_sell_value),
-                      },
-                    },
-                    collectionFloorSellCurrency,
-                    query.displayCurrency
-                  )
-                : null,
-              royaltiesBps: r.royalties_bps ?? 0,
-              royalties: r.royalties,
-            },
-            lastSale:
-              query.includeLastSale && r.last_sale_currency
-                ? await getJoiSaleObject({
-                    prices: {
-                      gross: {
-                        amount: r.last_sale_currency_price ?? r.last_sale_price,
-                        nativeAmount: r.last_sale_price,
-                        usdAmount: r.last_sale_usd_price,
-                      },
-                    },
-                    fees: {
-                      royaltyFeeBps: r.last_sale_royalty_fee_bps,
-                      marketplaceFeeBps: r.last_sale_marketplace_fee_bps,
-                      paidFullRoyalty: r.last_sale_paid_full_royalty,
-                      royaltyFeeBreakdown: r.last_sale_royalty_fee_breakdown,
-                      marketplaceFeeBreakdown: r.last_sale_marketplace_fee_breakdown,
-                    },
-                    currencyAddress: r.last_sale_currency,
-                    timestamp: r.last_sale_timestamp,
-                  })
+          token: getJoiTokenObject(
+            {
+              chainId: config.chainId,
+              contract: contract,
+              tokenId: tokenId,
+              kind: r.kind,
+              name: r.name,
+              image: r.image,
+              imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small),
+              imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large),
+              metadata: r.token_metadata?.image_original_url
+                ? {
+                    imageOriginal: r.token_metadata.image_original_url,
+                  }
                 : undefined,
-            topBid: query.includeTopBid
-              ? {
-                  id: r.top_bid_id,
-                  price: r.top_bid_value
-                    ? await getJoiPriceObject(
-                        {
-                          net: {
-                            amount: r.top_bid_currency_value ?? r.top_bid_value,
-                            nativeAmount: r.top_bid_value,
-                          },
-                          gross: {
-                            amount: r.top_bid_currency_price ?? r.top_bid_price,
-                            nativeAmount: r.top_bid_price,
-                          },
+              rarityScore: r.rarity_score,
+              rarityRank: r.rarity_rank,
+              supply: !_.isNull(r.supply) ? r.supply : null,
+              remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : null,
+              media: r.media,
+              isFlagged: Boolean(Number(r.is_flagged)),
+              isSpam: Boolean(Number(r.t_is_spam)) || Boolean(Number(r.c_is_spam)),
+              lastFlagUpdate: r.last_flag_update
+                ? new Date(r.last_flag_update).toISOString()
+                : null,
+              lastFlagChange: r.last_flag_change
+                ? new Date(r.last_flag_change).toISOString()
+                : null,
+              collection: {
+                id: r.collection_id,
+                name: r.collection_name,
+                slug: r.slug,
+                imageUrl: r.metadata?.imageUrl,
+                isSpam: Boolean(Number(r.c_is_spam)),
+                openseaVerificationStatus: r.opensea_verification_status,
+                floorAskPrice: r.collection_floor_sell_value
+                  ? await getJoiPriceObject(
+                      {
+                        gross: {
+                          amount: String(
+                            r.collection_floor_sell_currency_price ?? r.collection_floor_sell_value
+                          ),
+                          nativeAmount: String(r.collection_floor_sell_value),
                         },
-                        topBidCurrency,
-                        query.displayCurrency
-                      )
-                    : null,
-                  source: getJoiSourceObject(topBidSource),
-                }
-              : undefined,
-            lastAppraisalValue: r.last_token_appraisal_value
-              ? formatEth(r.last_token_appraisal_value)
-              : null,
-            attributes: query.includeAttributes
-              ? r.attributes
-                ? _.map(r.attributes, (attribute) => ({
-                    key: attribute.key,
-                    kind: attribute.kind,
-                    value: attribute.value,
-                    tokenCount: attribute.tokenCount,
-                    onSaleCount: attribute.onSaleCount,
-                    floorAskPrice: attribute.floorAskPrice
-                      ? formatEth(attribute.floorAskPrice)
-                      : attribute.floorAskPrice,
-                    topBidValue: attribute.topBidValue
-                      ? formatEth(attribute.topBidValue)
-                      : attribute.topBidValue,
-                    createdAt: new Date(attribute.createdAt).toISOString(),
-                  }))
-                : []
-              : undefined,
-          },
+                      },
+                      collectionFloorSellCurrency,
+                      query.displayCurrency
+                    )
+                  : null,
+                royaltiesBps: r.royalties_bps ?? 0,
+                royalties: r.royalties,
+              },
+              lastSale:
+                query.includeLastSale && r.last_sale_currency
+                  ? await getJoiSaleObject({
+                      prices: {
+                        gross: {
+                          amount: r.last_sale_currency_price ?? r.last_sale_price,
+                          nativeAmount: r.last_sale_price,
+                          usdAmount: r.last_sale_usd_price,
+                        },
+                      },
+                      fees: {
+                        royaltyFeeBps: r.last_sale_royalty_fee_bps,
+                        marketplaceFeeBps: r.last_sale_marketplace_fee_bps,
+                        paidFullRoyalty: r.last_sale_paid_full_royalty,
+                        royaltyFeeBreakdown: r.last_sale_royalty_fee_breakdown,
+                        marketplaceFeeBreakdown: r.last_sale_marketplace_fee_breakdown,
+                      },
+                      currencyAddress: r.last_sale_currency,
+                      timestamp: r.last_sale_timestamp,
+                    })
+                  : undefined,
+              topBid: query.includeTopBid
+                ? {
+                    id: r.top_bid_id,
+                    price: r.top_bid_value
+                      ? await getJoiPriceObject(
+                          {
+                            net: {
+                              amount: r.top_bid_currency_value ?? r.top_bid_value,
+                              nativeAmount: r.top_bid_value,
+                            },
+                            gross: {
+                              amount: r.top_bid_currency_price ?? r.top_bid_price,
+                              nativeAmount: r.top_bid_price,
+                            },
+                          },
+                          topBidCurrency,
+                          query.displayCurrency
+                        )
+                      : null,
+                    source: getJoiSourceObject(topBidSource),
+                  }
+                : undefined,
+              lastAppraisalValue: r.last_token_appraisal_value
+                ? formatEth(r.last_token_appraisal_value)
+                : null,
+              attributes: query.includeAttributes
+                ? r.attributes
+                  ? _.map(r.attributes, (attribute) => ({
+                      key: attribute.key,
+                      kind: attribute.kind,
+                      value: attribute.value,
+                      tokenCount: attribute.tokenCount,
+                      onSaleCount: attribute.onSaleCount,
+                      floorAskPrice: attribute.floorAskPrice
+                        ? formatEth(attribute.floorAskPrice)
+                        : attribute.floorAskPrice,
+                      topBidValue: attribute.topBidValue
+                        ? formatEth(attribute.topBidValue)
+                        : attribute.topBidValue,
+                      createdAt: new Date(attribute.createdAt).toISOString(),
+                    }))
+                  : []
+                : undefined,
+            },
+            r.t_is_takedown || r.c_is_takedown
+          ),
           ownership: {
             tokenCount: String(r.token_count),
             onSaleCount: String(r.on_sale_count),

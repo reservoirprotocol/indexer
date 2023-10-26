@@ -833,6 +833,12 @@ export const setupRoutes = (server: Server) => {
     options: managementEndpoints.postSimulateOrderV1Options,
   });
 
+  server.route({
+    method: "POST",
+    path: "/management/takedown/v1",
+    options: managementEndpoints.postTakedownV1Options,
+  });
+
   // Oracle
 
   server.route({

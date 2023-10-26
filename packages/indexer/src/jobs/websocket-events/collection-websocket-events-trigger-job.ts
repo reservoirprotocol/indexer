@@ -53,6 +53,7 @@ interface CollectionInfo {
   top_buy_maker: string;
   top_buy_valid_between: string;
   top_buy_source_id_int: number;
+  is_takedown: number;
   created_at: string;
   updated_at: string;
 }
@@ -201,30 +202,33 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
         ? sources.get(r.non_flagged_floor_sell_source_id_int)
         : null;
 
+      const isTakedown = r.is_takedown;
+      const id = !isTakedown ? r.id : r.contract;
+
       await publishWebsocketEvent({
         event: eventType,
         tags: {
-          id: r.id,
+          id,
         },
         changed,
         data: {
-          id: r.id,
-          slug: r.slug,
-          name: r.name,
+          id,
+          slug: !isTakedown ? r.slug : r.contract,
+          name: !isTakedown ? r.name : r.contract,
           metadata: {
-            imageUrl: Assets.getLocalAssetsLink(metadata?.imageUrl),
-            bannerImageUrl: metadata?.bannerImageUrl,
-            discordUrl: metadata?.discordUrl,
-            externalUrl: metadata?.externalUrl,
-            twitterUsername: metadata?.twitterUsername,
-            description: metadata?.description,
+            imageUrl: !isTakedown ? Assets.getLocalAssetsLink(metadata?.imageUrl) : null,
+            bannerImageUrl: !isTakedown ? metadata?.bannerImageUrl : null,
+            discordUrl: !isTakedown ? metadata?.discordUrl : null,
+            externalUrl: !isTakedown ? metadata?.externalUrl : null,
+            twitterUsername: !isTakedown ? metadata?.twitterUsername : null,
+            description: !isTakedown ? metadata?.description : null,
           },
           tokenCount: String(r.token_count),
           primaryContract: r.contract,
-          tokenSetId: r.token_set_id,
+          tokenSetId: !isTakedown ? r.token_set_id : `contract:${r.contract}`,
           contractKind,
-          openseaVerificationStatus: metadata?.safelistRequestStatus,
-          royalties: r.royalties ? JSON.parse(r.royalties)[0] : null,
+          openseaVerificationStatus: !isTakedown ? metadata?.safelistRequestStatus : null,
+          royalties: !isTakedown && r.royalties ? JSON.parse(r.royalties)[0] : null,
           topBid: {
             id: r.top_buy_id,
             value: r.top_buy_value ? formatEth(r.top_buy_value) : null,

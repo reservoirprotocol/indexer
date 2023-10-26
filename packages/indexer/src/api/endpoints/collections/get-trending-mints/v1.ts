@@ -239,7 +239,6 @@ export const getTrendingMintsV1Options: RouteOptions = {
         normalizeRoyalties,
         useNonFlaggedFloorAsk
       );
-
       const response = h.response({ mints });
       return response;
     } catch (error) {
@@ -306,7 +305,6 @@ async function formatCollections(
     collectionsResult.map(async (r) => {
       const mintData = mintingCollections.find((c) => c.collection_id == r.id);
       const metadata = collectionsMetadata[r.id];
-
       let floorAsk;
       let prefix = "";
 

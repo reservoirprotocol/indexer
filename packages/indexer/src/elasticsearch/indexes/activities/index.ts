@@ -677,6 +677,90 @@ export const getTrendingMintsV2 = async (params: {
   });
 };
 
+export const getTrendingMintsV2 = async (params: {
+  contracts: string[];
+  startTime: number;
+}): Promise<ElasticMintResult[]> => {
+  const { contracts, startTime } = params;
+
+  const { trendingExcludedContracts } = getNetworkSettings();
+
+  const salesQuery = {
+    bool: {
+      filter: [
+        {
+          terms: {
+            type: ["mint"],
+          },
+        },
+        {
+          range: {
+            timestamp: {
+              gte: startTime,
+              format: "epoch_second",
+            },
+          },
+        },
+        {
+          terms: {
+            "collection.id": contracts,
+          },
+        },
+      ],
+      ...(trendingExcludedContracts && {
+        must_not: [
+          {
+            terms: {
+              "collection.id": trendingExcludedContracts,
+            },
+          },
+        ],
+      }),
+    },
+  } as any;
+
+  const collectionAggregation = {
+    collections: {
+      terms: {
+        field: "collection.id",
+        size: 50,
+        order: {
+          total_mints: "desc",
+        },
+      },
+      aggs: {
+        total_mints: {
+          value_count: {
+            field: "id",
+          },
+        },
+        total_volume: {
+          sum: {
+            field: "pricing.priceDecimal",
+          },
+        },
+      },
+    },
+  } as any;
+
+  const esResult = (await elasticsearch.search({
+    index: INDEX_NAME,
+    size: 0,
+    body: {
+      query: salesQuery,
+      aggs: collectionAggregation,
+    },
+  })) as any;
+
+  return esResult?.aggregations?.collections?.buckets?.map((bucket: any) => {
+    return {
+      volume: bucket?.total_volume?.value,
+      count: bucket?.total_mints.value,
+      id: bucket.key,
+    };
+  });
+};
+
 export const deleteActivitiesById = async (ids: string[]): Promise<void> => {
   try {
     const response = await elasticsearch.bulk({

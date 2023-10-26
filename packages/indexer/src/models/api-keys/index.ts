@@ -111,7 +111,9 @@ export class ApiKeyManager {
         created_at: "1970-01-01T00:00:00.000Z",
         active: true,
         tier: 5,
-        permissions: {},
+        permissions: {
+          takedown: true,
+        },
         ips: [],
         origins: [],
         rev_share_bps: ApiKeyManager.defaultRevShareBps,

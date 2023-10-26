@@ -15,7 +15,11 @@ import { SourcesEntity } from "@/models/sources/sources-entity";
 import { OrderKind } from "@/orderbook/orders";
 import { Assets } from "@/utils/assets";
 import { Currency, getCurrency } from "@/utils/currencies";
-import { getUSDAndCurrencyPrices, getUSDAndNativePrices } from "@/utils/prices";
+import {
+  getUSDAndCurrencyPrices,
+  getUSDAndNativePrices,
+  isWhitelistedCurrency,
+} from "@/utils/prices";
 
 // --- Prices ---
 
@@ -119,7 +123,7 @@ export const getJoiPriceObject = async (
   totalFeeBps?: number
 ) => {
   let currency: Currency;
-  if (displayCurrency) {
+  if (displayCurrency && displayCurrency !== currencyAddress) {
     const currentTime = now();
     currency = await getCurrency(displayCurrency);
 
@@ -150,6 +154,12 @@ export const getJoiPriceObject = async (
     }
   } else {
     currency = await getCurrency(currencyAddress);
+  }
+
+  // Set community tokens native/usd value to 0
+  if (isWhitelistedCurrency(currency.contract)) {
+    prices.gross.nativeAmount = "0";
+    prices.gross.usdAmount = "0";
   }
 
   return {
@@ -1000,4 +1010,76 @@ export const getJoiSourceObject = (source: SourcesEntity | undefined, full = tru
         url: full ? source.metadata.url : undefined,
       }
     : null;
+};
+
+// --- Collections ---
+
+export const getJoiCollectionObject = (collection: any, isTakedown: boolean) => {
+  if (isTakedown) {
+    collection.id = collection.primaryContract;
+    collection.name = collection.primaryContract;
+
+    if (collection.slug) {
+      collection.slug = collection.primaryContract;
+    }
+    if (collection.metadata) {
+      collection.metadata = null;
+    }
+    if (collection.community) {
+      collection.community = null;
+    }
+    if (collection.tokenIdRange) {
+      collection.tokenIdRange = null;
+    }
+    if (collection.tokenSetId) {
+      collection.tokenSetId = `contract:${collection.primaryContract}`;
+    }
+    if (collection.royalties) {
+      collection.royalties = null;
+    }
+    if (collection.newRoyalties) {
+      collection.newRoyalties = null;
+    }
+  }
+
+  return collection;
+};
+
+// -- Tokens --
+
+export const getJoiTokenObject = (token: any, isTakedown: boolean) => {
+  if (isTakedown) {
+    token.collection.id = token.contract;
+    token.name = null;
+
+    if (token.collection.slug) {
+      token.collection.slug = token.contract;
+    }
+    if (token.collection.image) {
+      token.collection.image = null;
+    }
+    if (token.isFlagged !== undefined) {
+      token.isFlagged = false;
+    }
+    if (token.media) {
+      token.media = null;
+    }
+    if (token.description) {
+      token.description = null;
+    }
+    if (token.imageSmall) {
+      token.imageSmall = null;
+    }
+    if (token.imageLarge) {
+      token.imageLarge = null;
+    }
+    if (token.metadata) {
+      token.metadata = null;
+    }
+    if (token.attributes) {
+      token.attributes = [];
+    }
+  }
+
+  return token;
 };

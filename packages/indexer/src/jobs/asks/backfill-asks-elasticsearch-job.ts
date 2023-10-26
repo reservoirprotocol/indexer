@@ -22,8 +22,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
       this.queueName,
       JSON.stringify({
         topic: "debugAskIndex",
-        message: `Start. fromTimestamp=${payload.fromTimestamp}, onlyActive=${payload.onlyActive}, cursor=${payload.cursor}`,
-        payload,
+        message: `Start.`,
       })
     );
 
@@ -122,12 +121,20 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
                     LIMIT 1
                  ) t ON TRUE
                   WHERE orders.side = 'sell'
+<<<<<<< HEAD
+                  AND orders.fillability_status = 'fillable'
+                  AND orders.approval_status = 'approved'
+<<<<<<< HEAD
+=======
+=======
                   ${
                     payload.onlyActive
                       ? `AND orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`
                       : ""
                   }
+>>>>>>> main
                   AND kind != 'element-erc1155'
+>>>>>>> main
                   ${continuationFilter}
                   ${fromTimestampFilter}
                   ORDER BY updated_at, id

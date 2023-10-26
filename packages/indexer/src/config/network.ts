@@ -1004,6 +1004,17 @@ export const getNetworkSettings = (): NetworkSettings => {
           // PaymentProcessor WETH
           "0xfff9976782d46cc05630d1f6ebab18b2324d6b14": true,
         },
+        whitelistedCurrencies: new Map([
+          [
+            "0x570e40a09f77f0a098dc7a7ba803adf1d04dd8ec",
+            {
+              contract: "0x570e40a09f77f0a098dc7a7ba803adf1d04dd8ec",
+              name: "Angel community Token",
+              symbol: "ACT",
+              decimals: 18,
+            },
+          ],
+        ]),
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([

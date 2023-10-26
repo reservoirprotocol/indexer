@@ -32,6 +32,15 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
     const { kind, data } = payload;
 
     const pendingAskEventsQueue = new PendingAskEventsQueue();
+    logger.info(
+      this.queueName,
+      JSON.stringify({
+        topic: "debugAskIndex",
+        message: `Start. kind=${kind}, id=${data.id}`,
+        kind,
+        data,
+      })
+    );
 
     if (kind === EventKind.SellOrderInactive) {
       try {
@@ -119,6 +128,16 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
         );
 
         if (rawResult) {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              topic: "debugAskIndex",
+              message: `Debug. kind=${kind}, id=${data.id}`,
+              kind,
+              data,
+            })
+          );
+
           askDocument = new AskDocumentBuilder().buildDocument({
             id: data.id,
             created_at: new Date(data.created_at),
