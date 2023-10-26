@@ -234,6 +234,8 @@ export const save = async (
             Sdk.SeaportBase.Addresses.OkxCancellationZone[config.chainId],
             // FxHash pausable zone
             Sdk.SeaportBase.Addresses.FxHashPausableZone[config.chainId],
+            // Immutable protected zone
+            Sdk.SeaportBase.Addresses.ImmutableProtectedZone[config.chainId],
           ].includes(order.params.zone) &&
           // Protected offers zone
           !isProtectedOffer

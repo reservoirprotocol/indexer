@@ -44,6 +44,7 @@ export interface ActivityDocument extends BaseDocument {
     batchIndex: number;
     blockHash: string;
     fillSourceId?: number;
+    washTradingScore: number;
   };
   token?: {
     id: string;
@@ -118,6 +119,7 @@ export interface BuildActivityData extends BuildDocumentData {
   event_log_index?: number;
   event_batch_index?: number;
   event_fill_source_id?: number;
+  event_wash_trading_score?: number;
   order_id?: string | null;
   order_side?: string;
   order_source_id_int?: number;
@@ -178,6 +180,7 @@ export class ActivityBuilder extends DocumentBuilder {
             batchIndex: data.event_batch_index,
             blockHash: fromBuffer(data.event_block_hash!),
             fillSourceId: data.event_fill_source_id,
+            washTradingScore: data.event_wash_trading_score,
           }
         : undefined,
       token: data.token_id

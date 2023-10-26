@@ -681,7 +681,7 @@ export const savePartialBids = async (
         }
 
         if (skipSaveResult) {
-          logger.info("orders-blur-save", `Skip reprice event. ${JSON.stringify(orderParams)}`);
+          // logger.info("orders-blur-save", `Skip reprice event. ${JSON.stringify(orderParams)}`);
         } else {
           results.push({
             id,
