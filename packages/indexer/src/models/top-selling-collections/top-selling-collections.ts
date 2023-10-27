@@ -7,6 +7,7 @@ import {
 import { CollectionAggregation } from "@/elasticsearch/indexes/activities/base";
 
 import { redb } from "@/common/db";
+import { logger } from "@/common/logger";
 
 const VERSION = "v2";
 const expireTimeInSeconds = 1800;
@@ -86,7 +87,12 @@ export class TopSellingCollections {
   public static async updateTopSellingCollections(): Promise<TopSellingCollectionWindow[]> {
     const periods: Period[] = ["1h", "6h", "1d", "7d", "30d"];
     const fillSorts: FillSort[] = ["volume", "sales"];
-    await saveActiveSpamCollectionIds();
+
+    try {
+      await saveActiveSpamCollectionIds();
+    } catch (err) {
+      logger.error("top-selling-collections", `failed to update active spam collection ids ${err}`);
+    }
 
     const tasks = fillSorts.flatMap((fillSort) => {
       return periods.map(async (period) => {

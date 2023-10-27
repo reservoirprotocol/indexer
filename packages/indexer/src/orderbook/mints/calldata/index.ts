@@ -10,6 +10,7 @@ import { config } from "@/config/index";
 import { mintsProcessJob } from "@/jobs/mints/mints-process-job";
 import { CollectionMint } from "@/orderbook/mints";
 import * as mints from "@/orderbook/mints/calldata/detector";
+import { logger } from "@/common/logger";
 
 // For now, use the deployer address
 const DEFAULT_REFERRER = "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e";
@@ -337,6 +338,11 @@ export const generateCollectionMintTxData = async (
 };
 
 export const refreshMintsForCollection = async (collection: string) => {
+  logger.info(
+    "debug-mints",
+    JSON.stringify({ method: "refresh-mints-for-collection", collection })
+  );
+
   const standardResult = await idb.oneOrNone(
     `
       SELECT
