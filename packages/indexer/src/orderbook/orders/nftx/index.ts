@@ -314,7 +314,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 triggerKind: "new-order",
               });
             } else {
-              await idb.none(
+              const { rowCount } = await idb.result(
                 `
                   UPDATE orders SET
                     fillability_status = 'fillable',
@@ -373,13 +373,16 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   logIndex: orderParams.logIndex,
                 }
               );
-              results.push({
-                id,
-                txHash: orderParams.txHash,
-                txTimestamp: orderParams.txTimestamp,
-                status: "success",
-                triggerKind: "reprice",
-              });
+
+              if (rowCount !== 0) {
+                results.push({
+                  id,
+                  txHash: orderParams.txHash,
+                  txTimestamp: orderParams.txTimestamp,
+                  status: "success",
+                  triggerKind: "reprice",
+                });
+              }
             }
           } else {
             await idb.none(
