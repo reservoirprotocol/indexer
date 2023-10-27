@@ -2245,14 +2245,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
         path,
       };
     } catch (error) {
-      if (!(error instanceof Boom.Boom)) {
-        logger.error(
-          `get-execute-buy-${version}-handler`,
-          `Handler failure: ${error} (path = ${JSON.stringify({})}, request = ${JSON.stringify(
-            payload
-          )})`
-        );
-      }
+      logger.error(
+        `get-execute-buy-${version}-handler`,
+        `Handler failure: ${error} (path = ${JSON.stringify({})}, request = ${JSON.stringify(
+          payload
+        )})`
+      );
+
       throw error;
     }
   },

@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { _TypedDataEncoder } from "@ethersproject/hash";
-import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
@@ -1230,9 +1229,8 @@ export const getExecuteListV5Options: RouteOptions = {
         errors,
       };
     } catch (error) {
-      if (!(error instanceof Boom.Boom)) {
-        logger.error(`get-execute-list-${version}-handler`, `Handler failure: ${error}`);
-      }
+      logger.error(`get-execute-list-${version}-handler`, `Handler failure: ${error}`);
+
       throw error;
     }
   },
