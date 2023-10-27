@@ -180,6 +180,9 @@ export const updateRoyaltySpec = async (
             SET new_royalties = $/royalties:json/,
                 updated_at = NOW()
           WHERE collections.id = $/collection/
+          AND (
+            new_royalties IS DISTINCT FROM $/royalties:json/
+          )
         `,
         {
           collection,

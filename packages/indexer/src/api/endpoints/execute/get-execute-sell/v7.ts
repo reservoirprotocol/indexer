@@ -2,7 +2,6 @@ import { BigNumber } from "@ethersproject/bignumber";
 import { AddressZero } from "@ethersproject/constants";
 import { keccak256 } from "@ethersproject/solidity";
 import { parseEther } from "@ethersproject/units";
-import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { BidDetails, FillBidsResult } from "@reservoir0x/sdk/dist/router/v6/types";
@@ -1346,15 +1345,14 @@ export const getExecuteSellV7Options: RouteOptions = {
         path,
       };
     } catch (error) {
-      if (!(error instanceof Boom.Boom)) {
-        logger.error(
-          `get-execute-sell-${version}-handler`,
-          `Handler failure: ${error} (path = ${JSON.stringify({})}, request = ${JSON.stringify(
-            payload
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          )}, trace=${(error as any).stack})`
-        );
-      }
+      logger.error(
+        `get-execute-sell-${version}-handler`,
+        `Handler failure: ${error} (path = ${JSON.stringify({})}, request = ${JSON.stringify(
+          payload
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        )}, trace=${(error as any).stack})`
+      );
+
       throw error;
     }
   },

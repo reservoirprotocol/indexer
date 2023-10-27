@@ -232,7 +232,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
                 }
               }
 
-              if (changed.length === 1 && config.chainId === 11155111) {
+              if (changed.length === 1) {
                 logger.info(
                   this.queueName,
                   JSON.stringify({

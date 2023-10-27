@@ -690,11 +690,11 @@ export class DailyVolume {
             WHERE id = $/collection_id/
             AND (
             day7_volume IS DISTINCT FROM $/day7_volume/
-            ${collectionId ? "" : `OR day7_rank IS DISTINCT FROM $/day7_rank/,`}
+            ${collectionId ? "" : `OR day7_rank IS DISTINCT FROM $/day7_rank/`}
             OR day30_volume IS DISTINCT FROM $/day30_volume/
-            ${collectionId ? "" : `OR day30_rank IS DISTINCT FROM $/day30_rank/,`}
+            ${collectionId ? "" : `OR day30_rank IS DISTINCT FROM $/day30_rank/`}
             OR all_time_volume IS DISTINCT FROM $/all_time_volume/
-            ${collectionId ? "" : `OR all_time_rank IS DISTINCT FROM $/all_time_rank/,`}
+            ${collectionId ? "" : `OR all_time_rank IS DISTINCT FROM $/all_time_rank/`}
             )`,
           values: row,
         });
@@ -906,7 +906,7 @@ export class DailyVolume {
             UPDATE collections
             SET day${period}_floor_sell_value = $/floor_sell_value/,
                 updated_at = now()                              
-            WHERE id = $/collection_id/`,
+            WHERE id = $/collection_id/ AND (day${period}_floor_sell_value IS DISTINCT FROM $/floor_sell_value/)`,
         values: row,
       });
     });

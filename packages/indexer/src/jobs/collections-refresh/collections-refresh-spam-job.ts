@@ -41,7 +41,7 @@ export default class CollectionRefreshSpamJob extends AbstractRabbitMqJobHandler
       if (!_.isEmpty(newSpamContracts)) {
         const query = `
           UPDATE collections
-          SET is_spam = 1
+          SET is_spam = 1, updated_at = now()
           WHERE contract IN ($/newSpamContracts:list/)
         `;
 

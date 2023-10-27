@@ -93,6 +93,7 @@ export default class RecalcOwnerCountQueueJob extends AbstractRabbitMqJobHandler
                   owner_count = $/ownerCount/, 
                   updated_at = now() 
                 WHERE id = $/collectionId/
+                AND (owner_count IS DISTINCT FROM $/ownerCount/);
               `,
             {
               collectionId: collection.id,
