@@ -1613,13 +1613,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
       }
 
       // Cross-chain intent purchasing MVP
-      if (
-        payload.currency === Sdk.Common.Addresses.Native[config.chainId] &&
-        payload.currencyChainId !== undefined &&
-        payload.currencyChainId !== config.chainId
-      ) {
+      if (payload.currencyChainId !== undefined && payload.currencyChainId !== config.chainId) {
         if (!config.crossChainSolverBaseUrl) {
           throw Boom.badRequest("Cross-chain purchasing not supported");
+        }
+
+        if (buyInCurrency !== Sdk.Common.Addresses.Native[config.chainId]) {
+          throw Boom.badRequest("Only native currency is supported for cross-chain purchasing");
         }
 
         if (path.length > 1) {
@@ -2245,14 +2245,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
         path,
       };
     } catch (error) {
-      if (!(error instanceof Boom.Boom)) {
-        logger.error(
-          `get-execute-buy-${version}-handler`,
-          `Handler failure: ${error} (path = ${JSON.stringify({})}, request = ${JSON.stringify(
-            payload
-          )})`
-        );
-      }
+      logger.error(
+        `get-execute-buy-${version}-handler`,
+        `Handler failure: ${error} (path = ${JSON.stringify({})}, request = ${JSON.stringify(
+          payload
+        )})`
+      );
+
       throw error;
     }
   },
