@@ -114,6 +114,7 @@ export default class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
     const tokenUrlZksync = this.getTokenUrl(html, url, "zksync");
     const tokenUrlPolygonZkevm = this.getTokenUrl(html, url, "polygon-zkevm");
     const tokenUrlScroll = this.getTokenUrl(html, url, "scroll");
+    const tokenUrlImmutableZkevmTestnet = this.getTokenUrl(html, url, "immutable-zkevm-testnet");
 
     // Update the source data
     const sources = await Sources.getInstance();
@@ -142,6 +143,7 @@ export default class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
       tokenUrlZksync,
       tokenUrlPolygonZkevm,
       tokenUrlScroll,
+      tokenUrlImmutableZkevmTestnet,
     });
   }
 

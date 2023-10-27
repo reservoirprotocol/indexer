@@ -43,6 +43,8 @@ export default class MintsProcessJob extends AbstractRabbitMqJobHandler {
     const { by, data } = payload;
 
     try {
+      logger.info("debug-mints", JSON.stringify({ method: "mints-process-job", data: payload }));
+
       let collectionMints: CollectionMint[] = [];
 
       // Process new mints knowing a mint transaction

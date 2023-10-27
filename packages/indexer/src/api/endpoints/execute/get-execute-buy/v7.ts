@@ -834,60 +834,66 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   }
 
                   if (quantityToMint > 0) {
-                    const { txData, price } = await generateCollectionMintTxData(
-                      mint,
-                      payload.taker,
-                      quantityToMint,
-                      {
-                        comment: payload.comment,
-                        referrer: payload.referrer,
-                      }
-                    );
+                    try {
+                      const { txData, price } = await generateCollectionMintTxData(
+                        mint,
+                        payload.taker,
+                        quantityToMint,
+                        {
+                          comment: payload.comment,
+                          referrer: payload.referrer,
+                        }
+                      );
 
-                    const orderId = `mint:${item.collection}`;
-                    mintDetails.push({
-                      orderId,
-                      txData,
-                      fees: [],
-                      token: mint.contract,
-                      quantity: quantityToMint,
-                      comment: payload.comment,
-                    });
-
-                    await addToPath(
-                      {
-                        id: orderId,
-                        kind: "mint",
-                        maker: mint.contract,
-                        nativePrice: price,
-                        price: price,
-                        sourceId: null,
-                        currency: mint.currency,
-                        rawData: {},
-                        builtInFees: [],
-                        additionalFees: [],
-                      },
-                      {
-                        kind: collectionData.token_kind,
-                        contract: mint.contract,
+                      const orderId = `mint:${item.collection}`;
+                      mintDetails.push({
+                        orderId,
+                        txData,
+                        fees: [],
+                        token: mint.contract,
                         quantity: quantityToMint,
-                      }
-                    );
-
-                    if (preview) {
-                      // The max quantity is the amount mintable on the collection
-                      maxQuantities.push({
-                        itemIndex,
-                        maxQuantity: mint.tokenId
-                          ? quantityToMint.toString()
-                          : amountMintable
-                          ? amountMintable.toString()
-                          : null,
+                        comment: payload.comment,
                       });
-                    }
 
-                    item.quantity -= quantityToMint;
-                    mintAvailable = true;
+                      await addToPath(
+                        {
+                          id: orderId,
+                          kind: "mint",
+                          maker: mint.contract,
+                          nativePrice: price,
+                          price: price,
+                          sourceId: null,
+                          currency: mint.currency,
+                          rawData: {},
+                          builtInFees: [],
+                          additionalFees: [],
+                        },
+                        {
+                          kind: collectionData.token_kind,
+                          contract: mint.contract,
+                          quantity: quantityToMint,
+                        }
+                      );
+
+                      if (preview) {
+                        // The max quantity is the amount mintable on the collection
+                        maxQuantities.push({
+                          itemIndex,
+                          maxQuantity: mint.tokenId
+                            ? quantityToMint.toString()
+                            : amountMintable
+                            ? amountMintable.toString()
+                            : null,
+                        });
+                      }
+
+                      item.quantity -= quantityToMint;
+                      mintAvailable = true;
+                    } catch {
+                      // Skip errors
+                      // Mostly coming from allowlist mints for which the user is not authorized
+                      // TODO: Have an allowlist check instead of handling it via `try` / `catch`
+                    }
                   }
 
                   hasActiveMints = true;
@@ -1047,57 +1053,63 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   ).toNumber();
 
                   if (quantityToMint > 0) {
-                    const { txData, price } = await generateCollectionMintTxData(
-                      mint,
-                      payload.taker,
-                      quantityToMint,
-                      {
-                        comment: payload.comment,
-                        referrer: payload.referrer,
-                      }
-                    );
+                    try {
+                      const { txData, price } = await generateCollectionMintTxData(
+                        mint,
+                        payload.taker,
+                        quantityToMint,
+                        {
+                          comment: payload.comment,
+                          referrer: payload.referrer,
+                        }
+                      );
 
-                    const orderId = `mint:${collectionData.id}`;
-                    mintDetails.push({
-                      orderId,
-                      txData,
-                      fees: [],
-                      token: mint.contract,
-                      quantity: quantityToMint,
-                      comment: payload.comment,
-                    });
-
-                    await addToPath(
-                      {
-                        id: orderId,
-                        kind: "mint",
-                        maker: mint.contract,
-                        nativePrice: price,
-                        price: price,
-                        sourceId: null,
-                        currency: mint.currency,
-                        rawData: {},
-                        builtInFees: [],
-                        additionalFees: [],
-                      },
-                      {
-                        kind: collectionData.token_kind,
-                        contract: mint.contract,
-                        tokenId,
+                      const orderId = `mint:${collectionData.id}`;
+                      mintDetails.push({
+                        orderId,
+                        txData,
+                        fees: [],
+                        token: mint.contract,
                         quantity: quantityToMint,
-                      }
-                    );
-
-                    if (preview) {
-                      // The max quantity is the amount mintable on the collection
-                      maxQuantities.push({
-                        itemIndex,
-                        maxQuantity: amountMintable ? amountMintable.toString() : null,
+                        comment: payload.comment,
                       });
-                    }
 
-                    item.quantity -= quantityToMint;
-                    mintAvailable = true;
+                      await addToPath(
+                        {
+                          id: orderId,
+                          kind: "mint",
+                          maker: mint.contract,
+                          nativePrice: price,
+                          price: price,
+                          sourceId: null,
+                          currency: mint.currency,
+                          rawData: {},
+                          builtInFees: [],
+                          additionalFees: [],
+                        },
+                        {
+                          kind: collectionData.token_kind,
+                          contract: mint.contract,
+                          tokenId,
+                          quantity: quantityToMint,
+                        }
+                      );
+
+                      if (preview) {
+                        // The max quantity is the amount mintable on the collection
+                        maxQuantities.push({
+                          itemIndex,
+                          maxQuantity: amountMintable ? amountMintable.toString() : null,
+                        });
+                      }
+
+                      item.quantity -= quantityToMint;
+                      mintAvailable = true;
+                    } catch {
+                      // Skip errors
+                      // Mostly coming from allowlist mints for which the user is not authorized
+                      // TODO: Have an allowlist check instead of handling it via `try` / `catch`
+                    }
                   }
 
                   hasActiveMints = true;
@@ -1601,13 +1613,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
       }
 
       // Cross-chain intent purchasing MVP
-      if (
-        payload.currency === Sdk.Common.Addresses.Native[config.chainId] &&
-        payload.currencyChainId !== undefined &&
-        payload.currencyChainId !== config.chainId
-      ) {
+      if (payload.currencyChainId !== undefined && payload.currencyChainId !== config.chainId) {
         if (!config.crossChainSolverBaseUrl) {
           throw Boom.badRequest("Cross-chain purchasing not supported");
+        }
+
+        if (buyInCurrency !== Sdk.Common.Addresses.Native[config.chainId]) {
+          throw Boom.badRequest("Only native currency is supported for cross-chain purchasing");
         }
 
         if (path.length > 1) {
@@ -2233,14 +2245,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
         path,
       };
     } catch (error) {
-      if (!(error instanceof Boom.Boom)) {
-        logger.error(
-          `get-execute-buy-${version}-handler`,
-          `Handler failure: ${error} (path = ${JSON.stringify({})}, request = ${JSON.stringify(
-            payload
-          )})`
-        );
-      }
+      logger.error(
+        `get-execute-buy-${version}-handler`,
+        `Handler failure: ${error} (path = ${JSON.stringify({})}, request = ${JSON.stringify(
+          payload
+        )})`
+      );
+
       throw error;
     }
   },

@@ -255,11 +255,12 @@ export class Router {
     const txs: FillMintsResult["txs"][0][] = [];
     const success: { [orderId: string]: boolean } = {};
 
+    const sender = options?.relayer ?? taker;
+
     if (
       !Addresses.MintModule[this.chainId] ||
-      !options?.relayer ||
       options?.forceDirectFilling ||
-      (details.length === 1 && !details[0].fees?.length && !details[0].comment)
+      (details.length === 1 && !details[0].fees?.length && !details[0].comment && !options?.relayer)
     ) {
       // Under some conditions, we simply return that transaction data back to the caller
 
@@ -267,6 +268,7 @@ export class Router {
         txs.push({
           txData: {
             ...txData,
+            from: sender,
             data: txData.data + generateSourceBytes(options?.source),
           },
           txTags: {
@@ -292,7 +294,7 @@ export class Router {
           comment: d.comment ?? "",
         })),
         {
-          refundTo: taker,
+          refundTo: sender,
           revertIfIncomplete: Boolean(!options?.partial),
         },
       ]);
@@ -311,7 +313,7 @@ export class Router {
         .toHexString();
       txs.push({
         txData: {
-          from: options?.relayer || taker,
+          from: sender,
           to: this.contracts.router.address,
           data:
             this.contracts.router.interface.encodeFunctionData("execute", [

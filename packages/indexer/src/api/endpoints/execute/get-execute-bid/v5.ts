@@ -2,7 +2,6 @@
 
 import { BigNumber } from "@ethersproject/bignumber";
 import { _TypedDataEncoder } from "@ethersproject/hash";
-import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
@@ -1561,9 +1560,8 @@ export const getExecuteBidV5Options: RouteOptions = {
 
       return { steps, errors };
     } catch (error) {
-      if (!(error instanceof Boom.Boom)) {
-        logger.error(`get-execute-bid-${version}-handler`, `Handler failure: ${error}`);
-      }
+      logger.error(`get-execute-bid-${version}-handler`, `Handler failure: ${error}`);
+
       throw error;
     }
   },

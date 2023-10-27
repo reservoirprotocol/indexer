@@ -9,7 +9,6 @@ import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 import { getStartTime } from "@/models/top-selling-collections/top-selling-collections";
 import { chunk, flatMap } from "lodash";
-
 import { redis } from "@/common/redis";
 
 const REDIS_EXPIRATION = 60 * 60 * 24; // 24 hours
