@@ -633,7 +633,9 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
           "opensea-fetcher",
           JSON.stringify({
             topic: "getOSData",
-            message: "Could not fetch from API",
+            message: `Could not fetch from API. responseData=${JSON.stringify(
+              error.response?.data
+            )}`,
             url,
             contract,
             tokenId,
