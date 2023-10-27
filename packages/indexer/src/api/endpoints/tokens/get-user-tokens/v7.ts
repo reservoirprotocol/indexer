@@ -126,7 +126,7 @@ export const getUserTokensV7Options: RouteOptions = {
       includeRawData: Joi.boolean()
         .default(false)
         .description("If true, raw data is included in the response."),
-      filterSpam: Joi.boolean()
+      excludeSpam: Joi.boolean()
         .default(false)
         .description("If true, will filter any tokens marked as spam."),
       useNonFlaggedFloorAsk: Joi.boolean()
@@ -436,7 +436,7 @@ export const getUserTokensV7Options: RouteOptions = {
         ${includeRoyaltyBreakdownQuery}
         WHERE b.token_id = t.token_id
         AND b.contract = t.contract
-        ${query.filterSpam ? `AND t.is_spam = 0` : ""}
+        ${query.excludeSpam ? `AND t.is_spam != 1` : ""}
         AND ${
           tokensCollectionFilters.length ? "(" + tokensCollectionFilters.join(" OR ") + ")" : "TRUE"
         }
@@ -584,7 +584,7 @@ export const getUserTokensV7Options: RouteOptions = {
           ) AS b
           ${tokensJoin}
           JOIN collections c ON c.id = t.collection_id ${
-            query.filterSpam ? `AND c.is_spam = 0` : ""
+            query.excludeSpam ? `AND c.is_spam != 1` : ""
           }
           LEFT JOIN orders o ON o.id = c.floor_sell_id
           LEFT JOIN orders ot ON ot.id = t.floor_sell_id
