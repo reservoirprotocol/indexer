@@ -69,7 +69,18 @@ export class Assets {
   public static getResizedImageUrl(imageUrl: string, size: number): string {
     try {
       if (config.enableImageResizing) {
-        return Assets.signImage(imageUrl, size);
+        let resizeImageUrl = imageUrl;
+        if (imageUrl?.includes("lh3.googleusercontent.com")) {
+          if (imageUrl.match(/=s\d+$/)) {
+            resizeImageUrl = imageUrl.replace(/=s\d+$/, `=s${ImageSize.large}`);
+          }
+        } else if (imageUrl?.includes("i.seadn.io")) {
+          if (imageUrl.match(/w=\d+/)) {
+            resizeImageUrl = imageUrl.replace(/w=\d+/, `w=${ImageSize.large}`);
+          }
+        }
+
+        return Assets.signImage(resizeImageUrl, size);
       }
     } catch (error) {
       logger.error("getResizedImageUrl", `Error: ${error}`);
