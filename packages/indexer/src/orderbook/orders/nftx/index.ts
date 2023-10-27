@@ -338,6 +338,24 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     log_index = $/logIndex/
                   WHERE orders.id = $/id/
                     ${recheckCondition}
+                    AND (
+                    orders.fillability_status != 'fillable' 
+                    OR orders.fillability_status != 'approved'
+                    OR orders.price IS DISTINCT FROM $/price/
+                    OR orders.currency_price IS DISTINCT FROM $/price/
+                    OR orders.value IS DISTINCT FROM $/value/
+                    OR orders.currency_value IS DISTINCT FROM $/value/
+                    OR orders.quantity_remaining IS DISTINCT FROM $/quantityRemaining/
+                    OR orders.raw_data IS DISTINCT FROM $/rawData:json/
+                    OR orders.missing_royalties IS DISTINCT FROM $/missingRoyalties:json/
+                    OR orders.normalized_value IS DISTINCT FROM $/normalizedValue/
+                    OR orders.currency_normalized_value IS DISTINCT FROM $/currencyNormalizedValue/
+                    OR orders.fee_bps IS DISTINCT FROM $/feeBps/
+                    OR orders.fee_breakdown IS DISTINCT FROM $/feeBreakdown:json/
+                    OR orders.currency IS DISTINCT FROM $/currency/
+                    OR orders.block_number IS DISTINCT FROM $/blockNumber/
+                    OR orders.log_index IS DISTINCT FROM $/logIndex/
+                    )
                 `,
                 {
                   id,
