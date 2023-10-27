@@ -4,6 +4,7 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 import { acquireLock, doesLockExist, redis, releaseLock } from "@/common/redis";
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 import { config } from "@/config/index";
+import { logger } from "@/common/logger";
 
 export type CollectionFloorJobPayload = {
   kind: string;
@@ -55,6 +56,17 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
       if (!acquiredLock) {
         return;
       }
+    }
+
+    if (config.chainId === 11155111) {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "debugCollectionUpdates",
+          message: `Update collection. collectionId=${collectionResult.collection_id}`,
+          collectionId: collectionResult.collection_id,
+        })
+      );
     }
 
     const collectionFloorAsk = await idb.oneOrNone(
