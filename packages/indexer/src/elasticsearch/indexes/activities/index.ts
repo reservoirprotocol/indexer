@@ -357,32 +357,17 @@ export const getRecentSalesByCollection = async (
           },
         },
         {
-          bool: {
-            should: [
-              {
-                term: {
-                  "event.washTradingScore": 0,
-                },
-              },
-              {
-                bool: {
-                  must_not: {
-                    exists: {
-                      field: "event.washTradingScore",
-                    },
-                  },
-                },
-              },
-            ],
-            minimum_should_match: 1,
-          },
-        },
-        {
           terms: {
             type: fillType == "any" ? ["sale", "mint"] : [fillType],
           },
         },
       ],
+
+      must_not: {
+        term: {
+          "event.washTradingScore": 1,
+        },
+      },
     },
   } as any;
 
@@ -476,27 +461,6 @@ const getPastResults = async (
           },
         },
         {
-          bool: {
-            should: [
-              {
-                term: {
-                  "event.washTradingScore": 0,
-                },
-              },
-              {
-                bool: {
-                  must_not: {
-                    exists: {
-                      field: "event.washTradingScore",
-                    },
-                  },
-                },
-              },
-            ],
-            minimum_should_match: 1,
-          },
-        },
-        {
           range: {
             timestamp: {
               gte: previousPeriodStartTime,
@@ -506,6 +470,12 @@ const getPastResults = async (
           },
         },
       ],
+
+      must_not: {
+        term: {
+          "event.washTradingScore": 1,
+        },
+      },
     },
   } as any;
 
@@ -569,27 +539,7 @@ export const getTopSellingCollectionsV2 = async (params: {
             type: fillType == "any" ? ["sale", "mint"] : [fillType],
           },
         },
-        {
-          bool: {
-            should: [
-              {
-                term: {
-                  "event.washTradingScore": 0,
-                },
-              },
-              {
-                bool: {
-                  must_not: {
-                    exists: {
-                      field: "event.washTradingScore",
-                    },
-                  },
-                },
-              },
-            ],
-            minimum_should_match: 1,
-          },
-        },
+
         {
           range: {
             timestamp: {
@@ -599,15 +549,21 @@ export const getTopSellingCollectionsV2 = async (params: {
           },
         },
       ],
-      ...(trendingExcludedContracts && {
-        must_not: [
+
+      must_not: [
+        {
+          term: {
+            "event.washTradingScore": 1,
+          },
+        },
+        ...(trendingExcludedContracts && [
           {
             terms: {
               "collection.id": excludedCollections,
             },
           },
-        ],
-      }),
+        ]),
+      ],
     },
   } as any;
 
