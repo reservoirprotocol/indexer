@@ -357,6 +357,27 @@ export const getRecentSalesByCollection = async (
           },
         },
         {
+          bool: {
+            should: [
+              {
+                term: {
+                  "event.washTradingScore": 0,
+                },
+              },
+              {
+                bool: {
+                  must_not: {
+                    exists: {
+                      field: "event.washTradingScore",
+                    },
+                  },
+                },
+              },
+            ],
+            minimum_should_match: 1,
+          },
+        },
+        {
           terms: {
             type: fillType == "any" ? ["sale", "mint"] : [fillType],
           },
@@ -455,6 +476,27 @@ const getPastResults = async (
           },
         },
         {
+          bool: {
+            should: [
+              {
+                term: {
+                  "event.washTradingScore": 0,
+                },
+              },
+              {
+                bool: {
+                  must_not: {
+                    exists: {
+                      field: "event.washTradingScore",
+                    },
+                  },
+                },
+              },
+            ],
+            minimum_should_match: 1,
+          },
+        },
+        {
           range: {
             timestamp: {
               gte: previousPeriodStartTime,
@@ -471,6 +513,7 @@ const getPastResults = async (
     collections: {
       terms: {
         field: "collection.id",
+        size: collections.length,
       },
       aggs: {
         total_sales: {
@@ -524,6 +567,27 @@ export const getTopSellingCollectionsV2 = async (params: {
         {
           terms: {
             type: fillType == "any" ? ["sale", "mint"] : [fillType],
+          },
+        },
+        {
+          bool: {
+            should: [
+              {
+                term: {
+                  "event.washTradingScore": 0,
+                },
+              },
+              {
+                bool: {
+                  must_not: {
+                    exists: {
+                      field: "event.washTradingScore",
+                    },
+                  },
+                },
+              },
+            ],
+            minimum_should_match: 1,
           },
         },
         {
