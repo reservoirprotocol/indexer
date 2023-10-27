@@ -11,7 +11,7 @@ export type RefreshActivitiesCollectionMetadataJobPayload = {
   collectionUpdateData?: { name: string | null; image: string | null };
 };
 
-export class RefreshActivitiesCollectionMetadataJob extends AbstractRabbitMqJobHandler {
+export default class RefreshActivitiesCollectionMetadataJob extends AbstractRabbitMqJobHandler {
   queueName = "refresh-activities-collection-metadata-queue";
   maxRetries = 10;
   concurrency = 1;

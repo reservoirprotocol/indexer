@@ -58,7 +58,7 @@ export enum DataSource {
   tokenAttributesV2 = "token-attributes-v2",
 }
 
-export class ExportDataJob extends AbstractRabbitMqJobHandler {
+export default class ExportDataJob extends AbstractRabbitMqJobHandler {
   queueName = "export-data-queue";
   maxRetries = 10;
   concurrency = 1;

@@ -41,7 +41,7 @@ export type MetadataIndexFetchJobPayload =
       context?: string;
     };
 
-export class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
+export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
   queueName = "metadata-index-fetch-queue";
   maxRetries = 10;
   concurrency = 5;

@@ -33,7 +33,7 @@ export type MintsProcessJobPayload =
       };
     };
 
-export class MintsProcessJob extends AbstractRabbitMqJobHandler {
+export default class MintsProcessJob extends AbstractRabbitMqJobHandler {
   queueName = "mints-process";
   maxRetries = 3;
   concurrency = 30;

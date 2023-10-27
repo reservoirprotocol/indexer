@@ -20,7 +20,7 @@ export type FetchCollectionMetadataJobPayload = {
   context?: string;
 };
 
-export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
+export default class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
   queueName = "token-updates-fetch-collection-metadata-queue";
   maxRetries = 10;
   concurrency = 5;
@@ -102,6 +102,17 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
       let tokenFilter = `AND "token_id" <@ ${tokenIdRangeParam}`;
       if (_.isNull(tokenIdRange)) {
         tokenFilter = `AND "token_id" = $/tokenId/`;
+      }
+
+      if (config.chainId === 11155111) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "debugTokenUpdate",
+            message: `Update token. contract=${contract}, tokenId=${tokenId}`,
+            token: `${contract}:${tokenId}`,
+          })
+        );
       }
 
       // Since this is the first time we run into this collection,

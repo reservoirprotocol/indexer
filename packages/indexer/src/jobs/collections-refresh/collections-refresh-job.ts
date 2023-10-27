@@ -10,7 +10,7 @@ import {
 import { redb } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
 
-export class CollectionRefreshJob extends AbstractRabbitMqJobHandler {
+export default class CollectionRefreshJob extends AbstractRabbitMqJobHandler {
   queueName = "collections-refresh-queue";
   maxRetries = 10;
   concurrency = 1;

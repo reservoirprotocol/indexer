@@ -1,17 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import _ from "lodash";
+import cron from "node-cron";
+
+import { config } from "@/config/index";
+import { logger } from "@/common/logger";
+import { acquireLock, redlock } from "@/common/redis";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-
 import { getTokenFlagStatus } from "@/jobs/flag-status/utils";
-import { acquireLock, redlock } from "@/common/redis";
-import { logger } from "@/common/logger";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
-import { RequestWasThrottledError } from "../orderbook/post-order-external/api/errors";
-import { config } from "@/config/index";
-import cron from "node-cron";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
-import _ from "lodash";
+import { RequestWasThrottledError } from "@/metadata/providers/utils";
+
+export const MAX_PARALLEL_TOKENS = 4;
+export const DEFAULT_JOB_DELAY_SECONDS = 1;
 
 export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
   queueName = "token-flag-status-sync-queue";
@@ -24,10 +27,10 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
   protected async process() {
     let addToQueue = false;
 
-    const lockAcquired = await acquireLock(this.getLockName(), 1);
+    const lockAcquired = await acquireLock(this.getLockName(), DEFAULT_JOB_DELAY_SECONDS);
 
     if (lockAcquired) {
-      const tokensToGetFlagStatusFor = await PendingFlagStatusSyncTokens.get(4);
+      const tokensToGetFlagStatusFor = await PendingFlagStatusSyncTokens.get(MAX_PARALLEL_TOKENS);
 
       if (tokensToGetFlagStatusFor.length) {
         const tokensToGetFlagStatusForChunks = _.chunk(tokensToGetFlagStatusFor, 1);
@@ -41,7 +44,11 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
               if (error instanceof RequestWasThrottledError) {
                 logger.warn(
                   this.queueName,
-                  `Too Many Requests.  error: ${JSON.stringify((error as any).response.data)}`
+                  JSON.stringify({
+                    message: `Too Many Requests. error=${error}`,
+                    tokensToGetFlagStatusForChunk,
+                    error,
+                  })
                 );
 
                 await PendingFlagStatusSyncTokens.add(tokensToGetFlagStatusForChunk, true);
@@ -90,7 +97,7 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
     }
   ) {
     if (processResult?.addToQueue) {
-      await this.addToQueue(1000);
+      await this.addToQueue(DEFAULT_JOB_DELAY_SECONDS * 1000);
     }
   }
 

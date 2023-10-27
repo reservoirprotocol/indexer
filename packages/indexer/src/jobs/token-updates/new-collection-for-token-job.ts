@@ -182,10 +182,16 @@ export class NewCollectionForTokenJob extends AbstractRabbitMqJobHandler {
         });
       }
 
-      logger.info(
-        this.queueName,
-        `setting collection ${collection.id} for contract ${contract} tokenId ${tokenId} not found`
-      );
+      if (config.chainId === 11155111) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "debugTokenUpdate",
+            message: `Update token. contract=${contract}, tokenId=${tokenId}`,
+            token: `${contract}:${tokenId}`,
+          })
+        );
+      }
 
       // Update the token new collection
       queries.push({

@@ -75,6 +75,9 @@ export const getNetworkName = () => {
     case 2863311531:
       return "ancient8-testnet";
 
+    case 534352:
+      return "scroll";
+
     default:
       return "unknown";
   }
@@ -113,7 +116,7 @@ export const getOpenseaNetworkName = () => {
     case 999:
       return "zora_testnet";
     default:
-      throw new Error(`Unsupported chainId ${config.chainId}`);
+      return null;
   }
 };
 
@@ -210,7 +213,11 @@ export const getNetworkSettings = (): NetworkSettings => {
     nonSimulatableContracts: [],
     multiCollectionContracts: [],
     mintsAsSalesBlacklist: [],
-    mintAddresses: [AddressZero],
+    mintAddresses: [
+      AddressZero,
+      // Limitbreak
+      "0x00000089e8825c9a59b4503398faacf2e9a9cdb0",
+    ],
     burnAddresses: [AddressZero, "0x000000000000000000000000000000000000dead"],
     reorgCheckFrequency: [1, 5, 10, 30, 60], // In minutes
     whitelistedCurrencies: new Map<string, Currency>(),
@@ -225,7 +232,9 @@ export const getNetworkSettings = (): NetworkSettings => {
       indexes: {
         activities: {
           numberOfShards: 2,
-          configName: "CONFIG_1689873821",
+        },
+        asks: {
+          numberOfShards: 1,
         },
       },
     },
@@ -702,14 +711,35 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
-            "0x011e128ec62840186f4a07e85e3ace28858c5606",
+            "0x456f931298065b1852647de005dd27227146d8b9",
             {
-              contract: "0x011e128ec62840186f4a07e85e3ace28858c5606",
+              contract: "0x456f931298065b1852647de005dd27227146d8b9",
               name: "WVAL",
               symbol: "$VAL",
               decimals: 18,
               metadata: {
                 image: "https://i.ibb.co/s1k4Qvz/valeria-logo.png",
+              },
+            },
+          ],
+          [
+            "0x87cc4e6a40c6d3500403a83bbbb5de065fd46ef0",
+            {
+              contract: "0x87cc4e6a40c6d3500403a83bbbb5de065fd46ef0",
+              name: "p_TAVA",
+              symbol: "TAVA",
+              decimals: 18,
+            },
+          ],
+          [
+            "0xca80e0a5c8d56617894eac6737c11965af56cef5",
+            {
+              contract: "0xca80e0a5c8d56617894eac6737c11965af56cef5",
+              name: "Altava Fashion Link",
+              symbol: "$FLT",
+              decimals: 18,
+              metadata: {
+                image: "https://i.ibb.co/s91hZsX/FLT-256-Circle.png",
               },
             },
           ],
@@ -1359,6 +1389,42 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // Scroll Mainnet
+    case 534352: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        headBlockDelay: 10,
+        coingecko: {
+          networkId: "scroll",
+        },
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([

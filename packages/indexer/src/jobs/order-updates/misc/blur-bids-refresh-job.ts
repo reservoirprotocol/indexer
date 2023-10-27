@@ -14,7 +14,7 @@ export type BlurBidsRefreshJobPayload = {
   collection: string;
 };
 
-export class BlurBidsRefreshJob extends AbstractRabbitMqJobHandler {
+export default class BlurBidsRefreshJob extends AbstractRabbitMqJobHandler {
   queueName = "blur-bids-refresh";
   maxRetries = 3;
   concurrency = 1;

@@ -8,7 +8,7 @@ export type SetCommunityQueueJobPayload = {
   attempts?: number;
 };
 
-export class SetCommunityQueueJob extends AbstractRabbitMqJobHandler {
+export default class SetCommunityQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "collection-set-community-queue";
   maxRetries = 10;
   concurrency = 5;

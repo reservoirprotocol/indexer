@@ -28,6 +28,9 @@ import {
 import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
 import { Contracts } from "@/models/contracts";
 import * as registry from "@/utils/royalties/registry";
+import { config } from "@/config/index";
+import { AlchemyApi } from "@/utils/alchemy";
+import { AlchemySpamContracts } from "@/models/alchemy-spam-contracts";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -187,6 +190,22 @@ export class Collections {
       },
     ]);
 
+    if (config.chainId === 11155111) {
+      logger.info(
+        "updateCollectionCache",
+        JSON.stringify({
+          topic: "debugCollectionUpdates",
+          message: `Update collection. collectionId=${collection.id}`,
+          collectionId: collection.id,
+        })
+      );
+    }
+
+    const isSpamContract = await AlchemyApi.isSpamContract(collection.contract);
+    if (isSpamContract) {
+      await AlchemySpamContracts.add(collection.contract);
+    }
+
     const query = `
       UPDATE collections SET
         metadata = $/metadata:json/,
@@ -194,8 +213,16 @@ export class Collections {
         slug = $/slug/,
         payment_tokens = $/paymentTokens/,
         creator = $/creator/,
+        is_spam = $/isSpamContract/,
         updated_at = now()
       WHERE id = $/id/
+      AND (metadata IS DISTINCT FROM $/metadata:json/ 
+            OR name IS DISTINCT FROM $/name/ 
+            OR slug IS DISTINCT FROM $/slug/ 
+            OR payment_tokens IS DISTINCT FROM $/paymentTokens/ 
+            OR creator IS DISTINCT FROM $/creator/
+            OR $/isSpamContract/ = 1
+            )
       RETURNING (
                   SELECT
                   json_build_object(
@@ -214,6 +241,7 @@ export class Collections {
       slug: collection.slug,
       paymentTokens: collection.paymentTokens ? { opensea: collection.paymentTokens } : {},
       creator: collection.creator ? toBuffer(collection.creator) : null,
+      isSpamContract: Number(isSpamContract),
     };
 
     const result = await idb.oneOrNone(query, values);
@@ -275,9 +303,20 @@ export class Collections {
 
     const query = `
       UPDATE collections
-        SET ${updateString}
+        SET updated_at = now(), ${updateString}
       WHERE id = $/collectionId/
     `;
+
+    if (config.chainId === 11155111) {
+      logger.info(
+        "updateCollection",
+        JSON.stringify({
+          topic: "debugCollectionUpdates",
+          message: `Update collection. collectionId=${collectionId}`,
+          collectionId,
+        })
+      );
+    }
 
     return await idb.none(query, replacementValues);
   }

@@ -1,3 +1,4 @@
+import { Interface } from "@ethersproject/abi";
 import { BigNumber } from "@ethersproject/bignumber";
 import { AddressZero } from "@ethersproject/constants";
 import { keccak256 } from "@ethersproject/solidity";
@@ -141,6 +142,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         "If true, all fills will be executed through the router (where possible)"
       ),
       currency: Joi.string().lowercase().description("Currency to be used for purchases."),
+      currencyChainId: Joi.number().description("The chain id of the purchase currency"),
       normalizeRoyalties: Joi.boolean().default(false).description("Charge any missing royalties."),
       allowInactiveOrderIds: Joi.boolean()
         .default(false)
@@ -219,6 +221,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 gasEstimate: Joi.number().description(
                   "Approximation of gas used (only applies to `transaction` items)"
                 ),
+                check: Joi.object({
+                  endpoint: Joi.string().required(),
+                  method: Joi.string().valid("POST").required(),
+                  body: Joi.any(),
+                }).description("The details of the endpoint for checking the status of the step"),
               })
             )
             .required(),
@@ -253,6 +260,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
             .items(JoiExecuteFee)
             .description("Can be marketplace fees or royalties"),
           feesOnTop: Joi.array().items(JoiExecuteFee).description("Can be referral fees."),
+          fromChainId: Joi.number().description("Chain id buying from"),
         })
       ),
       maxQuantities: Joi.array().items(
@@ -306,6 +314,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         totalRawPrice?: string;
         builtInFees: ExecuteFee[];
         feesOnTop: ExecuteFee[];
+        fromChainId?: number;
       }[] = [];
 
       // Keep track of dynamically-priced orders (eg. from pools like Sudoswap and NFTX)
@@ -1430,6 +1439,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
           orderIds?: string[];
           data?: object;
           gasEstimate?: number;
+          check?: {
+            endpoint: string;
+            method: "POST";
+            body: object;
+          };
         }[];
       }[] = [
         {
@@ -1475,6 +1489,96 @@ export const getExecuteBuyV7Options: RouteOptions = {
           items: [],
         },
       ];
+
+      // Cross-chain purchasing MVP
+      if (
+        payload.currency === Sdk.Common.Addresses.Native[config.chainId] &&
+        payload.currencyChainId !== undefined &&
+        payload.currencyChainId !== config.chainId &&
+        items[0].token &&
+        config.crossChainSolverBaseUrl
+      ) {
+        if (items.length > 1) {
+          throw Boom.badRequest("Only a single item can be purchased cross-chain");
+        }
+        if (payload.normalizeRoyalties) {
+          throw Boom.badRequest("Royalty normalization not supported cross-chain");
+        }
+        if (payload.feesOnTop) {
+          throw Boom.badRequest("Fees on top not supported cross-chain");
+        }
+
+        const fromChainId = payload.currencyChainId;
+        const toChainId = config.chainId;
+
+        const ccConfig: {
+          enabled: boolean;
+          swapEscrow?: string;
+        } = await axios
+          .get(
+            `${config.crossChainSolverBaseUrl}/config?fromChainId=${fromChainId}&toChainId=${toChainId}`
+          )
+          .then((response) => response.data);
+
+        if (!ccConfig.enabled) {
+          throw Boom.badRequest("Cross-chain swap not supported between requested chains");
+        }
+
+        const quote = await axios
+          .post(`${config.crossChainSolverBaseUrl}/intents/quote`, {
+            fromChainId,
+            toChainId,
+            token: items[0].token,
+            amount: items[0].quantity,
+          })
+          .then((response) => response.data.price);
+
+        path[0].totalPrice = formatPrice(quote);
+        path[0].totalRawPrice = quote;
+        path[0].fromChainId = payload.currencyChainId;
+
+        const params = [
+          config.chainId,
+          items[0].token.split(":")[0],
+          items[0].token.split(":")[1],
+          items[0].quantity,
+          Math.floor(Date.now() / 1000) + 10 * 60,
+        ];
+        const id = keccak256(
+          ["address", "uint96", "address", "uint256", "uint128", "uint32", "uint256"],
+          [payload.taker, params[0], params[1], params[2], params[3], params[4], quote]
+        );
+
+        steps[5].items.push({
+          status: "incomplete",
+          data: {
+            to: ccConfig.swapEscrow!,
+            data: new Interface([
+              `function makeRequest(
+                uint96 chainId,
+                address token,
+                uint256 tokenId,
+                uint128 amount,
+                uint32 deadline
+              ) payable`,
+            ]).encodeFunctionData("makeRequest", params),
+            value: quote,
+          },
+          check: {
+            endpoint: "/execute/status/v1",
+            method: "POST",
+            body: {
+              kind: "cross-chain-intent",
+              id,
+            },
+          },
+        });
+
+        return {
+          steps: steps.filter((s) => s.items.length),
+          path,
+        };
+      }
 
       // Handle Blur authentication
       let blurAuth: b.Auth | undefined;
@@ -1767,6 +1871,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
               status: "incomplete",
               data: {
                 ...approval.txData,
+                check: {
+                  endpoint: "/execute/status/v1",
+                  method: "POST",
+                  body: {
+                    kind: "transaction",
+                  },
+                },
                 maxFeePerGas,
                 maxPriorityFeePerGas,
               },
@@ -1892,6 +2003,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   erc721cAuth!.signature
                 )
               : undefined,
+          check: {
+            endpoint: "/execute/status/v1",
+            method: "POST",
+            body: {
+              kind: "transaction",
+            },
+          },
         });
       }
 
@@ -1911,6 +2029,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   maxPriorityFeePerGas,
                 }
               : undefined,
+          check: {
+            endpoint: "/execute/status/v1",
+            method: "POST",
+            body: {
+              kind: "transaction",
+            },
+          },
           gasEstimate: txTags ? estimateGas(txTags) : undefined,
         });
       }

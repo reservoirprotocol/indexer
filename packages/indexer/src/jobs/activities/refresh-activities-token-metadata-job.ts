@@ -12,7 +12,7 @@ export type RefreshActivitiesTokenMetadataJobPayload = {
   tokenUpdateData?: { name: string | null; image: string | null; media: string | null };
 };
 
-export class RefreshActivitiesTokenMetadataJob extends AbstractRabbitMqJobHandler {
+export default class RefreshActivitiesTokenMetadataJob extends AbstractRabbitMqJobHandler {
   queueName = "refresh-activities-token-metadata-queue";
   maxRetries = 10;
   concurrency = 2;

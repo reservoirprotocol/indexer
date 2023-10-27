@@ -48,7 +48,7 @@ export type MetadataIndexWriteJobPayload = {
   metadataMethod?: string;
 };
 
-export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
+export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
   queueName = "metadata-index-write-queue";
   maxRetries = 10;
   concurrency = config.chainId === 7777777 ? 10 : 40;

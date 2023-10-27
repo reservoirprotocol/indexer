@@ -107,8 +107,8 @@ import { fillUpdatesJob } from "@/jobs/fill-updates/fill-updates-job";
 import { fillPostProcessJob } from "@/jobs/fill-updates/fill-post-process-job";
 import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
 import { tokenFlagStatusSyncJob } from "@/jobs/flag-status/token-flag-status-sync-job";
-import { collectionSlugFlugStatusSyncJob } from "@/jobs/flag-status/collection-slug-flag-status-sync-job";
-import { contractFlugStatusSyncJob } from "@/jobs/flag-status/contract-flag-status-sync-job";
+import { collectionSlugFlagStatusSyncJob } from "@/jobs/flag-status/collection-slug-flag-status-sync-job";
+import { contractFlagStatusSyncJob } from "@/jobs/flag-status/contract-flag-status-sync-job";
 
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { metadataIndexProcessJob } from "@/jobs/metadata-index/metadata-process-job";
@@ -159,6 +159,10 @@ import { topSellingCollectionsJob } from "@/jobs/top-selling-collections-cache/s
 import { newCollectionForTokenJob } from "@/jobs/token-updates/new-collection-for-token-job";
 import { backfillTokensWithMissingCollectionJob } from "@/jobs/backfill/backfill-tokens-with-missing-collection-job";
 import { processConsecutiveTransferJob } from "@/jobs/events-sync/process-consecutive-transfer";
+import { processAskEventJob } from "@/jobs/asks/process-ask-event-job";
+import { processAskEventsJob } from "@/jobs/asks/process-ask-events-job";
+import { backfillAsksElasticsearchJob } from "@/jobs/asks/backfill-asks-elasticsearch-job";
+import { collectionRefreshSpamJob } from "@/jobs/collections-refresh/collections-refresh-spam-job";
 
 export const allJobQueues = [
   backfillWrongNftBalances.queue,
@@ -247,8 +251,8 @@ export class RabbitMqJobsConsumer {
       fillPostProcessJob,
       flagStatusUpdateJob,
       tokenFlagStatusSyncJob,
-      collectionSlugFlugStatusSyncJob,
-      contractFlugStatusSyncJob,
+      collectionSlugFlagStatusSyncJob,
+      contractFlagStatusSyncJob,
       metadataIndexFetchJob,
       metadataIndexProcessJob,
       metadataIndexWriteJob,
@@ -300,6 +304,10 @@ export class RabbitMqJobsConsumer {
       newCollectionForTokenJob,
       backfillTokensWithMissingCollectionJob,
       processConsecutiveTransferJob,
+      processAskEventJob,
+      processAskEventsJob,
+      backfillAsksElasticsearchJob,
+      collectionRefreshSpamJob,
     ];
   }
 

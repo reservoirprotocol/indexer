@@ -9,7 +9,7 @@ export type ResyncAttributeCollectionJobPayload = {
   continuation?: string;
 };
 
-export class ResyncAttributeCollectionJob extends AbstractRabbitMqJobHandler {
+export default class ResyncAttributeCollectionJob extends AbstractRabbitMqJobHandler {
   queueName = "resync-attribute-collection-queue";
   maxRetries = 10;
   concurrency = 4;

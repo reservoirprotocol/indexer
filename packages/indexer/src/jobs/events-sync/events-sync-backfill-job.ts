@@ -21,7 +21,7 @@ export type ProcessResyncRequestJobPayload = {
   blocksPerBatch?: number;
 };
 
-export class EventsSyncBackfillJob extends AbstractRabbitMqJobHandler {
+export default class EventsSyncBackfillJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-backfill";
   maxRetries = 10;
   concurrency = 2;

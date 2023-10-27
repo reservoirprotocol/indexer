@@ -14,7 +14,7 @@ export type TokenRecalcSupplyPayload = {
   tokenId: string;
 };
 
-export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
+export default class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
   queueName = "token-reclac-supply";
   maxRetries = 10;
   concurrency = 10;
