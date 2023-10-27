@@ -906,7 +906,7 @@ export class DailyVolume {
             UPDATE collections
             SET day${period}_floor_sell_value = $/floor_sell_value/,
                 updated_at = now()                              
-            WHERE id = $/collection_id/`,
+            WHERE id = $/collection_id/ AND (day${period}_floor_sell_value IS DISTINCT FROM $/floor_sell_value/)`,
         values: row,
       });
     });
