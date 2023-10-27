@@ -105,6 +105,9 @@ export const getOpenApiOptions: RouteOptions = {
         {
           url: "https://api-polygon-zkevm.reservoir.tools",
         },
+        {
+          url: "https://api-scroll.reservoir.tools",
+        },
       ];
 
       // Preset list of tags.
