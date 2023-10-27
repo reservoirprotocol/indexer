@@ -23,6 +23,7 @@ export const postSyncDailyVolumes: RouteOptions = {
       "x-admin-api-key": Joi.string().required(),
     }).options({ allowUnknown: true }),
     payload: Joi.object({
+      oneDayOnly: Joi.boolean().default(false),
       days: Joi.number()
         .integer()
         .positive()
@@ -36,6 +37,11 @@ export const postSyncDailyVolumes: RouteOptions = {
     }
 
     const payload = request.payload as any;
+
+    if (payload.oneDayOnly) {
+      await dailyVolumeJob.addToQueue();
+      return { message: "Request accepted" };
+    }
 
     try {
       let days = 0;
