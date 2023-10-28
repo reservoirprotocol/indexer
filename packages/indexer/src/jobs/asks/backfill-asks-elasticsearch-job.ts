@@ -206,30 +206,35 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
     }
 
     if (askEvents.length) {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      const bulkOps = askEvents.flatMap((askEvent) => {
-        if (askEvent.kind === "index") {
-          return [
-            { index: { _index: AskIndex.getIndexName(), _id: askEvent.document.id } },
-            askEvent.document,
-          ];
-        }
+      const bulkIndexOps = askEvents
+        .filter((askEvent) => askEvent.kind == "index")
+        .flatMap((askEvent) => [
+          { index: { _index: AskIndex.getIndexName(), _id: askEvent.document.id } },
+          askEvent.document,
+        ]);
+      const bulkDeleteOps = askEvents
+        .filter((askEvent) => askEvent.kind == "delete")
+        .flatMap((askEvent) => ({
+          delete: { _index: AskIndex.getIndexName(), _id: askEvent.document.id },
+        }));
 
-        if (askEvent.kind === "delete") {
-          return [{ delete: { _index: AskIndex.getIndexName(), _id: askEvent.document.id } }];
-        }
-      });
+      if (bulkIndexOps.length) {
+        await elasticsearch.bulk({
+          body: bulkIndexOps,
+        });
+      }
 
-      await elasticsearch.bulk({
-        body: bulkOps,
-      });
+      if (bulkDeleteOps.length) {
+        await elasticsearch.bulk({
+          body: bulkDeleteOps,
+        });
+      }
 
       logger.info(
         this.queueName,
         JSON.stringify({
           topic: "debugAskIndex",
-          message: `Processed ${bulkOps.length} ask events.`,
+          message: `Indexed ${bulkIndexOps.length} asks. Deleted ${bulkDeleteOps.length} asks`,
           payload,
           nextCursor,
         })
