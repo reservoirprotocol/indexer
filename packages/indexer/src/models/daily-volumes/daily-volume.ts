@@ -692,8 +692,9 @@ export class DailyVolume {
             "dailyVolumes2",
             JSON.stringify({
               topic: "debugCollectionUpdates",
-              message: `Update collection. collectionId=${row.collection_id}`,
+              message: `Update collection. collectionId=${row.collection_id}, specificCollectionId=${collectionId}`,
               collectionId: row.collection_id,
+              row,
             })
           );
         }
@@ -855,7 +856,8 @@ export class DailyVolume {
             UPDATE collections
             SET day${days}_volume_change = day${days}_volume / NULLIF($/prev_day${days}_volume/::numeric, 0),
                 updated_at = now()                
-            WHERE id = $/collection_id/`,
+            WHERE id = $/collection_id/
+            AND (day${days}_volume_change IS DISTINCT FROM day${days}_volume / NULLIF($/prev_day${days}_volume/::numeric, 0))`,
         values: row,
       });
     });

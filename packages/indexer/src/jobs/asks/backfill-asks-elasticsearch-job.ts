@@ -42,7 +42,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
       }
 
       if (payload.fromTimestamp) {
-        fromTimestampFilter = `AND (orders.updated_at) > (to_timestamp($/updatedAt/))`;
+        fromTimestampFilter = `AND (orders.updated_at) > (to_timestamp($/fromTimestamp/))`;
       }
 
       const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", true);
