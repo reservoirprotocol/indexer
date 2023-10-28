@@ -18,14 +18,16 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
   lazyMode = true;
 
   protected async process(payload: BackfillAsksElasticsearchJobPayload) {
-    logger.info(
-      this.queueName,
-      JSON.stringify({
-        topic: "debugAskIndex",
-        message: `Start. fromTimestamp=${payload.fromTimestamp}, onlyActive=${payload.onlyActive}`,
-        payload,
-      })
-    );
+    if (!payload.cursor) {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "debugAskIndex",
+          message: `Start. fromTimestamp=${payload.fromTimestamp}, onlyActive=${payload.onlyActive}`,
+          payload,
+        })
+      );
+    }
 
     let nextCursor;
 
