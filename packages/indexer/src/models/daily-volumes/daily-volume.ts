@@ -694,7 +694,6 @@ export class DailyVolume {
               topic: "debugCollectionUpdates",
               message: `Update collection. collectionId=${row.collection_id}, specificCollectionId=${collectionId}`,
               collectionId: row.collection_id,
-              row,
             })
           );
         }
