@@ -206,28 +206,20 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
     }
 
     if (askEvents.length) {
-      const bulkOps = [];
-
-      for (const askEvent of askEvents) {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      const bulkOps = askEvents.flatMap((askEvent) => {
         if (askEvent.kind === "index") {
-          bulkOps.push({
-            index: {
-              _index: AskIndex.getIndexName(),
-              _id: askEvent.document.id,
-            },
-          });
-          bulkOps.push(askEvent.document);
+          return [
+            { index: { _index: AskIndex.getIndexName(), _id: askEvent.document.id } },
+            askEvent.document,
+          ];
         }
 
         if (askEvent.kind === "delete") {
-          bulkOps.push({
-            delete: {
-              _index: AskIndex.getIndexName(),
-              _id: askEvent.document.id,
-            },
-          });
+          return [{ delete: { _index: AskIndex.getIndexName(), _id: askEvent.document.id } }];
         }
-      }
+      });
 
       await elasticsearch.bulk({
         body: bulkOps,
