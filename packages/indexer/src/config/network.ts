@@ -673,15 +673,6 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
-            "0xba777ae3a3c91fcd83ef85bfe65410592bdd0f7c",
-            {
-              contract: "0xba777ae3a3c91fcd83ef85bfe65410592bdd0f7c",
-              name: "BitCone",
-              symbol: "CONE",
-              decimals: 18,
-            },
-          ],
-          [
             "0x3b45a986621f91eb51be84547fbd9c26d0d46d02",
             {
               contract: "0x3b45a986621f91eb51be84547fbd9c26d0d46d02",

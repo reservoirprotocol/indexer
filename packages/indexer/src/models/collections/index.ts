@@ -358,6 +358,17 @@ export class Collections {
   }
 
   public static async recalculateCollectionFloorSell(collection: string) {
+    if (config.chainId === 11155111) {
+      logger.info(
+        "recalculateCollectionFloorSell",
+        JSON.stringify({
+          topic: "debugCollectionUpdates",
+          message: `Update collection. collectionId=${collection}`,
+          collectionId: collection,
+        })
+      );
+    }
+
     const query = `
       UPDATE collections SET
         floor_sell_id = x.floor_sell_id,
