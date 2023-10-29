@@ -1,7 +1,5 @@
-import { Interface } from "@ethersproject/abi";
 import { BigNumber } from "@ethersproject/bignumber";
 import { AddressZero, HashZero, MaxUint256 } from "@ethersproject/constants";
-import { randomBytes } from "@ethersproject/random";
 import { keccak256 } from "@ethersproject/solidity";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
@@ -13,6 +11,7 @@ import {
   MintDetails,
 } from "@reservoir0x/sdk/dist/router/v6/types";
 import { estimateGas } from "@reservoir0x/sdk/dist/router/v6/utils";
+import { getRandomBytes } from "@reservoir0x/sdk/dist/utils";
 import axios from "axios";
 import Joi from "joi";
 import _ from "lodash";
@@ -1441,8 +1440,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         };
       }
 
-      // Set up generic filling steps
-      let steps: {
+      type StepType = {
         id: string;
         action: string;
         description: string;
@@ -1459,7 +1457,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
             body: object;
           };
         }[];
-      }[] = [
+      };
+
+      // Set up generic filling steps
+      let steps: StepType[] = [
         {
           id: "auth",
           action: "Sign in",
@@ -1572,7 +1573,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           startTime: Math.floor(Date.now() / 1000),
           endTime: Math.floor(Date.now() / 1000) + 5 * 60,
           zoneHash: HashZero,
-          salt: bn(randomBytes(32)).toHexString(),
+          salt: getRandomBytes(20).toString(),
           conduitKey: Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId],
           counter: (
             await new Sdk.SeaportV15.Exchange(config.chainId).getCounter(
@@ -1592,7 +1593,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               method: "POST",
               body: {
                 kind: "seaport-intent",
-                data: order.params,
+                order: order.params,
               },
             },
           },
@@ -1625,11 +1626,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
         if (path.length > 1) {
           throw Boom.badRequest("Only single item cross-chain purchases are supported");
         }
+
         if (payload.normalizeRoyalties) {
           throw Boom.badRequest(
             "Royalty normalization is not supported when purchasing cross-chain"
           );
         }
+
         if (payload.feeOnTop) {
           throw Boom.badRequest("Fees on top are not supported when purchasing cross-chain");
         }
@@ -1639,10 +1642,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
         const ccConfig: {
           enabled: boolean;
-          swapEscrow?: string;
+          solver?: string;
+          deposit?: string;
         } = await axios
           .get(
-            `${config.crossChainSolverBaseUrl}/config?fromChainId=${fromChainId}&toChainId=${toChainId}`
+            `${config.crossChainSolverBaseUrl}/config?fromChainId=${fromChainId}&toChainId=${toChainId}&user=${payload.taker}`
           )
           .then((response) => response.data);
 
@@ -1664,43 +1668,81 @@ export const getExecuteBuyV7Options: RouteOptions = {
           })
           .then((response) => response.data.price);
 
+        item.fromChainId = fromChainId;
         item.totalPrice = formatPrice(quote);
         item.totalRawPrice = quote;
-        item.fromChainId = fromChainId;
 
-        steps[5].items.push({
+        const customSteps: StepType[] = [
+          {
+            id: "deposit",
+            action: "Deposit",
+            description: "Deposit funds on origin chain",
+            kind: "transaction",
+            items: [],
+          },
+          {
+            id: "order-signature",
+            action: "Authorize cross-chain request",
+            description: "A free off-chain signature to create the request",
+            kind: "signature",
+            items: [],
+          },
+        ];
+
+        if (bn(ccConfig.deposit!).lte(quote)) {
+          const exchange = new Sdk.CrossChain.Exchange(fromChainId);
+          customSteps[0].items.push({
+            status: "incomplete",
+            data: {
+              ...exchange.depositTx(
+                payload.taker,
+                ccConfig.solver!,
+                bn(quote).sub(ccConfig.deposit!).toString()
+              ),
+              chainId: fromChainId,
+            },
+            check: {
+              endpoint: "/execute/status/v1",
+              method: "POST",
+              body: {
+                kind: "transaction",
+              },
+            },
+          });
+        }
+
+        const order = new Sdk.CrossChain.Order(fromChainId, {
+          isCollectionRequest: Boolean(items[0].collection),
+          maker: payload.taker,
+          solver: ccConfig.solver!,
+          token: item.contract,
+          tokenId: item.tokenId ?? MaxUint256.toString(),
+          amount: String(item.quantity),
+          price: quote,
+          recipient: payload.taker,
+          chainId: config.chainId,
+          deadline: now() + 30 * 60,
+          salt: getRandomBytes(20).toString(),
+        });
+
+        customSteps[1].items.push({
           status: "incomplete",
           data: {
-            to: ccConfig.swapEscrow!,
-            data: new Interface([
-              `function makeRequest(
-                uint96 chainId,
-                address token,
-                uint256 tokenId,
-                uint128 amount,
-                uint32 deadline
-              ) payable`,
-            ]).encodeFunctionData("makeRequest", [
-              config.chainId,
-              token.split(":")[0],
-              token.split(":")[1],
-              item.quantity,
-              Math.floor(Date.now() / 1000) + 10 * 60,
-            ]),
-            value: quote,
-            chainId: fromChainId,
-          },
-          check: {
-            endpoint: "/execute/status/v1",
-            method: "POST",
-            body: {
-              kind: "cross-chain-intent",
+            sign: order.getSignatureData(),
+            post: {
+              endpoint: "/execute/solve/v1",
+              method: "POST",
+              body: {
+                kind: "cross-chain-intent",
+                order: order.params,
+                fromChainId,
+              },
             },
           },
         });
 
         return {
-          steps: steps.filter((s) => s.items.length),
+          steps: customSteps.filter((s) => s.items.length),
           path,
         };
       }

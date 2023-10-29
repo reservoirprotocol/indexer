@@ -5,6 +5,8 @@ import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 
 import { BuildDocumentData, BaseDocument, DocumentBuilder } from "@/elasticsearch/indexes/base";
+import { formatEther } from "@ethersproject/units";
+import { AddressZero } from "@ethersproject/constants";
 
 export interface AskDocument extends BaseDocument {
   contractAndTokenId: string;
@@ -134,7 +136,7 @@ export class AskDocumentBuilder extends DocumentBuilder {
             id: data.order_id,
             kind: data.order_kind,
             maker: fromBuffer(data.order_maker),
-            taker: data.order_taker ? fromBuffer(data.order_taker) : undefined,
+            taker: data.order_taker ? fromBuffer(data.order_taker) : AddressZero,
             tokenSetId: data.order_token_set_id,
             validFrom: Number(data.order_valid_from),
             validUntil: Number(data.order_valid_until),
@@ -145,7 +147,7 @@ export class AskDocumentBuilder extends DocumentBuilder {
             pricing: data.order_pricing_price
               ? {
                   price: String(data.order_pricing_price),
-                  priceDecimal: formatEth(data.order_pricing_price),
+                  priceDecimal: Number(Number(formatEther(data.order_pricing_price)).toFixed(18)),
                   currencyPrice: data.order_pricing_currency_price
                     ? String(data.order_pricing_currency_price)
                     : undefined,

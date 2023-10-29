@@ -18,14 +18,16 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
   lazyMode = true;
 
   protected async process(payload: BackfillAsksElasticsearchJobPayload) {
-    logger.info(
-      this.queueName,
-      JSON.stringify({
-        topic: "debugAskIndex",
-        message: `Start. fromTimestamp=${payload.fromTimestamp}, onlyActive=${payload.onlyActive}`,
-        payload,
-      })
-    );
+    if (!payload.cursor) {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "debugAskIndex",
+          message: `Start. fromTimestamp=${payload.fromTimestamp}, onlyActive=${payload.onlyActive}`,
+          payload,
+        })
+      );
+    }
 
     let nextCursor;
 
@@ -42,7 +44,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
       }
 
       if (payload.fromTimestamp) {
-        fromTimestampFilter = `AND (orders.updated_at) > (to_timestamp($/updatedAt/))`;
+        fromTimestampFilter = `AND (orders.updated_at) > (to_timestamp($/fromTimestamp/))`;
       }
 
       const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", true);
@@ -214,38 +216,35 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
     }
 
     if (askEvents.length) {
-      const bulkOps = [];
+      const bulkIndexOps = askEvents
+        .filter((askEvent) => askEvent.kind == "index")
+        .flatMap((askEvent) => [
+          { index: { _index: AskIndex.getIndexName(), _id: askEvent.document.id } },
+          askEvent.document,
+        ]);
+      const bulkDeleteOps = askEvents
+        .filter((askEvent) => askEvent.kind == "delete")
+        .flatMap((askEvent) => ({
+          delete: { _index: AskIndex.getIndexName(), _id: askEvent.document.id },
+        }));
 
-      for (const askEvent of askEvents) {
-        if (askEvent.kind === "index") {
-          bulkOps.push({
-            index: {
-              _index: AskIndex.getIndexName(),
-              _id: askEvent.document.id,
-            },
-          });
-          bulkOps.push(askEvent.document);
-        }
-
-        if (askEvent.kind === "delete") {
-          bulkOps.push({
-            delete: {
-              _index: AskIndex.getIndexName(),
-              _id: askEvent.document.id,
-            },
-          });
-        }
+      if (bulkIndexOps.length) {
+        await elasticsearch.bulk({
+          body: bulkIndexOps,
+        });
       }
 
-      await elasticsearch.bulk({
-        body: bulkOps,
-      });
+      if (bulkDeleteOps.length) {
+        await elasticsearch.bulk({
+          body: bulkDeleteOps,
+        });
+      }
 
       logger.info(
         this.queueName,
         JSON.stringify({
           topic: "debugAskIndex",
-          message: `Processed ${bulkOps.length} ask events.`,
+          message: `Indexed ${bulkIndexOps.length} asks. Deleted ${bulkDeleteOps.length} asks`,
           payload,
           nextCursor,
         })

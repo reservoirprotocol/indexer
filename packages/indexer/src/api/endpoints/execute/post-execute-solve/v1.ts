@@ -10,7 +10,7 @@ import { logger } from "@/common/logger";
 const version = "v1";
 
 export const postExecuteSolveV1Options: RouteOptions = {
-  description: "Indirectly fill an order via a relayer",
+  description: "Indirectly fill an order via a solver",
   tags: ["api", "Misc"],
   plugins: {
     "hapi-swagger": {
@@ -21,10 +21,17 @@ export const postExecuteSolveV1Options: RouteOptions = {
     query: Joi.object({
       signature: Joi.string().description("Signature for the solve request"),
     }),
-    payload: Joi.object({
-      kind: Joi.string().valid("seaport-intent").required(),
-      order: Joi.any().required(),
-    }),
+    payload: Joi.alternatives(
+      Joi.object({
+        kind: Joi.string().valid("seaport-intent").required(),
+        order: Joi.any().required(),
+      }),
+      Joi.object({
+        kind: Joi.string().valid("cross-chain-intent").required(),
+        order: Joi.any().required(),
+        fromChainId: Joi.number().required(),
+      })
+    ),
   },
   response: {
     schema: Joi.object({
@@ -47,6 +54,31 @@ export const postExecuteSolveV1Options: RouteOptions = {
 
     try {
       switch (payload.kind) {
+        case "cross-chain-intent": {
+          const order = new Sdk.CrossChain.Order(payload.fromChainId, {
+            ...payload.order,
+            signature: payload.order.signature ?? query.signature,
+          });
+
+          await axios
+            .post(`${config.crossChainSolverBaseUrl}/trigger`, {
+              chainId: payload.fromChainId,
+              order: order.params,
+            })
+            .then((response) => response.data);
+
+          return {
+            status: {
+              endpoint: "/execute/status/v1",
+              method: "POST",
+              body: {
+                kind: payload.kind,
+                id: order.hash(),
+              },
+            },
+          };
+        }
+
         case "seaport-intent": {
           const order = new Sdk.SeaportV15.Order(config.chainId, {
             ...payload.order,
