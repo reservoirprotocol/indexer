@@ -60,12 +60,10 @@ export const postExecuteSolveV1Options: RouteOptions = {
             signature: payload.order.signature ?? query.signature,
           });
 
-          await axios
-            .post(`${config.crossChainSolverBaseUrl}/trigger`, {
-              chainId: payload.fromChainId,
-              order: order.params,
-            })
-            .then((response) => response.data);
+          await axios.post(`${config.crossChainSolverBaseUrl}/trigger`, {
+            chainId: payload.fromChainId,
+            request: order.params,
+          });
 
           return {
             status: {
@@ -85,12 +83,10 @@ export const postExecuteSolveV1Options: RouteOptions = {
             signature: payload.order.signature ?? query.signature,
           });
 
-          await axios
-            .post(`${config.seaportSolverBaseUrl}/trigger`, {
-              chainId: config.chainId,
-              order: order.params,
-            })
-            .then((response) => response.data);
+          await axios.post(`${config.seaportSolverBaseUrl}/trigger`, {
+            chainId: config.chainId,
+            order: order.params,
+          });
 
           return {
             status: {
