@@ -18,7 +18,7 @@ import {
   orderUpdatesByIdJob,
   OrderUpdatesByIdJobPayload,
 } from "@/jobs/order-updates/order-updates-by-id-job";
-import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
+// import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 
 export type OrderInfo = {
   orderParams: Sdk.Hotpot.Types.OrderParameters;
@@ -304,7 +304,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       const isReservoir = false;
 
       // Handle: conduit
-      let conduit = Sdk.Hotpot.Addresses.Exchange[config.chainId];
+      const conduit = Sdk.Hotpot.Addresses.Exchange[config.chainId];
       // if (side === "sell") {
       //   conduit = Sdk.Hotpot.Addresses.TransferManager[config.chainId];
       // }
