@@ -5,7 +5,7 @@ import Joi from "joi";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { toBuffer } from "@/common/utils";
+import { regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
 const version = "v1";
@@ -33,6 +33,7 @@ export const postExecuteStatusV1Options: RouteOptions = {
     schema: Joi.object({
       status: Joi.string().valid("unknown", "pending", "received", "success", "failure").required(),
       details: Joi.string(),
+      txHashes: Joi.array().items(Joi.string().pattern(regex.bytes32)),
       time: Joi.number(),
     }).label(`postExecuteStatus${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
@@ -65,6 +66,7 @@ export const postExecuteStatusV1Options: RouteOptions = {
           const result: {
             status: string;
             details?: string;
+            txHashes?: string[];
             time?: number;
           } = await axios
             .get(`${config.crossChainSolverBaseUrl}/status?hash=${payload.id}`)
@@ -73,6 +75,7 @@ export const postExecuteStatusV1Options: RouteOptions = {
           return {
             status: result.status,
             details: result.details,
+            txHashes: result.txHashes,
             time: result.time,
           };
         }
@@ -81,6 +84,7 @@ export const postExecuteStatusV1Options: RouteOptions = {
           const result: {
             status: string;
             details?: string;
+            txHashes?: string[];
             time?: number;
           } = await axios
             .get(`${config.seaportSolverBaseUrl}/status?hash=${payload.id}`)
@@ -89,6 +93,7 @@ export const postExecuteStatusV1Options: RouteOptions = {
           return {
             status: result.status,
             details: result.details,
+            txHashes: result.txHashes,
             time: result.time,
           };
         }
