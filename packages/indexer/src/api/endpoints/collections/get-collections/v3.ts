@@ -120,7 +120,7 @@ export const getCollectionsV3Options: RouteOptions = {
           collections.contract,
           collections.token_set_id,
           collections.token_count,
-          collections.is_takedown,
+          collections.metadata_disabled,
           (
             SELECT array(
               SELECT tokens.image FROM tokens
@@ -256,7 +256,7 @@ export const getCollectionsV3Options: RouteOptions = {
                 "30day": r.day30_floor_sell_value ? formatEth(r.day30_floor_sell_value) : null,
               },
             },
-            r.is_takedown
+            r.metadata_disabled
           )
         );
       });

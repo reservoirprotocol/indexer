@@ -10,6 +10,7 @@ import { CollectionSets } from "@/models/collection-sets";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 import {
+  getJoiCollectionObject,
   getJoiPriceObject,
   getJoiSourceObject,
   getJoiTokenObject,
@@ -271,7 +272,7 @@ export const getUserTokensV5Options: RouteOptions = {
           t.name,
           t.image,
           t.collection_id,
-          t.is_takedown AS "t_is_takedown",
+          t.metadata_disabled AS "t_metadata_disabled",
           null AS top_bid_id,
           null AS top_bid_price,
           null AS top_bid_value,
@@ -293,7 +294,7 @@ export const getUserTokensV5Options: RouteOptions = {
             t.name,
             t.image,
             t.collection_id,
-            t.is_takedown AS "t_is_takedown",
+            t.metadata_disabled AS "t_metadata_disabled",
             ${selectFloorData}
           FROM tokens t
           WHERE b.token_id = t.token_id
@@ -335,7 +336,7 @@ export const getUserTokensV5Options: RouteOptions = {
                t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to, t.floor_sell_source_id_int,
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
                c.name as collection_name, c.metadata, c.floor_sell_value AS "collection_floor_sell_value",
-               c.is_takedown AS "c_is_takedown", t_is_takedown,
+               c.metadata_disabled AS "c_metadata_disabled", t_metadata_disabled,
                (
                     CASE WHEN t.floor_sell_value IS NOT NULL
                     THEN 1
@@ -387,14 +388,17 @@ export const getUserTokensV5Options: RouteOptions = {
               tokenId: tokenId,
               name: r.name,
               image: r.image,
-              collection: {
-                id: r.collection_id,
-                name: r.collection_name,
-                imageUrl: r.metadata?.imageUrl,
-                floorAskPrice: r.collection_floor_sell_value
-                  ? formatEth(r.collection_floor_sell_value)
-                  : null,
-              },
+              collection: getJoiCollectionObject(
+                {
+                  id: r.collection_id,
+                  name: r.collection_name,
+                  imageUrl: r.metadata?.imageUrl,
+                  floorAskPrice: r.collection_floor_sell_value
+                    ? formatEth(r.collection_floor_sell_value)
+                    : null,
+                },
+                r.c_metadata_disabled
+              ),
               topBid: query.includeTopBid
                 ? {
                     id: r.top_bid_id,
@@ -417,7 +421,7 @@ export const getUserTokensV5Options: RouteOptions = {
                   }
                 : undefined,
             },
-            r.t_is_takedown || r.c_is_takedown
+            r.t_metadata_disabled || r.c_metadata_disabled
           ),
           ownership: {
             tokenCount: String(r.token_count),

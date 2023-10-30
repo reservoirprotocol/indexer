@@ -3,7 +3,7 @@ import { ApiKeyManager } from "@/models/api-keys/index";
 export enum ApiKeyPermission {
   override_collection_refresh_cool_down = "override_collection_refresh_cool_down",
   assign_collection_to_community = "assign_collection_to_community",
-  takedown = "takedown",
+  update_metadata_disabled = "update_metadata_disabled",
 }
 
 // Define the fields we can update

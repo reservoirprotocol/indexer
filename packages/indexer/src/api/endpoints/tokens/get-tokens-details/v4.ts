@@ -16,7 +16,13 @@ import {
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
-import { JoiAttributeValue, JoiSource, getJoiSourceObject, getJoiTokenObject } from "@/common/joi";
+import {
+  JoiAttributeValue,
+  JoiSource,
+  getJoiCollectionObject,
+  getJoiSourceObject,
+  getJoiTokenObject,
+} from "@/common/joi";
 import * as Boom from "@hapi/boom";
 
 const version = "v4";
@@ -194,8 +200,8 @@ export const getTokensDetailsV4Options: RouteOptions = {
           "t"."image",
           "t"."media",
           "t"."collection_id",
-          "t"."is_takedown" as "t_is_takedown",
-          "c"."is_takedown" as "c_is_takedown",
+          "t"."metadata_disabled" as "t_metadata_disabled",
+          "c"."metadata_disabled" as "c_metadata_disabled",
           "c"."name" as "collection_name",
           "con"."kind",
           "t"."is_flagged",
@@ -462,16 +468,22 @@ export const getTokensDetailsV4Options: RouteOptions = {
               image: Assets.getLocalAssetsLink(r.image),
               media: r.media,
               kind: r.kind,
+              metadataDisabled:
+                Boolean(Number(r.t_metadata_disabled)) || Boolean(Number(r.c_metadata_disabled)),
               isFlagged: Boolean(Number(r.is_flagged)),
               lastFlagUpdate: r.last_flag_update
                 ? new Date(r.last_flag_update).toISOString()
                 : null,
-              collection: {
-                id: r.collection_id,
-                name: r.collection_name,
-                image: Assets.getLocalAssetsLink(r.image),
-                slug: r.slug,
-              },
+              collection: getJoiCollectionObject(
+                {
+                  id: r.collection_id,
+                  name: r.collection_name,
+                  image: Assets.getLocalAssetsLink(r.image),
+                  slug: r.slug,
+                  metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
+                },
+                r.c_metadata_disabled
+              ),
               lastBuy: {
                 value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
                 timestamp: r.last_buy_timestamp,
@@ -496,7 +508,7 @@ export const getTokensDetailsV4Options: RouteOptions = {
                   }))
                 : [],
             },
-            r.t_is_takedown || r.c_is_takedown
+            r.t_metadata_disabled || r.c_metadata_disabled
           ),
           market: {
             floorAsk: {

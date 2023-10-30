@@ -99,7 +99,7 @@ export const getCollectionsV1Options: RouteOptions = {
           collections.royalties,
           collections.token_set_id,
           collections.token_count,
-          collections.is_takedown,
+          collections.metadata_disabled,
           (
             SELECT array(
               SELECT tokens.image FROM tokens
@@ -205,7 +205,7 @@ export const getCollectionsV1Options: RouteOptions = {
                 allTime: r.all_time_volume ? formatEth(r.all_time_volume) : null,
               },
             },
-            r.is_takedown
+            r.metadata_disabled
           )
         );
       });

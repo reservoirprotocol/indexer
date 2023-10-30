@@ -6,7 +6,7 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
-import { getJoiTokenObject } from "@/common/joi";
+import { getJoiCollectionObject, getJoiTokenObject } from "@/common/joi";
 
 const version = "v1";
 
@@ -94,8 +94,8 @@ export const getUserTokensV1Options: RouteOptions = {
           "t"."name",
           "t"."image",
           "t"."collection_id",
-          "t"."is_takedown" as "t_is_takedown",
-          "c"."is_takedown" as "c_is_takedown",
+          "t"."metadata_disabled" as "t_metadata_disabled",
+          "c"."metadata_disabled" as "c_metadata_disabled",
           "c"."name" as "collection_name",
           "nb"."amount" as "token_count",
           (CASE WHEN "t"."floor_sell_value" IS NOT NULL
@@ -173,17 +173,20 @@ export const getUserTokensV1Options: RouteOptions = {
                 tokenId: r.token_id,
                 name: r.name,
                 image: r.image,
-                collection: {
-                  id: r.collection_id,
-                  name: r.collection_name,
-                },
+                collection: getJoiCollectionObject(
+                  {
+                    id: r.collection_id,
+                    name: r.collection_name,
+                  },
+                  r.c_metadata_disabled
+                ),
                 topBid: {
                   id: r.top_buy_id,
                   value: r.top_buy_value ? formatEth(r.top_buy_value) : null,
                   schema: r.top_buy_schema,
                 },
               },
-              r.t_is_takedown || r.c_is_takedown
+              r.t_metadata_disabled || r.c_metadata_disabled
             ),
             ownership: {
               tokenCount: String(r.token_count),

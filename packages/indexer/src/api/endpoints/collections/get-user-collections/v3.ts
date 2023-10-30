@@ -90,6 +90,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
             twitterUsername: Joi.string().allow("", null),
             openseaVerificationStatus: Joi.string().allow("", null),
             description: Joi.string().allow("", null),
+            metadataDisabled: Joi.boolean().default(false),
             sampleImages: Joi.array().items(Joi.string().allow("", null)),
             tokenCount: Joi.string().description("Total token count"),
             tokenSetId: Joi.string().allow(null),
@@ -211,7 +212,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
                 collections.contract,
                 collections.token_set_id,
                 collections.token_count,
-                collections.is_takedown,
+                collections.metadata_disabled,
                 filtered_token_images.images AS sample_images,
                 collections.day1_volume,
                 collections.day7_volume,
@@ -330,6 +331,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
               twitterUsername: r.twitter_username,
               openseaVerificationStatus: r.opensea_verification_status,
               description: r.description,
+              metadataDisabled: Boolean(Number(r.metadata_disabled)),
               sampleImages: Assets.getLocalAssetsLink(r.sample_images) || [],
               tokenCount: String(r.token_count),
               primaryContract: fromBuffer(r.contract),
@@ -370,7 +372,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
               },
               contractKind: r.contract_kind,
             },
-            r.is_takedown
+            r.metadata_disabled
           ),
           ownership: {
             tokenCount: String(r.owner_token_count),

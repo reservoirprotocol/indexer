@@ -17,6 +17,7 @@ import { CollectionSets } from "@/models/collection-sets";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 import {
+  getJoiCollectionObject,
   getJoiPriceObject,
   getJoiSaleObject,
   getJoiSourceObject,
@@ -170,6 +171,7 @@ export const getUserTokensV7Options: RouteOptions = {
             media: Joi.string().allow(null),
             isFlagged: Joi.boolean().default(false),
             isSpam: Joi.boolean().default(false),
+            metadataDisabled: Joi.boolean().default(false),
             lastFlagUpdate: Joi.string().allow("", null),
             lastFlagChange: Joi.string().allow("", null),
             collection: Joi.object({
@@ -422,7 +424,7 @@ export const getUserTokensV7Options: RouteOptions = {
           t.last_buy_timestamp,
           t.is_flagged,
           t.is_spam AS t_is_spam,
-          t.is_takedown AS t_is_takedown,
+          t.metadata_disabled AS t_metadata_disabled,
           t.last_flag_update,
           t.last_flag_change,
           null AS top_bid_id,
@@ -466,7 +468,7 @@ export const getUserTokensV7Options: RouteOptions = {
             t.last_buy_timestamp,
             t.is_flagged,
             t.is_spam AS t_is_spam,
-            t.is_takedown AS t_is_takedown,
+            t.metadata_disabled AS t_metadata_disabled,
             t.last_flag_update,
             t.last_flag_change,
             ${selectFloorData}
@@ -556,6 +558,7 @@ export const getUserTokensV7Options: RouteOptions = {
                c.name as collection_name, con.kind, con.symbol, c.metadata, c.royalties,
                (c.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
                c.royalties_bps, ot.kind AS floor_sell_kind, c.slug, c.is_spam AS c_is_spam, c.is_takedown AS c_is_takedown, t_is_takedown,
+               c.metadata_disabled AS c_metadata_disabled, t_metadata_disabled,
                ${query.includeRawData ? "ot.raw_data AS floor_sell_raw_data," : ""}
                ${
                  query.useNonFlaggedFloorAsk
@@ -709,37 +712,44 @@ export const getUserTokensV7Options: RouteOptions = {
               media: r.media,
               isFlagged: Boolean(Number(r.is_flagged)),
               isSpam: Boolean(Number(r.t_is_spam)) || Boolean(Number(r.c_is_spam)),
+              metadataDisabled:
+                Boolean(Number(r.c_metadata_disabled)) || Boolean(Number(r.t_metadata_disabled)),
               lastFlagUpdate: r.last_flag_update
                 ? new Date(r.last_flag_update).toISOString()
                 : null,
               lastFlagChange: r.last_flag_change
                 ? new Date(r.last_flag_change).toISOString()
                 : null,
-              collection: {
-                id: r.collection_id,
-                name: r.collection_name,
-                slug: r.slug,
-                symbol: r.symbol,
-                imageUrl: r.metadata?.imageUrl,
-                isSpam: Boolean(Number(r.c_is_spam)),
-                openseaVerificationStatus: r.opensea_verification_status,
-                floorAskPrice: r.collection_floor_sell_value
-                  ? await getJoiPriceObject(
-                      {
-                        gross: {
-                          amount: String(
-                            r.collection_floor_sell_currency_price ?? r.collection_floor_sell_value
-                          ),
-                          nativeAmount: String(r.collection_floor_sell_value),
+              collection: getJoiCollectionObject(
+                {
+                  id: r.collection_id,
+                  name: r.collection_name,
+                  slug: r.slug,
+                  symbol: r.symbol,
+                  imageUrl: r.metadata?.imageUrl,
+                  isSpam: Boolean(Number(r.c_is_spam)),
+                  metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
+                  openseaVerificationStatus: r.opensea_verification_status,
+                  floorAskPrice: r.collection_floor_sell_value
+                    ? await getJoiPriceObject(
+                        {
+                          gross: {
+                            amount: String(
+                              r.collection_floor_sell_currency_price ??
+                                r.collection_floor_sell_value
+                            ),
+                            nativeAmount: String(r.collection_floor_sell_value),
+                          },
                         },
-                      },
-                      collectionFloorSellCurrency,
-                      query.displayCurrency
-                    )
-                  : null,
-                royaltiesBps: r.royalties_bps ?? 0,
-                royalties: r.royalties,
-              },
+                        collectionFloorSellCurrency,
+                        query.displayCurrency
+                      )
+                    : null,
+                  royaltiesBps: r.royalties_bps ?? 0,
+                  royalties: r.royalties,
+                },
+                r.c_metadata_disabled
+              ),
               lastSale:
                 query.includeLastSale && r.last_sale_currency
                   ? await getJoiSaleObject({
@@ -805,7 +815,7 @@ export const getUserTokensV7Options: RouteOptions = {
                   : []
                 : undefined,
             },
-            r.t_is_takedown || r.c_is_takedown
+            r.t_metadata_disabled || r.c_metadata_disabled
           ),
           ownership: {
             tokenCount: String(r.token_count),

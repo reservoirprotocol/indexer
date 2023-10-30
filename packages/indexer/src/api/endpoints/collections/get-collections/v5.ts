@@ -454,7 +454,7 @@ export const getCollectionsV5Options: RouteOptions = {
           collections.owner_count,
           collections.created_at,
           collections.minted_timestamp,
-          collections.is_takedown,
+          collections.metadata_disabled,
           (
             SELECT
               COUNT(*)
@@ -820,7 +820,7 @@ export const getCollectionsV5Options: RouteOptions = {
                   )
                 : [],
             },
-            r.is_takedown
+            r.metadata_disabled
           );
         })
       );

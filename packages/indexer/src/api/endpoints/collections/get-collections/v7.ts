@@ -195,6 +195,7 @@ export const getCollectionsV7Options: RouteOptions = {
           twitterUsername: Joi.string().allow("", null),
           openseaVerificationStatus: Joi.string().allow("", null),
           description: Joi.string().allow("", null),
+          metadataDisabled: Joi.boolean().default(false),
           isSpam: Joi.boolean().default(false),
           sampleImages: Joi.array().items(Joi.string().allow("", null)),
           tokenCount: Joi.string().description("Total tokens within the collection."),
@@ -489,7 +490,7 @@ export const getCollectionsV7Options: RouteOptions = {
           collections.day7_floor_sell_value,
           collections.day30_floor_sell_value,
           collections.is_spam,
-          collections.is_takedown,
+          collections.metadata_disabled,
           ${floorAskSelectQuery}
           collections.token_count,
           collections.owner_count,
@@ -778,6 +779,7 @@ export const getCollectionsV7Options: RouteOptions = {
               twitterUsername: r.twitter_username,
               openseaVerificationStatus: r.opensea_verification_status,
               description: r.description,
+              metadataDisabled: Boolean(Number(r.metadata_disabled)),
               isSpam: Boolean(Number(r.is_spam)),
               sampleImages: Assets.getLocalAssetsLink(sampleImages) ?? [],
               tokenCount: String(r.token_count),
@@ -931,7 +933,7 @@ export const getCollectionsV7Options: RouteOptions = {
                   }
                 : undefined,
             },
-            r.is_takedown
+            r.metadata_disabled
           );
         })
       );

@@ -82,7 +82,7 @@ export const getUserCollectionsV1Options: RouteOptions = {
         SELECT  collections.id,
                 collections.name,
                 collections.metadata,
-                collections.is_takedown,
+                collections.metadata_disabled,
                 SUM(nft_balances.amount) AS token_count,
                 MAX(tokens.top_buy_value) AS top_buy_value,
                 MIN(tokens.floor_sell_value) AS floor_sell_value,
@@ -127,7 +127,7 @@ export const getUserCollectionsV1Options: RouteOptions = {
             floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
             topBidValue: r.top_buy_value ? formatEth(r.top_buy_value) : null,
           },
-          r.is_takedown
+          r.metadata_disabled
         ),
         ownership: {
           tokenCount: String(r.token_count),

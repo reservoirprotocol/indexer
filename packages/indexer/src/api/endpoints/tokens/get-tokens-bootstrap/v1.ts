@@ -86,8 +86,8 @@ export const getTokensBootstrapV1Options: RouteOptions = {
           "t"."contract",
           "t"."token_id",
           "t"."image",
-          "t"."is_takedown" as "t_is_takedown",
-          "c"."is_takedown" as "c_is_takedown",
+          "t"."metadata_disabled" as "t_metadata_disabled",
+          "c"."metadata_disabled" as "c_metadata_disabled",
           "t"."floor_sell_id",
           "t"."floor_sell_value",
           "t"."floor_sell_maker",
@@ -146,7 +146,7 @@ export const getTokensBootstrapV1Options: RouteOptions = {
             validUntil: Number(r.floor_sell_valid_to),
             source: sources.get(r.floor_sell_source_id_int)?.name,
           },
-          r.t_is_takedown || r.c_is_takedown
+          r.t_metadata_disabled || r.c_metadata_disabled
         );
       });
 

@@ -9,6 +9,7 @@ import * as Boom from "@hapi/boom";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import {
+  getJoiCollectionObject,
   getJoiPriceObject,
   getJoiSourceObject,
   getJoiTokenObject,
@@ -537,8 +538,8 @@ export const getTokensV5Options: RouteOptions = {
           t.is_flagged,
           t.last_flag_update,
           t.last_flag_change,
-          t.is_takedown AS t_is_takedown,
-          c.is_takedown AS c_is_takedown,
+          t.metadata_disabled AS t_metadata_disabled,
+          c.metadata_disabled AS c_metadata_disabled,
           c.slug,
           t.last_buy_value,
           t.last_buy_timestamp,
@@ -1066,12 +1067,15 @@ export const getTokensV5Options: RouteOptions = {
                 : null,
               rarity: r.rarity_score,
               rarityRank: r.rarity_rank,
-              collection: {
-                id: r.collection_id,
-                name: r.collection_name,
-                image: Assets.getLocalAssetsLink(r.collection_image),
-                slug: r.slug,
-              },
+              collection: getJoiCollectionObject(
+                {
+                  id: r.collection_id,
+                  name: r.collection_name,
+                  image: Assets.getLocalAssetsLink(r.collection_image),
+                  slug: r.slug,
+                },
+                r.c_metadata_disabled
+              ),
               lastBuy: {
                 value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
                 timestamp: r.last_buy_timestamp,
@@ -1100,7 +1104,7 @@ export const getTokensV5Options: RouteOptions = {
                   : []
                 : undefined,
             },
-            r.t_is_takedown || r.c_is_takedown
+            r.t_metadata_disabled || r.c_metadata_disabled
           ),
           market: {
             floorAsk: {

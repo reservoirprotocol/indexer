@@ -112,7 +112,7 @@ export class ApiKeyManager {
         active: true,
         tier: 5,
         permissions: {
-          takedown: true,
+          update_metadata_disabled: true,
         },
         ips: [],
         origins: [],

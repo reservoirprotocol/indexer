@@ -53,7 +53,7 @@ interface CollectionInfo {
   top_buy_maker: string;
   top_buy_valid_between: string;
   top_buy_source_id_int: number;
-  is_takedown: number;
+  metadata_disabled?: number;
   created_at: string;
   updated_at: string;
 }
@@ -94,6 +94,7 @@ const changedMapping = {
   non_flagged_floor_sell_value: "floorAskNonFlagged.price",
   top_buy_id: "topBid.id",
   top_buy_value: "topBid.value",
+  metadata_disabled: "metadataDisabled",
 };
 
 export type CollectionWebsocketEventsTriggerQueuePayload = {
@@ -202,8 +203,8 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
         ? sources.get(r.non_flagged_floor_sell_source_id_int)
         : null;
 
-      const isTakedown = r.is_takedown;
-      const id = !isTakedown ? r.id : r.contract;
+      const metadataDisabled = r.metadata_disabled;
+      const id = !metadataDisabled ? r.id : r.contract;
 
       await publishWebsocketEvent({
         event: eventType,
@@ -213,22 +214,23 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
         changed,
         data: {
           id,
-          slug: !isTakedown ? r.slug : r.contract,
-          name: !isTakedown ? r.name : r.contract,
+          slug: !metadataDisabled ? r.slug : r.contract,
+          name: !metadataDisabled ? r.name : r.contract,
           metadata: {
-            imageUrl: !isTakedown ? Assets.getLocalAssetsLink(metadata?.imageUrl) : null,
-            bannerImageUrl: !isTakedown ? metadata?.bannerImageUrl : null,
-            discordUrl: !isTakedown ? metadata?.discordUrl : null,
-            externalUrl: !isTakedown ? metadata?.externalUrl : null,
-            twitterUsername: !isTakedown ? metadata?.twitterUsername : null,
-            description: !isTakedown ? metadata?.description : null,
+            imageUrl: !metadataDisabled ? Assets.getLocalAssetsLink(metadata?.imageUrl) : null,
+            bannerImageUrl: !metadataDisabled ? metadata?.bannerImageUrl : null,
+            discordUrl: !metadataDisabled ? metadata?.discordUrl : null,
+            externalUrl: !metadataDisabled ? metadata?.externalUrl : null,
+            twitterUsername: !metadataDisabled ? metadata?.twitterUsername : null,
+            description: !metadataDisabled ? metadata?.description : null,
           },
+          metadataDisabled,
           tokenCount: String(r.token_count),
           primaryContract: r.contract,
-          tokenSetId: !isTakedown ? r.token_set_id : `contract:${r.contract}`,
+          tokenSetId: !metadataDisabled ? r.token_set_id : `contract:${r.contract}`,
           contractKind,
-          openseaVerificationStatus: !isTakedown ? metadata?.safelistRequestStatus : null,
-          royalties: !isTakedown && r.royalties ? JSON.parse(r.royalties)[0] : null,
+          openseaVerificationStatus: !metadataDisabled ? metadata?.safelistRequestStatus : null,
+          royalties: !metadataDisabled && r.royalties ? JSON.parse(r.royalties)[0] : null,
           topBid: {
             id: r.top_buy_id,
             value: r.top_buy_value ? formatEth(r.top_buy_value) : null,

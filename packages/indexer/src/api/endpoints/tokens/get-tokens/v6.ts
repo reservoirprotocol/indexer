@@ -10,6 +10,7 @@ import * as Boom from "@hapi/boom";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import {
+  getJoiCollectionObject,
   getJoiPriceObject,
   getJoiSaleObject,
   getJoiSourceObject,
@@ -274,6 +275,7 @@ export const getTokensV6Options: RouteOptions = {
             kind: Joi.string().allow("", null).description("Can be erc721, erc115, etc."),
             isFlagged: Joi.boolean().default(false),
             isSpam: Joi.boolean().default(false),
+            metadataDisabled: Joi.boolean().default(false),
             lastFlagUpdate: Joi.string().allow("", null),
             lastFlagChange: Joi.string().allow("", null),
             supply: Joi.number()
@@ -638,8 +640,8 @@ export const getTokensV6Options: RouteOptions = {
           t.supply,
           t.remaining_supply,
           extract(epoch from t.updated_at) AS t_updated_at,
-          t.is_takedown AS t_is_takedown,
-          c.is_takedown AS c_is_takedown,
+          t.metadata_disabled AS t_metadata_disabled,
+          c.metadata_disabled AS c_metadata_disabled,
           c.slug,
           c.creator,
           c.token_count,
@@ -1294,6 +1296,8 @@ export const getTokensV6Options: RouteOptions = {
               kind: r.kind,
               isFlagged: Boolean(Number(r.is_flagged)),
               isSpam: Boolean(Number(r.t_is_spam)) || Boolean(Number(r.c_is_spam)),
+              metadataDisabled:
+                Boolean(Number(r.t_metadata_disabled)) || Boolean(Number(r.c_metadata_disabled)),
               lastFlagUpdate: r.last_flag_update
                 ? new Date(r.last_flag_update).toISOString()
                 : null,
@@ -1304,15 +1308,19 @@ export const getTokensV6Options: RouteOptions = {
               remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : null,
               rarity: r.rarity_score,
               rarityRank: r.rarity_rank,
-              collection: {
-                id: r.collection_id,
-                name: r.collection_name,
-                image: Assets.getLocalAssetsLink(r.collection_image),
-                symbol: r.symbol,
-                slug: r.slug,
-                creator: r.creator ? fromBuffer(r.creator) : null,
-                tokenCount: r.token_count,
-              },
+              collection: getJoiCollectionObject(
+                {
+                  id: r.collection_id,
+                  name: r.collection_name,
+                  image: Assets.getLocalAssetsLink(r.collection_image),
+                  slug: r.slug,
+                  symbol: r.symbol,
+                  creator: r.creator ? fromBuffer(r.creator) : null,
+                  tokenCount: r.token_count,
+                  metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
+                },
+                r.c_metadata_disabled
+              ),
               lastSale:
                 query.includeLastSale && r.last_sale_currency
                   ? await getJoiSaleObject({
@@ -1356,7 +1364,7 @@ export const getTokensV6Options: RouteOptions = {
                   : []
                 : undefined,
             },
-            r.t_is_takedown || r.c_is_takedown
+            r.t_metadata_disabled || r.c_metadata_disabled
           ),
           market: {
             floorAsk: {
