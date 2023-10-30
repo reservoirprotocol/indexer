@@ -673,7 +673,7 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
-            "0xc99bd85ba824de949cf088375225e3fdcdb6696c",
+            "0x875f123220024368968d9f1ab1f3f9c2f3fd190d",
             {
               contract: "0x875f123220024368968d9f1ab1f3f9c2f3fd190d",
               name: "RCAX",
