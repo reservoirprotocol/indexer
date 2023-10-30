@@ -9,7 +9,7 @@ import { PendingAskEventsQueue } from "@/elasticsearch/indexes/asks/pending-ask-
 import * as AskIndex from "@/elasticsearch/indexes/asks";
 import { elasticsearch } from "@/common/elasticsearch";
 
-const BATCH_SIZE = 500;
+const BATCH_SIZE = 1000;
 
 export default class ProcessAskEventsJob extends AbstractRabbitMqJobHandler {
   queueName = "process-ask-events-queue";
