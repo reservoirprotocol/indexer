@@ -47,9 +47,22 @@ export default class ProcessAskEventsJob extends AbstractRabbitMqJobHandler {
           }
         }
 
-        await elasticsearch.bulk({
+        const response = await elasticsearch.bulk({
           body: bulkOps,
         });
+
+        if (response.errors) {
+          logger.error(
+            "elasticsearch-asks",
+            JSON.stringify({
+              topic: "save-errors",
+              data: {
+                bulkOps: JSON.stringify(bulkOps),
+              },
+              response,
+            })
+          );
+        }
       } catch (error) {
         logger.error(
           this.queueName,
