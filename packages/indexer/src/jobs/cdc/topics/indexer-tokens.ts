@@ -6,6 +6,7 @@ import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
+import { refreshAsksTokenFlagStatusJob } from "@/jobs/asks/refresh-asks-token-flag-status-job";
 
 export class IndexerTokensHandler extends KafkaEventHandler {
   topicName = "indexer.public.tokens";
@@ -53,6 +54,15 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         "EX",
         60 * 60 * 24,
         "XX"
+      );
+    }
+
+    const flagStatusChanged = payload.before.is_flagged !== payload.after.is_flagged;
+
+    if (flagStatusChanged) {
+      await refreshAsksTokenFlagStatusJob.addToQueue(
+        payload.after.contract,
+        payload.after.token_id
       );
     }
   }

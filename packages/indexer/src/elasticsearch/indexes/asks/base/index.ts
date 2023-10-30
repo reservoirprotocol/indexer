@@ -5,8 +5,6 @@ import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 
 import { BuildDocumentData, BaseDocument, DocumentBuilder } from "@/elasticsearch/indexes/base";
-import { formatEther } from "@ethersproject/units";
-import { AddressZero } from "@ethersproject/constants";
 
 export interface AskDocument extends BaseDocument {
   contractAndTokenId: string;
@@ -15,7 +13,7 @@ export interface AskDocument extends BaseDocument {
     id: string;
     name: string;
     image: string;
-    media: string;
+    media?: string;
     attributes: {
       key: string;
       value: string;
@@ -26,8 +24,9 @@ export interface AskDocument extends BaseDocument {
     name: string;
     image: string;
   };
-  order?: {
+  order: {
     id: string;
+    kind: string;
     maker: string;
     taker: string;
     tokenSetId: string;
@@ -52,7 +51,7 @@ export interface AskDocument extends BaseDocument {
       };
     };
     pricing: {
-      price?: string;
+      price: string;
       priceDecimal?: number;
       currencyPrice?: string;
       feeBps?: number;
@@ -72,11 +71,12 @@ export interface BuildAskDocumentData extends BuildDocumentData {
   created_at: Date;
   contract: Buffer;
   collection_id: string;
-  token_id?: string;
+  token_id: string;
   amount?: number;
   token_name?: string;
   token_image?: string;
   token_media?: string;
+  token_is_flagged?: number;
   token_attributes?: {
     key: string;
     value: string;
@@ -89,13 +89,13 @@ export interface BuildAskDocumentData extends BuildDocumentData {
   order_quantity_filled: number;
   order_quantity_remaining: number;
   order_source_id_int?: number;
-  order_kind?: string;
+  order_kind: string;
   order_criteria?: {
     kind: string;
     data: Record<string, unknown>;
   };
   order_token_set_id: string;
-  order_pricing_price?: number;
+  order_pricing_price: number;
   order_pricing_currency_price?: number;
   order_pricing_fee_bps?: number;
   order_pricing_currency?: Buffer;
@@ -116,14 +116,13 @@ export class AskDocumentBuilder extends DocumentBuilder {
       createdAt: data.created_at,
       contractAndTokenId: `${fromBuffer(data.contract)}:${data.token_id}`,
       contract: fromBuffer(data.contract),
-      token: data.token_id
-        ? {
-            id: data.token_id,
-            name: data.token_name,
-            image: data.token_image,
-            attributes: data.token_attributes,
-          }
-        : undefined,
+      token: {
+        id: data.token_id,
+        name: data.token_name,
+        image: data.token_image,
+        attributes: data.token_attributes,
+        isFlagged: data.token_is_flagged,
+      },
       collection: data.collection_id
         ? {
             id: data.collection_id,
@@ -131,50 +130,44 @@ export class AskDocumentBuilder extends DocumentBuilder {
             image: data.collection_image,
           }
         : undefined,
-      order: data.order_id
-        ? {
-            id: data.order_id,
-            kind: data.order_kind,
-            maker: fromBuffer(data.order_maker),
-            taker: data.order_taker ? fromBuffer(data.order_taker) : AddressZero,
-            tokenSetId: data.order_token_set_id,
-            validFrom: Number(data.order_valid_from),
-            validUntil: Number(data.order_valid_until),
-            sourceId: data.order_source_id_int,
-            criteria: data.order_criteria,
-            quantityFilled: Number(data.order_quantity_filled),
-            quantityRemaining: Number(data.order_quantity_remaining),
-            pricing: data.order_pricing_price
-              ? {
-                  price: String(data.order_pricing_price),
-                  priceDecimal: Number(Number(formatEther(data.order_pricing_price)).toFixed(18)),
-                  currencyPrice: data.order_pricing_currency_price
-                    ? String(data.order_pricing_currency_price)
-                    : undefined,
-                  feeBps: data.order_pricing_fee_bps ?? undefined,
-                  currency: data.order_pricing_currency
-                    ? fromBuffer(data.order_pricing_currency)
-                    : Sdk.Common.Addresses.Native[config.chainId],
-                  value: data.order_pricing_value ? String(data.order_pricing_value) : undefined,
-                  valueDecimal: data.order_pricing_value
-                    ? formatEth(data.order_pricing_value)
-                    : undefined,
-                  currencyValue: data.order_pricing_currency_value
-                    ? String(data.order_pricing_currency_value)
-                    : undefined,
-                  normalizedValue: data.order_pricing_normalized_value
-                    ? String(data.order_pricing_normalized_value)
-                    : undefined,
-                  normalizedValueDecimal: data.order_pricing_normalized_value
-                    ? formatEth(data.order_pricing_normalized_value)
-                    : undefined,
-                  currencyNormalizedValue: data.order_pricing_currency_normalized_value
-                    ? String(data.order_pricing_currency_normalized_value)
-                    : undefined,
-                }
-              : undefined,
-          }
-        : undefined,
+      order: {
+        id: data.order_id,
+        kind: data.order_kind,
+        maker: fromBuffer(data.order_maker),
+        taker: data.order_taker ? fromBuffer(data.order_taker) : undefined,
+        tokenSetId: data.order_token_set_id,
+        validFrom: Number(data.order_valid_from),
+        validUntil: Number(data.order_valid_until),
+        sourceId: data.order_source_id_int,
+        criteria: data.order_criteria,
+        quantityFilled: Number(data.order_quantity_filled),
+        quantityRemaining: Number(data.order_quantity_remaining),
+        pricing: {
+          price: String(data.order_pricing_price),
+          priceDecimal: formatEth(data.order_pricing_price),
+          currencyPrice: data.order_pricing_currency_price
+            ? String(data.order_pricing_currency_price)
+            : undefined,
+          feeBps: data.order_pricing_fee_bps ?? undefined,
+          currency: data.order_pricing_currency
+            ? fromBuffer(data.order_pricing_currency)
+            : Sdk.Common.Addresses.Native[config.chainId],
+          value: data.order_pricing_value ? String(data.order_pricing_value) : undefined,
+          valueDecimal: data.order_pricing_value ? formatEth(data.order_pricing_value) : undefined,
+          currencyValue: data.order_pricing_currency_value
+            ? String(data.order_pricing_currency_value)
+            : undefined,
+          normalizedValue: data.order_pricing_normalized_value
+            ? String(data.order_pricing_normalized_value)
+            : undefined,
+          normalizedValueDecimal: data.order_pricing_normalized_value
+            ? formatEth(data.order_pricing_normalized_value)
+            : undefined,
+          currencyNormalizedValue: data.order_pricing_currency_normalized_value
+            ? String(data.order_pricing_currency_normalized_value)
+            : undefined,
+        },
+      },
     } as AskDocument;
   }
 }
