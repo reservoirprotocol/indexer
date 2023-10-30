@@ -1,4 +1,3 @@
-import { JsonRpcProvider } from "@ethersproject/providers";
 import { getCallResult, getCallTraceLogs } from "@georgeroman/evm-tx-simulator";
 import { Log } from "@georgeroman/evm-tx-simulator/dist/types";
 import { Network, TxData } from "@reservoir0x/sdk/dist/utils";
@@ -13,6 +12,7 @@ import { generateCollectionMintTxData } from "@/orderbook/mints/calldata";
 import { EventData } from "@/events-sync/data";
 import * as erc721 from "@/events-sync/data/erc721";
 import * as erc1155 from "@/events-sync/data/erc1155";
+import { baseProvider } from "@/common/provider";
 
 export const simulateCollectionMint = async (
   collectionMint: CollectionMint,
@@ -221,7 +221,6 @@ const simulateMintTxData = async (
 };
 
 const getEmittedEvents = async (txData: TxData, chainId: number) => {
-  const provider = new JsonRpcProvider(config.traceNetworkHttpUrl);
   const value = txData.value ?? bn(0);
   return getCallTraceLogs(
     {
@@ -235,7 +234,7 @@ const getEmittedEvents = async (txData: TxData, chainId: number) => {
         [txData.from]: value,
       },
     },
-    provider,
+    baseProvider,
     {
       method: [Network.Polygon, Network.Arbitrum].includes(chainId) ? "opcodeTrace" : "withLog",
     }
@@ -243,7 +242,6 @@ const getEmittedEvents = async (txData: TxData, chainId: number) => {
 };
 
 const triggerCall = async (txData: TxData) => {
-  const provider = new JsonRpcProvider(config.traceNetworkHttpUrl);
   const value = bn(txData.value ?? 0);
   return getCallResult(
     {
@@ -257,6 +255,6 @@ const triggerCall = async (txData: TxData) => {
         [txData.from]: value,
       },
     },
-    provider
+    baseProvider
   );
 };
