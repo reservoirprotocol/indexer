@@ -610,7 +610,7 @@ export const updateAsksTokenFlagStatus = async (
           { update: { _index: document.index, _id: document.id, retry_on_conflict: 3 } },
           {
             doc: {
-              "token.isFlagged": isFlagged,
+              "token.isFlagged": Boolean(isFlagged),
             },
           },
         ]),

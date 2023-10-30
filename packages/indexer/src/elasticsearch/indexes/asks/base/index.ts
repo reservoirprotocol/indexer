@@ -121,7 +121,7 @@ export class AskDocumentBuilder extends DocumentBuilder {
         name: data.token_name,
         image: data.token_image,
         attributes: data.token_attributes,
-        isFlagged: data.token_is_flagged,
+        isFlagged: Boolean(data.token_is_flagged),
       },
       collection: data.collection_id
         ? {
