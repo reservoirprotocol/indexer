@@ -39,9 +39,6 @@ export const getTokensIdsV1Options: RouteOptions = {
       flagStatus: Joi.number()
         .allow(-1, 0, 1)
         .description("-1 = All tokens (default)\n0 = Non flagged tokens\n1 = Flagged tokens"),
-      excludeSpam: Joi.boolean()
-        .default(false)
-        .description("If true, will filter any tokens marked as spam."),
       limit: Joi.number()
         .integer()
         .min(1)
@@ -96,10 +93,6 @@ export const getTokensIdsV1Options: RouteOptions = {
 
       if (_.indexOf([0, 1], query.flagStatus) !== -1) {
         conditions.push(`"t"."is_flagged" = $/flagStatus/`);
-      }
-
-      if (query.excludeSpam) {
-        conditions.push(`(t.is_spam IS NULL OR t.is_spam <= 0)`);
       }
 
       // Continue with the next page, this depends on the sorting used
