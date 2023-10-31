@@ -80,6 +80,8 @@ export const postSpamStatusTokenV1Options: RouteOptions = {
         payload.tokens = [payload.tokens];
       }
 
+      const newSpamState = Number(payload.spam) ? 100 : -100;
+
       const query = `
         UPDATE tokens
         SET is_spam = $/spam/
@@ -95,7 +97,7 @@ export const postSpamStatusTokenV1Options: RouteOptions = {
       `;
 
       updateResult = await idb.manyOrNone(query, {
-        spam: Number(payload.spam) ? 100 : -100,
+        spam: newSpamState,
       });
 
       if (updateResult) {
@@ -108,7 +110,7 @@ export const postSpamStatusTokenV1Options: RouteOptions = {
             contract: fromBuffer(res.contract),
             tokenId: res.token_id,
             data: {
-              newSpamState: Number(payload.spam),
+              newSpamState,
             },
           }))
         );

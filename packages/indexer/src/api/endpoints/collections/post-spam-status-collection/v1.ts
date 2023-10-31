@@ -89,6 +89,8 @@ export const postSpamStatusCollectionV1Options: RouteOptions = {
         payload.collections = [payload.collections];
       }
 
+      const newSpamState = Number(payload.spam) ? 100 : -100;
+
       updateResult = await idb.manyOrNone(
         `
             UPDATE collections
@@ -99,7 +101,7 @@ export const postSpamStatusCollectionV1Options: RouteOptions = {
           `,
         {
           ids: payload.collections,
-          spam: Number(payload.spam) ? 100 : -100,
+          spam: newSpamState,
         }
       );
 
@@ -112,7 +114,7 @@ export const postSpamStatusCollectionV1Options: RouteOptions = {
             actionTakerIdentifier: apiKey.key,
             collection: res.id,
             data: {
-              newSpamState: Number(payload.spam),
+              newSpamState,
             },
           }))
         );
