@@ -584,7 +584,7 @@ export const updateAsksTokenData = async (
         must_not: [
           {
             term: {
-              "token.isFlagged": tokenData.isFlagged,
+              "token.isFlagged": Boolean(tokenData.isFlagged),
             },
           },
         ],
