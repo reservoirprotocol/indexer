@@ -4,7 +4,7 @@ import { keccak256 } from "@ethersproject/solidity";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
-import { PermitHandler, PermitWithTransfers } from "@reservoir0x/sdk/dist/router/v6/permit";
+import { PermitHandler } from "@reservoir0x/sdk/dist/router/v6/permit";
 import {
   FillListingsResult,
   ListingDetails,
@@ -44,7 +44,7 @@ import { getCurrency } from "@/utils/currencies";
 import * as erc721c from "@/utils/erc721c";
 import { ExecutionsBuffer } from "@/utils/executions";
 import * as onChainData from "@/utils/on-chain-data";
-import { getPermitId, getPermit, savePermit } from "@/utils/permits";
+import { getEphemeralPermitId, getEphemeralPermit, saveEphemeralPermit } from "@/utils/permits";
 import { getPreSignatureId, getPreSignature, savePreSignature } from "@/utils/pre-signatures";
 import { getUSDAndCurrencyPrices } from "@/utils/prices";
 
@@ -2059,22 +2059,22 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
         // Handle permits
         for (const permit of permits) {
-          const id = getPermitId(request.payload as object, {
+          const id = getEphemeralPermitId(request.payload as object, {
             token: permit.data.token,
             amount: permit.data.amount,
           });
 
-          const cachedPermit = await getPermit(id);
+          const cachedPermit = await getEphemeralPermit(id);
           if (cachedPermit) {
             // Override with the cached permit data
             permit.data = cachedPermit.data;
           } else {
             // Cache the permit if it's the first time we encounter it
-            await savePermit(id, permit);
+            await saveEphemeralPermit(id, permit);
           }
 
           // If the permit has a signature attached to it, we can skip it
-          const hasSignature = (permit.data as PermitWithTransfers).signature;
+          const hasSignature = permit.data.signature;
           if (hasSignature) {
             continue;
           }
@@ -2082,7 +2082,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           steps[2].items.push({
             status: "incomplete",
             data: {
-              sign: await permitHandler.getSignatureData(permit.data),
+              sign: await permitHandler.getSignatureData(permit),
               post: {
                 endpoint: "/execute/permit-signature/v1",
                 method: "POST",
@@ -2193,10 +2193,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           data:
             !steps[2].items.length && !steps[3].items.length
               ? {
-                  ...permitHandler.attachToRouterExecution(
-                    txData,
-                    permits.map((p) => p.data)
-                  ),
+                  ...permitHandler.attachToRouterExecution(txData, permits),
                   maxFeePerGas,
                   maxPriorityFeePerGas,
                 }

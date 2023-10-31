@@ -30,6 +30,7 @@ import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import { ExecutionsBuffer } from "@/utils/executions";
 import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
+import { getPersistentPermit } from "@/utils/permits";
 import { getPreSignatureId, getPreSignature, savePreSignature } from "@/utils/pre-signatures";
 import { getUSDAndCurrencyPrices } from "@/utils/prices";
 
@@ -276,7 +277,8 @@ export const getExecuteSellV7Options: RouteOptions = {
           price: string;
           sourceId: number | null;
           currency: string;
-          rawData: object;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          rawData: any;
           builtInFees: { kind: string; recipient: string; bps: number }[];
           additionalFees?: Sdk.RouterV6.Types.Fee[];
         },
@@ -395,6 +397,11 @@ export const getExecuteSellV7Options: RouteOptions = {
           ],
         });
 
+        // Load any permits
+        const permit = order.rawData.permitId
+          ? await getPersistentPermit(order.rawData.permitId, order.rawData.permitIndex ?? 0)
+          : undefined;
+
         bidDetails.push(
           await generateBidDetailsV6(
             {
@@ -416,7 +423,8 @@ export const getExecuteSellV7Options: RouteOptions = {
               tokenId: token.tokenId,
               amount: token.quantity,
               owner: token.owner,
-            }
+            },
+            permit
           )
         );
       };

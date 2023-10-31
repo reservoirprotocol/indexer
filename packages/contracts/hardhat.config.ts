@@ -23,16 +23,16 @@ const getNetworkConfig = (chainId?: number) => {
     switch (chainId) {
       // Mainnets
       case 1:
-        url = `https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
+        url = "https://eth.llamarpc.com";
         break;
       case 10:
-        url = `https://opt-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
+        url = "https://optimism.llamarpc.com";
         break;
       case 56:
         url = "https://bsc.meowrpc.com";
         break;
       case 137:
-        url = `https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
+        url = "https://polygon.llamarpc.com";
         break;
       case 324:
         url = "https://mainnet.era.zksync.io";
@@ -44,7 +44,7 @@ const getNetworkConfig = (chainId?: number) => {
         url = "https://developer-access-mainnet.base.org";
         break;
       case 42161:
-        url = `https://arb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
+        url = "https://arbitrum.llamarpc.com";
         break;
       case 42170:
         url = "https://arbitrum-nova.publicnode.com";
@@ -63,7 +63,7 @@ const getNetworkConfig = (chainId?: number) => {
         break;
       // Testnets
       case 5:
-        url = `https://eth-goerli.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
+        url = "https://goerli.blockpi.network/v1/rpc/public";
         break;
       case 999:
         url = "https://testnet.rpc.zora.co";
@@ -75,7 +75,7 @@ const getNetworkConfig = (chainId?: number) => {
         url = "https://rpc.goerli.linea.build/";
         break;
       case 80001:
-        url = `https://polygon-mumbai.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
+        url = "https://endpoints.omniatech.io/v1/matic/mumbai/public";
         break;
       case 84531:
         url = "https://goerli.base.org";
@@ -84,7 +84,7 @@ const getNetworkConfig = (chainId?: number) => {
         url = "https://alpha-rpc.scroll.io/l2";
         break;
       case 11155111:
-        url = `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
+        url = "https://endpoints.omniatech.io/v1/eth/sepolia/public";
         break;
       case 2863311531:
         url = "https://rpc-testnet.ancient8.gg/";

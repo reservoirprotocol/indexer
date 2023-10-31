@@ -220,6 +220,7 @@ export default class OrderUpdatesByMakerJob extends AbstractRabbitMqJobHandler {
                         AND orders.conduit = $/conduit/
                         AND orders.currency = $/token/
                         AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
+                        AND orders.raw_data->>'permitId' IS NULL
                     ),
                     y AS (
                       SELECT

@@ -4,6 +4,8 @@ import { BigNumber } from "@ethersproject/bignumber";
 import { _TypedDataEncoder } from "@ethersproject/hash";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
+import { PermitHandler } from "@reservoir0x/sdk/dist/router/v6/permit";
+
 import { TxData } from "@reservoir0x/sdk/dist/utils";
 import axios from "axios";
 import Joi from "joi";
@@ -20,6 +22,7 @@ import * as b from "@/utils/auth/blur";
 import * as e from "@/utils/auth/erc721c";
 import * as erc721c from "@/utils/erc721c";
 import { ExecutionsBuffer } from "@/utils/executions";
+import { getEphemeralPermit, getEphemeralPermitId, saveEphemeralPermit } from "@/utils/permits";
 
 // Blur
 import * as blurBuyCollection from "@/orderbook/orders/blur/build/buy/collection";
@@ -192,6 +195,7 @@ export const getExecuteBidV5Options: RouteOptions = {
               .pattern(regex.address)
               .lowercase()
               .default(Sdk.Common.Addresses.WNative[config.chainId]),
+            usePermit: Joi.boolean().description("When true, will use permit to avoid approvals."),
           })
             .or("token", "collection", "tokenSetId")
             .oxor("token", "collection", "tokenSetId")
@@ -281,6 +285,7 @@ export const getExecuteBidV5Options: RouteOptions = {
         expirationTime?: number;
         salt?: string;
         nonce?: string;
+        usePermit?: string;
       }[];
 
       // Set up generic bid steps
@@ -326,6 +331,13 @@ export const getExecuteBidV5Options: RouteOptions = {
           items: [],
         },
         {
+          id: "currency-permit",
+          action: "Sign permits",
+          description: "Sign permits for accessing the tokens in your wallet",
+          kind: "signature",
+          items: [],
+        },
+        {
           id: "order-signature",
           action: "Authorize offer",
           description: "A free off-chain signature to create the offer",
@@ -349,6 +361,8 @@ export const getExecuteBidV5Options: RouteOptions = {
           };
           collection?: string;
           isNonFlagged?: boolean;
+          permitId?: string;
+          permitIndex?: number;
           orderbook: string;
           orderbookApiKey?: string;
           source?: string;
@@ -662,6 +676,11 @@ export const getExecuteBidV5Options: RouteOptions = {
             const collection =
               collectionId && !attributeKey && !attributeValue ? collectionId : undefined;
 
+            const supportedPermitCurrencies = Sdk.Common.Addresses.Usdc[config.chainId] ?? [];
+            if (params.usePermit && !supportedPermitCurrencies.includes(params.currency)) {
+              return errors.push({ message: "Permit not supported for currency", orderIndex: i });
+            }
+
             switch (params.orderKind) {
               case "blur": {
                 if (!["blur"].includes(params.orderbook)) {
@@ -689,7 +708,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                 if (needsBethWrapping) {
                   // Force the client to poll
                   // (since Blur won't release the calldata unless you have enough BETH in your wallet)
-                  steps[4].items.push({
+                  steps[5].items.push({
                     status: "incomplete",
                   });
                 } else {
@@ -705,7 +724,7 @@ export const getExecuteBidV5Options: RouteOptions = {
 
                   const id = new Sdk.BlurV2.Order(config.chainId, signData.value).hash();
 
-                  steps[4].items.push({
+                  steps[5].items.push({
                     status: "incomplete",
                     data: {
                       sign: {
@@ -816,18 +835,79 @@ export const getExecuteBidV5Options: RouteOptions = {
                 const exchange = new Sdk.SeaportV15.Exchange(config.chainId);
                 const conduit = exchange.deriveConduit(order.params.conduitKey);
 
+                const price = order.getMatchingPrice().toString();
+
                 // Check the maker's approval
                 let approvalTx: TxData | undefined;
                 const currencyApproval = await currency.getAllowance(maker, conduit);
-                if (bn(currencyApproval).lt(order.getMatchingPrice())) {
+                if (bn(currencyApproval).lt(price)) {
                   approvalTx = currency.approveTransaction(maker, conduit);
                 }
 
-                steps[2].items.push({
-                  status: !approvalTx ? "complete" : "incomplete",
-                  data: approvalTx,
-                  orderIndexes: [i],
-                });
+                // Use permits
+                let permitId: string | undefined;
+                let permitIndex: number | undefined;
+                if (params.usePermit && approvalTx) {
+                  const permitHandler = new PermitHandler(config.chainId, baseProvider);
+                  const [permit] = await permitHandler.generate(
+                    maker,
+                    conduit,
+                    {
+                      kind: "no-transfers",
+                      token: params.currency,
+                      amount: price,
+                    },
+                    order.params.endTime - now()
+                  );
+
+                  const id = getEphemeralPermitId(request.payload as object, {
+                    owner: permit.data.owner,
+                    spender: permit.data.spender,
+                    token: permit.data.token,
+                    amount: permit.data.amount,
+                    nonce: permit.data.nonce,
+                    deadline: permit.data.deadline,
+                  });
+
+                  const cachedPermit = await getEphemeralPermit(id);
+                  if (cachedPermit) {
+                    // Override with the cached permit data
+                    permit.data = cachedPermit.data;
+                  } else {
+                    // Cache the permit if it's the first time we encounter it
+                    await saveEphemeralPermit(id, permit);
+                  }
+
+                  // If the permit has a signature attached to it, we can skip it
+                  const hasSignature = permit.data.signature;
+                  if (!hasSignature) {
+                    steps[4].items.push({
+                      status: "incomplete",
+                      data: {
+                        sign: await permitHandler.getSignatureData(permit),
+                        post: {
+                          endpoint: "/execute/permit-signature/v1",
+                          method: "POST",
+                          body: {
+                            id,
+                            persist: true,
+                          },
+                        },
+                      },
+                    });
+                  } else {
+                    permitId = await permitHandler.hash(permit);
+                    permitIndex = 0;
+                  }
+                }
+
+                if (!params.usePermit) {
+                  steps[2].items.push({
+                    status: !approvalTx ? "complete" : "incomplete",
+                    data: approvalTx,
+                    orderIndexes: [i],
+                  });
+                }
 
                 bulkOrders["seaport-v1.5"].push({
                   order: {
@@ -841,6 +921,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                   collection,
                   isNonFlagged: params.excludeFlaggedTokens,
                   orderbook: params.orderbook,
+                  permitId,
+                  permitIndex,
                   orderbookApiKey: params.orderbookApiKey,
                   source,
                   orderIndex: i,
@@ -1020,7 +1102,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                   data: approvalTx,
                   orderIndexes: [i],
                 });
-                steps[4].items.push({
+
+                steps[5].items.push({
                   status: "incomplete",
                   data: {
                     sign: order.getSignatureData(),
@@ -1112,7 +1195,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                   data: approvalTx,
                   orderIndexes: [i],
                 });
-                steps[4].items.push({
+
+                steps[5].items.push({
                   status: "incomplete",
                   data: {
                     sign: order.getSignatureData(),
@@ -1201,7 +1285,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                   data: approvalTx,
                   orderIndexes: [i],
                 });
-                steps[4].items.push({
+
+                steps[5].items.push({
                   status: "incomplete",
                   data: {
                     sign: new Sdk.X2Y2.Exchange(
@@ -1301,7 +1386,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                   });
                 }
 
-                steps[4].items.push({
+                steps[5].items.push({
                   status: "incomplete",
                   data: {
                     sign: order.getSignatureData(),
@@ -1351,7 +1436,7 @@ export const getExecuteBidV5Options: RouteOptions = {
         const orders = bulkOrders["seaport-v1.5"];
         if (orders.length === 1) {
           const order = new Sdk.SeaportV15.Order(config.chainId, orders[0].order.data);
-          steps[4].items.push({
+          steps[5].items.push({
             status: "incomplete",
             data: {
               sign: order.getSignatureData(),
@@ -1369,6 +1454,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                   attribute: orders[0].attribute,
                   collection: orders[0].collection,
                   isNonFlagged: orders[0].isNonFlagged,
+                  permitId: orders[0].permitId,
+                  permitIndex: orders[0].permitIndex,
                   orderbook: orders[0].orderbook,
                   orderbookApiKey: orders[0].orderbookApiKey,
                   source,
@@ -1383,7 +1470,7 @@ export const getExecuteBidV5Options: RouteOptions = {
             orders.map((o) => new Sdk.SeaportV15.Order(config.chainId, o.order.data))
           );
 
-          steps[4].items.push({
+          steps[5].items.push({
             status: "incomplete",
             data: {
               sign: signatureData,
@@ -1397,6 +1484,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                     attribute: o.attribute,
                     collection: o.collection,
                     isNonFlagged: o.isNonFlagged,
+                    permitId: o.permitId,
+                    permitIndex: o.permitIndex,
                     orderbook: o.orderbook,
                     orderbookApiKey: o.orderbookApiKey,
                     bulkData: {
@@ -1421,7 +1510,7 @@ export const getExecuteBidV5Options: RouteOptions = {
         const orders = bulkOrders["alienswap"];
         if (orders.length === 1) {
           const order = new Sdk.Alienswap.Order(config.chainId, orders[0].order.data);
-          steps[4].items.push({
+          steps[5].items.push({
             status: "incomplete",
             data: {
               sign: order.getSignatureData(),
@@ -1453,7 +1542,7 @@ export const getExecuteBidV5Options: RouteOptions = {
             orders.map((o) => new Sdk.Alienswap.Order(config.chainId, o.order.data))
           );
 
-          steps[4].items.push({
+          steps[5].items.push({
             status: "incomplete",
             data: {
               sign: signatureData,
@@ -1516,10 +1605,19 @@ export const getExecuteBidV5Options: RouteOptions = {
         }
       }
 
-      if (!steps[4].items.length) {
+      if (!steps[5].items.length) {
         const error = getExecuteError("No orders can be created");
         error.output.payload.errors = errors;
         throw error;
+      }
+
+      // Don't return the last step if there any are permits to be signed
+      if (steps[4].items.length) {
+        steps[5].items = steps[5].items.map((item) => ({
+          ...item,
+          status: "incomplete",
+          data: undefined,
+        }));
       }
 
       // De-duplicate step items
