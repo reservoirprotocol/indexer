@@ -180,7 +180,9 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue(payloads: ProcessAskEventJobPayload[]) {
-    if (config.environment !== "dev" && config.chainId !== 1) return;
+    if (!config.doElasticsearchWork || config.chainId !== 1) {
+      return;
+    }
 
     await this.sendBatch(payloads.map((payload) => ({ payload })));
   }

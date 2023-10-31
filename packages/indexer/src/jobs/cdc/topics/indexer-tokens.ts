@@ -64,15 +64,6 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         const rarityRankChanged = payload.before.rarity_rank !== payload.after.rarity_rank;
 
         if (flagStatusChanged || rarityRankChanged) {
-          logger.info(
-            "kafka-event-handler",
-            JSON.stringify({
-              topic: "debugAskIndex",
-              message: `Handle token change.`,
-              payload,
-            })
-          );
-
           await refreshAsksTokenJob.addToQueue(payload.after.contract, payload.after.token_id);
         }
       }
