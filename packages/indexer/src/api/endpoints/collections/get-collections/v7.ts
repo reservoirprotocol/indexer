@@ -149,6 +149,9 @@ export const getCollectionsV7Options: RouteOptions = {
         .description(
           "Amount of items returned in response. Default and max limit is 20, unless sorting by `updatedAt` which has a max limit of 1000."
         ),
+      excludeSpam: Joi.boolean()
+        .default(false)
+        .description("If true, will filter any collections marked as spam."),
       startTimestamp: Joi.number()
         .when("sortBy", {
           is: "updatedAt",
@@ -526,12 +529,15 @@ export const getCollectionsV7Options: RouteOptions = {
       if (query.id) {
         conditions.push("collections.id = $/id/");
       }
+
       if (query.slug) {
         conditions.push("collections.slug = $/slug/");
       }
+
       if (query.community) {
         conditions.push("collections.community = $/community/");
       }
+
       if (query.collectionsSetId) {
         query.collectionsIds = await CollectionSets.getCollectionsIds(query.collectionsSetId);
         if (_.isEmpty(query.collectionsIds)) {
@@ -540,6 +546,7 @@ export const getCollectionsV7Options: RouteOptions = {
 
         conditions.push(`collections.id IN ($/collectionsIds:csv/)`);
       }
+
       if (query.contract) {
         if (!Array.isArray(query.contract)) {
           query.contract = [query.contract];
@@ -547,10 +554,12 @@ export const getCollectionsV7Options: RouteOptions = {
         query.contract = query.contract.map((contract: string) => toBuffer(contract));
         conditions.push(`collections.contract IN ($/contract:csv/)`);
       }
+
       if (query.creator) {
         query.creator = toBuffer(query.creator);
         conditions.push(`collections.creator = $/creator/`);
       }
+
       if (query.name) {
         query.name = `%${query.name}%`;
         conditions.push(`collections.name ILIKE $/name/`);
@@ -572,6 +581,10 @@ export const getCollectionsV7Options: RouteOptions = {
 
       if (query.endTimestamp) {
         conditions.push(`collections.updated_at <= to_timestamp($/endTimestamp/)`);
+      }
+
+      if (query.excludeSpam) {
+        conditions.push("(collections.is_spam IS NULL OR collections.is_spam <= 0)");
       }
 
       // Sorting and pagination
@@ -780,7 +793,7 @@ export const getCollectionsV7Options: RouteOptions = {
               openseaVerificationStatus: r.opensea_verification_status,
               description: r.description,
               metadataDisabled: Boolean(Number(r.metadata_disabled)),
-              isSpam: Boolean(Number(r.is_spam)),
+              isSpam: Number(r.is_spam) > 0,
               sampleImages: Assets.getLocalAssetsLink(sampleImages) ?? [],
               tokenCount: String(r.token_count),
               onSaleCount: String(r.on_sale_count),

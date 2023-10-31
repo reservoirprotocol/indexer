@@ -55,6 +55,9 @@ export const getUserCollectionsV3Options: RouteOptions = {
       includeLiquidCount: Joi.boolean()
         .default(false)
         .description("If true, number of tokens with bids will be returned in the response."),
+      excludeSpam: Joi.boolean()
+        .default(false)
+        .description("If true, will filter any collections marked as spam."),
       offset: Joi.number()
         .integer()
         .min(0)
@@ -84,6 +87,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
             slug: Joi.string().allow("", null),
             name: Joi.string().allow("", null),
             image: Joi.string().allow("", null),
+            isSpam: Joi.boolean().default(false),
             banner: Joi.string().allow("", null),
             discordUrl: Joi.string().allow("", null),
             externalUrl: Joi.string().allow("", null),
@@ -211,6 +215,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
                 (collections.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
                 collections.contract,
                 collections.token_set_id,
+                collections.is_spam, 
                 collections.token_count,
                 collections.metadata_disabled,
                 filtered_token_images.images AS sample_images,
@@ -263,6 +268,10 @@ export const getUserCollectionsV3Options: RouteOptions = {
 
       if (query.collection) {
         conditions.push(`collections.id = $/collection/`);
+      }
+
+      if (query.excludeSpam) {
+        conditions.push(`(collections.is_spam IS NULL OR collections.is_spam <= 0)`);
       }
 
       if (conditions.length) {
@@ -325,6 +334,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
               image:
                 Assets.getLocalAssetsLink(r.image) ||
                 (r.sample_images?.length ? Assets.getLocalAssetsLink(r.sample_images[0]) : null),
+              isSpam: Number(r.is_spam) > 0,
               banner: r.banner,
               discordUrl: r.discord_url,
               externalUrl: r.external_url,

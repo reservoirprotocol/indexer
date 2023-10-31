@@ -10,7 +10,7 @@ import { regex, toBuffer } from "@/common/utils";
 
 const version = "v1";
 
-export const getTokensIdsV4Options: RouteOptions = {
+export const getTokensIdsV1Options: RouteOptions = {
   description: "Token IDs",
   notes:
     "This API is optimized for quickly fetching a list of tokens ids in by collection, contract, token set id. ",
@@ -39,6 +39,9 @@ export const getTokensIdsV4Options: RouteOptions = {
       flagStatus: Joi.number()
         .allow(-1, 0, 1)
         .description("-1 = All tokens (default)\n0 = Non flagged tokens\n1 = Flagged tokens"),
+      excludeSpam: Joi.boolean()
+        .default(false)
+        .description("If true, will filter any tokens marked as spam."),
       limit: Joi.number()
         .integer()
         .min(1)
@@ -93,6 +96,10 @@ export const getTokensIdsV4Options: RouteOptions = {
 
       if (_.indexOf([0, 1], query.flagStatus) !== -1) {
         conditions.push(`"t"."is_flagged" = $/flagStatus/`);
+      }
+
+      if (query.excludeSpam) {
+        conditions.push(`(t.is_spam IS NULL OR t.is_spam <= 0)`);
       }
 
       // Continue with the next page, this depends on the sorting used

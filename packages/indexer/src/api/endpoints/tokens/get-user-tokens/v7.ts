@@ -440,7 +440,7 @@ export const getUserTokensV7Options: RouteOptions = {
         ${includeRoyaltyBreakdownQuery}
         WHERE b.token_id = t.token_id
         AND b.contract = t.contract
-        ${query.excludeSpam ? `AND t.is_spam != 1` : ""}
+        ${query.excludeSpam ? `AND (t.is_spam IS NULL OR t.is_spam <= 0)` : ""}
         AND ${
           tokensCollectionFilters.length ? "(" + tokensCollectionFilters.join(" OR ") + ")" : "TRUE"
         }
@@ -590,7 +590,7 @@ export const getUserTokensV7Options: RouteOptions = {
           ) AS b
           ${tokensJoin}
           JOIN collections c ON c.id = t.collection_id ${
-            query.excludeSpam ? `AND c.is_spam != 1` : ""
+            query.excludeSpam ? `AND (c.is_spam IS NULL OR c.is_spam <= 0)` : ""
           }
           LEFT JOIN orders o ON o.id = c.floor_sell_id
           LEFT JOIN orders ot ON ot.id = t.floor_sell_id
@@ -711,7 +711,7 @@ export const getUserTokensV7Options: RouteOptions = {
               remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : null,
               media: r.media,
               isFlagged: Boolean(Number(r.is_flagged)),
-              isSpam: Boolean(Number(r.t_is_spam)) || Boolean(Number(r.c_is_spam)),
+              isSpam: Number(r.t_is_spam) > 0 || Number(r.c_is_spam) > 0,
               metadataDisabled:
                 Boolean(Number(r.c_metadata_disabled)) || Boolean(Number(r.t_metadata_disabled)),
               lastFlagUpdate: r.last_flag_update
@@ -727,7 +727,7 @@ export const getUserTokensV7Options: RouteOptions = {
                   slug: r.slug,
                   symbol: r.symbol,
                   imageUrl: r.metadata?.imageUrl,
-                  isSpam: Boolean(Number(r.c_is_spam)),
+                  isSpam: Number(r.c_is_spam) > 0,
                   metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
                   openseaVerificationStatus: r.opensea_verification_status,
                   floorAskPrice: r.collection_floor_sell_value
