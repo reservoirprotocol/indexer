@@ -59,8 +59,16 @@ export default class RefreshAsksTokenJob extends AbstractRabbitMqJobHandler {
 
     const jobId = crypto
       .createHash("sha256")
-      .update(`${contract.toLowerCase()}${tokenId}`)
+      .update(`${contract.toLowerCase()}:${tokenId}`)
       .digest("hex");
+
+    logger.info(
+      refreshAsksTokenJob.queueName,
+      JSON.stringify({
+        topic: "debugAskIndex",
+        message: `addToQueue. contract=${contract}, tokenId=${tokenId}, jobId=${jobId}`,
+      })
+    );
 
     await this.send({ payload: { contract, tokenId }, jobId });
   }
