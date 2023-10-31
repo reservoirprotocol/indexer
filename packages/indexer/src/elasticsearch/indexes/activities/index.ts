@@ -555,13 +555,15 @@ export const getTopSellingCollectionsV2 = async (params: {
             "event.washTradingScore": 1,
           },
         },
-        ...(trendingExcludedContracts && [
-          {
-            terms: {
-              "collection.id": excludedCollections,
-            },
-          },
-        ]),
+        ...(excludedCollections.length > 0
+          ? [
+              {
+                terms: {
+                  "collection.id": excludedCollections,
+                },
+              },
+            ]
+          : []),
       ],
     },
   } as any;
@@ -604,11 +606,15 @@ export const getTopSellingCollectionsV2 = async (params: {
   })) as any;
 
   const collections = esResult?.aggregations?.collections?.buckets;
-  const pastResults = await getPastResults(
-    collections.map((collection: any) => collection.key),
-    startTime,
-    fillType
-  );
+  let pastResults = [] as any;
+
+  if (collections.length > 0) {
+    pastResults = await getPastResults(
+      collections.map((collection: any) => collection.key),
+      startTime,
+      fillType
+    );
+  }
 
   return esResult?.aggregations?.collections?.buckets?.map((bucket: any) => {
     const pastResult = pastResults.find((result: any) => result.id == bucket.key);
