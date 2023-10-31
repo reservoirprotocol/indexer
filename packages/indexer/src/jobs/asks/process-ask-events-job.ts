@@ -85,7 +85,7 @@ export default class ProcessAskEventsJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue() {
-    if (!config.doElasticsearchWork || config.chainId !== 1) {
+    if (!config.doElasticsearchWork) {
       return;
     }
 

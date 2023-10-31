@@ -7,7 +7,6 @@ import { getNetworkName, getNetworkSettings } from "@/config/network";
 
 import * as CONFIG from "@/elasticsearch/indexes/asks/config";
 import { AskDocument } from "@/elasticsearch/indexes/asks/base";
-import { config } from "@/config/index";
 import { buildContinuation, splitContinuation } from "@/common/utils";
 import _ from "lodash";
 import {
@@ -78,8 +77,6 @@ export const getIndexName = (): string => {
 };
 
 export const initIndex = async (): Promise<void> => {
-  if (config.environment !== "dev" && config.chainId !== 1) return;
-
   try {
     const indexConfigName =
       getNetworkSettings().elasticsearch?.indexes?.asks?.configName ?? "CONFIG_DEFAULT";
