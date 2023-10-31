@@ -193,6 +193,8 @@ export const getOrderSourceByOrderKind = async (
         return sources.getOrInsert("alienswap.xyz");
       case "collectionxyz":
         return sources.getOrInsert("collection.xyz");
+      case "hotpot":
+        return sources.getOrInsert("market.hotpot.gg");
       case "mint": {
         if (address && mintsSources.has(address)) {
           return sources.getOrInsert(mintsSources.get(address)!);
@@ -448,6 +450,14 @@ export const generateListingDetailsV6 = (
         kind: "payment-processor",
         ...common,
         order: new Sdk.PaymentProcessor.Order(config.chainId, order.rawData),
+      };
+    }
+
+    case "hotpot": {
+      return {
+        kind: "hotpot",
+        ...common,
+        order: new Sdk.Hotpot.Order(config.chainId, order.rawData),
       };
     }
 

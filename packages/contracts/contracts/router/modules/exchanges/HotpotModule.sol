@@ -45,8 +45,7 @@ contract HotpotModule is BaseExchangeModule {
     }
 
     function acceptETHListings(
-        IHotpotMarketplace.BatchOrderParameters[] memory parameters,
-        address[] memory offerers,
+        IHotpotMarketplace.OrderParameters[] calldata parameters,
         ETHListingParams calldata params,
         Fee[] calldata fees
     )
@@ -56,10 +55,17 @@ contract HotpotModule is BaseExchangeModule {
         refundETHLeftover(params.refundTo)
         chargeETHFees(fees, params.amount) 
     {
-        IHotpotMarketplace(EXCHANGE).batchFulfillOrder{value: params.amount}(
-            parameters,
-            offerers
-        );
+        for (uint256 i = 0; i < parameters.length; ) {
+            // Execute fill
+            _fulfillOrder(
+                parameters[i],
+                params.amount
+            );
+
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     // --- Internal ---

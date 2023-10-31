@@ -185,6 +185,10 @@ export type GenericOrder =
   | {
       kind: "payment-processor";
       order: Sdk.PaymentProcessor.Order;
+    }
+  | {
+      kind: "hotpot";
+      order: Sdk.Hotpot.Order;
     };
 
 // Listings

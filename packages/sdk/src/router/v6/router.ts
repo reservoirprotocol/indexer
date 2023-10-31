@@ -72,6 +72,7 @@ import MidaswapModuleAbi from "./abis/MidaswapModule.json";
 import CaviarV1ModuleAbi from "./abis/CaviarV1Module.json";
 import CryptoPunksModuleAbi from "./abis/CryptoPunksModule.json";
 import PaymentProcessorModuleAbi from "./abis/PaymentProcessorModule.json";
+import HotpotModuleAbi from "./abis/HotpotModule.json";
 import MintModuleAbi from "./abis/MintModule.json";
 import MintProxyAbi from "./abis/MintProxy.json";
 // Exchanges
@@ -224,6 +225,11 @@ export class Router {
       paymentProcessorModule: new Contract(
         Addresses.PaymentProcessorModule[chainId] ?? AddressZero,
         PaymentProcessorModuleAbi,
+        provider
+      ),
+      hotpotModule: new Contract(
+        Addresses.HotpotModule[chainId] ?? AddressZero,
+        HotpotModuleAbi,
         provider
       ),
       permitProxy: new Contract(
@@ -1035,6 +1041,7 @@ export class Router {
     const raribleDetails: ListingDetails[] = [];
     const superRareDetails: ListingDetails[] = [];
     const cryptoPunksDetails: ListingDetails[] = [];
+    const hotpotDetails: ListingDetails[] = [];
     // Supports ETH and ERC20 listings
     const zeroexV4Erc721Details: PerCurrencyListingDetails = {};
     const zeroexV4Erc1155Details: PerCurrencyListingDetails = {};
@@ -1171,6 +1178,11 @@ export class Router {
             paymentProcessorDetails[currency] = [];
           }
           detailsRef = paymentProcessorDetails[currency];
+          break;
+        }
+
+        case "hotpot": {
+          detailsRef = hotpotDetails;
           break;
         }
 
@@ -3203,6 +3215,64 @@ export class Router {
         for (const { orderId } of currencyDetails) {
           success[orderId] = true;
         }
+      }
+    }
+
+    if (hotpotDetails.length) {
+      const orders = hotpotDetails.map((d) => d.order as Sdk.Hotpot.Order);
+      const module = this.contracts.hotpotModule;
+
+      const fees = getFees(hotpotDetails);
+      const price = orders.map((order) => bn(order.tradeAmount!)).reduce((a, b) => a.add(b), bn(0));
+      const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+      const totalPrice = price.add(feeAmount);
+
+      executions.push({
+        info: {
+          module: module.address,
+          data:
+            orders.length === 1
+              ? module.interface.encodeFunctionData("acceptETHListing", [
+                  orders[0].getExchangeOrderParams(),
+                  {
+                    fillTo: taker,
+                    refundTo: relayer,
+                    revertIfIncomplete: Boolean(!options?.partial),
+                    amount: price,
+                  },
+                  fees,
+                ])
+              : module.interface.encodeFunctionData("acceptETHListings", [
+                  orders.map((order) => order.getExchangeOrderParams()),
+                  {
+                    fillTo: taker,
+                    refundTo: relayer,
+                    revertIfIncomplete: Boolean(!options?.partial),
+                    amount: price,
+                  },
+                  fees,
+                ]),
+          value: totalPrice,
+        },
+        orderIds: hotpotDetails.map((d) => d.orderId),
+      });
+
+      // Track any possibly required swap
+      swapDetails.push({
+        tokenIn: buyInCurrency,
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
+        tokenOutAmount: totalPrice,
+        recipient: module.address,
+        refundTo: relayer,
+        details: hotpotDetails,
+        executionIndex: executions.length - 1,
+      });
+
+      addRouterTags("hotpot", orders.length, fees.length);
+
+      // Mark the listings as successfully handled
+      for (const { orderId } of hotpotDetails) {
+        success[orderId] = true;
       }
     }
 

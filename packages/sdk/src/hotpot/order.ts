@@ -15,6 +15,7 @@ import { BigNumberish } from "@ethersproject/bignumber";
 export class Order {
   public chainId: number;
   public params: Types.OrderParameters;
+  public tradeAmount?: BigNumberish;
 
   constructor(chainId: number, params: Types.OrderParameters) {
     this.chainId = chainId;
@@ -68,6 +69,13 @@ export class Order {
       types: EIP712_TYPES,
       primaryType: _TypedDataEncoder.getPrimaryType(EIP712_TYPES),
       value: this.params,
+    };
+  }
+
+  public getExchangeOrderParams(): Types.OrderParameters {
+    return {
+      ...this.params,
+      kind: undefined,
     };
   }
 
@@ -161,6 +169,7 @@ export class Order {
     buyerPendingAmount: BigNumberish,
     offererPendingAmount: BigNumberish
   ) {
+    this.tradeAmount = await this.exchange().calculateTradeAmount(this.params);
     const builder = new SingleTokenBuilder(this.chainId);
     return await builder.buildMatching(this, receiver, buyerPendingAmount, offererPendingAmount);
   }

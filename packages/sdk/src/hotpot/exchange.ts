@@ -8,6 +8,7 @@ import { OrderParameters } from "./types";
 import { Contract, ContractTransaction } from "@ethersproject/contracts";
 import { BigNumberish } from "@ethersproject/bignumber";
 import { config as dotEnvConfig } from "dotenv";
+import { Order } from "./order";
 dotEnvConfig();
 
 export class Exchange {
@@ -67,6 +68,30 @@ export class Exchange {
   public async fulfilledOrCancelled(provider: Provider, order_hash: string): Promise<boolean> {
     const order_status = await this.contract.connect(provider).orderStatus(order_hash);
     return order_status.isFulfilled || order_status.isCancelled;
+  }
+
+  // --- Cancel order ---
+
+  public async cancelOrder(maker: Signer, order: Order): Promise<ContractTransaction> {
+    const tx = this.cancelOrderTx(await maker.getAddress(), order);
+    return maker.sendTransaction(tx);
+  }
+
+  public cancelOrderTx(maker: string, order: Order): TxData {
+    return {
+      from: maker,
+      to: this.exchangeAddress,
+      data: this.contract.interface.encodeFunctionData("cancelOrder", [
+        [
+          {
+            offerer: order.params.offerer,
+            offerItem: order.params.offerItem,
+            royalty: order.params.royalty,
+            salt: order.params.salt,
+          },
+        ],
+      ]),
+    };
   }
 
   public async raffleContractAddress(): Promise<string> {
