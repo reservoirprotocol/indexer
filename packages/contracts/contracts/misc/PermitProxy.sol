@@ -7,11 +7,11 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {ERC2771Context} from "./ERC2771Context.sol";
 
-import {IERC20Permit} from "../interfaces/IERC20Permit.sol";
+import {IEIP2612} from "../interfaces/IEIP2612.sol";
 import {IReservoirV6_0_1} from "../interfaces/IReservoirV6_0_1.sol";
 
 // Notes:
-// - transfer ERC20 tokens via gasless permit (eg. USDC)
+// - transfer ERC20 tokens via gasless EIP2612 permits
 // - ERC2771-compliant for meta-transaction support
 
 contract PermitProxy is ERC2771Context, ReentrancyGuard {
@@ -24,14 +24,20 @@ contract PermitProxy is ERC2771Context, ReentrancyGuard {
     uint256 amount;
   }
 
-  struct PermitWithTransfers {
+  // https://eips.ethereum.org/EIPS/eip-2612
+  struct EIP2612Permit {
     IERC20 token;
     address owner;
+    address spender;
     uint256 amount;
     uint256 deadline;
     uint8 v;
     bytes32 r;
     bytes32 s;
+  }
+
+  struct EIP2612PermitWithTransfers {
+    EIP2612Permit permit;
     Transfer[] transfers;
   }
 
@@ -51,20 +57,23 @@ contract PermitProxy is ERC2771Context, ReentrancyGuard {
 
   // --- Public methods ---
 
-  function transferWithExecute(
-    PermitWithTransfers[] calldata permits,
+  function eip2612PermitWithTransfersAndExecute(
+    EIP2612PermitWithTransfers[] calldata permitsWithTransfers,
     IReservoirV6_0_1.ExecutionInfo[] calldata executionInfos
   ) external nonReentrant {
-    uint256 permitsLength = permits.length;
-    for (uint256 i = 0; i < permitsLength; ) {
-      PermitWithTransfers memory permit = permits[i];
+    uint256 permitsWithTransfersLength = permitsWithTransfers.length;
+    for (uint256 i = 0; i < permitsWithTransfersLength; ) {
+      EIP2612PermitWithTransfers memory permitWithTransfers = permitsWithTransfers[i];
+      EIP2612Permit memory permit = permitWithTransfers.permit;
+      Transfer[] memory transfers = permitWithTransfers.transfers;
+
       if (permit.owner != _msgSender()) {
         revert Unauthorized();
       }
 
-      IERC20Permit(address(permit.token)).permit(
+      IEIP2612(address(permit.token)).permit(
         permit.owner,
-        address(this),
+        permit.spender,
         permit.amount,
         permit.deadline,
         permit.v,
@@ -72,13 +81,9 @@ contract PermitProxy is ERC2771Context, ReentrancyGuard {
         permit.s
       );
 
-      uint256 transfersLength = permit.transfers.length;
+      uint256 transfersLength = transfers.length;
       for (uint256 j = 0; j < transfersLength; ) {
-        permit.token.safeTransferFrom(
-          permit.owner,
-          permit.transfers[j].recipient,
-          permit.transfers[j].amount
-        );
+        permit.token.safeTransferFrom(permit.owner, transfers[j].recipient, transfers[j].amount);
 
         unchecked {
           ++j;
@@ -90,6 +95,29 @@ contract PermitProxy is ERC2771Context, ReentrancyGuard {
       }
     }
 
-    ROUTER.execute(executionInfos);
+    if (executionInfos.length > 0) {
+      ROUTER.execute(executionInfos);
+    }
+  }
+
+  function eip2612Permit(EIP2612Permit[] calldata permits) external nonReentrant {
+    uint256 permitsLength = permits.length;
+    for (uint256 i = 0; i < permitsLength; ) {
+      EIP2612Permit memory permit = permits[i];
+
+      IEIP2612(address(permit.token)).permit(
+        permit.owner,
+        permit.spender,
+        permit.amount,
+        permit.deadline,
+        permit.v,
+        permit.r,
+        permit.s
+      );
+
+      unchecked {
+        ++i;
+      }
+    }
   }
 }

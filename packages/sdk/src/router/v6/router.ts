@@ -3404,14 +3404,14 @@ export class Router {
             approvals: [],
             preSignatures: [],
             txTags: routerTxTags,
-            permits: await new PermitHandler(this.chainId, this.provider)
-              .generate(relayer, ftTransferItems)
-              .then((permits) =>
-                permits.map((p) => ({
-                  kind: "erc20",
-                  data: p,
-                }))
-              ),
+            permits: await new PermitHandler(this.chainId, this.provider).generate(
+              relayer,
+              Addresses.PermitProxy[this.chainId],
+              {
+                kind: "with-transfers",
+                transferItems: ftTransferItems,
+              }
+            ),
             txData: {
               from: relayer,
               ...{
@@ -4664,6 +4664,28 @@ export class Router {
       }
     }
 
+    // Pre-execute any permits
+    const permits = details.filter((d) => d.permit).map((d) => d.permit!);
+    const permitHandler = new PermitHandler(this.chainId, this.provider);
+    if (permits.length) {
+      const permitExecution = permitHandler.getRouterExecution(permits);
+      txs.push({
+        txTags: {
+          kind: "permit",
+        },
+        txData: {
+          from: taker,
+          to: this.contracts.router.address,
+          data:
+            this.contracts.router.interface.encodeFunctionData("execute", [[permitExecution]]) +
+            generateSourceBytes(options?.source),
+        },
+        approvals: [],
+        preSignatures: [],
+        orderIds: [],
+      });
+    }
+
     // Batch fill all protected offers in a single transaction
     if (protectedSeaportV15Offers.length) {
       const approvals: NFTApproval[] = [];
@@ -4780,7 +4802,6 @@ export class Router {
     if (executionsWithDetails.length === 1 && !options?.forceApprovalProxy) {
       const execution = executionsWithDetails[0].execution;
       const detail = executionsWithDetails[0].detail;
-
       const routerLevelTxData = this.contracts.router.interface.encodeFunctionData("execute", [
         [execution],
       ]);
@@ -4827,7 +4848,7 @@ export class Router {
           data:
             this.contracts.approvalProxy.interface.encodeFunctionData("bulkTransferWithExecute", [
               nftTransferItems,
-              executionsWithDetails.map(({ execution }) => execution),
+              [...executionsWithDetails.map(({ execution }) => execution)],
               Sdk.SeaportBase.Addresses.ReservoirConduitKey[this.chainId],
             ]) + generateSourceBytes(options?.source),
         },

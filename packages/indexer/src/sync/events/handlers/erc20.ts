@@ -78,6 +78,14 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           },
         });
 
+        // Recheck every permit that could have been affected
+        onChainData.permitInfos.push({
+          kind: "eip2612",
+          owner,
+          spender,
+          token: baseEventParams.address,
+        });
+
         break;
       }
 

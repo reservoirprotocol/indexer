@@ -95,7 +95,7 @@ export const trigger = {
         Sdk.RouterV6.Addresses.Router[chainId],
       ]),
     PermitProxy: async (chainId: number) =>
-      dv("PermitProxy", "v1", [
+      dv("PermitProxy", "v2", [
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.Common.Addresses.GelatoRelay1BalanceERC2771[chainId],
       ]),
