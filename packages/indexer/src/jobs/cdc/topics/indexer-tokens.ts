@@ -6,7 +6,7 @@ import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
-import { refreshAsksTokenFlagStatusJob } from "@/jobs/asks/refresh-asks-token-flag-status-job";
+import { refreshAsksTokenJob } from "@/jobs/asks/refresh-asks-token-job";
 import { logger } from "@/common/logger";
 
 export class IndexerTokensHandler extends KafkaEventHandler {
@@ -60,12 +60,19 @@ export class IndexerTokensHandler extends KafkaEventHandler {
 
     try {
       const flagStatusChanged = payload.before.is_flagged !== payload.after.is_flagged;
+      const rarityRankChanged = payload.before.rarity_rank !== payload.after.rarity_rank;
 
-      if (flagStatusChanged) {
-        await refreshAsksTokenFlagStatusJob.addToQueue(
-          payload.after.contract,
-          payload.after.token_id
+      if (flagStatusChanged || rarityRankChanged) {
+        logger.info(
+          "kafka-event-handler",
+          JSON.stringify({
+            topic: "debugAskIndex",
+            message: `Handle token change.`,
+            payload,
+          })
         );
+
+        await refreshAsksTokenJob.addToQueue(payload.after.contract, payload.after.token_id);
       }
     } catch (error) {
       logger.error(

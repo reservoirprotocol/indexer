@@ -77,6 +77,7 @@ export interface BuildAskDocumentData extends BuildDocumentData {
   token_image?: string;
   token_media?: string;
   token_is_flagged?: number;
+  token_rarity_rank?: number;
   token_attributes?: {
     key: string;
     value: string;
@@ -121,7 +122,8 @@ export class AskDocumentBuilder extends DocumentBuilder {
         name: data.token_name,
         image: data.token_image,
         attributes: data.token_attributes,
-        isFlagged: Boolean(data.token_is_flagged),
+        isFlagged: Boolean(data.token_is_flagged || 0),
+        rarityRank: data.token_rarity_rank,
       },
       collection: data.collection_id
         ? {

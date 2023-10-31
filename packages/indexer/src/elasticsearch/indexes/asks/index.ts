@@ -568,22 +568,65 @@ export const _search = async (
   }
 };
 
-export const updateAsksTokenFlagStatus = async (
+export const updateAsksTokenData = async (
   contract: string,
   tokenId: string,
-  isFlagged: number
+  tokenData: {
+    isFlagged: number;
+    rarityRank?: number;
+  }
 ): Promise<boolean> => {
   let keepGoing = false;
 
+  const should: any[] = [
+    {
+      bool: {
+        must_not: [
+          {
+            term: {
+              "token.isFlagged": tokenData.isFlagged,
+            },
+          },
+        ],
+      },
+    },
+    {
+      bool: tokenData.rarityRank
+        ? {
+            must_not: [
+              {
+                term: {
+                  "token.rarityRank": tokenData.rarityRank,
+                },
+              },
+            ],
+          }
+        : {
+            must: [
+              {
+                exists: {
+                  field: "token.rarityRank",
+                },
+              },
+            ],
+          },
+    },
+  ];
+
   const query = {
     bool: {
-      must_not: [
+      must: [
         {
           term: {
-            "token.isFlagged": isFlagged,
+            contractAndTokenId: `${contract}:${tokenId}`,
           },
         },
       ],
+      filter: {
+        bool: {
+          should,
+        },
+      },
     },
   };
 
@@ -610,7 +653,8 @@ export const updateAsksTokenFlagStatus = async (
           { update: { _index: document.index, _id: document.id, retry_on_conflict: 3 } },
           {
             doc: {
-              "token.isFlagged": Boolean(isFlagged),
+              "token.isFlagged": Boolean(tokenData.isFlagged),
+              "token.rarityRank": tokenData.rarityRank,
             },
           },
         ]),
@@ -630,7 +674,7 @@ export const updateAsksTokenFlagStatus = async (
             data: {
               contract,
               tokenId,
-              isFlagged,
+              tokenData,
             },
             bulkParams,
             response,
@@ -647,7 +691,7 @@ export const updateAsksTokenFlagStatus = async (
         //     data: {
         //       contract,
         //       tokenId,
-        //       isFlagged,
+        //       tokenData,
         //     },
         //     bulkParams,
         //     response,
@@ -670,7 +714,7 @@ export const updateAsksTokenFlagStatus = async (
           data: {
             contract,
             tokenId,
-            isFlagged,
+            tokenData,
           },
           error,
         })
@@ -686,7 +730,7 @@ export const updateAsksTokenFlagStatus = async (
           data: {
             contract,
             tokenId,
-            isFlagged,
+            tokenData,
           },
           error,
         })

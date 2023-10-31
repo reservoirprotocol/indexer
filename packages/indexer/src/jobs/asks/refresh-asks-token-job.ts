@@ -7,39 +7,36 @@ import crypto from "crypto";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import { logger } from "@/common/logger";
 
-export type RefreshAsksTokenFlagStatusJobPayload = {
+export type RefreshAsksTokenJobPayload = {
   contract: string;
   tokenId: string;
 };
 
-export default class RefreshAsksTokenFlagStatusJob extends AbstractRabbitMqJobHandler {
-  queueName = "refresh-asks-token-flag-status-queue";
+export default class RefreshAsksTokenJob extends AbstractRabbitMqJobHandler {
+  queueName = "refresh-asks-token-queue";
   maxRetries = 10;
   concurrency = 2;
   persistent = true;
   lazyMode = true;
 
-  protected async process(payload: RefreshAsksTokenFlagStatusJobPayload) {
+  protected async process(payload: RefreshAsksTokenJobPayload) {
     let addToQueue = false;
 
     const { contract, tokenId } = payload;
 
-    const tokenUpdateData = await Tokens.getByContractAndTokenId(contract, tokenId);
+    const tokenData = await Tokens.getByContractAndTokenId(contract, tokenId);
 
     logger.info(
       this.queueName,
       JSON.stringify({
         topic: "debugAskIndex",
-        message: `Start. contract=${contract}, tokenId=${tokenId}, isFlagged=${tokenUpdateData?.isFlagged}`,
+        message: `Start. contract=${contract}, tokenId=${tokenId}`,
+        tokenData,
       })
     );
 
-    if (!_.isEmpty(tokenUpdateData)) {
-      const keepGoing = await AsksIndex.updateAsksTokenFlagStatus(
-        contract,
-        tokenId,
-        tokenUpdateData?.isFlagged
-      );
+    if (!_.isEmpty(tokenData)) {
+      const keepGoing = await AsksIndex.updateAsksTokenData(contract, tokenId, tokenData);
 
       if (keepGoing) {
         addToQueue = true;
@@ -69,4 +66,4 @@ export default class RefreshAsksTokenFlagStatusJob extends AbstractRabbitMqJobHa
   }
 }
 
-export const refreshAsksTokenFlagStatusJob = new RefreshAsksTokenFlagStatusJob();
+export const refreshAsksTokenJob = new RefreshAsksTokenJob();

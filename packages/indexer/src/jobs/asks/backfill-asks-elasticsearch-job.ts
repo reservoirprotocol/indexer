@@ -96,6 +96,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
                       tokens.image AS "token_image", 
                       tokens.media AS "token_media", 
                       tokens.is_flagged AS "token_is_flagged",
+                      tokens.rarity_rank AS "token_rarity_rank",
                       collections.id AS "collection_id", 
                       collections.name AS "collection_name", 
                       (
@@ -156,7 +157,10 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
               token_image: rawResult.token_image,
               token_media: rawResult.token_media,
               token_attributes: rawResult.token_attributes,
-              token_is_flagged: rawResult.token_is_flagged,
+              token_is_flagged: Number(rawResult.token_is_flagged),
+              token_rarity_rank: rawResult.token_rarity_rank
+                ? Number(rawResult.token_rarity_rank)
+                : undefined,
               collection_id: rawResult.collection_id,
               collection_name: rawResult.collection_name,
               collection_image: rawResult.collection_image,
