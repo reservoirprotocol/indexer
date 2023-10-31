@@ -316,11 +316,11 @@ export const save = async (
       }
 
       // Mark the order when using permits
-      if (metadata.permitId && metadata.permitIndex) {
+      if (metadata.permitId) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (order.params as any).permitId = metadata.permitId;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (order.params as any).permitIndex = metadata.permitIndex;
+        (order.params as any).permitIndex = metadata.permitIndex ?? 0;
       }
 
       // Check and save: associated token set

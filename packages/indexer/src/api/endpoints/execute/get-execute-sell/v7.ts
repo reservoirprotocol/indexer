@@ -992,6 +992,13 @@ export const getExecuteSellV7Options: RouteOptions = {
           items: [],
         },
         {
+          id: "currency-permit",
+          action: "Permit currency",
+          description: "Some orders need a permit to be relayed on-chain before filling",
+          kind: "transaction",
+          items: [],
+        },
+        {
           id: "sale",
           action: "Accept offer",
           description: "To sell this item you must confirm the transaction and pay the gas fee",
@@ -1201,13 +1208,25 @@ export const getExecuteSellV7Options: RouteOptions = {
         throw getExecuteError(error.message, errors);
       }
 
-      const { txs, success } = result;
+      const { preTxs, txs, success } = result;
 
       // Filter out any non-fillable orders from the path
       path = path.filter((p) => success[p.orderId]);
 
       if (!path.length) {
         throw getExecuteError("No fillable orders");
+      }
+
+      for (const preTx of preTxs) {
+        steps[3].items.push({
+          status: "incomplete",
+          orderIds: preTx.orderIds,
+          data: {
+            ...preTx.txData,
+            maxFeePerGas,
+            maxPriorityFeePerGas,
+          },
+        });
       }
 
       const approvals = txs.map(({ approvals }) => approvals).flat();
@@ -1273,7 +1292,7 @@ export const getExecuteSellV7Options: RouteOptions = {
           txData.data = exchange.attachTakerSignatures(txData.data, signaturesPaymentProcessor);
         }
 
-        steps[3].items.push({
+        steps[4].items.push({
           status: "incomplete",
           orderIds,
           data: !steps[2].items.length
