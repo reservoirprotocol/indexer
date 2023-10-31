@@ -18,6 +18,7 @@ export * as rarible from "@/orderbook/orders/rarible";
 export * as nftx from "@/orderbook/orders/nftx";
 export * as manifold from "@/orderbook/orders/manifold";
 export * as superrare from "@/orderbook/orders/superrare";
+export * as hotpot from "@/orderbook/orders/hotpot";
 export * as looksRareV2 from "@/orderbook/orders/looks-rare-v2";
 export * as collectionxyz from "@/orderbook/orders/collectionxyz";
 export * as sudoswapV2 from "@/orderbook/orders/sudoswap-v2";
@@ -84,7 +85,8 @@ export type OrderKind =
   | "caviar-v1"
   | "payment-processor"
   | "blur-v2"
-  | "joepeg";
+  | "joepeg"
+  | "hotpot";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
