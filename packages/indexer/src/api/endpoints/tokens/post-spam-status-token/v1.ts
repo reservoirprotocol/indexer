@@ -17,7 +17,7 @@ import {
 const version = "v1";
 
 export const postSpamStatusTokenV1Options: RouteOptions = {
-  description: "Update the token spam status",
+  description: "Update the tokens spam status",
   notes: "This API can be used by allowed API keys to update the spam status of a token.",
   tags: ["api", "Management"],
   plugins: {
@@ -115,7 +115,7 @@ export const postSpamStatusTokenV1Options: RouteOptions = {
       }
 
       return {
-        message: `Update spam status for token ${JSON.stringify(payload.tokens)} request accepted`,
+        message: `Update spam status for tokens ${JSON.stringify(payload.tokens)} request accepted`,
       };
     } catch (error) {
       logger.error(`post-spam-status-token-${version}-handler`, `Handler failure: ${error}`);

@@ -16,7 +16,7 @@ import {
 const version = "v1";
 
 export const postSpamStatusCollectionV1Options: RouteOptions = {
-  description: "Update the collection spam status",
+  description: "Update the collections spam status",
   notes: "This API can be used by allowed API keys to update the spam status of a collection.",
   tags: ["api", "Management"],
   plugins: {
@@ -98,7 +98,7 @@ export const postSpamStatusCollectionV1Options: RouteOptions = {
             RETURNING id
           `,
         {
-          ids: payload.collection,
+          ids: payload.collections,
           spam: Number(payload.spam) ? 100 : -100,
         }
       );
@@ -119,8 +119,8 @@ export const postSpamStatusCollectionV1Options: RouteOptions = {
       }
 
       return {
-        message: `Update spam status for collection ${JSON.stringify(
-          payload.collection
+        message: `Update spam status for collections ${JSON.stringify(
+          payload.collections
         )} request accepted`,
       };
     } catch (error) {
