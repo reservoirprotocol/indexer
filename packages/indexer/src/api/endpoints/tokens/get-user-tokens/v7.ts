@@ -557,7 +557,7 @@ export const getUserTokensV7Options: RouteOptions = {
                o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price,
                c.name as collection_name, con.kind, con.symbol, c.metadata, c.royalties,
                (c.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
-               c.royalties_bps, ot.kind AS floor_sell_kind, c.slug, c.is_spam AS c_is_spam, c.is_takedown AS c_is_takedown, t_is_takedown,
+               c.royalties_bps, ot.kind AS floor_sell_kind, c.slug, c.is_spam AS c_is_spam,
                c.metadata_disabled AS c_metadata_disabled, t_metadata_disabled,
                ${query.includeRawData ? "ot.raw_data AS floor_sell_raw_data," : ""}
                ${
