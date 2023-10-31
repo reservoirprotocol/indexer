@@ -53,7 +53,7 @@ export const postSpamStatusCollectionV1Options: RouteOptions = {
             )
         )
         .required(),
-      active: Joi.boolean()
+      spam: Joi.boolean()
         .description("API to update the spam status of a collection")
         .default(true),
     }),
@@ -92,14 +92,14 @@ export const postSpamStatusCollectionV1Options: RouteOptions = {
       updateResult = await idb.manyOrNone(
         `
             UPDATE collections
-            SET is_spam = $/active/
+            SET is_spam = $/spam/
             WHERE id IN ($/ids:list/)
-            AND is_spam IS DISTINCT FROM $/active/
+            AND is_spam IS DISTINCT FROM $/spam/
             RETURNING id
           `,
         {
           ids: payload.collection,
-          active: Number(payload.active) ? 100 : -100,
+          spam: Number(payload.spam) ? 100 : -100,
         }
       );
 
@@ -112,7 +112,7 @@ export const postSpamStatusCollectionV1Options: RouteOptions = {
             actionTakerIdentifier: apiKey.key,
             collection: res.id,
             data: {
-              newSpamState: Number(payload.active),
+              newSpamState: Number(payload.spam),
             },
           }))
         );

@@ -49,7 +49,7 @@ export const postSpamStatusTokenV1Options: RouteOptions = {
             )
         )
         .required(),
-      active: Joi.boolean().description("API to update the spam status of a token").default(true),
+      spam: Joi.boolean().description("API to update the spam status of a token").default(true),
     }),
   },
   response: {
@@ -82,7 +82,7 @@ export const postSpamStatusTokenV1Options: RouteOptions = {
 
       const query = `
         UPDATE tokens
-        SET is_spam = $/active/
+        SET is_spam = $/spam/
         WHERE (contract, token_id) IN (${pgp.helpers.values(
           payload.tokens.map((t: string) => ({
             contract: toBuffer(t.split(":")[0]),
@@ -90,12 +90,12 @@ export const postSpamStatusTokenV1Options: RouteOptions = {
           })),
           new pgp.helpers.ColumnSet(["contract", "tokenId"])
         )})
-        AND is_spam IS DISTINCT FROM $/active/
+        AND is_spam IS DISTINCT FROM $/spam/
         RETURNING contract, token_id
       `;
 
       updateResult = await idb.manyOrNone(query, {
-        active: Number(payload.active) ? 100 : -100,
+        spam: Number(payload.spam) ? 100 : -100,
       });
 
       if (updateResult) {
@@ -108,7 +108,7 @@ export const postSpamStatusTokenV1Options: RouteOptions = {
             contract: fromBuffer(res.contract),
             tokenId: res.token_id,
             data: {
-              newSpamState: Number(payload.active),
+              newSpamState: Number(payload.spam),
             },
           }))
         );
