@@ -13,7 +13,7 @@ import { ConduitController } from "../../seaport-base";
 import { constructOfferCounterOrderAndFulfillments } from "../../seaport-base/helpers";
 
 import * as Sdk from "../../index";
-import { bn, generateSourceBytes, getErrorMessage, uniqBy } from "../../utils";
+import { TxData, bn, generateSourceBytes, getErrorMessage, uniqBy } from "../../utils";
 import * as Addresses from "./addresses";
 import * as ApprovalProxy from "./approval-proxy";
 import { PermitHandler } from "./permit";
@@ -4664,15 +4664,22 @@ export class Router {
       }
     }
 
-    // Pre-execute any permits
-    const permits = details.filter((d) => d.permit).map((d) => d.permit!);
+    // Permits have to be pre-executed
+    const preTxs: {
+      kind: "permit";
+      txData: TxData;
+      orderIds: string[];
+    }[] = [];
+
+    const detailsWithPermits = details.filter((d) => d.permit && success[d.orderId]);
     const permitHandler = new PermitHandler(this.chainId, this.provider);
-    if (permits.length) {
-      const permitExecution = permitHandler.getRouterExecution(permits);
-      txs.push({
-        txTags: {
-          kind: "permit",
-        },
+    if (detailsWithPermits.length) {
+      const permitExecution = permitHandler.getRouterExecution(
+        detailsWithPermits.map((d) => d.permit!)
+      );
+
+      preTxs.push({
+        kind: "permit",
         txData: {
           from: taker,
           to: this.contracts.router.address,
@@ -4680,9 +4687,7 @@ export class Router {
             this.contracts.router.interface.encodeFunctionData("execute", [[permitExecution]]) +
             generateSourceBytes(options?.source),
         },
-        approvals: [],
-        preSignatures: [],
-        orderIds: [],
+        orderIds: detailsWithPermits.map((d) => d.orderId),
       });
     }
 
@@ -4869,6 +4874,7 @@ export class Router {
     }
 
     return {
+      preTxs,
       txs,
       success,
     };

@@ -436,7 +436,7 @@ export const getUserTokensV7Options: RouteOptions = {
         ${includeRoyaltyBreakdownQuery}
         WHERE b.token_id = t.token_id
         AND b.contract = t.contract
-        ${query.excludeSpam ? `AND t.is_spam != 1` : ""}
+        ${query.excludeSpam ? `AND (t.is_spam IS NULL OR t.is_spam <= 0)` : ""}
         AND ${
           tokensCollectionFilters.length ? "(" + tokensCollectionFilters.join(" OR ") + ")" : "TRUE"
         }
@@ -584,7 +584,7 @@ export const getUserTokensV7Options: RouteOptions = {
           ) AS b
           ${tokensJoin}
           JOIN collections c ON c.id = t.collection_id ${
-            query.excludeSpam ? `AND c.is_spam != 1` : ""
+            query.excludeSpam ? `AND (c.is_spam IS NULL OR c.is_spam <= 0)` : ""
           }
           LEFT JOIN orders o ON o.id = c.floor_sell_id
           LEFT JOIN orders ot ON ot.id = t.floor_sell_id

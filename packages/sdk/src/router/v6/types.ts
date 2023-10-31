@@ -244,6 +244,11 @@ export type BidFillDetails = {
 export type BidDetails = GenericOrder & BidFillDetails;
 
 export type FillBidsResult = {
+  preTxs: {
+    kind: "permit";
+    txData: TxData;
+    orderIds: string[];
+  }[];
   txs: {
     approvals: NFTApproval[];
     txData: TxData;

@@ -45,8 +45,8 @@ export class ExpiredPermitsJob extends AbstractRabbitMqJobHandler {
             WHERE orders.maker = $/owner/
               AND orders.side = 'buy'
               AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
-              AND orders.raw_data ->> 'permitId' = $/permitId/
-              AND orders.raw_data ->> 'permitIndex' = $/permitIndex/
+              AND orders.raw_data->>'permitId'::TEXT = $/permitId/
+              AND COALESCE(orders.raw_data->>'permitIndex'::TEXT, '0')::INT = $/permitIndex/
           `,
           {
             maker: toBuffer(permit.owner),
