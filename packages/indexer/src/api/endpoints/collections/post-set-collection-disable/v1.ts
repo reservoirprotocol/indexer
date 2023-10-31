@@ -7,12 +7,13 @@ import * as Boom from "@hapi/boom";
 import { ApiKeyManager } from "@/models/api-keys";
 import _ from "lodash";
 import { idb } from "@/common/db";
-import { regex, toBuffer } from "@/common/utils";
+import { regex } from "@/common/utils";
+import { MetadataStatus } from "@/models/metadata-status";
 
 const version = "v1";
 
-export const postSetTokenDisableMetadataV1Options: RouteOptions = {
-  description: "Disable or reenable metadata for a token",
+export const postSetCollectionDisableV1Options: RouteOptions = {
+  description: "Disable or reenable metadata for a collection",
   notes:
     "This API requires an allowed API key for execution. Please contact technical support with more questions.",
   tags: ["api"],
@@ -25,16 +26,23 @@ export const postSetTokenDisableMetadataV1Options: RouteOptions = {
     headers: Joi.object({
       "x-api-key": Joi.string().required(),
     }).options({ allowUnknown: true }),
-    params: Joi.object({
-      token: Joi.string()
-        .lowercase()
-        .pattern(regex.token)
-        .required()
-        .description(
-          "Disable or reenable metadata for a particular token, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`. Requires an authorized api key to be passed."
-        ),
-    }),
     payload: Joi.object({
+      collections: Joi.alternatives()
+        .try(
+          Joi.array()
+            .max(50)
+            .items(Joi.string().lowercase().pattern(regex.collectionId))
+            .description(
+              "Array of collection ids to disable metadata for. Max limit is 50. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63 collections[1]: 0x521f9c7505005cfa19a8e5786a9c3c9c9f5e6f42`"
+            ),
+          Joi.string()
+            .lowercase()
+            .pattern(regex.collectionId)
+            .description(
+              "Array of collection ids to disable metadata for. Max limit is 50. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63 collections[1]: 0x521f9c7505005cfa19a8e5786a9c3c9c9f5e6f42`"
+            )
+        )
+        .required(),
       disable: Joi.boolean()
         .description("Whether to disable or reenable the metadata. Defaults to true (disable)")
         .default(true),
@@ -43,10 +51,10 @@ export const postSetTokenDisableMetadataV1Options: RouteOptions = {
   response: {
     schema: Joi.object({
       message: Joi.string(),
-    }).label(`postSetTokenDisableMetadata${version.toUpperCase()}Response`),
+    }).label(`postSetCollectionDisable${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
       logger.error(
-        `post-set-token-disable-metadata-${version}-handler`,
+        `post-set-collection-disable-${version}-handler`,
         `Wrong response schema: ${error}`
       );
       throw error;
@@ -66,27 +74,35 @@ export const postSetTokenDisableMetadataV1Options: RouteOptions = {
       throw Boom.unauthorized("Not allowed");
     }
 
+    if (!_.isArray(payload.collections)) {
+      payload.collections = [payload.collections];
+    }
+
     try {
       await idb.oneOrNone(
         `
-          UPDATE "tokens"
+          UPDATE "collections"
           SET "metadata_disabled" = $/disable/
-          WHERE "contract" = $/contract/
-          AND "token_id" = $/token_id/
+          WHERE "id" IN ($/collections:csv/)
         `,
         {
-          contract: toBuffer(params.token.split(":")[0]),
-          token_id: params.token.split(":")[1],
+          collections: payload.collections,
           disable: Number(payload.disable),
         }
       );
 
+      if (payload.disable) {
+        MetadataStatus.disable([params.collection]);
+      } else {
+        MetadataStatus.enable([params.collection]);
+      }
+
       logger.info(
-        `post-set-token-disable-metadata-${version}-handler`,
+        `post-set-collection-disable-${version}-handler`,
         JSON.stringify({
-          message: "Disable token metadata request accepted",
-          id: payload.token,
-          type: "token",
+          message: "Disable metadata request accepted",
+          ids: payload.collections,
+          type: "collection",
           disable: payload.disable,
           apiKey: apiKey.key,
         })
@@ -95,7 +111,7 @@ export const postSetTokenDisableMetadataV1Options: RouteOptions = {
       return { message: "Success" };
     } catch (error) {
       logger.error(
-        `post-set-token-disable-metadata-${version}-handler`,
+        `post-set-collection-disable-${version}-handler`,
         `Handler failure: ${JSON.stringify(error)}`
       );
       throw error;

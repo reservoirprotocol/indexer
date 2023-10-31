@@ -25,4 +25,4 @@ export * from "@/api/endpoints/collections/get-top-selling-collections/v1";
 export * from "@/api/endpoints/collections/get-top-selling-collections/v2";
 export * from "@/api/endpoints/collections/get-trending-collections/v1";
 export * from "@/api/endpoints/collections/get-trending-mints/v1";
-export * from "@/api/endpoints/collections/post-set-collection-disable-metadata/v1";
+export * from "@/api/endpoints/collections/post-set-collection-disable/v1";
