@@ -659,6 +659,10 @@ export const getNetworkSettings = (): NetworkSettings => {
         headBlockDelay: 0,
         backfillBlockBatchSize: 32,
         reorgCheckFrequency: [30],
+
+        trendingExcludedContracts: [
+          "0x198d38c5f21eab36731d0576560440f70cbd9418", // Yieldnodes
+        ],
         whitelistedCurrencies: new Map([
           [
             Sdk.Common.Addresses.Usdc[config.chainId][1],
@@ -670,6 +674,15 @@ export const getNetworkSettings = (): NetworkSettings => {
               metadata: {
                 image: "https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png",
               },
+            },
+          ],
+          [
+            "0x875f123220024368968d9f1ab1f3f9c2f3fd190d",
+            {
+              contract: "0x875f123220024368968d9f1ab1f3f9c2f3fd190d",
+              name: "RCAX",
+              symbol: "RCAX",
+              decimals: 18,
             },
           ],
           [
