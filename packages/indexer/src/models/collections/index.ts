@@ -159,20 +159,7 @@ export class Collections {
       community
     );
 
-    if (collection.isCopyrightInfringement) {
-      collection.name = collection.id;
-      collection.metadata = null;
-
-      logger.info(
-        "updateCollectionCache",
-        JSON.stringify({
-          topic: "debugCopyrightInfringement",
-          message: "Collection is a copyright infringement",
-          contract,
-          collection,
-        })
-      );
-    } else if (collection.metadata == null) {
+    if (collection.metadata == null) {
       const collectionResult = await Collections.getById(collection.id);
 
       if (collectionResult?.metadata != null) {

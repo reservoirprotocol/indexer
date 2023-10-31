@@ -468,8 +468,6 @@ export const getTokensDetailsV4Options: RouteOptions = {
               image: Assets.getLocalAssetsLink(r.image),
               media: r.media,
               kind: r.kind,
-              metadataDisabled:
-                Boolean(Number(r.t_metadata_disabled)) || Boolean(Number(r.c_metadata_disabled)),
               isFlagged: Boolean(Number(r.is_flagged)),
               lastFlagUpdate: r.last_flag_update
                 ? new Date(r.last_flag_update).toISOString()
@@ -480,7 +478,6 @@ export const getTokensDetailsV4Options: RouteOptions = {
                   name: r.collection_name,
                   image: Assets.getLocalAssetsLink(r.image),
                   slug: r.slug,
-                  metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
                 },
                 r.c_metadata_disabled
               ),

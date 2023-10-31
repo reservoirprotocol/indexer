@@ -181,6 +181,7 @@ export const getUserTokensV7Options: RouteOptions = {
               symbol: Joi.string().allow("", null),
               imageUrl: Joi.string().allow(null),
               isSpam: Joi.boolean().default(false),
+              metadataDisabled: Joi.boolean().default(false),
               openseaVerificationStatus: Joi.string().allow("", null),
               floorAskPrice: JoiPrice.allow(null).description("Can be null if no active asks."),
               royaltiesBps: Joi.number().allow(null),
