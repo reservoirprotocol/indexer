@@ -32,10 +32,10 @@ import { config } from "@/config/index";
 import { AlchemyApi } from "@/utils/alchemy";
 import { AlchemySpamContracts } from "@/models/alchemy-spam-contracts";
 import {
-  GeneralTrackingContext,
-  GeneralTrackingOrigin,
-  generalTrackingJob,
-} from "@/jobs/general-tracking/general-tracking-job";
+  ActionsLogContext,
+  ActionsLogOrigin,
+  actionsLogJob,
+} from "@/jobs/general-tracking/actions-log-job";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -215,10 +215,10 @@ export class Collections {
         await AlchemySpamContracts.add(collection.contract);
 
         // Track the change
-        await generalTrackingJob.addToQueue([
+        await actionsLogJob.addToQueue([
           {
-            context: GeneralTrackingContext.SpamContractUpdate,
-            origin: GeneralTrackingOrigin.CollectionRefresh,
+            context: ActionsLogContext.SpamContractUpdate,
+            origin: ActionsLogOrigin.CollectionRefresh,
             actionTakerIdentifier: "alchemy",
             contract,
             data: {

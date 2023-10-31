@@ -9,10 +9,10 @@ import { ApiKeyManager } from "@/models/api-keys";
 import _ from "lodash";
 import { idb, pgp } from "@/common/db";
 import {
-  GeneralTrackingContext,
-  GeneralTrackingOrigin,
-  generalTrackingJob,
-} from "@/jobs/general-tracking/general-tracking-job";
+  ActionsLogContext,
+  ActionsLogOrigin,
+  actionsLogJob,
+} from "@/jobs/general-tracking/actions-log-job";
 
 const version = "v1";
 
@@ -100,10 +100,10 @@ export const postSpamStatusTokenV1Options: RouteOptions = {
 
       if (updateResult) {
         // Track the change
-        await generalTrackingJob.addToQueue(
+        await actionsLogJob.addToQueue(
           updateResult.map((res) => ({
-            context: GeneralTrackingContext.SpamTokenUpdate,
-            origin: GeneralTrackingOrigin.API,
+            context: ActionsLogContext.SpamTokenUpdate,
+            origin: ActionsLogOrigin.API,
             actionTakerIdentifier: apiKey.key,
             contract: fromBuffer(res.contract),
             tokenId: res.token_id,

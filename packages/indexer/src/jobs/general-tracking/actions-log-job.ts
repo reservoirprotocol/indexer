@@ -2,22 +2,22 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 
-export enum GeneralTrackingOrigin {
+export enum ActionsLogOrigin {
   DailyProcess = "daily-process",
   CollectionRefresh = "collection-refresh",
   API = "api",
 }
 
-export enum GeneralTrackingContext {
+export enum ActionsLogContext {
   SpamContractUpdate = "spam-contract-update",
   SpamCollectionUpdate = "spam-collection-update",
   SpamTokenUpdate = "spam-token-update",
   DisableMetadataUpdate = "disable-metadata-update",
 }
 
-export type GeneralTrackingJobPayload = {
-  context: GeneralTrackingContext;
-  origin: GeneralTrackingOrigin;
+export type ActionsLogJobPayload = {
+  context: ActionsLogContext;
+  origin: ActionsLogOrigin;
   actionTakerIdentifier: string;
   contract?: string;
   collection?: string;
@@ -25,18 +25,18 @@ export type GeneralTrackingJobPayload = {
   data?: object;
 };
 
-export class GeneralTrackingJob extends AbstractRabbitMqJobHandler {
-  queueName = "general-tracking";
+export class ActionsLogJob extends AbstractRabbitMqJobHandler {
+  queueName = "actions-log";
   maxRetries = 10;
   concurrency = 10;
   lazyMode = true;
 
-  protected async process(payload: GeneralTrackingJobPayload) {
+  protected async process(payload: ActionsLogJobPayload) {
     const { context, origin, actionTakerIdentifier, contract, collection, tokenId, data } = payload;
 
     await idb.none(
       `
-        INSERT INTO general_tracking (
+        INSERT INTO actions_log (
           context,
           origin,
           action_taker_identifier,
@@ -66,9 +66,9 @@ export class GeneralTrackingJob extends AbstractRabbitMqJobHandler {
     );
   }
 
-  public async addToQueue(params: GeneralTrackingJobPayload[]) {
+  public async addToQueue(params: ActionsLogJobPayload[]) {
     await this.sendBatch(params.map((p) => ({ payload: p })));
   }
 }
 
-export const generalTrackingJob = new GeneralTrackingJob();
+export const actionsLogJob = new ActionsLogJob();

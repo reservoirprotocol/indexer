@@ -1,6 +1,6 @@
 -- Up Migration
 
-CREATE TABLE "general_tracking" (
+CREATE TABLE "actions_log" (
   "id" BIGSERIAL NOT NULL,
   "context" TEXT NOT NULL,
   "origin" TEXT NOT NULL,
@@ -12,19 +12,19 @@ CREATE TABLE "general_tracking" (
   "created_at" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-ALTER TABLE "general_tracking"
-  ADD CONSTRAINT "general_tracking_pk"
+ALTER TABLE "actions_log"
+  ADD CONSTRAINT "actions_log_pk"
   PRIMARY KEY ("id");
 
-CREATE INDEX "general_tracking_context_collection_id_created_at"
-  ON "general_tracking" ("context", "collection_id", "created_at");
+CREATE INDEX "actions_log_context_collection_id_created_at"
+  ON "actions_log" ("context", "collection_id", "created_at");
 
-CREATE INDEX "general_tracking_context_contract_token_id_created_at"
-  ON "general_tracking" ("context", "contract", "token_id", "created_at");
+CREATE INDEX "actions_log_context_contract_token_id_created_at"
+  ON "actions_log" ("context", "contract", "token_id", "created_at");
 
-CREATE INDEX "general_tracking_action_taker_identifier_created_at"
-  ON "general_tracking" ("action_taker_identifier", "created_at");
+CREATE INDEX "actions_log_action_taker_identifier_created_at"
+  ON "actions_log" ("action_taker_identifier", "created_at");
 
 -- Down Migration
 
-DROP TABLE "general_tracking";
+DROP TABLE "actions_log";
