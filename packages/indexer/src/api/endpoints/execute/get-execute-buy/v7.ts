@@ -2281,6 +2281,16 @@ export const getExecuteBuyV7Options: RouteOptions = {
         })
       );
 
+      const key = request.headers["x-api-key"];
+      const apiKey = await ApiKeyManager.getApiKey(key);
+      logger.info(
+        `get-execute-buy-${version}-handler`,
+        JSON.stringify({
+          request: payload,
+          apiKey,
+        })
+      );
+
       return {
         requestId,
         steps: blurAuth ? [steps[0], ...steps.slice(1).filter((s) => s.items.length)] : steps,
@@ -2288,11 +2298,15 @@ export const getExecuteBuyV7Options: RouteOptions = {
         path,
       };
     } catch (error) {
+      const key = request.headers["x-api-key"];
+      const apiKey = await ApiKeyManager.getApiKey(key);
       logger.error(
         `get-execute-buy-${version}-handler`,
-        `Handler failure: ${error} (path = ${JSON.stringify({})}, request = ${JSON.stringify(
-          payload
-        )})`
+        JSON.stringify({
+          request: payload,
+          httpCode: error instanceof Boom.Boom ? error.output.statusCode : 500,
+          apiKey,
+        })
       );
 
       throw error;
