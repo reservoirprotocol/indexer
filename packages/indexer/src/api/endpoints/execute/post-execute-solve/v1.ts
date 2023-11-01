@@ -29,7 +29,7 @@ export const postExecuteSolveV1Options: RouteOptions = {
       Joi.object({
         kind: Joi.string().valid("cross-chain-intent").required(),
         order: Joi.any().required(),
-        fromChainId: Joi.number().required(),
+        chainId: Joi.number().required(),
       })
     ),
   },
@@ -55,13 +55,13 @@ export const postExecuteSolveV1Options: RouteOptions = {
     try {
       switch (payload.kind) {
         case "cross-chain-intent": {
-          const order = new Sdk.CrossChain.Order(payload.fromChainId, {
+          const order = new Sdk.CrossChain.Order(payload.chainId, {
             ...payload.order,
             signature: payload.order.signature ?? query.signature,
           });
 
-          await axios.post(`${config.crossChainSolverBaseUrl}/trigger`, {
-            chainId: payload.fromChainId,
+          await axios.post(`${config.crossChainSolverBaseUrl}/intents/trigger`, {
+            chainId: payload.chainId,
             request: order.params,
           });
 

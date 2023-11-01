@@ -53,7 +53,7 @@ export default class RefreshAsksTokenJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue(contract: string, tokenId: string) {
-    if (!config.doElasticsearchWork || config.chainId !== 1) {
+    if (!config.doElasticsearchWork) {
       return;
     }
 
@@ -61,14 +61,6 @@ export default class RefreshAsksTokenJob extends AbstractRabbitMqJobHandler {
       .createHash("sha256")
       .update(`${contract.toLowerCase()}:${tokenId}`)
       .digest("hex");
-
-    logger.info(
-      refreshAsksTokenJob.queueName,
-      JSON.stringify({
-        topic: "debugAskIndex",
-        message: `addToQueue. contract=${contract}, tokenId=${tokenId}, jobId=${jobId}`,
-      })
-    );
 
     await this.send({ payload: { contract, tokenId }, jobId });
   }

@@ -1660,13 +1660,16 @@ export const getExecuteBuyV7Options: RouteOptions = {
           : `${item.contract}:${MaxUint256.toString()}`.toLowerCase();
 
         const quote = await axios
-          .post(`${config.crossChainSolverBaseUrl}/quote`, {
+          .post(`${config.crossChainSolverBaseUrl}/intents/quote`, {
             fromChainId,
             toChainId,
             token,
             amount: item.quantity,
           })
-          .then((response) => response.data.price);
+          .then((response) => response.data.price)
+          .catch((error) => {
+            throw Boom.badRequest(error.response?.data ?? "Error getting quote");
+          });
 
         item.fromChainId = fromChainId;
         item.totalPrice = formatPrice(quote);
@@ -1705,7 +1708,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
               endpoint: "/execute/status/v1",
               method: "POST",
               body: {
-                kind: "transaction",
+                kind: "cross-chain-transaction",
+                chainId: fromChainId,
               },
             },
           });
@@ -1735,7 +1739,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               body: {
                 kind: "cross-chain-intent",
                 order: order.params,
-                fromChainId,
+                chainId: fromChainId,
               },
             },
           },
