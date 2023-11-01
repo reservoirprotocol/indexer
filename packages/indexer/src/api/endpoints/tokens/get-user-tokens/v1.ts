@@ -6,7 +6,7 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
-import { getJoiCollectionObject, getJoiTokenObject } from "@/common/joi";
+import { getJoiTokenObject } from "@/common/joi";
 
 const version = "v1";
 
@@ -173,13 +173,10 @@ export const getUserTokensV1Options: RouteOptions = {
                 tokenId: r.token_id,
                 name: r.name,
                 image: r.image,
-                collection: getJoiCollectionObject(
-                  {
-                    id: r.collection_id,
-                    name: r.collection_name,
-                  },
-                  r.c_metadata_disabled
-                ),
+                collection: {
+                  id: r.collection_id,
+                  name: r.collection_name,
+                },
                 topBid: {
                   id: r.top_buy_id,
                   value: r.top_buy_value ? formatEth(r.top_buy_value) : null,

@@ -16,7 +16,7 @@ import {
   toBuffer,
 } from "@/common/utils";
 import { Assets } from "@/utils/assets";
-import { getJoiCollectionObject, getJoiTokenObject } from "@/common/joi";
+import { getJoiTokenObject } from "@/common/joi";
 
 const version = "v4";
 
@@ -423,15 +423,12 @@ export const getTokensV4Options: RouteOptions = {
             name: r.name,
             image: Assets.getLocalAssetsLink(r.image),
             media: r.media,
-            collection: getJoiCollectionObject(
-              {
-                id: r.collection_id,
-                name: r.collection_name,
-                image: Assets.getLocalAssetsLink(r.collection_image),
-                slug: r.slug,
-              },
-              r.c_metadata_disabled
-            ),
+            collection: {
+              id: r.collection_id,
+              name: r.collection_name,
+              image: Assets.getLocalAssetsLink(r.collection_image),
+              slug: r.slug,
+            },
             source: r.floor_sell_value
               ? sources.get(Number(r.floor_sell_source_id_int))?.name
               : undefined,

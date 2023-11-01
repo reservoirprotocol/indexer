@@ -17,7 +17,6 @@ import { CollectionSets } from "@/models/collection-sets";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 import {
-  getJoiCollectionObject,
   getJoiDynamicPricingObject,
   getJoiPriceObject,
   getJoiSourceObject,
@@ -552,17 +551,14 @@ export const getUserTokensV6Options: RouteOptions = {
               rarityScore: r.rarity_score,
               rarityRank: r.rarity_rank,
               media: r.media,
-              collection: getJoiCollectionObject(
-                {
-                  id: r.collection_id,
-                  name: r.collection_name,
-                  imageUrl: r.metadata?.imageUrl,
-                  floorAskPrice: r.collection_floor_sell_value
-                    ? formatEth(r.collection_floor_sell_value)
-                    : null,
-                },
-                r.c_metadata_disabled
-              ),
+              collection: {
+                id: r.collection_id,
+                name: r.collection_name,
+                imageUrl: r.metadata?.imageUrl,
+                floorAskPrice: r.collection_floor_sell_value
+                  ? formatEth(r.collection_floor_sell_value)
+                  : null,
+              },
               topBid: query.includeTopBid
                 ? {
                     id: r.top_bid_id,

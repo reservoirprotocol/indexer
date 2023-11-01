@@ -17,7 +17,6 @@ import { CollectionSets } from "@/models/collection-sets";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 import {
-  getJoiCollectionObject,
   getJoiPriceObject,
   getJoiSaleObject,
   getJoiSourceObject,
@@ -721,36 +720,32 @@ export const getUserTokensV7Options: RouteOptions = {
               lastFlagChange: r.last_flag_change
                 ? new Date(r.last_flag_change).toISOString()
                 : null,
-              collection: getJoiCollectionObject(
-                {
-                  id: r.collection_id,
-                  name: r.collection_name,
-                  slug: r.slug,
-                  symbol: r.symbol,
-                  imageUrl: r.metadata?.imageUrl,
-                  isSpam: Number(r.c_is_spam) > 0,
-                  metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
-                  openseaVerificationStatus: r.opensea_verification_status,
-                  floorAskPrice: r.collection_floor_sell_value
-                    ? await getJoiPriceObject(
-                        {
-                          gross: {
-                            amount: String(
-                              r.collection_floor_sell_currency_price ??
-                                r.collection_floor_sell_value
-                            ),
-                            nativeAmount: String(r.collection_floor_sell_value),
-                          },
+              collection: {
+                id: r.collection_id,
+                name: r.collection_name,
+                slug: r.slug,
+                symbol: r.symbol,
+                imageUrl: r.metadata?.imageUrl,
+                isSpam: Number(r.c_is_spam) > 0,
+                metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
+                openseaVerificationStatus: r.opensea_verification_status,
+                floorAskPrice: r.collection_floor_sell_value
+                  ? await getJoiPriceObject(
+                      {
+                        gross: {
+                          amount: String(
+                            r.collection_floor_sell_currency_price ?? r.collection_floor_sell_value
+                          ),
+                          nativeAmount: String(r.collection_floor_sell_value),
                         },
-                        collectionFloorSellCurrency,
-                        query.displayCurrency
-                      )
-                    : null,
-                  royaltiesBps: r.royalties_bps ?? 0,
-                  royalties: r.royalties,
-                },
-                r.c_metadata_disabled
-              ),
+                      },
+                      collectionFloorSellCurrency,
+                      query.displayCurrency
+                    )
+                  : null,
+                royaltiesBps: r.royalties_bps ?? 0,
+                royalties: r.royalties,
+              },
               lastSale:
                 query.includeLastSale && r.last_sale_currency
                   ? await getJoiSaleObject({

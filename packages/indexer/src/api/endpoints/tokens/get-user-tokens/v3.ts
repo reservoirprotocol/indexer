@@ -9,7 +9,7 @@ import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
 import { Assets } from "@/utils/assets";
-import { getJoiCollectionObject, getJoiTokenObject } from "@/common/joi";
+import { getJoiTokenObject } from "@/common/joi";
 
 const version = "v3";
 
@@ -266,17 +266,14 @@ export const getUserTokensV3Options: RouteOptions = {
             tokenId: r.token_id,
             name: r.name,
             image: Assets.getLocalAssetsLink(r.image),
-            collection: getJoiCollectionObject(
-              {
-                id: r.collection_id,
-                name: r.collection_name,
-                imageUrl: Assets.getLocalAssetsLink(r.metadata?.imageUrl),
-                floorAskPrice: r.collection_floor_sell_value
-                  ? formatEth(r.collection_floor_sell_value)
-                  : null,
-              },
-              r.c_metadata_disabled
-            ),
+            collection: {
+              id: r.collection_id,
+              name: r.collection_name,
+              imageUrl: Assets.getLocalAssetsLink(r.metadata?.imageUrl),
+              floorAskPrice: r.collection_floor_sell_value
+                ? formatEth(r.collection_floor_sell_value)
+                : null,
+            },
             topBid: query.includeTopBid
               ? {
                   id: r.top_bid_id,

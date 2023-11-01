@@ -7,7 +7,7 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
-import { getJoiCollectionObject, getJoiTokenObject } from "@/common/joi";
+import { getJoiTokenObject } from "@/common/joi";
 
 const version = "v2";
 
@@ -219,17 +219,14 @@ export const getUserTokensV2Options: RouteOptions = {
                 tokenId: r.token_id,
                 name: r.name,
                 image: r.image,
-                collection: getJoiCollectionObject(
-                  {
-                    id: r.collection_id,
-                    name: r.collection_name,
-                    imageUrl: r.metadata?.imageUrl,
-                    floorAskPrice: r.collection_floor_sell_value
-                      ? formatEth(r.collection_floor_sell_value)
-                      : null,
-                  },
-                  r.c_metadata_disabled
-                ),
+                collection: {
+                  id: r.collection_id,
+                  name: r.collection_name,
+                  imageUrl: r.metadata?.imageUrl,
+                  floorAskPrice: r.collection_floor_sell_value
+                    ? formatEth(r.collection_floor_sell_value)
+                    : null,
+                },
               },
               r.t_metadata_disabled || r.c_metadata_disabled
             ),

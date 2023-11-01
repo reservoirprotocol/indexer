@@ -17,11 +17,7 @@ import {
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
-import {
-  JoiAttributeKeyValueObject,
-  getJoiCollectionObject,
-  getJoiTokenObject,
-} from "@/common/joi";
+import { JoiAttributeKeyValueObject, getJoiTokenObject } from "@/common/joi";
 import * as Boom from "@hapi/boom";
 
 const version = "v3";
@@ -413,15 +409,12 @@ export const getTokensDetailsV3Options: RouteOptions = {
               description: r.description,
               image: Assets.getLocalAssetsLink(r.image),
               kind: r.kind,
-              collection: getJoiCollectionObject(
-                {
-                  id: r.collection_id,
-                  name: r.collection_name,
-                  image: Assets.getLocalAssetsLink(r.collection_image),
-                  slug: r.slug,
-                },
-                r.c_metadata_disabled
-              ),
+              collection: {
+                id: r.collection_id,
+                name: r.collection_name,
+                image: Assets.getLocalAssetsLink(r.collection_image),
+                slug: r.slug,
+              },
               lastBuy: {
                 value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
                 timestamp: r.last_buy_timestamp,

@@ -1016,9 +1016,12 @@ export const getJoiSourceObject = (source: SourcesEntity | undefined, full = tru
 
 export const getJoiCollectionObject = (collection: any, metadataDisabled: boolean) => {
   if (metadataDisabled) {
-    collection.id = collection.primaryContract;
-    collection.name = collection.primaryContract;
-
+    if (collection.id) {
+      collection.id = collection.primaryContract;
+    }
+    if (collection.name) {
+      collection.name = collection.primaryContract;
+    }
     if (collection.slug) {
       collection.slug = collection.primaryContract;
     }
@@ -1027,6 +1030,9 @@ export const getJoiCollectionObject = (collection: any, metadataDisabled: boolea
     }
     if (collection.image) {
       collection.image = null;
+    }
+    if (collection.sampleImages) {
+      collection.sampleImages = [];
     }
     if (collection.banner) {
       collection.banner = null;
@@ -1058,6 +1064,9 @@ export const getJoiCollectionObject = (collection: any, metadataDisabled: boolea
     if (collection.newRoyalties) {
       collection.newRoyalties = null;
     }
+    if (collection.floorAsk?.token) {
+      collection.floorAsk.token = getJoiTokenObject(collection.floorAsk.token, true);
+    }
   }
 
   return collection;
@@ -1067,14 +1076,8 @@ export const getJoiCollectionObject = (collection: any, metadataDisabled: boolea
 
 export const getJoiTokenObject = (token: any, metadataDisabled: boolean) => {
   if (metadataDisabled) {
-    token.collection.id = token.contract;
-    token.name = null;
-
-    if (token.collection.slug) {
-      token.collection.slug = token.contract;
-    }
-    if (token.collection.image) {
-      token.collection.image = null;
+    if (token.name) {
+      token.name = null;
     }
     if (token.isFlagged !== undefined) {
       token.isFlagged = false;
@@ -1099,6 +1102,9 @@ export const getJoiTokenObject = (token: any, metadataDisabled: boolean) => {
     }
     if (token.attributes) {
       token.attributes = [];
+    }
+    if (token.collection) {
+      token.collection = getJoiCollectionObject(token.collection, true);
     }
   }
 

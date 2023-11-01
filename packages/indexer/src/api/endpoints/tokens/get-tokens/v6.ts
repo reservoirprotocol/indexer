@@ -10,7 +10,6 @@ import * as Boom from "@hapi/boom";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import {
-  getJoiCollectionObject,
   getJoiPriceObject,
   getJoiSaleObject,
   getJoiSourceObject,
@@ -1318,19 +1317,16 @@ export const getTokensV6Options: RouteOptions = {
               remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : null,
               rarity: r.rarity_score,
               rarityRank: r.rarity_rank,
-              collection: getJoiCollectionObject(
-                {
-                  id: r.collection_id,
-                  name: r.collection_name,
-                  image: Assets.getLocalAssetsLink(r.collection_image),
-                  slug: r.slug,
-                  symbol: r.symbol,
-                  creator: r.creator ? fromBuffer(r.creator) : null,
-                  tokenCount: r.token_count,
-                  metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
-                },
-                r.c_metadata_disabled
-              ),
+              collection: {
+                id: r.collection_id,
+                name: r.collection_name,
+                image: Assets.getLocalAssetsLink(r.collection_image),
+                slug: r.slug,
+                symbol: r.symbol,
+                creator: r.creator ? fromBuffer(r.creator) : null,
+                tokenCount: r.token_count,
+                metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
+              },
               lastSale:
                 query.includeLastSale && r.last_sale_currency
                   ? await getJoiSaleObject({

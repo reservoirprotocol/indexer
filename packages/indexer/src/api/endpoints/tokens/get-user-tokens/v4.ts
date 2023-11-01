@@ -9,12 +9,7 @@ import { formatEth, fromBuffer, regex, toBuffer } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
-import {
-  getJoiCollectionObject,
-  getJoiPriceObject,
-  getJoiTokenObject,
-  JoiPrice,
-} from "@/common/joi";
+import { getJoiPriceObject, getJoiTokenObject, JoiPrice } from "@/common/joi";
 
 const version = "v4";
 
@@ -307,17 +302,14 @@ export const getUserTokensV4Options: RouteOptions = {
               tokenId: r.token_id,
               name: r.name,
               image: r.image,
-              collection: getJoiCollectionObject(
-                {
-                  id: r.collection_id,
-                  name: r.collection_name,
-                  imageUrl: r.metadata?.imageUrl,
-                  floorAskPrice: r.collection_floor_sell_value
-                    ? formatEth(r.collection_floor_sell_value)
-                    : null,
-                },
-                r.c_metadata_disabled
-              ),
+              collection: {
+                id: r.collection_id,
+                name: r.collection_name,
+                imageUrl: r.metadata?.imageUrl,
+                floorAskPrice: r.collection_floor_sell_value
+                  ? formatEth(r.collection_floor_sell_value)
+                  : null,
+              },
               topBid: query.includeTopBid
                 ? {
                     id: r.top_bid_id,

@@ -16,13 +16,7 @@ import {
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
-import {
-  JoiAttributeValue,
-  JoiSource,
-  getJoiCollectionObject,
-  getJoiSourceObject,
-  getJoiTokenObject,
-} from "@/common/joi";
+import { JoiAttributeValue, JoiSource, getJoiSourceObject, getJoiTokenObject } from "@/common/joi";
 import * as Boom from "@hapi/boom";
 
 const version = "v4";
@@ -472,15 +466,12 @@ export const getTokensDetailsV4Options: RouteOptions = {
               lastFlagUpdate: r.last_flag_update
                 ? new Date(r.last_flag_update).toISOString()
                 : null,
-              collection: getJoiCollectionObject(
-                {
-                  id: r.collection_id,
-                  name: r.collection_name,
-                  image: Assets.getLocalAssetsLink(r.image),
-                  slug: r.slug,
-                },
-                r.c_metadata_disabled
-              ),
+              collection: {
+                id: r.collection_id,
+                name: r.collection_name,
+                image: Assets.getLocalAssetsLink(r.image),
+                slug: r.slug,
+              },
               lastBuy: {
                 value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
                 timestamp: r.last_buy_timestamp,
