@@ -2,6 +2,7 @@
 
 import { BigNumber } from "@ethersproject/bignumber";
 import { _TypedDataEncoder } from "@ethersproject/hash";
+import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { PermitHandler } from "@reservoir0x/sdk/dist/router/v6/permit";
@@ -15,6 +16,7 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, now, regex } from "@/common/utils";
 import { config } from "@/config/index";
+import { ApiKeyManager } from "@/models/api-keys";
 import { FeeRecipients } from "@/models/fee-recipients";
 import { getExecuteError } from "@/orderbook/orders/errors";
 import { checkBlacklistAndFallback } from "@/orderbook/orders";
@@ -1656,9 +1658,28 @@ export const getExecuteBidV5Options: RouteOptions = {
 
       await executionsBuffer.flush();
 
+      const key = request.headers["x-api-key"];
+      const apiKey = await ApiKeyManager.getApiKey(key);
+      logger.info(
+        `get-execute-bid-${version}-handler`,
+        JSON.stringify({
+          request: payload,
+          apiKey,
+        })
+      );
+
       return { steps, errors };
     } catch (error) {
-      logger.error(`get-execute-bid-${version}-handler`, `Handler failure: ${error}`);
+      const key = request.headers["x-api-key"];
+      const apiKey = await ApiKeyManager.getApiKey(key);
+      logger.error(
+        `get-execute-bid-${version}-handler`,
+        JSON.stringify({
+          request: payload,
+          httpCode: error instanceof Boom.Boom ? error.output.statusCode : 500,
+          apiKey,
+        })
+      );
 
       throw error;
     }

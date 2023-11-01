@@ -35,11 +35,7 @@ export const postSpamStatusCollectionV1Options: RouteOptions = {
       collections: Joi.alternatives()
         .try(
           Joi.array()
-            .items(
-              Joi.string()
-                .lowercase()
-                .pattern(/^0x[a-fA-F0-9]{40}$/)
-            )
+            .items(Joi.string().lowercase())
             .min(1)
             .max(50)
             .description(
@@ -47,7 +43,6 @@ export const postSpamStatusCollectionV1Options: RouteOptions = {
             ),
           Joi.string()
             .lowercase()
-            .pattern(/^0x[a-fA-F0-9]{40}$/)
             .description(
               "Update to one or more collections. Max limit is 50. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
             )
