@@ -4,6 +4,7 @@ import { logger } from "@/common/logger";
 import { Collections } from "@/models/collections";
 
 import _ from "lodash";
+import { config } from "@/config/index";
 
 export type CollectionMetadataInfo = {
   contract: string;
@@ -17,6 +18,7 @@ export type MetadataQueueJobPayload = {
   tokenId: string;
   community: string;
   forceRefresh?: boolean;
+  retries?: number;
 };
 
 export default class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
@@ -28,6 +30,7 @@ export default class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandl
 
   protected async process(payload: MetadataQueueJobPayload) {
     const { contract, tokenId, community, forceRefresh } = payload;
+    const retries = payload.retries ?? 0;
 
     if (forceRefresh || (await acquireLock(`${this.queueName}:${contract}`, 5 * 60))) {
       if (await acquireLock(this.queueName, 1)) {
@@ -37,11 +40,27 @@ export default class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandl
           logger.error(
             this.queueName,
             JSON.stringify({
-              message: `updateCollectionCache error. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}, error=${error}`,
+              message: `updateCollectionCache error. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}, retries=${retries}, error=${error}`,
               payload,
               error,
             })
           );
+
+          if (retries < 5 && config.chainId === 1) {
+            payload.forceRefresh = true;
+            payload.retries = retries + 1;
+
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                message: `updateCollectionCache error retry. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}, retries=${retries}, error=${error}`,
+                payload,
+                error,
+              })
+            );
+
+            await this.addToQueue(payload, payload.retries * 1000 * 60);
+          }
         }
       } else {
         if (!forceRefresh) {

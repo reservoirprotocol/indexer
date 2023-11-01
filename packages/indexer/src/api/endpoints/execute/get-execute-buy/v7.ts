@@ -1743,6 +1743,14 @@ export const getExecuteBuyV7Options: RouteOptions = {
               },
             },
           },
+          check: {
+            endpoint: "/execute/status/v1",
+            method: "POST",
+            body: {
+              kind: "cross-chain-intent",
+              id: order.hash(),
+            },
+          },
         });
 
         return {
