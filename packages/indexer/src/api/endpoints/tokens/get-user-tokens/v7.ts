@@ -547,7 +547,7 @@ export const getUserTokensV7Options: RouteOptions = {
         SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at, b.last_token_appraisal_value,
                t.name, t.image, t.metadata AS token_metadata, t.media, t.rarity_rank, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
                t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to, t.floor_sell_source_id_int, t.supply, t.remaining_supply, t.description,
-               t.rarity_score, ${selectLastSale}
+               t.rarity_score, t.t_is_spam, ${selectLastSale}
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value, top_bid_source_id_int,
                o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price,
                c.name as collection_name, con.kind, con.symbol, c.metadata, c.royalties,
@@ -706,7 +706,7 @@ export const getUserTokensV7Options: RouteOptions = {
             remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : null,
             media: r.media,
             isFlagged: Boolean(Number(r.is_flagged)),
-            isSpam: Boolean(Number(r.t_is_spam)) || Boolean(Number(r.c_is_spam)),
+            isSpam: Number(r.t_is_spam) > 0 || Number(r.c_is_spam) > 0,
             lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
             lastFlagChange: r.last_flag_change ? new Date(r.last_flag_change).toISOString() : null,
             collection: {
@@ -715,7 +715,7 @@ export const getUserTokensV7Options: RouteOptions = {
               slug: r.slug,
               symbol: r.symbol,
               imageUrl: r.metadata?.imageUrl,
-              isSpam: Boolean(Number(r.c_is_spam)),
+              isSpam: Number(r.c_is_spam) > 0,
               openseaVerificationStatus: r.opensea_verification_status,
               floorAskPrice: r.collection_floor_sell_value
                 ? await getJoiPriceObject(

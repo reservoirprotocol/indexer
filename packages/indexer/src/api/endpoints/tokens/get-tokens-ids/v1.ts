@@ -10,7 +10,7 @@ import { regex, toBuffer } from "@/common/utils";
 
 const version = "v1";
 
-export const getTokensIdsV4Options: RouteOptions = {
+export const getTokensIdsV1Options: RouteOptions = {
   description: "Token IDs",
   notes:
     "This API is optimized for quickly fetching a list of tokens ids in by collection, contract, token set id. ",
