@@ -17,6 +17,7 @@ export type MetadataQueueJobPayload = {
   tokenId: string;
   community: string;
   forceRefresh?: boolean;
+  retries?: number;
 };
 
 export default class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandler {
@@ -28,6 +29,7 @@ export default class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandl
 
   protected async process(payload: MetadataQueueJobPayload) {
     const { contract, tokenId, community, forceRefresh } = payload;
+    const retries = payload.retries ?? 0;
 
     if (forceRefresh || (await acquireLock(`${this.queueName}:${contract}`, 5 * 60))) {
       if (await acquireLock(this.queueName, 1)) {
@@ -37,11 +39,17 @@ export default class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandl
           logger.error(
             this.queueName,
             JSON.stringify({
-              message: `updateCollectionCache error. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}, error=${error}`,
+              message: `updateCollectionCache error. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}, retries=${retries},error=${error}`,
               payload,
               error,
             })
           );
+
+          if (retries < 5) {
+            payload.retries = retries + 1;
+
+            await this.addToQueue(payload, payload.retries * 1000 * 60);
+          }
         }
       } else {
         if (!forceRefresh) {
