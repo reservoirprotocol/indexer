@@ -340,6 +340,10 @@ export class ApiKeyManager {
 
           updateString += `${_.snakeCase(fieldName)} = '$/${fieldName}:raw/'::jsonb,`;
           (replacementValues as any)[`${fieldName}`] = JSON.stringify(value);
+        }
+        if (_.isObject(value)) {
+          updateString += `${_.snakeCase(fieldName)} = '$/${fieldName}:raw/'::jsonb,`;
+          (replacementValues as any)[`${fieldName}`] = JSON.stringify(value);
         } else {
           updateString += `${_.snakeCase(fieldName)} = $/${fieldName}/,`;
           (replacementValues as any)[fieldName] = value;
@@ -351,9 +355,10 @@ export class ApiKeyManager {
 
     const query = `UPDATE api_keys
                    SET ${updateString}
-                   WHERE key = $/key/`;
+                   WHERE key = $/key/
+                   RETURNING *`;
 
-    await idb.none(query, replacementValues);
+    const newKeyFields = await idb.oneOrNone(query, replacementValues);
 
     await ApiKeyManager.deleteCachedApiKey(key); // reload the cache
     await redis.publish(Channel.ApiKeyUpdated, JSON.stringify({ key }));
@@ -362,7 +367,18 @@ export class ApiKeyManager {
     if (config.chainId === 1) {
       await allChainsSyncRedis.publish(
         AllChainsChannel.ApiKeyUpdated,
-        JSON.stringify({ key, fields })
+        JSON.stringify({
+          key,
+          fields: {
+            website: newKeyFields.website,
+            tier: newKeyFields.tier,
+            active: newKeyFields.active,
+            permissions: newKeyFields.permissions,
+            ips: newKeyFields.ips,
+            origins: newKeyFields.origins,
+            revShareBps: newKeyFields.rev_share_bps,
+          },
+        })
       );
     }
 

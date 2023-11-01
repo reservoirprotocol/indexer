@@ -12,6 +12,7 @@ export type ApiKeyUpdateParams = {
   website?: string;
   tier?: number;
   active?: boolean;
+  permissions?: Record<ApiKeyPermission, unknown>;
   ips?: string[];
   origins?: string[];
   revShareBps?: number | null;
