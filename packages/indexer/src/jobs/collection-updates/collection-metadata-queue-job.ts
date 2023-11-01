@@ -46,6 +46,7 @@ export default class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandl
           );
 
           if (retries < 5) {
+            payload.forceRefresh = true;
             payload.retries = retries + 1;
 
             await this.addToQueue(payload, payload.retries * 1000 * 60);

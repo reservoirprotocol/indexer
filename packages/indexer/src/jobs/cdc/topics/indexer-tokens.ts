@@ -67,6 +67,26 @@ export class IndexerTokensHandler extends KafkaEventHandler {
           await refreshAsksTokenJob.addToQueue(payload.after.contract, payload.after.token_id);
         }
       }
+
+      const metadataInitializedAtChanged =
+        payload.before.metadata_initialized_at !== payload.after.metadata_initialized_at;
+
+      if (metadataInitializedAtChanged) {
+        logger.info(
+          "token-metadata-initialized-metric",
+          JSON.stringify({
+            topic: "metrics",
+            contract: payload.after.contract,
+            tokenId: payload.after.token_id,
+            latencyFromCreatedAt:
+              new Date(payload.after.metadata_initialized_at).getTime() -
+              new Date(payload.after.created_at).getTime(),
+            latencyFromIndexedAt:
+              new Date(payload.after.metadata_initialized_at).getTime() -
+              new Date(payload.after.metadata_indexed_at).getTime(),
+          })
+        );
+      }
     } catch (error) {
       logger.error(
         "kafka-event-handler",
