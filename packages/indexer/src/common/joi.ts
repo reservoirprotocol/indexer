@@ -1067,6 +1067,16 @@ export const getJoiCollectionObject = (collection: any, metadataDisabled: boolea
     if (collection.floorAsk?.token) {
       collection.floorAsk.token = getJoiTokenObject(collection.floorAsk.token, true);
     }
+    if (collection.recentSales) {
+      for (const sale of collection.recentSales) {
+        if (sale.token) {
+          sale.token = getJoiTokenObject(sale.token, true);
+        }
+        if (sale.collection) {
+          sale.collection = getJoiCollectionObject(sale.collection, true);
+        }
+      }
+    }
   }
 
   return collection;
