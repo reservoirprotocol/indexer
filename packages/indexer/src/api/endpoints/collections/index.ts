@@ -24,3 +24,4 @@ export * from "@/api/endpoints/collections/get-collection-supported-marketplaces
 export * from "@/api/endpoints/collections/get-top-selling-collections/v1";
 export * from "@/api/endpoints/collections/get-top-selling-collections/v2";
 export * from "@/api/endpoints/collections/get-trending-collections/v1";
+export * from "@/api/endpoints/collections/post-spam-status-collection/v1";

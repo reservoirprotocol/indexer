@@ -210,6 +210,9 @@ export const getTokensV6Options: RouteOptions = {
         .description(
           "Exclude orders that can only be filled by EOAs, to support filling with smart contracts. defaults to false"
         ),
+      excludeSpam: Joi.boolean()
+        .default(false)
+        .description("If true, will filter any tokens marked as spam."),
       includeAttributes: Joi.boolean()
         .default(false)
         .description("If true, attributes will be returned in the response."),
@@ -666,7 +669,9 @@ export const getTokensV6Options: RouteOptions = {
         ${includeQuantityQuery}
         ${includeDynamicPricingQuery}
         ${includeRoyaltyBreakdownQuery}
-        JOIN collections c ON t.collection_id = c.id
+        JOIN collections c ON t.collection_id = c.id ${
+          query.excludeSpam ? `AND (c.is_spam IS NULL OR c.is_spam <= 0)` : ""
+        }
         JOIN contracts con ON t.contract = con.address
       `;
 
@@ -718,6 +723,10 @@ export const getTokensV6Options: RouteOptions = {
         if (query.contract.length == 1) {
           conditions.push(`t.contract IN ($/contract:csv/)`);
         }
+      }
+
+      if (query.excludeSpam) {
+        conditions.push(`(t.is_spam IS NULL OR t.is_spam <= 0)`);
       }
 
       if (query.minRarityRank) {
@@ -1289,7 +1298,7 @@ export const getTokensV6Options: RouteOptions = {
             media: r.media,
             kind: r.kind,
             isFlagged: Boolean(Number(r.is_flagged)),
-            isSpam: Boolean(Number(r.t_is_spam)) || Boolean(Number(r.c_is_spam)),
+            isSpam: Number(r.t_is_spam) > 0 || Number(r.c_is_spam) > 0,
             lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
             lastFlagChange: r.last_flag_change ? new Date(r.last_flag_change).toISOString() : null,
             supply: !_.isNull(r.supply) ? r.supply : null,

@@ -12,6 +12,9 @@ import {
   CollectionMintStatus,
   CollectionMintStatusReason,
 } from "@/orderbook/mints";
+import { Network } from "@reservoir0x/sdk/dist/utils";
+import { config } from "@/config/index";
+import { logger } from "@/common/logger";
 
 export const toSafeTimestamp = (value: BigNumberish) =>
   bn(value).gte(9999999999) ? undefined : bn(value).toNumber();
@@ -32,6 +35,16 @@ export const getContractKind = async (
     new Interface(["function supportsInterface(bytes4 interfaceId) view returns (bool)"]),
     baseProvider
   );
+
+  if (config.chainId === Network.Optimism) {
+    logger.info(
+      "onchain-fetcher-mint-contract-kind",
+      JSON.stringify({
+        topic: "debugTokenStandard",
+        message: `Start. contract=${contract}`,
+      })
+    );
+  }
 
   try {
     if (await c.supportsInterface("0x80ac58cd")) {
