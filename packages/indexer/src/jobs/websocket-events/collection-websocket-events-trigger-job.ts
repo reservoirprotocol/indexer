@@ -13,6 +13,7 @@ interface CollectionInfo {
   id: string;
   slug: string;
   name: string;
+  is_spam: number;
   metadata: string;
   royalties: string;
   contract: string;
@@ -67,6 +68,7 @@ export type CollectionWebsocketEventInfo = {
 const changedMapping = {
   slug: "slug",
   name: "name",
+  is_spam: "is_spam",
   metadata: "metadata",
   royalties: "royalties",
   token_set_id: "tokenSetId",
@@ -216,6 +218,7 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           id,
           slug: !metadataDisabled ? r.slug : r.contract,
           name: !metadataDisabled ? r.name : r.contract,
+          isSpam: Number(r.is_spam) > 0,
           metadata: {
             imageUrl: !metadataDisabled ? Assets.getLocalAssetsLink(metadata?.imageUrl) : null,
             bannerImageUrl: !metadataDisabled ? metadata?.bannerImageUrl : null,

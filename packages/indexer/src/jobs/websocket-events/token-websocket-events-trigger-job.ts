@@ -31,6 +31,7 @@ export type TokenWebsocketEventsTriggerJobPayload =
 
 const changedMapping = {
   name: "name",
+  is_spam: "is_spam",
   description: "description",
   image: "image",
   media: "media",
@@ -135,6 +136,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
             contract,
             tokenId,
             name: data.after.name,
+            isSpam: Number(data.after.is_spam) > 0,
             description: data.after.description,
             image: Assets.getLocalAssetsLink(data.after.image),
             media: data.after.media,
@@ -330,6 +332,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
           t.contract,
           t.token_id,
           t.name,
+          t.is_spam,
           t.description,
           t.image,
           t.media,
@@ -407,6 +410,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
             contract,
             tokenId,
             name: r.name,
+            isSpam: Number(r.is_spam) > 0,
             description: r.description,
             image: Assets.getLocalAssetsLink(r.image),
             media: r.media,
@@ -543,6 +547,7 @@ interface TokenInfo {
   contract: string;
   token_id: string;
   name: string;
+  is_spam: number;
   description: string;
   image: string;
   media: string;
