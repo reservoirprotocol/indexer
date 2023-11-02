@@ -12,7 +12,7 @@ import { logger } from "@/common/logger";
 const VERSION = "v2";
 const expireTimeInSeconds = 1800;
 
-type Period = "5m" | "10m" | "30m" | "1h" | "6h" | "1d" | "7d" | "30d";
+type Period = "5m" | "10m" | "30m" | "1h" | "2h" | "6h" | "1d" | "7d" | "30d";
 type FillSort = "volume" | "sales";
 
 interface TopSellingCollectionWindow {
@@ -44,6 +44,12 @@ export const getStartTime = (period: Period): number => {
       startTime = now - 60 * 60;
       break;
     }
+
+    case "2h": {
+      startTime = now - 60 * 2 * 60;
+      break;
+    }
+
     case "6h": {
       startTime = now - 60 * 6 * 60;
       break;

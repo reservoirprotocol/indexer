@@ -57,6 +57,15 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
       );
 
       if (afterStatus === "active") {
+        logger.info(
+          "kafka-event-handler",
+          JSON.stringify({
+            topic: "debugAskIndex",
+            message: `Indexing ask. orderId=${payload.after.id}`,
+            payload,
+          })
+        );
+
         await processAskEventJob.addToQueue([
           {
             kind: EventKind.newSellOrder,
@@ -111,6 +120,15 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
         );
 
         if (afterStatus === "active") {
+          logger.info(
+            "kafka-event-handler",
+            JSON.stringify({
+              topic: "debugAskIndex",
+              message: `ReIndexing ask. orderId=${payload.after.id}`,
+              payload,
+            })
+          );
+
           await processAskEventJob.addToQueue([
             {
               kind: EventKind.sellOrderUpdated,
@@ -118,6 +136,15 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
             },
           ]);
         } else if (beforeStatus === "active") {
+          logger.info(
+            "kafka-event-handler",
+            JSON.stringify({
+              topic: "debugAskIndex",
+              message: `Deleting ask. orderId=${payload.after.id}`,
+              payload,
+            })
+          );
+
           await processAskEventJob.addToQueue([
             {
               kind: EventKind.SellOrderInactive,

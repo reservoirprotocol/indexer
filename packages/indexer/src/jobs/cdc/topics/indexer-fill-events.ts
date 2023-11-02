@@ -58,16 +58,41 @@ export class IndexerFillEventsHandler extends KafkaEventHandler {
       eventKind: WebsocketEventKind.SaleEvent,
     });
 
-    await processActivityEventJob.addToQueue([
-      {
-        kind: ProcessActivityEventKind.fillEvent,
-        data: {
-          txHash: payload.after.tx_hash,
-          logIndex: payload.after.log_index,
-          batchIndex: payload.after.batch_index,
-        },
-      },
-    ]);
+    try {
+      const washTradingScoreChanged =
+        payload.before.wash_trading_score !== payload.after.wash_trading_score;
+
+      if (washTradingScoreChanged) {
+        await processActivityEventJob.addToQueue([
+          {
+            kind: ProcessActivityEventKind.fillEvent,
+            data: {
+              txHash: payload.after.tx_hash,
+              logIndex: payload.after.log_index,
+              batchIndex: payload.after.batch_index,
+            },
+          },
+        ]);
+
+        logger.info(
+          "kafka-event-handler",
+          JSON.stringify({
+            topic: "debugWashTradingScoreActivity",
+            message: `Refresh sale activity. txHash=${payload.after.tx_hash} logIndex=${payload.after.log_index} batchIndex=${payload.after.batch_index}`,
+            payload,
+          })
+        );
+      }
+    } catch (error) {
+      logger.error(
+        "kafka-event-handler",
+        JSON.stringify({
+          message: `Handle ask error. error=${error}`,
+          payload,
+          error,
+        })
+      );
+    }
   }
 
   protected async handleDelete(): Promise<void> {

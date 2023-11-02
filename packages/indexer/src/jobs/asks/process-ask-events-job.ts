@@ -24,6 +24,8 @@ export default class ProcessAskEventsJob extends AbstractRabbitMqJobHandler {
 
     if (pendingAskEvents.length > 0) {
       try {
+        logger.info(this.queueName, `Debug. pendingAskEvents=${pendingAskEvents.length}`);
+
         const bulkOps = [];
 
         for (const pendingAskEvent of pendingAskEvents) {
@@ -101,10 +103,13 @@ export const processAskEventsJob = new ProcessAskEventsJob();
 
 if (config.doBackgroundWork && config.doElasticsearchWork) {
   cron.schedule(
-    "*/2 * * * * *",
+    config.chainId === 1 ? "*/5 * * * * *" : "*/5 * * * * *",
     async () =>
       await redlock
-        .acquire([`${processAskEventsJob.queueName}-queue-lock`], 2 * 1000 - 500)
+        .acquire(
+          [`${processAskEventsJob.queueName}-queue-lock`],
+          config.chainId === 1 ? (5 - 1) * 1000 : (5 - 1) * 1000
+        )
         .then(async () => processAskEventsJob.addToQueue())
         .catch(() => {
           // Skip on any errors

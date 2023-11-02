@@ -355,6 +355,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         currency_value: value,
         needs_conversion: null,
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
+        valid_from: validFrom,
+        valid_to: validTo,
         // The salt is hexed when coming from Rarible's API
         nonce: bn(order.params.salt).toString(),
         source_id_int: source?.id,
@@ -412,6 +414,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         "currency_value",
         "needs_conversion",
         { name: "valid_between", mod: ":raw" },
+        { name: "valid_from", mod: ":raw" },
+        { name: "valid_to", mod: ":raw" },
         "nonce",
         "source_id_int",
         "is_reservoir",

@@ -38,6 +38,8 @@ export type DbOrder = {
   currency_value: string;
   quantity_remaining?: string;
   valid_between: string;
+  valid_from: string;
+  valid_to: string;
   nonce: string | null;
   source_id_int?: number;
   is_reservoir?: boolean | null;
