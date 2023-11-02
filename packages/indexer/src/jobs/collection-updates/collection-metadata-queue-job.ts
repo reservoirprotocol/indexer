@@ -4,7 +4,6 @@ import { logger } from "@/common/logger";
 import { Collections } from "@/models/collections";
 
 import _ from "lodash";
-import { config } from "@/config/index";
 
 export type CollectionMetadataInfo = {
   contract: string;
@@ -56,7 +55,7 @@ export default class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandl
             })
           );
 
-          if (retries < 5 && config.chainId === 1) {
+          if (retries < 5) {
             payload.forceRefresh = true;
             payload.retries = retries + 1;
 
