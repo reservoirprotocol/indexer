@@ -14,6 +14,8 @@ export type CollectionContractDeployed = {
   blockTimestamp?: number;
 };
 
+const BLACKLISTED_DEPLOYERS = ["0xaf18644083151cf57f914cccc23c42a1892c218e"];
+
 export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler {
   queueName = "collection-new-contract-deployed";
   maxRetries = 10;
@@ -31,6 +33,14 @@ export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler
 
     if (!deployer) {
       deployer = await getContractDeployer(contract);
+    }
+
+    if (deployer && BLACKLISTED_DEPLOYERS.includes(deployer)) {
+      logger.warn(
+        this.queueName,
+        `Collection ${contract} was deployed by a blacklisted address ${deployer}`
+      );
+      return;
     }
 
     // get the type of the collection, either ERC721 or ERC1155. if it's not one of those, we don't care
