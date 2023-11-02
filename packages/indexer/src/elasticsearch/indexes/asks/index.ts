@@ -570,6 +570,7 @@ export const updateAsksTokenData = async (
   tokenId: string,
   tokenData: {
     isFlagged: number;
+    isSpam: number;
     rarityRank?: number;
   }
 ): Promise<boolean> => {
@@ -582,6 +583,17 @@ export const updateAsksTokenData = async (
           {
             term: {
               "token.isFlagged": Boolean(tokenData.isFlagged),
+            },
+          },
+        ],
+      },
+    },
+    {
+      bool: {
+        must_not: [
+          {
+            term: {
+              "token.isSpam": Boolean(tokenData.isSpam),
             },
           },
         ],
@@ -651,6 +663,7 @@ export const updateAsksTokenData = async (
           {
             doc: {
               "token.isFlagged": Boolean(tokenData.isFlagged),
+              "token.isSpam": Boolean(tokenData.isSpam),
               "token.rarityRank": tokenData.rarityRank,
             },
           },

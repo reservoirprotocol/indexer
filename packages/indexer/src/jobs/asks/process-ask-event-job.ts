@@ -86,9 +86,11 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
                         tokens.image AS "token_image",
                         tokens.media AS "token_media",
                         tokens.is_flagged AS "token_is_flagged",
+                        tokens.is_spam AS "token_is_spam",
                         tokens.rarity_rank AS "token_rarity_rank",
-                        collections.id AS "collection_id",
-                        collections.name AS "collection_name",
+                        collections.id AS "collection_id", 
+                        collections.name AS "collection_name", 
+                        collections.is_spam AS "collections_is_spam",
                         (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image",
                         (
                         SELECT 
@@ -130,6 +132,7 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
             token_image: rawResult.token_image,
             token_media: rawResult.token_media,
             token_is_flagged: Number(rawResult.token_is_flagged),
+            token_is_spam: Number(rawResult.token_is_spam),
             token_rarity_rank: rawResult.token_rarity_rank
               ? Number(rawResult.token_rarity_rank)
               : undefined,
@@ -137,6 +140,7 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
             collection_id: rawResult.collection_id,
             collection_name: rawResult.collection_name,
             collection_image: rawResult.collection_image,
+            collection_is_spam: Number(rawResult.collection_is_spam),
             order_id: data.id,
             order_source_id_int: Number(rawResult.order_source_id_int),
             order_criteria: rawResult.order_criteria,
