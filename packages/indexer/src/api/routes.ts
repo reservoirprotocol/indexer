@@ -581,12 +581,6 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
-    method: "POST",
-    path: "/collections/disable/v1",
-    options: collectionsEndpoints.postSetCollectionDisableV1Options,
-  });
-
-  server.route({
     method: "GET",
     path: "/collections/{collection}/supported-marketplaces/v1",
     options: collectionsEndpoints.getCollectionSupportedMarketplacesV1Options,
@@ -1247,12 +1241,6 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
-    path: "/tokens/v7",
-    options: tokensEndpoints.getTokensV7Options,
-  });
-
-  server.route({
-    method: "GET",
     path: "/tokens/bootstrap/v1",
     options: tokensEndpoints.getTokensBootstrapV1Options,
   });
@@ -1345,12 +1333,6 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/tokens/ids/v1",
     options: tokensEndpoints.getTokensIdsV1Options,
-  });
-
-  server.route({
-    method: "POST",
-    path: "/tokens/disable/v1",
-    options: tokensEndpoints.postSetTokenDisableV1Options,
   });
 
   // Token sets

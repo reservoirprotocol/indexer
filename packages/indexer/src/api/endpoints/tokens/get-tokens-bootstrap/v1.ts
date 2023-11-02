@@ -15,7 +15,6 @@ import {
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
-import { getJoiTokenObject } from "@/common/joi";
 
 const version = "v1";
 
@@ -86,8 +85,6 @@ export const getTokensBootstrapV1Options: RouteOptions = {
           "t"."contract",
           "t"."token_id",
           "t"."image",
-          "t"."metadata_disabled" as "t_metadata_disabled",
-          "c"."metadata_disabled" as "c_metadata_disabled",
           "t"."floor_sell_id",
           "t"."floor_sell_value",
           "t"."floor_sell_maker",
@@ -95,8 +92,6 @@ export const getTokensBootstrapV1Options: RouteOptions = {
           "t"."floor_sell_valid_from",
           "t"."floor_sell_valid_to"
         FROM "tokens" "t"
-        JOIN "collections" "c"
-          ON "t"."collection_id" = "c"."id"
       `;
 
       // Filters
@@ -134,21 +129,17 @@ export const getTokensBootstrapV1Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const result = rawResult.map((r) => {
-        return getJoiTokenObject(
-          {
-            contract: fromBuffer(r.contract),
-            tokenId: r.token_id,
-            image: Assets.getLocalAssetsLink(r.image),
-            orderId: r.floor_sell_id,
-            maker: fromBuffer(r.floor_sell_maker),
-            price: formatEth(r.floor_sell_value),
-            validFrom: Number(r.floor_sell_valid_from),
-            validUntil: Number(r.floor_sell_valid_to),
-            source: sources.get(r.floor_sell_source_id_int)?.name,
-          },
-          r.t_metadata_disabled,
-          r.c_metadata_disabled
-        );
+        return {
+          contract: fromBuffer(r.contract),
+          tokenId: r.token_id,
+          image: Assets.getLocalAssetsLink(r.image),
+          orderId: r.floor_sell_id,
+          maker: fromBuffer(r.floor_sell_maker),
+          price: formatEth(r.floor_sell_value),
+          validFrom: Number(r.floor_sell_valid_from),
+          validUntil: Number(r.floor_sell_valid_to),
+          source: sources.get(r.floor_sell_source_id_int)?.name,
+        };
       });
 
       let continuation: string | undefined;

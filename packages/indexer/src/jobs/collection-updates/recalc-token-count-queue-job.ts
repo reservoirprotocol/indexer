@@ -103,15 +103,6 @@ export default class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler
           AND ("token_count" IS DISTINCT FROM $/totalCurrentCount/)
       `;
 
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "debugCollectionUpdates",
-          message: `Update collection. collection=${collection}`,
-          totalCurrentCount,
-        })
-      );
-
       await idb.none(query, {
         collection,
         totalCurrentCount,

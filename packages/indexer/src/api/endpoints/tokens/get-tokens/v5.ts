@@ -11,7 +11,6 @@ import { logger } from "@/common/logger";
 import {
   getJoiPriceObject,
   getJoiSourceObject,
-  getJoiTokenObject,
   JoiAttributeValue,
   JoiPrice,
   JoiSource,
@@ -537,8 +536,6 @@ export const getTokensV5Options: RouteOptions = {
           t.is_flagged,
           t.last_flag_update,
           t.last_flag_change,
-          t.metadata_disabled AS t_metadata_disabled,
-          c.metadata_disabled AS c_metadata_disabled,
           c.slug,
           t.last_buy_value,
           t.last_buy_timestamp,
@@ -1048,61 +1045,53 @@ export const getTokensV5Options: RouteOptions = {
         }
 
         return {
-          token: getJoiTokenObject(
-            {
-              contract,
-              tokenId,
-              name: r.name,
-              description: r.description,
-              image: Assets.getLocalAssetsLink(r.image),
-              media: r.media,
-              kind: r.kind,
-              isFlagged: Boolean(Number(r.is_flagged)),
-              lastFlagUpdate: r.last_flag_update
-                ? new Date(r.last_flag_update).toISOString()
-                : null,
-              lastFlagChange: r.last_flag_change
-                ? new Date(r.last_flag_change).toISOString()
-                : null,
-              rarity: r.rarity_score,
-              rarityRank: r.rarity_rank,
-              collection: {
-                id: r.collection_id,
-                name: r.collection_name,
-                image: Assets.getLocalAssetsLink(r.collection_image),
-                slug: r.slug,
-              },
-              lastBuy: {
-                value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
-                timestamp: r.last_buy_timestamp,
-              },
-              lastSell: {
-                value: r.last_sell_value ? formatEth(r.last_sell_value) : null,
-                timestamp: r.last_sell_timestamp,
-              },
-              owner: r.owner ? fromBuffer(r.owner) : null,
-              attributes: query.includeAttributes
-                ? r.attributes
-                  ? _.map(r.attributes, (attribute) => ({
-                      key: attribute.key,
-                      kind: attribute.kind,
-                      value: attribute.value,
-                      tokenCount: attribute.tokenCount,
-                      onSaleCount: attribute.onSaleCount,
-                      floorAskPrice: attribute.floorAskPrice
-                        ? formatEth(attribute.floorAskPrice)
-                        : attribute.floorAskPrice,
-                      topBidValue: attribute.topBidValue
-                        ? formatEth(attribute.topBidValue)
-                        : attribute.topBidValue,
-                      createdAt: new Date(attribute.createdAt).toISOString(),
-                    }))
-                  : []
-                : undefined,
+          token: {
+            contract,
+            tokenId,
+            name: r.name,
+            description: r.description,
+            image: Assets.getLocalAssetsLink(r.image),
+            media: r.media,
+            kind: r.kind,
+            isFlagged: Boolean(Number(r.is_flagged)),
+            lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
+            lastFlagChange: r.last_flag_change ? new Date(r.last_flag_change).toISOString() : null,
+            rarity: r.rarity_score,
+            rarityRank: r.rarity_rank,
+            collection: {
+              id: r.collection_id,
+              name: r.collection_name,
+              image: Assets.getLocalAssetsLink(r.collection_image),
+              slug: r.slug,
             },
-            r.t_metadata_disabled,
-            r.c_metadata_disabled
-          ),
+            lastBuy: {
+              value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
+              timestamp: r.last_buy_timestamp,
+            },
+            lastSell: {
+              value: r.last_sell_value ? formatEth(r.last_sell_value) : null,
+              timestamp: r.last_sell_timestamp,
+            },
+            owner: r.owner ? fromBuffer(r.owner) : null,
+            attributes: query.includeAttributes
+              ? r.attributes
+                ? _.map(r.attributes, (attribute) => ({
+                    key: attribute.key,
+                    kind: attribute.kind,
+                    value: attribute.value,
+                    tokenCount: attribute.tokenCount,
+                    onSaleCount: attribute.onSaleCount,
+                    floorAskPrice: attribute.floorAskPrice
+                      ? formatEth(attribute.floorAskPrice)
+                      : attribute.floorAskPrice,
+                    topBidValue: attribute.topBidValue
+                      ? formatEth(attribute.topBidValue)
+                      : attribute.topBidValue,
+                    createdAt: new Date(attribute.createdAt).toISOString(),
+                  }))
+                : []
+              : undefined,
+          },
           market: {
             floorAsk: {
               id: r.floor_sell_id,

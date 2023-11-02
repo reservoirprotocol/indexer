@@ -18,7 +18,7 @@ import {
   getRecentSalesByCollection,
 } from "@/elasticsearch/indexes/activities";
 
-import { getJoiCollectionObject, getJoiPriceObject, JoiPrice } from "@/common/joi";
+import { getJoiPriceObject, JoiPrice } from "@/common/joi";
 import { Sources } from "@/models/sources";
 
 const version = "v2";
@@ -227,7 +227,6 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
           collections.contract,
           collections.token_count,
           collections.owner_count,
-          collections.metadata_disabled,
           collections.day1_volume_change,
           collections.day7_volume_change,
           collections.day30_volume_change,
@@ -317,24 +316,21 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
               };
             }
 
-            return getJoiCollectionObject(
-              {
-                ...response,
-                volumeChange: {
-                  "1day": metadata.day1_volume_change,
-                  "7day": metadata.day7_volume_change,
-                  "30day": metadata.day30_volume_change,
-                },
-                name: metadata.name,
-                tokenCount: Number(metadata.token_count || 0),
-                ownerCount: Number(metadata.owner_count || 0),
-                image: metadata.image,
-                banner: metadata.banner,
-                description: metadata.description,
-                floorAsk,
+            return {
+              ...response,
+              volumeChange: {
+                "1day": metadata.day1_volume_change,
+                "7day": metadata.day7_volume_change,
+                "30day": metadata.day30_volume_change,
               },
-              metadata.metadata_disabled
-            );
+              name: metadata.name,
+              tokenCount: Number(metadata.token_count || 0),
+              ownerCount: Number(metadata.owner_count || 0),
+              image: metadata.image,
+              banner: metadata.banner,
+              description: metadata.description,
+              floorAsk,
+            };
           })
         );
       }

@@ -25,6 +25,7 @@ export const fetchCollection = async ({
     tokenSetId: `contract:${contract}`,
     royalties: [],
     openseaRoyalties: [],
+    isCopyrightInfringement: false,
   };
 };
 
@@ -43,6 +44,7 @@ export const fetchToken = async ({ contract, tokenId }: { contract: string, toke
     metadataOriginalUrl: null,
     mediaUrl: null,
     attributes: [],
+    isCopyrightInfringement: false,
   };
 };
 ```
@@ -96,6 +98,7 @@ describe("Custom Copyright - 0x783a32eb03a1175160d210cc99c79e6370a48317", () => 
         community: null,
         contract: "0x783a32eb03a1175160d210cc99c79e6370a48317",
         id: "0x783a32eb03a1175160d210cc99c79e6370a48317",
+        isCopyrightInfringement: true,
         metadata: null,
         name: "0x783a32eb03a1175160d210cc99c79e6370a48317",
         openseaRoyalties: [],
@@ -121,6 +124,7 @@ describe("Custom Copyright - 0x783a32eb03a1175160d210cc99c79e6370a48317", () => 
           flagged: false,
           imageOriginalUrl: null,
           imageUrl: null,
+          isCopyrightInfringement: true,
           mediaUrl: null,
           metadataOriginalUrl: null,
           name: null,
@@ -176,6 +180,7 @@ export const fetchCollection = async ({
     tokenSetId: `contract:${contract}`,
     royalties: [],
     openseaRoyalties: [],
+    isCopyrightInfringement: false,
   };
 };
 
@@ -194,6 +199,7 @@ export const fetchToken = async ({ contract, tokenId }: { contract: string, toke
     metadataOriginalUrl: null,
     mediaUrl: null,
     attributes: [],
+    isCopyrightInfringement: false,
   };
 };
 ```

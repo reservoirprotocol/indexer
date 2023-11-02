@@ -6,7 +6,6 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
-import { getJoiCollectionObject } from "@/common/joi";
 
 const version = "v2";
 
@@ -95,7 +94,6 @@ export const getCollectionsV2Options: RouteOptions = {
           collections.contract,
           collections.token_set_id,
           collections.token_count,
-          collections.metadata_disabled,
           (
             SELECT array(
               SELECT tokens.image FROM tokens
@@ -179,34 +177,29 @@ export const getCollectionsV2Options: RouteOptions = {
         ) y ON TRUE
       `;
 
-      const result = await redb.manyOrNone(baseQuery, query).then(async (result) => {
-        return result.map((r) =>
-          getJoiCollectionObject(
-            {
-              id: r.id,
-              slug: r.slug,
-              name: r.name,
-              image: r.image || (r.sample_images?.length ? r.sample_images[0] : null),
-              banner: r.banner,
-              sampleImages: r.sample_images || [],
-              tokenCount: String(r.token_count),
-              primaryContract: fromBuffer(r.contract),
-              tokenSetId: r.token_set_id,
-              floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
-              topBidValue: r.top_buy_value ? formatEth(r.top_buy_value) : null,
-              topBidMaker: r.top_buy_maker ? fromBuffer(r.top_buy_maker) : null,
-              "1dayVolume": r.day1_volume ? formatEth(r.day1_volume) : null,
-              "7dayVolume": r.day7_volume ? formatEth(r.day7_volume) : null,
-              "30dayVolume": r.day30_volume ? formatEth(r.day30_volume) : null,
-              allTimeVolume: r.all_time_volume ? formatEth(r.all_time_volume) : null,
-              allTimeRank: r.all_time_rank,
-            },
-            r.metadata_disabled
-          )
-        );
-      });
+      const result = await redb.manyOrNone(baseQuery, query).then((result) =>
+        result.map((r) => ({
+          id: r.id,
+          slug: r.slug,
+          name: r.name,
+          image: r.image || (r.sample_images?.length ? r.sample_images[0] : null),
+          banner: r.banner,
+          sampleImages: r.sample_images || [],
+          tokenCount: String(r.token_count),
+          primaryContract: fromBuffer(r.contract),
+          tokenSetId: r.token_set_id,
+          floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
+          topBidValue: r.top_buy_value ? formatEth(r.top_buy_value) : null,
+          topBidMaker: r.top_buy_maker ? fromBuffer(r.top_buy_maker) : null,
+          "1dayVolume": r.day1_volume ? formatEth(r.day1_volume) : null,
+          "7dayVolume": r.day7_volume ? formatEth(r.day7_volume) : null,
+          "30dayVolume": r.day30_volume ? formatEth(r.day30_volume) : null,
+          allTimeVolume: r.all_time_volume ? formatEth(r.all_time_volume) : null,
+          allTimeRank: r.all_time_rank,
+        }))
+      );
 
-      return { collections: await Promise.all(result) };
+      return { collections: result };
     } catch (error) {
       logger.error(`get-collections-${version}-handler`, `Handler failure: ${error}`);
       throw error;

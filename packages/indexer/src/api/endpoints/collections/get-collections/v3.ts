@@ -6,7 +6,6 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
-import { getJoiCollectionObject } from "@/common/joi";
 
 const version = "v3";
 
@@ -120,7 +119,6 @@ export const getCollectionsV3Options: RouteOptions = {
           collections.contract,
           collections.token_set_id,
           collections.token_count,
-          collections.metadata_disabled,
           (
             SELECT array(
               SELECT tokens.image FROM tokens
@@ -213,55 +211,50 @@ export const getCollectionsV3Options: RouteOptions = {
         ) y ON TRUE
       `;
 
-      const result = await redb.manyOrNone(baseQuery, query).then(async (result) => {
-        return result.map((r) =>
-          getJoiCollectionObject(
-            {
-              id: r.id,
-              slug: r.slug,
-              name: r.name,
-              image: r.image || (r.sample_images?.length ? r.sample_images[0] : null),
-              banner: r.banner,
-              discordUrl: r.discord_url,
-              externalUrl: r.external_url,
-              twitterUsername: r.twitter_username,
-              description: r.description,
-              sampleImages: r.sample_images || [],
-              tokenCount: String(r.token_count),
-              primaryContract: fromBuffer(r.contract),
-              tokenSetId: r.token_set_id,
-              floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
-              topBidValue: r.top_buy_value ? formatEth(r.top_buy_value) : null,
-              topBidMaker: r.top_buy_maker ? fromBuffer(r.top_buy_maker) : null,
-              rank: {
-                "1day": r.day1_rank,
-                "7day": r.day7_rank,
-                "30day": r.day30_rank,
-                allTime: r.all_time_rank,
-              },
-              volume: {
-                "1day": r.day1_volume ? formatEth(r.day1_volume) : null,
-                "7day": r.day7_volume ? formatEth(r.day7_volume) : null,
-                "30day": r.day30_volume ? formatEth(r.day30_volume) : null,
-                allTime: r.all_time_volume ? formatEth(r.all_time_volume) : null,
-              },
-              volumeChange: {
-                "1day": r.day1_volume_change,
-                "7day": r.day7_volume_change,
-                "30day": r.day30_volume_change,
-              },
-              floorSale: {
-                "1day": r.day1_floor_sell_value ? formatEth(r.day1_floor_sell_value) : null,
-                "7day": r.day7_floor_sell_value ? formatEth(r.day7_floor_sell_value) : null,
-                "30day": r.day30_floor_sell_value ? formatEth(r.day30_floor_sell_value) : null,
-              },
-            },
-            r.metadata_disabled
-          )
-        );
-      });
+      const result = await redb.manyOrNone(baseQuery, query).then((result) =>
+        result.map((r) => ({
+          id: r.id,
+          slug: r.slug,
+          name: r.name,
+          image: r.image || (r.sample_images?.length ? r.sample_images[0] : null),
+          banner: r.banner,
+          discordUrl: r.discord_url,
+          externalUrl: r.external_url,
+          twitterUsername: r.twitter_username,
+          description: r.description,
+          sampleImages: r.sample_images || [],
+          tokenCount: String(r.token_count),
+          primaryContract: fromBuffer(r.contract),
+          tokenSetId: r.token_set_id,
+          floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
+          topBidValue: r.top_buy_value ? formatEth(r.top_buy_value) : null,
+          topBidMaker: r.top_buy_maker ? fromBuffer(r.top_buy_maker) : null,
+          rank: {
+            "1day": r.day1_rank,
+            "7day": r.day7_rank,
+            "30day": r.day30_rank,
+            allTime: r.all_time_rank,
+          },
+          volume: {
+            "1day": r.day1_volume ? formatEth(r.day1_volume) : null,
+            "7day": r.day7_volume ? formatEth(r.day7_volume) : null,
+            "30day": r.day30_volume ? formatEth(r.day30_volume) : null,
+            allTime: r.all_time_volume ? formatEth(r.all_time_volume) : null,
+          },
+          volumeChange: {
+            "1day": r.day1_volume_change,
+            "7day": r.day7_volume_change,
+            "30day": r.day30_volume_change,
+          },
+          floorSale: {
+            "1day": r.day1_floor_sell_value ? formatEth(r.day1_floor_sell_value) : null,
+            "7day": r.day7_floor_sell_value ? formatEth(r.day7_floor_sell_value) : null,
+            "30day": r.day30_floor_sell_value ? formatEth(r.day30_floor_sell_value) : null,
+          },
+        }))
+      );
 
-      return { collections: await Promise.all(result) };
+      return { collections: result };
     } catch (error) {
       logger.error(`get-collections-${version}-handler`, `Handler failure: ${error}`);
       throw error;
