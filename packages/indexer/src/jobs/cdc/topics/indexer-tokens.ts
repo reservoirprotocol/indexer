@@ -73,11 +73,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
       const metadataInitializedAtChanged =
         payload.before.metadata_initialized_at !== payload.after.metadata_initialized_at;
 
-      if (
-        payload.before.metadata_indexed_at &&
-        metadataInitializedAtChanged &&
-        config.chainId === 1
-      ) {
+      if (metadataInitializedAtChanged && config.chainId === 1) {
         logger.info(
           "token-metadata-initialized-metric",
           JSON.stringify({
