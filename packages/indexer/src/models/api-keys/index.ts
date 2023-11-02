@@ -356,10 +356,9 @@ export class ApiKeyManager {
 
     const query = `UPDATE api_keys
                    SET ${updateString}
-                   WHERE key = $/key/
-                   RETURNING *`;
+                   WHERE key = $/key/`;
 
-    const newKeyFields = await idb.oneOrNone(query, replacementValues);
+    await idb.none(query, replacementValues);
 
     await ApiKeyManager.deleteCachedApiKey(key); // reload the cache
     await redis.publish(Channel.ApiKeyUpdated, JSON.stringify({ key }));
@@ -368,18 +367,7 @@ export class ApiKeyManager {
     if (config.chainId === 1) {
       await allChainsSyncRedis.publish(
         AllChainsChannel.ApiKeyUpdated,
-        JSON.stringify({
-          key,
-          fields: {
-            website: newKeyFields.website,
-            tier: newKeyFields.tier,
-            active: newKeyFields.active,
-            permissions: newKeyFields.permissions,
-            ips: newKeyFields.ips,
-            origins: newKeyFields.origins,
-            revShareBps: newKeyFields.rev_share_bps,
-          },
-        })
+        JSON.stringify({ key, fields })
       );
     }
 

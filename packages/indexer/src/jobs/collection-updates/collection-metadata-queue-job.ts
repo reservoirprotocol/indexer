@@ -60,6 +60,16 @@ export default class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandl
             payload.retries = retries + 1;
 
             await this.addToQueue(payload, payload.retries * 1000 * 60);
+          } else {
+            if (retries > 0) {
+              logger.info(
+                this.queueName,
+                JSON.stringify({
+                  message: `updateCollectionCache Retry stop. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}, retries=${retries}`,
+                  payload,
+                })
+              );
+            }
           }
         }
       } else {

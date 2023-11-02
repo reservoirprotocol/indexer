@@ -23,6 +23,20 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
     try {
       const { data, creatorAddress } = await this.getDataWithCreator(contract, tokenId);
 
+      if (contract === "0x5d4ea842d1d39be56c8c29352e918e12890bd949") {
+        logger.info(
+          "opensea-fetcher",
+          JSON.stringify({
+            topic: "fetchCollectionDebug",
+            message: `getDataWithCreator.  contract=${contract}, tokenId=${tokenId}`,
+            contract,
+            tokenId,
+            data,
+            creatorAddress,
+          })
+        );
+      }
+
       if (!data?.collection) {
         throw new Error("Missing collection");
       }
@@ -428,17 +442,87 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
     }
 
     let data = await this.getOSData("nft", contract, tokenId);
+
+    if (contract === "0x5d4ea842d1d39be56c8c29352e918e12890bd949") {
+      logger.info(
+        "opensea-fetcher",
+        JSON.stringify({
+          topic: "fetchCollectionDebug",
+          message: `getOSData nft.  contract=${contract}, tokenId=${tokenId}`,
+          contract,
+          tokenId,
+          data,
+        })
+      );
+    }
+
     let creatorAddress = data?.creator;
 
     if (data?.collection) {
       data = await this.getOSDataForCollection(contract, tokenId, data.collection);
+
+      if (contract === "0x5d4ea842d1d39be56c8c29352e918e12890bd949") {
+        logger.info(
+          "opensea-fetcher",
+          JSON.stringify({
+            topic: "fetchCollectionDebug",
+            message: `getOSDataForCollection.  contract=${contract}, tokenId=${tokenId}`,
+            contract,
+            tokenId,
+            data,
+          })
+        );
+      }
+
       creatorAddress = creatorAddress ?? data?.creator?.address;
     } else {
       data = await this.getOSDataForEventsOrAsset(contract, tokenId);
+
+      if (contract === "0x5d4ea842d1d39be56c8c29352e918e12890bd949") {
+        logger.info(
+          "opensea-fetcher",
+          JSON.stringify({
+            topic: "fetchCollectionDebug",
+            message: `getOSDataForEventsOrAsset.  contract=${contract}, tokenId=${tokenId}`,
+            contract,
+            tokenId,
+            data,
+          })
+        );
+      }
+
       if (data?.collection?.slug && !data?.collection?.payment_tokens) {
         data = await this.getOSData("collection", contract, tokenId, data.collection.slug);
+
+        if (contract === "0x5d4ea842d1d39be56c8c29352e918e12890bd949") {
+          logger.info(
+            "opensea-fetcher",
+            JSON.stringify({
+              topic: "fetchCollectionDebug",
+              message: `getOSData collection.  contract=${contract}, tokenId=${tokenId}`,
+              contract,
+              tokenId,
+              data,
+            })
+          );
+        }
       }
+
       creatorAddress = data?.creator?.address;
+    }
+
+    if (contract === "0x5d4ea842d1d39be56c8c29352e918e12890bd949") {
+      logger.info(
+        "opensea-fetcher",
+        JSON.stringify({
+          topic: "fetchCollectionDebug",
+          message: `getDataWithCreator return.  contract=${contract}, tokenId=${tokenId}`,
+          contract,
+          tokenId,
+          data,
+          creatorAddress,
+        })
+      );
     }
 
     return {

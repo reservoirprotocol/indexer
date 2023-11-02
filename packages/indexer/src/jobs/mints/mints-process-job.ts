@@ -4,6 +4,7 @@ import { fromBuffer, toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { collectionNewContractDeployedJob } from "@/jobs/collections/collection-contract-deployed";
 import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
+import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 import {
   CollectionMint,
   CollectionMintStandard,
@@ -11,9 +12,6 @@ import {
 } from "@/orderbook/mints";
 import * as detector from "@/orderbook/mints/calldata/detector";
 import { getContractKind } from "@/orderbook/mints/calldata/helpers";
-import MetadataProviderRouter from "@/metadata/metadata-provider-router";
-
-import { manifold } from "@/orderbook/mints/calldata/detector";
 
 export type MintsProcessJobPayload =
   | {
@@ -173,12 +171,10 @@ export default class MintsProcessJob extends AbstractRabbitMqJobHandler {
             } else if (kind === "erc1155") {
               collectionMints = await detector.manifold.extractByCollectionERC1155(
                 data.collection,
-                await manifold.getTokenIdForERC1155Mint(
-                  data.collection,
-                  data.additionalInfo.instanceId,
-                  data.additionalInfo.extension
-                ),
-                data.additionalInfo.extension
+                {
+                  instanceId: data.additionalInfo.instanceId,
+                  extension: data.additionalInfo.extension,
+                }
               );
             }
 
