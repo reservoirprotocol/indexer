@@ -14,6 +14,9 @@ export interface AskDocument extends BaseDocument {
     name: string;
     image: string;
     media?: string;
+    isFlagged: boolean;
+    isSpam: boolean;
+    rarityRank?: number;
     attributes: {
       key: string;
       value: string;
@@ -78,12 +81,14 @@ export interface BuildAskDocumentData extends BuildDocumentData {
   token_media?: string;
   token_is_flagged?: number;
   token_rarity_rank?: number;
+  token_is_spam?: number;
   token_attributes?: {
     key: string;
     value: string;
   }[];
   collection_name?: string;
   collection_image?: string;
+  collection_is_spam?: number;
   order_id?: string | null;
   order_valid_from: number;
   order_valid_until: number;
@@ -124,12 +129,14 @@ export class AskDocumentBuilder extends DocumentBuilder {
         attributes: data.token_attributes,
         isFlagged: Boolean(data.token_is_flagged || 0),
         rarityRank: data.token_rarity_rank,
+        isSpam: Number(data.token_is_spam) > 0,
       },
       collection: data.collection_id
         ? {
             id: data.collection_id,
             name: data.collection_name,
             image: data.collection_image,
+            isSpam: Number(data.collection_is_spam) > 0,
           }
         : undefined,
       order: {

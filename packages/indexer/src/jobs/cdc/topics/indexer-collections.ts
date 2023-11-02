@@ -11,6 +11,7 @@ import {
 } from "@/jobs/websocket-events/websocket-event-router";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { refreshAsksCollectionJob } from "@/jobs/asks/refresh-asks-collection-job";
 
 export class IndexerCollectionsHandler extends KafkaEventHandler {
   topicName = "indexer.public.collections";
@@ -45,8 +46,6 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
     });
 
     try {
-      // logger.info("top-selling-collections", `updating collection ${payload.after.id}`);
-
       const collectionKey = `collection-cache:v2:${payload.after.id}`;
 
       const cachedCollection = await redis.get(collectionKey);
@@ -89,6 +88,14 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
         };
 
         await redis.set(collectionKey, JSON.stringify(updatedPayload), "XX");
+
+        if (payload.after.floor_sell_id) {
+          const spamStatusChanged = payload.before.is_spam !== payload.after.is_spam;
+
+          if (spamStatusChanged) {
+            await refreshAsksCollectionJob.addToQueue(payload.after.id);
+          }
+        }
       }
     } catch (err) {
       logger.error(

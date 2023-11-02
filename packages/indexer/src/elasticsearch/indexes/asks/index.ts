@@ -570,6 +570,7 @@ export const updateAsksTokenData = async (
   tokenId: string,
   tokenData: {
     isFlagged: number;
+    isSpam: number;
     rarityRank?: number;
   }
 ): Promise<boolean> => {
@@ -582,6 +583,17 @@ export const updateAsksTokenData = async (
           {
             term: {
               "token.isFlagged": Boolean(tokenData.isFlagged),
+            },
+          },
+        ],
+      },
+    },
+    {
+      bool: {
+        must_not: [
+          {
+            term: {
+              "token.isSpam": Boolean(tokenData.isSpam),
             },
           },
         ],
@@ -651,6 +663,7 @@ export const updateAsksTokenData = async (
           {
             doc: {
               "token.isFlagged": Boolean(tokenData.isFlagged),
+              "token.isSpam": Boolean(tokenData.isSpam),
               "token.rarityRank": tokenData.rarityRank,
             },
           },
@@ -666,7 +679,7 @@ export const updateAsksTokenData = async (
         logger.error(
           "elasticsearch-asks",
           JSON.stringify({
-            topic: "updateAsksTokenFlagStatus",
+            topic: "updateAsksTokenData",
             message: `Errors in response`,
             data: {
               contract,
@@ -683,7 +696,7 @@ export const updateAsksTokenData = async (
         // logger.info(
         //   "elasticsearch-asks",
         //   JSON.stringify({
-        //     topic: "updateAsksTokenFlagStatus",
+        //     topic: "updateAsksTokenData",
         //     message: `Success`,
         //     data: {
         //       contract,
@@ -706,7 +719,7 @@ export const updateAsksTokenData = async (
       logger.warn(
         "elasticsearch-asks",
         JSON.stringify({
-          topic: "updateAsksTokenFlagStatus",
+          topic: "updateAsksTokenData",
           message: `Unexpected error`,
           data: {
             contract,
@@ -722,12 +735,159 @@ export const updateAsksTokenData = async (
       logger.error(
         "elasticsearch-asks",
         JSON.stringify({
-          topic: "updateAsksTokenFlagStatus",
+          topic: "updateAsksTokenData",
           message: `Unexpected error`,
           data: {
             contract,
             tokenId,
             tokenData,
+          },
+          error,
+        })
+      );
+
+      throw error;
+    }
+  }
+
+  return keepGoing;
+};
+
+export const updateAsksCollectionData = async (
+  collectionId: string,
+  collectionData: {
+    isSpam: number;
+  }
+): Promise<boolean> => {
+  let keepGoing = false;
+
+  const should: any[] = [
+    {
+      bool: {
+        must_not: [
+          {
+            term: {
+              "collection.isSpam": collectionData.isSpam > 0,
+            },
+          },
+        ],
+      },
+    },
+  ];
+
+  const query = {
+    bool: {
+      must: [
+        {
+          term: {
+            "collection.id": collectionId,
+          },
+        },
+      ],
+      filter: {
+        bool: {
+          should,
+        },
+      },
+    },
+  };
+
+  try {
+    const esResult = await _search(
+      {
+        _source: ["id"],
+        // This is needed due to issue with elasticsearch DSL.
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        query,
+        size: 1000,
+      },
+      0
+    );
+
+    const pendingUpdateDocuments: { id: string; index: string }[] = esResult.hits.hits.map(
+      (hit) => ({ id: hit._source!.id, index: hit._index })
+    );
+
+    if (pendingUpdateDocuments.length) {
+      const bulkParams = {
+        body: pendingUpdateDocuments.flatMap((document) => [
+          { update: { _index: document.index, _id: document.id, retry_on_conflict: 3 } },
+          {
+            doc: {
+              "collection.isSpam": Boolean(collectionData.isSpam),
+            },
+          },
+        ]),
+        filter_path: "items.*.error",
+      };
+
+      const response = await elasticsearch.bulk(bulkParams, { ignore: [404] });
+
+      if (response?.errors) {
+        keepGoing = response?.items.some((item) => item.update?.status !== 400);
+
+        logger.error(
+          "elasticsearch-asks",
+          JSON.stringify({
+            topic: "updateAsksCollectionData",
+            message: `Errors in response`,
+            data: {
+              collectionId,
+              collectionData,
+            },
+            bulkParams,
+            response,
+          })
+        );
+      } else {
+        keepGoing = pendingUpdateDocuments.length === 1000;
+
+        // logger.info(
+        //   "elasticsearch-asks",
+        //   JSON.stringify({
+        //     topic: "updateAsksCollectionData",
+        //     message: `Success`,
+        //     data: {
+        //       collectionId,
+        //       collectionData,
+        //     },
+        //     bulkParams,
+        //     response,
+        //     keepGoing,
+        //   })
+        // );
+      }
+    }
+  } catch (error) {
+    const retryableError =
+      (error as any).meta?.meta?.aborted ||
+      (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+
+    if (retryableError) {
+      logger.warn(
+        "elasticsearch-asks",
+        JSON.stringify({
+          topic: "updateAsksCollectionData",
+          message: `Unexpected error`,
+          data: {
+            collectionId,
+            collectionData,
+          },
+          error,
+        })
+      );
+
+      keepGoing = true;
+    } else {
+      logger.error(
+        "elasticsearch-asks",
+        JSON.stringify({
+          topic: "updateAsksCollectionData",
+          message: `Unexpected error`,
+          data: {
+            collectionId,
+            collectionData,
           },
           error,
         })

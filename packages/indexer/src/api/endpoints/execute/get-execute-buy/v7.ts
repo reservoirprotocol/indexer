@@ -2313,6 +2313,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
         JSON.stringify({
           request: payload,
           httpCode: error instanceof Boom.Boom ? error.output.statusCode : 500,
+          error:
+            error instanceof Boom.Boom
+              ? error.output.payload
+              : { message: "Internal server error" },
           apiKey,
         })
       );

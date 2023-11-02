@@ -35,17 +35,28 @@ export default class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandl
       if (await acquireLock(this.queueName, 1)) {
         try {
           await Collections.updateCollectionCache(contract, tokenId, community);
+
+          if (retries > 0) {
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                message: `updateCollectionCache Retry success. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}, retries=${retries}`,
+                payload,
+              })
+            );
+          }
         } catch (error) {
           logger.error(
             this.queueName,
             JSON.stringify({
-              message: `updateCollectionCache error. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}, retries=${retries},error=${error}`,
+              message: `updateCollectionCache error. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}, retries=${retries}, error=${error}`,
               payload,
               error,
             })
           );
 
           if (retries < 5) {
+            payload.forceRefresh = true;
             payload.retries = retries + 1;
 
             await this.addToQueue(payload, payload.retries * 1000 * 60);
@@ -71,12 +82,14 @@ export default class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandl
       tokenId?: string;
       community?: string | null;
       forceRefresh?: boolean;
+      retries?: number;
     },
     delay = 0
   ) {
     params.tokenId = params.tokenId ?? "1";
     params.community = params.community ?? "";
     params.forceRefresh = params.forceRefresh ?? false;
+    params.retries = params.retries ?? 0;
 
     if (_.isArray(params.contract)) {
       await this.sendBatch(
@@ -86,6 +99,7 @@ export default class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandl
             tokenId: params.tokenId,
             community: p.community,
             forceRefresh: params.forceRefresh,
+            retries: params.retries,
           },
           delay,
         }))
@@ -98,6 +112,7 @@ export default class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandl
             tokenId: params.tokenId,
             community: params.community,
             forceRefresh: params.forceRefresh,
+            retries: params.retries,
           },
         },
         delay

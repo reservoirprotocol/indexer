@@ -8,6 +8,7 @@ import {
 } from "@/jobs/websocket-events/websocket-event-router";
 import { refreshAsksTokenJob } from "@/jobs/asks/refresh-asks-token-job";
 import { logger } from "@/common/logger";
+import { config } from "@/config/index";
 
 export class IndexerTokensHandler extends KafkaEventHandler {
   topicName = "indexer.public.tokens";
@@ -63,10 +64,36 @@ export class IndexerTokensHandler extends KafkaEventHandler {
       if (payload.after.floor_sell_id) {
         const flagStatusChanged = payload.before.is_flagged !== payload.after.is_flagged;
         const rarityRankChanged = payload.before.rarity_rank !== payload.after.rarity_rank;
+        const spamStatusChanged = payload.before.is_spam !== payload.after.is_spam;
 
-        if (flagStatusChanged || rarityRankChanged) {
+        if (flagStatusChanged || rarityRankChanged || spamStatusChanged) {
           await refreshAsksTokenJob.addToQueue(payload.after.contract, payload.after.token_id);
         }
+      }
+
+      const metadataInitializedAtChanged =
+        payload.before.metadata_initialized_at !== payload.after.metadata_initialized_at;
+
+      if (metadataInitializedAtChanged && config.chainId === 1) {
+        logger.info(
+          "token-metadata-initialized-metric",
+          JSON.stringify({
+            topic: "metrics",
+            contract: payload.after.contract,
+            tokenId: payload.after.token_id,
+            latencyFromCreatedAt: Math.floor(
+              (new Date(payload.after.metadata_initialized_at).getTime() -
+                new Date(payload.after.created_at).getTime()) /
+                1000
+            ),
+            latencyFromIndexedAt: Math.floor(
+              (new Date(payload.after.metadata_initialized_at).getTime() -
+                new Date(payload.after.metadata_indexed_at).getTime()) /
+                1000
+            ),
+            payload,
+          })
+        );
       }
     } catch (error) {
       logger.error(
