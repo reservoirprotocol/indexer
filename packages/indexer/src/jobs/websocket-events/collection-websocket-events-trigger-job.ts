@@ -227,7 +227,7 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
             twitterUsername: !metadataDisabled ? metadata?.twitterUsername : null,
             description: !metadataDisabled ? metadata?.description : null,
           },
-          metadataDisabled,
+          metadataDisabled: Boolean(Number(metadataDisabled)),
           tokenCount: String(r.token_count),
           primaryContract: r.contract,
           tokenSetId: !metadataDisabled ? r.token_set_id : `contract:${r.contract}`,
