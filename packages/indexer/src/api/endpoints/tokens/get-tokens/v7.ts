@@ -1463,7 +1463,7 @@ export const getTokensV7Options: RouteOptions = {
   },
 };
 
-export const getListedTokensFromES = async (query: any) => {
+const getListedTokensFromES = async (query: any) => {
   let collections: any[] = [];
 
   if (query.collection && !_.isArray(query.collection)) {
