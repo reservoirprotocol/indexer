@@ -173,7 +173,8 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
               value: attribute.value,
             })),
           },
-          data.after.metadata_disabled || r.collection_metadata_disabled
+          Boolean(data.after.metadata_disabled),
+          r.collection_metadata_disabled
         ),
         market: {
           floorAsk: data.after.floor_sell_value && {
@@ -441,7 +442,8 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
               value: attribute.value,
             })),
           },
-          r.token_metadata_disabled
+          r.token_metadata_disabled,
+          r.collection_metadata_disabled
         ),
         market: {
           floorAsk: r.floor_sell_value && {

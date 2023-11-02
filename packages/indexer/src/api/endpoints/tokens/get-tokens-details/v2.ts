@@ -390,7 +390,8 @@ export const getTokensDetailsV2Options: RouteOptions = {
               owner: r.owner ? fromBuffer(r.owner) : null,
               attributes: r.attributes || [],
             },
-            r.t_metadata_disabled || r.c_metadata_disabled
+            r.t_metadata_disabled,
+            r.c_metadata_disabled
           ),
           market: {
             floorAsk: {

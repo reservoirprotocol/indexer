@@ -180,7 +180,8 @@ export const getTokensV1Options: RouteOptions = {
               floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
               topBidValue: r.top_buy_value ? formatEth(r.top_buy_value) : null,
             },
-            r.t_metadata_disabled || r.c_metadata_disabled
+            r.t_metadata_disabled,
+            r.c_metadata_disabled
           )
         );
       });

@@ -146,7 +146,8 @@ export const getTokensBootstrapV1Options: RouteOptions = {
             validUntil: Number(r.floor_sell_valid_to),
             source: sources.get(r.floor_sell_source_id_int)?.name,
           },
-          r.t_metadata_disabled || r.c_metadata_disabled
+          r.t_metadata_disabled,
+          r.c_metadata_disabled
         );
       });
 

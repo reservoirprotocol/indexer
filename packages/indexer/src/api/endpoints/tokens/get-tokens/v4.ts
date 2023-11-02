@@ -447,7 +447,8 @@ export const getTokensV4Options: RouteOptions = {
             isFlagged: Boolean(Number(r.is_flagged)),
             lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
           },
-          r.t_metadata_disabled || r.c_metadata_disabled
+          r.t_metadata_disabled,
+          r.c_metadata_disabled
         );
       });
 

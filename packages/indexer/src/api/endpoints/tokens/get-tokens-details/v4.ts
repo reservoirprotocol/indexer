@@ -496,7 +496,8 @@ export const getTokensDetailsV4Options: RouteOptions = {
                   }))
                 : [],
             },
-            r.t_metadata_disabled || r.c_metadata_disabled
+            r.t_metadata_disabled,
+            r.c_metadata_disabled
           ),
           market: {
             floorAsk: {

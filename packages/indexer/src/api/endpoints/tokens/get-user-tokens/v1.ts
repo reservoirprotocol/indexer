@@ -183,7 +183,8 @@ export const getUserTokensV1Options: RouteOptions = {
                   schema: r.top_buy_schema,
                 },
               },
-              r.t_metadata_disabled || r.c_metadata_disabled
+              r.t_metadata_disabled,
+              r.c_metadata_disabled
             ),
             ownership: {
               tokenCount: String(r.token_count),
