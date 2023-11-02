@@ -191,6 +191,9 @@ export const getCollectionsV7Options: RouteOptions = {
           updatedAt: Joi.string().description("Time when updated in indexer"),
           name: Joi.string().allow("", null),
           symbol: Joi.string().allow("", null),
+          contractDeployedAt: Joi.string()
+            .description("Time when contract was deployed")
+            .allow("", null),
           image: Joi.string().allow("", null),
           banner: Joi.string().allow("", null),
           discordUrl: Joi.string().allow("", null),
@@ -723,6 +726,7 @@ export const getCollectionsV7Options: RouteOptions = {
         LEFT JOIN LATERAL (
           SELECT 
               kind AS contract_kind,
+              extract(epoch from deployed_at) AS contract_deployed_at,
               symbol
           FROM contracts 
           WHERE contracts.address = x.contract
