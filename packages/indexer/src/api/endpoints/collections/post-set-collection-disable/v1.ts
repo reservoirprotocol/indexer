@@ -62,7 +62,6 @@ export const postSetCollectionDisableV1Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const payload = request.payload as any;
-    const params = request.params as any;
 
     const apiKey = await ApiKeyManager.getApiKey(request.headers["x-api-key"]);
 
@@ -92,9 +91,9 @@ export const postSetCollectionDisableV1Options: RouteOptions = {
       );
 
       if (payload.disable) {
-        MetadataStatus.disable([params.collection]);
+        MetadataStatus.disable(payload.collections);
       } else {
-        MetadataStatus.enable([params.collection]);
+        MetadataStatus.enable(payload.collections);
       }
 
       logger.info(

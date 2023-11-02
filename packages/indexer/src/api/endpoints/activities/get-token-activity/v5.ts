@@ -11,8 +11,10 @@ import { fromBuffer, regex } from "@/common/utils";
 import {
   getJoiActivityObject,
   getJoiActivityOrderObject,
+  getJoiCollectionObject,
   getJoiPriceObject,
   getJoiSourceObject,
+  getJoiTokenObject,
   JoiActivityOrder,
   JoiPrice,
   JoiSource,
@@ -268,20 +270,27 @@ export const getTokenActivityV5Options: RouteOptions = {
             orderCriteria = {
               kind: activity.order.criteria.kind,
               data: {
-                collection: {
-                  id: activity.collection?.id,
-                  name: activity.collection?.name,
-                  image: activity.collection?.image,
-                },
+                collection: getJoiCollectionObject(
+                  {
+                    id: activity.collection?.id,
+                    name: activity.collection?.name,
+                    image: activity.collection?.image,
+                  },
+                  disabledCollectionMetadata[activity.collection?.id ?? ""]
+                ),
               },
             };
 
             if (activity.order.criteria.kind === "token") {
-              (orderCriteria as any).data.token = {
-                tokenId: activity.token?.id,
-                name: tokenMetadata ? tokenMetadata.name : activity.token?.name,
-                image: tokenMetadata ? tokenMetadata.image : activity.token?.image,
-              };
+              (orderCriteria as any).data.token = getJoiTokenObject(
+                {
+                  tokenId: activity.token?.id,
+                  name: tokenMetadata ? tokenMetadata.name : activity.token?.name,
+                  image: tokenMetadata ? tokenMetadata.image : activity.token?.image,
+                },
+                tokenMetadata?.metadata_disabled,
+                true
+              );
             }
 
             if (activity.order.criteria.kind === "attribute") {
