@@ -63,8 +63,9 @@ export class IndexerTokensHandler extends KafkaEventHandler {
       if (payload.after.floor_sell_id) {
         const flagStatusChanged = payload.before.is_flagged !== payload.after.is_flagged;
         const rarityRankChanged = payload.before.rarity_rank !== payload.after.rarity_rank;
+        const spamStatusChanged = payload.before.is_spam !== payload.after.is_spam;
 
-        if (flagStatusChanged || rarityRankChanged) {
+        if (flagStatusChanged || rarityRankChanged || spamStatusChanged) {
           await refreshAsksTokenJob.addToQueue(payload.after.contract, payload.after.token_id);
         }
       }
