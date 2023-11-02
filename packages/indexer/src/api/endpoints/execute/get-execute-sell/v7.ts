@@ -9,6 +9,7 @@ import { BidDetails, FillBidsResult } from "@reservoir0x/sdk/dist/router/v6/type
 import { estimateGas } from "@reservoir0x/sdk/dist/router/v6/utils";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
 import axios from "axios";
+import { randomUUID } from "crypto";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
@@ -1389,6 +1390,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         `get-execute-sell-${version}-handler`,
         JSON.stringify({
           request: payload,
+          uuid: randomUUID(),
           httpCode: error instanceof Boom.Boom ? error.output.statusCode : 500,
           error:
             error instanceof Boom.Boom ? error.output.payload : { error: "Internal Server Error" },
