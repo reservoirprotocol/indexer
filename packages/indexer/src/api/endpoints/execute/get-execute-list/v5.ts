@@ -6,6 +6,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
 import axios from "axios";
+import { randomUUID } from "crypto";
 import Joi from "joi";
 import _ from "lodash";
 
@@ -1247,7 +1248,10 @@ export const getExecuteListV5Options: RouteOptions = {
         `get-execute-list-${version}-handler`,
         JSON.stringify({
           request: payload,
+          uuid: randomUUID(),
           httpCode: error instanceof Boom.Boom ? error.output.statusCode : 500,
+          error:
+            error instanceof Boom.Boom ? error.output.payload : { error: "Internal Server Error" },
           apiKey,
         })
       );

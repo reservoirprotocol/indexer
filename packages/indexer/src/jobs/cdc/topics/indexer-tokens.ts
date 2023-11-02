@@ -75,22 +75,24 @@ export class IndexerTokensHandler extends KafkaEventHandler {
 
       if (metadataInitializedAtChanged && config.chainId === 1) {
         logger.info(
-          "token-metadata-initialized-metric",
+          "token-metadata-latency-metric",
           JSON.stringify({
             topic: "metrics",
             contract: payload.after.contract,
             tokenId: payload.after.token_id,
-            latencyFromCreatedAt: Math.floor(
+            indexedLatency: Math.floor(
+              (new Date(payload.after.metadata_indexed_at).getTime() -
+                new Date(payload.after.created_at).getTime()) /
+                1000
+            ),
+            initializedLatency: Math.floor(
               (new Date(payload.after.metadata_initialized_at).getTime() -
                 new Date(payload.after.created_at).getTime()) /
                 1000
             ),
-            latencyFromIndexedAt: Math.floor(
-              (new Date(payload.after.metadata_initialized_at).getTime() -
-                new Date(payload.after.metadata_indexed_at).getTime()) /
-                1000
-            ),
-            payload,
+            createdAt: payload.after.created_at,
+            indexedAt: payload.after.metadata_indexed_at,
+            initializedAt: payload.after.metadata_initialized_at,
           })
         );
       }

@@ -338,6 +338,11 @@ export class ApiKeyManager {
 
           updateString += `${_.snakeCase(fieldName)} = '$/${fieldName}:raw/'::jsonb,`;
           (replacementValues as any)[`${fieldName}`] = JSON.stringify(value);
+        } else if (_.isObject(value)) {
+          updateString += `${_.snakeCase(
+            fieldName
+          )} = COALESCE(${fieldName}, '{}') || '$/${fieldName}:raw/'::jsonb,`;
+          (replacementValues as any)[`${fieldName}`] = JSON.stringify(value);
         } else {
           updateString += `${_.snakeCase(fieldName)} = $/${fieldName}/,`;
           (replacementValues as any)[fieldName] = value;
