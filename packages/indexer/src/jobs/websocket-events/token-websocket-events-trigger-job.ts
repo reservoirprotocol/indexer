@@ -144,7 +144,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
             isFlagged: Boolean(Number(data.after.is_flagged)),
             metadataDisabled:
               Boolean(Number(data.after.metadata_disabled)) ||
-              Boolean(Number(r?.c_metadata_disabled)),
+              Boolean(Number(r?.collection_metadata_disabled)),
             lastFlagUpdate: data.after.last_flag_update
               ? new Date(data.after.last_flag_update).toISOString()
               : null,
@@ -165,7 +165,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
                 slug: r?.slug,
                 metadataDisabled: Boolean(Number(r?.collection_metadata_disabled)),
               },
-              r?.c_metadata_disabled
+              r?.collection_metadata_disabled
             ),
             attributes: _.map(r.attributes, (attribute) => ({
               key: attribute.key,

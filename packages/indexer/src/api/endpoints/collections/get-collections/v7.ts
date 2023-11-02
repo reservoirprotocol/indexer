@@ -787,6 +787,9 @@ export const getCollectionsV7Options: RouteOptions = {
               updatedAt: new Date(r.updated_at * 1000).toISOString(),
               name: r.name,
               symbol: r.symbol,
+              contractDeployedAt: r.contract_deployed_at
+                ? new Date(r.contract_deployed_at * 1000).toISOString()
+                : null,
               image:
                 r.image ??
                 (sampleImages.length ? Assets.getLocalAssetsLink(sampleImages[0]) : null),
