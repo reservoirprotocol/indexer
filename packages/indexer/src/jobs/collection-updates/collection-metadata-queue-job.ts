@@ -32,20 +32,20 @@ export default class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandl
     const { contract, tokenId, community, forceRefresh } = payload;
     const retries = payload.retries ?? 0;
 
-    if (retries > 0) {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `updateCollectionCache debug1. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}, retries=${retries}`,
-          payload,
-        })
-      );
-    }
-
     if (forceRefresh || (await acquireLock(`${this.queueName}:${contract}`, 5 * 60))) {
       if (await acquireLock(this.queueName, 1)) {
         try {
           await Collections.updateCollectionCache(contract, tokenId, community);
+
+          if (retries > 0) {
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                message: `updateCollectionCache Retry success. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}, retries=${retries}`,
+                payload,
+              })
+            );
+          }
         } catch (error) {
           logger.error(
             this.queueName,

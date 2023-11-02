@@ -90,6 +90,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
                 new Date(payload.after.metadata_indexed_at).getTime()) /
                 1000
             ),
+            payload,
           })
         );
       }
