@@ -34,16 +34,16 @@ import { CollectionSets } from "@/models/collection-sets";
 import { Collections } from "@/models/collections";
 import * as AsksIndex from "@/elasticsearch/indexes/asks";
 
-const version = "v6";
+const version = "v7";
 
-export const getTokensV6Options: RouteOptions = {
+export const getTokensV7Options: RouteOptions = {
   description: "Tokens",
   notes:
     "Get a list of tokens with full metadata. This is useful for showing a single token page, or scenarios that require more metadata.",
-  tags: ["api", "Tokens"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 9,
+      deprecated: true,
     },
   },
   validate: {
@@ -368,9 +368,7 @@ export const getTokensV6Options: RouteOptions = {
 
     let esTokens: any[] = [];
 
-    const enableElasticsearchAsks =
-      config.enableElasticsearchAsks &&
-      !["tokenName", "tokenSetId"].some((filter) => query[filter]);
+    const enableElasticsearchAsks = !["tokenName", "tokenSetId"].some((filter) => query[filter]);
 
     if (enableElasticsearchAsks) {
       const listedTokens = await getListedTokensFromES(query);
