@@ -1236,7 +1236,7 @@ export const setupRoutes = (server: Server) => {
   server.route({
     method: "GET",
     path: "/tokens/v7",
-    options: tokensEndpoints.getUserTokensV7Options,
+    options: tokensEndpoints.getTokensV7Options,
   });
 
   server.route({

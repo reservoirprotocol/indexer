@@ -1131,7 +1131,7 @@ export const getTokensV6Options: RouteOptions = {
             tokenid
        **/
       let continuation = null;
-      if (rawResult.length === query.limit || esTokens.length) {
+      if (rawResult.length === query.limit) {
         continuation = "";
 
         // Only build a "value_tokenid" continuation string when we filter on collection or attributes

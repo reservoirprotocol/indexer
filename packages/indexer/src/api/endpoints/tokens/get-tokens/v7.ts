@@ -1129,7 +1129,7 @@ export const getTokensV7Options: RouteOptions = {
             tokenid
        **/
       let continuation = null;
-      if (rawResult.length === query.limit || esTokens.length) {
+      if (rawResult.length === query.limit) {
         continuation = "";
 
         // Only build a "value_tokenid" continuation string when we filter on collection or attributes
@@ -1463,7 +1463,7 @@ export const getTokensV7Options: RouteOptions = {
   },
 };
 
-export const getListedTokensFromES = async (query: any) => {
+const getListedTokensFromES = async (query: any) => {
   let collections: any[] = [];
 
   if (query.collection && !_.isArray(query.collection)) {
