@@ -373,15 +373,14 @@ export const getTokensV7Options: RouteOptions = {
     if (enableElasticsearchAsks) {
       const listedTokens = await getListedTokensFromES(query);
 
-      if (listedTokens.continuation) {
+      if (listedTokens.continuation || query.source || query.nativeSource) {
         return { tokens: listedTokens.tokens, continuation: listedTokens.continuation };
       }
 
       esTokens = listedTokens.tokens;
 
       query.limit = query.limit - esTokens.length;
-      query.nativeSource = null;
-      query.excludeEOA = null;
+      query.excludeEOA = false;
       query.continuation = null;
     }
 
