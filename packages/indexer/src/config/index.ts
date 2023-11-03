@@ -23,8 +23,8 @@ export const config = {
   metadataIndexingMethod: String(process.env.METADATA_INDEXING_METHOD || "opensea"),
   metadataIndexingMethodCollection: String(
     process.env.METADATA_INDEXING_METHOD_COLLECTION ||
-    process.env.METADATA_INDEXING_METHOD ||
-    "opensea"
+      process.env.METADATA_INDEXING_METHOD ||
+      "opensea"
   ),
   disableFlagStatusRefreshJob: Boolean(Number(process.env.DISABLE_FLAG_STATUS_REFRESH_JOB)),
 
@@ -94,18 +94,18 @@ export const config = {
   ),
   openSeaTokenMetadataBySlugApiKey: String(
     process.env.OPENSEA_SLUG_API_KEY ||
-    process.env.OPENSEA_TOKENS_API_KEY ||
-    process.env.OPENSEA_API_KEY
+      process.env.OPENSEA_TOKENS_API_KEY ||
+      process.env.OPENSEA_API_KEY
   ),
   openSeaCollectionMetadataApiKey: String(
     process.env.OPENSEA_COLLECTION_API_KEY ||
-    process.env.OPENSEA_TOKENS_API_KEY ||
-    process.env.OPENSEA_API_KEY
+      process.env.OPENSEA_TOKENS_API_KEY ||
+      process.env.OPENSEA_API_KEY
   ),
   openSeaTokenFlagStatusApiKey: String(
     process.env.OPENSEA_TOKEN_FLAG_STATUS_API_KEY ||
-    process.env.OPENSEA_TOKENS_API_KEY ||
-    process.env.OPENSEA_API_KEY
+      process.env.OPENSEA_TOKENS_API_KEY ||
+      process.env.OPENSEA_API_KEY
   ),
 
   openSeaCrossPostingApiKey: String(

@@ -1931,9 +1931,10 @@ const getListedTokensFromES = async (query: any) => {
         imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small),
         imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large),
         metadata: Object.values(metadata).every((el) => el === undefined) ? undefined : metadata,
-        media: ask.token.media,
+        media: r.media,
         kind: r.kind,
         isFlagged: Boolean(Number(r.is_flagged)),
+        isSpam: Number(r.t_is_spam) > 0 || Number(r.c_is_spam) > 0,
         lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
         lastFlagChange: r.last_flag_change ? new Date(r.last_flag_change).toISOString() : null,
         supply: !_.isNull(r.supply) ? r.supply : null,
@@ -1945,6 +1946,7 @@ const getListedTokensFromES = async (query: any) => {
           name: r.collection_name,
           image: Assets.getLocalAssetsLink(r.collection_image),
           slug: r.slug,
+          symbol: r.symbol,
           creator: r.creator ? fromBuffer(r.creator) : null,
           tokenCount: r.token_count,
         },
@@ -2049,7 +2051,7 @@ const getListedTokensFromES = async (query: any) => {
             }
           : undefined,
       },
-      updatedAt: new Date(ask.createdAt).toISOString(),
+      updatedAt: new Date(r.t_updated_at * 1000).toISOString(),
     };
   });
 
