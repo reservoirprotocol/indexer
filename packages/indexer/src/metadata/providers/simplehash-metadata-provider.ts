@@ -102,6 +102,7 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
       animation_original_url,
       metadata_original_url,
       attributes,
+      media,
       ...original_metadata
     } = metadata.extra_metadata;
 
@@ -124,7 +125,7 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
       animationOriginalUrl: animation_original_url,
       metadataOriginalUrl: metadata_original_url,
       imageProperties: metadata.image_properties,
-      mediaUrl: metadata.video_url ?? metadata.audio_url,
+      mediaUrl: metadata.video_url ?? metadata.audio_url ?? media,
       attributes: (attributes || []).map((trait: any) => ({
         key: trait.trait_type ?? "property",
         value: trait.value,

@@ -14,7 +14,10 @@ export type CollectionContractDeployed = {
   blockTimestamp?: number;
 };
 
-const BLACKLISTED_DEPLOYERS = ["0xaf18644083151cf57f914cccc23c42a1892c218e"];
+const BLACKLISTED_DEPLOYERS = [
+  "0xaf18644083151cf57f914cccc23c42a1892c218e",
+  "0x9ec1c3dcf667f2035fb4cd2eb42a1566fd54d2b7",
+];
 
 export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler {
   queueName = "collection-new-contract-deployed";

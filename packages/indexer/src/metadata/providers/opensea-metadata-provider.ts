@@ -165,8 +165,34 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
       .catch((error) => this.handleError(error));
 
     const assets = data.assets.map(this.parseToken).filter(Boolean);
+
+    // Get custom metadata
+    const customAssets = await Promise.all(
+      assets.map(async (asset: any) => {
+        if (hasCustomHandler(asset.contract)) {
+          const result = await customHandleToken({
+            contract: asset.contract,
+            tokenId: asset.tokenId,
+          });
+          return result;
+        }
+        return asset;
+      })
+    );
+
+    // Get extended metadata
+    const extendedMetadata = await Promise.all(
+      customAssets.map(async (asset: any) => {
+        if (hasExtendHandler(asset.contract)) {
+          const result = await extendMetadata(asset);
+          return result;
+        }
+        return asset;
+      })
+    );
+
     return {
-      metadata: assets,
+      metadata: extendedMetadata,
       continuation: data.next ?? undefined,
       previous: data.previous ?? undefined,
     };

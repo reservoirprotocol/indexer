@@ -438,14 +438,14 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
-            "0x011e128ec62840186f4a07e85e3ace28858c5606",
+            "0xed5464bd5c477b7f71739ce1d741b43e932b97b0",
             {
-              contract: "0x011e128ec62840186f4a07e85e3ace28858c5606",
-              name: "Val",
-              symbol: "$VAL",
-              decimals: 18,
+              contract: "0xed5464bd5c477b7f71739ce1d741b43e932b97b0",
+              name: "BAP Methane",
+              symbol: "METH",
+              decimals: 0,
               metadata: {
-                image: "https://i.ibb.co/s1k4Qvz/valeria-logo.png",
+                image: "https://i.ibb.co/Mc5Pmjn/baptoken.png",
               },
             },
           ],
@@ -711,7 +711,7 @@ export const getNetworkSettings = (): NetworkSettings => {
               symbol: "$VAL",
               decimals: 18,
               metadata: {
-                image: "https://i.ibb.co/s1k4Qvz/valeria-logo.png",
+                image: "https://i.ibb.co/YRFynrp/wvallogo.png",
               },
             },
           ],
