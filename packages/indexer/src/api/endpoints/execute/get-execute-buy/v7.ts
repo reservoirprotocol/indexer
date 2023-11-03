@@ -1698,29 +1698,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
           },
         ];
 
-        if (bn(ccConfig.availableBalance!).lte(quote)) {
-          const exchange = new Sdk.CrossChain.Exchange(fromChainId);
-          customSteps[0].items.push({
-            status: "incomplete",
-            data: {
-              ...exchange.depositTx(
-                payload.taker,
-                ccConfig.solver!,
-                bn(quote).sub(ccConfig.availableBalance!).toString()
-              ),
-              chainId: fromChainId,
-            },
-            check: {
-              endpoint: "/execute/status/v1",
-              method: "POST",
-              body: {
-                kind: "cross-chain-transaction",
-                chainId: fromChainId,
-              },
-            },
-          });
-        }
-
         const order = new Sdk.CrossChain.Order(fromChainId, {
           isCollectionRequest: Boolean(items[0].collection),
           maker: payload.taker,
@@ -1735,29 +1712,53 @@ export const getExecuteBuyV7Options: RouteOptions = {
           salt: getRandomBytes(20).toString(),
         });
 
-        customSteps[1].items.push({
-          status: "incomplete",
-          data: {
-            sign: order.getSignatureData(),
-            post: {
-              endpoint: "/execute/solve/v1",
+        if (bn(ccConfig.availableBalance!).lte(quote)) {
+          const exchange = new Sdk.CrossChain.Exchange(fromChainId);
+          customSteps[0].items.push({
+            status: "incomplete",
+            data: {
+              ...exchange.depositAndPrevalidateTx(
+                payload.taker,
+                ccConfig.solver!,
+                bn(quote).sub(ccConfig.availableBalance!).toString(),
+                order
+              ),
+              chainId: fromChainId,
+            },
+            check: {
+              endpoint: "/execute/status/v1",
               method: "POST",
               body: {
                 kind: "cross-chain-intent",
-                order: order.params,
-                chainId: fromChainId,
+                id: order.hash(),
               },
             },
-          },
-          check: {
-            endpoint: "/execute/status/v1",
-            method: "POST",
-            body: {
-              kind: "cross-chain-intent",
-              id: order.hash(),
+          });
+        } else {
+          customSteps[1].items.push({
+            status: "incomplete",
+            data: {
+              sign: order.getSignatureData(),
+              post: {
+                endpoint: "/execute/solve/v1",
+                method: "POST",
+                body: {
+                  kind: "cross-chain-intent",
+                  order: order.params,
+                  chainId: fromChainId,
+                },
+              },
             },
-          },
-        });
+            check: {
+              endpoint: "/execute/status/v1",
+              method: "POST",
+              body: {
+                kind: "cross-chain-intent",
+                id: order.hash(),
+              },
+            },
+          });
+        }
 
         return {
           steps: customSteps.filter((s) => s.items.length),

@@ -19,14 +19,13 @@ export const config = {
   openseaIndexerApiBaseUrl: String(process.env.OPENSEA_INDEXER_API_BASE_URL),
 
   // When running in liquidity-only mode, all metadata processes are disabled
-  liquidityOnly: !process.env.METADATA_API_BASE_URL,
+  liquidityOnly: Boolean(Number(process.env.LIQUIDITY_ONLY)),
   metadataIndexingMethod: String(process.env.METADATA_INDEXING_METHOD || "opensea"),
   metadataIndexingMethodCollection: String(
     process.env.METADATA_INDEXING_METHOD_COLLECTION ||
-      process.env.METADATA_INDEXING_METHOD ||
-      "opensea"
+    process.env.METADATA_INDEXING_METHOD ||
+    "opensea"
   ),
-  metadataApiBaseUrl: String(process.env.METADATA_API_BASE_URL),
   disableFlagStatusRefreshJob: Boolean(Number(process.env.DISABLE_FLAG_STATUS_REFRESH_JOB)),
 
   disableRealtimeMetadataRefresh: Boolean(Number(process.env.DISABLE_REALTIME_METADATA_REFRESH)),
@@ -95,18 +94,18 @@ export const config = {
   ),
   openSeaTokenMetadataBySlugApiKey: String(
     process.env.OPENSEA_SLUG_API_KEY ||
-      process.env.OPENSEA_TOKENS_API_KEY ||
-      process.env.OPENSEA_API_KEY
+    process.env.OPENSEA_TOKENS_API_KEY ||
+    process.env.OPENSEA_API_KEY
   ),
   openSeaCollectionMetadataApiKey: String(
     process.env.OPENSEA_COLLECTION_API_KEY ||
-      process.env.OPENSEA_TOKENS_API_KEY ||
-      process.env.OPENSEA_API_KEY
+    process.env.OPENSEA_TOKENS_API_KEY ||
+    process.env.OPENSEA_API_KEY
   ),
   openSeaTokenFlagStatusApiKey: String(
     process.env.OPENSEA_TOKEN_FLAG_STATUS_API_KEY ||
-      process.env.OPENSEA_TOKENS_API_KEY ||
-      process.env.OPENSEA_API_KEY
+    process.env.OPENSEA_TOKENS_API_KEY ||
+    process.env.OPENSEA_API_KEY
   ),
 
   openSeaCrossPostingApiKey: String(

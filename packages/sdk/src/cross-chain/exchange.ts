@@ -48,7 +48,7 @@ export class Exchange {
       to: Addresses.Exchange[this.chainId],
       data: this.contract.interface.encodeFunctionData("executeRequest", [
         request.params,
-        request.params.signature!,
+        request.params.signature ?? "0x",
       ]),
     };
   }
