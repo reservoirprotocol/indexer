@@ -1644,7 +1644,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
         const ccConfig: {
           enabled: boolean;
           solver?: string;
-          deposit?: string;
+          availableBalance?: string;
+          maxPrice?: string;
         } = await axios
           .get(
             `${config.crossChainSolverBaseUrl}/config?fromChainId=${fromChainId}&toChainId=${toChainId}&user=${payload.taker}`
@@ -1672,6 +1673,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
             throw Boom.badRequest(error.response?.data ?? "Error getting quote");
           });
 
+        if (ccConfig.maxPrice && bn(quote).gt(ccConfig.maxPrice)) {
+          throw Boom.badRequest("Price too high");
+        }
+
         item.fromChainId = fromChainId;
         item.totalPrice = formatPrice(quote);
         item.totalRawPrice = quote;
@@ -1693,7 +1698,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           },
         ];
 
-        if (bn(ccConfig.deposit!).lte(quote)) {
+        if (bn(ccConfig.availableBalance!).lte(quote)) {
           const exchange = new Sdk.CrossChain.Exchange(fromChainId);
           customSteps[0].items.push({
             status: "incomplete",
@@ -1701,7 +1706,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               ...exchange.depositTx(
                 payload.taker,
                 ccConfig.solver!,
-                bn(quote).sub(ccConfig.deposit!).toString()
+                bn(quote).sub(ccConfig.availableBalance!).toString()
               ),
               chainId: fromChainId,
             },
