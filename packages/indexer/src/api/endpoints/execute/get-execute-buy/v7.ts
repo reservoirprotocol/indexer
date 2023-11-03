@@ -1683,9 +1683,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
         const customSteps: StepType[] = [
           {
-            id: "deposit",
+            id: "sale",
             action: "Deposit",
-            description: "Deposit funds on origin chain",
+            description: "Deposit funds for purchasing cross-chain",
             kind: "transaction",
             items: [],
           },

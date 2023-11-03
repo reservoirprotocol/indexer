@@ -161,8 +161,10 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
 
       const ns = getNetworkSettings();
 
-      const marketplaces: Marketplace[] = [
-        {
+      const marketplaces: Marketplace[] = [];
+
+      if (Sdk.LooksRareV2.Addresses.Exchange[config.chainId]) {
+        marketplaces.push({
           name: "LooksRare",
           domain: "looksrare.org",
           imageUrl: `https://${getSubDomain()}.reservoir.tools/redirect/sources/looksrare/logo/v2`,
@@ -177,8 +179,11 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           supportedBidCurrencies: [Sdk.Common.Addresses.WNative[config.chainId]],
           partialBidSupported: false,
           traitBidSupported: false,
-        },
-        {
+        });
+      }
+
+      if (Sdk.X2Y2.Addresses.Exchange[config.chainId]) {
+        marketplaces.push({
           name: "X2Y2",
           domain: "x2y2.io",
           imageUrl: `https://${getSubDomain()}.reservoir.tools/redirect/sources/x2y2/logo/v2`,
@@ -192,8 +197,8 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           supportedBidCurrencies: [Sdk.Common.Addresses.WNative[config.chainId]],
           partialBidSupported: false,
           traitBidSupported: false,
-        },
-      ];
+        });
+      }
 
       type Royalty = { bps: number; recipient: string };
 
