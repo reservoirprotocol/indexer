@@ -1,10 +1,8 @@
 import * as Sdk from "@reservoir0x/sdk";
 
-// import { baseProvider } from "@/common/provider";
-import { bn } from "@/common/utils";
+import { baseProvider } from "@/common/provider";
 import { config } from "@/config/index";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
-import * as onChainData from "@/utils/on-chain-data";
 
 export const offChainCheck = async (
   order: Sdk.Hotpot.Order,
@@ -37,60 +35,45 @@ export const offChainCheck = async (
 
     // Check: order is not filled
     const quantityFilled = await commonHelpers.getQuantityFilled(id);
-    if (quantityFilled.gte(order.params.offerItem.offerAmount)) {
+    if (quantityFilled.gte(order.params.offerItem.amount)) {
       throw new Error("filled");
     }
   }
 
-  // Check: order's nonce was not bulk cancelled
-  const side = "buy";
-  const minNonce = await commonHelpers.getMinNonce("hotpot", order.params.offerer, side);
+  // Check NFT balance and approval; (only sell side)
+  let hasBalance;
+  let hasApproval;
+  const collection = order.params.offerItem.offerToken;
 
-  if (minNonce.gt(order.params.salt)) {
-    throw new Error("cancelled");
-  }
-
-  // Check: order's subsetNonce was not individually cancelled
-  const subsetNonceCancelled = await commonHelpers.isSubsetNonceCancelled(
-    order.params.offerer,
-    order.params.salt.toString()
+  const nftBalance = await commonHelpers.getNftBalance(
+    collection,
+    order.params.offerItem.offerTokenId,
+    order.params.offerer
   );
 
-  if (subsetNonceCancelled) {
-    throw new Error("cancelled");
-  }
-
-  // Check: order's nonce was not individually cancelled
-  const nonceCancelled = await commonHelpers.isNonceCancelled(
-    "hotpot",
-    order.params.offerer,
-    order.params.salt.toString()
-  );
-
-  if (nonceCancelled) {
-    throw new Error("cancelled");
-  }
-
-  let hasBalance = true;
-  let hasApproval = true;
-  const ftBalance = await commonHelpers.getFtBalance("ETH", order.params.offerer);
-  if (ftBalance.lt(order.params.offerItem.offerAmount)) {
+  if (nftBalance.lt(order.params.offerItem.amount)) {
     hasBalance = false;
   }
 
-  if (options?.onChainApprovalRecheck) {
-    if (
-      bn(
-        await onChainData
-          .fetchAndUpdateFtApproval(
-            "ETH",
-            order.params.offerer,
-            Sdk.Hotpot.Addresses.Exchange[config.chainId],
-            true
-          )
-          .then((a) => a.value)
-      ).lt(order.params.offerItem.offerAmount)
-    ) {
+  const exchange = Sdk.Hotpot.Addresses.Exchange[config.chainId];
+
+  // Check: maker has set the proper approval
+  const nftApproval = await commonHelpers.getNftApproval(
+    collection,
+    order.params.offerer,
+    exchange
+  );
+  if (!nftApproval) {
+    if (options?.onChainApprovalRecheck) {
+      // Re-validate the approval on-chain to handle some edge-cases
+      const contract =
+        kind === "erc721"
+          ? new Sdk.Common.Helpers.Erc721(baseProvider, collection)
+          : new Sdk.Common.Helpers.Erc1155(baseProvider, collection);
+      if (!(await contract.isApproved(order.params.offerer, exchange))) {
+        hasApproval = false;
+      }
+    } else {
       hasApproval = false;
     }
   }

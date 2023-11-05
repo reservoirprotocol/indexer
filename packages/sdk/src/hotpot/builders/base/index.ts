@@ -3,8 +3,11 @@ import { BigNumberish } from "@ethersproject/bignumber";
 import { HashZero, AddressZero } from "@ethersproject/constants";
 import { getCurrentTimestamp } from "../../../utils";
 import { Order } from "../../order";
+import { Common } from "../../..";
 
 export interface BaseBuildParams {
+  currency?: string;
+
   offerer: string;
   collectionType: OfferTokenType;
   tokenContract: string;
@@ -31,6 +34,7 @@ export abstract class BaseBuilder {
     params.salt = params.salt ?? Math.floor(Math.random() * 10000);
     params.royaltyRecepient = params.royaltyRecepient ?? AddressZero;
     params.royaltyPercent = params.royaltyPercent ?? 0;
+    params.currency = params.currency ?? Common.Addresses.Native[this.chainId];
   }
 
   public abstract isValid(order: Order): boolean;

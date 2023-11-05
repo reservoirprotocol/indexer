@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
@@ -32,6 +35,7 @@ interface IHotpotMarketplace {
         uint256 offerTokenId;
         uint256 offerAmount; // the amount of ether for the offerer
         uint256 endTime; // offer expiration timestamp
+        uint256 amount; // amount of items (erc1155)
     }
 
     struct RoyaltyData {

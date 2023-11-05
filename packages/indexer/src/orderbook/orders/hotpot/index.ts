@@ -1,4 +1,3 @@
-import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import pLimit from "p-limit";
 
@@ -9,16 +8,15 @@ import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck } from "@/orderbook/orders/hotpot/check";
-// import * as commonHelpers from "@/orderbook/orders/common/helpers";
+import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as tokenSet from "@/orderbook/token-sets";
 import * as royalties from "@/utils/royalties";
-// import { Royalty } from "@/utils/royalties";
-import _ from "lodash";
 import {
   orderUpdatesByIdJob,
   OrderUpdatesByIdJobPayload,
 } from "@/jobs/order-updates/order-updates-by-id-job";
-// import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
+import { OfferTokenType } from "@reservoir0x/sdk/src/hotpot/types";
+import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 
 export type OrderInfo = {
   orderParams: Sdk.Hotpot.Types.OrderParameters;
@@ -51,37 +49,27 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      // const isFiltered = await checkMarketplaceIsFiltered(orderParams.offerItem.offerToken, [
-      //   Sdk.Hotpot.Addresses.Exchange[config.chainId],
-      //   Sdk.Hotpot.Addresses.TransferManager[config.chainId],
-      // ]);
+      // Handle: get order kind
+      const kind = await commonHelpers.getContractKind(order.params.offerItem.offerToken);
+      if (!kind) {
+        return results.push({
+          id,
+          status: "unknown-order-kind",
+        });
+      }
 
-      // if (isFiltered) {
-      //   return results.push({
-      //     id,
-      //     status: "filtered",
-      //   });
-      // }
+      const isFiltered = await checkMarketplaceIsFiltered(orderParams.offerItem.offerToken, [
+        Sdk.Hotpot.Addresses.Exchange[config.chainId],
+      ]);
+
+      if (isFiltered) {
+        return results.push({
+          id,
+          status: "filtered",
+        });
+      }
 
       const currentTime = now();
-
-      // // Check: order has a valid listing time
-      // const listingTime = order.params.startTime;
-      // if (listingTime - 5 * 60 >= currentTime) {
-      //   // TODO: Add support for not-yet-valid orders
-      //   return results.push({
-      //     id,
-      //     status: "invalid-listing-time",
-      //   });
-      // }
-
-      // // Mutiple tokens
-      // if (order.params.itemIds.length > 1 || bn(order.params.amounts[0]).gt(1)) {
-      //   return results.push({
-      //     id,
-      //     status: "bundle-order-unsupported",
-      //   });
-      // }
 
       // Check: order is not expired
       const expirationTime = order.params.offerItem.endTime;
@@ -92,28 +80,23 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      // Check: order has (W)ETH as payment token
-      // if (
-      //   ![
-      //     Sdk.Common.Addresses.WNative[config.chainId],
-      //     Sdk.Common.Addresses.Native[config.chainId],
-      //   ].includes(order.params.currency)
-      // ) {
-      //   return results.push({
-      //     id,
-      //     status: "unsupported-payment-token",
-      //   });
-      // }
+      // Check: sell order has Eth as payment token
+      if (order.params.currency !== Sdk.Common.Addresses.Native[config.chainId]) {
+        return results.push({
+          id,
+          status: "unsupported-payment-token",
+        });
+      }
 
       // Check: order is valid
-      // try {
-      //   order.checkValidity();
-      // } catch {
-      //   return results.push({
-      //     id,
-      //     status: "invalid",
-      //   });
-      // }
+      try {
+        order.checkValidity();
+      } catch {
+        return results.push({
+          id,
+          status: "invalid",
+        });
+      }
 
       // Check: order has a valid signature
       try {
@@ -153,18 +136,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       const schemaHash = metadata.schemaHash ?? generateSchemaHash(metadata.schema);
 
       switch (order.params.kind) {
-        case "contract-wide": {
-          [{ id: tokenSetId }] = await tokenSet.contractWide.save([
-            {
-              id: `contract:${order.params.offerItem.offerToken}`,
-              schemaHash,
-              contract: order.params.offerItem.offerToken,
-            },
-          ]);
-
-          break;
-        }
-
         case "single-token": {
           [{ id: tokenSetId }] = await tokenSet.singleToken.save([
             {
@@ -186,116 +157,48 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      const side = "buy";
-
+      const side = "sell";
       // Handle: currency
       const currency = "ETH";
 
-      // Handle: fees
-      const feeBreakdown =
-        config.chainId === 1
-          ? [
-              {
-                kind: "marketplace",
-                recipient: "0x1838de7d4e4e42c8eb7b204a91e28e9fad14f536",
-                bps: 50,
-              },
-            ]
-          : [
-              {
-                kind: "marketplace",
-                recipient: "0xdbbe0859791e44b52b98fcca341dfb7577c0b077",
-                bps: 200,
-              },
-            ];
-
-      // Temp Disable
-      // Handle: royalties
-      // let onChainRoyalties: Royalty[];
-
-      // if (order.params.kind === "single-token") {
-      //   onChainRoyalties = await royalties.getRoyalties(
-      //     order.params.collection,
-      //     order.params.itemIds[0],
-      //     "onchain"
-      //   );
-      // } else {
-      //   onChainRoyalties = await royalties.getRoyaltiesByTokenSet(tokenSetId, "onchain");
-      // }
-
-      // if (onChainRoyalties.length) {
-      //   feeBreakdown = [
-      //     ...feeBreakdown,
-      //     {
-      //       kind: "royalty",
-      //       recipient: onChainRoyalties[0].recipient,
-      //       // LooksRare has fixed 0.5% royalties
-      //       bps: 50,
-      //     },
-      //   ];
-      // } else {
-      //   // If there is no royalty, the marketplace fee will be 0.5%
-      //   feeBreakdown[0].bps = 50;
-      // }
-
-      const price = order.params.offerItem.offerAmount;
-
       // Handle: royalties on top
-      const defaultRoyalties =
-        // side === "sell"
-        //   ? await royalties.getRoyalties(
-        //       order.params.collection,
-        //       order.params.itemIds[0],
-        //       "default"
-        //     )
-        //   :
-        await royalties.getRoyaltiesByTokenSet(tokenSetId, "default");
+      const defaultRoyalties = await royalties.getRoyalties(
+        order.params.offerItem.offerToken,
+        order.params.offerItem.offerTokenId,
+        "default"
+      );
+
+      // The price and value are for a single item
+      let price = bn(order.params.offerItem.offerAmount);
+      let nftAmount = "1";
+      if (order.params.tokenType === OfferTokenType.ERC1155) {
+        nftAmount = order.params.offerItem.amount.toString();
+        price = price.div(nftAmount);
+      }
 
       const missingRoyalties = [];
       let missingRoyaltyAmount = bn(0);
-      let royaltyDeducted = false;
       for (const { bps, recipient } of defaultRoyalties) {
-        // Get any built-in royalty payment to the current recipient
-        const existingRoyalty = feeBreakdown.find((r) => r.kind === "royalty");
-
-        // Deduce the 0.5% royalty LooksRare will pay if needed
-        const actualBps = existingRoyalty && !royaltyDeducted ? bps - 50 : bps;
-        royaltyDeducted = !_.isUndefined(existingRoyalty) || royaltyDeducted;
-
-        const amount = bn(price).mul(actualBps).div(10000).toString();
+        const amount = bn(price).mul(bps).div(10000).toString();
         missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
 
         missingRoyalties.push({
-          bps: actualBps,
+          bps,
           amount,
           recipient,
         });
       }
 
-      const feeBps = feeBreakdown.map(({ bps }) => bps).reduce((a, b) => Number(a) + Number(b), 0);
-
       // Handle: price and value
-      let value: string;
-      let normalizedValue: string | undefined;
-      if (side === "buy") {
-        // For buy orders, we set the value as `price - fee` since it
-        // is best for UX to show the user exactly what they're going
-        // to receive on offer acceptance.
-        value = bn(price)
-          .sub(bn(price).mul(bn(feeBps)).div(10000))
-          .toString();
-        // The normalized value excludes the royalties from the value
-        normalizedValue = bn(value).sub(missingRoyaltyAmount).toString();
-      } else {
-        // For sell orders, the value is the same as the price
-        value = price;
-        // The normalized value includes the royalties on top of the price
-        normalizedValue = bn(value).add(missingRoyaltyAmount).toString();
-      }
+      const value = price;
+      // The normalized value includes the royalties on top of the price
+      const normalizedValue = value.add(missingRoyaltyAmount).toString();
+
+      // For sell orders, the value is the same as the price
 
       // Handle: source
       const sources = await Sources.getInstance();
-      let source = await sources.getOrInsert("looksrare.org");
+      let source = await sources.getOrInsert("market.hotpot.gg");
       if (metadata.source) {
         source = await sources.getOrInsert(metadata.source);
       }
@@ -305,14 +208,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       // Handle: conduit
       const conduit = Sdk.Hotpot.Addresses.Exchange[config.chainId];
-      // if (side === "sell") {
-      //   conduit = Sdk.Hotpot.Addresses.TransferManager[config.chainId];
-      // }
 
-      const validFrom = `date_trunc('seconds', to_timestamp(${
-        order.params.offerItem.endTime - 1000 * 24 * 60 * 60
-      }))`;
+      const validFrom = `date_trunc('seconds', to_timestamp(${currentTime}))`;
       const validTo = `date_trunc('seconds', to_timestamp(${order.params.offerItem.endTime}))`;
+      const price_s = price.toString();
+      const value_s = value.toString();
       orderValues.push({
         id,
         kind: "hotpot",
@@ -322,12 +222,13 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         token_set_id: tokenSetId,
         token_set_schema_hash: toBuffer(schemaHash),
         maker: toBuffer(order.params.offerer),
-        taker: toBuffer(AddressZero),
-        price,
-        value,
+        taker: toBuffer(order.params.receiver!),
+        price: price_s,
+        value: value_s,
         currency: toBuffer(currency),
-        currency_price: price,
-        currency_value: value,
+        quantity_remaining: nftAmount,
+        currency_price: price_s,
+        currency_value: value_s,
         needs_conversion: null,
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: order.params.salt.toString(),
@@ -335,8 +236,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         is_reservoir: isReservoir ? isReservoir : null,
         contract: toBuffer(order.params.offerItem.offerToken),
         conduit: toBuffer(conduit),
-        fee_bps: feeBps,
-        fee_breakdown: feeBreakdown || null,
+        fee_bps: 0,
+        fee_breakdown: null,
         dynamic: null,
         raw_data: order.params,
         expiration: validTo,

@@ -42,6 +42,7 @@ export class SingleTokenBuilder extends BaseBuilder {
 
     return new Order(this.chainId, {
       kind: "single-token",
+      currency: params.currency!,
 
       offerer: params.offerer,
       offerItem: {

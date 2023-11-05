@@ -1,5 +1,6 @@
-//SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.19;
 
 import {BaseExchangeModule} from "./BaseExchangeModule.sol";
 import {BaseModule} from "../BaseModule.sol";

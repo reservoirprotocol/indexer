@@ -117,7 +117,7 @@ const config: HardhatUserConfig = {
   solidity: {
     compilers: [
       {
-        version: "0.8.17",
+        version: "0.8.19",
         settings: {
           viaIR: true,
           optimizer: {
@@ -125,9 +125,10 @@ const config: HardhatUserConfig = {
             runs: 1000,
           },
         },
-      },
+      }
     ],
   },
+  defaultNetwork: "mainnet",
   networks: {
     // Devnets
     hardhat: {

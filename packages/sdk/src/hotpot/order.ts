@@ -11,6 +11,7 @@ import { EIP712_TYPES, OfferTokenType } from "./types";
 import * as Common from "../common";
 import { Network } from "../utils";
 import { BigNumberish } from "@ethersproject/bignumber";
+import { BaseBuilder } from "./builders/base";
 
 export class Order {
   public chainId: number;
@@ -164,6 +165,24 @@ export class Order {
     }
   }
 
+  public checkValidity() {
+    if (!this.getBuilder().isValid(this)) {
+      throw new Error("Invalid order");
+    }
+  }
+
+  private getBuilder(): BaseBuilder {
+    switch (this.params.kind) {
+      case "single-token": {
+        return new SingleTokenBuilder(this.chainId);
+      }
+
+      default: {
+        throw new Error("Unknown order kind");
+      }
+    }
+  }
+
   public async buildMatching(
     receiver: string,
     buyerPendingAmount: BigNumberish,
@@ -183,6 +202,7 @@ const normalize = (order: Types.OrderParameters): Types.OrderParameters => {
 
   return {
     offerer: lc(order.offerer),
+    currency: order.currency,
     receiver: order.receiver ? lc(order.receiver) : undefined,
     offerItem: {
       offerToken: lc(order.offerItem.offerToken),

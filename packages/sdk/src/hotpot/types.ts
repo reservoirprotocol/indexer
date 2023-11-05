@@ -27,6 +27,7 @@ export type OrderKind = "single-token" | "contract-wide";
 // Everything that is not part of EIP712 types is optional
 export type OrderParameters = {
   kind?: OrderKind;
+  currency: string;
 
   offerer: string;
   receiver?: string;
