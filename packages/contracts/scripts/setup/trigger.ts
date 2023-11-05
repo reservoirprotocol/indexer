@@ -10,7 +10,7 @@ import { ethers } from "hardhat";
 
 import { DeploymentHelper } from "./deployment-helper";
 
-export const DEPLOYER = "0xf3d63166F0Ca56C3c1A3508FcE03Ff0Cf3Fb691e";
+export const DEPLOYER = "0xbE9044946343fDBf311C96Fb77b2933E2AdA8B5D";
 const DEPLOYMENTS_FILE = "deployments.json";
 
 export const readDeployment = async (
@@ -194,6 +194,12 @@ export const trigger = {
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.Nftx.Addresses.MarketplaceZap[chainId],
+      ]),
+    HotpotModule: async (chainId: number) =>
+      dv("HotpotModule", "v1", [
+        "0xe2D3f8c3C5597736ea34F1A24C6D3C9000e9796e",
+        Sdk.RouterV6.Addresses.Router[chainId],
+        Sdk.Hotpot.Addresses.Exchange[chainId],
       ]),
     NFTXZeroExModule: async (chainId: number) =>
       dv("NFTXZeroExModule", "v2", [
