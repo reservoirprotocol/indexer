@@ -243,9 +243,7 @@ const getEmittedEvents = async (txData: TxData, chainId: number) => {
 
 const triggerCall = async (txData: TxData) => {
   const value = bn(txData.value ?? 0);
-  if (config.chainId === Network.Optimism) {
-    logger.info("mints-simulation", `Triggering call with value: ${value}`);
-  }
+
   return getCallResult(
     {
       from: txData.from,

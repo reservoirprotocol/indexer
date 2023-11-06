@@ -4,7 +4,7 @@ import Arweave from "arweave";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import getUuidByString from "uuid-by-string";
-import { WebSocketProvider } from "@/common/websocket-provider";
+import { WebSocketProvider } from "@ethersproject/providers";
 
 // Use a static provider to avoid redundant `eth_chainId` calls
 export const baseProvider = new StaticJsonRpcProvider(

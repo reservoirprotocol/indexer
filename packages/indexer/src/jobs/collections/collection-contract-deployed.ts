@@ -17,6 +17,8 @@ export type CollectionContractDeployed = {
 const BLACKLISTED_DEPLOYERS = [
   "0xaf18644083151cf57f914cccc23c42a1892c218e",
   "0x9ec1c3dcf667f2035fb4cd2eb42a1566fd54d2b7",
+  "0xc0edd4902879a7e85b4bd2dfe293dbec4d838c2d",
+  "0x0000000000771a79d0fc7f3b7fe270eb4498f20b",
 ];
 
 export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler {
@@ -39,10 +41,10 @@ export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler
     }
 
     if (deployer && BLACKLISTED_DEPLOYERS.includes(deployer)) {
-      logger.warn(
-        this.queueName,
-        `Collection ${contract} was deployed by a blacklisted address ${deployer}`
-      );
+      // logger.warn(
+      //   this.queueName,
+      //   `Collection ${contract} was deployed by a blacklisted address ${deployer}`
+      // );
       return;
     }
 
@@ -65,10 +67,6 @@ export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler
     }
 
     const { symbol, name } = await getContractNameAndSymbol(contract);
-
-    // if (!name) {
-    //   logger.warn(this.queueName, `Collection ${contract} has no name`);
-    // }
 
     await Promise.all([
       idb.none(

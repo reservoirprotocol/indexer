@@ -10,7 +10,6 @@ import { ethers } from "ethers";
 import { RequestWasThrottledError, normalizeLink, normalizeMetadata } from "./utils";
 import _ from "lodash";
 import { AbstractBaseMetadataProvider } from "./abstract-base-metadata-provider";
-import { Network } from "@reservoir0x/sdk/dist/utils";
 
 const erc721Interface = new ethers.utils.Interface([
   "function supportsInterface(bytes4 interfaceId) view returns (bool)",
@@ -230,16 +229,6 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     );
 
     try {
-      if (config.chainId === Network.Optimism) {
-        logger.info(
-          "onchain-fetcher-metadata",
-          JSON.stringify({
-            topic: "debugTokenStandard",
-            message: `Start. contractAddress=${contractAddress}`,
-          })
-        );
-      }
-
       const erc721Supported = await contract.supportsInterface("0x80ac58cd");
       const erc1155Supported = await contract.supportsInterface("0xd9b67a26");
 

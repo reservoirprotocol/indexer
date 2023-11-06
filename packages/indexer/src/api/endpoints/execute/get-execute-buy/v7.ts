@@ -1657,20 +1657,23 @@ export const getExecuteBuyV7Options: RouteOptions = {
         }
 
         const item = path[0];
-        const token = item.tokenId
-          ? `${item.contract}:${item.tokenId}`.toLowerCase()
-          : `${item.contract}:${MaxUint256.toString()}`.toLowerCase();
+        const token = `${item.contract}:${item.tokenId ?? MaxUint256.toString()}`.toLowerCase();
+        // Only set when minting
+        const isCollectionRequest = item.orderId.startsWith("mint");
 
         const quote = await axios
           .post(`${config.crossChainSolverBaseUrl}/intents/quote`, {
             fromChainId,
             toChainId,
+            isCollectionRequest,
             token,
             amount: item.quantity,
           })
           .then((response) => response.data.price)
           .catch((error) => {
-            throw Boom.badRequest(error.response?.data ?? "Error getting quote");
+            throw Boom.badRequest(
+              error.response?.data ? JSON.stringify(error.response.data) : "Error getting quote"
+            );
           });
 
         if (ccConfig.maxPrice && bn(quote).gt(ccConfig.maxPrice)) {
@@ -1684,7 +1687,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         const customSteps: StepType[] = [
           {
             id: "sale",
-            action: "Deposit",
+            action: "Confirm transaction in your wallet",
             description: "Deposit funds for purchasing cross-chain",
             kind: "transaction",
             items: [],
@@ -1699,7 +1702,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         ];
 
         const order = new Sdk.CrossChain.Order(fromChainId, {
-          isCollectionRequest: Boolean(items[0].collection),
+          isCollectionRequest,
           maker: payload.taker,
           solver: ccConfig.solver!,
           token: item.contract,

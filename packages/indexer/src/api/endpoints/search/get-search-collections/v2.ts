@@ -103,7 +103,7 @@ export const getSearchCollectionsV2Options: RouteOptions = {
     }
 
     if (query.excludeSpam) {
-      conditions.push("(t.is_spam IS NULL OR t.is_spam <= 0)");
+      conditions.push("(c.is_spam IS NULL OR c.is_spam <= 0)");
     }
 
     if (conditions.length) {

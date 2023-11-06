@@ -1230,7 +1230,7 @@ export const getExecuteListV5Options: RouteOptions = {
       const key = request.headers["x-api-key"];
       const apiKey = await ApiKeyManager.getApiKey(key);
       logger.info(
-        `get-execute-bid-${version}-handler`,
+        `get-execute-list-${version}-handler`,
         JSON.stringify({
           request: payload,
           apiKey,
