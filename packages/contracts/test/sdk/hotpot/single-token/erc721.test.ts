@@ -18,7 +18,7 @@ describe("Hotpot - Single-token ERC721 test", () => {
   let alice: SignerWithAddress;
   let bob: SignerWithAddress;
   let erc721: Contract;
-  const operator_pk = process.env.OPERATOR_PK;
+  const operator_pk = process.env.HOTPOT_OPERATOR_PK;
 
   if (!operator_pk) {
     throw new Error("Operator private key is not set up");
@@ -38,7 +38,7 @@ describe("Hotpot - Single-token ERC721 test", () => {
     const offerer_pending_amount = parseEther("0.05");
     const endTime = (await getCurrentTimestamp(ethers.provider)) + 60 * 60 * 24;
     const exchange = new Hotpot.Exchange(chainId);
-    const raffleContractAddress = await exchange.raffleContractAddress();
+    const raffleContractAddress = await exchange.raffleContractAddress(ethers.provider);
 
     // Mint erc721 to seller
     await erc721.connect(seller).mint(tokenId);
@@ -50,6 +50,7 @@ describe("Hotpot - Single-token ERC721 test", () => {
 
     // Build order
     const order = builder.build({
+      currency: Common.Addresses.Native[chainId],
       offerer: seller.address,
       offerTokenId: s(tokenId),
       collectionType: OfferTokenType.ERC721,
@@ -63,12 +64,19 @@ describe("Hotpot - Single-token ERC721 test", () => {
     await order.sign(seller);  
     
     const matching_order = await order.buildMatching(
+      ethers.provider,
       buyer.address,
       buyer_pending_amount,
       offerer_pending_amount
     );
-    const trade_amount = await exchange.calculateTradeAmount(matching_order);
-    const raffle_fee = await exchange.calculateRaffleFee(matching_order);
+    const trade_amount = await exchange.calculateTradeAmount(
+      ethers.provider,
+      matching_order
+    );
+    const raffle_fee = await exchange.calculateRaffleFee(
+      ethers.provider,
+      matching_order
+    );
 
     await order.checkFillability(ethers.provider);
 

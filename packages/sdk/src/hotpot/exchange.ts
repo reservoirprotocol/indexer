@@ -49,13 +49,17 @@ export class Exchange {
     taker: Signer,
     order_data: OrderParameters
   ): Promise<ContractTransaction> {
-    const tx = await this.fulfillOrderTx(await taker.getAddress(), order_data);
+    const tx = await this.fulfillOrderTx(taker, await taker.getAddress(), order_data);
     return taker.sendTransaction(tx);
   }
 
-  public async fulfillOrderTx(taker: string, order_data: OrderParameters): Promise<TxData> {
+  public async fulfillOrderTx(
+    provider: Provider | Signer,
+    taker: string,
+    order_data: OrderParameters
+  ): Promise<TxData> {
     const data = this.contract.interface.encodeFunctionData("fulfillOrder", [order_data]);
-    const trade_amount = await this.calculateTradeAmount(order_data);
+    const trade_amount = await this.calculateTradeAmount(provider, order_data);
 
     return {
       from: taker,
@@ -94,28 +98,36 @@ export class Exchange {
     };
   }
 
-  public async raffleContractAddress(): Promise<string> {
-    return await this.contract.raffleContract();
+  public async raffleContractAddress(provider: Provider): Promise<string> {
+    return await this.contract.connect(provider).raffleContract();
   }
 
-  public async calculateTradeAmount(order: OrderParameters): Promise<BigNumberish> {
+  public async calculateTradeAmount(
+    provider: Provider | Signer,
+    order: OrderParameters
+  ): Promise<BigNumberish> {
     const HUNDRED_PERCENT = BigInt(10000);
-    const hotpot_trade_fee = await this.contract.raffleTradeFee();
+    const hotpot_trade_fee = await this.contract.connect(provider).raffleTradeFee();
     const price = BigInt(order.offerItem.offerAmount);
     const royalty_percent = BigInt(order.royalty.royaltyPercent);
 
-    return (price * HUNDRED_PERCENT) / (HUNDRED_PERCENT - hotpot_trade_fee - royalty_percent);
+    return (
+      (price * HUNDRED_PERCENT) / (HUNDRED_PERCENT - BigInt(hotpot_trade_fee) - royalty_percent)
+    );
   }
 
-  public async calculateRaffleFee(order: OrderParameters): Promise<BigNumberish> {
+  public async calculateRaffleFee(
+    provider: Provider,
+    order: OrderParameters
+  ): Promise<BigNumberish> {
     const HUNDRED_PERCENT = BigInt(10000);
-    const hotpot_trade_fee = await this.contract.raffleTradeFee();
+    const hotpot_trade_fee = await this.contract.connect(provider).raffleTradeFee();
     const price = BigInt(order.offerItem.offerAmount);
     const royalty_percent = BigInt(order.royalty.royaltyPercent);
 
     const trade_amount =
-      (price * HUNDRED_PERCENT) / (HUNDRED_PERCENT - hotpot_trade_fee - royalty_percent);
+      (price * HUNDRED_PERCENT) / (HUNDRED_PERCENT - BigInt(hotpot_trade_fee) - royalty_percent);
 
-    return (trade_amount * hotpot_trade_fee) / HUNDRED_PERCENT;
+    return (trade_amount * BigInt(hotpot_trade_fee)) / HUNDRED_PERCENT;
   }
 }

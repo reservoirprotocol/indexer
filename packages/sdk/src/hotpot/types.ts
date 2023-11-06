@@ -27,7 +27,7 @@ export type OrderKind = "single-token" | "contract-wide";
 // Everything that is not part of EIP712 types is optional
 export type OrderParameters = {
   kind?: OrderKind;
-  currency: string;
+  currency?: string;
 
   offerer: string;
   receiver?: string;
@@ -48,6 +48,12 @@ export type PureOrder = {
 };
 
 export const EIP712_TYPES = {
+  Order: [
+    { name: "offerer", type: "address" },
+    { name: "offerItem", type: "OfferItem" },
+    { name: "royalty", type: "RoyaltyData" },
+    { name: "salt", type: "uint256" },
+  ],
   OfferItem: [
     { name: "offerToken", type: "address" },
     { name: "offerTokenId", type: "uint256" },
@@ -59,15 +65,13 @@ export const EIP712_TYPES = {
     { name: "royaltyPercent", type: "uint256" },
     { name: "royaltyRecipient", type: "address" },
   ],
+};
+
+export const EIP712_PENDING_AMOUNT_TYPE = {
+  // uint256 offererPendingAmount,uint256 buyerPendingAmount,bytes32 orderHash
   PendingAmountData: [
     { name: "offererPendingAmount", type: "uint256" },
     { name: "buyerPendingAmount", type: "uint256" },
     { name: "orderHash", type: "bytes32" },
-  ],
-  Order: [
-    { name: "offerer", type: "address" },
-    { name: "offerItem", type: "OfferItem" },
-    { name: "royalty", type: "RoyaltyData" },
-    { name: "salt", type: "uint256" },
   ],
 };

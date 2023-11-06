@@ -2,7 +2,7 @@ import { n, s } from "../../../utils";
 import { Order } from "../../order";
 import { BaseBuildParams, BaseBuilder } from "../base";
 import { BigNumberish } from "@ethersproject/bignumber";
-import { EIP712_TYPES, PendingAmountData } from "../../types";
+import { EIP712_PENDING_AMOUNT_TYPE, PendingAmountData } from "../../types";
 
 interface BuildParams extends BaseBuildParams {
   offerTokenId: string;
@@ -58,6 +58,7 @@ export class SingleTokenBuilder extends BaseBuilder {
       },
       salt: n(params.salt!),
       orderSignature: params.orderSignature,
+      tokenType: params.collectionType,
     });
   }
 
@@ -80,12 +81,12 @@ export class SingleTokenBuilder extends BaseBuilder {
     // Sign pending amounts, using operator account
     const pa_signature = await operator._signTypedData(
       eip712Domain,
-      EIP712_TYPES,
+      EIP712_PENDING_AMOUNT_TYPE,
       pendingAmountsData
     );
 
     return {
-      ...order.params,
+      ...order.getExchangeOrderParams(),
       receiver,
       pendingAmountsData,
       pendingAmountsSignature: pa_signature,

@@ -54,7 +54,7 @@ export class Order {
     const signature = await signer._signTypedData(
       this.exchange().eip712Domain(),
       EIP712_TYPES,
-      this.params
+      this.getPureOrder()
     );
 
     this.params = {
@@ -74,10 +74,12 @@ export class Order {
   }
 
   public getExchangeOrderParams(): Types.OrderParameters {
-    return {
-      ...this.params,
-      kind: undefined,
-    };
+    for (const prop of ["kind", "currency"]) {
+      if (Object.prototype.hasOwnProperty.call(this.params, prop)) {
+        delete Object(this.params)[prop];
+      }
+    }
+    return this.params;
   }
 
   public getPureOrder(): Types.PureOrder {
@@ -184,11 +186,12 @@ export class Order {
   }
 
   public async buildMatching(
+    provider: Provider,
     receiver: string,
     buyerPendingAmount: BigNumberish,
     offererPendingAmount: BigNumberish
   ) {
-    this.tradeAmount = await this.exchange().calculateTradeAmount(this.params);
+    this.tradeAmount = await this.exchange().calculateTradeAmount(provider, this.params);
     const builder = new SingleTokenBuilder(this.chainId);
     return await builder.buildMatching(this, receiver, buyerPendingAmount, offererPendingAmount);
   }

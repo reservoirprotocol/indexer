@@ -128,7 +128,6 @@ const config: HardhatUserConfig = {
       }
     ],
   },
-  defaultNetwork: "mainnet",
   networks: {
     // Devnets
     hardhat: {
