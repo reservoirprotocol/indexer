@@ -6,7 +6,6 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, toBuffer } from "@/common/utils";
-import { getJoiCollectionObject } from "@/common/joi";
 
 const version = "v1";
 
@@ -82,7 +81,6 @@ export const getUserCollectionsV1Options: RouteOptions = {
         SELECT  collections.id,
                 collections.name,
                 collections.metadata,
-                collections.metadata_disabled,
                 SUM(nft_balances.amount) AS token_count,
                 MAX(tokens.top_buy_value) AS top_buy_value,
                 MIN(tokens.floor_sell_value) AS floor_sell_value,
@@ -119,16 +117,13 @@ export const getUserCollectionsV1Options: RouteOptions = {
 
       const result = await redb.manyOrNone(baseQuery, { ...params, ...query });
       const collections = _.map(result, (r) => ({
-        collection: getJoiCollectionObject(
-          {
-            id: r.id,
-            name: r.name,
-            metadata: r.metadata,
-            floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
-            topBidValue: r.top_buy_value ? formatEth(r.top_buy_value) : null,
-          },
-          r.metadata_disabled
-        ),
+        collection: {
+          id: r.id,
+          name: r.name,
+          metadata: r.metadata,
+          floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
+          topBidValue: r.top_buy_value ? formatEth(r.top_buy_value) : null,
+        },
         ownership: {
           tokenCount: String(r.token_count),
           onSaleCount: String(r.on_sale_count),

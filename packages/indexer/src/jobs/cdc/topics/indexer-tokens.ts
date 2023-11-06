@@ -52,7 +52,6 @@ export class IndexerTokensHandler extends KafkaEventHandler {
           token_id: payload.after.token_id,
           name: payload.after.name,
           image: payload.after.image,
-          metadata_disabled: payload.after.metadata_disabled,
         }),
         "EX",
         60 * 60 * 24,

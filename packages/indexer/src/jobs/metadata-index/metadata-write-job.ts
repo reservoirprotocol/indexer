@@ -37,6 +37,7 @@ export type MetadataIndexWriteJobPayload = {
   metadataOriginalUrl?: string;
   mediaUrl?: string;
   flagged?: boolean;
+  isCopyrightInfringement?: boolean;
   isFromWebhook?: boolean;
   attributes: {
     key: string;

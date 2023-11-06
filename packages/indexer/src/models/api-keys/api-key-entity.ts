@@ -3,7 +3,6 @@ import { ApiKeyManager } from "@/models/api-keys/index";
 export enum ApiKeyPermission {
   override_collection_refresh_cool_down = "override_collection_refresh_cool_down",
   assign_collection_to_community = "assign_collection_to_community",
-  update_metadata_disabled = "update_metadata_disabled",
   update_spam_status = "update_spam_status",
 }
 

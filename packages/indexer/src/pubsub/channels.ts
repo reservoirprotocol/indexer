@@ -5,7 +5,6 @@ export enum Channel {
   SourcesUpdated = "sources-updated",
   PauseRabbitConsumerQueue = "pause-rabbit-consumer-queue",
   ResumeRabbitConsumerQueue = "resume-rabbit-consumer-queue",
-  MetadataReenabled = "metadata-reenabled",
 }
 
 export enum AllChainsChannel {

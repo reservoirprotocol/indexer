@@ -6,7 +6,6 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
-import { getJoiTokenObject } from "@/common/joi";
 
 const version = "v1";
 
@@ -94,8 +93,6 @@ export const getUserTokensV1Options: RouteOptions = {
           "t"."name",
           "t"."image",
           "t"."collection_id",
-          "t"."metadata_disabled" as "t_metadata_disabled",
-          "c"."metadata_disabled" as "c_metadata_disabled",
           "c"."name" as "collection_name",
           "nb"."amount" as "token_count",
           (CASE WHEN "t"."floor_sell_value" IS NOT NULL
@@ -163,39 +160,33 @@ export const getUserTokensV1Options: RouteOptions = {
       baseQuery += ` OFFSET $/offset/`;
       baseQuery += ` LIMIT $/limit/`;
 
-      const result = await redb
-        .manyOrNone(baseQuery, { ...query, ...params })
-        .then(async (result) => {
-          return result.map((r) => ({
-            token: getJoiTokenObject(
-              {
-                contract: fromBuffer(r.contract),
-                tokenId: r.token_id,
-                name: r.name,
-                image: r.image,
-                collection: {
-                  id: r.collection_id,
-                  name: r.collection_name,
-                },
-                topBid: {
-                  id: r.top_buy_id,
-                  value: r.top_buy_value ? formatEth(r.top_buy_value) : null,
-                  schema: r.top_buy_schema,
-                },
-              },
-              r.t_metadata_disabled,
-              r.c_metadata_disabled
-            ),
-            ownership: {
-              tokenCount: String(r.token_count),
-              onSaleCount: String(r.on_sale_count),
-              floorSellValue: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
-              acquiredAt: Number(r.acquired_at),
+      const result = await redb.manyOrNone(baseQuery, { ...query, ...params }).then((result) =>
+        result.map((r) => ({
+          token: {
+            contract: fromBuffer(r.contract),
+            tokenId: r.token_id,
+            name: r.name,
+            image: r.image,
+            collection: {
+              id: r.collection_id,
+              name: r.collection_name,
             },
-          }));
-        });
+            topBid: {
+              id: r.top_buy_id,
+              value: r.top_buy_value ? formatEth(r.top_buy_value) : null,
+              schema: r.top_buy_schema,
+            },
+          },
+          ownership: {
+            tokenCount: String(r.token_count),
+            onSaleCount: String(r.on_sale_count),
+            floorSellValue: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
+            acquiredAt: Number(r.acquired_at),
+          },
+        }))
+      );
 
-      return { tokens: await Promise.all(result) };
+      return { tokens: result };
     } catch (error) {
       logger.error(`get-user-tokens-${version}-handler`, `Handler failure: ${error}`);
       throw error;
