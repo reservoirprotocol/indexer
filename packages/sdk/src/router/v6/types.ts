@@ -2,7 +2,7 @@ import { BigNumberish } from "@ethersproject/bignumber";
 
 import * as Sdk from "../../index";
 import { TxData } from "../../utils";
-import { PermitWithTransfers } from "./permit";
+import { Permit } from "./permit";
 
 // Approvals and permits
 
@@ -46,11 +46,6 @@ export type Fee = {
   amount: BigNumberish;
 };
 
-export type Permit = {
-  kind: "erc20";
-  data: PermitWithTransfers;
-};
-
 export type PreSignature = {
   kind: "payment-processor-take-order";
   signer: string;
@@ -60,7 +55,7 @@ export type PreSignature = {
   data: any;
 };
 
-export type TxKind = "sale" | "mint" | "swap";
+export type TxKind = "sale" | "mint" | "swap" | "permit";
 export type TxTags = {
   kind: TxKind;
   // Number of listings for each order kind
@@ -244,10 +239,16 @@ export type BidFillDetails = {
   owner?: string;
   isProtected?: boolean;
   fees?: Fee[];
+  permit?: Permit;
 };
 export type BidDetails = GenericOrder & BidFillDetails;
 
 export type FillBidsResult = {
+  preTxs: {
+    kind: "permit";
+    txData: TxData;
+    orderIds: string[];
+  }[];
   txs: {
     approvals: NFTApproval[];
     txData: TxData;

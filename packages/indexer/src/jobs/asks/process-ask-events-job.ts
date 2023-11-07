@@ -9,7 +9,7 @@ import { PendingAskEventsQueue } from "@/elasticsearch/indexes/asks/pending-ask-
 import * as AskIndex from "@/elasticsearch/indexes/asks";
 import { elasticsearch } from "@/common/elasticsearch";
 
-const BATCH_SIZE = 500;
+const BATCH_SIZE = 1000;
 
 export default class ProcessAskEventsJob extends AbstractRabbitMqJobHandler {
   queueName = "process-ask-events-queue";
@@ -47,9 +47,22 @@ export default class ProcessAskEventsJob extends AbstractRabbitMqJobHandler {
           }
         }
 
-        await elasticsearch.bulk({
+        const response = await elasticsearch.bulk({
           body: bulkOps,
         });
+
+        if (response.errors) {
+          logger.error(
+            "elasticsearch-asks",
+            JSON.stringify({
+              topic: "save-errors",
+              data: {
+                bulkOps: JSON.stringify(bulkOps),
+              },
+              response,
+            })
+          );
+        }
       } catch (error) {
         logger.error(
           this.queueName,

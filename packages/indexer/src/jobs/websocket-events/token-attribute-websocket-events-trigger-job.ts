@@ -2,7 +2,6 @@ import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { Network } from "@reservoir0x/sdk/dist/utils";
 
 export type TokenAttributeWebsocketEventsTriggerQueueJobPayload = {
   data: TokenAttributeWebsocketEventInfo;
@@ -44,40 +43,38 @@ export class TokenAttributeWebsocketEventsTriggerQueueJob extends AbstractRabbit
             }
 
             if (!changed.length) {
-              if (config.chainId === Network.Ethereum) {
-                try {
-                  for (const key in data.after) {
-                    const beforeValue = data.before[key as keyof TokenAttributeInfo];
-                    const afterValue = data.after[key as keyof TokenAttributeInfo];
+              try {
+                for (const key in data.after) {
+                  const beforeValue = data.before[key as keyof TokenAttributeInfo];
+                  const afterValue = data.after[key as keyof TokenAttributeInfo];
 
-                    if (beforeValue !== afterValue) {
-                      changed.push(key as keyof TokenAttributeInfo);
-                    }
+                  if (beforeValue !== afterValue) {
+                    changed.push(key as keyof TokenAttributeInfo);
                   }
-
-                  logger.info(
-                    this.queueName,
-                    JSON.stringify({
-                      message: `No changes detected for token attribute. contract=${data.after.contract}, tokenId=${data.after.token_id}, key=${data.after.key}, value=${data.after.value}`,
-                      data,
-                      beforeJson: JSON.stringify(data.before),
-                      afterJson: JSON.stringify(data.after),
-                      changed,
-                      changedJson: JSON.stringify(changed),
-                      hasChanged: changed.length > 0,
-                    })
-                  );
-                } catch (error) {
-                  logger.error(
-                    this.queueName,
-                    JSON.stringify({
-                      message: `No changes detected for token attribute error. contract=${data.after.contract}, tokenId=${data.after.token_id}, key=${data.after.key}, value=${data.after.value}`,
-                      data,
-                      changed,
-                      error,
-                    })
-                  );
                 }
+
+                logger.info(
+                  this.queueName,
+                  JSON.stringify({
+                    message: `No changes detected for token attribute. contract=${data.after.contract}, tokenId=${data.after.token_id}, key=${data.after.key}, value=${data.after.value}`,
+                    data,
+                    beforeJson: JSON.stringify(data.before),
+                    afterJson: JSON.stringify(data.after),
+                    changed,
+                    changedJson: JSON.stringify(changed),
+                    hasChanged: changed.length > 0,
+                  })
+                );
+              } catch (error) {
+                logger.error(
+                  this.queueName,
+                  JSON.stringify({
+                    message: `No changes detected for token attribute error. contract=${data.after.contract}, tokenId=${data.after.token_id}, key=${data.after.key}, value=${data.after.value}`,
+                    data,
+                    changed,
+                    error,
+                  })
+                );
               }
 
               return;

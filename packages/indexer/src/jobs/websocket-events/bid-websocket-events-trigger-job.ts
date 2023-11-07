@@ -12,7 +12,6 @@ import _ from "lodash";
 import * as Sdk from "@reservoir0x/sdk";
 import { OrderWebsocketEventInfo } from "@/jobs/websocket-events/ask-websocket-events-trigger-job";
 import { formatStatus, formatValidBetween } from "@/jobs/websocket-events/utils";
-import { Network } from "@reservoir0x/sdk/dist/utils";
 
 export type BidWebsocketEventsTriggerQueueJobPayload = {
   data: OrderWebsocketEventInfo;
@@ -67,17 +66,17 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         }
 
         if (!changed.length) {
-          if (config.chainId === Network.Ethereum) {
-            try {
-              for (const key in data.after) {
-                const beforeValue = data.before[key as keyof OrderInfo];
-                const afterValue = data.after[key as keyof OrderInfo];
+          try {
+            for (const key in data.after) {
+              const beforeValue = data.before[key as keyof OrderInfo];
+              const afterValue = data.after[key as keyof OrderInfo];
 
-                if (beforeValue !== afterValue) {
-                  changed.push(key as keyof OrderInfo);
-                }
+              if (beforeValue !== afterValue) {
+                changed.push(key as keyof OrderInfo);
               }
+            }
 
+            if (config.chainId === 1) {
               logger.info(
                 this.queueName,
                 JSON.stringify({
@@ -90,17 +89,17 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
                   hasChanged: changed.length > 0,
                 })
               );
-            } catch (error) {
-              logger.error(
-                this.queueName,
-                JSON.stringify({
-                  message: `No changes detected for bid error. orderId=${data.after.id}`,
-                  data,
-                  changed,
-                  error,
-                })
-              );
             }
+          } catch (error) {
+            logger.error(
+              this.queueName,
+              JSON.stringify({
+                message: `No changes detected for bid error. orderId=${data.after.id}`,
+                data,
+                changed,
+                error,
+              })
+            );
           }
 
           return;

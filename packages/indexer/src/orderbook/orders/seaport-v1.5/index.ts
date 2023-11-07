@@ -234,6 +234,8 @@ export const save = async (
             Sdk.SeaportBase.Addresses.OkxCancellationZone[config.chainId],
             // FxHash pausable zone
             Sdk.SeaportBase.Addresses.FxHashPausableZone[config.chainId],
+            // Immutable protected zone
+            Sdk.SeaportBase.Addresses.ImmutableProtectedZone[config.chainId],
           ].includes(order.params.zone) &&
           // Protected offers zone
           !isProtectedOffer
@@ -292,6 +294,8 @@ export const save = async (
         await offChainCheck(order, "seaport-v1.5", exchange, {
           onChainApprovalRecheck: true,
           singleTokenERC721ApprovalCheck: metadata.fromOnChain,
+          permitId: metadata.permitId,
+          permitIndex: metadata.permitIndex,
         });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
@@ -309,6 +313,14 @@ export const save = async (
             status: "not-fillable",
           });
         }
+      }
+
+      // Mark the order when using permits
+      if (metadata.permitId) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (order.params as any).permitId = metadata.permitId;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (order.params as any).permitIndex = metadata.permitIndex ?? 0;
       }
 
       // Check and save: associated token set
@@ -644,7 +656,9 @@ export const save = async (
         // `price` and `value` from that currency denominations to the
         // ETH denomination
         {
-          const prices = await getUSDAndNativePrices(currency, price.toString(), currentTime);
+          const prices = await getUSDAndNativePrices(currency, price.toString(), currentTime, {
+            nonZeroCommunityTokens: true,
+          });
           if (!prices.nativePrice) {
             // Getting the native price is a must
             return results.push({
@@ -655,7 +669,9 @@ export const save = async (
           price = bn(prices.nativePrice);
         }
         {
-          const prices = await getUSDAndNativePrices(currency, value.toString(), currentTime);
+          const prices = await getUSDAndNativePrices(currency, value.toString(), currentTime, {
+            nonZeroCommunityTokens: true,
+          });
           if (!prices.nativePrice) {
             // Getting the native price is a must
             return results.push({
@@ -673,7 +689,9 @@ export const save = async (
           ? bn(currencyValue).add(missingRoyaltyAmount).toString()
           : bn(currencyValue).sub(missingRoyaltyAmount).toString();
 
-      const prices = await getUSDAndNativePrices(currency, currencyNormalizedValue, currentTime);
+      const prices = await getUSDAndNativePrices(currency, currencyNormalizedValue, currentTime, {
+        nonZeroCommunityTokens: true,
+      });
       if (!prices.nativePrice) {
         // Getting the native price is a must
         return results.push({

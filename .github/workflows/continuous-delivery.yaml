@@ -538,6 +538,22 @@ jobs:
             ./prod/platform/indexer-worker-master-scroll.yaml \
             ${{ github.sha }} \
             indexer-worker-master-scroll
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-api-immutable-zkevm-testnet.yaml \
+            ${{ github.sha }} \
+            indexer-api-immutable-zkevm-testnet
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-immutable-zkevm-testnet.yaml \
+            ${{ github.sha }} \
+            indexer-worker-immutable-zkevm-testnet
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-immutable-zkevm-testnet.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-immutable-zkevm-testnet
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-master-immutable-zkevm-testnet.yaml \
+            ${{ github.sha }} \
+            indexer-worker-master-immutable-zkevm-testnet
       - name: Post to Slack
         if: ${{ always() }}
         id: slack-deploy-prod

@@ -75,6 +75,7 @@ export const CONFIG_DEFAULT = {
           batchIndex: { type: "integer" },
           blockHash: { type: "keyword" },
           fillSourceId: { type: "integer" },
+          washTradingScore: { type: "double" },
         },
       },
       pricing: {

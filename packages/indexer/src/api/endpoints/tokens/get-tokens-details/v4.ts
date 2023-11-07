@@ -16,7 +16,7 @@ import {
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
-import { JoiAttributeValue, JoiSource, getJoiSourceObject } from "@/common/joi";
+import { JoiAttributeValue, JoiSource, getJoiSourceObject, getJoiTokenObject } from "@/common/joi";
 import * as Boom from "@hapi/boom";
 
 const version = "v4";
@@ -194,6 +194,8 @@ export const getTokensDetailsV4Options: RouteOptions = {
           "t"."image",
           "t"."media",
           "t"."collection_id",
+          "t"."metadata_disabled" as "t_metadata_disabled",
+          "c"."metadata_disabled" as "c_metadata_disabled",
           "c"."name" as "collection_name",
           "con"."kind",
           "t"."is_flagged",
@@ -441,7 +443,8 @@ export const getTokensDetailsV4Options: RouteOptions = {
       }
 
       const sources = await Sources.getInstance();
-      const result = rawResult.map((r) => {
+
+      const result = rawResult.map(async (r) => {
         const contract = fromBuffer(r.contract);
         const tokenId = r.token_id;
 
@@ -450,46 +453,52 @@ export const getTokensDetailsV4Options: RouteOptions = {
           : undefined;
 
         return {
-          token: {
-            contract,
-            tokenId,
-            name: r.name,
-            description: r.description,
-            image: Assets.getLocalAssetsLink(r.image),
-            media: r.media,
-            kind: r.kind,
-            isFlagged: Boolean(Number(r.is_flagged)),
-            lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
-            collection: {
-              id: r.collection_id,
-              name: r.collection_name,
+          token: getJoiTokenObject(
+            {
+              contract,
+              tokenId,
+              name: r.name,
+              description: r.description,
               image: Assets.getLocalAssetsLink(r.image),
-              slug: r.slug,
+              media: r.media,
+              kind: r.kind,
+              isFlagged: Boolean(Number(r.is_flagged)),
+              lastFlagUpdate: r.last_flag_update
+                ? new Date(r.last_flag_update).toISOString()
+                : null,
+              collection: {
+                id: r.collection_id,
+                name: r.collection_name,
+                image: Assets.getLocalAssetsLink(r.image),
+                slug: r.slug,
+              },
+              lastBuy: {
+                value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
+                timestamp: r.last_buy_timestamp,
+              },
+              lastSell: {
+                value: r.last_sell_value ? formatEth(r.last_sell_value) : null,
+                timestamp: r.last_sell_timestamp,
+              },
+              owner: r.owner ? fromBuffer(r.owner) : null,
+              attributes: r.attributes
+                ? _.map(r.attributes, (attribute) => ({
+                    key: attribute.key,
+                    value: attribute.value,
+                    tokenCount: attribute.tokenCount,
+                    onSaleCount: attribute.onSaleCount,
+                    floorAskPrice: attribute.floorAskPrice
+                      ? formatEth(attribute.floorAskPrice)
+                      : attribute.floorAskPrice,
+                    topBidValue: attribute.topBidValue
+                      ? formatEth(attribute.topBidValue)
+                      : attribute.topBidValue,
+                  }))
+                : [],
             },
-            lastBuy: {
-              value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
-              timestamp: r.last_buy_timestamp,
-            },
-            lastSell: {
-              value: r.last_sell_value ? formatEth(r.last_sell_value) : null,
-              timestamp: r.last_sell_timestamp,
-            },
-            owner: r.owner ? fromBuffer(r.owner) : null,
-            attributes: r.attributes
-              ? _.map(r.attributes, (attribute) => ({
-                  key: attribute.key,
-                  value: attribute.value,
-                  tokenCount: attribute.tokenCount,
-                  onSaleCount: attribute.onSaleCount,
-                  floorAskPrice: attribute.floorAskPrice
-                    ? formatEth(attribute.floorAskPrice)
-                    : attribute.floorAskPrice,
-                  topBidValue: attribute.topBidValue
-                    ? formatEth(attribute.topBidValue)
-                    : attribute.topBidValue,
-                }))
-              : [],
-          },
+            r.t_metadata_disabled,
+            r.c_metadata_disabled
+          ),
           market: {
             floorAsk: {
               id: r.floor_sell_id,

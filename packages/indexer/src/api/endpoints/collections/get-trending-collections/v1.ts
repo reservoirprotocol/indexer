@@ -9,7 +9,6 @@ import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 import { getStartTime } from "@/models/top-selling-collections/top-selling-collections";
 import { chunk, flatMap } from "lodash";
-
 import { redis } from "@/common/redis";
 
 const REDIS_EXPIRATION = 60 * 60 * 24; // 24 hours
@@ -20,7 +19,7 @@ import {
   TopSellingFillOptions,
 } from "@/elasticsearch/indexes/activities";
 
-import { getJoiPriceObject, JoiPrice } from "@/common/joi";
+import { getJoiCollectionObject, getJoiPriceObject, JoiPrice } from "@/common/joi";
 import { Sources } from "@/models/sources";
 
 const version = "v1";
@@ -54,7 +53,6 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
           "Amount of items returned in response. Default is 50 and max is 1000. Expected to be sorted and filtered on client side."
         ),
       sortBy: Joi.string().valid("volume", "sales").default("sales"),
-
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
@@ -77,8 +75,10 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
           name: Joi.string().allow("", null),
           image: Joi.string().allow("", null),
           banner: Joi.string().allow("", null),
+          isSpam: Joi.boolean().default(false),
           description: Joi.string().allow("", null),
           primaryContract: Joi.string().lowercase().pattern(regex.address),
+          contract: Joi.string().lowercase().pattern(regex.address),
           count: Joi.number().integer(),
           volume: Joi.number(),
           volumePercentChange: Joi.number().unsafe().allow(null),
@@ -178,14 +178,12 @@ async function formatCollections(
 
       const floorAskId = metadata[`${prefix}floor_sell_id`];
       const floorAskValue = metadata[`${prefix}floor_sell_value`];
-      let floorAskCurrency = metadata[`${prefix}floor_sell_currency`];
+      const floorAskCurrency = metadata.floor_sell_currency;
       const floorAskSource = metadata[`${prefix}floor_sell_source_id_int`];
-      const floorAskCurrencyValue = metadata[`${prefix}floor_sell_currency_value`];
+      const floorAskCurrencyValue =
+        metadata[`${normalizeRoyalties ? "normalized_" : ""}floor_sell_currency_value`];
 
       if (metadata) {
-        floorAskCurrency = floorAskCurrency
-          ? fromBuffer(floorAskCurrency)
-          : Sdk.Common.Addresses.Native[config.chainId];
         floorAsk = {
           id: floorAskId,
           sourceDomain: sources.get(floorAskSource)?.domain,
@@ -193,7 +191,7 @@ async function formatCollections(
             ? await getJoiPriceObject(
                 {
                   gross: {
-                    amount: floorAskCurrencyValue || floorAskValue || 0,
+                    amount: floorAskCurrencyValue ?? floorAskValue,
                     nativeAmount: floorAskValue || 0,
                   },
                 },
@@ -206,6 +204,7 @@ async function formatCollections(
       return {
         ...response,
         image: metadata?.metadata?.imageUrl,
+        isSpam: Number(metadata.is_spam) > 0,
         name: metadata?.name || "",
         onSaleCount: Number(metadata.on_sale_count) || 0,
         volumeChange: {
@@ -235,7 +234,7 @@ async function formatCollections(
 
 async function getCollectionsMetadata(collectionsResult: any[]) {
   const collectionIds = collectionsResult.map((collection: any) => collection.id);
-  const collectionsToFetch = collectionIds.map((id: string) => `collection-cache:v1:${id}`);
+  const collectionsToFetch = collectionIds.map((id: string) => `collection-cache:v2:${id}`);
   const batches = chunk(collectionsToFetch, REDIS_BATCH_SIZE);
   const tasks = batches.map(async (batch) => redis.mget(batch));
   const results = await Promise.all(tasks);
@@ -271,6 +270,8 @@ async function getCollectionsMetadata(collectionsResult: any[]) {
       collections.creator,
       collections.token_count,
       collections.owner_count,
+      collections.metadata_disabled,
+      collections.is_spam,
       collections.day1_volume_change,
       collections.day7_volume_change,
       collections.day30_volume_change,
@@ -298,6 +299,9 @@ async function getCollectionsMetadata(collectionsResult: any[]) {
       collections.normalized_floor_sell_maker,
       collections.normalized_floor_sell_valid_between,
       collections.normalized_floor_sell_source_id_int,
+      y.floor_sell_currency,
+      y.normalized_floor_sell_currency_value,
+      y.floor_sell_currency_value,
       collections.top_buy_id,
       collections.top_buy_value,
       collections.top_buy_maker,
@@ -313,15 +317,40 @@ async function getCollectionsMetadata(collectionsResult: any[]) {
               AND tokens.floor_sell_value IS NOT NULL
           ) AS on_sale_count
     FROM collections
+
+    LEFT JOIN LATERAL (
+      SELECT
+        orders.currency AS floor_sell_currency,
+        orders.currency_normalized_value AS normalized_floor_sell_currency_value,
+        orders.currency_value AS floor_sell_currency_value
+      FROM orders
+      WHERE orders.id = collections.floor_sell_id
+    ) y ON TRUE
     WHERE collections.id IN (${collectionIdList})
   `;
 
     collectionMetadataResponse = await redb.manyOrNone(baseQuery);
 
+    // need to convert buffers before saving to redis
+    collectionMetadataResponse = collectionMetadataResponse.map((metadata: any) => {
+      const { contract, floor_sell_currency, metadata_disabled, ...rest } = metadata;
+
+      return getJoiCollectionObject(
+        {
+          ...rest,
+          contract: fromBuffer(contract),
+          floor_sell_currency: floor_sell_currency
+            ? fromBuffer(floor_sell_currency)
+            : Sdk.Common.Addresses.Native[config.chainId],
+        },
+        metadata_disabled
+      );
+    });
+
     const commands = flatMap(collectionMetadataResponse, (metadata: any) => {
       return [
-        ["set", `collection-cache:v1:${metadata.id}`, JSON.stringify(metadata)],
-        ["expire", `collection-cache:v1:${metadata.id}`, REDIS_EXPIRATION],
+        ["set", `collection-cache:v2:${metadata.id}`, JSON.stringify(metadata)],
+        ["expire", `collection-cache:v2:${metadata.id}`, REDIS_EXPIRATION],
       ];
     });
 

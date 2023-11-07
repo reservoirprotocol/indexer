@@ -2,6 +2,9 @@ import { redis } from "@/common/redis";
 import { format } from "date-fns";
 import _ from "lodash";
 
+/**
+ * Wrapper for redis hash which holds all the contracts marked as spam by alchemy
+ */
 export class AlchemySpamContracts {
   public static key = `alchemy-spam-contracts`;
 
@@ -12,6 +15,10 @@ export class AlchemySpamContracts {
 
   public static async delete(contract: string) {
     await redis.hdel(AlchemySpamContracts.key, contract);
+  }
+
+  public static async exists(contract: string): Promise<number> {
+    return redis.hexists(AlchemySpamContracts.key, contract);
   }
 
   public static async getContracts(contracts: string[]) {

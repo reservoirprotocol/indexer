@@ -6,6 +6,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { PgPromiseQuery, idb, pgp, redb, ridb } from "@/common/db";
 import _ from "lodash";
+import { config } from "@/config/index";
 
 export class DailyVolume {
   private static lockKey = "daily-volumes-running";
@@ -411,7 +412,7 @@ export class DailyVolume {
               AND coalesce(fe.wash_trading_score, 0) = 0
           `,
                 {
-                  recentTimestamp: row?.recent_timestamp ?? 0,
+                  recentTimestamp: row?.recent_timestamp ? row.recent_timestamp + 24 * 60 * 60 : 0,
                   collectionId: row.id,
                 }
               );
@@ -425,7 +426,7 @@ export class DailyVolume {
                 // only try to get the total volume from postgres if we have a recent timestamp (that means we have daily_volume entries for this collection, but its not in redis for some reason)
                 const pgTotalVolume = await redb.oneOrNone(
                   `
-              SELECT SUM(volume) as total_volume
+              SELECT SUM(volume_clean) as total_volume
               FROM daily_volumes
               WHERE collection_id != '-1'
                 AND collection_id = $/collectionId/
@@ -480,6 +481,17 @@ export class DailyVolume {
       // Step 3: Update the volumes in collections
       const queries: PgPromiseQuery[] = [];
       recentVolumes.forEach((values: any) => {
+        if (config.chainId === 11155111) {
+          logger.info(
+            "dailyVolumes1",
+            JSON.stringify({
+              topic: "debugCollectionUpdates",
+              message: `Update collection. collectionId=${values.collection_id}`,
+              collectionId: values.collection_id,
+            })
+          );
+        }
+
         queries.push({
           query: `
           UPDATE collections
@@ -675,6 +687,17 @@ export class DailyVolume {
     try {
       const queries: { query: string; values: any }[] = [];
       mergedArr.forEach((row: any) => {
+        if (config.chainId === 11155111) {
+          logger.info(
+            "dailyVolumes2",
+            JSON.stringify({
+              topic: "debugCollectionUpdates",
+              message: `Update collection. collectionId=${row.collection_id}, specificCollectionId=${collectionId}`,
+              collectionId: row.collection_id,
+            })
+          );
+        }
+
         // When updating single collection don't update the rank
         queries.push({
           query: `
@@ -687,8 +710,15 @@ export class DailyVolume {
                 all_time_volume = $/all_time_volume/,
                 ${collectionId ? "" : `all_time_rank = $/all_time_rank/,`}
                 updated_at = now()
-            WHERE
-                id = $/collection_id/`,
+            WHERE id = $/collection_id/
+            AND (
+            day7_volume IS DISTINCT FROM $/day7_volume/
+            ${collectionId ? "" : `OR day7_rank IS DISTINCT FROM $/day7_rank/`}
+            OR day30_volume IS DISTINCT FROM $/day30_volume/
+            ${collectionId ? "" : `OR day30_rank IS DISTINCT FROM $/day30_rank/`}
+            OR all_time_volume IS DISTINCT FROM $/all_time_volume/
+            ${collectionId ? "" : `OR all_time_rank IS DISTINCT FROM $/all_time_rank/`}
+            )`,
           values: row,
         });
       });
@@ -809,12 +839,24 @@ export class DailyVolume {
 
     const queries: any = [];
     results.forEach((row: any) => {
+      if (config.chainId === 11155111) {
+        logger.info(
+          "dailyVolumes3",
+          JSON.stringify({
+            topic: "debugCollectionUpdates",
+            message: `Update collection. collectionId=${row.collection_id}`,
+            collectionId: row.collection_id,
+          })
+        );
+      }
+
       queries.push({
         query: `
             UPDATE collections
             SET day${days}_volume_change = day${days}_volume / NULLIF($/prev_day${days}_volume/::numeric, 0),
                 updated_at = now()                
-            WHERE id = $/collection_id/`,
+            WHERE id = $/collection_id/
+            AND (day${days}_volume_change IS DISTINCT FROM day${days}_volume / NULLIF($/prev_day${days}_volume/::numeric, 0))`,
         values: row,
       });
     });
@@ -894,12 +936,23 @@ export class DailyVolume {
 
     const queries: any = [];
     results.forEach((row: any) => {
+      if (config.chainId === 11155111) {
+        logger.info(
+          "dailyVolumes4",
+          JSON.stringify({
+            topic: "debugCollectionUpdates",
+            message: `Update collection. collectionId=${row.collection_id}`,
+            collectionId: row.collection_id,
+          })
+        );
+      }
+
       queries.push({
         query: `
             UPDATE collections
             SET day${period}_floor_sell_value = $/floor_sell_value/,
                 updated_at = now()                              
-            WHERE id = $/collection_id/`,
+            WHERE id = $/collection_id/ AND (day${period}_floor_sell_value IS DISTINCT FROM $/floor_sell_value/)`,
         values: row,
       });
     });

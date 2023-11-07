@@ -103,7 +103,8 @@ export const postSimulateOrderV1Options: RouteOptions = {
             orders.token_set_id,
             orders.fillability_status,
             orders.approval_status,
-            orders.conduit
+            orders.conduit,
+            orders.raw_data
           FROM orders
           WHERE orders.id = $/id/
         `,
@@ -157,6 +158,9 @@ export const postSimulateOrderV1Options: RouteOptions = {
         return {
           message: "ENS bids are not simulatable due to us not yet handling expiration of domains",
         };
+      }
+      if (orderResult.raw_data?.permitId) {
+        return { message: "Order not simulatable" };
       }
 
       const contractResult = await redb.one(

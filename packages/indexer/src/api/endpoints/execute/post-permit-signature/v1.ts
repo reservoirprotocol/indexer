@@ -1,12 +1,12 @@
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
-import { PermitHandler, PermitWithTransfers } from "@reservoir0x/sdk/dist/router/v6/permit";
+import { PermitHandler } from "@reservoir0x/sdk/dist/router/v6/permit";
 import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { config } from "@/config/index";
-import { getPermit, savePermit } from "@/utils/permits";
+import { getEphemeralPermit, saveEphemeralPermit, savePersistentPermit } from "@/utils/permits";
 
 const version = "v1";
 
@@ -24,6 +24,7 @@ export const postPermitSignatureV1Options: RouteOptions = {
     }),
     payload: Joi.object({
       id: Joi.string().required().description("Id of the permit"),
+      persist: Joi.boolean().description("Whether to persist the permit or not"),
     }),
   },
   response: {
@@ -39,27 +40,36 @@ export const postPermitSignatureV1Options: RouteOptions = {
     const query = request.query;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload = request.payload as any;
+
     try {
+      const id = payload.id;
+      const persist = payload.persist;
+      const signature = query.signature;
+
+      const permit = await getEphemeralPermit(id);
+      if (!permit) {
+        throw Boom.badRequest("Permit does not exist");
+      }
+
+      // Attach the signature to the permit
+      permit.data.signature = signature;
+
+      // Verify the permit signature
       try {
-        const permit = await getPermit(payload.id);
-        if (!permit) {
-          throw Boom.badRequest("Permit does not exist");
-        }
-
-        // Attach the signature to the permit
-        const permitData = permit.data as PermitWithTransfers;
-        permitData.signature = query.signature;
-
-        // Verify the permit signature
-        new PermitHandler(config.chainId, baseProvider).attachAndCheckSignature(
-          permitData,
-          query.signature
+        await new PermitHandler(config.chainId, baseProvider).attachAndCheckSignature(
+          permit,
+          signature
         );
-
-        // Update the cached permit to include the signature
-        await savePermit(payload.id, permit, 0);
       } catch {
         throw Boom.badRequest("Invalid permit signature");
+      }
+
+      // Update the cached permit to include the signature
+      await saveEphemeralPermit(id, permit);
+
+      // Persist the permit if needed
+      if (persist) {
+        await savePersistentPermit(permit, signature);
       }
 
       return { message: "Success" };

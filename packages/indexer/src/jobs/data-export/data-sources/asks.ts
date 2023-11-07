@@ -6,6 +6,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 import { getCurrency } from "@/utils/currencies";
 import { AddressZero } from "@ethersproject/constants";
+import { isWhitelistedCurrency } from "@/utils/prices";
 
 export class AsksDataSource extends BaseDataSource {
   public async getSequenceData(cursor: CursorInfo | null, limit: number) {
@@ -79,6 +80,11 @@ export class AsksDataSource extends BaseDataSource {
             ? Sdk.Common.Addresses.Native[config.chainId]
             : fromBuffer(r.currency)
         );
+
+        // If the ask currency is a community token set the price to 0
+        if (isWhitelistedCurrency(currency.contract)) {
+          r.price = "0";
+        }
 
         const currencyPrice = r.currency_price ?? r.price;
 

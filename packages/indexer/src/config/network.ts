@@ -78,6 +78,9 @@ export const getNetworkName = () => {
     case 534352:
       return "scroll";
 
+    case 13472:
+      return "immutable-zkevm-testnet";
+
     default:
       return "unknown";
   }
@@ -109,26 +112,12 @@ export const getOpenseaNetworkName = () => {
       return "base";
     case 84531:
       return "base_goerli";
-    case 324:
-      return "zksync";
     case 7777777:
       return "zora";
     case 999:
       return "zora_testnet";
     default:
       return null;
-  }
-};
-
-export const getOpenseaSubDomain = () => {
-  switch (config.chainId) {
-    case 5:
-    case 80001:
-    case 11155111:
-      return "testnets-api";
-
-    default:
-      return "api";
   }
 };
 
@@ -449,14 +438,14 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
-            "0x011e128ec62840186f4a07e85e3ace28858c5606",
+            "0xed5464bd5c477b7f71739ce1d741b43e932b97b0",
             {
-              contract: "0x011e128ec62840186f4a07e85e3ace28858c5606",
-              name: "Val",
-              symbol: "$VAL",
-              decimals: 18,
+              contract: "0xed5464bd5c477b7f71739ce1d741b43e932b97b0",
+              name: "BAP Methane",
+              symbol: "METH",
+              decimals: 0,
               metadata: {
-                image: "https://i.ibb.co/s1k4Qvz/valeria-logo.png",
+                image: "https://i.ibb.co/Mc5Pmjn/baptoken.png",
               },
             },
           ],
@@ -670,6 +659,10 @@ export const getNetworkSettings = (): NetworkSettings => {
         headBlockDelay: 0,
         backfillBlockBatchSize: 32,
         reorgCheckFrequency: [30],
+
+        trendingExcludedContracts: [
+          "0x198d38c5f21eab36731d0576560440f70cbd9418", // Yieldnodes
+        ],
         whitelistedCurrencies: new Map([
           [
             Sdk.Common.Addresses.Usdc[config.chainId][1],
@@ -684,11 +677,11 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
-            "0xba777ae3a3c91fcd83ef85bfe65410592bdd0f7c",
+            "0x875f123220024368968d9f1ab1f3f9c2f3fd190d",
             {
-              contract: "0xba777ae3a3c91fcd83ef85bfe65410592bdd0f7c",
-              name: "BitCone",
-              symbol: "CONE",
+              contract: "0x875f123220024368968d9f1ab1f3f9c2f3fd190d",
+              name: "RCAX",
+              symbol: "RCAX",
               decimals: 18,
             },
           ],
@@ -718,7 +711,7 @@ export const getNetworkSettings = (): NetworkSettings => {
               symbol: "$VAL",
               decimals: 18,
               metadata: {
-                image: "https://i.ibb.co/s1k4Qvz/valeria-logo.png",
+                image: "https://i.ibb.co/YRFynrp/wvallogo.png",
               },
             },
           ],
@@ -1004,6 +997,17 @@ export const getNetworkSettings = (): NetworkSettings => {
           // PaymentProcessor WETH
           "0xfff9976782d46cc05630d1f6ebab18b2324d6b14": true,
         },
+        whitelistedCurrencies: new Map([
+          [
+            "0x570e40a09f77f0a098dc7a7ba803adf1d04dd8ec",
+            {
+              contract: "0x570e40a09f77f0a098dc7a7ba803adf1d04dd8ec",
+              name: "Angel community Token",
+              symbol: "ACT",
+              decimals: 18,
+            },
+          ],
+        ]),
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
@@ -1442,6 +1446,40 @@ export const getNetworkSettings = (): NetworkSettings => {
                   'ETH',
                   18,
                   '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // Immutable zkEVM Testnet
+    case 13472: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        headBlockDelay: 10,
+        isTestnet: true,
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Test ImmutableX',
+                  'tIMX',
+                  18,
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/17233/standard/immutableX-symbol-BLK-RGB.png"}'
                 ) ON CONFLICT DO NOTHING
               `
             ),

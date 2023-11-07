@@ -48,7 +48,6 @@ export interface CollectionMetadata {
   tokenIdRange: [number, number] | [string, string] | null;
   tokenSetId: string | null;
   isFallback?: boolean;
-  isCopyrightInfringement?: boolean;
   paymentTokens?: object | null;
   creator?: string | null;
 }

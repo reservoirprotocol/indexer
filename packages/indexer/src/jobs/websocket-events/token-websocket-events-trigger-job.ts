@@ -3,7 +3,12 @@ import { config } from "@/config/index";
 import _ from "lodash";
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
 import { idb } from "@/common/db";
-import { getJoiPriceObject, getJoiSourceObject } from "@/common/joi";
+import {
+  getJoiCollectionObject,
+  getJoiPriceObject,
+  getJoiSourceObject,
+  getJoiTokenObject,
+} from "@/common/joi";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { Assets } from "@/utils/assets";
 import * as Sdk from "@reservoir0x/sdk";
@@ -26,6 +31,7 @@ export type TokenWebsocketEventsTriggerJobPayload =
 
 const changedMapping = {
   name: "name",
+  is_spam: "is_spam",
   description: "description",
   image: "image",
   media: "media",
@@ -41,6 +47,7 @@ const changedMapping = {
   normalized_floor_sell_value: "market.floorAskNormalized.price.gross.amount",
   supply: "token.supply",
   remaining_supply: "token.remainingSupply",
+  metadata_disabled: "metadataDisabled",
 };
 
 export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
@@ -69,6 +76,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
           con.kind,
           c.name AS collection_name,
           c.slug,
+          c.metadata_disabled AS collection_metadata_disabled,
           (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
           (SELECT
             array_agg(
@@ -123,39 +131,51 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
         : Sdk.Common.Addresses.Native[config.chainId];
 
       const result = {
-        token: {
-          contract,
-          tokenId,
-          name: data.after.name,
-          description: data.after.description,
-          image: Assets.getLocalAssetsLink(data.after.image),
-          media: data.after.media,
-          kind: r?.kind,
-          isFlagged: Boolean(Number(data.after.is_flagged)),
-          lastFlagUpdate: data.after.last_flag_update
-            ? new Date(data.after.last_flag_update).toISOString()
-            : null,
-          lastFlagChange: data.after.last_flag_change
-            ? new Date(data.after.last_flag_change).toISOString()
-            : null,
-          supply: !_.isNull(data.after.supply) ? data.after.supply : null,
-          remainingSupply: !_.isNull(data.after.remaining_supply)
-            ? data.after.remaining_supply
-            : null,
-          rarity: data.after.rarity_score,
-          rarityRank: data.after.rarity_rank,
-          collection: {
-            id: data.after.collection_id,
-            name: r?.collection_name,
-            image: r?.collection_image ? Assets.getLocalAssetsLink(r.collection_image) : null,
-            slug: r?.slug,
+        token: getJoiTokenObject(
+          {
+            contract,
+            tokenId,
+            name: data.after.name,
+            isSpam: Number(data.after.is_spam) > 0,
+            description: data.after.description,
+            image: Assets.getLocalAssetsLink(data.after.image),
+            media: data.after.media,
+            kind: r?.kind,
+            isFlagged: Boolean(Number(data.after.is_flagged)),
+            metadataDisabled:
+              Boolean(Number(data.after.metadata_disabled)) ||
+              Boolean(Number(r?.collection_metadata_disabled)),
+            lastFlagUpdate: data.after.last_flag_update
+              ? new Date(data.after.last_flag_update).toISOString()
+              : null,
+            lastFlagChange: data.after.last_flag_change
+              ? new Date(data.after.last_flag_change).toISOString()
+              : null,
+            supply: !_.isNull(data.after.supply) ? data.after.supply : null,
+            remainingSupply: !_.isNull(data.after.remaining_supply)
+              ? data.after.remaining_supply
+              : null,
+            rarity: data.after.rarity_score,
+            rarityRank: data.after.rarity_rank,
+            collection: getJoiCollectionObject(
+              {
+                id: data.after.collection_id,
+                name: r?.collection_name,
+                image: r?.collection_image ? Assets.getLocalAssetsLink(r.collection_image) : null,
+                slug: r?.slug,
+                metadataDisabled: Boolean(Number(r?.collection_metadata_disabled)),
+              },
+              r?.collection_metadata_disabled
+            ),
+            attributes: _.map(r.attributes, (attribute) => ({
+              key: attribute.key,
+              kind: attribute.kind,
+              value: attribute.value,
+            })),
           },
-          attributes: _.map(r.attributes, (attribute) => ({
-            key: attribute.key,
-            kind: attribute.kind,
-            value: attribute.value,
-          })),
-        },
+          Boolean(data.after.metadata_disabled),
+          r.collection_metadata_disabled
+        ),
         market: {
           floorAsk: data.after.floor_sell_value && {
             id: data.after.floor_sell_id,
@@ -232,7 +252,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
                 }
               }
 
-              if (changed.length === 1 && config.chainId === 11155111) {
+              if (changed.length === 1) {
                 logger.info(
                   this.queueName,
                   JSON.stringify({
@@ -313,6 +333,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
           t.contract,
           t.token_id,
           t.name,
+          t.is_spam,
           t.description,
           t.image,
           t.media,
@@ -329,6 +350,8 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
           t.updated_at,
           t.supply,
           t.remaining_supply,
+          t.metadata_disabled AS token_metadata_disabled,
+          c.metadata_disabled AS collection_metadata_disabled,
           c.slug,
           (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
           (SELECT
@@ -383,33 +406,45 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
         : Sdk.Common.Addresses.Native[config.chainId];
 
       const result = {
-        token: {
-          contract,
-          tokenId,
-          name: r.name,
-          description: r.description,
-          image: Assets.getLocalAssetsLink(r.image),
-          media: r.media,
-          kind: r.kind,
-          isFlagged: Boolean(Number(r.is_flagged)),
-          lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
-          lastFlagChange: r.last_flag_change ? new Date(r.last_flag_change).toISOString() : null,
-          supply: !_.isNull(r.supply) ? r.supply : null,
-          remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : null,
-          rarity: r.rarity_score,
-          rarityRank: r.rarity_rank,
-          collection: {
-            id: r.collection_id,
-            name: r.collection_name,
-            image: r?.collection_image ? Assets.getLocalAssetsLink(r.collection_image) : null,
-            slug: r.slug,
+        token: getJoiTokenObject(
+          {
+            contract,
+            tokenId,
+            name: r.name,
+            isSpam: Number(r.is_spam) > 0,
+            description: r.description,
+            image: Assets.getLocalAssetsLink(r.image),
+            media: r.media,
+            kind: r.kind,
+            metadataDisabled:
+              Boolean(Number(r.token_metadata_disabled)) ||
+              Boolean(Number(r.collection_metadata_disabled)),
+            isFlagged: Boolean(Number(r.is_flagged)),
+            lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
+            lastFlagChange: r.last_flag_change ? new Date(r.last_flag_change).toISOString() : null,
+            supply: !_.isNull(r.supply) ? r.supply : null,
+            remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : null,
+            rarity: r.rarity_score,
+            rarityRank: r.rarity_rank,
+            collection: getJoiCollectionObject(
+              {
+                id: r.collection_id,
+                name: r.collection_name,
+                image: r?.collection_image ? Assets.getLocalAssetsLink(r.collection_image) : null,
+                slug: r.slug,
+                metadataDisabled: Boolean(Number(r.collection_metadata_disabled)),
+              },
+              r.collection_metadata_disabled
+            ),
+            attributes: _.map(r.attributes, (attribute) => ({
+              key: attribute.key,
+              kind: attribute.kind,
+              value: attribute.value,
+            })),
           },
-          attributes: _.map(r.attributes, (attribute) => ({
-            key: attribute.key,
-            kind: attribute.kind,
-            value: attribute.value,
-          })),
-        },
+          r.token_metadata_disabled,
+          r.collection_metadata_disabled
+        ),
         market: {
           floorAsk: r.floor_sell_value && {
             id: r.floor_sell_id,
@@ -514,6 +549,7 @@ interface TokenInfo {
   contract: string;
   token_id: string;
   name: string;
+  is_spam: number;
   description: string;
   image: string;
   media: string;
@@ -554,6 +590,7 @@ interface TokenInfo {
   normalized_floor_sell_currency: string;
   normalized_floor_sell_currency_value: string;
   last_flag_change: string;
+  metadata_disabled?: number;
   supply: string;
   remaining_supply: string;
 }

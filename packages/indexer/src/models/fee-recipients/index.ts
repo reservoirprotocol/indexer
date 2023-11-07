@@ -116,8 +116,7 @@ export class FeeRecipients {
     }
   }
 
-  public async create(address: string, kind: FeeKind, domain: string | null) {
-    // It could be the entity already exist
+  public async create(address: string, kind: FeeKind, domain?: string | null) {
     let entity = await redb.oneOrNone(
       `
         SELECT

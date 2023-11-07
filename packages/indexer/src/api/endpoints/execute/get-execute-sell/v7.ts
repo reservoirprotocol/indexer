@@ -9,6 +9,7 @@ import { BidDetails, FillBidsResult } from "@reservoir0x/sdk/dist/router/v6/type
 import { estimateGas } from "@reservoir0x/sdk/dist/router/v6/utils";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
 import axios from "axios";
+import { randomUUID } from "crypto";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
@@ -31,6 +32,7 @@ import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import { ExecutionsBuffer } from "@/utils/executions";
 import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
+import { getPersistentPermit } from "@/utils/permits";
 import { getPreSignatureId, getPreSignature, savePreSignature } from "@/utils/pre-signatures";
 import { getUSDAndCurrencyPrices } from "@/utils/prices";
 
@@ -277,7 +279,8 @@ export const getExecuteSellV7Options: RouteOptions = {
           price: string;
           sourceId: number | null;
           currency: string;
-          rawData: object;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          rawData: any;
           builtInFees: { kind: string; recipient: string; bps: number }[];
           additionalFees?: Sdk.RouterV6.Types.Fee[];
         },
@@ -396,6 +399,11 @@ export const getExecuteSellV7Options: RouteOptions = {
           ],
         });
 
+        // Load any permits
+        const permit = order.rawData.permitId
+          ? await getPersistentPermit(order.rawData.permitId, order.rawData.permitIndex ?? 0)
+          : undefined;
+
         bidDetails.push(
           await generateBidDetailsV6(
             {
@@ -417,7 +425,8 @@ export const getExecuteSellV7Options: RouteOptions = {
               tokenId: token.tokenId,
               amount: token.quantity,
               owner: token.owner,
-            }
+            },
+            permit
           )
         );
       };
@@ -985,6 +994,13 @@ export const getExecuteSellV7Options: RouteOptions = {
           items: [],
         },
         {
+          id: "currency-permit",
+          action: "Permit currency",
+          description: "Some orders need a permit to be relayed on-chain before filling",
+          kind: "transaction",
+          items: [],
+        },
+        {
           id: "sale",
           action: "Accept offer",
           description: "To sell this item you must confirm the transaction and pay the gas fee",
@@ -1194,13 +1210,25 @@ export const getExecuteSellV7Options: RouteOptions = {
         throw getExecuteError(error.message, errors);
       }
 
-      const { txs, success } = result;
+      const { preTxs, txs, success } = result;
 
       // Filter out any non-fillable orders from the path
       path = path.filter((p) => success[p.orderId]);
 
       if (!path.length) {
         throw getExecuteError("No fillable orders");
+      }
+
+      for (const preTx of preTxs) {
+        steps[3].items.push({
+          status: "incomplete",
+          orderIds: preTx.orderIds,
+          data: {
+            ...preTx.txData,
+            maxFeePerGas,
+            maxPriorityFeePerGas,
+          },
+        });
       }
 
       const approvals = txs.map(({ approvals }) => approvals).flat();
@@ -1266,7 +1294,7 @@ export const getExecuteSellV7Options: RouteOptions = {
           txData.data = exchange.attachTakerSignatures(txData.data, signaturesPaymentProcessor);
         }
 
-        steps[3].items.push({
+        steps[4].items.push({
           status: "incomplete",
           orderIds,
           data: !steps[2].items.length
@@ -1339,6 +1367,16 @@ export const getExecuteSellV7Options: RouteOptions = {
         })
       );
 
+      const key = request.headers["x-api-key"];
+      const apiKey = await ApiKeyManager.getApiKey(key);
+      logger.info(
+        `get-execute-sell-${version}-handler`,
+        JSON.stringify({
+          request: payload,
+          apiKey,
+        })
+      );
+
       return {
         requestId,
         steps: blurAuth ? [steps[0], ...steps.slice(1).filter((s) => s.items.length)] : steps,
@@ -1346,15 +1384,20 @@ export const getExecuteSellV7Options: RouteOptions = {
         path,
       };
     } catch (error) {
-      if (!(error instanceof Boom.Boom)) {
-        logger.error(
-          `get-execute-sell-${version}-handler`,
-          `Handler failure: ${error} (path = ${JSON.stringify({})}, request = ${JSON.stringify(
-            payload
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          )}, trace=${(error as any).stack})`
-        );
-      }
+      const key = request.headers["x-api-key"];
+      const apiKey = await ApiKeyManager.getApiKey(key);
+      logger.error(
+        `get-execute-sell-${version}-handler`,
+        JSON.stringify({
+          request: payload,
+          uuid: randomUUID(),
+          httpCode: error instanceof Boom.Boom ? error.output.statusCode : 500,
+          error:
+            error instanceof Boom.Boom ? error.output.payload : { error: "Internal Server Error" },
+          apiKey,
+        })
+      );
+
       throw error;
     }
   },

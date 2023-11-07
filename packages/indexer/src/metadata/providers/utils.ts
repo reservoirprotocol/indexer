@@ -97,6 +97,9 @@ export const normalizeMetadata = (collection: Collection): Metadata => {
     safelist_request_status: {
       key: "safelistRequestStatus",
     },
+    safelist_status: {
+      key: "safelistRequestStatus",
+    },
     name: {
       key: "name",
     },

@@ -35,6 +35,10 @@ import {
 } from "@/jobs/order-updates/order-updates-by-maker-job";
 import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
 import { transferUpdatesJob } from "@/jobs/transfer-updates/transfer-updates-job";
+import {
+  permitUpdatesJob,
+  PermitUpdatesJobPayload,
+} from "@/jobs/permit-updates/permit-updates-job";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -86,6 +90,9 @@ export type OnChainData = {
   orderInfos: OrderUpdatesByIdJobPayload[];
   makerInfos: OrderUpdatesByMakerJobPayload[];
 
+  // For properly keeping permits validated on the go
+  permitInfos: PermitUpdatesJobPayload[];
+
   // Orders
   orders: GenericOrderInfo[];
 };
@@ -112,6 +119,8 @@ export const initOnChainData = (): OnChainData => ({
 
   orderInfos: [],
   makerInfos: [],
+
+  permitInfos: [],
 
   orders: [],
 });
@@ -183,6 +192,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     await Promise.all([
       orderUpdatesByIdJob.addToQueue(data.orderInfos),
       orderUpdatesByMakerJob.addToQueue(data.makerInfos),
+      permitUpdatesJob.addToQueue(data.permitInfos),
       orderbookOrdersJob.addToQueue(data.orders),
     ]);
   }
@@ -191,6 +201,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   await transferUpdatesJob.addToQueue(nonFillTransferEvents);
   await mintQueueJob.addToQueue(data.mintInfos);
   await fillUpdatesJob.addToQueue(data.fillInfos);
+
   if (!backfill) {
     await mintsProcessJob.addToQueue(data.mints);
   }

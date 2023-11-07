@@ -12,6 +12,7 @@ export const Exchange: ChainIdToAddress = {
   [Network.EthereumSepolia]: "0x33c551effdf1dbde4ffeaa133b2757819bd1353d",
   [Network.Arbitrum]: "0xb52fdd8f3821cc60ba4583a822f03317de544bc2",
   [Network.Optimism]: "0xb52fdd8f3821cc60ba4583a822f03317de544bc2",
+  [Network.Scroll]: "0xb52fdd8f3821cc60ba4583a822f03317de544bc2",
 };
 
 export const AlienswapConduitKey: ChainIdToAddress = {
@@ -26,4 +27,5 @@ export const AlienswapConduitKey: ChainIdToAddress = {
   [Network.EthereumSepolia]: "0x7e727520b29773e7f23a8665649197aaf064cef1000000000000000000000000",
   [Network.Arbitrum]: "0xffa0cb9f057d077d85655be8823961c4fd4cb56a000000000000000000000000",
   [Network.Optimism]: "0xffa0cb9f057d077d85655be8823961c4fd4cb56a000000000000000000000000",
+  [Network.Scroll]: "0xffa0cb9f057d077d85655be8823961c4fd4cb56a000000000000000000000000",
 };

@@ -45,6 +45,9 @@ export const updateMarketplaceFeeSpec = async (
             SET marketplace_fees = $/marketplaceFees:json/,
                 updated_at = NOW()
           WHERE collections.id = $/collection/
+          AND (
+            collections.marketplace_fees IS DISTINCT FROM $/marketplaceFees:json/
+          )
         `,
         {
           collection,

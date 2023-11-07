@@ -19,6 +19,7 @@ import { normalizedFloorQueueJob } from "@/jobs/token-updates/normalized-floor-q
 import { tokenFloorQueueJob } from "@/jobs/token-updates/token-floor-queue-job";
 import { BidEventsList } from "@/models/bid-events-list";
 import { Sources } from "@/models/sources";
+import { isWhitelistedCurrency } from "@/utils/prices";
 
 export type OrderUpdatesByIdJobPayload = {
   // The context represents a deterministic id for what triggered
@@ -215,7 +216,7 @@ export default class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
                 quantityRemaining: order.quantityRemaining,
                 nonce: order.nonce,
                 maker: order.maker,
-                value: order.value,
+                value: isWhitelistedCurrency(fromBuffer(order.currency)) ? 0 : order.value,
                 kind: trigger.kind,
                 txHash: trigger.txHash ? toBuffer(trigger.txHash) : null,
                 txTimestamp: trigger.txTimestamp || null,

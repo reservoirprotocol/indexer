@@ -538,6 +538,7 @@ export const savePartialBids = async (
       } else {
         const currentBid = orderResult.raw_data as Sdk.Blur.Types.BlurBidPool;
         const bidUpdates = orderParams;
+        let skipSaveResult = false;
 
         if (currentBid.collection !== bidUpdates.collection) {
           return results.push({
@@ -640,7 +641,7 @@ export const savePartialBids = async (
             .map((p) => p.executableSize)
             .reduce((a, b) => a + b, 0);
 
-          await idb.none(
+          const { rowCount } = await idb.result(
             `
               UPDATE orders SET
                 fillability_status = 'fillable',
@@ -657,6 +658,15 @@ export const savePartialBids = async (
                 updated_at = now(),
                 raw_data = $/rawData:json/
               WHERE orders.id = $/id/
+              AND (
+                fillability_status != 'fillable'
+                OR price IS DISTINCT FROM $/price/ 
+                OR currency_price IS DISTINCT FROM $/price/
+                OR value IS DISTINCT FROM $/value/
+                OR currency_value IS DISTINCT FROM $/value/
+                OR quantity_remaining IS DISTINCT FROM $/totalQuantity/
+                OR raw_data IS DISTINCT FROM $/rawData:json/
+              )
             `,
             {
               id,
@@ -666,13 +676,19 @@ export const savePartialBids = async (
               rawData: currentBid,
             }
           );
+
+          skipSaveResult = rowCount === 0;
         }
 
-        results.push({
-          id,
-          status: "success",
-          triggerKind: "reprice",
-        });
+        if (skipSaveResult) {
+          // logger.info("orders-blur-save", `Skip reprice event. ${JSON.stringify(orderParams)}`);
+        } else {
+          results.push({
+            id,
+            status: "success",
+            triggerKind: "reprice",
+          });
+        }
       }
     } catch (error) {
       logger.error(

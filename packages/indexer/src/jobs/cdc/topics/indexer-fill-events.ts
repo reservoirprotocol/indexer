@@ -6,6 +6,11 @@ import {
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
 
+import {
+  EventKind as ProcessActivityEventKind,
+  processActivityEventJob,
+} from "@/jobs/activities/process-activity-event-job";
+
 export class IndexerFillEventsHandler extends KafkaEventHandler {
   topicName = "indexer.public.fill_events_2";
 
@@ -52,6 +57,17 @@ export class IndexerFillEventsHandler extends KafkaEventHandler {
       },
       eventKind: WebsocketEventKind.SaleEvent,
     });
+
+    await processActivityEventJob.addToQueue([
+      {
+        kind: ProcessActivityEventKind.fillEvent,
+        data: {
+          txHash: payload.after.tx_hash,
+          logIndex: payload.after.log_index,
+          batchIndex: payload.after.batch_index,
+        },
+      },
+    ]);
   }
 
   protected async handleDelete(): Promise<void> {

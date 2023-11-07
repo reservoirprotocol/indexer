@@ -3,6 +3,7 @@ import { toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { config } from "@/config/index";
 import { acquireLock, doesLockExist, releaseLock } from "@/common/redis";
+import { logger } from "@/common/logger";
 
 export type CollectionNormalizedJobPayload = {
   kind: string;
@@ -55,6 +56,17 @@ export default class CollectionNormalizedJob extends AbstractRabbitMqJobHandler 
       if (!acquiredLock) {
         return;
       }
+    }
+
+    if (config.chainId === 11155111) {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "debugCollectionUpdates",
+          message: `Update collection. collectionId=${collectionResult.collection_id}`,
+          collectionId: collectionResult.collection_id,
+        })
+      );
     }
 
     await idb.none(

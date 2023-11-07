@@ -6,11 +6,12 @@ import Joi from "joi";
 
 import { config } from "@/config/index";
 import { logger } from "@/common/logger";
+import { regex } from "@/common/utils";
 
 const version = "v1";
 
 export const postExecuteSolveV1Options: RouteOptions = {
-  description: "Indirectly fill an order via a relayer",
+  description: "Indirectly fill an order via a solver",
   tags: ["api", "Misc"],
   plugins: {
     "hapi-swagger": {
@@ -21,10 +22,18 @@ export const postExecuteSolveV1Options: RouteOptions = {
     query: Joi.object({
       signature: Joi.string().description("Signature for the solve request"),
     }),
-    payload: Joi.object({
-      kind: Joi.string().valid("seaport-v1.5-intent").required(),
-      order: Joi.any().required(),
-    }),
+    payload: Joi.alternatives(
+      Joi.object({
+        kind: Joi.string().valid("seaport-intent").required(),
+        order: Joi.any().required(),
+      }),
+      Joi.object({
+        kind: Joi.string().valid("cross-chain-intent").required(),
+        order: Joi.any(),
+        tx: Joi.string().pattern(regex.bytes),
+        chainId: Joi.number().required(),
+      })
+    ),
   },
   response: {
     schema: Joi.object({
@@ -46,32 +55,91 @@ export const postExecuteSolveV1Options: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      switch (payload.kind) {
-        case "seaport-v1.5-intent": {
-          const order = new Sdk.SeaportV15.Order(config.chainId, {
-            ...payload.order,
-            signature: payload.order.signature ?? query.signature,
-          });
+      try {
+        switch (payload.kind) {
+          case "cross-chain-intent": {
+            if (payload.order) {
+              const response = await axios
+                .post(`${config.crossChainSolverBaseUrl}/intents/trigger`, {
+                  chainId: payload.chainId,
+                  request: {
+                    ...payload.order,
+                    signature: payload.order.signature ?? query.signature,
+                  },
+                })
+                .then((response) => response.data);
 
-          await axios
-            .post(`${config.solverBaseUrl}/intents/seaport`, { order: order.params })
-            .then((response) => response.data);
+              return {
+                status: {
+                  endpoint: "/execute/status/v1",
+                  method: "POST",
+                  body: {
+                    kind: payload.kind,
+                    id: response.hash,
+                  },
+                },
+              };
+            } else if (payload.tx) {
+              const response = await axios
+                .post(`${config.crossChainSolverBaseUrl}/intents/trigger`, {
+                  chainId: payload.chainId,
+                  tx: payload.tx,
+                })
+                .then((response) => response.data);
 
-          return {
-            status: {
-              endpoint: "/execute/status/v1",
-              method: "POST",
-              body: {
-                kind: payload.kind,
-                id: order.hash(),
+              return {
+                status: {
+                  endpoint: "/execute/status/v1",
+                  method: "POST",
+                  body: {
+                    kind: payload.kind,
+                    id: response.hash,
+                  },
+                },
+              };
+            } else {
+              throw Boom.badRequest("Must specify one of `order` or `tx`");
+            }
+          }
+
+          case "seaport-intent": {
+            const order = new Sdk.SeaportV15.Order(config.chainId, {
+              ...payload.order,
+              signature: payload.order.signature ?? query.signature,
+            });
+
+            await axios.post(`${config.seaportSolverBaseUrl}/trigger`, {
+              chainId: config.chainId,
+              order: order.params,
+            });
+
+            return {
+              status: {
+                endpoint: "/execute/status/v1",
+                method: "POST",
+                body: {
+                  kind: payload.kind,
+                  id: order.hash(),
+                },
               },
-            },
-          };
+            };
+          }
+
+          default: {
+            throw Boom.badRequest("Unknown kind");
+          }
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        // Forward any solver errors
+        const errorResponseData = error.response?.data;
+        if (errorResponseData) {
+          throw Boom.badRequest(
+            errorResponseData.message ? errorResponseData.message : errorResponseData
+          );
         }
 
-        default: {
-          throw Boom.badRequest("Unknown kind");
-        }
+        throw error;
       }
     } catch (error) {
       logger.error(`post-execute-solve-${version}-handler`, `Handler failure: ${error}`);

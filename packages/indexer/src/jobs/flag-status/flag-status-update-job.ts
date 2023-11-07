@@ -36,6 +36,7 @@ export default class FlagStatusUpdateJob extends AbstractRabbitMqJobHandler {
         tokenId,
       }
     );
+
     if (result) {
       if (result.is_flagged !== isFlagged) {
         await idb.none(

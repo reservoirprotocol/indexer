@@ -31,6 +31,11 @@ import * as registry from "@/utils/royalties/registry";
 import { config } from "@/config/index";
 import { AlchemyApi } from "@/utils/alchemy";
 import { AlchemySpamContracts } from "@/models/alchemy-spam-contracts";
+import {
+  ActionsLogContext,
+  ActionsLogOrigin,
+  actionsLogJob,
+} from "@/jobs/general-tracking/actions-log-job";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -112,7 +117,8 @@ export class Collections {
     const collectionResult = await idb.oneOrNone(
       `
         SELECT
-          collections.id
+          collections.id,
+          collections.is_spam AS "isSpam"
         FROM tokens
         JOIN collections
           ON tokens.collection_id = collections.id
@@ -153,20 +159,7 @@ export class Collections {
       community
     );
 
-    if (collection.isCopyrightInfringement) {
-      collection.name = collection.id;
-      collection.metadata = null;
-
-      logger.info(
-        "updateCollectionCache",
-        JSON.stringify({
-          topic: "debugCopyrightInfringement",
-          message: "Collection is a copyright infringement",
-          contract,
-          collection,
-        })
-      );
-    } else if (collection.metadata == null) {
+    if (collection.metadata == null) {
       const collectionResult = await Collections.getById(collection.id);
 
       if (collectionResult?.metadata != null) {
@@ -201,9 +194,26 @@ export class Collections {
       );
     }
 
-    const isSpamContract = await AlchemyApi.isSpamContract(collection.contract);
-    if (isSpamContract) {
-      await AlchemySpamContracts.add(collection.contract);
+    // Check if the collection already marked as spam
+    let isSpamContract = false;
+    if (Number(collectionResult.isSpam) === 0) {
+      isSpamContract = await AlchemyApi.isSpamContract(collection.contract);
+      if (isSpamContract && !(await AlchemySpamContracts.exists(collection.contract))) {
+        await AlchemySpamContracts.add(collection.contract);
+
+        // Track the change
+        await actionsLogJob.addToQueue([
+          {
+            context: ActionsLogContext.SpamContractUpdate,
+            origin: ActionsLogOrigin.CollectionRefresh,
+            actionTakerIdentifier: "alchemy",
+            contract,
+            data: {
+              newSpamState: 1,
+            },
+          },
+        ]);
+      }
     }
 
     const query = `
@@ -221,7 +231,7 @@ export class Collections {
             OR slug IS DISTINCT FROM $/slug/ 
             OR payment_tokens IS DISTINCT FROM $/paymentTokens/ 
             OR creator IS DISTINCT FROM $/creator/
-            OR $/isSpamContract/ = 1
+            OR ((is_spam IS NULL OR is_spam = 0) AND $/isSpamContract/ = 1)
             )
       RETURNING (
                   SELECT
@@ -358,6 +368,17 @@ export class Collections {
   }
 
   public static async recalculateCollectionFloorSell(collection: string) {
+    if (config.chainId === 11155111) {
+      logger.info(
+        "recalculateCollectionFloorSell",
+        JSON.stringify({
+          topic: "debugCollectionUpdates",
+          message: `Update collection. collectionId=${collection}`,
+          collectionId: collection,
+        })
+      );
+    }
+
     const query = `
       UPDATE collections SET
         floor_sell_id = x.floor_sell_id,

@@ -3,7 +3,8 @@ import { logger } from "@/common/logger";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { collectionNewContractDeployedJob } from "@/jobs/collections/collection-contract-deployed";
-import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
+import { mintsRefreshJob, triggerDelayedRefresh } from "@/jobs/mints/mints-refresh-job";
+import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 import {
   CollectionMint,
   CollectionMintStandard,
@@ -11,9 +12,6 @@ import {
 } from "@/orderbook/mints";
 import * as detector from "@/orderbook/mints/calldata/detector";
 import { getContractKind } from "@/orderbook/mints/calldata/helpers";
-import MetadataProviderRouter from "@/metadata/metadata-provider-router";
-
-import { manifold } from "@/orderbook/mints/calldata/detector";
 
 export type MintsProcessJobPayload =
   | {
@@ -173,12 +171,10 @@ export default class MintsProcessJob extends AbstractRabbitMqJobHandler {
             } else if (kind === "erc1155") {
               collectionMints = await detector.manifold.extractByCollectionERC1155(
                 data.collection,
-                await manifold.getTokenIdForERC1155Mint(
-                  data.collection,
-                  data.additionalInfo.instanceId,
-                  data.additionalInfo.extension
-                ),
-                data.additionalInfo.extension
+                {
+                  instanceId: data.additionalInfo.instanceId,
+                  extension: data.additionalInfo.extension,
+                }
               );
             }
 
@@ -241,6 +237,11 @@ export default class MintsProcessJob extends AbstractRabbitMqJobHandler {
       for (const collectionMint of collectionMints) {
         const result = await simulateAndUpsertCollectionMint(collectionMint);
         logger.info("mints-process", JSON.stringify({ success: result, collectionMint }));
+
+        // Refresh the collection with a delay
+        if (result) {
+          await triggerDelayedRefresh(collectionMint.collection);
+        }
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

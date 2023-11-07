@@ -65,6 +65,8 @@ export const postOrderV4Options: RouteOptions = {
             collection: Joi.string(),
             tokenSetId: Joi.string(),
             isNonFlagged: Joi.boolean(),
+            permitId: Joi.string(),
+            permitIndex: Joi.number(),
             bulkData: Joi.object({
               kind: Joi.string()
                 .valid("seaport-v1.4", "seaport-v1.5", "alienswap")
@@ -166,6 +168,10 @@ export const postOrderV4Options: RouteOptions = {
 
           // - only relevant for non-flagged tokens bids
           const isNonFlagged = item.isNonFlagged;
+
+          // Permits
+          const permitId = payload.permitId;
+          const permitIndex = payload.permitIndex;
 
           const signature = query.signature ?? order.data.signature;
           if (signature) {
@@ -366,6 +372,8 @@ export const postOrderV4Options: RouteOptions = {
                       metadata: {
                         schema,
                         source,
+                        permitId,
+                        permitIndex,
                       },
                     },
                   ]);

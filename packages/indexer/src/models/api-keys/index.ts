@@ -111,7 +111,9 @@ export class ApiKeyManager {
         created_at: "1970-01-01T00:00:00.000Z",
         active: true,
         tier: 5,
-        permissions: {},
+        permissions: {
+          update_metadata_disabled: true,
+        },
         ips: [],
         origins: [],
         rev_share_bps: ApiKeyManager.defaultRevShareBps,
@@ -337,6 +339,11 @@ export class ApiKeyManager {
           });
 
           updateString += `${_.snakeCase(fieldName)} = '$/${fieldName}:raw/'::jsonb,`;
+          (replacementValues as any)[`${fieldName}`] = JSON.stringify(value);
+        } else if (_.isObject(value)) {
+          updateString += `${_.snakeCase(
+            fieldName
+          )} = COALESCE(${fieldName}, '{}') || '$/${fieldName}:raw/'::jsonb,`;
           (replacementValues as any)[`${fieldName}`] = JSON.stringify(value);
         } else {
           updateString += `${_.snakeCase(fieldName)} = $/${fieldName}/,`;

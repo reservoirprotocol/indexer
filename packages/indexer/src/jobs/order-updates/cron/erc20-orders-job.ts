@@ -74,12 +74,19 @@ export default class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandle
         const dataForPrice = await getUSDAndNativePrices(
           convertedCurrency,
           currency_price,
-          currentTime
+          currentTime,
+          {
+            nonZeroCommunityTokens: true,
+          }
         );
+
         const dataForValue = await getUSDAndNativePrices(
           convertedCurrency,
           currency_value,
-          currentTime
+          currentTime,
+          {
+            nonZeroCommunityTokens: true,
+          }
         );
 
         let dataForNormalizedValue: USDAndNativePrices | undefined;
@@ -87,7 +94,10 @@ export default class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandle
           dataForNormalizedValue = await getUSDAndNativePrices(
             convertedCurrency,
             currency_normalized_value,
-            currentTime
+            currentTime,
+            {
+              nonZeroCommunityTokens: true,
+            }
           );
         }
 

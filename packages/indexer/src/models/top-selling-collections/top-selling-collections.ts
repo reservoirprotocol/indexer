@@ -6,6 +6,9 @@ import {
 
 import { CollectionAggregation } from "@/elasticsearch/indexes/activities/base";
 
+import { redb } from "@/common/db";
+import { logger } from "@/common/logger";
+
 const VERSION = "v2";
 const expireTimeInSeconds = 1800;
 
@@ -59,10 +62,31 @@ export const getStartTime = (period: Period): number => {
   return startTime;
 };
 
+export const saveActiveSpamCollectionIds = async () => {
+  const query = `
+    SELECT 
+      collections.id
+    FROM collections
+    WHERE
+      day30_volume > 0 AND
+      is_spam = 1
+  `;
+
+  const results = await redb.manyOrNone(query);
+  const ids = results.map((r) => r.id);
+  await redis.set("active-spam-collection-ids", JSON.stringify(ids));
+};
+
 export class TopSellingCollections {
   public static async updateTopSellingCollections(): Promise<TopSellingCollectionWindow[]> {
     const periods: Period[] = ["1h", "6h", "1d", "7d", "30d"];
     const fillSorts: FillSort[] = ["volume", "sales"];
+
+    try {
+      await saveActiveSpamCollectionIds();
+    } catch (err) {
+      logger.error("top-selling-collections", `failed to update active spam collection ids ${err}`);
+    }
 
     const tasks = fillSorts.flatMap((fillSort) => {
       return periods.map(async (period) => {

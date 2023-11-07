@@ -2,6 +2,7 @@ import { defaultAbiCoder } from "@ethersproject/abi";
 import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
+import _ from "lodash";
 
 import { idb } from "@/common/db";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
@@ -371,7 +372,7 @@ export const refreshMintsForCollection = async (collection: string) => {
         return mints.zora.refreshByCollection(collection);
     }
   } else {
-    const lastMintResult = await idb.oneOrNone(
+    const lastMintsResult = await idb.manyOrNone(
       `
         SELECT
           nft_transfer_events.tx_hash
@@ -380,23 +381,19 @@ export const refreshMintsForCollection = async (collection: string) => {
           AND nft_transfer_events."from" = $/from/
           AND nft_transfer_events.is_deleted = 0
         ORDER BY nft_transfer_events.timestamp DESC
-        LIMIT 1
+        LIMIT 20
       `,
       {
         contract: toBuffer(collection),
         from: toBuffer(AddressZero),
       }
     );
-    if (lastMintResult) {
+    if (lastMintsResult.length) {
       await mintsProcessJob.addToQueue(
-        [
-          {
-            by: "tx",
-            data: {
-              txHash: fromBuffer(lastMintResult.tx_hash),
-            },
-          },
-        ],
+        _.uniq(lastMintsResult.map((r) => fromBuffer(r.tx_hash))).map((txHash) => ({
+          by: "tx",
+          data: { txHash },
+        })),
         true
       );
     }

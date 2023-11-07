@@ -174,6 +174,10 @@ export abstract class AbstractRabbitMqJobHandler {
     }
   }
 
+  public async handle(payload: any) {
+    return await this.process(payload);
+  }
+
   // Function to handle on completed event
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public async onCompleted(message: RabbitMQMessage, processResult: any) {

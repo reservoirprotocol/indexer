@@ -7,7 +7,6 @@ import { toBuffer } from "@/common/utils";
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { OrderKind } from "@/orderbook/orders";
-import { Network } from "@reservoir0x/sdk/dist/utils";
 import { getTokenMetadata } from "./utils";
 
 export type SaleWebsocketEventsTriggerQueueJobPayload = {
@@ -33,81 +32,81 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
     delay: 1000,
   } as BackoffStrategy;
 
-  static async format(payload: SaleWebsocketEventsTriggerQueueJobPayload) {
+  protected async process(payload: SaleWebsocketEventsTriggerQueueJobPayload) {
     const { data } = payload;
-    const r = await getTokenMetadata(data.after.token_id, data.after.contract);
-    const result = await getJoiSaleObject({
-      prices: {
-        gross: {
-          amount: data.after.currency_price ?? data.after.price,
-          nativeAmount: data.after.price,
-          usdAmount: data.after.usd_price,
+    try {
+      const r = await getTokenMetadata(data.after.token_id, data.after.contract);
+      const result = await getJoiSaleObject({
+        prices: {
+          gross: {
+            amount: data.after.currency_price ?? data.after.price,
+            nativeAmount: data.after.price,
+            usdAmount: data.after.usd_price,
+          },
         },
-      },
-      fees: {
-        royaltyFeeBps: data.after.royalty_fee_bps,
-        marketplaceFeeBps: data.after.marketplace_fee_bps,
-        paidFullRoyalty: data.after.paid_full_royalty,
-        royaltyFeeBreakdown: data.after.royalty_fee_breakdown
-          ? JSON.parse(data.after.royalty_fee_breakdown)
-          : [],
-        marketplaceFeeBreakdown: data.after.marketplace_fee_breakdown
-          ? JSON.parse(data.after.marketplace_fee_breakdown)
-          : [],
-      },
-      currencyAddress: toBuffer(data.after.currency),
-      timestamp: data.after.timestamp,
-      contract: toBuffer(data.after.contract),
-      tokenId: data.after.token_id,
-      name: r?.name,
-      image: r?.image,
-      collectionId: r?.collection_id,
-      collectionName: r?.collection_name,
-      washTradingScore: data.after.wash_trading_score,
-      orderId: data.after.order_id,
-      orderSourceId: data.after.order_source_id_int,
-      orderSide: data.after.order_side,
-      orderKind: data.after.order_kind,
-      maker: toBuffer(data.after.maker),
-      taker: toBuffer(data.after.taker),
-      amount: data.after.amount,
-      fillSourceId: data.after.fill_source_id,
-      block: data.after.block,
-      txHash: toBuffer(data.after.tx_hash),
-      logIndex: data.after.log_index,
-      batchIndex: data.after.batch_index,
-      createdAt: new Date(data.after.created_at).toISOString(),
-      updatedAt: new Date(data.after.updated_at).toISOString(),
-    });
+        fees: {
+          royaltyFeeBps: data.after.royalty_fee_bps,
+          marketplaceFeeBps: data.after.marketplace_fee_bps,
+          paidFullRoyalty: data.after.paid_full_royalty,
+          royaltyFeeBreakdown: data.after.royalty_fee_breakdown
+            ? JSON.parse(data.after.royalty_fee_breakdown)
+            : [],
+          marketplaceFeeBreakdown: data.after.marketplace_fee_breakdown
+            ? JSON.parse(data.after.marketplace_fee_breakdown)
+            : [],
+        },
+        currencyAddress: toBuffer(data.after.currency),
+        timestamp: data.after.timestamp,
+        contract: toBuffer(data.after.contract),
+        tokenId: data.after.token_id,
+        name: r?.name,
+        image: r?.image,
+        collectionId: r?.collection_id,
+        collectionName: r?.collection_name,
+        washTradingScore: data.after.wash_trading_score,
+        orderId: data.after.order_id,
+        orderSourceId: data.after.order_source_id_int,
+        orderSide: data.after.order_side,
+        orderKind: data.after.order_kind,
+        maker: toBuffer(data.after.maker),
+        taker: toBuffer(data.after.taker),
+        amount: data.after.amount,
+        fillSourceId: data.after.fill_source_id,
+        block: data.after.block,
+        txHash: toBuffer(data.after.tx_hash),
+        logIndex: data.after.log_index,
+        batchIndex: data.after.batch_index,
+        createdAt: new Date(data.after.created_at).toISOString(),
+        updatedAt: new Date(data.after.updated_at).toISOString(),
+      });
 
-    result.id = crypto
-      .createHash("sha256")
-      .update(
-        `${data.after.tx_hash}${toBuffer(data.after.maker)}${toBuffer(data.after.taker)}${toBuffer(
-          data.after.contract
-        )}${data.after.token_id}${data.after.price}`
-      )
-      .digest("hex");
+      result.id = crypto
+        .createHash("sha256")
+        .update(
+          `${data.after.tx_hash}${toBuffer(data.after.maker)}${toBuffer(
+            data.after.taker
+          )}${toBuffer(data.after.contract)}${data.after.token_id}${data.after.price}`
+        )
+        .digest("hex");
 
-    delete result.saleId;
+      delete result.saleId;
 
-    let eventType = "";
-    const changed = [];
-    if (data.trigger === "insert") eventType = "sale.created";
-    else if (data.trigger === "update") {
-      // if isDeleted is true, then it's a delete event
-      if (data.after.is_deleted) eventType = "sale.deleted";
-      else {
-        eventType = "sale.updated";
-        if (data.before) {
-          for (const key in changedMapping) {
-            if (data.before[key as keyof SaleInfo] !== data.after[key as keyof SaleInfo]) {
-              changed.push(changedMapping[key as keyof typeof changedMapping]);
+      let eventType = "";
+      const changed = [];
+      if (data.trigger === "insert") eventType = "sale.created";
+      else if (data.trigger === "update") {
+        // if isDeleted is true, then it's a delete event
+        if (data.after.is_deleted) eventType = "sale.deleted";
+        else {
+          eventType = "sale.updated";
+          if (data.before) {
+            for (const key in changedMapping) {
+              if (data.before[key as keyof SaleInfo] !== data.after[key as keyof SaleInfo]) {
+                changed.push(changedMapping[key as keyof typeof changedMapping]);
+              }
             }
-          }
 
-          if (!changed.length) {
-            if (config.chainId === Network.Ethereum) {
+            if (!changed.length) {
               try {
                 for (const key in data.after) {
                   const beforeValue = data.before[key as keyof SaleInfo];
@@ -141,44 +140,34 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
                   })
                 );
               }
-            }
 
-            return;
+              return;
+            }
           }
         }
       }
-    }
 
-    const tags: { [key: string]: string } = {
-      contract: data.after.contract,
-      maker: data.after.maker,
-      taker: data.after.taker,
-    };
+      const tags: { [key: string]: string } = {
+        contract: data.after.contract,
+        maker: data.after.maker,
+        taker: data.after.taker,
+      };
 
-    if (result.fillSource) {
-      tags.fillSource = result.fillSource;
-    }
-
-    if (result.orderSource) {
-      tags.orderSource = result.orderSource;
-    }
-
-    return {
-      event: eventType,
-      tags,
-      changed,
-      data: result,
-      offset: data.offset,
-    };
-  }
-
-  protected async process(payload: SaleWebsocketEventsTriggerQueueJobPayload) {
-    const { data } = payload;
-    try {
-      const message = await SaleWebsocketEventsTriggerQueueJob.format(payload);
-      if (message) {
-        await publishWebsocketEvent(message);
+      if (result.fillSource) {
+        tags.fillSource = result.fillSource;
       }
+
+      if (result.orderSource) {
+        tags.orderSource = result.orderSource;
+      }
+
+      await publishWebsocketEvent({
+        event: eventType,
+        tags,
+        changed,
+        data: result,
+        offset: data.offset,
+      });
     } catch (error) {
       logger.error(
         this.queueName,

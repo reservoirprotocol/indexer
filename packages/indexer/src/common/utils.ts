@@ -136,7 +136,6 @@ export const isBase64 = (base64: string) => {
     // This function is mainly for detecting base64 strings in payloads from debeezium, which are sometimes 4 characters long.
     // An example of this is the "side" field in the orders table, which is either "buy" or "sell". For "sell" string, this function
     // normally would return true if it was not for the check below that checks if the string is exactly "sell".
-
     if (!base64 || base64.length % 4 !== 0 || typeof base64 !== "string" || base64 === "sell") {
       return false;
     }

@@ -26,6 +26,7 @@ export const Native: ChainIdToAddress = {
   [Network.PolygonZkevm]: AddressZero,
   [Network.Ancient8Testnet]: AddressZero,
   [Network.Scroll]: AddressZero,
+  [Network.ImmutableZkevmTestnet]: AddressZero,
 };
 
 // Wrapped native currency
@@ -52,6 +53,7 @@ export const WNative: ChainIdToAddress = {
   [Network.PolygonZkevm]: "0x4f9a0e7fd2bf6067db6994cf12e4495df938e6e9",
   [Network.Ancient8Testnet]: "0x4200000000000000000000000000000000000006",
   [Network.Scroll]: "0x5300000000000000000000000000000000000004",
+  [Network.ImmutableZkevmTestnet]: "0xaf7cf5d4af0bfaa85d384d42b8d410762ccbce69",
 };
 
 export const Usdc: ChainIdToAddressList = {
@@ -153,7 +155,7 @@ export const Create3Factory: ChainIdToAddress = {
   [Network.Linea]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
   [Network.PolygonZkevm]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
   [Network.Ancient8Testnet]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
-  [Network.Scroll]: "0x3729014ef28f01b3ddcf7f980d925e0b71b1f847",
+  [Network.Scroll]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
 };
 
 export const GelatoRelay1BalanceERC2771: ChainIdToAddress = {

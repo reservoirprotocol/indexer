@@ -89,11 +89,13 @@ async function refreshNFTBalance(owner: string, contract: string, tokenId: strin
         INSERT INTO tokens(
           contract,
           token_id,
-          minted_timestamp
+          minted_timestamp,
+          collection_id
         ) VALUES (
           $/contract/,
           $/tokenId/,
-          $/mintedTimestamp/
+          $/mintedTimestamp/,
+          $/contract/
         ) 
         ON CONFLICT DO NOTHING RETURNING 1
       `,
@@ -101,6 +103,28 @@ async function refreshNFTBalance(owner: string, contract: string, tokenId: strin
         contract: toBuffer(contract),
         tokenId,
         mintedTimestamp: Math.floor(Date.now() / 1000),
+      }
+    );
+
+    await idb.oneOrNone(
+      `
+        INSERT INTO collections(
+          id,
+          name,
+          slug,
+          contract
+        ) VALUES (
+          $/contract/,
+          $/name/,
+          $/slug/,
+          $/contract/
+        ) 
+        ON CONFLICT DO NOTHING RETURNING 1
+      `,
+      {
+        contract: toBuffer(contract),
+        name: "test",
+        slug: contract,
       }
     );
 
@@ -244,12 +268,12 @@ export const orderSavingOptions: RouteOptions = {
     // Refresh NFT balance
     for (let index = 0; index < nfts.length; index++) {
       const nft = nfts[index];
-      await refreshNFTBalance(nft.owner, nft.collection, nft.tokenId);
+      await refreshNFTBalance(nft.owner, nft.collection.toLowerCase(), nft.tokenId);
     }
 
     // Store contract
     if (payload.contract) {
-      await saveContract(payload.contract, payload.kind);
+      await saveContract(payload.contract.toLowerCase(), payload.kind);
     }
 
     // Save order

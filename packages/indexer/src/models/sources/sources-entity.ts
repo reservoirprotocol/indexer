@@ -37,6 +37,7 @@ export type SourcesMetadata = {
   tokenUrlZksync?: string;
   tokenUrlPolygonZkevm?: string;
   tokenUrlScroll?: string;
+  tokenUrlImmutableZkevmTestnet?: string;
 };
 
 export class SourcesEntity {

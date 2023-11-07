@@ -5,7 +5,7 @@ import Joi from "joi";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { toBuffer } from "@/common/utils";
+import { regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
 const version = "v1";
@@ -21,18 +21,22 @@ export const postExecuteStatusV1Options: RouteOptions = {
   validate: {
     payload: Joi.object({
       kind: Joi.string()
-        .valid("cross-chain-intent", "seaport-v1.5-intent", "transaction")
+        .valid("cross-chain-intent", "cross-chain-transaction", "seaport-intent", "transaction")
         .required()
         .description("Execution kind"),
       id: Joi.string()
         .required()
         .description("The id of the execution (eg. transaction / order / intent hash)"),
+      chainId: Joi.number().description(
+        "Chain id where the action is happening (only relevant for 'cross-chain-transaction' actions)"
+      ),
     }),
   },
   response: {
     schema: Joi.object({
-      status: Joi.string().valid("unknown", "pending", "success", "failure").required(),
+      status: Joi.string().valid("unknown", "pending", "received", "success", "failure").required(),
       details: Joi.string(),
+      txHashes: Joi.array().items(Joi.string().pattern(regex.bytes32)),
       time: Joi.number(),
     }).label(`postExecuteStatus${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
@@ -61,10 +65,25 @@ export const postExecuteStatusV1Options: RouteOptions = {
           }
         }
 
+        case "cross-chain-transaction": {
+          const result: {
+            status: string;
+          } = await axios
+            .get(
+              `${config.crossChainSolverBaseUrl}/transactions/status?chainId=${payload.chainId}&hash=${payload.id}`
+            )
+            .then((response) => response.data);
+
+          return {
+            status: result.status,
+          };
+        }
+
         case "cross-chain-intent": {
           const result: {
             status: string;
             details?: string;
+            txHashes?: string[];
             time?: number;
           } = await axios
             .get(`${config.crossChainSolverBaseUrl}/intents/status?hash=${payload.id}`)
@@ -73,22 +92,25 @@ export const postExecuteStatusV1Options: RouteOptions = {
           return {
             status: result.status,
             details: result.details,
+            txHashes: result.txHashes,
             time: result.time,
           };
         }
 
-        case "seaport-v1.5-intent": {
+        case "seaport-intent": {
           const result: {
             status: string;
             details?: string;
+            txHashes?: string[];
             time?: number;
           } = await axios
-            .get(`${config.solverBaseUrl}/intents/seaport/status?hash=${payload.id}`)
+            .get(`${config.seaportSolverBaseUrl}/status?hash=${payload.id}`)
             .then((response) => response.data);
 
           return {
             status: result.status,
             details: result.details,
+            txHashes: result.txHashes,
             time: result.time,
           };
         }
