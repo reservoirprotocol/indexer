@@ -370,9 +370,19 @@ export const getTokensV6Options: RouteOptions = {
 
     const enableElasticsearchAsks =
       config.enableElasticsearchAsks &&
+      query.sortBy === "floorAskPrice" &&
       !["tokenName", "tokenSetId"].some((filter) => query[filter]);
 
     if (enableElasticsearchAsks) {
+      logger.info(
+        `get-tokens-${version}-handler`,
+        JSON.stringify({
+          topic: "debugAskIndex",
+          message: "Using Elasticsearch for asks",
+          query,
+        })
+      );
+
       const listedTokens = await getListedTokensFromES(query);
 
       if (listedTokens.continuation || query.source || query.nativeSource) {

@@ -368,9 +368,20 @@ export const getTokensV7Options: RouteOptions = {
 
     let esTokens: any[] = [];
 
-    const enableElasticsearchAsks = !["tokenName", "tokenSetId"].some((filter) => query[filter]);
+    const enableElasticsearchAsks =
+      query.sortBy === "floorAskPrice" &&
+      !["tokenName", "tokenSetId"].some((filter) => query[filter]);
 
     if (enableElasticsearchAsks) {
+      logger.info(
+        `get-tokens-${version}-handler`,
+        JSON.stringify({
+          topic: "debugAskIndex",
+          message: "Using Elasticsearch for asks",
+          query,
+        })
+      );
+
       const listedTokens = await getListedTokensFromES(query);
 
       if (listedTokens.continuation || query.source || query.nativeSource) {
