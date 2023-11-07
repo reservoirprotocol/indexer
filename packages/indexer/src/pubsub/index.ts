@@ -16,6 +16,7 @@ import { ResumeRabbitConsumerQueueEvent } from "@/pubsub/events/resume-rabbit-co
 import getUuidByString from "uuid-by-string";
 import { RateLimitCreatedEvent } from "@/pubsub/all-chains-events/rate-limit-created-event";
 import { RateLimitDeletedEvent } from "@/pubsub/all-chains-events/rate-limit-deleted-event";
+import { MetadataReenabledEvent } from "@/pubsub/events/metadata-reenable-event";
 
 // Subscribe to all channels defined in the `Channel` enum
 redisSubscriber.subscribe(_.values(Channel), (error, count) => {
@@ -51,6 +52,10 @@ redisSubscriber.on("message", async (channel, message) => {
 
     case Channel.ResumeRabbitConsumerQueue:
       await ResumeRabbitConsumerQueueEvent.handleEvent(message);
+      break;
+
+    case Channel.MetadataReenabled:
+      await MetadataReenabledEvent.handleEvent(message);
       break;
   }
 });

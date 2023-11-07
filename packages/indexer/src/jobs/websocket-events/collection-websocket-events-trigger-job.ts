@@ -54,6 +54,7 @@ interface CollectionInfo {
   top_buy_maker: string;
   top_buy_valid_between: string;
   top_buy_source_id_int: number;
+  metadata_disabled?: number;
   created_at: string;
   updated_at: string;
 }
@@ -95,6 +96,7 @@ const changedMapping = {
   non_flagged_floor_sell_value: "floorAskNonFlagged.price",
   top_buy_id: "topBid.id",
   top_buy_value: "topBid.value",
+  metadata_disabled: "metadataDisabled",
 };
 
 export type CollectionWebsocketEventsTriggerQueuePayload = {
@@ -203,31 +205,35 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
         ? sources.get(r.non_flagged_floor_sell_source_id_int)
         : null;
 
+      const metadataDisabled = r.metadata_disabled;
+      const id = !metadataDisabled ? r.id : r.contract;
+
       await publishWebsocketEvent({
         event: eventType,
         tags: {
-          id: r.id,
+          id,
         },
         changed,
         data: {
-          id: r.id,
-          slug: r.slug,
-          name: r.name,
+          id,
+          slug: !metadataDisabled ? r.slug : r.contract,
+          name: !metadataDisabled ? r.name : r.contract,
           isSpam: Number(r.is_spam) > 0,
           metadata: {
-            imageUrl: Assets.getLocalAssetsLink(metadata?.imageUrl),
-            bannerImageUrl: metadata?.bannerImageUrl,
-            discordUrl: metadata?.discordUrl,
-            externalUrl: metadata?.externalUrl,
-            twitterUsername: metadata?.twitterUsername,
-            description: metadata?.description,
+            imageUrl: !metadataDisabled ? Assets.getLocalAssetsLink(metadata?.imageUrl) : null,
+            bannerImageUrl: !metadataDisabled ? metadata?.bannerImageUrl : null,
+            discordUrl: !metadataDisabled ? metadata?.discordUrl : null,
+            externalUrl: !metadataDisabled ? metadata?.externalUrl : null,
+            twitterUsername: !metadataDisabled ? metadata?.twitterUsername : null,
+            description: !metadataDisabled ? metadata?.description : null,
           },
+          metadataDisabled: Boolean(Number(metadataDisabled)),
           tokenCount: String(r.token_count),
           primaryContract: r.contract,
-          tokenSetId: r.token_set_id,
+          tokenSetId: !metadataDisabled ? r.token_set_id : `contract:${r.contract}`,
           contractKind,
-          openseaVerificationStatus: metadata?.safelistRequestStatus,
-          royalties: r.royalties ? JSON.parse(r.royalties)[0] : null,
+          openseaVerificationStatus: !metadataDisabled ? metadata?.safelistRequestStatus : null,
+          royalties: !metadataDisabled && r.royalties ? JSON.parse(r.royalties)[0] : null,
           topBid: {
             id: r.top_buy_id,
             value: r.top_buy_value ? formatEth(r.top_buy_value) : null,

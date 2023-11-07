@@ -25,4 +25,5 @@ export * from "@/api/endpoints/tokens/post-tokens-refresh/v1";
 export * from "@/api/endpoints/tokens/post-flag-token/v1";
 export * from "@/api/endpoints/tokens/get-tokens-ids/v1";
 export * from "@/api/endpoints/tokens/get-tokens-flag-changes/v1";
+export * from "@/api/endpoints/tokens/post-set-token-disable-metadata/v1";
 export * from "@/api/endpoints/tokens/post-spam-status-token/v1";

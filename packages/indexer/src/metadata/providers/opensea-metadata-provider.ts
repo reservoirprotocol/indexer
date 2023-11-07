@@ -21,27 +21,23 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
     tokenId: string
   ): Promise<CollectionMetadata> {
     try {
-      const { data, creatorAddress } = await this.getDataWithCreator(contract, tokenId);
+      if (config.chainId === 1) {
+        const { data, creatorAddress } = await this.getDataWithCreator(contract, tokenId);
 
-      if (contract === "0x5d4ea842d1d39be56c8c29352e918e12890bd949") {
-        logger.info(
-          "opensea-fetcher",
-          JSON.stringify({
-            topic: "fetchCollectionDebug",
-            message: `getDataWithCreator.  contract=${contract}, tokenId=${tokenId}`,
-            contract,
-            tokenId,
-            data,
-            creatorAddress,
-          })
-        );
+        if (!data?.collection) {
+          throw new Error("Missing collection");
+        }
+
+        return this.parseCollection(data, contract, creatorAddress);
       }
 
-      if (!data?.collection) {
+      const { data, creatorAddress } = await this.getDataWithCreatorV2(contract, tokenId);
+
+      if (!data) {
         throw new Error("Missing collection");
       }
 
-      return this.parseCollection(data, contract, creatorAddress);
+      return this.parseCollectionV2(data, contract, creatorAddress);
     } catch (error) {
       logger.error(
         "opensea-fetcher",
@@ -457,98 +453,69 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
     };
   }
 
+  parseCollectionV2(metadata: any, contract: string, creator: string): CollectionMetadata {
+    // Collect the fees
+    const royalties = [];
+    const fees = [];
+
+    const openSeaFeeRecipients = [
+      "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073",
+      "0x8de9c5a032463c561423387a9648c5c7bcc5bc90",
+      "0x0000a26b00c1f0df003000390027140000faa719",
+    ];
+
+    for (const fee of metadata.fees) {
+      if (openSeaFeeRecipients.includes(fee.recipient)) {
+        fees.push({
+          recipient: fee.recipient,
+          bps: fee.fee * 100,
+        });
+      } else {
+        royalties.push({
+          recipient: fee.recipient,
+          bps: fee.fee * 100,
+        });
+      }
+    }
+
+    return {
+      id: contract,
+      slug: metadata.collection,
+      name: metadata.name,
+      community: null,
+      metadata: normalizeMetadata(metadata),
+      openseaRoyalties: royalties,
+      openseaFees: fees,
+      contract,
+      tokenIdRange: null,
+      tokenSetId: `contract:${contract}`,
+      paymentTokens: undefined,
+      creator: creator ? _.toLower(creator) : null,
+    };
+  }
+
   async getDataWithCreator(
     contract: string,
     tokenId: string
   ): Promise<{ creatorAddress: string; data: any }> {
-    if (config.chainId === 1) {
-      const data = await this.getOSData("asset", contract, tokenId);
+    const data = await this.getOSData("asset", contract, tokenId);
 
-      return { data, creatorAddress: data?.creator?.address };
-    }
+    return { data, creatorAddress: data?.creator?.address };
+  }
 
-    let data = await this.getOSData("nft", contract, tokenId);
+  async getDataWithCreatorV2(
+    contract: string,
+    tokenId: string
+  ): Promise<{ creatorAddress: string; data: any }> {
+    let data;
+    let creatorAddress;
 
-    if (contract === "0x5d4ea842d1d39be56c8c29352e918e12890bd949") {
-      logger.info(
-        "opensea-fetcher",
-        JSON.stringify({
-          topic: "fetchCollectionDebug",
-          message: `getOSData nft.  contract=${contract}, tokenId=${tokenId}`,
-          contract,
-          tokenId,
-          data,
-        })
-      );
-    }
+    const nftData = await this.getOSData("nft", contract, tokenId);
 
-    let creatorAddress = data?.creator;
+    if (nftData?.collection) {
+      data = await this.getOSDataForCollection(contract, tokenId, nftData.collection);
 
-    if (data?.collection) {
-      data = await this.getOSDataForCollection(contract, tokenId, data.collection);
-
-      if (contract === "0x5d4ea842d1d39be56c8c29352e918e12890bd949") {
-        logger.info(
-          "opensea-fetcher",
-          JSON.stringify({
-            topic: "fetchCollectionDebug",
-            message: `getOSDataForCollection.  contract=${contract}, tokenId=${tokenId}`,
-            contract,
-            tokenId,
-            data,
-          })
-        );
-      }
-
-      creatorAddress = creatorAddress ?? data?.creator?.address;
-    } else {
-      data = await this.getOSDataForEventsOrAsset(contract, tokenId);
-
-      if (contract === "0x5d4ea842d1d39be56c8c29352e918e12890bd949") {
-        logger.info(
-          "opensea-fetcher",
-          JSON.stringify({
-            topic: "fetchCollectionDebug",
-            message: `getOSDataForEventsOrAsset.  contract=${contract}, tokenId=${tokenId}`,
-            contract,
-            tokenId,
-            data,
-          })
-        );
-      }
-
-      if (data?.collection?.slug && !data?.collection?.payment_tokens) {
-        data = await this.getOSData("collection", contract, tokenId, data.collection.slug);
-
-        if (contract === "0x5d4ea842d1d39be56c8c29352e918e12890bd949") {
-          logger.info(
-            "opensea-fetcher",
-            JSON.stringify({
-              topic: "fetchCollectionDebug",
-              message: `getOSData collection.  contract=${contract}, tokenId=${tokenId}`,
-              contract,
-              tokenId,
-              data,
-            })
-          );
-        }
-      }
-
-      creatorAddress = data?.creator?.address;
-    }
-
-    if (contract === "0x5d4ea842d1d39be56c8c29352e918e12890bd949") {
-      logger.info(
-        "opensea-fetcher",
-        JSON.stringify({
-          topic: "fetchCollectionDebug",
-          message: `getDataWithCreator return.  contract=${contract}, tokenId=${tokenId}`,
-          contract,
-          tokenId,
-          data,
-          creatorAddress,
-        })
-      );
+      creatorAddress = nftData?.creator ?? data?.owner;
     }
 
     return {
@@ -666,7 +633,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
       case "asset_contract":
         return `${baseUrl}/api/v1/asset_contract/${contract}`;
       case "collection":
-        return `${baseUrl}/api/v1/collection/${slug}`;
+        return `${baseUrl}/api/v2/collections/${slug}`;
       case "nft":
         return `${baseUrl}/v2/chain/${network}/contract/${contract}/nfts/${tokenId}`;
       default:

@@ -537,7 +537,7 @@ export class Router {
             listings: { "payment-processor": orders.length },
           },
           preSignatures: preSignatures,
-          txData: exchange.sweepCollectionTx(taker, bundledOrder, orders),
+          txData: exchange.sweepCollectionTx(taker, bundledOrder, orders, options),
           orderIds: blockedPaymentProcessorDetails.map((d) => d.orderId),
         });
       } else {
@@ -567,7 +567,7 @@ export class Router {
             listings: { "payment-processor": orders.length },
           },
           preSignatures: preSignatures,
-          txData: exchange.fillOrdersTx(taker, orders, takeOrders),
+          txData: exchange.fillOrdersTx(taker, orders, takeOrders, options),
           orderIds: blockedPaymentProcessorDetails.map((d) => d.orderId),
         });
       }

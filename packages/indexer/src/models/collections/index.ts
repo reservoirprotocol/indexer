@@ -159,20 +159,7 @@ export class Collections {
       community
     );
 
-    if (collection.isCopyrightInfringement) {
-      collection.name = collection.id;
-      collection.metadata = null;
-
-      logger.info(
-        "updateCollectionCache",
-        JSON.stringify({
-          topic: "debugCopyrightInfringement",
-          message: "Collection is a copyright infringement",
-          contract,
-          collection,
-        })
-      );
-    } else if (collection.metadata == null) {
+    if (collection.metadata == null) {
       const collectionResult = await Collections.getById(collection.id);
 
       if (collectionResult?.metadata != null) {
@@ -236,7 +223,7 @@ export class Collections {
         slug = $/slug/,
         payment_tokens = $/paymentTokens/,
         creator = $/creator/,
-        is_spam = $/isSpamContract/,
+        is_spam = CASE WHEN (is_spam IS NULL OR is_spam = 0) THEN $/isSpamContract/ ELSE is_spam END,
         updated_at = now()
       WHERE id = $/id/
       AND (metadata IS DISTINCT FROM $/metadata:json/ 

@@ -20,6 +20,7 @@ import {
   getJoiDynamicPricingObject,
   getJoiPriceObject,
   getJoiSourceObject,
+  getJoiTokenObject,
   JoiDynamicPrice,
   JoiPrice,
   JoiSource,
@@ -145,7 +146,7 @@ export const getUserTokensV6Options: RouteOptions = {
             collection: Joi.object({
               id: Joi.string().allow(null),
               name: Joi.string().allow("", null),
-              imageUrl: Joi.string().allow(null),
+              imageUrl: Joi.string().allow("", null),
               floorAskPrice: Joi.number().unsafe().allow(null),
             }),
             topBid: Joi.object({
@@ -324,6 +325,7 @@ export const getUserTokensV6Options: RouteOptions = {
           t.media,
           t.rarity_rank,
           t.collection_id,
+          t.metadata_disabled AS "t_metadata_disabled",
           t.rarity_score,
           t.last_buy_value,
           t.last_buy_timestamp,
@@ -355,6 +357,7 @@ export const getUserTokensV6Options: RouteOptions = {
             t.media,
             t.rarity_rank,
             t.collection_id,
+            t.metadata_disabled AS "t_metadata_disabled",
             t.rarity_score,
             t.last_sell_value,
             t.last_buy_value,
@@ -406,7 +409,7 @@ export const getUserTokensV6Options: RouteOptions = {
                t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to, t.floor_sell_source_id_int,
                t.rarity_score, t.last_sell_value, t.last_buy_value, t.last_sell_timestamp, t.last_buy_timestamp,
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
-               c.name as collection_name, con.kind, c.metadata, ${
+               c.metadata_disabled AS "c_metadata_disabled", t_metadata_disabled, c.name as collection_name, con.kind, c.metadata, ${
                  query.useNonFlaggedFloorAsk
                    ? "c.floor_sell_value"
                    : "c.non_flagged_floor_sell_value"
@@ -530,56 +533,60 @@ export const getUserTokensV6Options: RouteOptions = {
         const acquiredTime = new Date(r.acquired_at * 1000).toISOString();
 
         return {
-          token: {
-            contract: contract,
-            tokenId: tokenId,
-            kind: r.kind,
-            name: r.name,
-            image: r.image,
-            lastBuy: {
-              value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
-              timestamp: r.last_buy_timestamp,
-            },
-            lastSell: {
-              value: r.last_sell_value ? formatEth(r.last_sell_value) : null,
-              timestamp: r.last_sell_timestamp,
-            },
-            rarityScore: r.rarity_score,
-            rarityRank: r.rarity_rank,
-            media: r.media,
-            collection: {
-              id: r.collection_id,
-              name: r.collection_name,
-              imageUrl: r.metadata?.imageUrl,
-              floorAskPrice: r.collection_floor_sell_value
-                ? formatEth(r.collection_floor_sell_value)
+          token: getJoiTokenObject(
+            {
+              contract: contract,
+              tokenId: tokenId,
+              kind: r.kind,
+              name: r.name,
+              image: r.image,
+              lastBuy: {
+                value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
+                timestamp: r.last_buy_timestamp,
+              },
+              lastSell: {
+                value: r.last_sell_value ? formatEth(r.last_sell_value) : null,
+                timestamp: r.last_sell_timestamp,
+              },
+              rarityScore: r.rarity_score,
+              rarityRank: r.rarity_rank,
+              media: r.media,
+              collection: {
+                id: r.collection_id,
+                name: r.collection_name,
+                imageUrl: r.metadata?.imageUrl,
+                floorAskPrice: r.collection_floor_sell_value
+                  ? formatEth(r.collection_floor_sell_value)
+                  : null,
+              },
+              topBid: query.includeTopBid
+                ? {
+                    id: r.top_bid_id,
+                    price: r.top_bid_value
+                      ? await getJoiPriceObject(
+                          {
+                            net: {
+                              amount: r.top_bid_currency_value ?? r.top_bid_value,
+                              nativeAmount: r.top_bid_value,
+                            },
+                            gross: {
+                              amount: r.top_bid_currency_price ?? r.top_bid_price,
+                              nativeAmount: r.top_bid_price,
+                            },
+                          },
+                          topBidCurrency,
+                          query.displayCurrency
+                        )
+                      : null,
+                  }
+                : undefined,
+              lastAppraisalValue: r.last_token_appraisal_value
+                ? formatEth(r.last_token_appraisal_value)
                 : null,
             },
-            topBid: query.includeTopBid
-              ? {
-                  id: r.top_bid_id,
-                  price: r.top_bid_value
-                    ? await getJoiPriceObject(
-                        {
-                          net: {
-                            amount: r.top_bid_currency_value ?? r.top_bid_value,
-                            nativeAmount: r.top_bid_value,
-                          },
-                          gross: {
-                            amount: r.top_bid_currency_price ?? r.top_bid_price,
-                            nativeAmount: r.top_bid_price,
-                          },
-                        },
-                        topBidCurrency,
-                        query.displayCurrency
-                      )
-                    : null,
-                }
-              : undefined,
-            lastAppraisalValue: r.last_token_appraisal_value
-              ? formatEth(r.last_token_appraisal_value)
-              : null,
-          },
+            r.t_metadata_disabled,
+            r.c_metadata_disabled
+          ),
           ownership: {
             tokenCount: String(r.token_count),
             onSaleCount: String(r.on_sale_count),

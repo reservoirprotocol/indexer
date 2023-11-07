@@ -13,6 +13,7 @@ import {
   getJoiPriceObject,
   getJoiSaleObject,
   getJoiSourceObject,
+  getJoiTokenObject,
   JoiAttributeValue,
   JoiPrice,
   JoiSale,
@@ -277,6 +278,7 @@ export const getTokensV6Options: RouteOptions = {
             kind: Joi.string().allow("", null).description("Can be erc721, erc115, etc."),
             isFlagged: Joi.boolean().default(false),
             isSpam: Joi.boolean().default(false),
+            metadataDisabled: Joi.boolean().default(false),
             lastFlagUpdate: Joi.string().allow("", null),
             lastFlagChange: Joi.string().allow("", null),
             supply: Joi.number()
@@ -300,6 +302,7 @@ export const getTokensV6Options: RouteOptions = {
               symbol: Joi.string().allow("", null),
               creator: Joi.string().lowercase().pattern(regex.address).allow("", null),
               tokenCount: Joi.number().allow(null),
+              metadataDisabled: Joi.boolean().default(false),
             }),
             lastSale: JoiSale.optional(),
             owner: Joi.string().allow(null),
@@ -672,6 +675,8 @@ export const getTokensV6Options: RouteOptions = {
           t.supply,
           t.remaining_supply,
           extract(epoch from t.updated_at) AS t_updated_at,
+          t.metadata_disabled AS t_metadata_disabled,
+          c.metadata_disabled AS c_metadata_disabled,
           c.slug,
           c.creator,
           c.token_count,
@@ -1323,80 +1328,91 @@ export const getTokensV6Options: RouteOptions = {
         }
 
         return {
-          token: {
-            chainId: config.chainId,
-            contract,
-            tokenId,
-            name: r.name,
-            description: r.description,
-            image: Assets.getLocalAssetsLink(r.image),
-            imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small),
-            imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large),
-            metadata: Object.values(metadata).every((el) => el === undefined)
-              ? undefined
-              : metadata,
-            media: r.media,
-            kind: r.kind,
-            isFlagged: Boolean(Number(r.is_flagged)),
-            isSpam: Number(r.t_is_spam) > 0 || Number(r.c_is_spam) > 0,
-            lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
-            lastFlagChange: r.last_flag_change ? new Date(r.last_flag_change).toISOString() : null,
-            supply: !_.isNull(r.supply) ? r.supply : null,
-            remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : null,
-            rarity: r.rarity_score,
-            rarityRank: r.rarity_rank,
-            collection: {
-              id: r.collection_id,
-              name: r.collection_name,
-              image: Assets.getLocalAssetsLink(r.collection_image),
-              slug: r.slug,
-              symbol: r.symbol,
-              creator: r.creator ? fromBuffer(r.creator) : null,
-              tokenCount: r.token_count,
-            },
-            lastSale:
-              query.includeLastSale && r.last_sale_currency
-                ? await getJoiSaleObject({
-                    prices: {
-                      gross: {
-                        amount: r.last_sale_currency_price ?? r.last_sale_price,
-                        nativeAmount: r.last_sale_price,
-                        usdAmount: r.last_sale_usd_price,
+          token: getJoiTokenObject(
+            {
+              chainId: config.chainId,
+              contract,
+              tokenId,
+              name: r.name,
+              description: r.description,
+              image: Assets.getLocalAssetsLink(r.image),
+              imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small),
+              imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large),
+              metadata: Object.values(metadata).every((el) => el === undefined)
+                ? undefined
+                : metadata,
+              media: r.media,
+              kind: r.kind,
+              isFlagged: Boolean(Number(r.is_flagged)),
+              isSpam: Number(r.t_is_spam) > 0 || Number(r.c_is_spam) > 0,
+              metadataDisabled:
+                Boolean(Number(r.t_metadata_disabled)) || Boolean(Number(r.c_metadata_disabled)),
+              lastFlagUpdate: r.last_flag_update
+                ? new Date(r.last_flag_update).toISOString()
+                : null,
+              lastFlagChange: r.last_flag_change
+                ? new Date(r.last_flag_change).toISOString()
+                : null,
+              supply: !_.isNull(r.supply) ? r.supply : null,
+              remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : null,
+              rarity: r.rarity_score,
+              rarityRank: r.rarity_rank,
+              collection: {
+                id: r.collection_id,
+                name: r.collection_name,
+                image: Assets.getLocalAssetsLink(r.collection_image),
+                slug: r.slug,
+                symbol: r.symbol,
+                creator: r.creator ? fromBuffer(r.creator) : null,
+                tokenCount: r.token_count,
+                metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
+              },
+              lastSale:
+                query.includeLastSale && r.last_sale_currency
+                  ? await getJoiSaleObject({
+                      prices: {
+                        gross: {
+                          amount: r.last_sale_currency_price ?? r.last_sale_price,
+                          nativeAmount: r.last_sale_price,
+                          usdAmount: r.last_sale_usd_price,
+                        },
                       },
-                    },
-                    fees: {
-                      royaltyFeeBps: r.last_sale_royalty_fee_bps,
-                      marketplaceFeeBps: r.last_sale_marketplace_fee_bps,
-                      paidFullRoyalty: r.last_sale_paid_full_royalty,
-                      royaltyFeeBreakdown: r.last_sale_royalty_fee_breakdown,
-                      marketplaceFeeBreakdown: r.last_sale_marketplace_fee_breakdown,
-                    },
-                    currencyAddress: r.last_sale_currency,
-                    timestamp: r.last_sale_timestamp,
-                    orderSourceId: r.last_sale_order_source_id_int,
-                    fillSourceId: r.last_sale_fill_source_id,
-                  })
+                      fees: {
+                        royaltyFeeBps: r.last_sale_royalty_fee_bps,
+                        marketplaceFeeBps: r.last_sale_marketplace_fee_bps,
+                        paidFullRoyalty: r.last_sale_paid_full_royalty,
+                        royaltyFeeBreakdown: r.last_sale_royalty_fee_breakdown,
+                        marketplaceFeeBreakdown: r.last_sale_marketplace_fee_breakdown,
+                      },
+                      currencyAddress: r.last_sale_currency,
+                      timestamp: r.last_sale_timestamp,
+                      orderSourceId: r.last_sale_order_source_id_int,
+                      fillSourceId: r.last_sale_fill_source_id,
+                    })
+                  : undefined,
+              owner: r.owner ? fromBuffer(r.owner) : null,
+              attributes: query.includeAttributes
+                ? r.attributes
+                  ? _.map(r.attributes, (attribute) => ({
+                      key: attribute.key,
+                      kind: attribute.kind,
+                      value: attribute.value,
+                      tokenCount: attribute.tokenCount,
+                      onSaleCount: attribute.onSaleCount,
+                      floorAskPrice: attribute.floorAskPrice
+                        ? formatEth(attribute.floorAskPrice)
+                        : attribute.floorAskPrice,
+                      topBidValue: attribute.topBidValue
+                        ? formatEth(attribute.topBidValue)
+                        : attribute.topBidValue,
+                      createdAt: new Date(attribute.createdAt).toISOString(),
+                    }))
+                  : []
                 : undefined,
-            owner: r.owner ? fromBuffer(r.owner) : null,
-            attributes: query.includeAttributes
-              ? r.attributes
-                ? _.map(r.attributes, (attribute) => ({
-                    key: attribute.key,
-                    kind: attribute.kind,
-                    value: attribute.value,
-                    tokenCount: attribute.tokenCount,
-                    onSaleCount: attribute.onSaleCount,
-                    floorAskPrice: attribute.floorAskPrice
-                      ? formatEth(attribute.floorAskPrice)
-                      : attribute.floorAskPrice,
-                    topBidValue: attribute.topBidValue
-                      ? formatEth(attribute.topBidValue)
-                      : attribute.topBidValue,
-                    createdAt: new Date(attribute.createdAt).toISOString(),
-                  }))
-                : []
-              : undefined,
-          },
+            },
+            r.t_metadata_disabled,
+            r.c_metadata_disabled
+          ),
           market: {
             floorAsk: {
               id: r.floor_sell_id,

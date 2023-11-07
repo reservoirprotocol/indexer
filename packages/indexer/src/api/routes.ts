@@ -575,6 +575,12 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
+    method: "POST",
+    path: "/collections/disable-metadata/v1",
+    options: collectionsEndpoints.postSetCollectionDisableMetadataV1Options,
+  });
+
+  server.route({
     method: "GET",
     path: "/collections/{collection}/supported-marketplaces/v1",
     options: collectionsEndpoints.getCollectionSupportedMarketplacesV1Options,
@@ -1333,6 +1339,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/tokens/ids/v1",
     options: tokensEndpoints.getTokensIdsV1Options,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/tokens/disable-metadata/v1",
+    options: tokensEndpoints.postSetTokenDisableMetadataV1Options,
   });
 
   // Token sets

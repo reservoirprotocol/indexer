@@ -7,7 +7,7 @@ import * as utils from "@/events-sync/utils";
 import { BigNumber } from "ethers";
 import { parseEther } from "ethers/lib/utils";
 import { config } from "@/config/index";
-// import { simulateCollectionMint } from "@/orderbook/mints/simulation";
+import { simulateCollectionMint } from "@/orderbook/mints/simulation";
 // import { defaultAbiCoder } from "@ethersproject/abi";
 
 jest.setTimeout(1000 * 1000);
@@ -15,6 +15,9 @@ jest.setTimeout(1000 * 1000);
 describe("Mints - Generic", () => {
   // 0x27f532b44bd73d57c741b384389760f799641a5d
   it("arguments-with-zero-proof-case1", async () => {
+    if (config.chainId != 1) {
+      return;
+    }
     const transcation = await utils.fetchTransaction(
       "0xe807f892fcfd93dc33c7f839231da9fde455b810cf37b2b214befd8b5b84c78f"
     );
@@ -41,6 +44,9 @@ describe("Mints - Generic", () => {
 
   // 0x0d0f3d4f1824737a6f215828cea05376426fef50
   it("arguments-with-zero-proof-case2", async () => {
+    if (config.chainId != 1) {
+      return;
+    }
     const collection = "0x0d0f3d4f1824737a6f215828cea05376426fef50";
     const tx = "0x8d2b8379d5564acdbe7051696554c43f9f9b9a047abbecf645521ba04846097a";
     const transcation = await utils.fetchTransaction(tx);
@@ -124,6 +130,37 @@ describe("Mints - Generic", () => {
     //   console.log("result", result);
     // }
 
+    expect(collectionMints.length).not.toBe(0);
+  });
+
+  it("guess-constant-arguments-from-complex-arguments-by-multiple-mint-txs", async () => {
+    if (config.chainId != 10) {
+      return;
+    }
+    const collection = "0x513a87ab60777a306b6c40e3585d2bc4aea9ff52";
+    const txId = "0x36cf609d3607cf247c2f240374c868690a100b6a21c2f23336e840aad1ac0756";
+    const transcation = await utils.fetchTransaction(txId);
+    const collectionMints = await extractByTx(
+      collection,
+      transcation,
+      parseEther("0"),
+      BigNumber.from("1"),
+      [
+        await utils.fetchTransaction(
+          "0xfdf21e75d937fb33be24498e123d5f52a8de10e0bf8ef4f56d88b68a6ee87e47"
+        ),
+        await utils.fetchTransaction(
+          "0xc4977c26ef33524972bb7430442ba6b6aa111b015c2b8fe6554c57186f74d499"
+        ),
+      ]
+    );
+
+    for (const collectionMint of collectionMints) {
+      if (collectionMint.status === "open") {
+        const result = await simulateCollectionMint(collectionMint);
+        expect(result).toBe(true);
+      }
+    }
     expect(collectionMints.length).not.toBe(0);
   });
 });
