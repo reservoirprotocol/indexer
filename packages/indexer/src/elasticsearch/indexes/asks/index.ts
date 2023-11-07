@@ -335,7 +335,7 @@ export const searchTokenAsks = async (params: {
   try {
     const from = params.continuation ? Number(splitContinuation(params.continuation)[0]) : 0;
 
-    const esResult = await elasticsearch.search<AskDocument>({
+    const esSearchParams = {
       index: INDEX_NAME,
       query: esQuery,
       sort: [
@@ -361,7 +361,9 @@ export const searchTokenAsks = async (params: {
       collapse: {
         field: "contractAndTokenId",
       },
-    });
+    };
+
+    const esResult = await elasticsearch.search<AskDocument>(esSearchParams);
 
     logger.info(
       "elasticsearch-asks",
@@ -369,9 +371,8 @@ export const searchTokenAsks = async (params: {
         topic: "searchTokenAsks",
         message: "Debug result",
         data: {
-          params: params,
+          esSearchParamsJSON: JSON.stringify(esSearchParams),
         },
-        esResult,
       })
     );
 
@@ -520,7 +521,7 @@ export const updateAsksTokenData = async (
         must_not: [
           {
             term: {
-              "token.isSpam": Boolean(tokenData.isSpam),
+              "token.isSpam": tokenData.isSpam > 0,
             },
           },
         ],
