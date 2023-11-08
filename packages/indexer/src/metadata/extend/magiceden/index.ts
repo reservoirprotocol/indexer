@@ -115,8 +115,6 @@ export const extendCollection = async (metadata: CollectionMetadata, _tokenId = 
     },
   };
 
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
   const contractMetadataOverride = metadataOverride[metadata.contract];
 
   if (contractMetadataOverride) {
