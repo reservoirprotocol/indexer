@@ -193,7 +193,7 @@ extendCollection["137,0x09421f533497331e1075fdca2a16e9ce3f52312b"] = magiceden;
 extendCollection["137,0x8efa4df13705422626733751f7f3927283f0ee8e"] = magiceden;
 extendCollection["137,0x9dba8ea4a81eb3b3aeadbcbca9e7e88dda205a81"] = magiceden;
 extendCollection["137,0xaba082d325adc08f9a1c5a8208bb5c42b3a6f978"] = magiceden;
-extendCollection["137,0xd29ce02ae6d3e77aba0b580e45b8a2865396fbfc"] = magiceden;
+extendCollection["137,0x5fcfae331e919d679cc3bc07c15fcc6d5c7a93cb"] = magiceden;
 
 // Sound XYZ
 soundxyz.SoundxyzArtistContracts.forEach(

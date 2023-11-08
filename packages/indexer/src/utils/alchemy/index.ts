@@ -3,7 +3,7 @@ import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 
 export class AlchemyApi {
-  public static supportedChains = [1, 137];
+  public static supportedChains = [0];
 
   public static getBaseUrl() {
     switch (config.chainId) {
