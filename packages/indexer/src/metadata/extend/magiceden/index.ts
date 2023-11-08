@@ -3,7 +3,7 @@
 
 import { CollectionMetadata } from "@/metadata/types";
 export const extendCollection = async (metadata: CollectionMetadata, _tokenId = null) => {
-  const metadataOverride = {
+  const metadataOverride: Record<string, any> = {
     "0xef41141fbc0a7c870f30fee81c6214582dc2a494": {
       metadata: {
         twitterUrl: "https://twitter.com/playwildcard",
