@@ -73,6 +73,7 @@ export const extendCollection = async (metadata: CollectionMetadata, _tokenId = 
         description: "HellCats are a collection of 2,500 michevious Troublemakers, on Polygon.",
         imageUrl:
           "https://bafkreiewsgu4z26dtgfes4hoxbp4rqkgwlhnzjhbnlksuwjwj65eiuuvom.ipfs.nftstorage.link",
+        twitterUrl: "https://twitter.com/HellCatsNFT",
       },
       royalties: [],
     },
@@ -112,6 +113,9 @@ export const extendCollection = async (metadata: CollectionMetadata, _tokenId = 
       metadata: {
         twitterUrl: "http://twitter.com/playwildcard",
       },
+    },
+    "0xd29ce02ae6d3e77aba0b580e45b8a2865396fbfc": {
+      royalties: [],
     },
   };
 

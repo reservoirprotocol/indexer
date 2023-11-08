@@ -181,6 +181,7 @@ extendCollection["1,0xb932a70a57673d89f4acffbe830e8ed7f75fb9e0"] = superrareShar
 // Foundation
 extendCollection["1,0x3b3ee1931dc30c1957379fac9aba94d1c48a5405"] = foundationShared;
 
+// Magic Eden Override
 extendCollection["137,0xef41141fbc0a7c870f30fee81c6214582dc2a494"] = magiceden;
 extendCollection["137,0x72106bbe2b447ecb9b52370ddc63cfa8e553b08c"] = magiceden;
 extendCollection["137,0x71ef0488d78ed490c8ffa3112fb3d7b4614f76b5"] = magiceden;
@@ -192,6 +193,7 @@ extendCollection["137,0x09421f533497331e1075fdca2a16e9ce3f52312b"] = magiceden;
 extendCollection["137,0x8efa4df13705422626733751f7f3927283f0ee8e"] = magiceden;
 extendCollection["137,0x9dba8ea4a81eb3b3aeadbcbca9e7e88dda205a81"] = magiceden;
 extendCollection["137,0xaba082d325adc08f9a1c5a8208bb5c42b3a6f978"] = magiceden;
+extendCollection["137,0xd29ce02ae6d3e77aba0b580e45b8a2865396fbfc"] = magiceden;
 
 // Sound XYZ
 soundxyz.SoundxyzArtistContracts.forEach(
