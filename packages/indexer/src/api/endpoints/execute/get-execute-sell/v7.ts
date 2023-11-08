@@ -1151,10 +1151,10 @@ export const getExecuteSellV7Options: RouteOptions = {
 
       // For some orders (OS protected and Blur), we need to ensure the taker owns the NFTs to get sold
       for (const d of bidDetails.filter((d) => d.isProtected || d.source === "blur.io")) {
-        const takerIsOwner = await idb.oneOrNone(
+        const ownershipResult = await idb.oneOrNone(
           `
             SELECT
-              1
+              floor(extract(epoch FROM acquired_at)) AS acquired_at
             FROM nft_balances
             WHERE nft_balances.contract = $/contract/
               AND nft_balances.token_id = $/tokenId/
@@ -1169,8 +1169,15 @@ export const getExecuteSellV7Options: RouteOptions = {
             owner: toBuffer(payload.taker),
           }
         );
-        if (!takerIsOwner) {
+        if (!ownershipResult) {
           throw getExecuteError("Taker is not the owner of the token to sell");
+        }
+        if (
+          d.source === "blur.io" &&
+          ownershipResult.acquired_at &&
+          ownershipResult.acquired_at >= now() - 30 * 60
+        ) {
+          throw getExecuteError("Accepting offers is disabled for this nft");
         }
       }
 

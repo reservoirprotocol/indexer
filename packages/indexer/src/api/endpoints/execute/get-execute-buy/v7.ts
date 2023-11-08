@@ -258,6 +258,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           buyInRawQuote: Joi.string().pattern(regex.number),
           totalPrice: Joi.number().unsafe(),
           totalRawPrice: Joi.string().pattern(regex.number),
+          gasCost: Joi.string().pattern(regex.number),
           builtInFees: Joi.array()
             .items(JoiExecuteFee)
             .description("Can be marketplace fees or royalties"),
@@ -316,6 +317,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         totalRawPrice?: string;
         builtInFees: ExecuteFee[];
         feesOnTop: ExecuteFee[];
+        gasCost?: string;
         fromChainId?: number;
       }[] = [];
 
@@ -518,6 +520,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
       }[] = [];
       const preview = payload.onlyPath && payload.partial && items.every((i) => !i.quantity);
 
+      const useSeaportIntent = payload.executionMethod === "seaport-intent";
+      const useCrossChainIntent =
+        payload.currencyChainId !== undefined && payload.currencyChainId !== config.chainId;
+
       let lastError: string | undefined;
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
@@ -526,7 +532,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
         if (!item.quantity) {
           if (preview) {
-            item.quantity = 30;
+            item.quantity = useSeaportIntent || useCrossChainIntent ? 1 : 30;
           } else {
             item.quantity = 1;
           }
@@ -1434,13 +1440,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
         }
       }
 
-      if (payload.onlyPath) {
-        return {
-          path,
-          maxQuantities: preview ? maxQuantities : undefined,
-        };
-      }
-
       type StepType = {
         id: string;
         action: string;
@@ -1506,31 +1505,56 @@ export const getExecuteBuyV7Options: RouteOptions = {
         },
       ];
 
-      try {
-        // Simulate filling via a Seaport intent for testing things
-        if (config.seaportSolverBaseUrl) {
+      if (!payload.onlyPath) {
+        try {
+          // Simulate filling via seaport / cross-chain intent for testing things
           if (
             !payload.skipBalanceCheck &&
             items.length === 1 &&
             items[0].token &&
             items[0].fillType !== "mint"
           ) {
-            await axios.post(
-              `${config.seaportSolverBaseUrl}/simulate`,
-              {
-                chainId: config.chainId,
-                token: items[0].token,
-              },
-              { timeout: 500 }
-            );
+            const seaportSimulate = async () => {
+              if (config.seaportSolverBaseUrl) {
+                await axios.post(
+                  `${config.seaportSolverBaseUrl}/intents/simulate`,
+                  {
+                    chainId: config.chainId,
+                    token: items[0].token,
+                  },
+                  { timeout: 500 }
+                );
+              }
+            };
+            const crossChainSimulate = async () => {
+              if (config.crossChainSolverBaseUrl) {
+                await axios.post(
+                  `${config.crossChainSolverBaseUrl}/intents/simulate`,
+                  {
+                    chainId: config.chainId,
+                    token: items[0].token,
+                  },
+                  { timeout: 500 }
+                );
+              }
+            };
+
+            await Promise.all([seaportSimulate(), crossChainSimulate()]);
           }
+        } catch {
+          // Skip errors
         }
-      } catch {
-        // Skip errors
+      }
+
+      if (payload.onlyPath && !useSeaportIntent && !useCrossChainIntent) {
+        return {
+          path,
+          maxQuantities: preview ? maxQuantities : undefined,
+        };
       }
 
       // Seaport intent purchasing MVP
-      if (payload.executionMethod === "seaport-intent") {
+      if (useSeaportIntent) {
         if (!config.seaportSolverBaseUrl) {
           throw Boom.badRequest("Intent purchasing not supported");
         }
@@ -1547,16 +1571,26 @@ export const getExecuteBuyV7Options: RouteOptions = {
           throw Boom.badRequest("Only erc721 token intent purchases are supported");
         }
 
-        const quote = await axios
-          .post(`${config.seaportSolverBaseUrl}/quote`, {
+        const item = path[0];
+
+        const { quote, gasCost } = await axios
+          .post(`${config.seaportSolverBaseUrl}/intents/quote`, {
             chainId: config.chainId,
             token: `${details.contract}:${details.tokenId}`,
             amount: details.amount ?? "1",
           })
-          .then((response) => response.data.price);
+          .then((response) => ({ quote: response.data.price, gasCost: response.data.gasCost }));
 
-        path[0].totalPrice = formatPrice(quote);
-        path[0].totalRawPrice = quote;
+        item.totalPrice = formatPrice(quote);
+        item.totalRawPrice = quote;
+        item.gasCost = gasCost;
+
+        if (payload.onlyPath) {
+          return {
+            path,
+            maxQuantities: preview ? maxQuantities : undefined,
+          };
+        }
 
         const order = new Sdk.SeaportV15.Order(config.chainId, {
           offerer: payload.taker,
@@ -1638,7 +1672,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       }
 
       // Cross-chain intent purchasing MVP
-      if (payload.currencyChainId !== undefined && payload.currencyChainId !== config.chainId) {
+      if (useCrossChainIntent) {
         if (!config.crossChainSolverBaseUrl) {
           throw Boom.badRequest("Cross-chain purchasing not supported");
         }
@@ -1684,7 +1718,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         // Only set when minting
         const isCollectionRequest = item.orderId.startsWith("mint");
 
-        const quote = await axios
+        const { quote, gasCost } = await axios
           .post(`${config.crossChainSolverBaseUrl}/intents/quote`, {
             fromChainId,
             toChainId,
@@ -1692,7 +1726,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
             token,
             amount: item.quantity,
           })
-          .then((response) => response.data.price)
+          .then((response) => ({
+            quote: response.data.price,
+            gasCost: response.data.gasCost,
+          }))
           .catch((error) => {
             throw Boom.badRequest(
               error.response?.data ? JSON.stringify(error.response.data) : "Error getting quote"
@@ -1700,12 +1737,18 @@ export const getExecuteBuyV7Options: RouteOptions = {
           });
 
         if (ccConfig.maxPrice && bn(quote).gt(ccConfig.maxPrice)) {
-          throw Boom.badRequest("Price too high");
+          throw Boom.badRequest("Price too high to purchase cross-chain");
         }
 
         item.fromChainId = fromChainId;
-        item.totalPrice = formatPrice(quote);
-        item.totalRawPrice = quote;
+        item.gasCost = gasCost;
+
+        if (payload.onlyPath) {
+          return {
+            path,
+            maxQuantities: preview ? maxQuantities : undefined,
+          };
+        }
 
         const customSteps: StepType[] = [
           {
@@ -2346,6 +2389,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         JSON.stringify({
           request: payload,
           uuid: randomUUID(),
+          timestampAccurate: Date.now(),
           httpCode: error instanceof Boom.Boom ? error.output.statusCode : 500,
           error:
             error instanceof Boom.Boom ? error.output.payload : { error: "Internal Server Error" },

@@ -100,7 +100,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
                       tokens.rarity_rank AS "token_rarity_rank",
                       collections.id AS "collection_id", 
                       collections.name AS "collection_name", 
-                      collections.is_spam AS "collections_is_spam",
+                      collections.is_spam AS "collection_is_spam",
                       (
                         collections.metadata ->> 'imageUrl'
                       ):: TEXT AS "collection_image", 

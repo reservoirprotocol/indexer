@@ -84,7 +84,10 @@ export const postExecuteSolveV1Options: RouteOptions = {
                 chainId: payload.chainId,
                 tx: payload.tx,
               })
-              .then((response) => response.data);
+              .then((response) => response.data)
+              .catch(() => {
+                // Skip errors
+              });
 
             return {
               status: {
@@ -107,7 +110,7 @@ export const postExecuteSolveV1Options: RouteOptions = {
             signature: payload.order.signature ?? query.signature,
           });
 
-          await axios.post(`${config.seaportSolverBaseUrl}/trigger`, {
+          await axios.post(`${config.seaportSolverBaseUrl}/intents/trigger`, {
             chainId: config.chainId,
             order: order.params,
           });

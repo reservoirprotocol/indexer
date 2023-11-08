@@ -104,7 +104,7 @@ export const postExecuteStatusV1Options: RouteOptions = {
             txHashes?: string[];
             time?: number;
           } = await axios
-            .get(`${config.seaportSolverBaseUrl}/status?hash=${payload.id}`)
+            .get(`${config.seaportSolverBaseUrl}/intents/status?hash=${payload.id}`)
             .then((response) => response.data);
 
           return {

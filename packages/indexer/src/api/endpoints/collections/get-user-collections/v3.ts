@@ -188,7 +188,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
             WHERE "owner" = $/user/
               AND amount > 0
             ORDER BY last_token_appraisal_value DESC NULLS LAST
-            LIMIT 15000
+            LIMIT 50000
         ),
         token_images AS (
             SELECT tokens.collection_id, tokens.image,

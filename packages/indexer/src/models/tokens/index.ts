@@ -156,12 +156,24 @@ export class Tokens {
   }
 
   public static async getTokenAttributesValueCount(collection: string, key: string, value: string) {
-    const query = `SELECT attribute_id AS "attributeId", count(*) AS count
-                   FROM token_attributes
-                   WHERE collection_id = $/collection/
-                   AND key = $/key/
-                   AND value = $/value/
-                   GROUP BY key, value, attribute_id`;
+    const query = `
+      SELECT
+        (
+          SELECT attribute_id
+          FROM token_attributes
+          WHERE collection_id = $/collection/
+            AND key = $/key/
+            AND value = $/value/
+          LIMIT 1
+        ) AS attributeId,
+        (
+          SELECT COUNT(*)
+          FROM token_attributes
+          WHERE collection_id = $/collection/
+            AND key = $/key/
+            AND value = $/value/
+        ) AS count
+    `;
 
     return await redb.oneOrNone(query, {
       collection,

@@ -8,7 +8,7 @@ import { getNetworkName, getNetworkSettings } from "@/config/network";
 import * as CONFIG from "@/elasticsearch/indexes/asks/config";
 import { AskDocument } from "@/elasticsearch/indexes/asks/base";
 import { buildContinuation, splitContinuation } from "@/common/utils";
-import _ from "lodash";
+
 import {
   AggregationsAggregate,
   QueryDslQueryContainer,
@@ -183,7 +183,11 @@ export const searchTokenAsks = async (params: {
   collections?: string[];
   currencies?: string[];
   orderKinds?: { operation: "include" | "exclude"; kinds: string[] };
+  rarityRank?: { min?: number; max?: number };
+  floorAskPrice?: { min?: number; max?: number };
   normalizeRoyalties?: boolean;
+  spamTokens?: { operation: "include" | "exclude" };
+  flaggedTokens?: { operation: "include" | "exclude" };
   sources?: number[];
   limit?: number;
   continuation?: string | null;
@@ -266,10 +270,72 @@ export const searchTokenAsks = async (params: {
     term: { "order.taker": "0x0000000000000000000000000000000000000000" },
   });
 
+  if (params.flaggedTokens) {
+    if (params.flaggedTokens.operation === "exclude") {
+      (esQuery as any).bool.must_not.push({
+        term: { "token.isFlagged": true },
+      });
+    } else {
+      (esQuery as any).bool.filter.push({
+        term: { "token.isFlagged": true },
+      });
+    }
+  }
+
+  if (params.spamTokens) {
+    if (params.spamTokens.operation === "exclude") {
+      (esQuery as any).bool.must_not.push({
+        term: { "token.isSpam": true },
+      });
+      (esQuery as any).bool.must_not.push({
+        term: { "collection.isSpam": true },
+      });
+    } else {
+      (esQuery as any).bool.filter.push({
+        term: { "token.isSpam": true },
+      });
+      (esQuery as any).bool.filter.push({
+        term: { "collection.isSpam": true },
+      });
+    }
+  }
+
+  if (params.rarityRank?.min) {
+    (esQuery as any).bool.filter.push({
+      range: { timestamp: { gte: params.rarityRank?.min } },
+    });
+  }
+
+  if (params.rarityRank?.max) {
+    (esQuery as any).bool.filter.push({
+      range: { timestamp: { lte: params.rarityRank?.max } },
+    });
+  }
+
+  if (params.floorAskPrice?.min) {
+    (esQuery as any).bool.filter.push({
+      range: {
+        [params.normalizeRoyalties
+          ? "order.pricing.normalizedValueDecimal"
+          : "order.pricing.priceDecimal"]: { gte: params.floorAskPrice?.min },
+      },
+    });
+  }
+
+  if (params.floorAskPrice?.max) {
+    (esQuery as any).bool.filter.push({
+      range: {
+        [params.normalizeRoyalties
+          ? "order.pricing.normalizedValueDecimal"
+          : "order.pricing.priceDecimal"]: { lte: params.floorAskPrice?.max },
+      },
+    });
+  }
+
   try {
     const from = params.continuation ? Number(splitContinuation(params.continuation)[0]) : 0;
 
-    const esResult = await elasticsearch.search<AskDocument>({
+    const esSearchParams = {
       index: INDEX_NAME,
       query: esQuery,
       sort: [
@@ -295,7 +361,20 @@ export const searchTokenAsks = async (params: {
       collapse: {
         field: "contractAndTokenId",
       },
-    });
+    };
+
+    const esResult = await elasticsearch.search<AskDocument>(esSearchParams);
+
+    logger.info(
+      "elasticsearch-asks",
+      JSON.stringify({
+        topic: "searchTokenAsks",
+        message: "Debug result",
+        data: {
+          esSearchParamsJSON: JSON.stringify(esSearchParams),
+        },
+      })
+    );
 
     const asks: AskDocument[] = esResult.hits.hits.map((hit) => hit._source!);
 
@@ -311,157 +390,6 @@ export const searchTokenAsks = async (params: {
       "elasticsearch-asks",
       JSON.stringify({
         topic: "searchTokenAsks",
-        data: {
-          params: params,
-        },
-        error,
-      })
-    );
-
-    throw error;
-  }
-};
-
-export const search = async (
-  params: {
-    tokens?: { contract: string; tokenId: string }[];
-    contracts?: string[];
-    collections?: string[];
-    orderKinds?: { operation: "include" | "exclude"; kinds: string[] };
-    sources?: number[];
-    startTimestamp?: number;
-    endTimestamp?: number;
-    sortBy?: "createdAt";
-    sortDirection?: "desc" | "asc";
-    limit?: number;
-    continuation?: string | null;
-  },
-  debug = false
-): Promise<{ asks: AskDocument[]; continuation: string | null }> => {
-  const esQuery = {};
-
-  params.sortDirection = params.sortDirection ?? "desc";
-
-  (esQuery as any).bool = { filter: [], must_not: [] };
-
-  if (params.collections?.length) {
-    const collections = params.collections.map((collection) => collection.toLowerCase());
-
-    (esQuery as any).bool.filter.push({
-      terms: { "collection.id": collections },
-    });
-  }
-
-  if (params.contracts?.length) {
-    const contracts = params.contracts.map((contract) => contract.toLowerCase());
-
-    (esQuery as any).bool.filter.push({
-      terms: { contract: contracts },
-    });
-  }
-
-  if (params.sources?.length) {
-    (esQuery as any).bool.filter.push({
-      terms: { "order.sourceId": params.sources },
-    });
-  }
-
-  if (params.orderKinds?.kinds.length) {
-    if (params.orderKinds?.operation === "exclude") {
-      (esQuery as any).bool.must_not.push({
-        terms: { "order.kind": params.orderKinds.kinds },
-      });
-    } else {
-      (esQuery as any).bool.filter.push({
-        terms: { "order.kind": params.orderKinds.kinds },
-      });
-    }
-  }
-
-  if (params.tokens?.length) {
-    if (params.contracts?.length === 1) {
-      (esQuery as any).bool.filter.push({
-        terms: { "token.id": params.tokens.map((token) => token.tokenId) },
-      });
-    } else {
-      const tokensFilter = { bool: { should: [] } };
-
-      for (const token of params.tokens) {
-        const contract = token.contract.toLowerCase();
-        const tokenId = token.tokenId;
-
-        (tokensFilter as any).bool.should.push({
-          bool: {
-            must: [
-              {
-                term: { contract },
-              },
-              {
-                term: { ["token.id"]: tokenId },
-              },
-            ],
-          },
-        });
-      }
-
-      (esQuery as any).bool.filter.push(tokensFilter);
-    }
-  }
-
-  if (params.startTimestamp) {
-    (esQuery as any).bool.filter.push({
-      range: { timestamp: { gte: params.startTimestamp, format: "epoch_second" } },
-    });
-  }
-
-  if (params.endTimestamp) {
-    (esQuery as any).bool.filter.push({
-      range: { timestamp: { lt: params.endTimestamp, format: "epoch_second" } },
-    });
-  }
-
-  let searchAfter: string[] = [];
-
-  if (params.continuation) {
-    searchAfter = _.split(splitContinuation(params.continuation)[0], "_");
-  }
-
-  const esSort: any[] = [];
-
-  esSort.push({ "order.pricing.priceDecimal": { order: "asc" } });
-
-  try {
-    const esResult = await _search(
-      {
-        query: esQuery,
-        sort: esSort as Sort,
-        size: params.limit,
-        search_after: searchAfter?.length ? searchAfter : undefined,
-      },
-      0,
-      debug
-    );
-
-    const asks: AskDocument[] = esResult.hits.hits.map((hit) => hit._source!);
-
-    let continuation = null;
-
-    if (esResult.hits.hits.length === params.limit) {
-      const lastResult = _.last(esResult.hits.hits);
-
-      if (lastResult) {
-        const lastResultSortValue = lastResult.sort!.join("_");
-
-        continuation = buildContinuation(`${lastResultSortValue}`);
-      }
-    }
-
-    return { asks, continuation };
-  } catch (error) {
-    logger.error(
-      "elasticsearch-asks",
-      JSON.stringify({
-        topic: "search",
         data: {
           params: params,
         },
@@ -593,7 +521,7 @@ export const updateAsksTokenData = async (
         must_not: [
           {
             term: {
-              "token.isSpam": Boolean(tokenData.isSpam),
+              "token.isSpam": Number(tokenData.isSpam) > 0,
             },
           },
         ],
@@ -767,7 +695,7 @@ export const updateAsksCollectionData = async (
         must_not: [
           {
             term: {
-              "collection.isSpam": collectionData.isSpam > 0,
+              "collection.isSpam": Number(collectionData.isSpam) > 0,
             },
           },
         ],

@@ -314,7 +314,10 @@ export const generateCollectionMintTxData = async (
       ? defaultAbiCoder
           .encode(
             abiData.map(({ abiType }) => abiType),
-            abiData.map(({ abiValue }) => abiValue)
+            abiData.map(({ abiType, abiValue }) =>
+              // Handle array values
+              abiType.endsWith("[]") && !Array.isArray(abiValue) ? [abiValue] : abiValue
+            )
           )
           .slice(2)
       : "");
