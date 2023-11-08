@@ -325,8 +325,7 @@ export const getTokensV6Options: RouteOptions = {
             floorAsk: {
               id: Joi.string().allow(null),
               price: JoiPrice.allow(null),
-              // maker: Joi.string().lowercase().pattern(regex.address).allow(null),
-              maker: Joi.string().lowercase().allow(null),
+              maker: Joi.string().lowercase().pattern(regex.address).allow(null),
               validFrom: Joi.number().unsafe().allow(null),
               validUntil: Joi.number().unsafe().allow(null),
               quantityFilled: Joi.number().unsafe().allow(null),
