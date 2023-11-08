@@ -996,7 +996,16 @@ export const getExecuteBuyV7Options: RouteOptions = {
             // processed by the next pipeline of the same API rather than
             // building something custom for it.
 
-            for (const t of tokenResults) {
+            for (
+              let i = 0;
+              i <
+              Math.min(
+                useCrossChainIntent || useSeaportIntent ? item.quantity : tokenResults.length,
+                tokenResults.length
+              );
+              i++
+            ) {
+              const t = tokenResults[i];
               items.push({
                 token: `${fromBuffer(t.contract)}:${t.token_id}`,
                 fillType: item.fillType,
@@ -1223,7 +1232,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               }
 
               // Stop if we filled the total quantity
-              if (quantityToFill <= 0 && !preview) {
+              if (quantityToFill <= 0 && (!preview || useCrossChainIntent || useSeaportIntent)) {
                 break;
               }
 
