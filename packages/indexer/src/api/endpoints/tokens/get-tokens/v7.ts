@@ -373,7 +373,6 @@ export const getTokensV7Options: RouteOptions = {
 
     const enableElasticsearchAsks =
       query.sortBy === "floorAskPrice" &&
-      !query.includeDynamicPricing &&
       !["tokenName", "tokenSetId"].some((filter) => query[filter]);
 
     if (enableElasticsearchAsks) {

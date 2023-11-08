@@ -34,6 +34,7 @@ import { Assets, ImageSize } from "@/utils/assets";
 import { CollectionSets } from "@/models/collection-sets";
 import { Collections } from "@/models/collections";
 import * as AsksIndex from "@/elasticsearch/indexes/asks";
+import { OrderComponents } from "@reservoir0x/sdk/dist/seaport-base/types";
 
 const version = "v6";
 
@@ -373,7 +374,6 @@ export const getTokensV6Options: RouteOptions = {
     const enableElasticsearchAsks =
       config.enableElasticsearchAsks &&
       query.sortBy === "floorAskPrice" &&
-      !query.includeDynamicPricing &&
       !["tokenName", "tokenSetId"].some((filter) => query[filter]);
 
     if (enableElasticsearchAsks) {
@@ -1732,24 +1732,6 @@ export const getListedTokensFromES = async (query: any) => {
         `;
     }
 
-    const selectDynamicPricingQueryPart = "";
-    const joinDynamicPricingQueryPart = "";
-
-    // if (query.includeDynamicPricing) {
-    //   selectDynamicPricingQueryPart = ", d.*";
-    //   joinDynamicPricingQueryPart = `
-    //     LEFT JOIN LATERAL (
-    //       SELECT
-    //         o.kind AS floor_sell_order_kind,
-    //         o.dynamic AS floor_sell_dynamic,
-    //         o.raw_data AS floor_sell_raw_data,
-    //         o.missing_royalties AS floor_sell_missing_royalties
-    //       FROM orders o
-    //       WHERE o.id = t.floor_sell_id
-    //     ) d ON TRUE
-    //   `;
-    // }
-
     tokensResult = await redb.manyOrNone(
       `
           SELECT 
@@ -1792,11 +1774,9 @@ export const getListedTokensFromES = async (query: any) => {
           ${selectAttributesQueryPart}  
           ${selectLastSaleQueryPart}
           ${selectTopBidQueryPart}
-          ${selectDynamicPricingQueryPart}
           FROM tokens t
           ${joinLastSaleQueryPart}
           ${joinTopBidQueryPart}
-          ${joinDynamicPricingQueryPart}
           JOIN collections c ON t.collection_id = c.id
           JOIN contracts con ON t.contract = con.address
           WHERE (t.contract, t.token_id) IN ($/tokensFilter:raw/)
@@ -1860,14 +1840,17 @@ export const getListedTokensFromES = async (query: any) => {
     if (query.includeDynamicPricing) {
       // Add missing royalties on top of the raw prices
       const missingRoyalties = query.normalizeRoyalties
-        ? ((r.floor_sell_missing_royalties ?? []) as any[])
+        ? ((ask.order.missingRoyalties ?? []) as any[])
             .map((mr: any) => bn(mr.amount))
             .reduce((a, b) => a.add(b), bn(0))
         : bn(0);
 
-      if (r.floor_sell_raw_data) {
-        if (r.floor_sell_dynamic && r.floor_sell_order_kind === "seaport") {
-          const order = new Sdk.SeaportV11.Order(config.chainId, r.floor_sell_raw_data);
+      if (ask.order.rawData) {
+        if (ask.order.isDynamic && ask.order.kind === "seaport") {
+          const order = new Sdk.SeaportV11.Order(
+            config.chainId,
+            ask.order.rawData as OrderComponents
+          );
 
           // Dutch auction
           dynamicPricing = {
@@ -1905,18 +1888,18 @@ export const getListedTokensFromES = async (query: any) => {
           };
         } else if (
           ["sudoswap", "sudoswap-v2", "nftx", "collectionxyz", "caviar-v1", "midaswap"].includes(
-            r.floor_sell_order_kind
+            ask.order.kind
           )
         ) {
           // Pool orders
           dynamicPricing = {
             kind: "pool",
             data: {
-              pool: r.floor_sell_raw_data.pair ?? r.floor_sell_raw_data.pool,
+              pool: ask.order.rawData.pair ?? ask.order.rawData.pool,
               prices: await Promise.all(
-                (r.floor_sell_raw_data.extra.prices as string[])
+                ((ask.order.rawData.extra as any).prices as string[])
                   .filter((price) =>
-                    bn(price).lte(bn(r.floor_sell_raw_data.extra.floorPrice || MaxUint256))
+                    bn(price).lte(bn((ask.order.rawData.extra as any).floorPrice || MaxUint256))
                   )
                   .map((price) =>
                     getJoiPriceObject(
