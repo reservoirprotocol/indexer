@@ -89,16 +89,20 @@ export const postExecuteSolveV1Options: RouteOptions = {
                 // Skip errors
               });
 
-            return {
-              status: {
-                endpoint: "/execute/status/v1",
-                method: "POST",
-                body: {
-                  kind: payload.kind,
-                  id: response.hash,
+            if (response) {
+              return {
+                status: {
+                  endpoint: "/execute/status/v1",
+                  method: "POST",
+                  body: {
+                    kind: payload.kind,
+                    id: response.hash,
+                  },
                 },
-              },
-            };
+              };
+            } else {
+              return Boom.conflict("Transaction could not be processed");
+            }
           } else {
             throw Boom.badRequest("Must specify one of `order` or `tx`");
           }
