@@ -62,6 +62,7 @@ export const CONFIG_DEFAULT = {
                       value: { type: "keyword" },
                     },
                   },
+                  tokenSetId: { type: "keyword" },
                 },
               },
             },
