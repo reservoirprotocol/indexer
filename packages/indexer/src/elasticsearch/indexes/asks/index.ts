@@ -584,6 +584,22 @@ export const updateAsksTokenData = async (
       (hit) => ({ id: hit._source!.id, index: hit._index })
     );
 
+    logger.info(
+      "elasticsearch-asks",
+      JSON.stringify({
+        topic: "updateAsksTokenData",
+        message: `Debug`,
+        data: {
+          contract,
+          tokenId,
+          tokenData,
+        },
+        query,
+        queryJSON: JSON.stringify(query),
+        pendingUpdateDocuments,
+      })
+    );
+
     if (pendingUpdateDocuments.length) {
       const bulkParams = {
         body: pendingUpdateDocuments.flatMap((document) => [
@@ -737,6 +753,21 @@ export const updateAsksCollectionData = async (
 
     const pendingUpdateDocuments: { id: string; index: string }[] = esResult.hits.hits.map(
       (hit) => ({ id: hit._source!.id, index: hit._index })
+    );
+
+    logger.info(
+      "elasticsearch-asks",
+      JSON.stringify({
+        topic: "updateAsksCollectionData",
+        message: `Debug`,
+        data: {
+          collectionId,
+          collectionData,
+        },
+        query,
+        queryJSON: JSON.stringify(query),
+        pendingUpdateDocuments,
+      })
     );
 
     if (pendingUpdateDocuments.length) {
