@@ -88,13 +88,22 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
         };
 
         await redis.set(collectionKey, JSON.stringify(updatedPayload), "XX");
+      }
 
-        if (payload.after.floor_sell_id) {
-          const spamStatusChanged = payload.before.is_spam !== payload.after.is_spam;
+      if (payload.after.floor_sell_id) {
+        const spamStatusChanged = payload.before.is_spam !== payload.after.is_spam;
 
-          if (spamStatusChanged) {
-            await refreshAsksCollectionJob.addToQueue(payload.after.id);
-          }
+        if (spamStatusChanged) {
+          logger.info(
+            "indexer-collections",
+            JSON.stringify({
+              topic: "debugAskIndex",
+              message: `refreshAsksCollectionJob.addToQueue. collectionId=${payload.after.id}`,
+              payload,
+            })
+          );
+
+          await refreshAsksCollectionJob.addToQueue(payload.after.id);
         }
       }
     } catch (err) {

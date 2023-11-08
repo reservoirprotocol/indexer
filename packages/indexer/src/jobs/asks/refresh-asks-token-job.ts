@@ -5,6 +5,7 @@ import _ from "lodash";
 import { Tokens } from "@/models/tokens";
 import crypto from "crypto";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
+import { logger } from "@/common/logger";
 
 export type RefreshAsksTokenJobPayload = {
   contract: string;
@@ -24,6 +25,16 @@ export default class RefreshAsksTokenJob extends AbstractRabbitMqJobHandler {
     const { contract, tokenId } = payload;
 
     const tokenData = await Tokens.getByContractAndTokenId(contract, tokenId);
+
+    logger.info(
+      this.queueName,
+      JSON.stringify({
+        topic: "debugAskIndex",
+        message: `Start. contract=${contract}, tokenId=${tokenId}`,
+        payload,
+        tokenData,
+      })
+    );
 
     if (!_.isEmpty(tokenData)) {
       const keepGoing = await AsksIndex.updateAsksTokenData(contract, tokenId, tokenData);

@@ -5,6 +5,7 @@ import _ from "lodash";
 import crypto from "crypto";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import { Collections } from "@/models/collections";
+import { logger } from "@/common/logger";
 
 export type RefreshAsksCollectionJobPayload = {
   collectionId: string;
@@ -23,6 +24,16 @@ export default class RefreshAsksCollectionJob extends AbstractRabbitMqJobHandler
     const { collectionId } = payload;
 
     const collectionData = await Collections.getById(collectionId);
+
+    logger.info(
+      this.queueName,
+      JSON.stringify({
+        topic: "debugAskIndex",
+        message: `Start. collectionId=${collectionId}`,
+        payload,
+        collectionData,
+      })
+    );
 
     if (!_.isEmpty(collectionData)) {
       const keepGoing = await AsksIndex.updateAsksCollectionData(collectionId, collectionData);
