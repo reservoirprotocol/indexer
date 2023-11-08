@@ -591,7 +591,7 @@ export const updateAsksTokenData = async (
           {
             doc: {
               "token.isFlagged": Boolean(tokenData.isFlagged),
-              "token.isSpam": Boolean(tokenData.isSpam),
+              "token.isSpam": Number(tokenData.isSpam) > 0,
               "token.rarityRank": tokenData.rarityRank,
             },
           },
@@ -743,7 +743,7 @@ export const updateAsksCollectionData = async (
           { update: { _index: document.index, _id: document.id, retry_on_conflict: 3 } },
           {
             doc: {
-              "collection.isSpam": Boolean(collectionData.isSpam),
+              "collection.isSpam": Number(collectionData.isSpam) > 0,
             },
           },
         ]),
