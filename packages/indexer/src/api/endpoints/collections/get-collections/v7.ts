@@ -199,6 +199,7 @@ export const getCollectionsV7Options: RouteOptions = {
           discordUrl: Joi.string().allow("", null),
           externalUrl: Joi.string().allow("", null),
           twitterUsername: Joi.string().allow("", null),
+          twitterUrl: Joi.string().allow("", null),
           openseaVerificationStatus: Joi.string().allow("", null),
           description: Joi.string().allow("", null),
           metadataDisabled: Joi.boolean().default(false),
@@ -473,6 +474,7 @@ export const getCollectionsV7Options: RouteOptions = {
           (collections.metadata ->> 'description')::TEXT AS "description",
           (collections.metadata ->> 'externalUrl')::TEXT AS "external_url",
           (collections.metadata ->> 'twitterUsername')::TEXT AS "twitter_username",
+          (collections.metadata ->> 'twitterUrl')::TEXT AS "twitter_url",
           (collections.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
           collections.royalties,
           collections.new_royalties,
@@ -794,6 +796,7 @@ export const getCollectionsV7Options: RouteOptions = {
                 r.image ??
                 (sampleImages.length ? Assets.getLocalAssetsLink(sampleImages[0]) : null),
               banner: r.banner,
+              twitterUrl: r.twitter_url,
               discordUrl: r.discord_url,
               externalUrl: r.external_url,
               twitterUsername: r.twitter_username,
