@@ -114,8 +114,13 @@ export const extendCollection = async (metadata: CollectionMetadata, _tokenId = 
         twitterUrl: "http://twitter.com/playwildcard",
       },
     },
-    "0xd29ce02ae6d3e77aba0b580e45b8a2865396fbfc": {
-      royalties: [],
+    "0x5fcfae331e919d679cc3bc07c15fcc6d5c7a93cb": {
+      royalties: [
+        {
+          recipient: "0xd29ce02ae6d3e77aba0b580e45b8a2865396fbfc",
+          bps: 500,
+        },
+      ],
     },
   };
 
