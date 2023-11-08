@@ -615,6 +615,7 @@ export const updateAsksTokenData = async (
               tokenData,
             },
             bulkParams,
+            bulkParamsJSON: JSON.stringify(bulkParams),
             response,
           })
         );
@@ -632,6 +633,7 @@ export const updateAsksTokenData = async (
               tokenData,
             },
             bulkParams,
+            bulkParamsJSON: JSON.stringify(bulkParams),
             response,
             keepGoing,
           })
@@ -765,6 +767,7 @@ export const updateAsksCollectionData = async (
               collectionData,
             },
             bulkParams,
+            bulkParamsJSON: JSON.stringify(bulkParams),
             response,
           })
         );
@@ -781,6 +784,7 @@ export const updateAsksCollectionData = async (
               collectionData,
             },
             bulkParams,
+            bulkParamsJSON: JSON.stringify(bulkParams),
             response,
             keepGoing,
           })

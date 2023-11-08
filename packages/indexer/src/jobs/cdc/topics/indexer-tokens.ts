@@ -67,15 +67,6 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         const spamStatusChanged = payload.before.is_spam !== payload.after.is_spam;
 
         if (flagStatusChanged || rarityRankChanged || spamStatusChanged) {
-          logger.info(
-            "indexer-tokens",
-            JSON.stringify({
-              topic: "debugAskIndex",
-              message: `refreshAsksTokenJob.addToQueue. contract=${payload.after.contract}, tokenId=${payload.after.token_id}`,
-              payload,
-            })
-          );
-
           await refreshAsksTokenJob.addToQueue(payload.after.contract, payload.after.token_id);
         }
       }

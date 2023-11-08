@@ -94,15 +94,6 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
         const spamStatusChanged = payload.before.is_spam !== payload.after.is_spam;
 
         if (spamStatusChanged) {
-          logger.info(
-            "indexer-collections",
-            JSON.stringify({
-              topic: "debugAskIndex",
-              message: `refreshAsksCollectionJob.addToQueue. collectionId=${payload.after.id}`,
-              payload,
-            })
-          );
-
           await refreshAsksCollectionJob.addToQueue(payload.after.id);
         }
       }
