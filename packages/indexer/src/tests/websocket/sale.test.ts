@@ -56,10 +56,10 @@ describe("Websocket - Sales", () => {
       data: payload,
     } as unknown as SaleWebsocketEventsTriggerQueueJobPayload);
 
-    // make sure the `the publishWebsocketEvent` is callled
-    expect(publishWebsocketEvent.mock.calls.length).not.toBe(0);
+    // make sure the `publishWebsocketEvent` is callled
+    expect(publishWebsocketEvent.mock.calls).toHaveLength(1);
 
-    const message = publishWebsocketEvent.mock.calls[0][0];
+    const message = publishWebsocketEvent.mock.calls.pop().pop();
 
     // check the schema
     expect(JoiSale.validate(message!.data).error).toBe(undefined);
