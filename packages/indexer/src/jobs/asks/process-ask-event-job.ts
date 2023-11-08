@@ -70,6 +70,9 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
               orders.maker AS "order_maker",
               orders.taker AS "order_taker",
               orders.kind AS "order_kind",
+              orders.dynamic AS "order_dynamic",
+              orders.raw_data AS "order_raw_data",
+              orders.missing_royalties AS "order_missing_royalties",
               DATE_PART('epoch', LOWER(orders.valid_between)) AS "order_valid_from",
               COALESCE(
                 NULLIF(DATE_PART('epoch', UPPER(orders.valid_between)), 'Infinity'),
@@ -161,6 +164,9 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
             order_valid_from: Number(rawResult.order_valid_from),
             order_valid_until: Number(rawResult.order_valid_until),
             order_kind: rawResult.order_kind,
+            order_dynamic: rawResult.order_dynamic,
+            order_raw_data: rawResult.order_raw_data,
+            order_missing_royalties: rawResult.order_missing_royalties,
           });
         }
       } catch (error) {
