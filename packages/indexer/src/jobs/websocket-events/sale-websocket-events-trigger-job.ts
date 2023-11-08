@@ -118,7 +118,7 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
                 }
 
                 logger.info(
-                  "sale-websocket-events-trigger-queue",
+                  this.queueName,
                   JSON.stringify({
                     message: `No changes detected for sale. contract=${data.after.contract}, tokenId=${data.after.token_id}`,
                     data,
@@ -131,7 +131,7 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
                 );
               } catch (error) {
                 logger.error(
-                  "sale-websocket-events-trigger-queue",
+                  this.queueName,
                   JSON.stringify({
                     message: `No changes detected for sale error. contract=${data.after.contract}, tokenId=${data.after.token_id}`,
                     data,
