@@ -55,6 +55,8 @@ export const allChainsSyncRedisSubscriber = new Redis(config.allChainsSyncRedisU
 // https://redis.io/topics/distlock
 export const redlock = new Redlock([redis.duplicate()], { retryCount: 0 });
 
+export const redlockAllChains = new Redlock([allChainsSyncRedis.duplicate()], { retryCount: 0 });
+
 // Common types
 
 export type BullMQBulkJob = {
