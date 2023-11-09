@@ -4,9 +4,9 @@ import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
 import Joi from "joi";
 
-import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { regex } from "@/common/utils";
+import { config } from "@/config/index";
 
 const version = "v1";
 
