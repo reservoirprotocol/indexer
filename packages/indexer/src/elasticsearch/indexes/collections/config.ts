@@ -35,6 +35,27 @@ export const CONFIG_DEFAULT = {
           },
         ],
       },
+      nameSuggestV2: {
+        type: "completion",
+        contexts: [
+          {
+            name: "chainId",
+            type: "category",
+          },
+          {
+            name: "id",
+            type: "category",
+          },
+          {
+            name: "community",
+            type: "category",
+          },
+          {
+            name: "hasTokens",
+            type: "category",
+          },
+        ],
+      },
     },
   } as MappingTypeMapping,
   settings: {
