@@ -13,7 +13,7 @@ export class TopSellingCollectionsJob extends AbstractRabbitMqJobHandler {
   useSharedChannel = true;
   persistent = false;
 
-  protected async process(payload: TopSellingCollectionsJobPayload) {
+  public async process(payload: TopSellingCollectionsJobPayload) {
     const { retry } = payload;
     const updateResult = await TopSellingCollections.updateTopSellingCollections();
 

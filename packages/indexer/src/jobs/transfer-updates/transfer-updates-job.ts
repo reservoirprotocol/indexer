@@ -12,7 +12,7 @@ export class TransferUpdatesJob extends AbstractRabbitMqJobHandler {
   lazyMode = true;
   timeout = 60000;
 
-  protected async process(payload: Event) {
+  public async process(payload: Event) {
     const { from, to, tokenId } = payload;
     const { address } = payload.baseEventParams;
 

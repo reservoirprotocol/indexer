@@ -24,7 +24,7 @@ export default class ProcessResyncRequestJob extends AbstractRabbitMqJobHandler 
   concurrency = 10;
   useSharedChannel = true;
 
-  protected async process(payload: ProcessResyncRequestJobPayload) {
+  public async process(payload: ProcessResyncRequestJobPayload) {
     const { fromBlock, toBlock, backfill, syncDetails, blocksPerBatch } = payload;
 
     await eventsSyncBackfillJob.addToQueue(fromBlock, toBlock, {

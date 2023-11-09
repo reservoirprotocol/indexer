@@ -19,7 +19,7 @@ export class FillPostProcessJob extends AbstractRabbitMqJobHandler {
     delay: 1000,
   } as BackoffStrategy;
 
-  protected async process(payload: es.fills.Event[]) {
+  public async process(payload: es.fills.Event[]) {
     const allFillEvents = payload;
 
     await Promise.all([

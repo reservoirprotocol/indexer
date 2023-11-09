@@ -39,7 +39,7 @@ export class ProcessConsecutiveTransferJob extends AbstractRabbitMqJobHandler {
     return redis.del(this.getJobsCounterKeyName(txHash, logIndex));
   }
 
-  protected async process(payload: ProcessConsecutiveTransferJobPayload) {
+  public async process(payload: ProcessConsecutiveTransferJobPayload) {
     const { fromAddress, toAddress, fromTokenId, toTokenId, baseEventParams } = payload;
     const onChainData = initOnChainData();
     const ns = getNetworkSettings();

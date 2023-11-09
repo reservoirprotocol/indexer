@@ -37,7 +37,7 @@ export class NewCollectionForTokenJob extends AbstractRabbitMqJobHandler {
     delay: 10000,
   } as BackoffStrategy;
 
-  protected async process(payload: NewCollectionForTokenJobPayload) {
+  public async process(payload: NewCollectionForTokenJobPayload) {
     const { contract, tokenId, mintedTimestamp, newCollectionId, oldCollectionId } = payload;
     const queries: PgPromiseQuery[] = [];
 

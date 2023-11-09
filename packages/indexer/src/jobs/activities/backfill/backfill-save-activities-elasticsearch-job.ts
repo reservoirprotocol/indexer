@@ -46,7 +46,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
     delay: 5000,
   } as BackoffStrategy;
 
-  protected async process(payload: BackfillSaveActivitiesElasticsearchJobPayload) {
+  public async process(payload: BackfillSaveActivitiesElasticsearchJobPayload) {
     const type = payload.type;
     const cursor = payload.cursor;
     const fromTimestamp = payload.fromTimestamp || 0;

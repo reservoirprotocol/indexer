@@ -15,7 +15,7 @@ export default class CollectionRefreshCacheJob extends AbstractRabbitMqJobHandle
   concurrency = 10;
   persistent = false;
 
-  protected async process(payload: CollectionRefreshCacheJobPayload) {
+  public async process(payload: CollectionRefreshCacheJobPayload) {
     const { collection } = payload;
 
     // Refresh the contract floor sell and top bid

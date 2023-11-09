@@ -15,7 +15,7 @@ export default class ResyncAttributeCountsJob extends AbstractRabbitMqJobHandler
   useSharedChannel = true;
   lazyMode = true;
 
-  protected async process(payload: ResyncAttributeCountsJobPayload) {
+  public async process(payload: ResyncAttributeCountsJobPayload) {
     const { tokenAttributeCounter } = payload;
 
     // Update the attributes token count

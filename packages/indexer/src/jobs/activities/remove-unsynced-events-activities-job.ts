@@ -14,7 +14,7 @@ export default class RemoveUnsyncedEventsActivitiesJob extends AbstractRabbitMqJ
   lazyMode = true;
   useSharedChannel = true;
 
-  protected async process(payload: RemoveUnsyncedEventsActivitiesJobPayload) {
+  public async process(payload: RemoveUnsyncedEventsActivitiesJobPayload) {
     await ActivitiesIndex.deleteActivitiesByBlockHash(payload.blockHash);
 
     const keepGoing = await ActivitiesIndex.deleteActivitiesByBlockHash(payload.blockHash);

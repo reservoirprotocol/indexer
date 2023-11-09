@@ -15,7 +15,7 @@ export class CountApiUsageJob extends AbstractRabbitMqJobHandler {
   concurrency = 30;
   lazyMode = true;
 
-  protected async process(payload: CountApiUsageJobPayload) {
+  public async process(payload: CountApiUsageJobPayload) {
     const { apiKey, route, statusCode, points, timestamp } = payload;
     await ApiUsageCounter.count(apiKey, route, statusCode, points, timestamp);
   }

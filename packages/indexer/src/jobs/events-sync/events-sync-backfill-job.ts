@@ -32,7 +32,7 @@ export default class EventsSyncBackfillJob extends AbstractRabbitMqJobHandler {
     delay: 10000,
   } as BackoffStrategy;
 
-  protected async process(payload: ProcessResyncRequestJobPayload) {
+  public async process(payload: ProcessResyncRequestJobPayload) {
     const { fromBlock, toBlock, syncDetails, backfill } = payload;
 
     try {

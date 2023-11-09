@@ -12,7 +12,7 @@ export class OrderbookOrdersJob extends AbstractRabbitMqJobHandler {
     delay: 10000,
   } as BackoffStrategy;
 
-  protected async process(payload: GenericOrderInfo) {
+  public async process(payload: GenericOrderInfo) {
     await processOrder(this, payload);
   }
 

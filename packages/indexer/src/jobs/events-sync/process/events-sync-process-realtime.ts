@@ -15,7 +15,7 @@ export default class EventsSyncProcessRealtimeJob extends AbstractRabbitMqJobHan
     delay: 10000,
   } as BackoffStrategy;
 
-  protected async process(payload: EventsBatch) {
+  public async process(payload: EventsBatch) {
     const { id, events, backfill } = payload;
 
     try {

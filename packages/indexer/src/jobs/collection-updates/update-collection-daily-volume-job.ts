@@ -22,7 +22,7 @@ export default class UpdateCollectionDailyVolumeJob extends AbstractRabbitMqJobH
   lazyMode = true;
   useSharedChannel = true;
 
-  protected async process(payload: UpdateCollectionDailyVolumeJobPayload) {
+  public async process(payload: UpdateCollectionDailyVolumeJobPayload) {
     const result = await ActivitiesIndex.search({
       types: [ActivityType.sale],
       contracts: [payload.contract],

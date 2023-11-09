@@ -24,7 +24,7 @@ export default class OrderUpdatesOracleOrderJob extends AbstractRabbitMqJobHandl
   } as BackoffStrategy;
   intervalInSeconds = 5;
 
-  protected async process() {
+  public async process() {
     logger.info(this.queueName, "Fetching oracle cancellations");
 
     // Fetch the cursor

@@ -52,14 +52,14 @@ describe("Websocket - Sales", () => {
     );
 
     const queue = new SaleWebsocketEventsTriggerQueueJob();
-    await queue.handle({
+    await queue.process({
       data: payload,
     } as unknown as SaleWebsocketEventsTriggerQueueJobPayload);
 
     // make sure the `publishWebsocketEvent` is callled
     expect(publishWebsocketEvent.mock.calls).toHaveLength(1);
 
-    const message = publishWebsocketEvent.mock.calls.pop().pop();
+    const message = publishWebsocketEvent.mock.calls[0]![0]!;
 
     // check the schema
     expect(JoiSale.validate(message!.data).error).toBe(undefined);

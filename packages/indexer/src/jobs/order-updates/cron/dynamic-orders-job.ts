@@ -29,7 +29,7 @@ export default class OrderUpdatesDynamicOrderJob extends AbstractRabbitMqJobHand
     delay: 10000,
   } as BackoffStrategy;
 
-  protected async process(payload: OrderUpdatesDynamicOrderJobPayload) {
+  public async process(payload: OrderUpdatesDynamicOrderJobPayload) {
     const { continuation } = payload;
 
     try {

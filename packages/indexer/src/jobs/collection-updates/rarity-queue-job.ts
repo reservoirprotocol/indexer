@@ -21,7 +21,7 @@ export default class RarityQueueJob extends AbstractRabbitMqJobHandler {
     delay: 20000,
   } as BackoffStrategy;
 
-  protected async process(payload: RarityQueueJobPayload) {
+  public async process(payload: RarityQueueJobPayload) {
     const { collectionId } = payload;
     const collection = await Collections.getById(collectionId, true);
     const whitelistedLargeContracts: string[] = [];

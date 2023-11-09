@@ -16,7 +16,7 @@ export default class HandleNewSellOrderJob extends AbstractRabbitMqJobHandler {
   maxRetries = 10;
   concurrency = 2;
 
-  protected async process(payload: HandleNewSellOrderJobPayload) {
+  public async process(payload: HandleNewSellOrderJobPayload) {
     const { contract, tokenId, price, previousPrice } = payload;
 
     const tokenAttributes = await Tokens.getTokenAttributes(contract, tokenId);

@@ -17,7 +17,7 @@ export default class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
   useSharedChannel = true;
   lazyMode = true;
 
-  protected async process(payload: FetchSourceInfoJobPayload) {
+  public async process(payload: FetchSourceInfoJobPayload) {
     const { sourceDomain } = payload;
 
     logger.info(this.queueName, `Start. sourceDomain=${sourceDomain}`);

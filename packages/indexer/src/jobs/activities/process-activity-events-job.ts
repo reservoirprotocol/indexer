@@ -32,7 +32,7 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
   persistent = true;
   lazyMode = true;
 
-  protected async process(payload: ProcessActivityEventsJobPayload) {
+  public async process(payload: ProcessActivityEventsJobPayload) {
     const { eventKind } = payload;
 
     let addToQueue = false;

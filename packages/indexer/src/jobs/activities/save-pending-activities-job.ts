@@ -19,7 +19,7 @@ export default class SavePendingActivitiesJob extends AbstractRabbitMqJobHandler
   persistent = true;
   lazyMode = true;
 
-  protected async process() {
+  public async process() {
     const pendingActivitiesQueue = new PendingActivitiesQueue();
     const pendingActivities = await pendingActivitiesQueue.get(BATCH_SIZE);
 

@@ -13,7 +13,7 @@ export class PendingExpiredOrdersCheckJob extends AbstractRabbitMqJobHandler {
   lazyMode = true;
   singleActiveConsumer = true;
 
-  protected async process() {
+  public async process() {
     const result = await ridb.oneOrNone(
       `
               SELECT

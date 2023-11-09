@@ -33,7 +33,7 @@ export default class RecalcOwnerCountQueueJob extends AbstractRabbitMqJobHandler
     delay: 20000,
   } as BackoffStrategy;
 
-  protected async process(payload: RecalcOwnerCountQueueJobPayload) {
+  public async process(payload: RecalcOwnerCountQueueJobPayload) {
     const { kind, data } = payload;
     let collection;
 

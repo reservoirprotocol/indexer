@@ -25,7 +25,7 @@ export default class BlockCheckJob extends AbstractRabbitMqJobHandler {
     delay: 30000,
   } as BackoffStrategy;
 
-  protected async process(payload: BlockCheckJobPayload) {
+  public async process(payload: BlockCheckJobPayload) {
     const { block, blockHash } = payload;
 
     try {

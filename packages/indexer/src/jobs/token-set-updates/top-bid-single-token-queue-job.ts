@@ -10,7 +10,7 @@ export default class TopBidSingleTokenQueueJob extends AbstractRabbitMqJobHandle
     delay: 20000,
   } as BackoffStrategy;
 
-  protected async process(payload: topBidPayload) {
+  public async process(payload: topBidPayload) {
     await processTopBid(payload, this.queueName);
   }
 

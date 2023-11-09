@@ -25,7 +25,7 @@ export default class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler 
   } as BackoffStrategy;
   lazyMode = true;
 
-  protected async process(payload: NonFlaggedFloorQueueJobPayload) {
+  public async process(payload: NonFlaggedFloorQueueJobPayload) {
     // First, retrieve the token's associated collection.
     const collectionResult = await idb.oneOrNone(
       `

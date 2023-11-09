@@ -65,7 +65,7 @@ export default class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
     delay: 10000,
   } as BackoffStrategy;
 
-  protected async process(payload: OrderUpdatesByIdJobPayload) {
+  public async process(payload: OrderUpdatesByIdJobPayload) {
     const { id, trigger, ingestMethod, ingestDelay } = payload;
     let { side, tokenSetId } = payload;
 

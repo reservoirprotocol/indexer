@@ -24,7 +24,7 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
   useSharedChannel = true;
   singleActiveConsumer = true;
 
-  protected async process() {
+  public async process() {
     let addToQueue = false;
 
     const lockAcquired = await acquireLock(this.getLockName(), DEFAULT_JOB_DELAY_SECONDS);

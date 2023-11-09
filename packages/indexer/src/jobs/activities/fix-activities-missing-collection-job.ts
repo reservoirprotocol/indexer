@@ -17,7 +17,7 @@ export default class FixActivitiesMissingCollectionJob extends AbstractRabbitMqJ
   persistent = true;
   lazyMode = true;
 
-  protected async process(payload: FixActivitiesMissingCollectionJobPayload) {
+  public async process(payload: FixActivitiesMissingCollectionJobPayload) {
     const { contract, tokenId, retry } = payload;
 
     const collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));

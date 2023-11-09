@@ -28,7 +28,7 @@ export abstract class AbstractRabbitMqJobHandler {
   abstract queueName: string;
   abstract maxRetries: number;
 
-  protected abstract process(payload: any): Promise<any>;
+  public abstract process(payload: any): Promise<any>;
 
   protected rabbitMqMessage: RabbitMQMessage | undefined; // Hold the rabbitmq message type with all the extra fields
   protected concurrency = 1;
@@ -172,10 +172,6 @@ export abstract class AbstractRabbitMqJobHandler {
         );
       }
     }
-  }
-
-  public async handle(payload: any) {
-    return await this.process(payload);
   }
 
   // Function to handle on completed event

@@ -19,7 +19,7 @@ export default class RefreshActivitiesTokenMetadataJob extends AbstractRabbitMqJ
   persistent = true;
   lazyMode = true;
 
-  protected async process(payload: RefreshActivitiesTokenMetadataJobPayload) {
+  public async process(payload: RefreshActivitiesTokenMetadataJobPayload) {
     let addToQueue = false;
 
     const { contract, tokenId } = payload;

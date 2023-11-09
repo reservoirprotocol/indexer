@@ -20,7 +20,7 @@ export default class ProcessArchiveDataJob extends AbstractRabbitMqJobHandler {
     delay: 5000,
   } as BackoffStrategy;
 
-  protected async process(payload: ProcessArchiveDataJobPayload) {
+  public async process(payload: ProcessArchiveDataJobPayload) {
     const { tableName, type, nextBatchTime } = payload;
     let lock = false;
 

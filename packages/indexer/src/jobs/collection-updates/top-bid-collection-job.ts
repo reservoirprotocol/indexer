@@ -26,7 +26,7 @@ export default class TopBidCollectionJob extends AbstractRabbitMqJobHandler {
     delay: 20000,
   } as BackoffStrategy;
 
-  protected async process(payload: TopBidCollectionJobPayload) {
+  public async process(payload: TopBidCollectionJobPayload) {
     try {
       if (config.chainId === 11155111) {
         logger.info(

@@ -14,7 +14,7 @@ export class EventsSyncNftTransfersWriteBufferJob extends AbstractRabbitMqJobHan
   lazyMode = true;
   timeout = 60000;
 
-  protected async process(payload: EventsSyncNftTransfersWriteBufferPayload) {
+  public async process(payload: EventsSyncNftTransfersWriteBufferPayload) {
     const { query } = payload;
 
     try {

@@ -55,7 +55,7 @@ export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
   persistent = true;
   lazyMode = true;
 
-  protected async process(payload: ProcessActivityEventJobPayload) {
+  public async process(payload: ProcessActivityEventJobPayload) {
     const { kind, data } = payload;
 
     switch (kind) {

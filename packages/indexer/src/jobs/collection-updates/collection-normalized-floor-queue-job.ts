@@ -24,7 +24,7 @@ export default class CollectionNormalizedJob extends AbstractRabbitMqJobHandler 
   } as BackoffStrategy;
   lazyMode = true;
 
-  protected async process(payload: CollectionNormalizedJobPayload) {
+  public async process(payload: CollectionNormalizedJobPayload) {
     const { kind, contract, tokenId, txHash, txTimestamp } = payload;
 
     // First, retrieve the token's associated collection.
