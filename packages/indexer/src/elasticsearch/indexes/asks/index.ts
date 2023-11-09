@@ -584,22 +584,6 @@ export const updateAsksTokenData = async (
       (hit) => ({ id: hit._source!.id, index: hit._index })
     );
 
-    logger.info(
-      "elasticsearch-asks",
-      JSON.stringify({
-        topic: "updateAsksTokenData",
-        message: `Debug`,
-        data: {
-          contract,
-          tokenId,
-          tokenData,
-        },
-        query,
-        queryJSON: JSON.stringify(query),
-        pendingUpdateDocuments,
-      })
-    );
-
     if (pendingUpdateDocuments.length) {
       const bulkParams = {
         body: pendingUpdateDocuments.flatMap((document) => [
@@ -642,22 +626,22 @@ export const updateAsksTokenData = async (
       } else {
         keepGoing = pendingUpdateDocuments.length === 1000;
 
-        logger.info(
-          "elasticsearch-asks",
-          JSON.stringify({
-            topic: "updateAsksTokenData",
-            message: `Success`,
-            data: {
-              contract,
-              tokenId,
-              tokenData,
-            },
-            bulkParams,
-            bulkParamsJSON: JSON.stringify(bulkParams),
-            response,
-            keepGoing,
-          })
-        );
+        // logger.info(
+        //   "elasticsearch-asks",
+        //   JSON.stringify({
+        //     topic: "updateAsksTokenData",
+        //     message: `Success`,
+        //     data: {
+        //       contract,
+        //       tokenId,
+        //       tokenData,
+        //     },
+        //     bulkParams,
+        //     bulkParamsJSON: JSON.stringify(bulkParams),
+        //     response,
+        //     keepGoing,
+        //   })
+        // );
       }
     }
   } catch (error) {
@@ -759,21 +743,6 @@ export const updateAsksCollectionData = async (
       (hit) => ({ id: hit._source!.id, index: hit._index })
     );
 
-    logger.info(
-      "elasticsearch-asks",
-      JSON.stringify({
-        topic: "updateAsksCollectionData",
-        message: `Debug`,
-        data: {
-          collectionId,
-          collectionData,
-        },
-        query,
-        queryJSON: JSON.stringify(query),
-        pendingUpdateDocuments,
-      })
-    );
-
     if (pendingUpdateDocuments.length) {
       const bulkParams = {
         body: pendingUpdateDocuments.flatMap((document) => [
@@ -812,21 +781,21 @@ export const updateAsksCollectionData = async (
       } else {
         keepGoing = pendingUpdateDocuments.length === 1000;
 
-        logger.info(
-          "elasticsearch-asks",
-          JSON.stringify({
-            topic: "updateAsksCollectionData",
-            message: `Success`,
-            data: {
-              collectionId,
-              collectionData,
-            },
-            bulkParams,
-            bulkParamsJSON: JSON.stringify(bulkParams),
-            response,
-            keepGoing,
-          })
-        );
+        // logger.info(
+        //   "elasticsearch-asks",
+        //   JSON.stringify({
+        //     topic: "updateAsksCollectionData",
+        //     message: `Success`,
+        //     data: {
+        //       collectionId,
+        //       collectionData,
+        //     },
+        //     bulkParams,
+        //     bulkParamsJSON: JSON.stringify(bulkParams),
+        //     response,
+        //     keepGoing,
+        //   })
+        // );
       }
     }
   } catch (error) {
