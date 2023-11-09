@@ -39,11 +39,15 @@ export class BackfillCollectionsElasticsearchJob extends AbstractRabbitMqJobHand
       const limit = Number(await redis.get(`${this.queueName}-limit`)) || 1000;
 
       if (payload.cursor) {
-        continuationFilter = `AND (collections.updated_at, collections.id) > (to_timestamp($/updatedAt/), $/id/)`;
+        continuationFilter = `WHERE (collections.updated_at, collections.id) > (to_timestamp($/updatedAt/), $/id/)`;
       }
 
       if (payload.fromTimestamp) {
-        fromTimestampFilter = `AND (collections.updated_at) > (to_timestamp($/fromTimestamp/))`;
+        if (payload.cursor) {
+          fromTimestampFilter = `AND (collections.updated_at) > (to_timestamp($/fromTimestamp/))`;
+        } else {
+          fromTimestampFilter = `WHERE (collections.updated_at) > (to_timestamp($/fromTimestamp/))`;
+        }
       }
 
       const rawResults = await idb.manyOrNone(

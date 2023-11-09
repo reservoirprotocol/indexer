@@ -12,6 +12,7 @@ export interface CollectionDocument extends BaseDocument {
   name: string;
   community: string;
   tokenCount: number;
+  nameSuggest: any;
 }
 
 export interface BuildCollectionDocumentDocumentData extends BuildDocumentData {
@@ -38,6 +39,14 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
       name: data.name,
       community: data.community,
       tokenCount: Number(data.token_count),
+      nameSuggest: {
+        input: [data.name],
+        contexts: {
+          chainId: [config.chainId],
+          community: data.community ? [data.community] : [],
+          hasTokens: [Number(data.token_count) > 0 ? "true" : "false"],
+        },
+      },
     } as CollectionDocument;
   }
 }

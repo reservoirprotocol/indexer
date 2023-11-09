@@ -14,8 +14,27 @@ export const CONFIG_DEFAULT = {
       id: { type: "keyword" },
       name: { type: "keyword" },
       contract: { type: "keyword" },
+      community: { type: "keyword" },
+      tokenCount: { type: "long" },
       createdAt: { type: "date" },
       indexedAt: { type: "date" },
+      nameSuggest: {
+        type: "completion",
+        contexts: [
+          {
+            name: "chainId",
+            type: "category",
+          },
+          {
+            name: "community",
+            type: "category",
+          },
+          {
+            name: "hasTokens",
+            type: "category",
+          },
+        ],
+      },
     },
   } as MappingTypeMapping,
   settings: {
