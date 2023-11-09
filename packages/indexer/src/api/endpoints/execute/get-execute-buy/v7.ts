@@ -996,7 +996,16 @@ export const getExecuteBuyV7Options: RouteOptions = {
             // processed by the next pipeline of the same API rather than
             // building something custom for it.
 
-            for (const t of tokenResults) {
+            for (
+              let i = 0;
+              i <
+              Math.min(
+                useCrossChainIntent || useSeaportIntent ? item.quantity : tokenResults.length,
+                tokenResults.length
+              );
+              i++
+            ) {
+              const t = tokenResults[i];
               items.push({
                 token: `${fromBuffer(t.contract)}:${t.token_id}`,
                 fillType: item.fillType,
@@ -1223,7 +1232,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               }
 
               // Stop if we filled the total quantity
-              if (quantityToFill <= 0 && !preview) {
+              if (quantityToFill <= 0 && (!preview || useCrossChainIntent || useSeaportIntent)) {
                 break;
               }
 
@@ -1702,7 +1711,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           enabled: boolean;
           solver?: string;
           availableBalance?: string;
-          maxPrice?: string;
+          maxPricePerItem?: string;
         } = await axios
           .get(
             `${config.crossChainSolverBaseUrl}/config?fromChainId=${fromChainId}&toChainId=${toChainId}&user=${payload.taker}`
@@ -1714,9 +1723,27 @@ export const getExecuteBuyV7Options: RouteOptions = {
         }
 
         const item = path[0];
-        const token = `${item.contract}:${item.tokenId ?? MaxUint256.toString()}`.toLowerCase();
+
         // Only set when minting
         const isCollectionRequest = item.orderId.startsWith("mint");
+
+        let tokenId = item.tokenId;
+
+        if (isCollectionRequest && !tokenId) {
+          // Hacky way to support "range" collections like ones from artblocks engine
+          if (item.orderId.match(/^mint:0x[a-f0-9]{40}:\d+:\d+$/g)) {
+            const [, , startTokenId, endTokenId] = item.orderId.split(":");
+            tokenId = bn(
+              "0x111111111111111111111111" +
+                Number(startTokenId).toString(16).padStart(20, "0") +
+                Number(endTokenId).toString(16).padStart(20, "0")
+            ).toString();
+          } else {
+            tokenId = MaxUint256.toString();
+          }
+        }
+
+        const token = `${item.contract}:${tokenId}`.toLowerCase();
 
         const { quote, gasCost } = await axios
           .post(`${config.crossChainSolverBaseUrl}/intents/quote`, {
@@ -1736,7 +1763,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
             );
           });
 
-        if (ccConfig.maxPrice && bn(quote).gt(ccConfig.maxPrice)) {
+        if (ccConfig.maxPricePerItem && bn(quote).gt(ccConfig.maxPricePerItem)) {
           throw Boom.badRequest("Price too high to purchase cross-chain");
         }
 

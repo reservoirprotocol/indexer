@@ -340,7 +340,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     ${recheckCondition}
                     AND (
                     orders.fillability_status != 'fillable' 
-                    OR orders.fillability_status != 'approved'
+                    OR orders.approval_status != 'approved'
                     OR orders.price IS DISTINCT FROM $/price/
                     OR orders.currency_price IS DISTINCT FROM $/price/
                     OR orders.value IS DISTINCT FROM $/value/

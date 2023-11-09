@@ -1707,16 +1707,16 @@ export const getListedTokensFromES = async (query: any) => {
             FROM orders o
             JOIN token_sets_tokens tst
               ON o.token_set_id = tst.token_set_id
-            WHERE tst.contract = x.t_contract
-              AND tst.token_id = x.t_token_id
+            WHERE tst.contract = t.contract
+              AND tst.token_id = t.token_id
               AND o.side = 'buy'
               AND o.fillability_status = 'fillable'
               AND o.approval_status = 'approved'
               ${query.excludeEOA ? `AND o.kind NOT IN ('blur')` : ""}
               AND EXISTS(
                 SELECT FROM nft_balances nb
-                  WHERE nb.contract = x.t_contract
-                  AND nb.token_id = x.t_token_id
+                  WHERE nb.contract = t.contract
+                  AND nb.token_id = t.token_id
                   AND nb.amount > 0
                   AND nb.owner != o.maker
                   AND (

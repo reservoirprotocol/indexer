@@ -4,9 +4,9 @@ import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
 import Joi from "joi";
 
-import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { regex } from "@/common/utils";
+import { config } from "@/config/index";
 
 const version = "v1";
 
@@ -89,16 +89,20 @@ export const postExecuteSolveV1Options: RouteOptions = {
                 // Skip errors
               });
 
-            return {
-              status: {
-                endpoint: "/execute/status/v1",
-                method: "POST",
-                body: {
-                  kind: payload.kind,
-                  id: response.hash,
+            if (response) {
+              return {
+                status: {
+                  endpoint: "/execute/status/v1",
+                  method: "POST",
+                  body: {
+                    kind: payload.kind,
+                    id: response.hash,
+                  },
                 },
-              },
-            };
+              };
+            } else {
+              return Boom.conflict("Transaction could not be processed");
+            }
           } else {
             throw Boom.badRequest("Must specify one of `order` or `tx`");
           }
