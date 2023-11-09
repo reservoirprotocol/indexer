@@ -78,6 +78,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
               ) AS "order_valid_until",
               orders.token_set_id AS "order_token_set_id",
               (${criteriaBuildQuery}) AS order_criteria,
+              orders.created_at AS "order_created_at",
               extract(epoch from orders.updated_at) updated_ts,
                         (
                 CASE
@@ -155,7 +156,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
           if (rawResult.status === "active") {
             const askDocument = new AskDocumentBuilder().buildDocument({
               id: rawResult.order_id,
-              created_at: new Date(rawResult.updated_ts * 1000),
+              created_at: new Date(rawResult.order_created_at),
               contract: rawResult.contract,
               token_id: rawResult.token_id,
               token_name: rawResult.token_name,
