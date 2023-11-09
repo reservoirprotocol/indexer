@@ -605,10 +605,14 @@ export const updateAsksTokenData = async (
         body: pendingUpdateDocuments.flatMap((document) => [
           { update: { _index: document.index, _id: document.id, retry_on_conflict: 3 } },
           {
-            doc: {
-              "token.isFlagged": Boolean(tokenData.isFlagged),
-              "token.isSpam": Number(tokenData.isSpam) > 0,
-              "token.rarityRank": tokenData.rarityRank,
+            script: {
+              source:
+                "ctx._source.token.isFlagged = params.token_is_flagged; ctx._source.token.isSpam = params.token_is_spam; if (params.token_rarity_rank == null) { ctx._source.token.remove('rarityRank') } else { ctx._source.token.rarityRank = params.token_rarity_rank }",
+              params: {
+                token_is_flagged: Boolean(tokenData.isFlagged),
+                token_is_spam: Number(tokenData.isSpam) > 0,
+                token_rarity_rank: tokenData.rarityRank ?? null,
+              },
             },
           },
         ]),
@@ -775,8 +779,11 @@ export const updateAsksCollectionData = async (
         body: pendingUpdateDocuments.flatMap((document) => [
           { update: { _index: document.index, _id: document.id, retry_on_conflict: 3 } },
           {
-            doc: {
-              "collection.isSpam": Number(collectionData.isSpam) > 0,
+            script: {
+              source: "ctx._source.collection.isSpam = params.collection_is_spam;",
+              params: {
+                collection_is_spam: Number(collectionData.isSpam) > 0,
+              },
             },
           },
         ]),
