@@ -137,11 +137,13 @@ export class BackfillCollectionsElasticsearchJob extends AbstractRabbitMqJobHand
             token_count: rawResult.token_count,
           });
 
-          if (rawResult.token_count > 0) {
-            collectionEvents.push({ kind: "index", _id, document });
-          } else {
-            collectionEvents.push({ kind: "delete", _id });
-          }
+          collectionEvents.push({ kind: "index", _id, document });
+
+          // if (rawResult.token_count > 0) {
+          //   collectionEvents.push({ kind: "index", _id, document });
+          // } else {
+          //   collectionEvents.push({ kind: "delete", _id });
+          // }
         }
 
         const lastResult = rawResults[rawResults.length - 1];
