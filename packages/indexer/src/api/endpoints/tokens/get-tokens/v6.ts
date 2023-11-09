@@ -2028,14 +2028,8 @@ export const getListedTokensFromES = async (query: any) => {
           maker: ask.order.maker,
           validFrom: ask.order.validFrom,
           validUntil: ask.order.validUntil,
-          quantityFilled:
-            query.includeQuantity && ask.order.quantityFilled
-              ? ask.order.quantityFilled
-              : undefined,
-          quantityRemaining:
-            query.includeQuantity && ask.order.quantityRemaining
-              ? ask.order.quantityRemaining
-              : undefined,
+          quantityFilled: query.includeQuantity ? ask.order.quantityFilled : undefined,
+          quantityRemaining: query.includeQuantity ? ask.order.quantityRemaining : undefined,
           dynamicPricing,
           source: getJoiSourceObject(floorSellSource),
         },
