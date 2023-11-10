@@ -133,8 +133,12 @@ export class BackfillCollectionsElasticsearchJob extends AbstractRabbitMqJobHand
             created_at: new Date(rawResult.created_at),
             contract: rawResult.contract,
             name: rawResult.name,
+            slug: rawResult.slug,
+            image: rawResult.image,
             community: rawResult.community,
             token_count: rawResult.token_count,
+            is_spam: rawResult.is_spam,
+            all_time_volume: Number(rawResult.all_time_volume),
           });
 
           collectionEvents.push({ kind: "index", _id, document });

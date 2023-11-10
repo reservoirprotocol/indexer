@@ -13,9 +13,12 @@ export const CONFIG_DEFAULT = {
       },
       id: { type: "keyword" },
       name: { type: "keyword" },
+      slug: { type: "keyword" },
+      image: { type: "keyword" },
       contract: { type: "keyword" },
       community: { type: "keyword" },
       tokenCount: { type: "long" },
+      isSpam: { type: "boolean" },
       createdAt: { type: "date" },
       indexedAt: { type: "date" },
       nameSuggest: {
@@ -52,6 +55,10 @@ export const CONFIG_DEFAULT = {
           },
           {
             name: "hasTokens",
+            type: "category",
+          },
+          {
+            name: "isSpam",
             type: "category",
           },
         ],
