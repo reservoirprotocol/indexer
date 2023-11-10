@@ -82,7 +82,7 @@ export const extendCollection = async (metadata: CollectionMetadata, _tokenId = 
         description:
           "In the realm of the digital world, where creativity and innovation converge, a new chapter is about to unfold. Behold, the grand tale of Valiant Vikings, an extraordinary NFT collection that brings to life the epic saga of fearless warriors, mythical creatures, and untamed lands....",
         imageUrl:
-          "https://bafybeibpmngr4muw4oppgpe3noevuwnhrkl4wd53vynlj42bkw2gmoov6m.ipfs.nftstorage.link",
+          "https://bafybeidsrz5usezfxp3d7pgmmokmmne4clwpqv3wxlrqy3vmfr576mhzge.ipfs.nftstorage.link",
         twitterUrl: "https://twitter.com/Valiantvikin",
         discordUrl: "https://discord.gg/Bx2Drr2t4f",
         externalUrl: "https://www.purplewavestudios.com",
