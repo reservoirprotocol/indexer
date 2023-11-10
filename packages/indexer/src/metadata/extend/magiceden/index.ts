@@ -11,12 +11,20 @@ export const extendCollection = async (metadata: CollectionMetadata, _tokenId = 
     },
     "0x72106bbe2b447ecb9b52370ddc63cfa8e553b08c": {
       name: "ORL Ocean Racers",
+      metadata: {
+        description:
+          "Ocean Racing League's Ocean Racers are a collection of 8008 elephant & sea creature combinations, inhabiting the Polygon Blockchain. With well over 30 different creature types and a host of other traits, each racer is completely unique. Your Ocean Racers grant you access to the Ocean Racing League, where teams compete in weekly races to win $MATIC & $PEARL (The native token to the ORL universe). Tier, division and several team management factors such as Coaches also combine to determine how well your racer performs on the track.",
+        twitterUrl: "https://twitter.com/ElegantRacers",
+        discordUrl: "https://discord.gg/ocean-racing-league",
+        externalUrl: "https://oceanracingleague.com",
+      },
     },
     "0x71ef0488d78ed490c8ffa3112fb3d7b4614f76b5": {
       name: "Ocean Racing Coaches Association",
       metadata: {
         description:
           "ORCA member coaches are specially trained to work with compatible ORL Ocean Racers. Season 1 consists of 505 Coaches, living on the Polygon Blockchain. Appointing the right coach to your team will take your racers to new levels of performance that are otherwise unattainable. The impact your coach has is determined by 3 key factors; Coach Class, Specialties and Prestige.",
+        twitterUrl: "https://twitter.com/ElegantRacers",
         discordUrl: "https://discord.gg/ocean-racing-league",
         externalUrl: "https://oceanracingleague.com",
       },
@@ -121,6 +129,12 @@ export const extendCollection = async (metadata: CollectionMetadata, _tokenId = 
           bps: 500,
         },
       ],
+    },
+    "0xb32d51869d97218eb75e55f378205fdf658c37e1": {
+      metadata: {
+        twitterUrl: "https://twitter.com/GrumpiesNFT",
+        description: "2,000 Grumpies crash landing on Polygon!",
+      },
     },
   };
 
