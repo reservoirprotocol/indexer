@@ -343,12 +343,12 @@ export const searchTokenAsks = async (params: {
         params.normalizeRoyalties
           ? {
               "order.pricing.normalizedValueDecimal": {
-                order: "asc",
+                order: params.sortDirection ?? "asc",
               },
             }
           : {
               "order.pricing.priceDecimal": {
-                order: "asc",
+                order: params.sortDirection ?? "asc",
               },
             },
         {
