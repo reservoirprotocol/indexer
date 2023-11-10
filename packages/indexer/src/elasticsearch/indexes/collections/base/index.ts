@@ -5,6 +5,7 @@ import { formatEth, fromBuffer } from "@/common/utils";
 import { BuildDocumentData, BaseDocument, DocumentBuilder } from "@/elasticsearch/indexes/base";
 import { config } from "@/config/index";
 import { getNetworkName } from "@/config/network";
+import { logger } from "@/common/logger";
 
 export interface CollectionDocument extends BaseDocument {
   id: string;
@@ -35,7 +36,7 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
   public buildDocument(data: BuildCollectionDocumentDocumentData): CollectionDocument {
     const baseDocument = super.buildDocument(data);
 
-    return {
+    const document = {
       ...baseDocument,
       chain: {
         id: config.chainId,
@@ -61,6 +62,18 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
         },
       },
     } as CollectionDocument;
+
+    logger.info(
+      "CollectionDocumentBuilder",
+      JSON.stringify({
+        topic: "debugCollectionsIndex",
+        message: `buildDocument. collectionId=${data.id}`,
+        data,
+        document,
+      })
+    );
+
+    return document;
   }
 
   formatAllTimeVolume(data: BuildCollectionDocumentDocumentData) {
