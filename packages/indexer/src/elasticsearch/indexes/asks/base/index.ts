@@ -28,6 +28,7 @@ export interface AskDocument extends BaseDocument {
     id: string;
     name: string;
     image: string;
+    isSpam: boolean;
   };
   order: {
     id: string;
@@ -55,6 +56,9 @@ export interface AskDocument extends BaseDocument {
         };
       };
     };
+    isDynamic: boolean;
+    rawData: Record<string, unknown>;
+    missingRoyalties: { bps: number; recipient: string }[];
     pricing: {
       price: string;
       priceDecimal?: number;
@@ -113,6 +117,9 @@ export interface BuildAskDocumentData extends BuildDocumentData {
   order_pricing_currency_normalized_value?: number;
   order_maker: Buffer;
   order_taker?: Buffer;
+  order_dynamic: boolean;
+  order_raw_data: Record<string, unknown>;
+  order_missing_royalties: { bps: number; recipient: string }[];
 }
 
 export class AskDocumentBuilder extends DocumentBuilder {
@@ -153,6 +160,9 @@ export class AskDocumentBuilder extends DocumentBuilder {
         criteria: data.order_criteria,
         quantityFilled: Number(data.order_quantity_filled),
         quantityRemaining: Number(data.order_quantity_remaining),
+        isDynamic: Boolean(data.order_dynamic || 0),
+        rawData: data.order_raw_data,
+        missingRoyalties: data.order_missing_royalties,
         pricing: {
           price: String(data.order_pricing_price),
           priceDecimal: Number(Number(formatEther(data.order_pricing_price)).toFixed(18)),

@@ -1,9 +1,11 @@
+import { Interface } from "@ethersproject/abi";
 import { BigNumber } from "@ethersproject/bignumber";
 import { AddressZero, HashZero, MaxUint256 } from "@ethersproject/constants";
 import { keccak256 } from "@ethersproject/solidity";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
+import { Network } from "@reservoir0x/sdk/dist/utils";
 import { PermitHandler } from "@reservoir0x/sdk/dist/router/v6/permit";
 import {
   FillListingsResult,
@@ -1704,7 +1706,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
           throw Boom.badRequest("Fees on top are not supported when purchasing cross-chain");
         }
 
-        const fromChainId = payload.currencyChainId;
+        const requestedFromChainId = payload.currencyChainId;
+        // Mainnet requests will get routed to base
+        const actualFromChainId =
+          requestedFromChainId === Network.Ethereum ? Network.Base : requestedFromChainId;
         const toChainId = config.chainId;
 
         const ccConfig: {
@@ -1714,7 +1719,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           maxPricePerItem?: string;
         } = await axios
           .get(
-            `${config.crossChainSolverBaseUrl}/config?fromChainId=${fromChainId}&toChainId=${toChainId}&user=${payload.taker}`
+            `${config.crossChainSolverBaseUrl}/config?fromChainId=${actualFromChainId}&toChainId=${toChainId}&user=${payload.taker}`
           )
           .then((response) => response.data);
 
@@ -1747,7 +1752,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
         const { quote, gasCost } = await axios
           .post(`${config.crossChainSolverBaseUrl}/intents/quote`, {
-            fromChainId,
+            fromChainId: actualFromChainId,
             toChainId,
             isCollectionRequest,
             token,
@@ -1767,7 +1772,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           throw Boom.badRequest("Price too high to purchase cross-chain");
         }
 
-        item.fromChainId = fromChainId;
+        item.fromChainId = actualFromChainId;
         item.gasCost = gasCost;
 
         if (payload.onlyPath) {
@@ -1794,12 +1799,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
           },
         ];
 
-        const order = new Sdk.CrossChain.Order(fromChainId, {
+        const order = new Sdk.CrossChain.Order(actualFromChainId, {
           isCollectionRequest,
           maker: payload.taker,
           solver: ccConfig.solver!,
           token: item.contract,
-          tokenId: item.tokenId ?? MaxUint256.toString(),
+          tokenId: tokenId!,
           amount: String(item.quantity),
           price: quote,
           recipient: payload.taker,
@@ -1809,17 +1814,38 @@ export const getExecuteBuyV7Options: RouteOptions = {
         });
 
         if (bn(ccConfig.availableBalance!).lte(quote)) {
-          const exchange = new Sdk.CrossChain.Exchange(fromChainId);
+          const exchange = new Sdk.CrossChain.Exchange(actualFromChainId);
+          let depositTx = exchange.depositAndPrevalidateTx(
+            payload.taker,
+            ccConfig.solver!,
+            bn(quote).sub(ccConfig.availableBalance!).toString(),
+            order
+          );
+
+          // Never deposit to mainnet, but bridge-and-deposit to base
+          if (requestedFromChainId === Network.Ethereum) {
+            depositTx = {
+              from: payload.taker,
+              // Base Portal (https://etherscan.io/address/0x49048044d57e1c92a77f79988d21fa8faf74e97e)
+              to: "0x49048044d57e1c92a77f79988d21fa8faf74e97e",
+              data: new Interface([
+                "function depositTransaction(address to, uint256 value, uint64 gasLimit, bool isCreation, bytes data)",
+              ]).encodeFunctionData("depositTransaction", [
+                Sdk.CrossChain.Addresses.Exchange[Network.Base],
+                depositTx.value ?? 0,
+                150000,
+                false,
+                depositTx.data,
+              ]),
+              value: depositTx.value ?? "0",
+            };
+          }
+
           customSteps[0].items.push({
             status: "incomplete",
             data: {
-              ...exchange.depositAndPrevalidateTx(
-                payload.taker,
-                ccConfig.solver!,
-                bn(quote).sub(ccConfig.availableBalance!).toString(),
-                order
-              ),
-              chainId: fromChainId,
+              ...depositTx,
+              chainId: requestedFromChainId,
             },
             check: {
               endpoint: "/execute/status/v1",
@@ -1841,7 +1867,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 body: {
                   kind: "cross-chain-intent",
                   order: order.params,
-                  chainId: fromChainId,
+                  chainId: actualFromChainId,
                 },
               },
             },
