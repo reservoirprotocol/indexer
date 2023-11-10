@@ -77,14 +77,16 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
   }
 
   formatAllTimeVolume(data: BuildCollectionDocumentDocumentData) {
+    let allTimeVolume = 0;
+
     if (data.all_time_volume) {
       if (data.all_time_volume === "10000000000000000") {
-        return 0.01;
+        allTimeVolume = 0.01;
       }
 
-      return formatEth(data.all_time_volume);
+      allTimeVolume = formatEth(data.all_time_volume);
     }
 
-    return 0;
+    return allTimeVolume * 100;
   }
 }
