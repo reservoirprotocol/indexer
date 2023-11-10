@@ -116,7 +116,7 @@ export class ProcessCollectionEventJob extends AbstractRabbitMqJobHandler {
           community: rawResult.community,
           token_count: rawResult.token_count,
           is_spam: rawResult.is_spam,
-          all_time_volume: Number(rawResult.all_time_volume),
+          all_time_volume: rawResult.all_time_volume,
         });
       }
     } catch (error) {

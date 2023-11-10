@@ -28,7 +28,7 @@ export interface BuildCollectionDocumentDocumentData extends BuildDocumentData {
   community: string;
   token_count: number;
   is_spam: number;
-  all_time_volume: number;
+  all_time_volume: string;
 }
 
 export class CollectionDocumentBuilder extends DocumentBuilder {
@@ -51,7 +51,7 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
       isSpam: Number(data.is_spam) > 0,
       nameSuggest: {
         input: [data.name],
-        weight: data.all_time_volume ? formatEth(data.all_time_volume) : 0,
+        weight: this.formatAllTimeVolume(data),
         contexts: {
           chainId: [config.chainId],
           id: [data.id],
@@ -61,5 +61,17 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
         },
       },
     } as CollectionDocument;
+  }
+
+  formatAllTimeVolume(data: BuildCollectionDocumentDocumentData) {
+    if (data.all_time_volume) {
+      if (data.all_time_volume === "10000000000000000") {
+        return 0.01;
+      }
+
+      return formatEth(data.all_time_volume);
+    }
+
+    return 0;
   }
 }

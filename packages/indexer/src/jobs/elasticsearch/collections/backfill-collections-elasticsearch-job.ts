@@ -138,7 +138,7 @@ export class BackfillCollectionsElasticsearchJob extends AbstractRabbitMqJobHand
             community: rawResult.community,
             token_count: rawResult.token_count,
             is_spam: rawResult.is_spam,
-            all_time_volume: Number(rawResult.all_time_volume),
+            all_time_volume: rawResult.all_time_volume,
           });
 
           collectionEvents.push({ kind: "index", _id: documentId, document });
