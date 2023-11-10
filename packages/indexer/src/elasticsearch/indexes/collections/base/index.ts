@@ -1,11 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { fromBuffer } from "@/common/utils";
+import { formatEth, fromBuffer } from "@/common/utils";
 
 import { BuildDocumentData, BaseDocument, DocumentBuilder } from "@/elasticsearch/indexes/base";
 import { config } from "@/config/index";
 import { getNetworkName } from "@/config/network";
-import { formatEther } from "@ethersproject/units";
 
 export interface CollectionDocument extends BaseDocument {
   id: string;
@@ -52,9 +51,7 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
       isSpam: Number(data.is_spam) > 0,
       nameSuggest: {
         input: [data.name],
-        weight: data.all_time_volume
-          ? Number(Number(formatEther(data.all_time_volume)).toFixed(18))
-          : 0,
+        weight: data.all_time_volume ? formatEth(data.all_time_volume) : 0,
         contexts: {
           chainId: [config.chainId],
           id: [data.id],
