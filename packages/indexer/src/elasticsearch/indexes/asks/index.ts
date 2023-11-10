@@ -191,6 +191,7 @@ export const searchTokenAsks = async (params: {
   sources?: number[];
   limit?: number;
   continuation?: string | null;
+  sortDirection?: "asc" | "desc";
 }): Promise<{ asks: AskDocument[]; continuation: string | null }> => {
   const esQuery = {};
 
@@ -352,7 +353,7 @@ export const searchTokenAsks = async (params: {
             },
         {
           contractAndTokenId: {
-            order: "asc",
+            order: params.sortDirection ?? "asc",
           },
         },
       ],

@@ -1613,6 +1613,7 @@ export const getListedTokensFromES = async (query: any) => {
     limit: query.limit,
     continuation: query.continuation,
     sources: query.sources,
+    sortDirection: query.sortDirection,
   });
 
   let tokensResult: any[] = [];
