@@ -11,7 +11,6 @@ import { CollectionDocumentBuilder } from "@/elasticsearch/indexes/collections/b
 export enum EventKind {
   newCollection = "newCollection",
   collectionUpdated = "collectionUpdated",
-  CollectionInactive = "CollectionInactive",
 }
 
 export type ProcessCollectionEventJobPayload = {
@@ -32,16 +31,13 @@ export class ProcessCollectionEventJob extends AbstractRabbitMqJobHandler {
 
     const pendingCollectionEventsQueue = new PendingCollectionEventsQueue();
 
-    const _id = `${config.chainId}:${data.id}`;
+    const documentId = `${config.chainId}:${data.id}`;
 
-    if (kind === EventKind.CollectionInactive) {
-      await pendingCollectionEventsQueue.add([{ _id, kind: "delete" }]);
-    } else {
-      let collectionDocument;
+    let document;
 
-      try {
-        const rawResult = await idb.oneOrNone(
-          `
+    try {
+      const rawResult = await idb.oneOrNone(
+        `
             SELECT        
               collections.id,
               collections.slug,
@@ -104,44 +100,41 @@ export class ProcessCollectionEventJob extends AbstractRabbitMqJobHandler {
             WHERE collections.id = $/collectionId/
             LIMIT 1;
           `,
-          {
-            collectionId: data.id,
-          }
-        );
-
-        if (rawResult) {
-          collectionDocument = new CollectionDocumentBuilder().buildDocument({
-            id: rawResult.id,
-            created_at: new Date(rawResult.created_at),
-            contract: rawResult.contract,
-            name: rawResult.name,
-            slug: rawResult.slug,
-            image: rawResult.image,
-            community: rawResult.community,
-            token_count: rawResult.token_count,
-            is_spam: rawResult.is_spam,
-            all_time_volume: Number(rawResult.all_time_volume),
-          });
+        {
+          collectionId: data.id,
         }
-      } catch (error) {
-        logger.error(
-          this.queueName,
-          JSON.stringify({
-            topic: "debugCollectionIndex",
-            message: `Error generating ask document. kind=${kind}, id=${data.id}, error=${error}`,
-            error,
-            data,
-          })
-        );
+      );
 
-        throw error;
+      if (rawResult) {
+        document = new CollectionDocumentBuilder().buildDocument({
+          id: rawResult.id,
+          created_at: new Date(rawResult.created_at),
+          contract: rawResult.contract,
+          name: rawResult.name,
+          slug: rawResult.slug,
+          image: rawResult.image,
+          community: rawResult.community,
+          token_count: rawResult.token_count,
+          is_spam: rawResult.is_spam,
+          all_time_volume: Number(rawResult.all_time_volume),
+        });
       }
+    } catch (error) {
+      logger.error(
+        this.queueName,
+        JSON.stringify({
+          topic: "debugCollectionIndex",
+          message: `Error generating ask document. kind=${kind}, id=${data.id}, error=${error}`,
+          error,
+          data,
+        })
+      );
 
-      if (collectionDocument) {
-        await pendingCollectionEventsQueue.add([
-          { document: collectionDocument, kind: "index", _id },
-        ]);
-      }
+      throw error;
+    }
+
+    if (document) {
+      await pendingCollectionEventsQueue.add([{ document, kind: "index", _id: documentId }]);
     }
   }
 

@@ -12,6 +12,10 @@ import {
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { refreshAsksCollectionJob } from "@/jobs/asks/refresh-asks-collection-job";
+import {
+  EventKind,
+  processCollectionEventJob,
+} from "@/jobs/elasticsearch/collections/process-collection-event-job";
 
 export class IndexerCollectionsHandler extends KafkaEventHandler {
   topicName = "indexer.public.collections";
@@ -29,6 +33,15 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
       },
       eventKind: WebsocketEventKind.CollectionEvent,
     });
+
+    await processCollectionEventJob.addToQueue([
+      {
+        kind: EventKind.newCollection,
+        data: {
+          id: payload.after.id,
+        },
+      },
+    ]);
   }
 
   protected async handleUpdate(payload: any): Promise<void> {
@@ -97,6 +110,15 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
           await refreshAsksCollectionJob.addToQueue(payload.after.id);
         }
       }
+
+      await processCollectionEventJob.addToQueue([
+        {
+          kind: EventKind.collectionUpdated,
+          data: {
+            id: payload.after.id,
+          },
+        },
+      ]);
     } catch (err) {
       logger.error(
         "top-selling-collections",

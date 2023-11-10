@@ -126,7 +126,7 @@ export class BackfillCollectionsElasticsearchJob extends AbstractRabbitMqJobHand
 
       if (rawResults.length) {
         for (const rawResult of rawResults) {
-          const _id = `${config.chainId}:${rawResult.id}`;
+          const documentId = `${config.chainId}:${rawResult.id}`;
 
           const document = new CollectionDocumentBuilder().buildDocument({
             id: rawResult.id,
@@ -141,13 +141,7 @@ export class BackfillCollectionsElasticsearchJob extends AbstractRabbitMqJobHand
             all_time_volume: Number(rawResult.all_time_volume),
           });
 
-          collectionEvents.push({ kind: "index", _id, document });
-
-          // if (rawResult.token_count > 0) {
-          //   collectionEvents.push({ kind: "index", _id, document });
-          // } else {
-          //   collectionEvents.push({ kind: "delete", _id });
-          // }
+          collectionEvents.push({ kind: "index", _id: documentId, document });
         }
 
         const lastResult = rawResults[rawResults.length - 1];
