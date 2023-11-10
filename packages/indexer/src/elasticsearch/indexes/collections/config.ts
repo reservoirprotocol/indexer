@@ -29,23 +29,6 @@ export const CONFIG_DEFAULT = {
             type: "category",
           },
           {
-            name: "community",
-            type: "category",
-          },
-          {
-            name: "hasTokens",
-            type: "category",
-          },
-        ],
-      },
-      nameSuggestV2: {
-        type: "completion",
-        contexts: [
-          {
-            name: "chainId",
-            type: "category",
-          },
-          {
             name: "id",
             type: "category",
           },
