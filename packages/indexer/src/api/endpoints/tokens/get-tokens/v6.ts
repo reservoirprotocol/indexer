@@ -208,6 +208,9 @@ export const getTokensV6Options: RouteOptions = {
       includeTopBid: Joi.boolean()
         .default(false)
         .description("If true, top bid will be returned in the response."),
+      includeMintStages: Joi.boolean()
+        .default(false)
+        .description("If true, mint data for the tokens will be included in the response."),
       excludeEOA: Joi.boolean()
         .default(false)
         .description(
@@ -321,6 +324,17 @@ export const getTokensV6Options: RouteOptions = {
                 })
               )
               .optional(),
+            mintStages: Joi.array().items(
+              Joi.object({
+                stage: Joi.string().required(),
+                tokenId: Joi.string().pattern(regex.number).allow(null),
+                kind: Joi.string().required(),
+                price: JoiPrice.allow(null),
+                startTime: Joi.number().allow(null),
+                endTime: Joi.number().allow(null),
+                maxMintsPerWallet: Joi.number().unsafe().allow(null),
+              })
+            ),
           }),
           market: Joi.object({
             floorAsk: {
@@ -512,6 +526,34 @@ export const getTokensV6Options: RouteOptions = {
         `;
     }
 
+    // Include mint stages
+    let mintStagesSelectQuery = "";
+    let mintStagesJoinQuery = "";
+    if (query.includeMintStages) {
+      mintStagesSelectQuery = ", v.*";
+      mintStagesJoinQuery = `
+        LEFT JOIN LATERAL (
+          SELECT
+            array_agg(
+              json_build_object(
+                'stage', collection_mints.stage,
+                'tokenId', collection_mints.token_id::TEXT,
+                'kind', collection_mints.kind,
+                'currency', concat('0x', encode(collection_mints.currency, 'hex')),
+                'price', collection_mints.price::TEXT,
+                'startTime', floor(extract(epoch from collection_mints.start_time)),
+                'endTime', floor(extract(epoch from collection_mints.end_time)),
+                'maxMintsPerWallet', collection_mints.max_mints_per_wallet
+              )
+            ) AS mint_stages
+          FROM collection_mints
+          WHERE collection_mints.collection_id = t.collection_id
+            AND collection_mints.token_id = t.token_id
+            AND collection_mints.status = 'open'
+        ) v ON TRUE
+      `;
+    }
+
     // Get the collections from the collection set or community
     let collections: any[] = [];
     if (query.collectionsSetId) {
@@ -695,6 +737,7 @@ export const getTokensV6Options: RouteOptions = {
           ${selectIncludeQuantity}
           ${selectIncludeDynamicPricing}
           ${selectRoyaltyBreakdown}
+          ${mintStagesSelectQuery}
         FROM tokens t
         ${
           sourceCte !== ""
@@ -706,6 +749,7 @@ export const getTokensV6Options: RouteOptions = {
         ${includeQuantityQuery}
         ${includeDynamicPricingQuery}
         ${includeRoyaltyBreakdownQuery}
+        ${mintStagesJoinQuery}
         JOIN collections c ON t.collection_id = c.id ${
           query.excludeSpam ? `AND (c.is_spam IS NULL OR c.is_spam <= 0)` : ""
         }
@@ -1409,6 +1453,21 @@ export const getTokensV6Options: RouteOptions = {
                     }))
                   : []
                 : undefined,
+              mintStages: r.mint_stages
+                ? await Promise.all(
+                    r.mint_stages.map(async (m: any) => ({
+                      stage: m.stage,
+                      kind: m.kind,
+                      tokenId: m.tokenId,
+                      price: m.price
+                        ? await getJoiPriceObject({ gross: { amount: m.price } }, m.currency)
+                        : m.price,
+                      startTime: m.startTime,
+                      endTime: m.endTime,
+                      maxMintsPerWallet: m.maxMintsPerWallet,
+                    }))
+                  )
+                : [],
             },
             r.t_metadata_disabled,
             r.c_metadata_disabled
@@ -1613,6 +1672,7 @@ export const getListedTokensFromES = async (query: any) => {
     limit: query.limit,
     continuation: query.continuation,
     sources: query.sources,
+    sortDirection: query.sortDirection,
   });
 
   let tokensResult: any[] = [];
@@ -2028,14 +2088,8 @@ export const getListedTokensFromES = async (query: any) => {
           maker: ask.order.maker,
           validFrom: ask.order.validFrom,
           validUntil: ask.order.validUntil,
-          quantityFilled:
-            query.includeQuantity && ask.order.quantityFilled
-              ? ask.order.quantityFilled
-              : undefined,
-          quantityRemaining:
-            query.includeQuantity && ask.order.quantityRemaining
-              ? ask.order.quantityRemaining
-              : undefined,
+          quantityFilled: query.includeQuantity ? ask.order.quantityFilled : undefined,
+          quantityRemaining: query.includeQuantity ? ask.order.quantityRemaining : undefined,
           dynamicPricing,
           source: getJoiSourceObject(floorSellSource),
         },
