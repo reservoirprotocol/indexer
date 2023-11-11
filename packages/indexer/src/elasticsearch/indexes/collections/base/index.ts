@@ -51,7 +51,7 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
       tokenCount: Number(data.token_count),
       isSpam: Number(data.is_spam) > 0,
       nameSuggest: {
-        input: [data.name],
+        input: this.generateInput(data),
         weight: this.formatAllTimeVolume(data),
         contexts: {
           chainId: [config.chainId],
@@ -88,5 +88,17 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
     }
 
     return Math.floor(allTimeVolume * 100000);
+  }
+
+  generateInput(data: BuildCollectionDocumentDocumentData): string[] {
+    const words = data.name.split(" ");
+    const combinations: string[] = [];
+
+    for (let i = 0; i < words.length; i++) {
+      const combination = words.slice(i).join(" ");
+      combinations.push(combination);
+    }
+
+    return combinations;
   }
 }
