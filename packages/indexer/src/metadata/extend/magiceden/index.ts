@@ -60,6 +60,8 @@ export const extendCollection = async (metadata: CollectionMetadata, _tokenId = 
       name: "Degen Mercenaries",
       metadata: {
         description: "PvP shootout duel game on Polygon. S2E $MATIC instantly!",
+        imageUrl:
+          "https://lh3.googleusercontent.com/NUrNjqOzfDg6gyqXbgjhFYFRHOjJyO6bcll8DM_SgNWP2KaU3sFNHbCQ86D9C0YfO17AQVlWThzLCLNIIMTcImC_l6VWPfauF-o",
         twitterUrl: "https://twitter.com/degenmercsnft",
         discordUrl: "https://discord.com/invite/degenmercenaries",
         externalUrl: "https://www.degenmercenaries.com",
