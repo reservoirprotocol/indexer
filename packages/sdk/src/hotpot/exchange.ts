@@ -1,34 +1,22 @@
 import * as Addresses from "./addresses";
 import ExchangeAbi from "./abis/HotpotMarketplace.json";
 import { Provider } from "@ethersproject/abstract-provider";
-import { Wallet, ethers } from "ethers";
 import { Signer } from "@ethersproject/abstract-signer";
 import { TxData, s } from "../utils";
 import { OrderParameters } from "./types";
 import { Contract, ContractTransaction } from "@ethersproject/contracts";
 import { BigNumberish } from "@ethersproject/bignumber";
-import { config as dotEnvConfig } from "dotenv";
 import { Order } from "./order";
-dotEnvConfig();
 
 export class Exchange {
   public exchangeAddress: string;
   public contract: Contract;
   public chainId: number;
-  public operator: Wallet;
 
   constructor(chainId: number) {
     this.chainId = chainId;
     this.exchangeAddress = Addresses.Exchange[chainId];
     this.contract = new Contract(this.exchangeAddress, ExchangeAbi);
-
-    const operator_pk = process.env.HOTPOT_OPERATOR_PK;
-
-    if (!operator_pk) {
-      throw new Error("Hotpot - unable to initialize exchange, specify operator private key");
-    }
-
-    this.operator = new ethers.Wallet(operator_pk);
   }
 
   public eip712Domain(): {

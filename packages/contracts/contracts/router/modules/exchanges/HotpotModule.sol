@@ -57,17 +57,7 @@ contract HotpotModule is BaseExchangeModule {
         refundETHLeftover(params.refundTo)
         chargeETHFees(fees, params.amount) 
     {
-        for (uint256 i = 0; i < parameters.length; ) {
-            // Execute fill
-            _fulfillOrder(
-                parameters[i],
-                params.amount
-            );
-
-            unchecked {
-                ++i;
-            }
-        }
+        EXCHANGE.batchFulfillOrder{value: params.amount}(parameters);
     }
 
     // --- Internal ---

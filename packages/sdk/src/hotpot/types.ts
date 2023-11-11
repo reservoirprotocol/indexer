@@ -11,12 +11,6 @@ export type RoyaltyData = {
   royaltyRecipient: string;
 };
 
-export type PendingAmountData = {
-  offererPendingAmount: string;
-  buyerPendingAmount: string;
-  orderHash: string;
-};
-
 export enum OfferTokenType {
   ERC721,
   ERC1155,
@@ -33,10 +27,8 @@ export type OrderParameters = {
   receiver?: string;
   offerItem: OfferItem;
   royalty: RoyaltyData;
-  pendingAmountsData?: PendingAmountData;
   salt: number;
   orderSignature?: string;
-  pendingAmountsSignature?: string;
   tokenType?: OfferTokenType;
 };
 
@@ -64,14 +56,5 @@ export const EIP712_TYPES = {
   RoyaltyData: [
     { name: "royaltyPercent", type: "uint256" },
     { name: "royaltyRecipient", type: "address" },
-  ],
-};
-
-export const EIP712_PENDING_AMOUNT_TYPE = {
-  // uint256 offererPendingAmount,uint256 buyerPendingAmount,bytes32 orderHash
-  PendingAmountData: [
-    { name: "offererPendingAmount", type: "uint256" },
-    { name: "buyerPendingAmount", type: "uint256" },
-    { name: "orderHash", type: "bytes32" },
   ],
 };

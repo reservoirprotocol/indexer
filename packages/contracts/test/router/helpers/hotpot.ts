@@ -3,6 +3,7 @@ import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk/src";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { ethers } from "hardhat";
+import { AddressZero } from "@ethersproject/constants";
 
 import { getChainId, getCurrentTimestamp } from "../../utils";
 
@@ -25,7 +26,10 @@ export type Listing = {
   order?: Sdk.Hotpot.Order;
 };
 
-export const setupListings = async (listings: Listing[]) => {
+export const setupListings = async (
+  listings: Listing[], 
+  buyer: SignerWithAddress
+) => {
   const chainId = getChainId();
   const exchange = new Sdk.Hotpot.Exchange(chainId);
 
@@ -33,17 +37,10 @@ export const setupListings = async (listings: Listing[]) => {
     const { seller, nft, currency, price } = listing;
 
     // Approve the exchange contract
-    if (nft.kind === "erc721") {
-      await nft.contract.connect(seller).mint(nft.id);
-      await nft.contract
-        .connect(seller)
-        .setApprovalForAll(Sdk.Hotpot.Addresses.Exchange[chainId], true);
-    } else {
-      await nft.contract.connect(seller).mint(nft.id);
-      await nft.contract
-        .connect(seller)
-        .setApprovalForAll(Sdk.Hotpot.Addresses.Exchange[chainId], true);
-    }
+    await nft.contract.connect(seller).mint(nft.id);
+    await nft.contract
+      .connect(seller)
+      .setApprovalForAll(Sdk.Hotpot.Addresses.Exchange[chainId], true);
 
     // Build and sign the order
     const builder = new Sdk.Hotpot.Builders.SingleTokenBuilder(chainId);
@@ -59,10 +56,14 @@ export const setupListings = async (listings: Listing[]) => {
       price,
       amount: nft.amount ?? 1,
       royaltyPercent: 0,
-      royaltyRecepient: Sdk.Common.Addresses.Native[chainId],
-      endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
+      royaltyRecepient: AddressZero,
+      endTime: (await getCurrentTimestamp(ethers.provider)) + 60*60*24,
     });
     await order.sign(seller);
+    await order.buildMatching(
+      ethers.provider, 
+      buyer.address
+    );
 
     listing.order = order;
 

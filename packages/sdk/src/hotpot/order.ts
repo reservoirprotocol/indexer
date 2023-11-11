@@ -185,15 +185,10 @@ export class Order {
     }
   }
 
-  public async buildMatching(
-    provider: Provider,
-    receiver: string,
-    buyerPendingAmount: BigNumberish,
-    offererPendingAmount: BigNumberish
-  ) {
+  public async buildMatching(provider: Provider, receiver: string) {
     this.tradeAmount = await this.exchange().calculateTradeAmount(provider, this.params);
     const builder = new SingleTokenBuilder(this.chainId);
-    return await builder.buildMatching(this, receiver, buyerPendingAmount, offererPendingAmount);
+    return await builder.buildMatching(this, receiver);
   }
 }
 
@@ -218,18 +213,8 @@ const normalize = (order: Types.OrderParameters): Types.OrderParameters => {
       royaltyPercent: n(order.royalty.royaltyPercent),
       royaltyRecipient: lc(order.royalty.royaltyRecipient),
     },
-    pendingAmountsData: {
-      offererPendingAmount: order.pendingAmountsData
-        ? s(order.pendingAmountsData.offererPendingAmount)
-        : undefined,
-      buyerPendingAmount: order.pendingAmountsData
-        ? s(order.pendingAmountsData.buyerPendingAmount)
-        : undefined,
-      orderHash: order.pendingAmountsData ? s(order.pendingAmountsData.orderHash) : undefined,
-    },
     salt: n(order.salt),
     orderSignature: s(order.orderSignature),
-    pendingAmountsSignature: s(order.pendingAmountsSignature),
     tokenType: n(order.tokenType),
   };
 };

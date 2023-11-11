@@ -8,7 +8,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 
 import { ExecutionInfo } from "../helpers/router";
-import * as Hotpot from "../helpers/looks-rare-v2";
+import * as Hotpot from "../helpers/hotpot";
 import {
   bn,
   getChainId,
@@ -49,29 +49,16 @@ describe("[ReservoirV6_0_1] Hotpot listings", () => {
       );
   });
 
-  const getBalances = async (token: string) => {
-    if (token === Sdk.Common.Addresses.Native[chainId]) {
-      return {
-        alice: await ethers.provider.getBalance(alice.address),
-        bob: await ethers.provider.getBalance(bob.address),
-        carol: await ethers.provider.getBalance(carol.address),
-        david: await ethers.provider.getBalance(david.address),
-        emilio: await ethers.provider.getBalance(emilio.address),
-        router: await ethers.provider.getBalance(router.address),
-        HotpotModule: await ethers.provider.getBalance(HotpotModule.address),
-      };
-    } else {
-      const contract = new Sdk.Common.Helpers.Erc20(ethers.provider, token);
-      return {
-        alice: await contract.getBalance(alice.address),
-        bob: await contract.getBalance(bob.address),
-        carol: await contract.getBalance(carol.address),
-        david: await contract.getBalance(david.address),
-        emilio: await contract.getBalance(emilio.address),
-        router: await contract.getBalance(router.address),
-        HotpotModule: await contract.getBalance(HotpotModule.address),
-      };
-    }
+  const getBalances = async () => {
+    return {
+      alice: await ethers.provider.getBalance(alice.address),
+      bob: await ethers.provider.getBalance(bob.address),
+      carol: await ethers.provider.getBalance(carol.address),
+      david: await ethers.provider.getBalance(david.address),
+      emilio: await ethers.provider.getBalance(emilio.address),
+      router: await ethers.provider.getBalance(router.address),
+      HotpotModule: await ethers.provider.getBalance(HotpotModule.address),
+    };
   };
 
   afterEach(reset);
@@ -79,8 +66,6 @@ describe("[ReservoirV6_0_1] Hotpot listings", () => {
   const testAcceptListings = async (
     // Whether to include fees on top
     chargeFees: boolean,
-    // Whether to revert or not in case of any failures
-    revertIfIncomplete: boolean,
     // Whether to cancel some orders in order to trigger partial filling
     partial: boolean,
     // Number of listings to fill
@@ -104,15 +89,16 @@ describe("[ReservoirV6_0_1] Hotpot listings", () => {
           id: getRandomInteger(1, 10000),
         },
         price: parseEther(getRandomFloat(0.0001, 2).toFixed(6)),
-        isCancelled: partial && getRandomBoolean(),
+        isCancelled: partial && getRandomBoolean(), // imitate partial buy - cancel listings that are not filled
       });
       if (chargeFees) {
         feesOnTop.push(parseEther(getRandomFloat(0.0001, 0.1).toFixed(6)));
       }
     }
-    await Hotpot.setupListings(listings);
+    await Hotpot.setupListings(listings, carol);
 
     // Prepare executions
+    // totalPrice does not include fees on top
 
     const totalPrice = bn(listings.map(({ price }) => price).reduce((a, b) => bn(a).add(b), bn(0)));
     const executions: ExecutionInfo[] = [
@@ -121,22 +107,20 @@ describe("[ReservoirV6_0_1] Hotpot listings", () => {
         ? {
             module: HotpotModule.address,
             data: HotpotModule.interface.encodeFunctionData("acceptETHListings", [
-              listings.map((listing) => listing.order!.params),
-              listings.map((listing) => listing.order!.params.signature!),
-              listings.map(
-                (listing) => listing.order!.params.merkleTree ?? { root: HashZero, proof: [] }
-              ),
+              listings.map((listing) => listing.order!.getExchangeOrderParams()),
               {
                 fillTo: carol.address,
                 refundTo: carol.address,
-                revertIfIncomplete,
+                revertIfIncomplete: true,
                 amount: totalPrice,
               },
               [
-                ...feesOnTop.map((amount) => ({
+              chargeFees ? 
+                feesOnTop.map((amount) => ({
                   recipient: emilio.address,
                   amount,
-                })),
+                })) : 
+                [],
               ],
             ]),
             value: totalPrice.add(
@@ -147,13 +131,11 @@ describe("[ReservoirV6_0_1] Hotpot listings", () => {
         : {
             module: HotpotModule.address,
             data: HotpotModule.interface.encodeFunctionData("acceptETHListing", [
-              listings[0].order!.params,
-              listings[0].order!.params.signature,
-              listings[0].order!.params.merkleTree ?? { root: HashZero, proof: [] },
+              listings[0].order!.getExchangeOrderParams(),
               {
                 fillTo: carol.address,
                 refundTo: carol.address,
-                revertIfIncomplete,
+                revertIfIncomplete: true,
                 amount: totalPrice,
               },
               chargeFees
@@ -175,19 +157,19 @@ describe("[ReservoirV6_0_1] Hotpot listings", () => {
     // If the `revertIfIncomplete` option is enabled and we have any
     // orders that are not fillable, the whole transaction should be
     // reverted
-    if (partial && revertIfIncomplete && listings.some(({ isCancelled }) => isCancelled)) {
+    if (partial && listings.some(({ isCancelled }) => isCancelled)) {
       await expect(
         router.connect(carol).execute(executions, {
           value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
         })
-      ).to.be.revertedWith("reverted with custom error 'UnsuccessfulExecution()'");
+      ).to.be.reverted;
 
       return;
     }
 
     // Fetch pre-state
 
-    const ethBalancesBefore = await getBalances(Sdk.Common.Addresses.Native[chainId]);
+    const ethBalancesBefore = await getBalances();
 
     // Execute
 
@@ -197,33 +179,37 @@ describe("[ReservoirV6_0_1] Hotpot listings", () => {
 
     // Fetch post-state
 
-    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Native[chainId]);
+    const ethBalancesAfter = await getBalances();
 
     // Checks
 
+    const exchange = new Sdk.Hotpot.Exchange(chainId);
     // Alice got the payment
-    expect(ethBalancesAfter.alice.sub(ethBalancesBefore.alice)).to.eq(
-      listings
-        .filter(({ seller, isCancelled }) => !isCancelled && seller.address === alice.address)
-        .map(({ price }) =>
-          bn(price).sub(
-            // Take into consideration the protocol fee
-            bn(price).mul(50).div(10000)
-          )
-        )
-        .reduce((a, b) => bn(a).add(b), bn(0))
+    const alices_payments = listings
+      .filter(({ seller, isCancelled }) => !isCancelled && seller.address === alice.address)
+      .map(async ({ price, order }) => {
+        const raffle_fee = await exchange.calculateRaffleFee(ethers.provider, order!.params);
+        return bn(price).sub(raffle_fee)
+      });
+    const total_alices_payment = (await Promise.all(alices_payments)).reduce(
+      (a, b) => bn(a).add(b), bn(0)
     );
+    expect(ethBalancesAfter.alice.sub(ethBalancesBefore.alice)).to.eq(
+      total_alices_payment
+    );
+
     // Bob got the payment
+    const bobs_payments = listings
+      .filter(({ seller, isCancelled }) => !isCancelled && seller.address === bob.address)
+      .map(async ({ price, order }) => {
+        const raffle_fee = await exchange.calculateRaffleFee(ethers.provider, order!.params);
+        return bn(price).sub(raffle_fee)
+      });
+    const total_bobs_payment = (await Promise.all(bobs_payments)).reduce(
+      (a, b) => bn(a).add(b), bn(0)
+    );
     expect(ethBalancesAfter.bob.sub(ethBalancesBefore.bob)).to.eq(
-      listings
-        .filter(({ seller, isCancelled }) => !isCancelled && seller.address === bob.address)
-        .map(({ price }) =>
-          bn(price).sub(
-            // Take into consideration the protocol fee
-            bn(price).mul(50).div(10000)
-          )
-        )
-        .reduce((a, b) => bn(a).add(b), bn(0))
+      total_bobs_payment
     );
 
     // Emilio got the fee payments
@@ -268,22 +254,18 @@ describe("[ReservoirV6_0_1] Hotpot listings", () => {
   for (const multiple of [false, true]) {
     for (const partial of [false, true]) {
       for (const chargeFees of [false, true]) {
-        for (const revertIfIncomplete of [false, true]) {
-          it(
-            "[eth]" +
-              `${multiple ? "[multiple-orders]" : "[single-order]"}` +
-              `${partial ? "[partial]" : "[full]"}` +
-              `${chargeFees ? "[fees]" : "[no-fees]"}` +
-              `${revertIfIncomplete ? "[reverts]" : "[skip-reverts]"}`,
-            async () =>
-              testAcceptListings(
-                chargeFees,
-                revertIfIncomplete,
-                partial,
-                multiple ? getRandomInteger(2, 6) : 1
-              )
-          );
-        }
+        it(
+          "[eth]" +
+            `${multiple ? "[multiple-orders]" : "[single-order]"}` +
+            `${partial ? "[partial]" : "[full]"}` +
+            `${chargeFees ? "[fees]" : "[no-fees]"}`,
+          async () =>
+            testAcceptListings(
+              chargeFees,
+              partial,
+              multiple ? getRandomInteger(2, 6) : 1
+            )
+        );
       }
     }
   }
