@@ -87,6 +87,6 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
       allTimeVolume = formatEth(data.all_time_volume);
     }
 
-    return allTimeVolume * 100;
+    return Math.floor(allTimeVolume * 100000);
   }
 }
