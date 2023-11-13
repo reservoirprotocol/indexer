@@ -23,6 +23,8 @@ export * from "@/api/endpoints/collections/put-set-collection-community/v1";
 export * from "@/api/endpoints/collections/get-collection-supported-marketplaces/v1";
 export * from "@/api/endpoints/collections/get-top-selling-collections/v1";
 export * from "@/api/endpoints/collections/get-top-selling-collections/v2";
+export * from "@/api/endpoints/collections/get-trending-mints/v1";
 export * from "@/api/endpoints/collections/get-trending-collections/v1";
 export * from "@/api/endpoints/collections/post-set-collection-disable-metadata/v1";
 export * from "@/api/endpoints/collections/post-spam-status-collection/v1";
+export * from "@/api/endpoints/collections/post-collections-override/v1";

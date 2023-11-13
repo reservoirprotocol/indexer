@@ -156,83 +156,7 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
   },
 };
 
-async function formatCollections(
-  collectionsResult: any[],
-  collectionsMetadata: Record<string, any>,
-  normalizeRoyalties: boolean,
-  useNonFlaggedFloorAsk: boolean
-) {
-  const sources = await Sources.getInstance();
-
-  const collections = await Promise.all(
-    collectionsResult.map(async (response: any) => {
-      const metadata = collectionsMetadata[response.id] || {};
-      let floorAsk;
-      let prefix = "";
-
-      if (normalizeRoyalties) {
-        prefix = "normalized_";
-      } else if (useNonFlaggedFloorAsk) {
-        prefix = "non_flagged_";
-      }
-
-      const floorAskId = metadata[`${prefix}floor_sell_id`];
-      const floorAskValue = metadata[`${prefix}floor_sell_value`];
-      const floorAskCurrency = metadata.floor_sell_currency;
-      const floorAskSource = metadata[`${prefix}floor_sell_source_id_int`];
-      const floorAskCurrencyValue =
-        metadata[`${normalizeRoyalties ? "normalized_" : ""}floor_sell_currency_value`];
-
-      if (metadata) {
-        floorAsk = {
-          id: floorAskId,
-          sourceDomain: sources.get(floorAskSource)?.domain,
-          price: floorAskId
-            ? await getJoiPriceObject(
-                {
-                  gross: {
-                    amount: floorAskCurrencyValue ?? floorAskValue,
-                    nativeAmount: floorAskValue || 0,
-                  },
-                },
-                floorAskCurrency
-              )
-            : null,
-        };
-      }
-
-      return {
-        ...response,
-        image: metadata?.metadata?.imageUrl,
-        isSpam: Number(metadata.is_spam) > 0,
-        name: metadata?.name || "",
-        onSaleCount: Number(metadata.on_sale_count) || 0,
-        volumeChange: {
-          "1day": Number(metadata.day1_volume_change),
-          "7day": Number(metadata.day7_volume_change),
-          "30day": Number(metadata.day30_volume_change),
-        },
-
-        collectionVolume: {
-          "1day": metadata.day1_volume ? formatEth(metadata.day1_volume) : null,
-          "7day": metadata.day7_volume ? formatEth(metadata.day7_volume) : null,
-          "30day": metadata.day30_volume ? formatEth(metadata.day30_volume) : null,
-          allTime: metadata.all_time_volume ? formatEth(metadata.all_time_volume) : null,
-        },
-
-        tokenCount: Number(metadata.token_count || 0),
-        ownerCount: Number(metadata.owner_count || 0),
-        banner: metadata?.metadata?.bannerImageUrl,
-        description: metadata?.metadata?.description,
-        floorAsk,
-      };
-    })
-  );
-
-  return collections;
-}
-
-async function getCollectionsMetadata(collectionsResult: any[]) {
+export async function getCollectionsMetadata(collectionsResult: any[]) {
   const collectionIds = collectionsResult.map((collection: any) => collection.id);
   const collectionsToFetch = collectionIds.map((id: string) => `collection-cache:v2:${id}`);
   const batches = chunk(collectionsToFetch, REDIS_BATCH_SIZE);
@@ -308,7 +232,7 @@ async function getCollectionsMetadata(collectionsResult: any[]) {
       collections.top_buy_valid_between,
 
       collections.top_buy_source_id_int,
-
+      
       (
             SELECT
               COUNT(*)
@@ -368,6 +292,82 @@ async function getCollectionsMetadata(collectionsResult: any[]) {
   });
 
   return collectionsMetadata;
+}
+
+async function formatCollections(
+  collectionsResult: any[],
+  collectionsMetadata: Record<string, any>,
+  normalizeRoyalties: boolean,
+  useNonFlaggedFloorAsk: boolean
+) {
+  const sources = await Sources.getInstance();
+
+  const collections = await Promise.all(
+    collectionsResult.map(async (response: any) => {
+      const metadata = collectionsMetadata[response.id] || {};
+      let floorAsk;
+      let prefix = "";
+
+      if (normalizeRoyalties) {
+        prefix = "normalized_";
+      } else if (useNonFlaggedFloorAsk) {
+        prefix = "non_flagged_";
+      }
+
+      const floorAskId = metadata[`${prefix}floor_sell_id`];
+      const floorAskValue = metadata[`${prefix}floor_sell_value`];
+      const floorAskCurrency = metadata.floor_sell_currency;
+      const floorAskSource = metadata[`${prefix}floor_sell_source_id_int`];
+      const floorAskCurrencyValue =
+        metadata[`${normalizeRoyalties ? "normalized_" : ""}floor_sell_currency_value`];
+
+      if (metadata) {
+        floorAsk = {
+          id: floorAskId,
+          sourceDomain: sources.get(floorAskSource)?.domain,
+          price: floorAskId
+            ? await getJoiPriceObject(
+                {
+                  gross: {
+                    amount: floorAskCurrencyValue ?? floorAskValue,
+                    nativeAmount: floorAskValue || 0,
+                  },
+                },
+                floorAskCurrency
+              )
+            : null,
+        };
+      }
+
+      return {
+        ...response,
+        image: metadata?.metadata?.imageUrl,
+        isSpam: Number(metadata.is_spam) > 0,
+        name: metadata?.name || "",
+        onSaleCount: Number(metadata.on_sale_count) || 0,
+        volumeChange: {
+          "1day": Number(metadata.day1_volume_change),
+          "7day": Number(metadata.day7_volume_change),
+          "30day": Number(metadata.day30_volume_change),
+        },
+
+        collectionVolume: {
+          "1day": metadata.day1_volume ? formatEth(metadata.day1_volume) : null,
+          "7day": metadata.day7_volume ? formatEth(metadata.day7_volume) : null,
+          "30day": metadata.day30_volume ? formatEth(metadata.day30_volume) : null,
+          allTime: metadata.all_time_volume ? formatEth(metadata.all_time_volume) : null,
+        },
+
+        tokenCount: Number(metadata.token_count || 0),
+        ownerCount: Number(metadata.owner_count || 0),
+        banner: metadata?.metadata?.bannerImageUrl,
+        description: metadata?.metadata?.description,
+        floorAsk,
+      };
+    })
+  );
+
+  return collections;
 }
 
 async function getCollectionsResult(request: Request) {

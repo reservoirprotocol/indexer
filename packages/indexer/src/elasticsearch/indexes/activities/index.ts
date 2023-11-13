@@ -25,6 +25,7 @@ import { buildContinuation, splitContinuation } from "@/common/utils";
 import { backfillActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-activities-elasticsearch-job";
 
 import * as CONFIG from "@/elasticsearch/indexes/activities/config";
+import { ElasticMintResult } from "@/api/endpoints/collections/get-trending-mints/interfaces";
 
 const INDEX_NAME = `${getNetworkName()}.activities`;
 
@@ -341,6 +342,80 @@ export const getTopSellingCollections = async (params: {
   return esResult?.aggregations?.collections?.buckets?.map((bucket: any) =>
     mapBucketToCollection(bucket, params.includeRecentSales)
   );
+};
+
+export const getTrendingMints = async (params: {
+  contracts: string[];
+  startTime: number;
+  limit: number;
+}): Promise<ElasticMintResult[]> => {
+  const { contracts, startTime, limit } = params;
+
+  const salesQuery = {
+    bool: {
+      filter: [
+        {
+          term: {
+            type: "mint",
+          },
+        },
+        {
+          range: {
+            timestamp: {
+              gte: startTime,
+              format: "epoch_second",
+            },
+          },
+        },
+        {
+          terms: {
+            "collection.id": contracts,
+          },
+        },
+      ],
+    },
+  } as any;
+
+  const collectionAggregation = {
+    collections: {
+      terms: {
+        field: "collection.id",
+        size: limit,
+        order: {
+          total_mints: "desc",
+        },
+      },
+      aggs: {
+        total_mints: {
+          value_count: {
+            field: "id",
+          },
+        },
+        total_volume: {
+          sum: {
+            field: "pricing.priceDecimal",
+          },
+        },
+      },
+    },
+  } as any;
+
+  const esResult = (await elasticsearch.search({
+    index: INDEX_NAME,
+    size: 0,
+    body: {
+      query: salesQuery,
+      aggs: collectionAggregation,
+    },
+  })) as any;
+
+  return esResult?.aggregations?.collections?.buckets?.map((bucket: any) => {
+    return {
+      volume: bucket?.total_volume?.value,
+      count: bucket?.total_mints.value,
+      id: bucket.key,
+    };
+  });
 };
 
 export const getRecentSalesByCollection = async (
@@ -1738,15 +1813,31 @@ export const updateActivitiesCollectionData = async (
 
   const should: any[] = [
     {
-      bool: {
-        must_not: [
-          {
-            term: {
-              "collection.isSpam": collectionData.isSpam > 0,
+      bool:
+        collectionData.isSpam > 0
+          ? {
+              must_not: [
+                {
+                  term: {
+                    "collection.isSpam": collectionData.isSpam > 0,
+                  },
+                },
+              ],
+            }
+          : {
+              must: [
+                {
+                  exists: {
+                    field: "collection.isSpam",
+                  },
+                },
+                {
+                  term: {
+                    "collection.isSpam": true,
+                  },
+                },
+              ],
             },
-          },
-        ],
-      },
     },
     {
       bool: collectionData.name

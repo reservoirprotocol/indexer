@@ -5,14 +5,19 @@ import {
   hasCustomHandler,
 } from "../custom";
 import { CollectionMetadata, TokenMetadata, TokenMetadataBySlugResult } from "../types";
-import { extendCollectionMetadata, extendMetadata, hasExtendHandler } from "../extend";
+import {
+  extendCollectionMetadata,
+  extendMetadata,
+  hasExtendHandler,
+  overrideCollectionMetadata,
+} from "../extend";
 
 export abstract class AbstractBaseMetadataProvider {
   abstract method: string;
 
   // Wrapper methods for internal methods, handles custom/extend logic so subclasses don't have to
   async getCollectionMetadata(contract: string, tokenId: string): Promise<CollectionMetadata> {
-    // handle universal extend/custom logic here
+    // Handle universal extend/custom logic here
     if (hasCustomCollectionHandler(contract)) {
       const result = await customHandleCollection({
         contract,
@@ -21,10 +26,13 @@ export abstract class AbstractBaseMetadataProvider {
       return result;
     }
 
-    const collectionMetadata = await this._getCollectionMetadata(contract, tokenId);
+    let collectionMetadata = await this._getCollectionMetadata(contract, tokenId);
 
-    // handle extend logic here
-    return extendCollectionMetadata(collectionMetadata, tokenId);
+    // Handle extend logic here
+    collectionMetadata = await extendCollectionMetadata(collectionMetadata, tokenId);
+
+    // Handle metadata override here
+    return overrideCollectionMetadata(collectionMetadata);
   }
 
   async getTokensMetadata(
