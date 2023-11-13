@@ -4,9 +4,9 @@ import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
 import Joi from "joi";
 
-import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { regex } from "@/common/utils";
+import { config } from "@/config/index";
 
 const version = "v1";
 
@@ -55,38 +55,41 @@ export const postExecuteSolveV1Options: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      try {
-        switch (payload.kind) {
-          case "cross-chain-intent": {
-            if (payload.order) {
-              const response = await axios
-                .post(`${config.crossChainSolverBaseUrl}/intents/trigger`, {
-                  chainId: payload.chainId,
-                  request: {
-                    ...payload.order,
-                    signature: payload.order.signature ?? query.signature,
-                  },
-                })
-                .then((response) => response.data);
-
-              return {
-                status: {
-                  endpoint: "/execute/status/v1",
-                  method: "POST",
-                  body: {
-                    kind: payload.kind,
-                    id: response.hash,
-                  },
+      switch (payload.kind) {
+        case "cross-chain-intent": {
+          if (payload.order) {
+            const response = await axios
+              .post(`${config.crossChainSolverBaseUrl}/intents/trigger`, {
+                chainId: payload.chainId,
+                request: {
+                  ...payload.order,
+                  signature: payload.order.signature ?? query.signature,
                 },
-              };
-            } else if (payload.tx) {
-              const response = await axios
-                .post(`${config.crossChainSolverBaseUrl}/intents/trigger`, {
-                  chainId: payload.chainId,
-                  tx: payload.tx,
-                })
-                .then((response) => response.data);
+              })
+              .then((response) => response.data);
 
+            return {
+              status: {
+                endpoint: "/execute/status/v1",
+                method: "POST",
+                body: {
+                  kind: payload.kind,
+                  id: response.hash,
+                },
+              },
+            };
+          } else if (payload.tx) {
+            const response = await axios
+              .post(`${config.crossChainSolverBaseUrl}/intents/trigger`, {
+                chainId: payload.chainId,
+                tx: payload.tx,
+              })
+              .then((response) => response.data)
+              .catch(() => {
+                // Skip errors
+              });
+
+            if (response) {
               return {
                 status: {
                   endpoint: "/execute/status/v1",
@@ -98,48 +101,39 @@ export const postExecuteSolveV1Options: RouteOptions = {
                 },
               };
             } else {
-              throw Boom.badRequest("Must specify one of `order` or `tx`");
+              return Boom.conflict("Transaction could not be processed");
             }
+          } else {
+            throw Boom.badRequest("Must specify one of `order` or `tx`");
           }
+        }
 
-          case "seaport-intent": {
-            const order = new Sdk.SeaportV15.Order(config.chainId, {
-              ...payload.order,
-              signature: payload.order.signature ?? query.signature,
-            });
+        case "seaport-intent": {
+          const order = new Sdk.SeaportV15.Order(config.chainId, {
+            ...payload.order,
+            signature: payload.order.signature ?? query.signature,
+          });
 
-            await axios.post(`${config.seaportSolverBaseUrl}/intents/trigger`, {
-              chainId: config.chainId,
-              order: order.params,
-            });
+          await axios.post(`${config.seaportSolverBaseUrl}/intents/trigger`, {
+            chainId: config.chainId,
+            order: order.params,
+          });
 
-            return {
-              status: {
-                endpoint: "/execute/status/v1",
-                method: "POST",
-                body: {
-                  kind: payload.kind,
-                  id: order.hash(),
-                },
+          return {
+            status: {
+              endpoint: "/execute/status/v1",
+              method: "POST",
+              body: {
+                kind: payload.kind,
+                id: order.hash(),
               },
-            };
-          }
-
-          default: {
-            throw Boom.badRequest("Unknown kind");
-          }
-        }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (error: any) {
-        // Forward any solver errors
-        const errorResponseData = error.response?.data;
-        if (errorResponseData) {
-          throw Boom.badRequest(
-            errorResponseData.message ? errorResponseData.message : errorResponseData
-          );
+            },
+          };
         }
 
-        throw error;
+        default: {
+          throw Boom.badRequest("Unknown kind");
+        }
       }
     } catch (error) {
       logger.error(`post-execute-solve-${version}-handler`, `Handler failure: ${error}`);

@@ -1,10 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { formatEth, fromBuffer } from "@/common/utils";
+import { fromBuffer } from "@/common/utils";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 
 import { BuildDocumentData, BaseDocument, DocumentBuilder } from "@/elasticsearch/indexes/base";
+import { formatEther } from "@ethersproject/units";
+import { AddressZero } from "@ethersproject/constants";
 
 export interface AskDocument extends BaseDocument {
   contractAndTokenId: string;
@@ -26,6 +28,7 @@ export interface AskDocument extends BaseDocument {
     id: string;
     name: string;
     image: string;
+    isSpam: boolean;
   };
   order: {
     id: string;
@@ -53,6 +56,9 @@ export interface AskDocument extends BaseDocument {
         };
       };
     };
+    isDynamic: boolean;
+    rawData: Record<string, unknown>;
+    missingRoyalties: { bps: number; recipient: string }[];
     pricing: {
       price: string;
       priceDecimal?: number;
@@ -111,6 +117,9 @@ export interface BuildAskDocumentData extends BuildDocumentData {
   order_pricing_currency_normalized_value?: number;
   order_maker: Buffer;
   order_taker?: Buffer;
+  order_dynamic: boolean;
+  order_raw_data: Record<string, unknown>;
+  order_missing_royalties: { bps: number; recipient: string }[];
 }
 
 export class AskDocumentBuilder extends DocumentBuilder {
@@ -143,7 +152,7 @@ export class AskDocumentBuilder extends DocumentBuilder {
         id: data.order_id,
         kind: data.order_kind,
         maker: fromBuffer(data.order_maker),
-        taker: data.order_taker ? fromBuffer(data.order_taker) : undefined,
+        taker: data.order_taker ? fromBuffer(data.order_taker) : AddressZero,
         tokenSetId: data.order_token_set_id,
         validFrom: Number(data.order_valid_from),
         validUntil: Number(data.order_valid_until),
@@ -151,9 +160,12 @@ export class AskDocumentBuilder extends DocumentBuilder {
         criteria: data.order_criteria,
         quantityFilled: Number(data.order_quantity_filled),
         quantityRemaining: Number(data.order_quantity_remaining),
+        isDynamic: Boolean(data.order_dynamic || 0),
+        rawData: data.order_raw_data,
+        missingRoyalties: data.order_missing_royalties,
         pricing: {
           price: String(data.order_pricing_price),
-          priceDecimal: formatEth(data.order_pricing_price),
+          priceDecimal: Number(Number(formatEther(data.order_pricing_price)).toFixed(18)),
           currencyPrice: data.order_pricing_currency_price
             ? String(data.order_pricing_currency_price)
             : undefined,
@@ -162,7 +174,9 @@ export class AskDocumentBuilder extends DocumentBuilder {
             ? fromBuffer(data.order_pricing_currency)
             : Sdk.Common.Addresses.Native[config.chainId],
           value: data.order_pricing_value ? String(data.order_pricing_value) : undefined,
-          valueDecimal: data.order_pricing_value ? formatEth(data.order_pricing_value) : undefined,
+          valueDecimal: data.order_pricing_value
+            ? Number(Number(formatEther(data.order_pricing_value)).toFixed(18))
+            : undefined,
           currencyValue: data.order_pricing_currency_value
             ? String(data.order_pricing_currency_value)
             : undefined,
@@ -170,7 +184,7 @@ export class AskDocumentBuilder extends DocumentBuilder {
             ? String(data.order_pricing_normalized_value)
             : undefined,
           normalizedValueDecimal: data.order_pricing_normalized_value
-            ? formatEth(data.order_pricing_normalized_value)
+            ? Number(Number(formatEther(data.order_pricing_normalized_value)).toFixed(18))
             : undefined,
           currencyNormalizedValue: data.order_pricing_currency_normalized_value
             ? String(data.order_pricing_currency_normalized_value)

@@ -94,7 +94,7 @@ const prettifyError = (msg: string): PrettyErrorDetails => {
     case matches("accepting offers is disabled for this nft"):
       return {
         message:
-          "This NFT cannot accept offers on OpenSea right now because it is flagged or recently transferred",
+          "This NFT cannot accept offers right now because it is flagged or recently transferred",
         status: StatusCode.NOT_FOUND,
         code: 1,
       };

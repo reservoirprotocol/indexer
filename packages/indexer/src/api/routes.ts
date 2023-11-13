@@ -778,6 +778,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/execute/mint/v1",
+    options: executeEndpoints.postExecuteMintV1Options,
+  });
+
+  server.route({
+    method: "POST",
     path: "/execute/results/v1",
     options: executeEndpoints.postExecuteResultsV1,
   });
@@ -786,6 +792,12 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/execute/solve/v1",
     options: executeEndpoints.postExecuteSolveV1Options,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/execute/solve/capacity/v1",
+    options: executeEndpoints.postExecuteSolveCapacityV1Options,
   });
 
   server.route({
@@ -1237,6 +1249,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/tokens/v6",
     options: tokensEndpoints.getTokensV6Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/tokens/v7",
+    options: tokensEndpoints.getTokensV7Options,
   });
 
   server.route({

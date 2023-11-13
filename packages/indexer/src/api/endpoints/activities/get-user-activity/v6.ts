@@ -443,7 +443,7 @@ export const getUserActivityV6Options: RouteOptions = {
             fillSource: fillSource ? getJoiSourceObject(fillSource, false) : undefined,
             order,
           },
-          tokenMetadata.metadata_disabled,
+          Boolean(tokenMetadata?.metadata_disabled),
           disabledCollectionMetadata
         );
       });

@@ -102,13 +102,19 @@ describe("Mints - Generic", () => {
     const collection = "0xb43159cf582dcf42cc8f833d4a5915361984bd20";
     const txId = "0x6df11da37db5748b97fb4c60fc807bcd6feff4659e8e498d99a07d1f5737f03a";
     const transcation = await utils.fetchTransaction(txId);
-    const infos = await extractByTx(
+    const collectionMints = await extractByTx(
       collection,
       transcation,
       parseEther("0.000099"),
       BigNumber.from("10")
     );
-    expect(infos.length).not.toBe(0);
+
+    for (const collectionMint of collectionMints) {
+      const result = await simulateCollectionMint(collectionMint);
+      // console.log("result", result);
+      expect(result).toBe(true);
+    }
+    expect(collectionMints.length).not.toBe(0);
   });
 
   it("base-normal-case3", async () => {
@@ -125,10 +131,11 @@ describe("Mints - Generic", () => {
       BigNumber.from("10")
     );
 
-    // for (const collectionMint of collectionMints) {
-    //   const result = await simulateCollectionMint(collectionMint);
-    //   console.log("result", result);
-    // }
+    for (const collectionMint of collectionMints) {
+      const result = await simulateCollectionMint(collectionMint);
+      // console.log("result", result);
+      expect(result).toBe(true);
+    }
 
     expect(collectionMints.length).not.toBe(0);
   });

@@ -70,6 +70,9 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
               orders.maker AS "order_maker",
               orders.taker AS "order_taker",
               orders.kind AS "order_kind",
+              orders.dynamic AS "order_dynamic",
+              orders.raw_data AS "order_raw_data",
+              orders.missing_royalties AS "order_missing_royalties",
               DATE_PART('epoch', LOWER(orders.valid_between)) AS "order_valid_from",
               COALESCE(
                 NULLIF(DATE_PART('epoch', UPPER(orders.valid_between)), 'Infinity'),
@@ -77,6 +80,7 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
               ) AS "order_valid_until",
               orders.token_set_id AS "order_token_set_id",
               (${criteriaBuildQuery}) AS order_criteria,
+              orders.created_at AS "order_created_at",
               t.*
             FROM orders
             JOIN LATERAL (
@@ -90,7 +94,7 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
                         tokens.rarity_rank AS "token_rarity_rank",
                         collections.id AS "collection_id", 
                         collections.name AS "collection_name", 
-                        collections.is_spam AS "collections_is_spam",
+                        collections.is_spam AS "collection_is_spam",
                         (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image",
                         (
                         SELECT 
@@ -125,7 +129,7 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
         if (rawResult) {
           askDocument = new AskDocumentBuilder().buildDocument({
             id: data.id,
-            created_at: new Date(data.created_at),
+            created_at: new Date(rawResult.order_created_at),
             contract: toBuffer(data.contract),
             token_id: rawResult.token_id,
             token_name: rawResult.token_name,
@@ -155,12 +159,15 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
             order_pricing_normalized_value: rawResult.order_pricing_normalized_value,
             order_pricing_currency_normalized_value:
               rawResult.order_pricing_currency_normalized_value,
-            order_maker: toBuffer(rawResult.order_maker),
-            order_taker: rawResult.taker ? toBuffer(rawResult.order_taker) : undefined,
+            order_maker: rawResult.order_maker,
+            order_taker: rawResult.order_taker,
             order_token_set_id: rawResult.order_token_set_id,
             order_valid_from: Number(rawResult.order_valid_from),
             order_valid_until: Number(rawResult.order_valid_until),
             order_kind: rawResult.order_kind,
+            order_dynamic: rawResult.order_dynamic,
+            order_raw_data: rawResult.order_raw_data,
+            order_missing_royalties: rawResult.order_missing_royalties,
           });
         }
       } catch (error) {
