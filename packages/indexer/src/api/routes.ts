@@ -778,6 +778,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/execute/mint/v1",
+    options: executeEndpoints.postExecuteMintV1Options,
+  });
+
+  server.route({
+    method: "POST",
     path: "/execute/results/v1",
     options: executeEndpoints.postExecuteResultsV1,
   });

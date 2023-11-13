@@ -6,6 +6,7 @@ import { parseEther } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk";
 import crypto from "crypto";
 import Joi from "joi";
+import _ from "lodash";
 
 import { bn, formatEth, formatPrice, formatUsd, fromBuffer, now, regex } from "@/common/utils";
 import { config } from "@/config/index";
@@ -157,7 +158,10 @@ export const getJoiPriceObject = async (
   }
 
   // Set community tokens native/usd value to 0
-  if (isWhitelistedCurrency(currency.contract)) {
+  if (
+    isWhitelistedCurrency(currency.contract) &&
+    !_.includes(Sdk.Common.Addresses.Usdc[config.chainId], currency.contract)
+  ) {
     prices.gross.nativeAmount = "0";
     prices.gross.usdAmount = "0";
   }
