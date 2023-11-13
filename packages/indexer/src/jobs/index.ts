@@ -168,6 +168,7 @@ import { collectionRefreshSpamJob } from "@/jobs/collections-refresh/collections
 import { refreshAsksTokenJob } from "@/jobs/asks/refresh-asks-token-job";
 import { actionsLogJob } from "@/jobs/general-tracking/actions-log-job";
 import { refreshAsksCollectionJob } from "@/jobs/asks/refresh-asks-collection-job";
+import { refreshActivitiesTokenJob } from "@/jobs/activities/refresh-activities-token-job";
 import { processCollectionEventJob } from "@/jobs/elasticsearch/collections/process-collection-event-job";
 import { processCollectionEventsJob } from "@/jobs/elasticsearch/collections/process-collection-events-job";
 import { backfillCollectionsElasticsearchJob } from "@/jobs/elasticsearch/collections/backfill-collections-elasticsearch-job";
@@ -321,6 +322,7 @@ export class RabbitMqJobsConsumer {
       refreshAsksTokenJob,
       actionsLogJob,
       refreshAsksCollectionJob,
+      refreshActivitiesTokenJob,
       processCollectionEventJob,
       processCollectionEventsJob,
       backfillCollectionsElasticsearchJob,

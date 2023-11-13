@@ -5,10 +5,11 @@ import { Collections } from "@/models/collections";
 import _ from "lodash";
 import { logger } from "@/common/logger";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
+import { ActivitiesCollectionUpdateData } from "@/elasticsearch/indexes/activities";
 
 export type RefreshActivitiesCollectionMetadataJobPayload = {
   collectionId: string;
-  collectionUpdateData?: { name: string | null; image: string | null };
+  collectionUpdateData?: ActivitiesCollectionUpdateData;
 };
 
 export default class RefreshActivitiesCollectionMetadataJob extends AbstractRabbitMqJobHandler {
@@ -27,10 +28,11 @@ export default class RefreshActivitiesCollectionMetadataJob extends AbstractRabb
     const collectionUpdateData = {
       name: collection?.name || null,
       image: collection?.metadata?.imageUrl || null,
+      isSpam: Number(collection?.isSpam),
     };
 
     if (!_.isEmpty(collectionUpdateData)) {
-      const keepGoing = await ActivitiesIndex.updateActivitiesCollectionMetadata(
+      const keepGoing = await ActivitiesIndex.updateActivitiesCollectionData(
         collectionId,
         collectionUpdateData
       );
@@ -38,8 +40,8 @@ export default class RefreshActivitiesCollectionMetadataJob extends AbstractRabb
       logger.info(
         this.queueName,
         JSON.stringify({
-          topic: "updateActivitiesCollectionMetadata",
-          message: `updateActivitiesTokenMetadata! collectionId=${collectionId}, collectionUpdateData=${JSON.stringify(
+          topic: "updateActivitiesCollectionData",
+          message: `updateActivitiesCollectionData! collectionId=${collectionId}, collectionUpdateData=${JSON.stringify(
             collectionUpdateData
           )}`,
           data: {

@@ -12,7 +12,7 @@ import Joi from "joi";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { JoiExecuteFee } from "@/common/joi";
+import { JoiExecuteFee, JoiPrice, getJoiPriceObject } from "@/common/joi";
 import { baseProvider } from "@/common/provider";
 import { bn, formatPrice, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
@@ -90,6 +90,9 @@ export const postExecuteMintV1Options: RouteOptions = {
       onlyPath: Joi.boolean()
         .default(false)
         .description("If true, only the path will be returned."),
+      alternativeCurrencies: Joi.array()
+        .items(Joi.string().lowercase())
+        .description("Alternative currencies to return the quote in."),
       currencyChainId: Joi.number().description("The chain id of the purchase currency."),
       source: Joi.string()
         .lowercase()
@@ -165,6 +168,7 @@ export const postExecuteMintV1Options: RouteOptions = {
           rawQuote: Joi.string().pattern(regex.number),
           totalPrice: Joi.number().unsafe(),
           totalRawPrice: Joi.string().pattern(regex.number),
+          buyIn: Joi.array().items(JoiPrice),
           gasCost: Joi.string().pattern(regex.number),
           feesOnTop: Joi.array().items(JoiExecuteFee).description("Can be referral fees."),
           fromChainId: Joi.number().description("Chain id buying from"),
@@ -213,6 +217,8 @@ export const postExecuteMintV1Options: RouteOptions = {
         // Total price (with fees on top) = price + feesOnTop
         totalPrice?: number;
         totalRawPrice?: string;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        buyIn?: any[];
         feesOnTop: ExecuteFee[];
         gasCost?: string;
         fromChainId?: number;
@@ -720,6 +726,116 @@ export const postExecuteMintV1Options: RouteOptions = {
         }
       }
 
+      const getCrossChainQuote = async (chainId: number, item: (typeof path)[0]) => {
+        // Mainnet requests will get routed to base
+        const actualFromChainId = chainId === Network.Ethereum ? Network.Base : chainId;
+        const toChainId = config.chainId;
+
+        const ccConfig: {
+          enabled: boolean;
+          solver?: string;
+          availableBalance?: string;
+          maxPricePerItem?: string;
+        } = await axios
+          .get(
+            `${config.crossChainSolverBaseUrl}/config?fromChainId=${actualFromChainId}&toChainId=${toChainId}&user=${payload.taker}`
+          )
+          .then((response) => response.data);
+
+        if (!ccConfig.enabled) {
+          throw Boom.badRequest("Cross-chain swap not supported between requested chains");
+        }
+
+        // Only set when minting
+        const isCollectionRequest = true;
+
+        let tokenId = item.tokenId;
+        if (!tokenId) {
+          // Hacky way to support "range" collections like ones from artblocks engine
+          if (item.orderId.match(/^mint:0x[a-f0-9]{40}:\d+:\d+$/g)) {
+            const [, , startTokenId, endTokenId] = item.orderId.split(":");
+            tokenId = bn(
+              "0x111111111111111111111111" +
+                Number(startTokenId).toString(16).padStart(20, "0") +
+                Number(endTokenId).toString(16).padStart(20, "0")
+            ).toString();
+          } else {
+            tokenId = MaxUint256.toString();
+          }
+        }
+
+        const token = `${item.contract}:${tokenId}`.toLowerCase();
+
+        const { quote, gasCost } = await axios
+          .post(`${config.crossChainSolverBaseUrl}/intents/quote`, {
+            fromChainId: actualFromChainId,
+            toChainId,
+            isCollectionRequest,
+            token,
+            amount: item.quantity,
+          })
+          .then((response) => ({
+            quote: response.data.price,
+            gasCost: response.data.gasCost,
+          }))
+          .catch((error) => {
+            throw Boom.badRequest(
+              error.response?.data ? JSON.stringify(error.response.data) : "Error getting quote"
+            );
+          });
+
+        if (ccConfig.maxPricePerItem && bn(quote).gt(ccConfig.maxPricePerItem)) {
+          throw Boom.badRequest("Price too high to purchase cross-chain");
+        }
+
+        return {
+          actualFromChainId,
+          isCollectionRequest,
+          tokenId,
+          ccConfig,
+          quote,
+          gasCost,
+        };
+      };
+
+      // Add the quotes in the "buy-in" currency to the path items
+      for (const item of path) {
+        if (payload.alternativeCurrencies) {
+          if (preview) {
+            throw Boom.badRequest("Cannot use alternative currencies with preview");
+          }
+
+          if (!item.buyIn) {
+            item.buyIn = [];
+          }
+
+          await Promise.all(
+            payload.alternativeCurrencies.map(async (c: string) => {
+              const [currency, chainId] = c.split(":");
+              if (currency !== Sdk.Common.Addresses.Native[Number(chainId)]) {
+                throw Boom.badRequest("Unsupported alternative currency");
+              }
+
+              const { quote } = await getCrossChainQuote(Number(chainId), item);
+              item.buyIn!.push(
+                await getJoiPriceObject(
+                  {
+                    gross: { amount: quote },
+                  },
+                  currency
+                ).then((p) => ({
+                  ...p,
+                  currency: {
+                    ...p.currency,
+                    chainId: Number(chainId),
+                  },
+                }))
+              );
+            })
+          );
+        }
+      }
+
       type StepType = {
         id: string;
         action: string;
@@ -772,69 +888,11 @@ export const postExecuteMintV1Options: RouteOptions = {
         }
 
         const requestedFromChainId = payload.currencyChainId;
-        // Mainnet requests will get routed to base
-        const actualFromChainId =
-          requestedFromChainId === Network.Ethereum ? Network.Base : requestedFromChainId;
-        const toChainId = config.chainId;
-
-        const ccConfig: {
-          enabled: boolean;
-          solver?: string;
-          availableBalance?: string;
-          maxPricePerItem?: string;
-        } = await axios
-          .get(
-            `${config.crossChainSolverBaseUrl}/config?fromChainId=${actualFromChainId}&toChainId=${toChainId}&user=${payload.taker}`
-          )
-          .then((response) => response.data);
-
-        if (!ccConfig.enabled) {
-          throw Boom.badRequest("Cross-chain swap not supported between requested chains");
-        }
 
         const item = path[0];
 
-        // Only set when minting
-        const isCollectionRequest = true;
-
-        let tokenId = item.tokenId;
-        if (!tokenId) {
-          // Hacky way to support "range" collections like ones from artblocks engine
-          if (item.orderId.match(/^mint:0x[a-f0-9]{40}:\d+:\d+$/g)) {
-            const [, , startTokenId, endTokenId] = item.orderId.split(":");
-            tokenId = bn(
-              "0x111111111111111111111111" +
-                Number(startTokenId).toString(16).padStart(20, "0") +
-                Number(endTokenId).toString(16).padStart(20, "0")
-            ).toString();
-          } else {
-            tokenId = MaxUint256.toString();
-          }
-        }
-
-        const token = `${item.contract}:${tokenId}`.toLowerCase();
-
-        const { quote, gasCost } = await axios
-          .post(`${config.crossChainSolverBaseUrl}/intents/quote`, {
-            fromChainId: actualFromChainId,
-            toChainId,
-            isCollectionRequest,
-            token,
-            amount: item.quantity,
-          })
-          .then((response) => ({
-            quote: response.data.price,
-            gasCost: response.data.gasCost,
-          }))
-          .catch((error) => {
-            throw Boom.badRequest(
-              error.response?.data ? JSON.stringify(error.response.data) : "Error getting quote"
-            );
-          });
-
-        if (ccConfig.maxPricePerItem && bn(quote).gt(ccConfig.maxPricePerItem)) {
-          throw Boom.badRequest("Price too high to purchase cross-chain");
-        }
+        const { actualFromChainId, ccConfig, isCollectionRequest, tokenId, quote, gasCost } =
+          await getCrossChainQuote(requestedFromChainId, item);
 
         item.fromChainId = actualFromChainId;
         item.gasCost = gasCost;

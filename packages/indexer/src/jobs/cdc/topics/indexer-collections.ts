@@ -12,6 +12,7 @@ import {
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { refreshAsksCollectionJob } from "@/jobs/asks/refresh-asks-collection-job";
+import { refreshActivitiesCollectionMetadataJob } from "@/jobs/activities/refresh-activities-collection-metadata-job";
 import {
   EventKind,
   processCollectionEventJob,
@@ -34,6 +35,7 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
       eventKind: WebsocketEventKind.CollectionEvent,
     });
 
+    // Update the elasticsearch collections index
     await processCollectionEventJob.addToQueue([
       {
         kind: EventKind.newCollection,
@@ -103,14 +105,21 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
         await redis.set(collectionKey, JSON.stringify(updatedPayload), "XX");
       }
 
-      if (payload.after.floor_sell_id) {
-        const spamStatusChanged = payload.before.is_spam !== payload.after.is_spam;
+      const spamStatusChanged = payload.before.is_spam !== payload.after.is_spam;
 
-        if (spamStatusChanged) {
-          await refreshAsksCollectionJob.addToQueue(payload.after.id);
-        }
+      // Update the elasticsearch activities index
+      if (spamStatusChanged) {
+        await refreshActivitiesCollectionMetadataJob.addToQueue({
+          collectionId: payload.after.id,
+        });
       }
 
+      // Update the elasticsearch asks index
+      if (payload.after.floor_sell_id && spamStatusChanged) {
+        await refreshAsksCollectionJob.addToQueue(payload.after.id);
+      }
+
+      // Update the elasticsearch collections index
       await processCollectionEventJob.addToQueue([
         {
           kind: EventKind.collectionUpdated,
