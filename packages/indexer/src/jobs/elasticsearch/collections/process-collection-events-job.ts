@@ -19,6 +19,8 @@ export default class ProcessCollectionEventsJob extends AbstractRabbitMqJobHandl
   lazyMode = true;
 
   protected async process() {
+    return;
+
     const pendingCollectionEventsQueue = new PendingCollectionEventsQueue();
     const pendingCollectionEvents = await pendingCollectionEventsQueue.get(BATCH_SIZE);
 
@@ -103,10 +105,10 @@ export const processCollectionEventsJob = new ProcessCollectionEventsJob();
 
 if (config.doBackgroundWork && config.doElasticsearchWork) {
   cron.schedule(
-    "*/2 * * * * *",
+    "*/5 * * * * *",
     async () =>
       await redlockAllChains
-        .acquire([`${processCollectionEventsJob.queueName}-queue-lock`], 2 * 1000 - 500)
+        .acquire([`${processCollectionEventsJob.queueName}-queue-lock`], 5 * 1000 - 500)
         .then(async () => processCollectionEventsJob.addToQueue())
         .catch(() => {
           // Skip on any errors
