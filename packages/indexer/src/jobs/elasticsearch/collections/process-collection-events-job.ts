@@ -2,7 +2,7 @@ import cron from "node-cron";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-import { redlockAllChains } from "@/common/redis";
+import { redlock } from "@/common/redis";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import * as CollectionsIndex from "@/elasticsearch/indexes/collections";
@@ -19,8 +19,6 @@ export default class ProcessCollectionEventsJob extends AbstractRabbitMqJobHandl
   lazyMode = true;
 
   protected async process() {
-    return;
-
     const pendingCollectionEventsQueue = new PendingCollectionEventsQueue();
     const pendingCollectionEvents = await pendingCollectionEventsQueue.get(BATCH_SIZE);
 
@@ -107,7 +105,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
   cron.schedule(
     "*/5 * * * * *",
     async () =>
-      await redlockAllChains
+      await redlock
         .acquire([`${processCollectionEventsJob.queueName}-queue-lock`], 5 * 1000 - 500)
         .then(async () => processCollectionEventsJob.addToQueue())
         .catch(() => {

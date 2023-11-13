@@ -18,7 +18,7 @@ export interface CollectionDocument extends BaseDocument {
   nameSuggest: any;
 }
 
-export interface BuildCollectionDocumentDocumentData extends BuildDocumentData {
+export interface BuildCollectionDocumentData extends BuildDocumentData {
   id: string;
   contract: Buffer;
   name: string;
@@ -32,7 +32,7 @@ export interface BuildCollectionDocumentDocumentData extends BuildDocumentData {
 }
 
 export class CollectionDocumentBuilder extends DocumentBuilder {
-  public buildDocument(data: BuildCollectionDocumentDocumentData): CollectionDocument {
+  public buildDocument(data: BuildCollectionDocumentData): CollectionDocument {
     const baseDocument = super.buildDocument(data);
 
     const document = {
@@ -65,7 +65,7 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
     return document;
   }
 
-  formatAllTimeVolume(data: BuildCollectionDocumentDocumentData) {
+  formatAllTimeVolume(data: BuildCollectionDocumentData) {
     let allTimeVolume = 0;
 
     if (data.all_time_volume) {
@@ -75,7 +75,7 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
     return Math.trunc(allTimeVolume * 100000);
   }
 
-  generateInputValues(data: BuildCollectionDocumentDocumentData): string[] {
+  generateInputValues(data: BuildCollectionDocumentData): string[] {
     const words = data.name.split(" ");
     const combinations: string[] = [];
 
