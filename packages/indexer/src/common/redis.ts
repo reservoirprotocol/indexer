@@ -79,6 +79,19 @@ export const acquireLock = async (name: string, expirationInSeconds = 0) => {
   return acquired === "OK";
 };
 
+export const acquireLockCrossChain = async (name: string, expirationInSeconds = 0) => {
+  const id = randomUUID();
+  let acquired;
+
+  if (expirationInSeconds) {
+    acquired = await allChainsSyncRedis.set(name, id, "EX", expirationInSeconds, "NX");
+  } else {
+    acquired = await allChainsSyncRedis.set(name, id, "NX");
+  }
+
+  return acquired === "OK";
+};
+
 export const extendLock = async (name: string, expirationInSeconds: number) => {
   const id = randomUUID();
   const extended = await redis.set(name, id, "EX", expirationInSeconds, "XX");

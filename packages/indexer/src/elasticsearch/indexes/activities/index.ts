@@ -13,7 +13,7 @@ import { SortResults } from "@elastic/elasticsearch/lib/api/typesWithBodyKey";
 import { logger } from "@/common/logger";
 import { CollectionsEntity } from "@/models/collections/collections-entity";
 
-import { redis } from "@/common/redis";
+import { acquireLock, redis } from "@/common/redis";
 import {
   ActivityDocument,
   ActivityType,
@@ -941,6 +941,20 @@ export const getIndexName = (): string => {
 };
 
 export const initIndex = async (): Promise<void> => {
+  const acquiredLock = await acquireLock("elasticsearch-activities-init-index", 60);
+
+  if (!acquiredLock) {
+    logger.info(
+      "elasticsearch-activities",
+      JSON.stringify({
+        topic: "initIndex",
+        message: "Skip.",
+      })
+    );
+
+    return;
+  }
+
   try {
     const indexConfigName =
       getNetworkSettings().elasticsearch?.indexes?.activities?.configName ?? "CONFIG_DEFAULT";

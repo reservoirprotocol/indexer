@@ -5,7 +5,6 @@ import { formatEth, fromBuffer } from "@/common/utils";
 import { BuildDocumentData, BaseDocument, DocumentBuilder } from "@/elasticsearch/indexes/base";
 import { config } from "@/config/index";
 import { getNetworkName } from "@/config/network";
-import { logger } from "@/common/logger";
 
 export interface CollectionDocument extends BaseDocument {
   id: string;
@@ -51,7 +50,7 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
       tokenCount: Number(data.token_count),
       isSpam: Number(data.is_spam) > 0,
       nameSuggest: {
-        input: this.generateInput(data),
+        input: this.generateInputValues(data),
         weight: this.formatAllTimeVolume(data),
         contexts: {
           chainId: [config.chainId],
@@ -63,16 +62,6 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
       },
     } as CollectionDocument;
 
-    logger.info(
-      "CollectionDocumentBuilder",
-      JSON.stringify({
-        topic: "debugCollectionsIndex",
-        message: `buildDocument. collectionId=${data.id}`,
-        data,
-        document,
-      })
-    );
-
     return document;
   }
 
@@ -80,17 +69,13 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
     let allTimeVolume = 0;
 
     if (data.all_time_volume) {
-      if (data.all_time_volume === "10000000000000000") {
-        allTimeVolume = 0.01;
-      }
-
       allTimeVolume = formatEth(data.all_time_volume);
     }
 
-    return Math.floor(allTimeVolume * 100000);
+    return Math.trunc(allTimeVolume * 100000);
   }
 
-  generateInput(data: BuildCollectionDocumentDocumentData): string[] {
+  generateInputValues(data: BuildCollectionDocumentDocumentData): string[] {
     const words = data.name.split(" ");
     const combinations: string[] = [];
 

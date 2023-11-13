@@ -7,6 +7,7 @@ import { getNetworkSettings } from "@/config/network";
 
 import * as CONFIG from "@/elasticsearch/indexes/collections/config";
 import { CollectionDocument } from "@/elasticsearch/indexes/collections/base";
+import { acquireLockCrossChain } from "@/common/redis";
 
 const INDEX_NAME = `collections`;
 
@@ -68,6 +69,20 @@ export const getIndexName = (): string => {
 };
 
 export const initIndex = async (): Promise<void> => {
+  const acquiredLock = await acquireLockCrossChain("elasticsearch-collections-init-index", 60);
+
+  if (!acquiredLock) {
+    logger.info(
+      "elasticsearch-collections",
+      JSON.stringify({
+        topic: "initIndex",
+        message: "Skip.",
+      })
+    );
+
+    return;
+  }
+
   try {
     const indexConfigName =
       getNetworkSettings().elasticsearch?.indexes?.collections?.configName ?? "CONFIG_DEFAULT";
