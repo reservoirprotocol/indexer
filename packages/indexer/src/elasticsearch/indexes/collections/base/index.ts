@@ -76,6 +76,8 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
     allTimeVolume = Math.trunc(allTimeVolume * 100000);
 
     if (allTimeVolume > 0) {
+      const normalizedAllTimeVolume = Math.ceil((allTimeVolume - 0) / (2147483647 - 0));
+
       logger.info(
         "elasticsearch-collections",
         JSON.stringify({
@@ -83,8 +85,11 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
           message: `Document with volume. collectionId=${data.id}, allTimeVolume=${allTimeVolume}`,
           data,
           allTimeVolume,
+          normalizedAllTimeVolume,
         })
       );
+
+      allTimeVolume = normalizedAllTimeVolume;
     }
 
     return allTimeVolume;
