@@ -195,6 +195,7 @@ extendCollection["137,0x9dba8ea4a81eb3b3aeadbcbca9e7e88dda205a81"] = magiceden;
 extendCollection["137,0xaba082d325adc08f9a1c5a8208bb5c42b3a6f978"] = magiceden;
 extendCollection["137,0x5fcfae331e919d679cc3bc07c15fcc6d5c7a93cb"] = magiceden;
 extendCollection["137,0xb32d51869d97218eb75e55f378205fdf658c37e1"] = magiceden;
+extendCollection["137,0x5a6235e69a2a6f5008fd90b26976984fb82baed3"] = magiceden;
 
 // Sound XYZ
 soundxyz.SoundxyzArtistContracts.forEach(

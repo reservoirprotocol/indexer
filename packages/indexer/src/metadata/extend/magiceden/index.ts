@@ -136,7 +136,27 @@ export const extendCollection = async (metadata: CollectionMetadata, _tokenId = 
       metadata: {
         twitterUrl: "https://twitter.com/GrumpiesNFT",
         description: "2,000 Grumpies crash landing on Polygon!",
+        imageUrl:
+          "https://bafkreigbiqofnna7vqp2rcisyzt7lonc7refo3nlhu4ufowwl4nrteqmpe.ipfs.nftstorage.link",
       },
+    },
+    "0x5a6235e69a2a6f5008fd90b26976984fb82baed3": {
+      name: "Pixel Tings",
+      metadata: {
+        description:
+          "A collection of 10,000 Pixelated Tings by World Of Tings. Proceeds from secondary sales will be donated to childrens charities.",
+        imageUrl:
+          "https://nftstorage.link/ipfs/bafkreialnf3br47hipflqbdakt7fvywahjyfjmbxatkg7krftlo3s3reiu",
+        twitterUrl: "https://twitter.com/pixeltings",
+        discordUrl: "https://discord.gg/Q8g3bvqDyV",
+        externalUrl: "https://worldoftings.com",
+      },
+      royalties: [
+        {
+          recipient: "0x5340aa9626fe57d6c164e479733b289d0a34f162",
+          bps: 1000,
+        },
+      ],
     },
   };
 
