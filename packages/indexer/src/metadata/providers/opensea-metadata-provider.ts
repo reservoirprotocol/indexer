@@ -468,12 +468,12 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
       if (openSeaFeeRecipients.includes(fee.recipient)) {
         fees.push({
           recipient: fee.recipient,
-          bps: fee.fee * 100,
+          bps: Math.trunc(fee.fee * 100),
         });
       } else {
         royalties.push({
           recipient: fee.recipient,
-          bps: fee.fee * 100,
+          bps: Math.trunc(fee.fee * 100),
         });
       }
     }
