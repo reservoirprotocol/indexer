@@ -2,6 +2,7 @@ import { AddressZero } from "@ethersproject/constants";
 import { parseUnits } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
+import _ from "lodash";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
@@ -303,7 +304,11 @@ export const getUSDAndNativePrices = async (
   }
 
   // If zeroCommunityTokens and community tokens set native/usd value to 0
-  if (!options?.nonZeroCommunityTokens && isWhitelistedCurrency(currencyAddress)) {
+  if (
+    !options?.nonZeroCommunityTokens &&
+    isWhitelistedCurrency(currencyAddress) &&
+    !_.includes(Sdk.Common.Addresses.Usdc[config.chainId], currencyAddress)
+  ) {
     usdPrice = "0";
     nativePrice = "0";
   }
@@ -376,7 +381,10 @@ export const getUSDAndCurrencyPrices = async (
   }
 
   // Set community tokens native/usd value to 0
-  if (isWhitelistedCurrency(fromCurrencyAddress)) {
+  if (
+    isWhitelistedCurrency(fromCurrencyAddress) &&
+    !_.includes(Sdk.Common.Addresses.Usdc[config.chainId], fromCurrencyAddress)
+  ) {
     usdPrice = "0";
     currencyPrice = "0";
   }
