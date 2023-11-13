@@ -123,7 +123,7 @@ export class ProcessCollectionEventJob extends AbstractRabbitMqJobHandler {
       logger.error(
         this.queueName,
         JSON.stringify({
-          topic: "debugCollectionIndex",
+          topic: "debugCollectionsIndex",
           message: `Error generating ask document. kind=${kind}, id=${data.id}, error=${error}`,
           error,
           data,

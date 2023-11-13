@@ -55,7 +55,7 @@ export default class ProcessCollectionEventsJob extends AbstractRabbitMqJobHandl
           logger.error(
             this.queueName,
             JSON.stringify({
-              topic: "debugCollectionIndex",
+              topic: "debugCollectionsIndex",
               message: `Index errors.`,
               data: {
                 bulkOps: JSON.stringify(bulkOps),
@@ -68,7 +68,7 @@ export default class ProcessCollectionEventsJob extends AbstractRabbitMqJobHandl
         logger.error(
           this.queueName,
           JSON.stringify({
-            topic: "debugCollectionIndex",
+            topic: "debugCollectionsIndex",
             message: `failed to index collections. error=${error}`,
             pendingCollectionEvents,
             error,
