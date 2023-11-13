@@ -5,6 +5,7 @@ import { formatEth, fromBuffer } from "@/common/utils";
 import { BuildDocumentData, BaseDocument, DocumentBuilder } from "@/elasticsearch/indexes/base";
 import { config } from "@/config/index";
 import { getNetworkName } from "@/config/network";
+import { logger } from "@/common/logger";
 
 export interface CollectionDocument extends BaseDocument {
   id: string;
@@ -72,7 +73,21 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
       allTimeVolume = formatEth(data.all_time_volume);
     }
 
-    return Math.trunc(allTimeVolume * 100000);
+    allTimeVolume = Math.trunc(allTimeVolume * 100000);
+
+    if (allTimeVolume > 0) {
+      logger.info(
+        "elasticsearch-collections",
+        JSON.stringify({
+          topic: "debugCollectionsIndex",
+          message: `Document with volume. collectionId=${data.id}, allTimeVolume=${allTimeVolume}`,
+          data,
+          allTimeVolume,
+        })
+      );
+    }
+
+    return allTimeVolume;
   }
 
   generateInputValues(data: BuildCollectionDocumentData): string[] {
