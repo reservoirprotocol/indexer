@@ -1809,6 +1809,7 @@ export const updateActivitiesCollectionData = async (
   collectionId: string,
   collectionData: ActivitiesCollectionUpdateData
 ): Promise<boolean> => {
+  const batchSize = 1000;
   let keepGoing = false;
 
   const should: any[] = [
@@ -1908,7 +1909,7 @@ export const updateActivitiesCollectionData = async (
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         query,
-        size: 1000,
+        size: batchSize,
       },
       0,
       true
@@ -1960,7 +1961,7 @@ export const updateActivitiesCollectionData = async (
           })
         );
       } else {
-        keepGoing = pendingUpdateDocuments.length === 1000;
+        keepGoing = pendingUpdateDocuments.length === batchSize;
 
         logger.info(
           "elasticsearch-activities",
