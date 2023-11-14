@@ -150,6 +150,33 @@ export class BackfillCollectionsElasticsearchJob extends AbstractRabbitMqJobHand
           updatedAt: lastResult.updated_ts,
           id: lastResult.id,
         };
+
+        if (collectionEvents.length) {
+          const bulkIndexOps = collectionEvents
+            .filter((collectionEvent) => collectionEvent.kind == "index")
+            .flatMap((collectionEvent) => [
+              { index: { _index: CollectionIndex.getIndexName(), _id: collectionEvent._id } },
+              collectionEvent.document,
+            ]);
+
+          const bulkIndexResponse = await elasticsearch.bulk({
+            body: bulkIndexOps,
+          });
+
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              topic: "debugCollectionsIndex",
+              message: `Indexed ${bulkIndexOps.length} collections.`,
+              payload,
+              nextCursor,
+              hasErrors: bulkIndexResponse.errors,
+              bulkIndexResponse: bulkIndexResponse.errors ? bulkIndexResponse : undefined,
+            })
+          );
+
+          await backfillCollectionsElasticsearchJob.addToQueue(payload.fromTimestamp, nextCursor);
+        }
       }
     } catch (error) {
       logger.error(
@@ -163,45 +190,6 @@ export class BackfillCollectionsElasticsearchJob extends AbstractRabbitMqJobHand
       );
 
       throw error;
-    }
-
-    if (collectionEvents.length) {
-      const bulkIndexOps = collectionEvents
-        .filter((collectionEvent) => collectionEvent.kind == "index")
-        .flatMap((collectionEvent) => [
-          { index: { _index: CollectionIndex.getIndexName(), _id: collectionEvent._id } },
-          collectionEvent.document,
-        ]);
-
-      const bulkDeleteOps = collectionEvents
-        .filter((collectionEvent) => collectionEvent.kind == "delete")
-        .flatMap((collectionEvent) => ({
-          delete: { _index: CollectionIndex.getIndexName(), _id: collectionEvent._id },
-        }));
-
-      if (bulkIndexOps.length) {
-        await elasticsearch.bulk({
-          body: bulkIndexOps,
-        });
-      }
-
-      if (bulkDeleteOps.length) {
-        await elasticsearch.bulk({
-          body: bulkDeleteOps,
-        });
-      }
-
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "debugCollectionsIndex",
-          message: `Indexed ${bulkIndexOps.length} collections. Deleted ${bulkDeleteOps.length} collections`,
-          payload,
-          nextCursor,
-        })
-      );
-
-      await backfillCollectionsElasticsearchJob.addToQueue(payload.fromTimestamp, nextCursor);
     }
   }
 
