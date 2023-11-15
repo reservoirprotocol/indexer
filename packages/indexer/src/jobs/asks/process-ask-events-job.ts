@@ -53,7 +53,7 @@ export default class ProcessAskEventsJob extends AbstractRabbitMqJobHandler {
 
         if (response.errors) {
           logger.error(
-            "elasticsearch-asks",
+            this.queueName,
             JSON.stringify({
               topic: "save-errors",
               data: {

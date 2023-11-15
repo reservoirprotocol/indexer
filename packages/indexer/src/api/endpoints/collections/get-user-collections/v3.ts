@@ -92,6 +92,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
             discordUrl: Joi.string().allow("", null),
             externalUrl: Joi.string().allow("", null),
             twitterUsername: Joi.string().allow("", null),
+            twitterUrl: Joi.string().allow("", null),
             openseaVerificationStatus: Joi.string().allow("", null),
             description: Joi.string().allow("", null),
             metadataDisabled: Joi.boolean().default(false),
@@ -188,7 +189,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
             WHERE "owner" = $/user/
               AND amount > 0
             ORDER BY last_token_appraisal_value DESC NULLS LAST
-            LIMIT 15000
+            LIMIT 50000
         ),
         token_images AS (
             SELECT tokens.collection_id, tokens.image,
@@ -212,6 +213,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
                 (collections.metadata ->> 'description')::TEXT AS "description",
                 (collections.metadata ->> 'externalUrl')::TEXT AS "external_url",
                 (collections.metadata ->> 'twitterUsername')::TEXT AS "twitter_username",
+                (collections.metadata ->> 'twitterUrl')::TEXT AS "twitter_url",
                 (collections.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
                 collections.contract,
                 collections.token_set_id,
@@ -336,6 +338,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
                 (r.sample_images?.length ? Assets.getLocalAssetsLink(r.sample_images[0]) : null),
               isSpam: Number(r.is_spam) > 0,
               banner: r.banner,
+              twitterUrl: r.twitter_url,
               discordUrl: r.discord_url,
               externalUrl: r.external_url,
               twitterUsername: r.twitter_username,

@@ -223,7 +223,7 @@ export class Collections {
         slug = $/slug/,
         payment_tokens = $/paymentTokens/,
         creator = $/creator/,
-        is_spam = $/isSpamContract/,
+        is_spam = CASE WHEN (is_spam IS NULL OR is_spam = 0) THEN $/isSpamContract/ ELSE is_spam END,
         updated_at = now()
       WHERE id = $/id/
       AND (metadata IS DISTINCT FROM $/metadata:json/ 

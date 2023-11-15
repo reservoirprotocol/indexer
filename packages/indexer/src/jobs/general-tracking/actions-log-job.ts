@@ -13,6 +13,7 @@ export enum ActionsLogContext {
   SpamCollectionUpdate = "spam-collection-update",
   SpamTokenUpdate = "spam-token-update",
   DisableMetadataUpdate = "disable-metadata-update",
+  CollectionDataOverride = "collection-data-override",
 }
 
 export type ActionsLogJobPayload = {

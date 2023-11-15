@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { BigNumber } from "@ethersproject/bignumber";
+import { MaxUint256 } from "@ethersproject/constants";
 import { _TypedDataEncoder } from "@ethersproject/hash";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
@@ -857,7 +858,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                     {
                       kind: "no-transfers",
                       token: params.currency,
-                      amount: price,
+                      amount: MaxUint256.toString(),
                     },
                     order.params.endTime - now()
                   );

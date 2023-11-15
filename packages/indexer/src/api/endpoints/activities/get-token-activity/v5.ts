@@ -67,6 +67,9 @@ export const getTokenActivityV5Options: RouteOptions = {
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
       ),
+      excludeSpam: Joi.boolean()
+        .default(false)
+        .description("If true, will filter any activities marked as spam."),
       types: Joi.alternatives()
         .try(
           Joi.array().items(
@@ -109,11 +112,13 @@ export const getTokenActivityV5Options: RouteOptions = {
             tokenId: Joi.string().allow(null),
             tokenName: Joi.string().allow("", null),
             tokenImage: Joi.string().allow("", null),
+            isSpam: Joi.boolean().default(false),
           }),
           collection: Joi.object({
             collectionId: Joi.string().allow(null),
             collectionName: Joi.string().allow("", null),
             collectionImage: Joi.string().allow("", null),
+            isSpam: Joi.boolean().default(false),
           }),
           txHash: Joi.string()
             .lowercase()
@@ -149,6 +154,7 @@ export const getTokenActivityV5Options: RouteOptions = {
         sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
         limit: query.limit,
         continuation: query.continuation,
+        excludeSpam: query.excludeSpam,
       });
 
       if (activities.length === 0) {
@@ -275,6 +281,7 @@ export const getTokenActivityV5Options: RouteOptions = {
                     id: activity.collection?.id,
                     name: activity.collection?.name,
                     image: activity.collection?.image,
+                    isSpam: activity.collection?.isSpam,
                   },
                   disabledCollectionMetadata[activity.collection?.id ?? ""],
                   activity.contract
@@ -288,6 +295,7 @@ export const getTokenActivityV5Options: RouteOptions = {
                   tokenId: activity.token?.id,
                   name: tokenMetadata ? tokenMetadata.name : activity.token?.name,
                   image: tokenMetadata ? tokenMetadata.image : activity.token?.image,
+                  isSpam: activity.token?.isSpam,
                 },
                 tokenMetadata?.metadata_disabled ||
                   disabledCollectionMetadata[activity.collection?.id ?? ""],
@@ -345,6 +353,7 @@ export const getTokenActivityV5Options: RouteOptions = {
             contract: activity.contract,
             token: {
               tokenId: activity.token?.id,
+              isSpam: activity.token?.isSpam,
               tokenName: query.includeMetadata
                 ? tokenMetadata
                   ? tokenMetadata.name
@@ -358,6 +367,7 @@ export const getTokenActivityV5Options: RouteOptions = {
             },
             collection: {
               collectionId: activity.collection?.id,
+              isSpam: activity.collection?.isSpam,
               collectionName: query.includeMetadata ? activity.collection?.name : undefined,
               collectionImage:
                 query.includeMetadata && activity.collection?.image != null

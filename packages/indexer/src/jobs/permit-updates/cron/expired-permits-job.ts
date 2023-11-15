@@ -3,10 +3,11 @@ import cron from "node-cron";
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redlock } from "@/common/redis";
-import { toBuffer } from "@/common/utils";
+import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
+import * as onChainData from "@/utils/on-chain-data";
 
 export class ExpiredPermitsJob extends AbstractRabbitMqJobHandler {
   queueName = "expired-permits";
@@ -40,7 +41,12 @@ export class ExpiredPermitsJob extends AbstractRabbitMqJobHandler {
         const invalidatedOrders = await idb.manyOrNone(
           `
             SELECT
-              orders.id
+              orders.id,
+              orders.currency,
+              orders.maker,
+              orders.conduit,
+              orders.price,
+              orders.quantity_remaining
             FROM orders
             WHERE orders.maker = $/owner/
               AND orders.side = 'buy'
@@ -57,34 +63,52 @@ export class ExpiredPermitsJob extends AbstractRabbitMqJobHandler {
         if (invalidatedOrders.length) {
           // Update any orders that did change status
 
-          const values = invalidatedOrders.map(({ id }) => ({
-            id,
-            fillability_status: "cancelled",
-          }));
-          const columns = new pgp.helpers.ColumnSet(["id", "fillability_status"], {
-            table: "orders",
-          });
+          const noApprovalOrderIds: string[] = [];
+          for (const order of invalidatedOrders) {
+            const orderAmount = bn(order.price).mul(order.quantity_remaining);
+            const approvedAmount = await onChainData
+              .fetchAndUpdateFtApproval(
+                fromBuffer(order.currency),
+                fromBuffer(order.maker),
+                fromBuffer(order.conduit),
+                true
+              )
+              .then((a) => a.value);
+            if (orderAmount.gt(approvedAmount)) {
+              noApprovalOrderIds.push(order.id);
+            }
+          }
 
-          await idb.none(
-            `
-              UPDATE orders SET
-                fillability_status = x.fillability_status::order_fillability_status_t,
-                updated_at = now()
-              FROM (VALUES ${pgp.helpers.values(values, columns)}) AS x(id, fillability_status)
-              WHERE orders.id = x.id::TEXT
-            `
-          );
-
-          // Recheck all updated orders
-          await orderUpdatesByIdJob.addToQueue(
-            values.map(({ id }) => ({
-              context: `${context}-${id}`,
+          if (noApprovalOrderIds.length) {
+            const values = noApprovalOrderIds.map((id) => ({
               id,
-              trigger: {
-                kind: "cancel",
-              },
-            }))
-          );
+              fillability_status: "cancelled",
+            }));
+            const columns = new pgp.helpers.ColumnSet(["id", "fillability_status"], {
+              table: "orders",
+            });
+
+            await idb.none(
+              `
+                UPDATE orders SET
+                  fillability_status = x.fillability_status::order_fillability_status_t,
+                  updated_at = now()
+                FROM (VALUES ${pgp.helpers.values(values, columns)}) AS x(id, fillability_status)
+                WHERE orders.id = x.id::TEXT
+              `
+            );
+
+            // Recheck all updated orders
+            await orderUpdatesByIdJob.addToQueue(
+              values.map(({ id }) => ({
+                context: `${context}-${id}`,
+                id,
+                trigger: {
+                  kind: "cancel",
+                },
+              }))
+            );
+          }
         }
       }
 

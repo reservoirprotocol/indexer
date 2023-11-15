@@ -25,6 +25,7 @@ import * as forgottenRunesWarriors from "./forgotten-runes-warriors";
 import * as forgottenSouls from "./forgotten-souls";
 import * as goldfinch from "./goldfinch";
 import * as lilnouns from "./lilnouns";
+
 // import * as loot from "./loot";
 import * as mirageGalleryCurated from "./mirage-gallery-curated";
 import * as moonbirds from "./moonbirds";
@@ -39,6 +40,7 @@ import * as utopiaAvatars from "./utopia-avatars";
 import * as superrareShared from "./superrare-shared";
 import * as foundationShared from "./foundation-shared";
 import * as kanpaiPandas from "./kanpai-pandas";
+import { CollectionsOverride } from "@/models/collections-override";
 
 const extendCollection: any = {};
 const extend: any = {};
@@ -57,6 +59,24 @@ export const extendCollectionMetadata = async (metadata: any, tokenId?: string) 
     } else {
       return metadata;
     }
+  }
+};
+
+export const overrideCollectionMetadata = async (metadata: any) => {
+  if (metadata) {
+    const collectionsOverride = await CollectionsOverride.get(metadata.id);
+    if (collectionsOverride) {
+      return {
+        ...metadata,
+        ...collectionsOverride?.override,
+        metadata: {
+          ...metadata.metadata,
+          ...collectionsOverride?.override?.metadata,
+        },
+      };
+    }
+
+    return metadata;
   }
 };
 

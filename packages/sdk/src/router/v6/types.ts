@@ -55,9 +55,7 @@ export type PreSignature = {
   data: any;
 };
 
-export type TxKind = "sale" | "mint" | "swap" | "permit";
 export type TxTags = {
-  kind: TxKind;
   // Number of listings for each order kind
   listings?: { [orderKind: string]: number };
   // Number of bids for each order kind

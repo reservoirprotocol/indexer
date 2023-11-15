@@ -119,4 +119,22 @@ describe("Mints - Manifold", () => {
     }
     expect(collectionMints[0].stage.includes("claim-")).not.toBe(false);
   });
+
+  it("case-erc1155-5", async () => {
+    const transcation = await utils.fetchTransaction(
+      "0x460824fae2b718cb2d1b1c11b0e22d070f433c22bd8791a4f268399d39a64377"
+    );
+    const collectionMints = await extractByTx(
+      "0x91ad60593710df6fd7995565702040808c2e182d",
+      transcation
+    );
+    // console.log("collectionMints", collectionMints);
+    for (const collectionMint of collectionMints) {
+      if (collectionMint.status === "open") {
+        const result = await simulateCollectionMint(collectionMint);
+        expect(result).toBe(true);
+      }
+    }
+    expect(collectionMints[0].stage.includes("claim-")).not.toBe(false);
+  });
 });

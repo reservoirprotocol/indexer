@@ -26,6 +26,7 @@ export const CONFIG_DEFAULT = {
           name: { type: "keyword" },
           image: { type: "keyword" },
           media: { type: "keyword" },
+          isSpam: { type: "boolean" },
         },
       },
       collection: {
@@ -33,6 +34,7 @@ export const CONFIG_DEFAULT = {
           id: { type: "keyword" },
           name: { type: "keyword" },
           image: { type: "keyword" },
+          isSpam: { type: "boolean" },
         },
       },
       order: {

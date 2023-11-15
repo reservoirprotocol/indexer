@@ -16,7 +16,7 @@ import {
 const version = "v1";
 
 export const postSpamStatusCollectionV1Options: RouteOptions = {
-  description: "Update the collections spam status",
+  description: "Update collections spam status",
   notes: "This API can be used by allowed API keys to update the spam status of a collection.",
   tags: ["api", "Management"],
   plugins: {
