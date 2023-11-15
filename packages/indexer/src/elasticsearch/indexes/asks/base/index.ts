@@ -37,8 +37,8 @@ export interface AskDocument extends BaseDocument {
     taker: string;
     tokenSetId: string;
     sourceId: number;
-    quantityFilled: number;
-    quantityRemaining: number;
+    quantityFilled: string;
+    quantityRemaining: string;
     validFrom: number;
     validUntil: number;
     criteria: {
@@ -98,8 +98,8 @@ export interface BuildAskDocumentData extends BuildDocumentData {
   order_id?: string | null;
   order_valid_from: number;
   order_valid_until: number;
-  order_quantity_filled: number;
-  order_quantity_remaining: number;
+  order_quantity_filled: string;
+  order_quantity_remaining: string;
   order_source_id_int?: number;
   order_kind: string;
   order_criteria?: {
@@ -158,8 +158,8 @@ export class AskDocumentBuilder extends DocumentBuilder {
         validUntil: Number(data.order_valid_until),
         sourceId: data.order_source_id_int,
         criteria: data.order_criteria,
-        quantityFilled: Number(data.order_quantity_filled),
-        quantityRemaining: Number(data.order_quantity_remaining),
+        quantityFilled: data.order_quantity_filled,
+        quantityRemaining: data.order_quantity_remaining,
         isDynamic: Boolean(data.order_dynamic || 0),
         rawData: data.order_raw_data,
         missingRoyalties: data.order_missing_royalties,
