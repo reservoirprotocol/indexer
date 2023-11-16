@@ -46,6 +46,10 @@ export const CONFIG_DEFAULT = {
           },
         ],
       },
+      nameSuggestV2: {
+        type: "search_as_you_type",
+        max_shingle_size: 3,
+      },
     },
   } as MappingTypeMapping,
   settings: {

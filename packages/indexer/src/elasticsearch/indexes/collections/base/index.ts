@@ -16,6 +16,7 @@ export interface CollectionDocument extends BaseDocument {
   tokenCount: number;
   isSpam: boolean;
   nameSuggest: any;
+  nameSuggestV2: any;
 }
 
 export interface BuildCollectionDocumentData extends BuildDocumentData {
@@ -60,6 +61,7 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
           isSpam: [Number(data.is_spam) > 0],
         },
       },
+      nameSuggestV2: data.name,
     } as CollectionDocument;
 
     return document;
