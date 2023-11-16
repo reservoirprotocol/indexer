@@ -28,7 +28,7 @@ import {
 import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
 import { Contracts } from "@/models/contracts";
 import * as registry from "@/utils/royalties/registry";
-import { config } from "@/config/index";
+
 import { AlchemyApi } from "@/utils/alchemy";
 import { AlchemySpamContracts } from "@/models/alchemy-spam-contracts";
 import {
@@ -183,17 +183,6 @@ export class Collections {
       },
     ]);
 
-    if (config.chainId === 11155111) {
-      logger.info(
-        "updateCollectionCache",
-        JSON.stringify({
-          topic: "debugCollectionUpdates",
-          message: `Update collection. collectionId=${collection.id}`,
-          collectionId: collection.id,
-        })
-      );
-    }
-
     // Check if the collection already marked as spam
     let isSpamContract = false;
     if (Number(collectionResult.isSpam) === 0) {
@@ -263,6 +252,7 @@ export class Collections {
       ) {
         await refreshActivitiesCollectionMetadataJob.addToQueue({
           collectionId: collection.id,
+          context: "updateCollectionCache",
         });
       }
     } catch (error) {
@@ -317,17 +307,6 @@ export class Collections {
       WHERE id = $/collectionId/
     `;
 
-    if (config.chainId === 11155111) {
-      logger.info(
-        "updateCollection",
-        JSON.stringify({
-          topic: "debugCollectionUpdates",
-          message: `Update collection. collectionId=${collectionId}`,
-          collectionId,
-        })
-      );
-    }
-
     return await idb.none(query, replacementValues);
   }
 
@@ -368,17 +347,6 @@ export class Collections {
   }
 
   public static async recalculateCollectionFloorSell(collection: string) {
-    if (config.chainId === 11155111) {
-      logger.info(
-        "recalculateCollectionFloorSell",
-        JSON.stringify({
-          topic: "debugCollectionUpdates",
-          message: `Update collection. collectionId=${collection}`,
-          collectionId: collection,
-        })
-      );
-    }
-
     const query = `
       UPDATE collections SET
         floor_sell_id = x.floor_sell_id,

@@ -46,31 +46,10 @@ import * as SudoswapV2 from "./sudoswap-v2";
 import * as Midaswap from "./midaswap";
 import * as CaviarV1 from "./caviar-v1";
 import * as PaymentProcessor from "./payment-processor";
+import * as PaymentProcessorV2 from "./payment-processor-v2";
 import * as Seadrop from "./seadrop";
 import * as BlurV2 from "./blur-v2";
 import * as Joepeg from "./joepeg";
-
-// Overrides (shouldn't belong here)
-if (process.env.SEAPORT_V15_OVERRIDE) {
-  const [chainId, address] = process.env.SEAPORT_V15_OVERRIDE.split(":");
-  SeaportV15.Addresses.Exchange[Number(chainId)] = address;
-}
-if (process.env.CONDUIT_CONTROLLER_OVERRIDE) {
-  const [chainId, address] = process.env.CONDUIT_CONTROLLER_OVERRIDE.split(":");
-  SeaportBase.Addresses.ConduitController[Number(chainId)] = address;
-}
-if (process.env.CONDUIT_CONTROLLER_CODE_HASH_OVERRIDE) {
-  const [chainId, address] = process.env.CONDUIT_CONTROLLER_CODE_HASH_OVERRIDE.split(":");
-  SeaportBase.Addresses.ConduitControllerCodeHash[Number(chainId)] = address;
-}
-if (process.env.ROUTER_OVERRIDE) {
-  const [chainId, address] = process.env.ROUTER_OVERRIDE.split(":");
-  RouterV6.Addresses.Router[Number(chainId)] = address;
-}
-if (process.env.APPROVAL_PROXY_OVERRIDE) {
-  const [chainId, address] = process.env.APPROVAL_PROXY_OVERRIDE.split(":");
-  RouterV6.Addresses.ApprovalProxy[Number(chainId)] = address;
-}
 
 export {
   // Common
@@ -123,6 +102,7 @@ export {
   Midaswap,
   CaviarV1,
   PaymentProcessor,
+  PaymentProcessorV2,
   Seadrop,
   BlurV2,
   Joepeg,

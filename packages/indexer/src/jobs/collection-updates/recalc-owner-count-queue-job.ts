@@ -3,7 +3,6 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 import { Collections } from "@/models/collections";
 import { acquireLock, getLockExpiration } from "@/common/redis";
 import { config } from "@/config/index";
-import { logger } from "@/common/logger";
 
 export type RecalcOwnerCountQueueJobPayload =
   | {
@@ -87,17 +86,6 @@ export default class RecalcOwnerCountQueueJob extends AbstractRabbitMqJobHandler
         });
 
         if (Number(ownerCount) !== collection.ownerCount) {
-          if (config.chainId === 11155111) {
-            logger.info(
-              this.queueName,
-              JSON.stringify({
-                topic: "debugCollectionUpdates",
-                message: `Update collection. collectionId=${collection.id}`,
-                collectionId: collection.id,
-              })
-            );
-          }
-
           await idb.none(
             `
               UPDATE collections

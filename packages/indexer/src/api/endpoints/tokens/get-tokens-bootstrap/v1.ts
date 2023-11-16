@@ -138,7 +138,7 @@ export const getTokensBootstrapV1Options: RouteOptions = {
           {
             contract: fromBuffer(r.contract),
             tokenId: r.token_id,
-            image: Assets.getLocalAssetsLink(r.image),
+            image: Assets.getResizedImageUrl(r.image),
             orderId: r.floor_sell_id,
             maker: fromBuffer(r.floor_sell_maker),
             price: formatEth(r.floor_sell_value),

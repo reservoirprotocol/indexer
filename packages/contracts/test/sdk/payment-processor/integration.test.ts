@@ -320,12 +320,14 @@ describe("PaymentProcessor - Indexer Integration Test", () => {
     const matchFillEvent = fillEvents.find((event: any) => event.orderId === orderInfo.id);
     if (matchFillEvent) {
       const orderData = {
+        id: orderInfo.id,
         maker: order.params.sellerOrBuyer,
         taker: (isListing ? buyer : seller).address.toLowerCase(),
       };
 
       expect(orderData.maker).to.eq(matchFillEvent.maker);
       expect(orderData.taker).to.eq(matchFillEvent.taker);
+      expect(orderData.id).to.eq(matchFillEvent.orderId);
       console.log("\t\t - Found Fill Event");
     } else {
       console.log("\t\t - Fill Event Not Found");

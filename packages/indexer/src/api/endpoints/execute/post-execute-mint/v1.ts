@@ -4,8 +4,8 @@ import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { MintDetails } from "@reservoir0x/sdk/dist/router/v6/types";
-import { estimateGas } from "@reservoir0x/sdk/dist/router/v6/utils";
-import { Network, getRandomBytes } from "@reservoir0x/sdk/dist/utils";
+import { estimateGasFromTxTags, initializeTxTags } from "@reservoir0x/sdk/dist/router/v6/utils";
+import { Network, TxData, getRandomBytes } from "@reservoir0x/sdk/dist/utils";
 import axios from "axios";
 import { randomUUID } from "crypto";
 import Joi from "joi";
@@ -180,9 +180,10 @@ export const postExecuteMintV1Options: RouteOptions = {
           maxQuantity: Joi.string().pattern(regex.number).allow(null),
         })
       ),
-    }).label(`postExecuteBuy${version.toUpperCase()}Response`),
+      gasEstimate: Joi.number(),
+    }).label(`postExecuteMint${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
-      logger.error(`post-execute-buy-${version}-handler`, `Wrong response schema: ${error}`);
+      logger.error(`post-execute-mint-${version}-handler`, `Wrong response schema: ${error}`);
       throw error;
     },
   },
@@ -232,6 +233,9 @@ export const postExecuteMintV1Options: RouteOptions = {
         await sources.getOrInsert(payload.source);
       }
 
+      // First pass at estimating the gas costs
+      const txTags = initializeTxTags();
+
       const addToPath = async (
         order: {
           id: string;
@@ -280,6 +284,9 @@ export const postExecuteMintV1Options: RouteOptions = {
             })),
           ],
         });
+
+        txTags.feesOnTop! += additionalFees.length;
+        txTags.mints! += 1;
       };
 
       const items: {
@@ -726,7 +733,11 @@ export const postExecuteMintV1Options: RouteOptions = {
         }
       }
 
-      const getCrossChainQuote = async (chainId: number, item: (typeof path)[0]) => {
+      const getCrossChainQuote = async (
+        chainId: number,
+        item: (typeof path)[0],
+        customMint?: object
+      ) => {
         // Mainnet requests will get routed to base
         const actualFromChainId = chainId === Network.Ethereum ? Network.Base : chainId;
         const toChainId = config.chainId;
@@ -773,6 +784,7 @@ export const postExecuteMintV1Options: RouteOptions = {
             isCollectionRequest,
             token,
             amount: item.quantity,
+            customMint,
           })
           .then((response) => ({
             quote: response.data.price,
@@ -807,6 +819,12 @@ export const postExecuteMintV1Options: RouteOptions = {
 
           if (!item.buyIn) {
             item.buyIn = [];
+          }
+
+          // Add the first path item's currency in the `alternativeCurrencies` list
+          const firstPathItemCurrency = `${path[0].currency}:${config.chainId}`;
+          if (!payload.alternativeCurrencies.includes(firstPathItemCurrency)) {
+            payload.alternativeCurrencies.push(firstPathItemCurrency);
           }
 
           await Promise.all(
@@ -870,6 +888,7 @@ export const postExecuteMintV1Options: RouteOptions = {
         return {
           path,
           maxQuantities: preview ? maxQuantities : undefined,
+          gasEstimate: estimateGasFromTxTags(txTags),
         };
       }
 
@@ -892,15 +911,18 @@ export const postExecuteMintV1Options: RouteOptions = {
         const item = path[0];
 
         const { actualFromChainId, ccConfig, isCollectionRequest, tokenId, quote, gasCost } =
-          await getCrossChainQuote(requestedFromChainId, item);
+          await getCrossChainQuote(requestedFromChainId, item, items[0].custom);
 
         item.fromChainId = actualFromChainId;
         item.gasCost = gasCost;
+
+        const needsDeposit = bn(ccConfig.availableBalance!).lt(quote);
 
         if (payload.onlyPath) {
           return {
             path,
             maxQuantities: preview ? maxQuantities : undefined,
+            gasEstimate: needsDeposit ? 100000 : 0,
           };
         }
 
@@ -935,14 +957,26 @@ export const postExecuteMintV1Options: RouteOptions = {
           salt: getRandomBytes(20).toString(),
         });
 
-        if (bn(ccConfig.availableBalance!).lte(quote)) {
+        if (needsDeposit) {
           const exchange = new Sdk.CrossChain.Exchange(actualFromChainId);
-          let depositTx = exchange.depositAndPrevalidateTx(
-            payload.taker,
-            ccConfig.solver!,
-            bn(quote).sub(ccConfig.availableBalance!).toString(),
-            order
-          );
+
+          const isCustomMint = Boolean(items[0].custom);
+
+          let depositTx: TxData;
+          if (isCustomMint) {
+            depositTx = exchange.depositTx(
+              payload.taker,
+              ccConfig.solver!,
+              bn(quote).sub(ccConfig.availableBalance!).toString()
+            );
+          } else {
+            depositTx = exchange.depositAndPrevalidateTx(
+              payload.taker,
+              ccConfig.solver!,
+              bn(quote).sub(ccConfig.availableBalance!).toString(),
+              order
+            );
+          }
 
           // Never deposit to mainnet, but bridge-and-deposit to base
           if (requestedFromChainId === Network.Ethereum) {
@@ -963,21 +997,65 @@ export const postExecuteMintV1Options: RouteOptions = {
             };
           }
 
-          customSteps[0].items.push({
-            status: "incomplete",
-            data: {
-              ...depositTx,
-              chainId: requestedFromChainId,
-            },
-            check: {
-              endpoint: "/execute/status/v1",
-              method: "POST",
-              body: {
-                kind: "cross-chain-intent",
-                id: order.hash(),
+          if (isCustomMint) {
+            customSteps[0].items.push({
+              status: "incomplete",
+              data: {
+                ...depositTx,
+                chainId: requestedFromChainId,
               },
-            },
-          });
+              check: {
+                endpoint: "/execute/status/v1",
+                method: "POST",
+                body: {
+                  kind: "cross-chain-transaction",
+                },
+              },
+            });
+
+            customSteps[1].items.push({
+              status: "incomplete",
+              data: {
+                sign: order.getSignatureData(),
+                post: {
+                  endpoint: "/execute/solve/v1",
+                  method: "POST",
+                  body: {
+                    kind: "cross-chain-intent",
+                    order: order.params,
+                    chainId: actualFromChainId,
+                    context: {
+                      customMint: items[0].custom,
+                    },
+                  },
+                },
+              },
+              check: {
+                endpoint: "/execute/status/v1",
+                method: "POST",
+                body: {
+                  kind: "cross-chain-intent",
+                  id: order.hash(),
+                },
+              },
+            });
+          } else {
+            customSteps[0].items.push({
+              status: "incomplete",
+              data: {
+                ...depositTx,
+                chainId: requestedFromChainId,
+              },
+              check: {
+                endpoint: "/execute/status/v1",
+                method: "POST",
+                body: {
+                  kind: "cross-chain-intent",
+                  id: order.hash(),
+                },
+              },
+            });
+          }
         } else {
           customSteps[1].items.push({
             status: "incomplete",
@@ -990,6 +1068,9 @@ export const postExecuteMintV1Options: RouteOptions = {
                   kind: "cross-chain-intent",
                   order: order.params,
                   chainId: actualFromChainId,
+                  context: {
+                    customMint: items[0].custom,
+                  },
                 },
               },
             },
@@ -1096,7 +1177,7 @@ export const postExecuteMintV1Options: RouteOptions = {
           throw getExecuteError("Balance too low to proceed with transaction");
         }
 
-        steps[5].items.push({
+        steps[0].items.push({
           status: "incomplete",
           orderIds,
           data: txData,
@@ -1107,7 +1188,7 @@ export const postExecuteMintV1Options: RouteOptions = {
               kind: "transaction",
             },
           },
-          gasEstimate: txTags ? estimateGas(txTags) : undefined,
+          gasEstimate: txTags ? estimateGasFromTxTags(txTags) : undefined,
         });
       }
 

@@ -14,7 +14,6 @@ import { FeeRecipients } from "@/models/fee-recipients";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { OrderKind } from "@/orderbook/orders";
-import { Assets } from "@/utils/assets";
 import { Currency, getCurrency } from "@/utils/currencies";
 import {
   getUSDAndCurrencyPrices,
@@ -860,7 +859,7 @@ export const getJoiSaleObject = async (sale: {
   contract?: Buffer;
   tokenId?: string;
   name?: string;
-  image?: string;
+  image?: string | string[] | null;
   collectionId?: string;
   collectionName?: string;
   washTradingScore?: number;
@@ -915,7 +914,7 @@ export const getJoiSaleObject = async (sale: {
             contract: fromBuffer(sale.contract),
             tokenId: sale.tokenId,
             name: sale.name ?? null,
-            image: sale.image ? Assets.getLocalAssetsLink(sale.image) : null,
+            image: sale.image,
             collection: {
               id: sale.collectionId ?? null,
               name: sale.collectionName ?? null,

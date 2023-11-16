@@ -1666,15 +1666,31 @@ export const updateActivitiesToken = async (
 
   const should: any[] = [
     {
-      bool: {
-        must_not: [
-          {
-            term: {
-              "token.isSpam": isSpam > 0,
+      bool:
+        isSpam > 0
+          ? {
+              must_not: [
+                {
+                  term: {
+                    "token.isSpam": isSpam > 0,
+                  },
+                },
+              ],
+            }
+          : {
+              must: [
+                {
+                  exists: {
+                    field: "token.isSpam",
+                  },
+                },
+                {
+                  term: {
+                    "token.isSpam": true,
+                  },
+                },
+              ],
             },
-          },
-        ],
-      },
     },
   ];
 
@@ -1912,7 +1928,7 @@ export const updateActivitiesCollectionData = async (
         size: batchSize,
       },
       0,
-      true
+      false
     );
 
     const pendingUpdateDocuments: { id: string; index: string }[] = esResult.hits.hits.map(
@@ -1963,23 +1979,25 @@ export const updateActivitiesCollectionData = async (
       } else {
         keepGoing = pendingUpdateDocuments.length === batchSize;
 
-        logger.info(
-          "elasticsearch-activities",
-          JSON.stringify({
-            topic: "updateActivitiesCollectionData",
-            message: `Success. collectionId=${collectionId}, collectionData=${JSON.stringify(
-              collectionData
-            )}`,
-            data: {
-              collectionId,
-              collectionData,
-            },
-            bulkParams: JSON.stringify(bulkParams),
-            response,
-            keepGoing,
-            queryJson: JSON.stringify(query),
-          })
-        );
+        if (collectionId === "0x1a92f7381b9f03921564a437210bb9396471050c") {
+          logger.info(
+            "elasticsearch-activities",
+            JSON.stringify({
+              topic: "updateActivitiesCollectionData",
+              message: `Success. collectionId=${collectionId}, collectionData=${JSON.stringify(
+                collectionData
+              )}`,
+              data: {
+                collectionId,
+                collectionData,
+              },
+              bulkParams: JSON.stringify(bulkParams),
+              response,
+              keepGoing,
+              queryJson: JSON.stringify(query),
+            })
+          );
+        }
       }
     }
   } catch (error) {

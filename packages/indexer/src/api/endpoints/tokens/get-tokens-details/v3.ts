@@ -407,7 +407,7 @@ export const getTokensDetailsV3Options: RouteOptions = {
               tokenId,
               name: r.name,
               description: r.description,
-              image: Assets.getLocalAssetsLink(r.image),
+              image: Assets.getResizedImageUrl(r.image),
               kind: r.kind,
               collection: {
                 id: r.collection_id,

@@ -40,6 +40,7 @@ import * as sudoswapV2 from "@/events-sync/data/sudoswap-v2";
 import * as midaswap from "@/events-sync/data/midaswap";
 import * as caviarV1 from "@/events-sync/data/caviar-v1";
 import * as paymentProcessor from "@/events-sync/data/payment-processor";
+import * as paymentProcessorV2 from "@/events-sync/data/payment-processor-v2";
 import * as thirdweb from "@/events-sync/data/thirdweb";
 import * as blurV2 from "@/events-sync/data/blur-v2";
 import * as seadrop from "@/events-sync/data/seadrop";
@@ -98,7 +99,8 @@ export type EventKind =
   | "joepeg"
   | "metadata-update"
   | "soundxyz"
-  | "createdotfun";
+  | "createdotfun"
+  | "payment-processor-v2";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -317,7 +319,13 @@ export type EventSubKind =
   | "metadata-update-zora"
   | "soundxyz-range-edition-mint-created"
   | "soundxyz-merkle-drop-mint-created"
-  | "createdotfun-configuration-updated";
+  | "createdotfun-configuration-updated"
+  | "payment-processor-v2-buy-listing-erc721"
+  | "payment-processor-v2-buy-listing-erc1155"
+  | "payment-processor-v2-accept-offer-erc721"
+  | "payment-processor-v2-accept-offer-erc1155"
+  | "payment-processor-v2-master-nonce-invalidated"
+  | "payment-processor-v2-nonce-invalidated";
 
 export type EventData = {
   kind: EventKind;
@@ -543,6 +551,12 @@ const allEventData = [
   soundxyz.rangeEditionMintCreated,
   soundxyz.merkleDropMintCreated,
   createdotfun.configurationUpdated,
+  paymentProcessorV2.acceptOfferERC1155,
+  paymentProcessorV2.acceptOfferERC721,
+  paymentProcessorV2.buyListingERC1155,
+  paymentProcessorV2.buyListingERC721,
+  paymentProcessorV2.masterNonceInvalidated,
+  paymentProcessorV2.nonceInvalidated,
 ];
 
 export const getEventData = (events?: string[]) => {

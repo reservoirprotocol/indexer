@@ -10,7 +10,7 @@ import { formatEth } from "@/common/utils";
 const version = "v1";
 
 export const getCollectionTopBidsV1Options: RouteOptions = {
-  description: "Bid Distribution",
+  description: "Bid distribution",
   notes:
     "When users are placing collection or trait bids, this API can be used to show them where the bid is in the context of other bids, and how many tokens it will be the top bid for.",
   tags: ["api", "x-deprecated"],

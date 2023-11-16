@@ -6,6 +6,7 @@ const indexUrl = process.env.INDEXER_URL || "http://127.0.0.1:3000";
 
 export async function doEventParsing(tx: string, skipProcessing = true) {
   const { data } = await axios.get(`${indexUrl}/debug/event-parsing`, {
+    validateStatus: () => true,
     params: {
       tx,
       skipProcessing,

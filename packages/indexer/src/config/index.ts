@@ -85,6 +85,9 @@ export const config = {
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
   openSeaApiUrl: String(process.env.OPENSEA_API_URL || ""),
 
+  // Cosigner
+  cosignerPrivateKey: String(process.env.COSIGNER_PRIVATE_KEY),
+
   // Solvers
   crossChainSolverBaseUrl: process.env.CROSS_CHAIN_SOLVER_BASE_URL,
   seaportSolverBaseUrl: process.env.SEAPORT_SOLVER_BASE_URL,

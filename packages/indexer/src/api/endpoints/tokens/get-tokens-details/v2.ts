@@ -17,6 +17,7 @@ import {
 import { Sources } from "@/models/sources";
 import { JoiAttributeKeyValueObject, getJoiTokenObject } from "@/common/joi";
 import * as Boom from "@hapi/boom";
+import { Assets } from "@/utils/assets";
 
 const version = "v2";
 
@@ -373,7 +374,7 @@ export const getTokensDetailsV2Options: RouteOptions = {
               tokenId,
               name: r.name,
               description: r.description,
-              image: r.image,
+              image: Assets.getResizedImageUrl(r.image),
               kind: r.kind,
               collection: {
                 id: r.collection_id,

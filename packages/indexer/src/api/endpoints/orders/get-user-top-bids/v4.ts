@@ -389,7 +389,7 @@ export const getUserTopBidsV4Options: RouteOptions = {
               contract: contract,
               tokenId: tokenId,
               name: r.name,
-              image: Assets.getLocalAssetsLink(r.image),
+              image: Assets.getResizedImageUrl(r.image),
               floorAskPrice: r.token_floor_sell_value
                 ? await getJoiPriceObject(
                     {

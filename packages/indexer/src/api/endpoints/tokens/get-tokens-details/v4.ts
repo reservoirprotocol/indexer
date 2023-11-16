@@ -459,7 +459,7 @@ export const getTokensDetailsV4Options: RouteOptions = {
               tokenId,
               name: r.name,
               description: r.description,
-              image: Assets.getLocalAssetsLink(r.image),
+              image: Assets.getResizedImageUrl(r.image),
               media: r.media,
               kind: r.kind,
               isFlagged: Boolean(Number(r.is_flagged)),
@@ -469,7 +469,7 @@ export const getTokensDetailsV4Options: RouteOptions = {
               collection: {
                 id: r.collection_id,
                 name: r.collection_name,
-                image: Assets.getLocalAssetsLink(r.image),
+                image: Assets.getResizedImageUrl(r.image),
                 slug: r.slug,
               },
               lastBuy: {

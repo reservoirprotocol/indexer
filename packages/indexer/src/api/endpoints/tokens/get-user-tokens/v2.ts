@@ -8,6 +8,7 @@ import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
 import { getJoiTokenObject } from "@/common/joi";
+import { Assets } from "@/utils/assets";
 
 const version = "v2";
 
@@ -218,7 +219,7 @@ export const getUserTokensV2Options: RouteOptions = {
                 contract: fromBuffer(r.contract),
                 tokenId: r.token_id,
                 name: r.name,
-                image: r.image,
+                image: Assets.getResizedImageUrl(r.image),
                 collection: {
                   id: r.collection_id,
                   name: r.collection_name,

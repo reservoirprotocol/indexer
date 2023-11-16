@@ -413,7 +413,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
             name: r.name,
             isSpam: Number(r.is_spam) > 0,
             description: r.description,
-            image: Assets.getLocalAssetsLink(r.image),
+            image: Assets.getResizedImageUrl(r.image),
             media: r.media,
             kind: r.kind,
             metadataDisabled:

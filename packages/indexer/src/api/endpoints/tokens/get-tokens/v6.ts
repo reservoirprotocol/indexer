@@ -1379,7 +1379,7 @@ export const getTokensV6Options: RouteOptions = {
               tokenId,
               name: r.name,
               description: r.description,
-              image: Assets.getLocalAssetsLink(r.image),
+              image: Assets.getResizedImageUrl(r.image),
               imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small),
               imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large),
               metadata: Object.values(metadata).every((el) => el === undefined)
@@ -1792,6 +1792,35 @@ export const getListedTokensFromES = async (query: any) => {
         `;
     }
 
+    // Include mint stages
+    let selectMintStagesQueryPart = "";
+    let joinMintStagesQueryPart = "";
+
+    if (query.includeMintStages) {
+      selectMintStagesQueryPart = ", v.*";
+      joinMintStagesQueryPart = `
+        LEFT JOIN LATERAL (
+          SELECT
+            array_agg(
+              json_build_object(
+                'stage', collection_mints.stage,
+                'tokenId', collection_mints.token_id::TEXT,
+                'kind', collection_mints.kind,
+                'currency', concat('0x', encode(collection_mints.currency, 'hex')),
+                'price', collection_mints.price::TEXT,
+                'startTime', floor(extract(epoch from collection_mints.start_time)),
+                'endTime', floor(extract(epoch from collection_mints.end_time)),
+                'maxMintsPerWallet', collection_mints.max_mints_per_wallet
+              )
+            ) AS mint_stages
+          FROM collection_mints
+          WHERE collection_mints.collection_id = t.collection_id
+            AND collection_mints.token_id = t.token_id
+            AND collection_mints.status = 'open'
+        ) v ON TRUE
+      `;
+    }
+
     tokensResult = await redb.manyOrNone(
       `
           SELECT 
@@ -1834,9 +1863,11 @@ export const getListedTokensFromES = async (query: any) => {
           ${selectAttributesQueryPart}  
           ${selectLastSaleQueryPart}
           ${selectTopBidQueryPart}
+          ${selectMintStagesQueryPart}
           FROM tokens t
           ${joinLastSaleQueryPart}
           ${joinTopBidQueryPart}
+          ${joinMintStagesQueryPart}
           JOIN collections c ON t.collection_id = c.id
           JOIN contracts con ON t.contract = con.address
           WHERE (t.contract, t.token_id) IN ($/tokensFilter:raw/)
@@ -2000,7 +2031,7 @@ export const getListedTokensFromES = async (query: any) => {
           tokenId,
           name: r.name,
           description: r.description,
-          image: Assets.getLocalAssetsLink(r.image),
+          image: Assets.getResizedImageUrl(r.image),
           imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small),
           imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large),
           metadata: Object.values(metadata).every((el) => el === undefined) ? undefined : metadata,

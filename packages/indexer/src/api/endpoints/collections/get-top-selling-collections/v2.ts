@@ -28,7 +28,7 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
     expiresIn: 60 * 1000,
     privacy: "public",
   },
-  description: "Top Selling Collections",
+  description: "Top selling collections",
   notes: "Get top selling and minting collections",
   tags: ["api", "x-deprecated"],
   plugins: {

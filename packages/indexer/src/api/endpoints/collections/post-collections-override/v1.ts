@@ -7,17 +7,24 @@ import { logger } from "@/common/logger";
 import { CollectionsOverride } from "@/models/collections-override";
 import { ApiKeyManager } from "@/models/api-keys";
 import * as Boom from "@hapi/boom";
+import {
+  ActionsLogContext,
+  actionsLogJob,
+  ActionsLogOrigin,
+} from "@/jobs/general-tracking/actions-log-job";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
+import { Tokens } from "@/models/tokens";
+import { Collections } from "@/models/collections";
 
 const version = "v1";
 
 export const postCollectionsOverrideV1Options: RouteOptions = {
-  description: "Override collections metadata and royalties",
+  description: "Override collections",
   notes: "Override collections metadata and royalties",
-  tags: ["api", "Collections"],
+  tags: ["api", "Management"],
   plugins: {
     "hapi-swagger": {
       order: 31,
-      deprecated: true,
     },
   },
   validate: {
@@ -80,9 +87,15 @@ export const postCollectionsOverrideV1Options: RouteOptions = {
       throw Boom.unauthorized("Not allowed");
     }
 
+    const collection = await Collections.getById(params.collection);
+
+    if (!collection) {
+      return { message: `collection ${params.collection} not found` };
+    }
+
     try {
       await CollectionsOverride.upsert(
-        params.collection,
+        collection.id,
         {
           name: payload.name,
           description: payload.description,
@@ -94,7 +107,27 @@ export const postCollectionsOverrideV1Options: RouteOptions = {
         payload.royalties
       );
 
-      return { message: `collection ${params.collection} updated with ${JSON.stringify(payload)}` };
+      const tokenId = await Tokens.getSingleToken(collection.id);
+
+      await collectionMetadataQueueJob.addToQueue({
+        contract: collection.contract,
+        tokenId,
+        community: collection.community,
+        forceRefresh: true,
+      });
+
+      // Track the override
+      await actionsLogJob.addToQueue([
+        {
+          context: ActionsLogContext.CollectionDataOverride,
+          origin: ActionsLogOrigin.API,
+          actionTakerIdentifier: apiKey.key,
+          collection: collection.id,
+          data: payload,
+        },
+      ]);
+
+      return { message: `collection ${collection.id} updated with ${JSON.stringify(payload)}` };
     } catch (error) {
       logger.error(`post-collections-override-${version}-handler`, `Handler failure: ${error}`);
       throw error;

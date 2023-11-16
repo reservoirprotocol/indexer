@@ -18,6 +18,7 @@ import {
 } from "@/common/joi";
 import { Sources } from "@/models/sources";
 import _ from "lodash";
+import { Assets } from "@/utils/assets";
 
 const version = "v5";
 
@@ -386,7 +387,7 @@ export const getUserTokensV5Options: RouteOptions = {
               contract: contract,
               tokenId: tokenId,
               name: r.name,
-              image: r.image,
+              image: Assets.getResizedImageUrl(r.image),
               collection: {
                 id: r.collection_id,
                 name: r.collection_name,
