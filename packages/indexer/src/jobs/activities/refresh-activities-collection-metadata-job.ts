@@ -3,12 +3,14 @@ import { config } from "@/config/index";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { Collections } from "@/models/collections";
 import _ from "lodash";
-import { logger } from "@/common/logger";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
+import { ActivitiesCollectionUpdateData } from "@/elasticsearch/indexes/activities";
+import { logger } from "@/common/logger";
 
 export type RefreshActivitiesCollectionMetadataJobPayload = {
   collectionId: string;
-  collectionUpdateData?: { name: string | null; image: string | null };
+  collectionUpdateData?: ActivitiesCollectionUpdateData;
+  context?: string;
 };
 
 export default class RefreshActivitiesCollectionMetadataJob extends AbstractRabbitMqJobHandler {
@@ -21,34 +23,29 @@ export default class RefreshActivitiesCollectionMetadataJob extends AbstractRabb
   protected async process(payload: RefreshActivitiesCollectionMetadataJobPayload) {
     let addToQueue = false;
 
+    if (payload.collectionId === "0x1a92f7381b9f03921564a437210bb9396471050c") {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          message: `Start. payload=${payload.collectionId}, context=${payload.context}`,
+          payload,
+        })
+      );
+    }
+
     const collectionId = payload.collectionId;
     const collection = await Collections.getById(collectionId);
 
     const collectionUpdateData = {
       name: collection?.name || null,
       image: collection?.metadata?.imageUrl || null,
+      isSpam: Number(collection?.isSpam),
     };
 
     if (!_.isEmpty(collectionUpdateData)) {
-      const keepGoing = await ActivitiesIndex.updateActivitiesCollectionMetadata(
+      const keepGoing = await ActivitiesIndex.updateActivitiesCollectionData(
         collectionId,
         collectionUpdateData
-      );
-
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "updateActivitiesCollectionMetadata",
-          message: `updateActivitiesTokenMetadata! collectionId=${collectionId}, collectionUpdateData=${JSON.stringify(
-            collectionUpdateData
-          )}`,
-          data: {
-            collectionId,
-            collectionUpdateData,
-          },
-          payload,
-          keepGoing,
-        })
       );
 
       if (keepGoing) {
@@ -64,13 +61,7 @@ export default class RefreshActivitiesCollectionMetadataJob extends AbstractRabb
     processResult: { addToQueue: boolean }
   ) {
     if (processResult?.addToQueue) {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "updateActivitiesCollectionMetadata",
-          message: `addToQueue! collectionId=${rabbitMqMessage.payload.collectionId}`,
-        })
-      );
+      rabbitMqMessage.payload.context = "onCompleted";
 
       await this.addToQueue(rabbitMqMessage.payload);
     }

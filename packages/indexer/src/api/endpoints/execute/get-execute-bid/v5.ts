@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { BigNumber } from "@ethersproject/bignumber";
+import { MaxUint256 } from "@ethersproject/constants";
 import { _TypedDataEncoder } from "@ethersproject/hash";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
@@ -55,6 +56,10 @@ import * as zeroExV4BuyCollection from "@/orderbook/orders/zeroex-v4/build/buy/c
 // PaymentProcessor
 import * as paymentProcessorBuyToken from "@/orderbook/orders/payment-processor/build/buy/token";
 import * as paymentProcessorBuyCollection from "@/orderbook/orders/payment-processor/build/buy/collection";
+
+// PaymentProcessorV2
+import * as paymentProcessorV2BuyToken from "@/orderbook/orders/payment-processor-v2/build/buy/token";
+import * as paymentProcessorV2BuyCollection from "@/orderbook/orders/payment-processor-v2/build/buy/collection";
 
 const version = "v5";
 
@@ -128,7 +133,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                 "looks-rare-v2",
                 "x2y2",
                 "alienswap",
-                "payment-processor"
+                "payment-processor",
+                "payment-processor-v2"
               )
               .default("seaport-v1.5")
               .description("Exchange protocol used to create order. Example: `seaport-v1.5`"),
@@ -857,7 +863,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                     {
                       kind: "no-transfers",
                       token: params.currency,
-                      amount: price,
+                      amount: MaxUint256.toString(),
                     },
                     order.params.endTime - now()
                   );
@@ -1400,6 +1406,106 @@ export const getExecuteBidV5Options: RouteOptions = {
                           {
                             order: {
                               kind: "payment-processor",
+                              data: {
+                                ...order.params,
+                              },
+                            },
+                            tokenSetId,
+                            attribute,
+                            collection,
+                            isNonFlagged: params.excludeFlaggedTokens,
+                            orderbook: params.orderbook,
+                            orderbookApiKey: params.orderbookApiKey,
+                          },
+                        ],
+                        source,
+                      },
+                    },
+                  },
+                  orderIndexes: [i],
+                });
+
+                addExecution(order.hash(), params.quantity);
+
+                break;
+              }
+
+              case "payment-processor-v2": {
+                if (!["reservoir"].includes(params.orderbook)) {
+                  return errors.push({
+                    message: "Unsupported orderbook",
+                    orderIndex: i,
+                  });
+                }
+
+                let order: Sdk.PaymentProcessorV2.Order;
+                if (token) {
+                  const [contract, tokenId] = token.split(":");
+                  order = await paymentProcessorV2BuyToken.build({
+                    ...params,
+                    maker,
+                    contract,
+                    tokenId,
+                  });
+                } else if (collection) {
+                  order = await paymentProcessorV2BuyCollection.build({
+                    ...params,
+                    maker,
+                    collection,
+                  });
+                } else {
+                  return errors.push({
+                    message: "Only token and collection bids are supported",
+                    orderIndex: i,
+                  });
+                }
+
+                // Check the maker's approval
+                let approvalTx: TxData | undefined;
+                const currencyApproval = await currency.getAllowance(
+                  maker,
+                  Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId]
+                );
+                if (bn(currencyApproval).lt(bn(order.params.itemPrice))) {
+                  approvalTx = currency.approveTransaction(
+                    maker,
+                    Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId]
+                  );
+                }
+
+                steps[2].items.push({
+                  status: !approvalTx ? "complete" : "incomplete",
+                  data: approvalTx,
+                  orderIndexes: [i],
+                });
+
+                // Handle on-chain authentication
+                for (const tv of _.uniq(unverifiedERC721CTransferValidators)) {
+                  const erc721cAuthId = e.getAuthId(payload.maker);
+                  const erc721cAuth = await e.getAuth(erc721cAuthId);
+
+                  steps[3].items.push({
+                    status: "incomplete",
+                    data: new Sdk.Common.Helpers.ERC721C().generateVerificationTxData(
+                      tv,
+                      payload.maker,
+                      erc721cAuth!.signature
+                    ),
+                  });
+                }
+
+                steps[4].items.push({
+                  status: "incomplete",
+                  data: {
+                    sign: order.getSignatureData(),
+                    post: {
+                      endpoint: "/order/v4",
+                      method: "POST",
+                      body: {
+                        items: [
+                          {
+                            order: {
+                              kind: "payment-processor-v2",
                               data: {
                                 ...order.params,
                               },

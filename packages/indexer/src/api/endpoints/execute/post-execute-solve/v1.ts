@@ -4,9 +4,9 @@ import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
 import Joi from "joi";
 
-import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { regex } from "@/common/utils";
+import { config } from "@/config/index";
 
 const version = "v1";
 
@@ -32,6 +32,7 @@ export const postExecuteSolveV1Options: RouteOptions = {
         order: Joi.any(),
         tx: Joi.string().pattern(regex.bytes),
         chainId: Joi.number().required(),
+        context: Joi.any(),
       })
     ),
   },
@@ -65,6 +66,7 @@ export const postExecuteSolveV1Options: RouteOptions = {
                   ...payload.order,
                   signature: payload.order.signature ?? query.signature,
                 },
+                context: payload.context,
               })
               .then((response) => response.data);
 

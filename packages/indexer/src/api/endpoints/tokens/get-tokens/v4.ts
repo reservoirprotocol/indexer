@@ -421,7 +421,7 @@ export const getTokensV4Options: RouteOptions = {
             contract: fromBuffer(r.contract),
             tokenId: r.token_id,
             name: r.name,
-            image: Assets.getLocalAssetsLink(r.image),
+            image: Assets.getResizedImageUrl(r.image),
             media: r.media,
             collection: {
               id: r.collection_id,

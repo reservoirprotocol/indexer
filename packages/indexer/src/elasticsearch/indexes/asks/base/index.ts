@@ -28,6 +28,7 @@ export interface AskDocument extends BaseDocument {
     id: string;
     name: string;
     image: string;
+    isSpam: boolean;
   };
   order: {
     id: string;
@@ -36,8 +37,8 @@ export interface AskDocument extends BaseDocument {
     taker: string;
     tokenSetId: string;
     sourceId: number;
-    quantityFilled: number;
-    quantityRemaining: number;
+    quantityFilled: string;
+    quantityRemaining: string;
     validFrom: number;
     validUntil: number;
     criteria: {
@@ -55,6 +56,9 @@ export interface AskDocument extends BaseDocument {
         };
       };
     };
+    isDynamic: boolean;
+    rawData: Record<string, unknown>;
+    missingRoyalties: { bps: number; recipient: string }[];
     pricing: {
       price: string;
       priceDecimal?: number;
@@ -94,8 +98,8 @@ export interface BuildAskDocumentData extends BuildDocumentData {
   order_id?: string | null;
   order_valid_from: number;
   order_valid_until: number;
-  order_quantity_filled: number;
-  order_quantity_remaining: number;
+  order_quantity_filled: string;
+  order_quantity_remaining: string;
   order_source_id_int?: number;
   order_kind: string;
   order_criteria?: {
@@ -113,6 +117,9 @@ export interface BuildAskDocumentData extends BuildDocumentData {
   order_pricing_currency_normalized_value?: number;
   order_maker: Buffer;
   order_taker?: Buffer;
+  order_dynamic: boolean;
+  order_raw_data: Record<string, unknown>;
+  order_missing_royalties: { bps: number; recipient: string }[];
 }
 
 export class AskDocumentBuilder extends DocumentBuilder {
@@ -151,8 +158,11 @@ export class AskDocumentBuilder extends DocumentBuilder {
         validUntil: Number(data.order_valid_until),
         sourceId: data.order_source_id_int,
         criteria: data.order_criteria,
-        quantityFilled: Number(data.order_quantity_filled),
-        quantityRemaining: Number(data.order_quantity_remaining),
+        quantityFilled: data.order_quantity_filled,
+        quantityRemaining: data.order_quantity_remaining,
+        isDynamic: Boolean(data.order_dynamic || 0),
+        rawData: data.order_raw_data,
+        missingRoyalties: data.order_missing_royalties,
         pricing: {
           price: String(data.order_pricing_price),
           priceDecimal: Number(Number(formatEther(data.order_pricing_price)).toFixed(18)),

@@ -114,17 +114,6 @@ export default class MintQueueJob extends AbstractRabbitMqJobHandler {
             },
           });
 
-          if (config.chainId === 11155111) {
-            logger.info(
-              this.queueName,
-              JSON.stringify({
-                topic: "debugTokenUpdate",
-                message: `Update token. contract=${contract}, tokenId=${tokenId}`,
-                token: `${contract}:${tokenId}`,
-              })
-            );
-          }
-
           // Include the new token to any collection-wide token set
           if (collection.token_set_id) {
             queries.push({

@@ -27,6 +27,7 @@ import {
 } from "@/common/joi";
 import { Sources } from "@/models/sources";
 import _ from "lodash";
+import { Assets } from "@/utils/assets";
 
 const version = "v6";
 
@@ -539,7 +540,7 @@ export const getUserTokensV6Options: RouteOptions = {
               tokenId: tokenId,
               kind: r.kind,
               name: r.name,
-              image: r.image,
+              image: Assets.getResizedImageUrl(r.image),
               lastBuy: {
                 value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
                 timestamp: r.last_buy_timestamp,

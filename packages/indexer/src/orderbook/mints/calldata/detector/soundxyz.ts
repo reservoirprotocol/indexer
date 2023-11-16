@@ -26,12 +26,13 @@ export type Info = {
 export enum InterfaceId {
   RangeEditionMinterV2_1 = "0xb9f19d17",
   MerkleDropMinterV2_1 = "0x6328e9ad",
+  SAM = "0xa3c2dbc7",
 }
 
 export const extractByCollection = async (
   collection: string,
-  mintId: string,
-  minterAddress: string
+  minterAddress: string,
+  mintId?: string
 ): Promise<CollectionMint[]> => {
   const results: CollectionMint[] = [];
 
@@ -91,57 +92,55 @@ export const extractByCollection = async (
 
       // Public sale
       if (!mintInfo.mintPaused) {
-        // Include the Manifold mint fee into the price
+        // Include the mint fee into the price
         const price = totalPrice.total.toString();
 
-        return [
-          {
-            collection,
-            contract: collection,
-            stage: `claim-${minterAddress.toLowerCase()}-${mintId}`,
-            kind: "public",
-            status: "open",
-            standard: STANDARD,
-            details: {
-              tx: {
-                to: minterAddress.toLowerCase(),
-                data: {
-                  // `mint`
-                  signature: "0xb3b34f99",
-                  params: [
-                    {
-                      kind: "contract",
-                      abiType: "address",
-                    },
-                    {
-                      kind: "unknown",
-                      abiType: "uint256",
-                      abiValue: mintId,
-                    },
-                    {
-                      kind: "quantity",
-                      abiType: "uint16",
-                    },
-                    {
-                      kind: "referrer",
-                      abiType: "address",
-                    },
-                  ],
-                },
-              },
-              info: {
-                minter: minterAddress.toLowerCase(),
-                mintId,
+        results.push({
+          collection,
+          contract: collection,
+          stage: `claim-${minterAddress.toLowerCase()}-${mintId}`,
+          kind: "public",
+          status: "open",
+          standard: STANDARD,
+          details: {
+            tx: {
+              to: minterAddress.toLowerCase(),
+              data: {
+                // `mint`
+                signature: "0xb3b34f99",
+                params: [
+                  {
+                    kind: "contract",
+                    abiType: "address",
+                  },
+                  {
+                    kind: "unknown",
+                    abiType: "uint256",
+                    abiValue: mintId,
+                  },
+                  {
+                    kind: "quantity",
+                    abiType: "uint16",
+                  },
+                  {
+                    kind: "referrer",
+                    abiType: "address",
+                  },
+                ],
               },
             },
-            currency: Sdk.Common.Addresses.Native[config.chainId],
-            price,
-            maxMintsPerWallet: mintInfo.maxMintablePerAccount,
-            maxSupply: mintInfo.maxMintableUpper,
-            startTime: toSafeTimestamp(mintInfo.startTime),
-            endTime: toSafeTimestamp(mintInfo.cutoffTime),
+            info: {
+              minter: minterAddress.toLowerCase(),
+              mintId,
+            },
           },
-        ];
+          currency: Sdk.Common.Addresses.Native[config.chainId],
+          price,
+          maxMintsPerWallet: mintInfo.maxMintablePerAccount,
+          maxSupply: mintInfo.maxMintableUpper,
+          startTime: toSafeTimestamp(mintInfo.startTime),
+          endTime: toSafeTimestamp(mintInfo.cutoffTime),
+        });
       }
     }
 
@@ -186,63 +185,160 @@ export const extractByCollection = async (
 
       // Allowlist sale
       if (mintInfo.merkleRootHash !== HashZero && !mintInfo.mintPaused) {
-        // Include the Manifold mint fee into the price
+        // Include the mint fee into the price
         const price = totalPrice.total.toString();
 
-        return [
-          {
-            collection,
-            contract: collection,
-            stage: `claim-${minterAddress.toLowerCase()}-${mintId}`,
-            kind: "allowlist",
-            status: "open",
-            standard: STANDARD,
-            details: {
-              tx: {
-                to: minterAddress.toLowerCase(),
-                data: {
-                  // `mint`
-                  signature: "0x159a76bd",
-                  params: [
-                    {
-                      kind: "contract",
-                      abiType: "address",
-                    },
-                    {
-                      kind: "unknown",
-                      abiType: "uint256",
-                      abiValue: mintId,
-                    },
-                    {
-                      kind: "quantity",
-                      abiType: "uint16",
-                    },
-                    {
-                      kind: "allowlist",
-                      abiType: "bytes32[]",
-                    },
-                    {
-                      kind: "referrer",
-                      abiType: "address",
-                    },
-                  ],
-                },
-              },
-              info: {
-                minter: minterAddress.toLowerCase(),
-                mintId,
+        results.push({
+          collection,
+          contract: collection,
+          stage: `claim-${minterAddress.toLowerCase()}-${mintId}`,
+          kind: "allowlist",
+          status: "open",
+          standard: STANDARD,
+          details: {
+            tx: {
+              to: minterAddress.toLowerCase(),
+              data: {
+                // `mint`
+                signature: "0x159a76bd",
+                params: [
+                  {
+                    kind: "contract",
+                    abiType: "address",
+                  },
+                  {
+                    kind: "unknown",
+                    abiType: "uint256",
+                    abiValue: mintId,
+                  },
+                  {
+                    kind: "quantity",
+                    abiType: "uint16",
+                  },
+                  {
+                    kind: "allowlist",
+                    abiType: "bytes32[]",
+                  },
+                  {
+                    kind: "referrer",
+                    abiType: "address",
+                  },
+                ],
               },
             },
-            currency: Sdk.Common.Addresses.Native[config.chainId],
-            price,
-            maxMintsPerWallet: mintInfo.maxMintablePerAccount,
-            maxSupply: mintInfo.maxMintable,
-            startTime: toSafeTimestamp(mintInfo.startTime),
-            endTime: toSafeTimestamp(mintInfo.cutoffTime),
-            allowlistId: mintInfo.merkleRoot,
+            info: {
+              minter: minterAddress.toLowerCase(),
+              mintId,
+            },
           },
-        ];
+          currency: Sdk.Common.Addresses.Native[config.chainId],
+          price,
+          maxMintsPerWallet: mintInfo.maxMintablePerAccount,
+          maxSupply: mintInfo.maxMintable,
+          startTime: toSafeTimestamp(mintInfo.startTime),
+          endTime: toSafeTimestamp(mintInfo.cutoffTime),
+          allowlistId: mintInfo.merkleRoot,
+        });
       }
+    }
+
+    if (moduleInterfaceId === InterfaceId.SAM) {
+      const minter = new Contract(
+        minterAddress,
+        new Interface([
+          `function totalBuyPriceAndFees(
+            address edition,
+            uint32 supplyForwardOffset,
+            uint32 quantity
+          ) view returns (
+            uint256 total,
+            uint256 platformFee,
+            uint256 artistFee,
+            uint256 goldenEggFee,
+            uint256 affiliateFee
+          )`,
+          `function samInfo(address edition) view returns (
+            (
+              uint96 basePrice,
+              uint128 linearPriceSlope,
+              uint128 inflectionPrice,
+              uint32 inflectionPoint,
+              uint128 goldenEggFeesAccrued,
+              uint128 balance,
+              uint32 supply,
+              uint32 maxSupply,
+              uint32 buyFreezeTime,
+              uint16 artistFeeBPS,
+              uint16 affiliateFeeBPS,
+              uint16 goldenEggFeeBPS,
+              bytes32 affiliateMerkleRoot
+            ) info
+          )`,
+        ]),
+        baseProvider
+      );
+
+      const mintInfo = await minter.samInfo(collection);
+
+      const totalPrice = await minter.totalBuyPriceAndFees(collection, mintInfo.supply, 1);
+
+      // Include the mint fee into the price
+      const price = totalPrice.total.toString();
+
+      results.push({
+        collection,
+        contract: collection,
+        stage: `claim-${minterAddress.toLowerCase()}`,
+        kind: "public",
+        status: "open",
+        standard: STANDARD,
+        details: {
+          tx: {
+            to: minterAddress.toLowerCase(),
+            data: {
+              // `buy`
+              signature: "0xafab4364",
+              params: [
+                {
+                  kind: "contract",
+                  abiType: "address",
+                },
+                {
+                  kind: "recipient",
+                  abiType: "address",
+                },
+                {
+                  kind: "quantity",
+                  abiType: "uint32",
+                },
+                {
+                  kind: "referrer",
+                  abiType: "address",
+                },
+                {
+                  kind: "unknown",
+                  abiType: "bytes32[]",
+                  abiValue: [],
+                },
+                {
+                  kind: "unknown",
+                  abiType: "uint256",
+                  abiValue: "0",
+                },
+              ],
+            },
+          },
+          info: {
+            minter: minterAddress.toLowerCase(),
+            hasDynamicPrice: true,
+          },
+        },
+        currency: Sdk.Common.Addresses.Native[config.chainId],
+        price,
+        maxSupply: mintInfo.maxSupply,
+        startTime: undefined,
+        endTime: toSafeTimestamp(mintInfo.buyFreezeTime),
+      });
     }
   } catch (error) {
     logger.error("mint-detector", JSON.stringify({ kind: STANDARD, error }));
@@ -271,6 +367,7 @@ export const extractByTx = async (
       "0xc90974d0", // `RangeEditionMinterV2_1.mintTo`
       "0x159a76bd", // `MerkleDropMinterV2_1.mint`
       "0xb24e737e", // `MerkleDropMinterV2_1.mintTo`
+      "0xafab4364", // `SAM.buy`
     ].some((bytes4) => tx.data.startsWith(bytes4))
   ) {
     try {
@@ -279,12 +376,13 @@ export const extractByTx = async (
         "function mint(address edition, uint128 mintId, uint32 quantity, bytes32[] proof, address affiliate)",
         "function mintTo(address edition, uint128 mintId, address to, uint32 quantity, address affiliate, bytes32[] affiliateProof, uint256 attributionId)",
         "function mintTo(address edition, uint128 mintId, address to, uint32 quantity, address allowlisted, bytes32[] proof, address affiliate, bytes32[] affiliateProof, uint256 attributionId)",
+        "function buy(address edition, address to, uint32 quantity, address affiliate, bytes32[] affiliateProof, uint256 attributonId)",
       ]).parseTransaction({
         data: tx.data,
       });
 
-      const mintId = parsed.args.mintId.toString();
-      return extractByCollection(collection, mintId, tx.to);
+      const mintId = parsed.args.mintId ? parsed.args.mintId.toString() : undefined;
+      return extractByCollection(collection, tx.to, mintId);
     } catch {
       // Skip errors
     }
@@ -300,8 +398,8 @@ export const refreshByCollection = async (collection: string) => {
     // Fetch and save/update the currently available mints
     const latestCollectionMints = await extractByCollection(
       collection,
-      (details.info! as Info).mintId!,
-      (details.info! as Info).minter!
+      (details.info! as Info).minter!,
+      (details.info! as Info).mintId!
     );
     for (const collectionMint of latestCollectionMints) {
       await simulateAndUpsertCollectionMint(collectionMint);

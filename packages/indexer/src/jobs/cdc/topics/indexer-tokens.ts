@@ -9,6 +9,7 @@ import {
 import { refreshAsksTokenJob } from "@/jobs/asks/refresh-asks-token-job";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
+import { refreshActivitiesTokenJob } from "@/jobs/activities/refresh-activities-token-job";
 
 export class IndexerTokensHandler extends KafkaEventHandler {
   topicName = "indexer.public.tokens";
@@ -61,10 +62,17 @@ export class IndexerTokensHandler extends KafkaEventHandler {
     }
 
     try {
+      const spamStatusChanged = payload.before.is_spam !== payload.after.is_spam;
+
+      // Update the elasticsearch activities index
+      if (spamStatusChanged) {
+        await refreshActivitiesTokenJob.addToQueue(payload.after.contract, payload.after.token_id);
+      }
+
+      // Update the elasticsearch asks index
       if (payload.after.floor_sell_id) {
         const flagStatusChanged = payload.before.is_flagged !== payload.after.is_flagged;
         const rarityRankChanged = payload.before.rarity_rank !== payload.after.rarity_rank;
-        const spamStatusChanged = payload.before.is_spam !== payload.after.is_spam;
 
         if (flagStatusChanged || rarityRankChanged || spamStatusChanged) {
           await refreshAsksTokenJob.addToQueue(payload.after.contract, payload.after.token_id);

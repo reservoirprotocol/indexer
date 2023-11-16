@@ -277,7 +277,7 @@ export class RateLimitRules {
     // Sync to other chains only if deleted on mainnet
     if (config.chainId === 1) {
       await allChainsSyncRedis.publish(
-        AllChainsChannel.RateLimitRuleUpdated,
+        AllChainsChannel.RateLimitRuleDeleted,
         JSON.stringify({ correlationId: deletedRule.correlation_id })
       );
     }

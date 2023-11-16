@@ -10,6 +10,7 @@ import { CollectionSets } from "@/models/collection-sets";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 import { getJoiPriceObject, getJoiTokenObject, JoiPrice } from "@/common/joi";
+import { Assets } from "@/utils/assets";
 
 const version = "v4";
 
@@ -301,7 +302,7 @@ export const getUserTokensV4Options: RouteOptions = {
               contract: fromBuffer(r.contract),
               tokenId: r.token_id,
               name: r.name,
-              image: r.image,
+              image: Assets.getResizedImageUrl(r.image),
               collection: {
                 id: r.collection_id,
                 name: r.collection_name,

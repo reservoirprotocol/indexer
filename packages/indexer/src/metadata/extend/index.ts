@@ -40,7 +40,7 @@ import * as utopiaAvatars from "./utopia-avatars";
 import * as superrareShared from "./superrare-shared";
 import * as foundationShared from "./foundation-shared";
 import * as kanpaiPandas from "./kanpai-pandas";
-import * as magiceden from "./magiceden";
+import { CollectionsOverride } from "@/models/collections-override";
 
 const extendCollection: any = {};
 const extend: any = {};
@@ -59,6 +59,24 @@ export const extendCollectionMetadata = async (metadata: any, tokenId?: string) 
     } else {
       return metadata;
     }
+  }
+};
+
+export const overrideCollectionMetadata = async (metadata: any) => {
+  if (metadata) {
+    const collectionsOverride = await CollectionsOverride.get(metadata.id);
+    if (collectionsOverride) {
+      return {
+        ...metadata,
+        ...collectionsOverride?.override,
+        metadata: {
+          ...metadata.metadata,
+          ...collectionsOverride?.override?.metadata,
+        },
+      };
+    }
+
+    return metadata;
   }
 };
 
@@ -180,20 +198,6 @@ extendCollection["1,0xb932a70a57673d89f4acffbe830e8ed7f75fb9e0"] = superrareShar
 
 // Foundation
 extendCollection["1,0x3b3ee1931dc30c1957379fac9aba94d1c48a5405"] = foundationShared;
-
-// Magic Eden Override
-extendCollection["137,0xef41141fbc0a7c870f30fee81c6214582dc2a494"] = magiceden;
-extendCollection["137,0x72106bbe2b447ecb9b52370ddc63cfa8e553b08c"] = magiceden;
-extendCollection["137,0x71ef0488d78ed490c8ffa3112fb3d7b4614f76b5"] = magiceden;
-extendCollection["137,0xb58e69929d5d4d2a2a2e119b0d2bf3ee23ebfff0"] = magiceden;
-extendCollection["137,0xec2b044db5f04dd2bed8f0ff2f82b1719ff64b2a"] = magiceden;
-extendCollection["137,0x5456a0343308a6fd106334f06fdf57a2f4dcc892"] = magiceden;
-extendCollection["137,0xadeac691a3762793aefcbfe22761614d229feaa2"] = magiceden;
-extendCollection["137,0x09421f533497331e1075fdca2a16e9ce3f52312b"] = magiceden;
-extendCollection["137,0x8efa4df13705422626733751f7f3927283f0ee8e"] = magiceden;
-extendCollection["137,0x9dba8ea4a81eb3b3aeadbcbca9e7e88dda205a81"] = magiceden;
-extendCollection["137,0xaba082d325adc08f9a1c5a8208bb5c42b3a6f978"] = magiceden;
-extendCollection["137,0x5fcfae331e919d679cc3bc07c15fcc6d5c7a93cb"] = magiceden;
 
 // Sound XYZ
 soundxyz.SoundxyzArtistContracts.forEach(

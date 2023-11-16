@@ -34,6 +34,7 @@ import { Assets, ImageSize } from "@/utils/assets";
 import { CollectionSets } from "@/models/collection-sets";
 import { Collections } from "@/models/collections";
 import * as AsksIndex from "@/elasticsearch/indexes/asks";
+import { OrderComponents } from "@reservoir0x/sdk/dist/seaport-base/types";
 
 const version = "v6";
 
@@ -207,6 +208,9 @@ export const getTokensV6Options: RouteOptions = {
       includeTopBid: Joi.boolean()
         .default(false)
         .description("If true, top bid will be returned in the response."),
+      includeMintStages: Joi.boolean()
+        .default(false)
+        .description("If true, mint data for the tokens will be included in the response."),
       excludeEOA: Joi.boolean()
         .default(false)
         .description(
@@ -320,6 +324,17 @@ export const getTokensV6Options: RouteOptions = {
                 })
               )
               .optional(),
+            mintStages: Joi.array().items(
+              Joi.object({
+                stage: Joi.string().required(),
+                tokenId: Joi.string().pattern(regex.number).allow(null),
+                kind: Joi.string().required(),
+                price: JoiPrice.allow(null),
+                startTime: Joi.number().allow(null),
+                endTime: Joi.number().allow(null),
+                maxMintsPerWallet: Joi.number().unsafe().allow(null),
+              })
+            ),
           }),
           market: Joi.object({
             floorAsk: {
@@ -373,7 +388,6 @@ export const getTokensV6Options: RouteOptions = {
     const enableElasticsearchAsks =
       config.enableElasticsearchAsks &&
       query.sortBy === "floorAskPrice" &&
-      !query.includeDynamicPricing &&
       !["tokenName", "tokenSetId"].some((filter) => query[filter]);
 
     if (enableElasticsearchAsks) {
@@ -510,6 +524,34 @@ export const getTokensV6Options: RouteOptions = {
         ORDER BY timestamp DESC LIMIT 1
         ) r ON TRUE
         `;
+    }
+
+    // Include mint stages
+    let mintStagesSelectQuery = "";
+    let mintStagesJoinQuery = "";
+    if (query.includeMintStages) {
+      mintStagesSelectQuery = ", v.*";
+      mintStagesJoinQuery = `
+        LEFT JOIN LATERAL (
+          SELECT
+            array_agg(
+              json_build_object(
+                'stage', collection_mints.stage,
+                'tokenId', collection_mints.token_id::TEXT,
+                'kind', collection_mints.kind,
+                'currency', concat('0x', encode(collection_mints.currency, 'hex')),
+                'price', collection_mints.price::TEXT,
+                'startTime', floor(extract(epoch from collection_mints.start_time)),
+                'endTime', floor(extract(epoch from collection_mints.end_time)),
+                'maxMintsPerWallet', collection_mints.max_mints_per_wallet
+              )
+            ) AS mint_stages
+          FROM collection_mints
+          WHERE collection_mints.collection_id = t.collection_id
+            AND collection_mints.token_id = t.token_id
+            AND collection_mints.status = 'open'
+        ) v ON TRUE
+      `;
     }
 
     // Get the collections from the collection set or community
@@ -695,6 +737,7 @@ export const getTokensV6Options: RouteOptions = {
           ${selectIncludeQuantity}
           ${selectIncludeDynamicPricing}
           ${selectRoyaltyBreakdown}
+          ${mintStagesSelectQuery}
         FROM tokens t
         ${
           sourceCte !== ""
@@ -706,6 +749,7 @@ export const getTokensV6Options: RouteOptions = {
         ${includeQuantityQuery}
         ${includeDynamicPricingQuery}
         ${includeRoyaltyBreakdownQuery}
+        ${mintStagesJoinQuery}
         JOIN collections c ON t.collection_id = c.id ${
           query.excludeSpam ? `AND (c.is_spam IS NULL OR c.is_spam <= 0)` : ""
         }
@@ -1335,7 +1379,7 @@ export const getTokensV6Options: RouteOptions = {
               tokenId,
               name: r.name,
               description: r.description,
-              image: Assets.getLocalAssetsLink(r.image),
+              image: Assets.getResizedImageUrl(r.image),
               imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small),
               imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large),
               metadata: Object.values(metadata).every((el) => el === undefined)
@@ -1409,6 +1453,21 @@ export const getTokensV6Options: RouteOptions = {
                     }))
                   : []
                 : undefined,
+              mintStages: r.mint_stages
+                ? await Promise.all(
+                    r.mint_stages.map(async (m: any) => ({
+                      stage: m.stage,
+                      kind: m.kind,
+                      tokenId: m.tokenId,
+                      price: m.price
+                        ? await getJoiPriceObject({ gross: { amount: m.price } }, m.currency)
+                        : m.price,
+                      startTime: m.startTime,
+                      endTime: m.endTime,
+                      maxMintsPerWallet: m.maxMintsPerWallet,
+                    }))
+                  )
+                : [],
             },
             r.t_metadata_disabled,
             r.c_metadata_disabled
@@ -1613,6 +1672,7 @@ export const getListedTokensFromES = async (query: any) => {
     limit: query.limit,
     continuation: query.continuation,
     sources: query.sources,
+    sortDirection: query.sortDirection,
   });
 
   let tokensResult: any[] = [];
@@ -1707,16 +1767,16 @@ export const getListedTokensFromES = async (query: any) => {
             FROM orders o
             JOIN token_sets_tokens tst
               ON o.token_set_id = tst.token_set_id
-            WHERE tst.contract = x.t_contract
-              AND tst.token_id = x.t_token_id
+            WHERE tst.contract = t.contract
+              AND tst.token_id = t.token_id
               AND o.side = 'buy'
               AND o.fillability_status = 'fillable'
               AND o.approval_status = 'approved'
               ${query.excludeEOA ? `AND o.kind NOT IN ('blur')` : ""}
               AND EXISTS(
                 SELECT FROM nft_balances nb
-                  WHERE nb.contract = x.t_contract
-                  AND nb.token_id = x.t_token_id
+                  WHERE nb.contract = t.contract
+                  AND nb.token_id = t.token_id
                   AND nb.amount > 0
                   AND nb.owner != o.maker
                   AND (
@@ -1732,23 +1792,34 @@ export const getListedTokensFromES = async (query: any) => {
         `;
     }
 
-    const selectDynamicPricingQueryPart = "";
-    const joinDynamicPricingQueryPart = "";
+    // Include mint stages
+    let selectMintStagesQueryPart = "";
+    let joinMintStagesQueryPart = "";
 
-    // if (query.includeDynamicPricing) {
-    //   selectDynamicPricingQueryPart = ", d.*";
-    //   joinDynamicPricingQueryPart = `
-    //     LEFT JOIN LATERAL (
-    //       SELECT
-    //         o.kind AS floor_sell_order_kind,
-    //         o.dynamic AS floor_sell_dynamic,
-    //         o.raw_data AS floor_sell_raw_data,
-    //         o.missing_royalties AS floor_sell_missing_royalties
-    //       FROM orders o
-    //       WHERE o.id = t.floor_sell_id
-    //     ) d ON TRUE
-    //   `;
-    // }
+    if (query.includeMintStages) {
+      selectMintStagesQueryPart = ", v.*";
+      joinMintStagesQueryPart = `
+        LEFT JOIN LATERAL (
+          SELECT
+            array_agg(
+              json_build_object(
+                'stage', collection_mints.stage,
+                'tokenId', collection_mints.token_id::TEXT,
+                'kind', collection_mints.kind,
+                'currency', concat('0x', encode(collection_mints.currency, 'hex')),
+                'price', collection_mints.price::TEXT,
+                'startTime', floor(extract(epoch from collection_mints.start_time)),
+                'endTime', floor(extract(epoch from collection_mints.end_time)),
+                'maxMintsPerWallet', collection_mints.max_mints_per_wallet
+              )
+            ) AS mint_stages
+          FROM collection_mints
+          WHERE collection_mints.collection_id = t.collection_id
+            AND collection_mints.token_id = t.token_id
+            AND collection_mints.status = 'open'
+        ) v ON TRUE
+      `;
+    }
 
     tokensResult = await redb.manyOrNone(
       `
@@ -1792,11 +1863,11 @@ export const getListedTokensFromES = async (query: any) => {
           ${selectAttributesQueryPart}  
           ${selectLastSaleQueryPart}
           ${selectTopBidQueryPart}
-          ${selectDynamicPricingQueryPart}
+          ${selectMintStagesQueryPart}
           FROM tokens t
           ${joinLastSaleQueryPart}
           ${joinTopBidQueryPart}
-          ${joinDynamicPricingQueryPart}
+          ${joinMintStagesQueryPart}
           JOIN collections c ON t.collection_id = c.id
           JOIN contracts con ON t.contract = con.address
           WHERE (t.contract, t.token_id) IN ($/tokensFilter:raw/)
@@ -1860,14 +1931,17 @@ export const getListedTokensFromES = async (query: any) => {
     if (query.includeDynamicPricing) {
       // Add missing royalties on top of the raw prices
       const missingRoyalties = query.normalizeRoyalties
-        ? ((r.floor_sell_missing_royalties ?? []) as any[])
+        ? ((ask.order.missingRoyalties ?? []) as any[])
             .map((mr: any) => bn(mr.amount))
             .reduce((a, b) => a.add(b), bn(0))
         : bn(0);
 
-      if (r.floor_sell_raw_data) {
-        if (r.floor_sell_dynamic && r.floor_sell_order_kind === "seaport") {
-          const order = new Sdk.SeaportV11.Order(config.chainId, r.floor_sell_raw_data);
+      if (ask.order.rawData) {
+        if (ask.order.isDynamic && ask.order.kind === "seaport") {
+          const order = new Sdk.SeaportV11.Order(
+            config.chainId,
+            ask.order.rawData as OrderComponents
+          );
 
           // Dutch auction
           dynamicPricing = {
@@ -1905,18 +1979,18 @@ export const getListedTokensFromES = async (query: any) => {
           };
         } else if (
           ["sudoswap", "sudoswap-v2", "nftx", "collectionxyz", "caviar-v1", "midaswap"].includes(
-            r.floor_sell_order_kind
+            ask.order.kind
           )
         ) {
           // Pool orders
           dynamicPricing = {
             kind: "pool",
             data: {
-              pool: r.floor_sell_raw_data.pair ?? r.floor_sell_raw_data.pool,
+              pool: ask.order.rawData.pair ?? ask.order.rawData.pool,
               prices: await Promise.all(
-                (r.floor_sell_raw_data.extra.prices as string[])
+                ((ask.order.rawData.extra as any).prices as string[])
                   .filter((price) =>
-                    bn(price).lte(bn(r.floor_sell_raw_data.extra.floorPrice || MaxUint256))
+                    bn(price).lte(bn((ask.order.rawData.extra as any).floorPrice || MaxUint256))
                   )
                   .map((price) =>
                     getJoiPriceObject(
@@ -1957,7 +2031,7 @@ export const getListedTokensFromES = async (query: any) => {
           tokenId,
           name: r.name,
           description: r.description,
-          image: Assets.getLocalAssetsLink(r.image),
+          image: Assets.getResizedImageUrl(r.image),
           imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small),
           imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large),
           metadata: Object.values(metadata).every((el) => el === undefined) ? undefined : metadata,
@@ -2045,14 +2119,8 @@ export const getListedTokensFromES = async (query: any) => {
           maker: ask.order.maker,
           validFrom: ask.order.validFrom,
           validUntil: ask.order.validUntil,
-          quantityFilled:
-            query.includeQuantity && ask.order.quantityFilled
-              ? ask.order.quantityFilled
-              : undefined,
-          quantityRemaining:
-            query.includeQuantity && ask.order.quantityRemaining
-              ? ask.order.quantityRemaining
-              : undefined,
+          quantityFilled: query.includeQuantity ? ask.order.quantityFilled : undefined,
+          quantityRemaining: query.includeQuantity ? ask.order.quantityRemaining : undefined,
           dynamicPricing,
           source: getJoiSourceObject(floorSellSource),
         },

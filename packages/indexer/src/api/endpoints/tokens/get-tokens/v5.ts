@@ -1054,7 +1054,7 @@ export const getTokensV5Options: RouteOptions = {
               tokenId,
               name: r.name,
               description: r.description,
-              image: Assets.getLocalAssetsLink(r.image),
+              image: Assets.getResizedImageUrl(r.image),
               media: r.media,
               kind: r.kind,
               isFlagged: Boolean(Number(r.is_flagged)),

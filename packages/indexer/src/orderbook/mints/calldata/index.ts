@@ -58,7 +58,13 @@ export type MintTxSchema = {
   };
 };
 
-export type CustomInfo = mints.manifold.Info | mints.soundxyz.Info;
+type BaseCustomInfo = {
+  hasDynamicPrice?: boolean;
+};
+
+export type CustomInfo =
+  | (BaseCustomInfo & mints.manifold.Info)
+  | (BaseCustomInfo & mints.soundxyz.Info);
 
 export type PartialCollectionMint = Pick<
   CollectionMint,

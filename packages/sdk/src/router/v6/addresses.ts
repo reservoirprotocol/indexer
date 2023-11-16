@@ -68,6 +68,7 @@ export const PermitProxy: ChainIdToAddress = {
 export const SwapModule: ChainIdToAddress = {
   [Network.Ethereum]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
   [Network.EthereumGoerli]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+  [Network.EthereumSepolia]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
   [Network.Polygon]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
   [Network.Optimism]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
   [Network.Arbitrum]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",

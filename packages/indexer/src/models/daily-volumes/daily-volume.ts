@@ -6,7 +6,6 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { PgPromiseQuery, idb, pgp, redb, ridb } from "@/common/db";
 import _ from "lodash";
-import { config } from "@/config/index";
 
 export class DailyVolume {
   private static lockKey = "daily-volumes-running";
@@ -481,17 +480,6 @@ export class DailyVolume {
       // Step 3: Update the volumes in collections
       const queries: PgPromiseQuery[] = [];
       recentVolumes.forEach((values: any) => {
-        if (config.chainId === 11155111) {
-          logger.info(
-            "dailyVolumes1",
-            JSON.stringify({
-              topic: "debugCollectionUpdates",
-              message: `Update collection. collectionId=${values.collection_id}`,
-              collectionId: values.collection_id,
-            })
-          );
-        }
-
         queries.push({
           query: `
           UPDATE collections
@@ -687,17 +675,6 @@ export class DailyVolume {
     try {
       const queries: { query: string; values: any }[] = [];
       mergedArr.forEach((row: any) => {
-        if (config.chainId === 11155111) {
-          logger.info(
-            "dailyVolumes2",
-            JSON.stringify({
-              topic: "debugCollectionUpdates",
-              message: `Update collection. collectionId=${row.collection_id}, specificCollectionId=${collectionId}`,
-              collectionId: row.collection_id,
-            })
-          );
-        }
-
         // When updating single collection don't update the rank
         queries.push({
           query: `
@@ -839,17 +816,6 @@ export class DailyVolume {
 
     const queries: any = [];
     results.forEach((row: any) => {
-      if (config.chainId === 11155111) {
-        logger.info(
-          "dailyVolumes3",
-          JSON.stringify({
-            topic: "debugCollectionUpdates",
-            message: `Update collection. collectionId=${row.collection_id}`,
-            collectionId: row.collection_id,
-          })
-        );
-      }
-
       queries.push({
         query: `
             UPDATE collections
@@ -936,17 +902,6 @@ export class DailyVolume {
 
     const queries: any = [];
     results.forEach((row: any) => {
-      if (config.chainId === 11155111) {
-        logger.info(
-          "dailyVolumes4",
-          JSON.stringify({
-            topic: "debugCollectionUpdates",
-            message: `Update collection. collectionId=${row.collection_id}`,
-            collectionId: row.collection_id,
-          })
-        );
-      }
-
       queries.push({
         query: `
             UPDATE collections

@@ -39,7 +39,15 @@ export const generateFTApprovalTxData = (
   ),
 });
 
-export const estimateGas = (txTags: TxTags) => {
+export const initializeTxTags = (): TxTags => ({
+  listings: {},
+  bids: {},
+  mints: 0,
+  swaps: 0,
+  feesOnTop: 0,
+});
+
+export const estimateGasFromTxTags = (txTags: TxTags) => {
   const gasDb = {
     listing: 80000,
     bid: 80000,
@@ -50,12 +58,12 @@ export const estimateGas = (txTags: TxTags) => {
 
   // Base gas cost per tx kind
   let estimate: number;
-  if (txTags.kind === "mint") {
+  if (txTags.mints) {
     estimate = 30000;
-  } else if (txTags.kind === "sale") {
+  } else if (txTags.listings && Object.keys(txTags.listings).length) {
     estimate = 80000;
   } else {
-    estimate = 150000;
+    estimate = 100000;
   }
 
   // Listings

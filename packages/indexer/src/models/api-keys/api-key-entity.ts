@@ -5,6 +5,7 @@ export enum ApiKeyPermission {
   assign_collection_to_community = "assign_collection_to_community",
   update_metadata_disabled = "update_metadata_disabled",
   update_spam_status = "update_spam_status",
+  entity_data_override = "entity_data_override",
 }
 
 // Define the fields we can update

@@ -334,7 +334,7 @@ export const getUserTopBidsV1Options: RouteOptions = {
             contract: contract,
             tokenId: tokenId,
             name: r.name,
-            image: Assets.getLocalAssetsLink(r.image),
+            image: Assets.getResizedImageUrl(r.image),
             floorAskPrice: r.token_floor_sell_value ? formatEth(r.token_floor_sell_value) : null,
             lastSalePrice: r.token_last_sell_value ? formatEth(r.token_last_sell_value) : null,
             collection: {

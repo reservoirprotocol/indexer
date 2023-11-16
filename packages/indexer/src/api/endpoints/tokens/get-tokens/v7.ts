@@ -207,6 +207,9 @@ export const getTokensV7Options: RouteOptions = {
       includeTopBid: Joi.boolean()
         .default(false)
         .description("If true, top bid will be returned in the response."),
+      includeMintStages: Joi.boolean()
+        .default(false)
+        .description("If true, mint data for the tokens will be included in the response."),
       excludeEOA: Joi.boolean()
         .default(false)
         .description(
@@ -320,6 +323,17 @@ export const getTokensV7Options: RouteOptions = {
                 })
               )
               .optional(),
+            mintStages: Joi.array().items(
+              Joi.object({
+                stage: Joi.string().required(),
+                tokenId: Joi.string().pattern(regex.number).allow(null),
+                kind: Joi.string().required(),
+                price: JoiPrice.allow(null),
+                startTime: Joi.number().allow(null),
+                endTime: Joi.number().allow(null),
+                maxMintsPerWallet: Joi.number().unsafe().allow(null),
+              })
+            ),
           }),
           market: Joi.object({
             floorAsk: {
@@ -373,7 +387,6 @@ export const getTokensV7Options: RouteOptions = {
 
     const enableElasticsearchAsks =
       query.sortBy === "floorAskPrice" &&
-      !query.includeDynamicPricing &&
       !["tokenName", "tokenSetId"].some((filter) => query[filter]);
 
     if (enableElasticsearchAsks) {
@@ -510,6 +523,34 @@ export const getTokensV7Options: RouteOptions = {
         ORDER BY timestamp DESC LIMIT 1
         ) r ON TRUE
         `;
+    }
+
+    // Include mint stages
+    let mintStagesSelectQuery = "";
+    let mintStagesJoinQuery = "";
+    if (query.includeMintStages) {
+      mintStagesSelectQuery = ", v.*";
+      mintStagesJoinQuery = `
+        LEFT JOIN LATERAL (
+          SELECT
+            array_agg(
+              json_build_object(
+                'stage', collection_mints.stage,
+                'tokenId', collection_mints.token_id::TEXT,
+                'kind', collection_mints.kind,
+                'currency', concat('0x', encode(collection_mints.currency, 'hex')),
+                'price', collection_mints.price::TEXT,
+                'startTime', floor(extract(epoch from collection_mints.start_time)),
+                'endTime', floor(extract(epoch from collection_mints.end_time)),
+                'maxMintsPerWallet', collection_mints.max_mints_per_wallet
+              )
+            ) AS mint_stages
+          FROM collection_mints
+          WHERE collection_mints.collection_id = t.collection_id
+            AND collection_mints.token_id = t.token_id
+            AND collection_mints.status = 'open'
+        ) v ON TRUE
+      `;
     }
 
     // Get the collections from the collection set or community
@@ -693,6 +734,7 @@ export const getTokensV7Options: RouteOptions = {
           ${selectIncludeQuantity}
           ${selectIncludeDynamicPricing}
           ${selectRoyaltyBreakdown}
+          ${mintStagesSelectQuery}
         FROM tokens t
         ${
           sourceCte !== ""
@@ -704,6 +746,7 @@ export const getTokensV7Options: RouteOptions = {
         ${includeQuantityQuery}
         ${includeDynamicPricingQuery}
         ${includeRoyaltyBreakdownQuery}
+        ${mintStagesJoinQuery}
         JOIN collections c ON t.collection_id = c.id ${
           query.excludeSpam ? `AND (c.is_spam IS NULL OR c.is_spam <= 0)` : ""
         }
@@ -1333,7 +1376,7 @@ export const getTokensV7Options: RouteOptions = {
               tokenId,
               name: r.name,
               description: r.description,
-              image: Assets.getLocalAssetsLink(r.image),
+              image: Assets.getResizedImageUrl(r.image),
               imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small),
               imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large),
               metadata: Object.values(metadata).every((el) => el === undefined)
@@ -1407,6 +1450,21 @@ export const getTokensV7Options: RouteOptions = {
                     }))
                   : []
                 : undefined,
+              mintStages: r.mint_stages
+                ? await Promise.all(
+                    r.mint_stages.map(async (m: any) => ({
+                      stage: m.stage,
+                      kind: m.kind,
+                      tokenId: m.tokenId,
+                      price: m.price
+                        ? await getJoiPriceObject({ gross: { amount: m.price } }, m.currency)
+                        : m.price,
+                      startTime: m.startTime,
+                      endTime: m.endTime,
+                      maxMintsPerWallet: m.maxMintsPerWallet,
+                    }))
+                  )
+                : [],
             },
             r.t_metadata_disabled,
             r.c_metadata_disabled
@@ -1481,7 +1539,7 @@ export const getTokensV7Options: RouteOptions = {
             tokenId,
             name: r.name,
             description: r.description,
-            image: Assets.getLocalAssetsLink(r.image),
+            image: Assets.getResizedImageUrl(r.image),
             imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small),
             imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large),
             metadata: Object.values(metadata).every((el) => el === undefined)

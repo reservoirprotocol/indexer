@@ -216,8 +216,8 @@ export default class MintsProcessJob extends AbstractRabbitMqJobHandler {
           case "soundxyz": {
             collectionMints = await detector.soundxyz.extractByCollection(
               data.collection,
-              data.additionalInfo.mintId,
-              data.additionalInfo.minter
+              data.additionalInfo.minter,
+              data.additionalInfo.mintId
             );
             break;
           }
