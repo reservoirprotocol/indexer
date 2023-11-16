@@ -50,53 +50,19 @@ export class ProcessCollectionEventJob extends AbstractRabbitMqJobHandler {
               (collections.metadata ->> 'twitterUsername')::TEXT AS "twitter_username",
               (collections.metadata ->> 'twitterUrl')::TEXT AS "twitter_url",
               (collections.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
-              collections.royalties,
-              collections.new_royalties,
               collections.contract,
-              collections.token_id_range,
-              collections.token_set_id,
               collections.creator,
-              collections.day1_sales_count AS "day_sale_count",
-              collections.day1_rank,
-              collections.day1_volume,
-              collections.day7_rank,
-              collections.day7_volume,
-              collections.day30_rank,
-              collections.day30_volume,
-              collections.all_time_rank,
               collections.all_time_volume,
-              collections.day1_volume_change,
-              collections.day7_volume_change,
-              collections.day30_volume_change,
-              collections.day1_floor_sell_value,
-              collections.day7_floor_sell_value,
-              collections.day30_floor_sell_value,
               collections.is_spam,
               collections.metadata_disabled,
               collections.token_count,
-              collections.owner_count,
               collections.created_at,
-              extract(epoch from collections.updated_at) AS updated_at,
-              collections.top_buy_id,
-              collections.top_buy_maker,        
-              collections.minted_timestamp,
-              (
-                SELECT
-                  COUNT(*)
-                FROM tokens
-                WHERE tokens.collection_id = collections.id
-                  AND tokens.floor_sell_value IS NOT NULL
-              ) AS on_sale_count,
-              ARRAY(
-                SELECT
-                  tokens.image
-                FROM tokens
-                WHERE tokens.collection_id = collections.id
-                ORDER BY rarity_rank DESC NULLS LAST
-                LIMIT 4
-              ) AS sample_images,
-            extract(epoch from collections.updated_at) updated_ts
+              orders.id AS "floor_sell_id",
+              orders.value AS "floor_sell_value",
+              orders.currency AS "floor_sell_currency",
+              orders.currency_price AS "floor_sell_currency_price"
             FROM collections
+            LEFT JOIN orders ON orders.id = collections.floor_sell_id
             WHERE collections.id = $/collectionId/
             LIMIT 1;
           `,
@@ -115,8 +81,13 @@ export class ProcessCollectionEventJob extends AbstractRabbitMqJobHandler {
           image: rawResult.image,
           community: rawResult.community,
           token_count: rawResult.token_count,
+          metadata_disabled: rawResult.metadata_disabled,
           is_spam: rawResult.is_spam,
           all_time_volume: rawResult.all_time_volume,
+          floor_sell_id: rawResult.floor_sell_id,
+          floor_sell_value: rawResult.floor_sell_value,
+          floor_sell_currency: rawResult.floor_sell_currency,
+          floor_sell_currency_price: rawResult.floor_sell_currency_price,
         });
       }
     } catch (error) {

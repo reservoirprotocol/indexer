@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { fromBuffer } from "@/common/utils";
+import { formatEth, fromBuffer } from "@/common/utils";
 
 import { BuildDocumentData, BaseDocument, DocumentBuilder } from "@/elasticsearch/indexes/base";
 import { config } from "@/config/index";
@@ -28,8 +28,13 @@ export interface BuildCollectionDocumentData extends BuildDocumentData {
   created_at: Date;
   community: string;
   token_count: number;
+  metadata_disabled: number;
   is_spam: number;
   all_time_volume: string;
+  floor_sell_id?: string;
+  floor_sell_value?: string;
+  floor_sell_currency?: string;
+  floor_sell_currency_price?: string;
 }
 
 export class CollectionDocumentBuilder extends DocumentBuilder {
@@ -49,7 +54,19 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
       image: data.image,
       community: data.community,
       tokenCount: Number(data.token_count),
+      metadataDisabled: Number(data.metadata_disabled) > 0,
       isSpam: Number(data.is_spam) > 0,
+      allTimeVolumeDecimal: formatEth(data.all_time_volume),
+      floorSell: data.floor_sell_id
+        ? {
+            id: data.floor_sell_id,
+            value: data.floor_sell_value ? formatEth(data.floor_sell_value) : undefined,
+            currency: data.floor_sell_currency,
+            currencyPrice: data.floor_sell_currency_price
+              ? formatEth(data.floor_sell_currency_price)
+              : undefined,
+          }
+        : undefined,
       nameSuggest: {
         input: this.generateInputValues(data),
         weight: this.formatAllTimeVolume(data),
