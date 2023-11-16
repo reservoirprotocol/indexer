@@ -75,7 +75,7 @@ export class BackfillCollectionsElasticsearchJob extends AbstractRabbitMqJobHand
               orders.value AS floor_sell_value,
               orders.currency AS floor_sell_currency,
               orders.currency_price AS floor_sell_currency_price,
-              extract(epoch from collections.updated_at) AS updated_at
+              extract(epoch from collections.updated_at) AS updated_ts
             FROM collections
             LEFT JOIN orders ON orders.id = collections.floor_sell_id
             ${continuationFilter}
