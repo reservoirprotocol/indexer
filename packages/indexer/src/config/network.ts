@@ -81,6 +81,9 @@ export const getNetworkName = () => {
     case 13472:
       return "immutable-zkevm-testnet";
 
+    case 4337:
+      return "beam";
+
     default:
       return "unknown";
   }
@@ -137,9 +140,8 @@ export const getServiceName = () => {
 };
 
 export const getSubDomain = () => {
-  return `${config.chainId === 1 ? "api" : `api-${getNetworkName()}`}${
-    config.environment === "dev" ? ".dev" : ""
-  }`;
+  return `${config.chainId === 1 ? "api" : `api-${getNetworkName()}`}${config.environment === "dev" ? ".dev" : ""
+    }`;
 };
 
 type NetworkSettings = {
@@ -1480,6 +1482,41 @@ export const getNetworkSettings = (): NetworkSettings => {
                   'tIMX',
                   18,
                   '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/17233/standard/immutableX-symbol-BLK-RGB.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+
+    // Beam
+    case 4337: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        headBlockDelay: 10,
+        isTestnet: true,
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Beam',
+                  'BEAM',
+                  18,
+                  '{"coingeckoCurrencyId": "beam-2", "image": "https://assets.coingecko.com/coins/images/32417/standard/chain-logo.png"}'
                 ) ON CONFLICT DO NOTHING
               `
             ),

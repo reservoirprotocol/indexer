@@ -92,6 +92,9 @@ const getNetworkConfig = (chainId?: number) => {
       case 13472:
         url = "https://rpc.testnet.immutable.com/";
         break;
+      case 4337:
+        url = "https://subnets.avax.network/beam/mainnet/rpc"
+        break;
       default:
         throw new Error("Unsupported chain id");
     }
