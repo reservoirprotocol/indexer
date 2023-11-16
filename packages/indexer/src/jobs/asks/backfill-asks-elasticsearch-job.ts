@@ -68,6 +68,9 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
               orders.maker AS "order_maker",
               orders.taker AS "order_taker",
               orders.kind AS "order_kind",
+              orders.dynamic AS "order_dynamic",
+              orders.raw_data AS "order_raw_data",
+              orders.missing_royalties AS "order_missing_royalties",
               DATE_PART('epoch', LOWER(orders.valid_between)) AS "order_valid_from",
               COALESCE(
                 NULLIF(DATE_PART('epoch', UPPER(orders.valid_between)), 'Infinity'),
@@ -75,6 +78,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
               ) AS "order_valid_until",
               orders.token_set_id AS "order_token_set_id",
               (${criteriaBuildQuery}) AS order_criteria,
+              orders.created_at AS "order_created_at",
               extract(epoch from orders.updated_at) updated_ts,
                         (
                 CASE
@@ -96,9 +100,11 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
                       tokens.image AS "token_image", 
                       tokens.media AS "token_media", 
                       tokens.is_flagged AS "token_is_flagged",
+                      tokens.is_spam AS "token_is_spam",
                       tokens.rarity_rank AS "token_rarity_rank",
                       collections.id AS "collection_id", 
                       collections.name AS "collection_name", 
+                      collections.is_spam AS "collection_is_spam",
                       (
                         collections.metadata ->> 'imageUrl'
                       ):: TEXT AS "collection_image", 
@@ -150,7 +156,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
           if (rawResult.status === "active") {
             const askDocument = new AskDocumentBuilder().buildDocument({
               id: rawResult.order_id,
-              created_at: new Date(rawResult.updated_ts * 1000),
+              created_at: new Date(rawResult.order_created_at),
               contract: rawResult.contract,
               token_id: rawResult.token_id,
               token_name: rawResult.token_name,
@@ -158,17 +164,19 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
               token_media: rawResult.token_media,
               token_attributes: rawResult.token_attributes,
               token_is_flagged: Number(rawResult.token_is_flagged),
+              token_is_spam: Number(rawResult.token_is_spam),
               token_rarity_rank: rawResult.token_rarity_rank
                 ? Number(rawResult.token_rarity_rank)
                 : undefined,
               collection_id: rawResult.collection_id,
               collection_name: rawResult.collection_name,
               collection_image: rawResult.collection_image,
+              collection_is_spam: Number(rawResult.collection_is_spam),
               order_id: rawResult.order_id,
               order_source_id_int: Number(rawResult.order_source_id_int),
               order_criteria: rawResult.order_criteria,
-              order_quantity_filled: Number(rawResult.order_quantity_filled),
-              order_quantity_remaining: Number(rawResult.order_quantity_remaining),
+              order_quantity_filled: rawResult.order_quantity_filled,
+              order_quantity_remaining: rawResult.order_quantity_remaining,
               order_pricing_currency: rawResult.order_pricing_currency,
               order_pricing_fee_bps: rawResult.order_pricing_fee_bps,
               order_pricing_price: rawResult.order_pricing_price,
@@ -184,6 +192,9 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
               order_valid_from: Number(rawResult.order_valid_from),
               order_valid_until: Number(rawResult.order_valid_until),
               order_kind: rawResult.order_kind,
+              order_dynamic: rawResult.order_dynamic,
+              order_raw_data: rawResult.order_raw_data,
+              order_missing_royalties: rawResult.order_missing_royalties,
             });
 
             askEvents.push({ kind: "index", document: askDocument });

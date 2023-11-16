@@ -24,11 +24,13 @@ export * as sudoswapV2 from "@/orderbook/orders/sudoswap-v2";
 export * as midaswap from "@/orderbook/orders/midaswap";
 export * as caviarV1 from "@/orderbook/orders/caviar-v1";
 export * as paymentProcessor from "@/orderbook/orders/payment-processor";
+export * as paymentProcessorV2 from "@/orderbook/orders/payment-processor-v2";
 
 // Imports
 
 import { HashZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
+import { Permit } from "@reservoir0x/sdk/dist/router/v6/permit";
 import { BidDetails, ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
 
 import { inject } from "@/api/index";
@@ -36,6 +38,7 @@ import { idb } from "@/common/db";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
+import { getCosigner } from "@/utils/cosign";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as registry from "@/utils/royalties/registry";
 
@@ -84,7 +87,8 @@ export type OrderKind =
   | "caviar-v1"
   | "payment-processor"
   | "blur-v2"
-  | "joepeg";
+  | "joepeg"
+  | "payment-processor-v2";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
@@ -205,7 +209,7 @@ export const getOrderSourceByOrderKind = async (
 };
 
 // Support for filling listings
-export const generateListingDetailsV6 = (
+export const generateListingDetailsV6 = async (
   order: {
     id: string;
     kind: OrderKind;
@@ -221,8 +225,11 @@ export const generateListingDetailsV6 = (
     tokenId: string;
     amount?: number;
     isFlagged?: boolean;
+  },
+  options?: {
+    taker?: string;
   }
-): ListingDetails => {
+): Promise<ListingDetails> => {
   const common = {
     orderId: order.id,
     contractKind: token.kind,
@@ -449,6 +456,20 @@ export const generateListingDetailsV6 = (
       };
     }
 
+    case "payment-processor-v2": {
+      const rawOrder = new Sdk.PaymentProcessorV2.Order(config.chainId, order.rawData);
+      if (rawOrder.isCosignedOrder() && options?.taker) {
+        const cosigner = getCosigner();
+        await rawOrder.cosign(cosigner, options.taker);
+      }
+
+      return {
+        kind: "payment-processor-v2",
+        ...common,
+        order: rawOrder,
+      };
+    }
+
     default: {
       throw new Error("Unsupported order kind");
     }
@@ -473,6 +494,10 @@ export const generateBidDetailsV6 = async (
     tokenId: string;
     amount?: number;
     owner?: string;
+  },
+  options?: {
+    permit?: Permit;
+    taker?: string;
   }
 ): Promise<BidDetails> => {
   const common = {
@@ -486,6 +511,7 @@ export const generateBidDetailsV6 = async (
     owner: token.owner,
     isProtected: order.isProtected,
     fees: order.fees ?? [],
+    permit: options?.permit,
   };
 
   switch (order.kind) {
@@ -795,6 +821,25 @@ export const generateBidDetailsV6 = async (
       const sdkOrder = new Sdk.PaymentProcessor.Order(config.chainId, order.rawData);
       return {
         kind: "payment-processor",
+        ...common,
+        order: sdkOrder,
+        extraArgs: {
+          maxRoyaltyFeeNumerator: await registry
+            .getRegistryRoyalties(common.contract, common.tokenId)
+            .then((royalties) => royalties.map((r) => r.bps).reduce((a, b) => a + b, 0)),
+        },
+      };
+    }
+
+    case "payment-processor-v2": {
+      const sdkOrder = new Sdk.PaymentProcessorV2.Order(config.chainId, order.rawData);
+      if (sdkOrder.isCosignedOrder() && options?.taker) {
+        const cosigner = getCosigner();
+        await sdkOrder.cosign(cosigner, options.taker);
+      }
+
+      return {
+        kind: "payment-processor-v2",
         ...common,
         order: sdkOrder,
         extraArgs: {

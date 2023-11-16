@@ -6,6 +6,7 @@ import { BigNumberish, BigNumber } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import * as Sdk from "@reservoir0x/sdk/src";
+import { Network } from "@reservoir0x/sdk/src/utils";
 import { ethers, network } from "hardhat";
 
 // --- Misc ---
@@ -47,7 +48,19 @@ export const reset = async () => {
 };
 
 // Retrieve the forked network's chain id
-export const getChainId = () => ((network.config as any).forking?.url.includes("goerli") ? 5 : 1);
+export const getChainId = () => {
+  const chainId = (network.config as any)?.chainId;
+  const forking = (network.config as any)?.forking;
+  if (chainId) {
+    return chainId;
+  } else if (forking?.url.includes("goerli")) {
+    return Network.EthereumGoerli;
+  } else if (forking?.url.includes("sepolia")) {
+    return Network.EthereumSepolia;
+  } else {
+    return Network.Ethereum;
+  }
+};
 
 // --- Deployments ---
 

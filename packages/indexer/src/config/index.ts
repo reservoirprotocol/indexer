@@ -19,14 +19,13 @@ export const config = {
   openseaIndexerApiBaseUrl: String(process.env.OPENSEA_INDEXER_API_BASE_URL),
 
   // When running in liquidity-only mode, all metadata processes are disabled
-  liquidityOnly: !process.env.METADATA_API_BASE_URL,
+  liquidityOnly: Boolean(Number(process.env.LIQUIDITY_ONLY)),
   metadataIndexingMethod: String(process.env.METADATA_INDEXING_METHOD || "opensea"),
   metadataIndexingMethodCollection: String(
     process.env.METADATA_INDEXING_METHOD_COLLECTION ||
       process.env.METADATA_INDEXING_METHOD ||
       "opensea"
   ),
-  metadataApiBaseUrl: String(process.env.METADATA_API_BASE_URL),
   disableFlagStatusRefreshJob: Boolean(Number(process.env.DISABLE_FLAG_STATUS_REFRESH_JOB)),
 
   disableRealtimeMetadataRefresh: Boolean(Number(process.env.DISABLE_REALTIME_METADATA_REFRESH)),
@@ -85,6 +84,9 @@ export const config = {
   looksRareApiKey: String(process.env.LOOKSRARE_API_KEY),
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
   openSeaApiUrl: String(process.env.OPENSEA_API_URL || ""),
+
+  // Cosigner
+  cosignerPrivateKey: String(process.env.COSIGNER_PRIVATE_KEY),
 
   // Solvers
   crossChainSolverBaseUrl: process.env.CROSS_CHAIN_SOLVER_BASE_URL,
@@ -149,6 +151,7 @@ export const config = {
   // Elasticsearch
   elasticsearchUrl: String(process.env.ELASTICSEARCH_URL || ""),
   doElasticsearchWork: Boolean(Number(process.env.DO_ELASTICSEARCH_WORK)),
+  enableElasticsearchAsks: Boolean(Number(process.env.ENABLE_ELASTICSEARCH_ASKS)),
 
   // RabbitMq
   rabbitHttpUrl: `http://${String(process.env.RABBIT_USERNAME)}:${String(

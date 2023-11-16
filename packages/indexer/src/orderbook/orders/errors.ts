@@ -94,7 +94,7 @@ const prettifyError = (msg: string): PrettyErrorDetails => {
     case matches("accepting offers is disabled for this nft"):
       return {
         message:
-          "This NFT cannot accept offers on OpenSea right now because it is flagged or recently transferred",
+          "This NFT cannot accept offers right now because it is flagged or recently transferred",
         status: StatusCode.NOT_FOUND,
         code: 1,
       };
@@ -102,6 +102,13 @@ const prettifyError = (msg: string): PrettyErrorDetails => {
     case matches("request was throttled"):
       return {
         message: "Unable to fetch the order due to rate limiting. Please try again soon.",
+        status: StatusCode.FAILED_DEPENDENCY,
+        code: 2,
+      };
+
+    case matches("Expired API key"):
+      return {
+        message: "Expired OpenSea API key",
         status: StatusCode.FAILED_DEPENDENCY,
         code: 2,
       };

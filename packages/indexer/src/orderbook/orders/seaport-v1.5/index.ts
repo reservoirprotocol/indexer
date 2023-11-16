@@ -294,6 +294,8 @@ export const save = async (
         await offChainCheck(order, "seaport-v1.5", exchange, {
           onChainApprovalRecheck: true,
           singleTokenERC721ApprovalCheck: metadata.fromOnChain,
+          permitId: metadata.permitId,
+          permitIndex: metadata.permitIndex,
         });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
@@ -311,6 +313,14 @@ export const save = async (
             status: "not-fillable",
           });
         }
+      }
+
+      // Mark the order when using permits
+      if (metadata.permitId) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (order.params as any).permitId = metadata.permitId;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (order.params as any).permitIndex = metadata.permitIndex ?? 0;
       }
 
       // Check and save: associated token set

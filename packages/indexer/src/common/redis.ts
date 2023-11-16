@@ -55,6 +55,8 @@ export const allChainsSyncRedisSubscriber = new Redis(config.allChainsSyncRedisU
 // https://redis.io/topics/distlock
 export const redlock = new Redlock([redis.duplicate()], { retryCount: 0 });
 
+export const redlockAllChains = new Redlock([allChainsSyncRedis.duplicate()], { retryCount: 0 });
+
 // Common types
 
 export type BullMQBulkJob = {
@@ -72,6 +74,19 @@ export const acquireLock = async (name: string, expirationInSeconds = 0) => {
     acquired = await redis.set(name, id, "EX", expirationInSeconds, "NX");
   } else {
     acquired = await redis.set(name, id, "NX");
+  }
+
+  return acquired === "OK";
+};
+
+export const acquireLockCrossChain = async (name: string, expirationInSeconds = 0) => {
+  const id = randomUUID();
+  let acquired;
+
+  if (expirationInSeconds) {
+    acquired = await allChainsSyncRedis.set(name, id, "EX", expirationInSeconds, "NX");
+  } else {
+    acquired = await allChainsSyncRedis.set(name, id, "NX");
   }
 
   return acquired === "OK";

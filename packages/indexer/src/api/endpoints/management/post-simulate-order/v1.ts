@@ -3,6 +3,7 @@ import { CallTrace } from "@georgeroman/evm-tx-simulator/dist/types";
 import Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
+import { Network } from "@reservoir0x/sdk/dist/utils";
 import axios from "axios";
 import Joi from "joi";
 
@@ -44,7 +45,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
-    if (![1, 137].includes(config.chainId)) {
+    if (![Network.Ethereum, Network.EthereumGoerli, Network.Polygon].includes(config.chainId)) {
       return { message: "Simulation not supported" };
     }
 
@@ -103,7 +104,8 @@ export const postSimulateOrderV1Options: RouteOptions = {
             orders.token_set_id,
             orders.fillability_status,
             orders.approval_status,
-            orders.conduit
+            orders.conduit,
+            orders.raw_data
           FROM orders
           WHERE orders.id = $/id/
         `,
@@ -149,14 +151,17 @@ export const postSimulateOrderV1Options: RouteOptions = {
         orderResult.side === "buy" &&
         // ENS on mainnet
         ((fromBuffer(orderResult.contract) === "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85" &&
-          config.chainId === 1) ||
+          config.chainId === Network.Ethereum) ||
           // y00ts on polygon
           (fromBuffer(orderResult.contract) === "0x670fd103b1a08628e9557cd66b87ded841115190" &&
-            config.chainId === 137))
+            config.chainId === Network.Polygon))
       ) {
         return {
-          message: "ENS bids are not simulatable due to us not yet handling expiration of domains",
+          message: "Order not simulatable due to custom contract logic",
         };
+      }
+      if (orderResult.raw_data?.permitId) {
+        return { message: "Order not simulatable" };
       }
 
       const contractResult = await redb.one(

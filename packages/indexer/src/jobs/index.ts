@@ -155,6 +155,8 @@ import { tokenWebsocketEventsTriggerJob } from "@/jobs/websocket-events/token-we
 import { blockGapCheckJob } from "@/jobs/events-sync/block-gap-check";
 import { traceSyncJob } from "@/jobs/events-sync/trace-sync-job";
 import { backfillTokensTimeToMetadataJob } from "@/jobs/backfill/backfill-tokens-time-to-metadata-job";
+import { permitUpdatesJob } from "@/jobs/permit-updates/permit-updates-job";
+import { expiredPermitsJob } from "@/jobs/permit-updates/cron/expired-permits-job";
 import { topSellingCollectionsJob } from "@/jobs/top-selling-collections-cache/save-top-selling-collections-job";
 import { newCollectionForTokenJob } from "@/jobs/token-updates/new-collection-for-token-job";
 import { backfillTokensWithMissingCollectionJob } from "@/jobs/backfill/backfill-tokens-with-missing-collection-job";
@@ -164,6 +166,12 @@ import { processAskEventsJob } from "@/jobs/asks/process-ask-events-job";
 import { backfillAsksElasticsearchJob } from "@/jobs/asks/backfill-asks-elasticsearch-job";
 import { collectionRefreshSpamJob } from "@/jobs/collections-refresh/collections-refresh-spam-job";
 import { refreshAsksTokenJob } from "@/jobs/asks/refresh-asks-token-job";
+import { actionsLogJob } from "@/jobs/general-tracking/actions-log-job";
+import { refreshAsksCollectionJob } from "@/jobs/asks/refresh-asks-collection-job";
+import { refreshActivitiesTokenJob } from "@/jobs/activities/refresh-activities-token-job";
+import { processCollectionEventJob } from "@/jobs/elasticsearch/collections/process-collection-event-job";
+import { processCollectionEventsJob } from "@/jobs/elasticsearch/collections/process-collection-events-job";
+import { backfillCollectionsElasticsearchJob } from "@/jobs/elasticsearch/collections/backfill-collections-elasticsearch-job";
 
 export const allJobQueues = [
   backfillWrongNftBalances.queue,
@@ -301,6 +309,8 @@ export class RabbitMqJobsConsumer {
       tokenWebsocketEventsTriggerJob,
       blockGapCheckJob,
       backfillTokensTimeToMetadataJob,
+      permitUpdatesJob,
+      expiredPermitsJob,
       topSellingCollectionsJob,
       newCollectionForTokenJob,
       backfillTokensWithMissingCollectionJob,
@@ -310,6 +320,12 @@ export class RabbitMqJobsConsumer {
       backfillAsksElasticsearchJob,
       collectionRefreshSpamJob,
       refreshAsksTokenJob,
+      actionsLogJob,
+      refreshAsksCollectionJob,
+      refreshActivitiesTokenJob,
+      processCollectionEventJob,
+      processCollectionEventsJob,
+      backfillCollectionsElasticsearchJob,
     ];
   }
 

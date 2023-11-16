@@ -14,6 +14,8 @@ import {
   toBuffer,
 } from "@/common/utils";
 import * as Boom from "@hapi/boom";
+import { getJoiTokenObject } from "@/common/joi";
+import { Assets } from "@/utils/assets";
 
 const version = "v2";
 
@@ -94,6 +96,8 @@ export const getTokensV2Options: RouteOptions = {
           "t"."name",
           "t"."image",
           "t"."collection_id",
+          "t"."metadata_disabled" as "t_metadata_disabled",
+          "c"."metadata_disabled" as "c_metadata_disabled",
           "c"."name" as "collection_name",
           "t"."floor_sell_value",
           "t"."top_buy_value"
@@ -264,18 +268,24 @@ export const getTokensV2Options: RouteOptions = {
         continuation = buildContinuation(continuation);
       }
 
-      const result = rawResult.map((r) => ({
-        contract: fromBuffer(r.contract),
-        tokenId: r.token_id,
-        name: r.name,
-        image: r.image,
-        collection: {
-          id: r.collection_id,
-          name: r.collection_name,
-        },
-        floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
-        topBidValue: r.top_buy_value ? formatEth(r.top_buy_value) : null,
-      }));
+      const result = rawResult.map((r) =>
+        getJoiTokenObject(
+          {
+            contract: fromBuffer(r.contract),
+            tokenId: r.token_id,
+            name: r.name,
+            image: Assets.getResizedImageUrl(r.image),
+            collection: {
+              id: r.collection_id,
+              name: r.collection_name,
+            },
+            floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
+            topBidValue: r.top_buy_value ? formatEth(r.top_buy_value) : null,
+          },
+          r.t_metadata_disabled,
+          r.c_metadata_disabled
+        )
+      );
 
       return {
         tokens: result,

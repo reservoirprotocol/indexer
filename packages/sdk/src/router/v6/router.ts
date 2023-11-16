@@ -13,7 +13,7 @@ import { ConduitController } from "../../seaport-base";
 import { constructOfferCounterOrderAndFulfillments } from "../../seaport-base/helpers";
 
 import * as Sdk from "../../index";
-import { bn, generateSourceBytes, getErrorMessage, uniqBy } from "../../utils";
+import { TxData, bn, generateSourceBytes, getErrorMessage, uniqBy } from "../../utils";
 import * as Addresses from "./addresses";
 import * as ApprovalProxy from "./approval-proxy";
 import { PermitHandler } from "./permit";
@@ -272,7 +272,6 @@ export class Router {
             data: txData.data + generateSourceBytes(options?.source),
           },
           txTags: {
-            kind: "mint",
             mints: 1,
           },
           orderIds: [orderId],
@@ -328,7 +327,6 @@ export class Router {
           value,
         },
         txTags: {
-          kind: "mint",
           mints: details.length,
         },
         orderIds: details.map((d) => d.orderId),
@@ -387,6 +385,16 @@ export class Router {
       options.partial = false;
     }
 
+    const getFees = (ownDetails: ListingDetails[]) =>
+      // TODO: Should not split the local fees among all executions
+      ownDetails
+        .flatMap(({ fees }) => fees ?? [])
+        .filter(
+          ({ amount, recipient }) =>
+            // Skip zero amounts and/or recipients
+            bn(amount).gt(0) && recipient !== AddressZero
+        );
+
     // We don't have a module for Manifold listings
     if (details.some(({ kind }) => kind === "manifold")) {
       if (options?.relayer) {
@@ -417,7 +425,6 @@ export class Router {
           permits: [],
           preSignatures: [],
           txTags: {
-            kind: "sale",
             listings: { manifold: 1 },
           },
           txData: exchange.fillOrderTx(
@@ -431,6 +438,99 @@ export class Router {
         });
 
         success[detail.orderId] = true;
+      }
+    }
+
+    // We don't have a module for PaymentProcessorV2 listings
+    if (details.some(({ kind }) => kind === "payment-processor-v2")) {
+      if (options?.relayer) {
+        throw new Error("Relayer not supported for PaymentProcessorV2 orders");
+      }
+
+      const ppv2Details = details.filter(({ kind }) => kind === "payment-processor-v2");
+
+      const exchange = new Sdk.PaymentProcessorV2.Exchange(this.chainId);
+      const operator = exchange.contract.address;
+
+      const allFees = ppv2Details.map((c) => getFees([c]));
+
+      const orders: Sdk.PaymentProcessorV2.Order[] = ppv2Details.map(
+        (c) => c.order as Sdk.PaymentProcessorV2.Order
+      );
+
+      const useSweepCollection =
+        ppv2Details.length > 1 &&
+        ppv2Details.every((c) => c.contract === details[0].contract) &&
+        ppv2Details.every((c) => c.currency === details[0].currency) &&
+        ppv2Details.every((c) => (c.fees ? c.fees.length === 0 : true)) &&
+        orders.every((c) => !c.isPartial());
+
+      for (const detail of ppv2Details) {
+        const order = detail.order as Sdk.PaymentProcessorV2.Order;
+        if (buyInCurrency !== Sdk.Common.Addresses.Native[this.chainId]) {
+          swapDetails.push({
+            tokenIn: buyInCurrency,
+            tokenOut: Sdk.Common.Addresses.Native[this.chainId],
+            tokenOutAmount: order.params.itemPrice,
+            recipient: taker,
+            refundTo: taker,
+            details: [detail],
+            txIndex: txs.length,
+          });
+        }
+      }
+
+      const approvals: FTApproval[] = [];
+      for (const { currency, price } of ppv2Details) {
+        if (!isETH(this.chainId, currency)) {
+          approvals.push({
+            currency,
+            amount: price,
+            owner: taker,
+            operator,
+            txData: generateFTApprovalTxData(currency, taker, operator),
+          });
+        }
+      }
+      if (useSweepCollection) {
+        txs.push({
+          approvals,
+          permits: [],
+          txTags: {
+            listings: { "payment-processor-v2": orders.length },
+          },
+          preSignatures: [],
+          txData: exchange.sweepCollectionTx(taker, orders, options),
+          orderIds: ppv2Details.map((d) => d.orderId),
+        });
+      } else {
+        txs.push({
+          approvals,
+          permits: [],
+          txTags: {
+            listings: { "payment-processor-v2": orders.length },
+          },
+          preSignatures: [],
+          txData: exchange.fillOrdersTx(
+            taker,
+            orders,
+            orders.map((c, i) => {
+              return {
+                taker,
+                amount: ppv2Details[i].amount ?? 1,
+              };
+            }),
+            {
+              source: options?.source,
+              fees: allFees.map((c) => c[0]),
+            }
+          ),
+          orderIds: ppv2Details.map((d) => d.orderId),
+        });
+      }
+
+      for (const { orderId } of ppv2Details) {
+        success[orderId] = true;
       }
     }
 
@@ -533,11 +633,10 @@ export class Router {
           approvals,
           permits: [],
           txTags: {
-            kind: "sale",
             listings: { "payment-processor": orders.length },
           },
           preSignatures: preSignatures,
-          txData: exchange.sweepCollectionTx(taker, bundledOrder, orders),
+          txData: exchange.sweepCollectionTx(taker, bundledOrder, orders, options),
           orderIds: blockedPaymentProcessorDetails.map((d) => d.orderId),
         });
       } else {
@@ -563,11 +662,10 @@ export class Router {
           approvals,
           permits: [],
           txTags: {
-            kind: "sale",
             listings: { "payment-processor": orders.length },
           },
           preSignatures: preSignatures,
-          txData: exchange.fillOrdersTx(taker, orders, takeOrders),
+          txData: exchange.fillOrdersTx(taker, orders, takeOrders, options),
           orderIds: blockedPaymentProcessorDetails.map((d) => d.orderId),
         });
       }
@@ -689,7 +787,6 @@ export class Router {
               permits: [],
               preSignatures: [],
               txTags: {
-                kind: "sale",
                 listings: { blur: orderIds.length },
               },
               txData: {
@@ -863,7 +960,6 @@ export class Router {
               permits: [],
               preSignatures: [],
               txTags: {
-                kind: "sale",
                 listings: { "seaport-v1.5": 1 },
               },
               txData: await exchange.fillOrderTx(
@@ -893,7 +989,6 @@ export class Router {
               permits: [],
               preSignatures: [],
               txTags: {
-                kind: "sale",
                 listings: { "seaport-v1.5": details.length },
               },
               txData: await exchange.fillOrdersTx(
@@ -958,7 +1053,6 @@ export class Router {
               permits: [],
               preSignatures: [],
               txTags: {
-                kind: "sale",
                 listings: { alienswap: 1 },
               },
               txData: await exchange.fillOrderTx(
@@ -985,7 +1079,6 @@ export class Router {
               permits: [],
               preSignatures: [],
               txTags: {
-                kind: "sale",
                 listings: { alienswap: details.length },
               },
               txData: await exchange.fillOrdersTx(
@@ -1004,16 +1097,6 @@ export class Router {
         };
       }
     }
-
-    const getFees = (ownDetails: ListingDetails[]) =>
-      // TODO: Should not split the local fees among all executions
-      ownDetails
-        .flatMap(({ fees }) => fees ?? [])
-        .filter(
-          ({ amount, recipient }) =>
-            // Skip zero amounts and/or recipients
-            bn(amount).gt(0) && recipient !== AddressZero
-        );
 
     // Keep track of any approvals that might be needed
     const approvals: FTApproval[] = [];
@@ -1194,7 +1277,6 @@ export class Router {
 
     // Keep track of tags for the router execution
     const routerTxTags: TxTags = {
-      kind: "sale",
       listings: {},
       bids: {},
       mints: 0,
@@ -3025,10 +3107,13 @@ export class Router {
       const orders = superRareDetails.map((d) => d.order as Sdk.SuperRare.Order);
       const module = this.contracts.superRareModule;
 
+      // 3% charged on top of the price within the order
+      const percentageOnTop = 3;
+
       const fees = getFees(superRareDetails);
       const price = orders.map((order) => bn(order.params.price)).reduce((a, b) => a.add(b), bn(0));
       const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
-      const totalPrice = price.add(feeAmount);
+      const totalPrice = price.add(price.mul(percentageOnTop).div(100)).add(feeAmount);
 
       executions.push({
         info: {
@@ -3040,14 +3125,14 @@ export class Router {
                     ...orders[0].params,
                     token: orders[0].params.contract,
                     priceWithFees: bn(orders[0].params.price).add(
-                      bn(orders[0].params.price).mul(3).div(100)
+                      bn(orders[0].params.price).mul(percentageOnTop).div(100)
                     ),
                   },
                   {
                     fillTo: taker,
                     refundTo: relayer,
                     revertIfIncomplete: Boolean(!options?.partial),
-                    amount: price.add(price.mul(3).div(100)),
+                    amount: price.add(price.mul(percentageOnTop).div(100)),
                   },
                   fees,
                 ])
@@ -3056,14 +3141,14 @@ export class Router {
                     ...order.params,
                     token: order.params.contract,
                     priceWithFees: bn(orders[0].params.price).add(
-                      bn(orders[0].params.price).mul(3).div(100)
+                      bn(orders[0].params.price).mul(percentageOnTop).div(100)
                     ),
                   })),
                   {
                     fillTo: taker,
                     refundTo: relayer,
                     revertIfIncomplete: Boolean(!options?.partial),
-                    amount: price.add(price.mul(3).div(100)),
+                    amount: price.add(price.mul(percentageOnTop).div(100)),
                   },
                   fees,
                 ]),
@@ -3404,14 +3489,14 @@ export class Router {
             approvals: [],
             preSignatures: [],
             txTags: routerTxTags,
-            permits: await new PermitHandler(this.chainId, this.provider)
-              .generate(relayer, ftTransferItems)
-              .then((permits) =>
-                permits.map((p) => ({
-                  kind: "erc20",
-                  data: p,
-                }))
-              ),
+            permits: await new PermitHandler(this.chainId, this.provider).generate(
+              relayer,
+              Addresses.PermitProxy[this.chainId],
+              {
+                kind: "with-transfers",
+                transferItems: ftTransferItems,
+              }
+            ),
             txData: {
               from: relayer,
               ...{
@@ -3592,7 +3677,6 @@ export class Router {
             txs.push({
               approvals: [],
               txTags: {
-                kind: "sale",
                 bids: { blur: blurDetails.length },
               },
               txData: {
@@ -3630,6 +3714,13 @@ export class Router {
         throw new Error("Could not fetch calldata for all Blur bids");
       }
     }
+
+    const getFees = (ownDetail: BidDetails) =>
+      (ownDetail.fees ?? []).filter(
+        ({ amount, recipient }) =>
+          // Skip zero amounts and/or recipients
+          bn(amount).gt(0) && recipient !== AddressZero
+      );
 
     // Fill PaymentProcessor offers directly
     const paymentProcessorDetails = details.filter((d) => d.kind === "payment-processor");
@@ -3677,12 +3768,59 @@ export class Router {
         approvals: uniqBy(approvals, ({ txData: { from, to, data } }) => `${from}-${to}-${data}`),
         preSignatures,
         txTags: {
-          kind: "sale",
           bids: { "payment-processor": orders.length },
         },
-        txData: exchange.fillOrdersTx(taker, orders, takeOrders),
+        txData: exchange.fillOrdersTx(taker, orders, takeOrders, options),
         orderIds: paymentProcessorDetails.map((d) => d.orderId),
       });
+    }
+
+    // Fill PaymentProcessorV2 offers directly
+    if (details.some(({ kind }) => kind === "payment-processor-v2")) {
+      const ppv2Details = details.filter(({ kind }) => kind === "payment-processor-v2");
+
+      const exchange = new Sdk.PaymentProcessorV2.Exchange(this.chainId);
+      const operator = exchange.contract.address;
+
+      const orders: Sdk.PaymentProcessorV2.Order[] = ppv2Details.map(
+        (c) => c.order as Sdk.PaymentProcessorV2.Order
+      );
+      const allFees = ppv2Details.map((c) => getFees(c));
+
+      const approvals: NFTApproval[] = [];
+      for (const { orderId, contract } of ppv2Details) {
+        approvals.push({
+          orderIds: [orderId],
+          contract: contract,
+          owner: taker,
+          operator,
+          txData: generateNFTApprovalTxData(contract, taker, operator),
+        });
+      }
+
+      txs.push({
+        approvals,
+        txTags: {
+          listings: { "payment-processor-v2": orders.length },
+        },
+        preSignatures: [],
+        txData: exchange.fillOrdersTx(
+          taker,
+          orders,
+          orders.map((c, i) => {
+            return {
+              taker,
+              amount: details[i].amount ?? 1,
+            };
+          }),
+          { fees: allFees.map((c) => c[0]) }
+        ),
+        orderIds: ppv2Details.map((d) => d.orderId),
+      });
+
+      for (const { orderId } of ppv2Details) {
+        success[orderId] = true;
+      }
     }
 
     // CASE 2
@@ -3834,13 +3972,6 @@ export class Router {
     // Step 2
     // Handle calldata generation
 
-    const getFees = (ownDetail: BidDetails) =>
-      (ownDetail.fees ?? []).filter(
-        ({ amount, recipient }) =>
-          // Skip zero amounts and/or recipients
-          bn(amount).gt(0) && recipient !== AddressZero
-      );
-
     // Generate router executions
     const executionsWithDetails: {
       detail: BidDetails;
@@ -3849,7 +3980,6 @@ export class Router {
 
     // Keep track of tags for the router execution
     const routerTxTags: TxTags = {
-      kind: "sale",
       listings: {},
       bids: {},
       mints: 0,
@@ -4664,6 +4794,33 @@ export class Router {
       }
     }
 
+    // Permits have to be pre-executed
+    const preTxs: {
+      kind: "permit";
+      txData: TxData;
+      orderIds: string[];
+    }[] = [];
+
+    const detailsWithPermits = details.filter((d) => d.permit && success[d.orderId]);
+    const permitHandler = new PermitHandler(this.chainId, this.provider);
+    if (detailsWithPermits.length) {
+      const permitExecution = permitHandler.getRouterExecution(
+        detailsWithPermits.map((d) => d.permit!)
+      );
+
+      preTxs.push({
+        kind: "permit",
+        txData: {
+          from: taker,
+          to: this.contracts.router.address,
+          data:
+            this.contracts.router.interface.encodeFunctionData("execute", [[permitExecution]]) +
+            generateSourceBytes(options?.source),
+        },
+        orderIds: detailsWithPermits.map((d) => d.orderId),
+      });
+    }
+
     // Batch fill all protected offers in a single transaction
     if (protectedSeaportV15Offers.length) {
       const approvals: NFTApproval[] = [];
@@ -4758,7 +4915,6 @@ export class Router {
       // Fill directly
       txs.push({
         txTags: {
-          kind: "sale",
           bids: { "seaport-v1.5": protectedSeaportV15Offers.length },
         },
         txData: {
@@ -4780,7 +4936,6 @@ export class Router {
     if (executionsWithDetails.length === 1 && !options?.forceApprovalProxy) {
       const execution = executionsWithDetails[0].execution;
       const detail = executionsWithDetails[0].detail;
-
       const routerLevelTxData = this.contracts.router.interface.encodeFunctionData("execute", [
         [execution],
       ]);
@@ -4827,7 +4982,7 @@ export class Router {
           data:
             this.contracts.approvalProxy.interface.encodeFunctionData("bulkTransferWithExecute", [
               nftTransferItems,
-              executionsWithDetails.map(({ execution }) => execution),
+              [...executionsWithDetails.map(({ execution }) => execution)],
               Sdk.SeaportBase.Addresses.ReservoirConduitKey[this.chainId],
             ]) + generateSourceBytes(options?.source),
         },
@@ -4848,6 +5003,7 @@ export class Router {
     }
 
     return {
+      preTxs,
       txs,
       success,
     };

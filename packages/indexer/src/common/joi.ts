@@ -6,6 +6,7 @@ import { parseEther } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk";
 import crypto from "crypto";
 import Joi from "joi";
+import _ from "lodash";
 
 import { bn, formatEth, formatPrice, formatUsd, fromBuffer, now, regex } from "@/common/utils";
 import { config } from "@/config/index";
@@ -13,7 +14,6 @@ import { FeeRecipients } from "@/models/fee-recipients";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { OrderKind } from "@/orderbook/orders";
-import { Assets } from "@/utils/assets";
 import { Currency, getCurrency } from "@/utils/currencies";
 import {
   getUSDAndCurrencyPrices,
@@ -35,6 +35,7 @@ const JoiPriceCurrency = Joi.object({
   name: Joi.string().allow(null),
   symbol: Joi.string().allow(null),
   decimals: Joi.number().allow(null),
+  chainId: Joi.number().optional(),
 });
 
 export const JoiPrice = Joi.object({
@@ -157,7 +158,10 @@ export const getJoiPriceObject = async (
   }
 
   // Set community tokens native/usd value to 0
-  if (isWhitelistedCurrency(currency.contract)) {
+  if (
+    isWhitelistedCurrency(currency.contract) &&
+    !_.includes(Sdk.Common.Addresses.Usdc[config.chainId], currency.contract)
+  ) {
     prices.gross.nativeAmount = "0";
     prices.gross.usdAmount = "0";
   }
@@ -235,6 +239,7 @@ export const JoiOrderCriteriaCollection = Joi.object({
   id: Joi.string().allow("", null),
   name: Joi.string().allow("", null),
   image: Joi.string().allow("", null),
+  isSpam: Joi.boolean().allow("", null),
 });
 
 export const JoiOrderCriteria = Joi.alternatives(
@@ -245,6 +250,7 @@ export const JoiOrderCriteria = Joi.alternatives(
         tokenId: Joi.string().pattern(regex.number),
         name: Joi.string().allow("", null),
         image: Joi.string().allow("", null),
+        isSpam: Joi.boolean().allow("", null),
       }),
       collection: JoiOrderCriteriaCollection,
     }),
@@ -853,7 +859,7 @@ export const getJoiSaleObject = async (sale: {
   contract?: Buffer;
   tokenId?: string;
   name?: string;
-  image?: string;
+  image?: string | string[] | null;
   collectionId?: string;
   collectionName?: string;
   washTradingScore?: number;
@@ -908,7 +914,7 @@ export const getJoiSaleObject = async (sale: {
             contract: fromBuffer(sale.contract),
             tokenId: sale.tokenId,
             name: sale.name ?? null,
-            image: sale.image ? Assets.getLocalAssetsLink(sale.image) : null,
+            image: sale.image,
             collection: {
               id: sale.collectionId ?? null,
               name: sale.collectionName ?? null,
@@ -1010,4 +1016,127 @@ export const getJoiSourceObject = (source: SourcesEntity | undefined, full = tru
         url: full ? source.metadata.url : undefined,
       }
     : null;
+};
+
+// --- Collections ---
+
+export const getJoiCollectionObject = (
+  collection: any,
+  metadataDisabled: boolean,
+  contract?: string
+) => {
+  if (metadataDisabled) {
+    const metadataDisabledCollection: any = {
+      id: collection.primaryContract ?? contract,
+      name: collection.primaryContract ?? contract,
+      slug: collection.primaryContract ?? contract,
+      description: null,
+      metadata: null,
+      image: null,
+      imageUrl: null,
+      sampleImages: [],
+      banner: null,
+      discordUrl: null,
+      externalUrl: null,
+      twitterUsername: null,
+      openseaVerificationStatus: null,
+      community: null,
+      tokenIdRange: null,
+      tokenSetId: `contract:${collection.primaryContract ?? contract}`,
+      royalties: null,
+      newRoyalties: null,
+    };
+
+    for (const key in metadataDisabledCollection) {
+      if (collection[key] !== undefined) {
+        collection[key] = metadataDisabledCollection[key];
+      }
+    }
+
+    if (collection.floorAsk?.token) {
+      collection.floorAsk.token = getJoiTokenObject(collection.floorAsk.token, true, true);
+    }
+
+    if (collection.recentSales) {
+      for (const sale of collection.recentSales) {
+        if (sale.token) {
+          sale.token = getJoiTokenObject(sale.token, true, true);
+        }
+        if (sale.collection) {
+          sale.collection = getJoiCollectionObject(sale.collection, true, contract);
+        }
+      }
+    }
+  }
+
+  return collection;
+};
+
+// -- Tokens --
+
+export const getJoiTokenObject = (
+  token: any,
+  tokenMetadataDisabled: boolean,
+  collectionMetadataDisabled: boolean
+) => {
+  if (tokenMetadataDisabled || collectionMetadataDisabled) {
+    const metadataDisabledToken: any = {
+      name: null,
+      isFlagged: false,
+      media: null,
+      description: null,
+      image: null,
+      imageSmall: null,
+      imageLarge: null,
+      metadata: null,
+      attributes: [],
+    };
+
+    for (const key in metadataDisabledToken) {
+      if (token[key] !== undefined) {
+        token[key] = metadataDisabledToken[key];
+      }
+    }
+
+    if (collectionMetadataDisabled && token.collection) {
+      token.collection = getJoiCollectionObject(
+        token.collection,
+        collectionMetadataDisabled,
+        token.contract
+      );
+    }
+  }
+
+  return token;
+};
+
+// -- Activities --
+
+export const getJoiActivityObject = (
+  activity: any,
+  tokenMetadataDisabled: boolean,
+  collectionMetadataDisabled: { [id: string]: boolean }
+) => {
+  if (tokenMetadataDisabled || collectionMetadataDisabled[activity.collection?.collectionId]) {
+    if (activity.token?.tokenName) {
+      activity.token.tokenName = null;
+    }
+    if (activity.token?.tokenImage) {
+      activity.token.tokenImage = null;
+    }
+    if (activity.token?.tokenMedia) {
+      activity.token.tokenMedia = null;
+    }
+  }
+
+  if (collectionMetadataDisabled[activity.collection?.collectionId]) {
+    if (activity.collection?.collectionName) {
+      activity.collection.collectionName = activity.contract;
+    }
+    if (activity.collection?.collectionImage) {
+      activity.collection.collectionImage = null;
+    }
+  }
+
+  return activity;
 };

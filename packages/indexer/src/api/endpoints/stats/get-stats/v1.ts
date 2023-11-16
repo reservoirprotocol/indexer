@@ -345,7 +345,7 @@ export const getStatsV1Options: RouteOptions = {
                     contract: r.contract ? fromBuffer(r.contract) : null,
                     tokenId: r.token_id,
                     name: r.name,
-                    image: Assets.getLocalAssetsLink(r.image),
+                    image: Assets.getResizedImageUrl(r.image),
                   },
                 },
                 topBid: {

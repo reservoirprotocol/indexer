@@ -81,7 +81,8 @@
       "56": "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
       "137": "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
       "8453": "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
-      "42161": "0x34acff419b262f3400d6aa17bd5b99a8c81e9726"
+      "42161": "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+      "11155111": "0x34acff419b262f3400d6aa17bd5b99a8c81e9726"
     }
   },
   "FoundationModule": {
@@ -307,11 +308,11 @@
     }
   },
   "PermitProxy": {
-    "v1": {
-      "1": "0x104ff9a0e2a62aa531ef0cc9d19f948bde7062de",
-      "5": "0x104ff9a0e2a62aa531ef0cc9d19f948bde7062de",
-      "137": "0x104ff9a0e2a62aa531ef0cc9d19f948bde7062de",
-      "80001": "0x104ff9a0e2a62aa531ef0cc9d19f948bde7062de"
+    "v2": {
+      "1": "0x30b3de99ab1de0c9700181f7a2597150e9416aa6",
+      "5": "0x30b3de99ab1de0c9700181f7a2597150e9416aa6",
+      "137": "0x30b3de99ab1de0c9700181f7a2597150e9416aa6",
+      "80001": "0x30b3de99ab1de0c9700181f7a2597150e9416aa6"
     }
   },
   "CaviarV1Module": {

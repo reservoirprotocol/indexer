@@ -11,7 +11,6 @@ import {
 } from "@/models/tokens/tokens-entity";
 import { config } from "@/config/index";
 import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
-import { logger } from "@/common/logger";
 
 export type TokenAttributes = {
   attributeId: number;
@@ -112,17 +111,6 @@ export class Tokens {
                    WHERE contract = $/contract/
                    AND token_id = $/tokenId/`;
 
-    if (config.chainId === 11155111) {
-      logger.info(
-        "updateToken",
-        JSON.stringify({
-          topic: "debugTokenUpdate",
-          message: `Update token. contract=${contract}, tokenId=${tokenId}`,
-          token: `${contract}:${tokenId}`,
-        })
-      );
-    }
-
     return await idb.none(query, replacementValues);
   }
 
@@ -156,12 +144,24 @@ export class Tokens {
   }
 
   public static async getTokenAttributesValueCount(collection: string, key: string, value: string) {
-    const query = `SELECT attribute_id AS "attributeId", count(*) AS count
-                   FROM token_attributes
-                   WHERE collection_id = $/collection/
-                   AND key = $/key/
-                   AND value = $/value/
-                   GROUP BY key, value, attribute_id`;
+    const query = `
+      SELECT
+        (
+          SELECT attribute_id
+          FROM token_attributes
+          WHERE collection_id = $/collection/
+            AND key = $/key/
+            AND value = $/value/
+          LIMIT 1
+        ) AS attributeId,
+        (
+          SELECT COUNT(*)
+          FROM token_attributes
+          WHERE collection_id = $/collection/
+            AND key = $/key/
+            AND value = $/value/
+        ) AS count
+    `;
 
     return await redb.oneOrNone(query, {
       collection,

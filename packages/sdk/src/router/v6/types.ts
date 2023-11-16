@@ -2,11 +2,9 @@ import { BigNumberish } from "@ethersproject/bignumber";
 
 import * as Sdk from "../../index";
 import { TxData } from "../../utils";
-import { PermitWithTransfers } from "./permit";
+import { Permit } from "./permit";
 
-// Approvals and permits
-
-// NFTs
+// NFT
 
 export type NFTToken = {
   kind: "erc721" | "erc1155";
@@ -23,7 +21,7 @@ export type NFTApproval = {
   txData: TxData;
 };
 
-// FTs
+// FT
 
 export type FTApproval = {
   currency: string;
@@ -46,11 +44,6 @@ export type Fee = {
   amount: BigNumberish;
 };
 
-export type Permit = {
-  kind: "erc20";
-  data: PermitWithTransfers;
-};
-
 export type PreSignature = {
   kind: "payment-processor-take-order";
   signer: string;
@@ -60,9 +53,7 @@ export type PreSignature = {
   data: any;
 };
 
-export type TxKind = "sale" | "mint" | "swap";
 export type TxTags = {
-  kind: TxKind;
   // Number of listings for each order kind
   listings?: { [orderKind: string]: number };
   // Number of bids for each order kind
@@ -185,6 +176,10 @@ export type GenericOrder =
   | {
       kind: "payment-processor";
       order: Sdk.PaymentProcessor.Order;
+    }
+  | {
+      kind: "payment-processor-v2";
+      order: Sdk.PaymentProcessorV2.Order;
     };
 
 // Listings
@@ -244,10 +239,16 @@ export type BidFillDetails = {
   owner?: string;
   isProtected?: boolean;
   fees?: Fee[];
+  permit?: Permit;
 };
 export type BidDetails = GenericOrder & BidFillDetails;
 
 export type FillBidsResult = {
+  preTxs: {
+    kind: "permit";
+    txData: TxData;
+    orderIds: string[];
+  }[];
   txs: {
     approvals: NFTApproval[];
     txData: TxData;

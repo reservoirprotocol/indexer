@@ -1,9 +1,16 @@
 import { ChainIdToAddress, Network } from "../utils";
 
 export const Exchange: ChainIdToAddress = {
-  [Network.Ethereum]: "0xffb4e9ebcd3c1c3ce216946d2600b6c613339a71",
-  [Network.Optimism]: "0x9de1cc86b65fbf7d2dcb1e60d8568c44645bcaba",
-  [Network.Zora]: "0x96fefdb0a543b3e30d8aaae865b7a48378d85382",
-  [Network.EthereumGoerli]: "0x6afc65c964267bd4c10a488df5810d32a6c35b6e",
-  [Network.EthereumSepolia]: "0x66f9085c4c751e35d473b51bb783579e9b5c8095",
+  // Mainnets
+  [Network.Ethereum]: "0x4c86cac049c3c26563fcce7dd0a7a4c4c2178a5e",
+  [Network.Optimism]: "0xf470ba53f14b1073cc16839c0f80474105d159a5",
+  [Network.Arbitrum]: "0x7deb43ea42555922445abc2f8ec66d5fce8c92c0",
+  [Network.ArbitrumNova]: "0x5c8a351d4ff680203e05af56cb9d748898c7b39a",
+  [Network.Base]: "0x20794ef7693441799a3f38fcc22a12b3e04b9572",
+  [Network.Zora]: "0xe1066481cc3b038badd0c68dfa5c8f163c3ff192",
+  // Testnets
+  [Network.EthereumGoerli]: "0x04e9cdd3e98c50d352c84db785fd8d5a5d986c44",
+  [Network.EthereumSepolia]: "0x9763de988cb65a8389e68179c2d7e0350b937841",
+  [Network.ZoraTestnet]: "0xde156c9efead2c0364643d5c5878b358ccdff0b5",
+  [Network.BaseGoerli]: "0x79abbfdf20fc6dd0c51693bf9a481f7351a70fd2",
 };

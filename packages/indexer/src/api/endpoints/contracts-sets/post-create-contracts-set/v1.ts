@@ -9,7 +9,7 @@ import { ContractSets } from "@/models/contract-sets";
 const version = "v1";
 
 export const postCreateContractsSetV1Options: RouteOptions = {
-  description: "Create Contracts Set",
+  description: "Create contracts set",
   notes:
     "Array of contracts to gather in a set. Adding or removing a contract will change the response. You may use this set when contractSetId is an available param.",
   tags: ["api", "Collections"],

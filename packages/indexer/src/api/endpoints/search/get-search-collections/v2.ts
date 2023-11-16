@@ -42,6 +42,9 @@ export const getSearchCollectionsV2Options: RouteOptions = {
       collectionsSetId: Joi.string()
         .lowercase()
         .description("Filter to a particular collection set"),
+      excludeSpam: Joi.boolean()
+        .default(false)
+        .description("If true, will filter any collections marked as spam."),
       offset: Joi.number()
         .integer()
         .min(0)
@@ -63,6 +66,7 @@ export const getSearchCollectionsV2Options: RouteOptions = {
           contract: Joi.string(),
           image: Joi.string().allow("", null),
           name: Joi.string().allow("", null),
+          isSpam: Joi.boolean().default(false),
           slug: Joi.string().allow("", null),
           allTimeVolume: Joi.number().unsafe().allow(null),
           floorAskPrice: JoiPrice.allow(null).description("Current floor ask price."),
@@ -98,6 +102,10 @@ export const getSearchCollectionsV2Options: RouteOptions = {
       }
     }
 
+    if (query.excludeSpam) {
+      conditions.push("(c.is_spam IS NULL OR c.is_spam <= 0)");
+    }
+
     if (conditions.length) {
       whereClause = " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
     }
@@ -105,7 +113,7 @@ export const getSearchCollectionsV2Options: RouteOptions = {
     const baseQuery = `
             SELECT c.id, c.name, c.contract, (c.metadata ->> 'imageUrl')::TEXT AS image, c.all_time_volume, c.floor_sell_value,
                    c.slug, (c.metadata ->> 'safelistRequestStatus')::TEXT AS opensea_verification_status,
-                   o.currency AS floor_sell_currency,
+                   o.currency AS floor_sell_currency, c.is_spam,
                    o.currency_price AS floor_sell_currency_price
             FROM collections c
             LEFT JOIN orders o ON o.id = c.floor_sell_id
@@ -141,6 +149,7 @@ export const getSearchCollectionsV2Options: RouteOptions = {
             slug: collection.slug,
             contract: fromBuffer(collection.contract),
             image: Assets.getLocalAssetsLink(collection.image),
+            isSpam: Number(collection.is_spam) > 0,
             allTimeVolume: allTimeVolume ? formatEth(allTimeVolume) : null,
             floorAskPrice: collection.floor_sell_value
               ? await getJoiPriceObject(

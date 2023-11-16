@@ -84,7 +84,14 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const isTakeAsk = ["takeAsk", "takeAskSingle", "takeAskPool", "takeAskSinglePool"].includes(
           matchMethod.name
         );
+
+        const tx = await utils.fetchTransaction(baseEventParams.txHash);
         const isBatchCall = ["takeAsk", "takeAskPool", "takeBid"].includes(matchMethod.name);
+        const isBuyToBorrow = [
+          "0x8593d5fc", // buyToBorrow
+          "0xbe5898ff", // buyToBorrowV2ETH
+          "0xd386b343", // buyToBorrowV2
+        ].some((c) => tx.data.includes(c));
 
         const rawInput = inputData.inputs;
         const inputs = !isBatchCall
@@ -103,9 +110,10 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           const listing = exchange.listing;
           const takerData = exchange.taker;
 
-          const tokenRecipient = isTakeAsk
-            ? rawInput.tokenRecipient.toLowerCase()
-            : (await utils.fetchTransaction(baseEventParams.txHash)).from.toLowerCase();
+          const tokenRecipient =
+            isTakeAsk && !isBuyToBorrow
+              ? rawInput.tokenRecipient.toLowerCase()
+              : tx.from.toLowerCase();
 
           const trader = order.trader.toLowerCase();
           const collection = order.collection.toLowerCase();

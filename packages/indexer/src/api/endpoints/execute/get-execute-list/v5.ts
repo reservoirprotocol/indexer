@@ -1,10 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { _TypedDataEncoder } from "@ethersproject/hash";
+import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
 import axios from "axios";
+import { randomUUID } from "crypto";
 import Joi from "joi";
 import _ from "lodash";
 
@@ -12,6 +14,7 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { now, regex } from "@/common/utils";
 import { config } from "@/config/index";
+import { ApiKeyManager } from "@/models/api-keys";
 import { FeeRecipients } from "@/models/fee-recipients";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { getExecuteError } from "@/orderbook/orders/errors";
@@ -44,6 +47,10 @@ import * as zeroExV4Check from "@/orderbook/orders/zeroex-v4/check";
 // PaymentProcessor
 import * as paymentProcessorSellToken from "@/orderbook/orders/payment-processor/build/sell/token";
 import * as paymentProcessorCheck from "@/orderbook/orders/payment-processor/check";
+
+// PaymentProcessorV2
+import * as paymentProcessorV2SellToken from "@/orderbook/orders/payment-processor-v2/build/sell/token";
+import * as paymentProcessorV2Check from "@/orderbook/orders/payment-processor-v2/check";
 
 const version = "v5";
 
@@ -111,7 +118,8 @@ export const getExecuteListV5Options: RouteOptions = {
                 "seaport-v1.5",
                 "x2y2",
                 "alienswap",
-                "payment-processor"
+                "payment-processor",
+                "payment-processor-v2"
               )
               .default("seaport-v1.5")
               .description("Exchange protocol used to create order. Example: `seaport-v1.5`"),
@@ -1034,6 +1042,87 @@ export const getExecuteListV5Options: RouteOptions = {
 
                 break;
               }
+
+              case "payment-processor-v2": {
+                if (!["reservoir"].includes(params.orderbook)) {
+                  return errors.push({ message: "Unsupported orderbook", orderIndex: i });
+                }
+
+                const order = await paymentProcessorV2SellToken.build({
+                  ...params,
+                  maker,
+                  contract,
+                  tokenId,
+                });
+
+                // Will be set if an approval is needed before listing
+                let approvalTx: TxData | undefined;
+
+                // Check the order's fillability
+                try {
+                  await paymentProcessorV2Check.offChainCheck(order, {
+                    onChainApprovalRecheck: true,
+                  });
+                } catch (error: any) {
+                  switch (error.message) {
+                    case "no-balance-no-approval":
+                    case "no-balance": {
+                      return errors.push({ message: "Maker does not own token", orderIndex: i });
+                    }
+
+                    case "no-approval": {
+                      // Generate an approval transaction
+                      const kind = order.params.kind?.startsWith("erc721") ? "erc721" : "erc1155";
+                      approvalTx = (
+                        kind === "erc721"
+                          ? new Sdk.Common.Helpers.Erc721(baseProvider, order.params.tokenAddress)
+                          : new Sdk.Common.Helpers.Erc1155(baseProvider, order.params.tokenAddress)
+                      ).approveTransaction(
+                        maker,
+                        Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId]
+                      );
+
+                      break;
+                    }
+                  }
+                }
+
+                steps[1].items.push({
+                  status: approvalTx ? "incomplete" : "complete",
+                  data: approvalTx,
+                  orderIndexes: [i],
+                });
+                steps[2].items.push({
+                  status: "incomplete",
+                  data: {
+                    sign: order.getSignatureData(),
+                    post: {
+                      endpoint: "/order/v4",
+                      method: "POST",
+                      body: {
+                        items: [
+                          {
+                            order: {
+                              kind: "payment-processor-v2",
+                              data: {
+                                ...order.params,
+                              },
+                            },
+                            orderbook: params.orderbook,
+                            orderbookApiKey: params.orderbookApiKey,
+                          },
+                        ],
+                        source,
+                      },
+                    },
+                  },
+                  orderIndexes: [i],
+                });
+
+                addExecution(order.hash(), params.quantity);
+
+                break;
+              }
             }
           } catch (error: any) {
             return errors.push({
@@ -1224,12 +1313,34 @@ export const getExecuteListV5Options: RouteOptions = {
         })
       );
 
+      const key = request.headers["x-api-key"];
+      const apiKey = await ApiKeyManager.getApiKey(key);
+      logger.info(
+        `get-execute-list-${version}-handler`,
+        JSON.stringify({
+          request: payload,
+          apiKey,
+        })
+      );
+
       return {
         steps: blurAuth ? [steps[0], ...steps.slice(1).filter((s) => s.items.length)] : steps,
         errors,
       };
     } catch (error) {
-      logger.error(`get-execute-list-${version}-handler`, `Handler failure: ${error}`);
+      const key = request.headers["x-api-key"];
+      const apiKey = await ApiKeyManager.getApiKey(key);
+      logger.error(
+        `get-execute-list-${version}-handler`,
+        JSON.stringify({
+          request: payload,
+          uuid: randomUUID(),
+          httpCode: error instanceof Boom.Boom ? error.output.statusCode : 500,
+          error:
+            error instanceof Boom.Boom ? error.output.payload : { error: "Internal Server Error" },
+          apiKey,
+        })
+      );
 
       throw error;
     }

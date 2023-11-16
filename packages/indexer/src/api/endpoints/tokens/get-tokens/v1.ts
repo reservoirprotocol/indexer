@@ -6,6 +6,8 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
+import { getJoiTokenObject } from "@/common/joi";
+import { Assets } from "@/utils/assets";
 
 const version = "v1";
 
@@ -90,6 +92,8 @@ export const getTokensV1Options: RouteOptions = {
           "t"."name",
           "t"."image",
           "t"."collection_id",
+          "t"."metadata_disabled" as "t_metadata_disabled",
+          "c"."metadata_disabled" as "c_metadata_disabled",
           "c"."name" as "collection_name",
           "t"."floor_sell_value",
           "t"."top_buy_value"
@@ -162,22 +166,28 @@ export const getTokensV1Options: RouteOptions = {
       baseQuery += ` OFFSET $/offset/`;
       baseQuery += ` LIMIT $/limit/`;
 
-      const result = await redb.manyOrNone(baseQuery, query).then((result) =>
-        result.map((r) => ({
-          contract: fromBuffer(r.contract),
-          tokenId: r.token_id,
-          name: r.name,
-          image: r.image,
-          collection: {
-            id: r.collection_id,
-            name: r.collection_name,
-          },
-          floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
-          topBidValue: r.top_buy_value ? formatEth(r.top_buy_value) : null,
-        }))
-      );
+      const result = await redb.manyOrNone(baseQuery, query).then(async (result) => {
+        return result.map((r) =>
+          getJoiTokenObject(
+            {
+              contract: fromBuffer(r.contract),
+              tokenId: r.token_id,
+              name: r.name,
+              image: Assets.getResizedImageUrl(r.image),
+              collection: {
+                id: r.collection_id,
+                name: r.collection_name,
+              },
+              floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
+              topBidValue: r.top_buy_value ? formatEth(r.top_buy_value) : null,
+            },
+            r.t_metadata_disabled,
+            r.c_metadata_disabled
+          )
+        );
+      });
 
-      return { tokens: result };
+      return { tokens: await Promise.all(result) };
     } catch (error) {
       logger.error(`get-tokens-${version}-handler`, `Handler failure: ${error}`);
       throw error;

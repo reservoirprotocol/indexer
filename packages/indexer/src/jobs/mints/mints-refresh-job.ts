@@ -1,10 +1,11 @@
 import { logger } from "@/common/logger";
-import { redis } from "@/common/redis";
+import { acquireLock, redis } from "@/common/redis";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { refreshMintsForCollection } from "@/orderbook/mints/calldata";
 
 export type MintsRefreshJobPayload = {
   collection: string;
+  forceRefresh?: boolean;
 };
 
 export default class MintsRefreshJob extends AbstractRabbitMqJobHandler {
@@ -18,10 +19,10 @@ export default class MintsRefreshJob extends AbstractRabbitMqJobHandler {
   } as BackoffStrategy;
 
   protected async process(payload: MintsRefreshJobPayload) {
-    const { collection } = payload;
+    const { collection, forceRefresh } = payload;
 
     const lockKey = `mints-refresh-lock:${collection}`;
-    if (!(await redis.get(lockKey))) {
+    if (!(await redis.get(lockKey)) || forceRefresh) {
       logger.info(this.queueName, `Refreshing mints for collection ${collection}`);
       await refreshMintsForCollection(collection);
       await redis.set(lockKey, "locked", "EX", 30 * 60);
@@ -32,5 +33,20 @@ export default class MintsRefreshJob extends AbstractRabbitMqJobHandler {
     await this.send({ payload: mintInfo }, delay * 1000);
   }
 }
+
+export const triggerDelayedRefresh = async (collection: string) => {
+  const DAY = 86400;
+  const timeIntervals = [DAY, DAY * 7, DAY * 31];
+
+  for (const timeInterval of timeIntervals) {
+    const acquiredLock = await acquireLock(
+      `mint-refresh-lock-delayed:${collection}:${timeInterval}`,
+      timeInterval
+    );
+    if (acquiredLock) {
+      await mintsRefreshJob.addToQueue({ collection }, timeInterval);
+    }
+  }
+};
 
 export const mintsRefreshJob = new MintsRefreshJob();

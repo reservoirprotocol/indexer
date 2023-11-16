@@ -28,7 +28,7 @@ export class TokenListBuilder extends BaseBuilder {
       const offerItem = order.params.offer[0];
       if (side === "buy") {
         if (isDynamic) {
-          throw new Error("Reverse dutch auctions are not supported");
+          throw new Error("Dynamic buy orders are not supported");
         }
 
         const paymentToken = offerItem.token;

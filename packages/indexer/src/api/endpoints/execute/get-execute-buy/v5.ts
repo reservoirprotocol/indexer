@@ -201,7 +201,7 @@ export const getExecuteBuyV5Options: RouteOptions = {
         });
 
         listingDetails.push(
-          generateListingDetailsV6(
+          await generateListingDetailsV6(
             {
               id: order.id,
               kind: order.kind,
@@ -216,6 +216,9 @@ export const getExecuteBuyV5Options: RouteOptions = {
               contract: token.contract,
               tokenId: token.tokenId,
               amount: token.quantity,
+            },
+            {
+              taker: payload.taker,
             }
           )
         );

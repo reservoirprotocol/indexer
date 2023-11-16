@@ -11,6 +11,12 @@ import {
 } from "@/jobs/websocket-events/websocket-event-router";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { refreshAsksCollectionJob } from "@/jobs/asks/refresh-asks-collection-job";
+import { refreshActivitiesCollectionMetadataJob } from "@/jobs/activities/refresh-activities-collection-metadata-job";
+import {
+  EventKind,
+  processCollectionEventJob,
+} from "@/jobs/elasticsearch/collections/process-collection-event-job";
 
 export class IndexerCollectionsHandler extends KafkaEventHandler {
   topicName = "indexer.public.collections";
@@ -28,6 +34,16 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
       },
       eventKind: WebsocketEventKind.CollectionEvent,
     });
+
+    // Update the elasticsearch collections index
+    await processCollectionEventJob.addToQueue([
+      {
+        kind: EventKind.newCollection,
+        data: {
+          id: payload.after.id,
+        },
+      },
+    ]);
   }
 
   protected async handleUpdate(payload: any): Promise<void> {
@@ -45,8 +61,6 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
     });
 
     try {
-      // logger.info("top-selling-collections", `updating collection ${payload.after.id}`);
-
       const collectionKey = `collection-cache:v2:${payload.after.id}`;
 
       const cachedCollection = await redis.get(collectionKey);
@@ -90,6 +104,31 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
 
         await redis.set(collectionKey, JSON.stringify(updatedPayload), "XX");
       }
+
+      const spamStatusChanged = payload.before.is_spam !== payload.after.is_spam;
+
+      // Update the elasticsearch activities index
+      if (spamStatusChanged) {
+        await refreshActivitiesCollectionMetadataJob.addToQueue({
+          collectionId: payload.after.id,
+          context: "spamStatusChanged",
+        });
+      }
+
+      // Update the elasticsearch asks index
+      if (payload.after.floor_sell_id && spamStatusChanged) {
+        await refreshAsksCollectionJob.addToQueue(payload.after.id);
+      }
+
+      // Update the elasticsearch collections index
+      await processCollectionEventJob.addToQueue([
+        {
+          kind: EventKind.collectionUpdated,
+          data: {
+            id: payload.after.id,
+          },
+        },
+      ]);
     } catch (err) {
       logger.error(
         "top-selling-collections",

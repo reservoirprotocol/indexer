@@ -8,9 +8,12 @@ import { fromBuffer, regex } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
 import * as Boom from "@hapi/boom";
 import {
+  getJoiActivityObject,
   getJoiActivityOrderObject,
+  getJoiCollectionObject,
   getJoiPriceObject,
   getJoiSourceObject,
+  getJoiTokenObject,
   JoiActivityOrder,
   JoiPrice,
   JoiSource,
@@ -24,6 +27,7 @@ import { Collections } from "@/models/collections";
 import { redis } from "@/common/redis";
 import { redb } from "@/common/db";
 import { Sources } from "@/models/sources";
+import { MetadataStatus } from "@/models/metadata-status";
 
 const version = "v6";
 
@@ -62,6 +66,9 @@ export const getUserActivityV6Options: RouteOptions = {
       ).description(
         "Filter to one or more collections. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
       ),
+      excludeSpam: Joi.boolean()
+        .default(false)
+        .description("If true, will filter any activities marked as spam."),
       collectionsSetId: Joi.string()
         .lowercase()
         .description("Filter to a particular collection set."),
@@ -134,6 +141,7 @@ export const getUserActivityV6Options: RouteOptions = {
             tokenId: Joi.string().allow(null),
             tokenName: Joi.string().allow("", null),
             tokenImage: Joi.string().allow("", null),
+            isSpam: Joi.boolean().default(false),
             lastBuy: {
               value: Joi.number().unsafe().allow(null),
               timestamp: Joi.number().unsafe().allow(null),
@@ -154,6 +162,7 @@ export const getUserActivityV6Options: RouteOptions = {
             collectionId: Joi.string().allow(null),
             collectionName: Joi.string().allow("", null),
             collectionImage: Joi.string().allow("", null),
+            isSpam: Joi.boolean().default(false),
           }),
           txHash: Joi.string()
             .lowercase()
@@ -215,6 +224,7 @@ export const getUserActivityV6Options: RouteOptions = {
         types: query.types,
         users: query.users,
         collections: query.collection,
+        excludeSpam: query.excludeSpam,
         contracts: query.contracts,
         sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
         limit: query.limit,
@@ -222,12 +232,17 @@ export const getUserActivityV6Options: RouteOptions = {
       });
 
       let tokensMetadata: any[] = [];
+      let disabledCollectionMetadata: any = {};
 
       if (query.includeMetadata) {
         try {
           let tokensToFetch = activities
             .filter((activity) => activity.token)
             .map((activity) => `token-cache:${activity.contract}:${activity.token?.id}`);
+
+          disabledCollectionMetadata = await MetadataStatus.get(
+            activities.map((activity) => activity.collection?.id ?? "")
+          );
 
           if (tokensToFetch.length) {
             // Make sure each token is unique
@@ -264,7 +279,8 @@ export const getUserActivityV6Options: RouteOptions = {
             tokens.contract,
             tokens.token_id,
             tokens.name,
-            tokens.image
+            tokens.image,
+            tokens.metadata_disabled
           FROM tokens
           WHERE (tokens.contract, tokens.token_id) IN ($/tokensFilter:raw/)
         `,
@@ -278,6 +294,7 @@ export const getUserActivityV6Options: RouteOptions = {
                     token_id: token.token_id,
                     name: token.name,
                     image: token.image,
+                    metadata_disabled: token.metadata_disabled,
                   }))
                 );
 
@@ -293,6 +310,7 @@ export const getUserActivityV6Options: RouteOptions = {
                       token_id: tokenResult.token_id,
                       name: tokenResult.name,
                       image: tokenResult.image,
+                      metadata_disabled: tokenResult.metadata_disabled,
                     })
                   );
 
@@ -330,20 +348,31 @@ export const getUserActivityV6Options: RouteOptions = {
             orderCriteria = {
               kind: activity.order.criteria.kind,
               data: {
-                collection: {
-                  id: activity.collection?.id,
-                  name: activity.collection?.name,
-                  image: activity.collection?.image,
-                },
+                collection: getJoiCollectionObject(
+                  {
+                    id: activity.collection?.id,
+                    name: activity.collection?.name,
+                    image: activity.collection?.image,
+                    isSpam: activity.collection?.isSpam,
+                  },
+                  disabledCollectionMetadata[activity.collection?.id ?? ""],
+                  activity.contract
+                ),
               },
             };
 
             if (activity.order.criteria.kind === "token") {
-              (orderCriteria as any).data.token = {
-                tokenId: activity.token?.id,
-                name: tokenMetadata ? tokenMetadata.name : activity.token?.name,
-                image: tokenMetadata ? tokenMetadata.image : activity.token?.image,
-              };
+              (orderCriteria as any).data.token = getJoiTokenObject(
+                {
+                  tokenId: activity.token?.id,
+                  name: tokenMetadata ? tokenMetadata.name : activity.token?.name,
+                  image: tokenMetadata ? tokenMetadata.image : activity.token?.image,
+                  isSpam: activity.token?.isSpam,
+                },
+                tokenMetadata?.metadata_disabled ||
+                  disabledCollectionMetadata[activity.collection?.id ?? ""],
+                true
+              );
             }
 
             if (activity.order.criteria.kind === "attribute") {
@@ -375,52 +404,58 @@ export const getUserActivityV6Options: RouteOptions = {
           ? sources.get(activity.event?.fillSourceId)
           : undefined;
 
-        return {
-          type: activity.type,
-          fromAddress: activity.fromAddress,
-          toAddress: activity.toAddress || null,
-          price: activity.pricing?.currency
-            ? await getJoiPriceObject(
-                {
-                  gross: {
-                    amount: String(activity.pricing?.currencyPrice ?? activity.pricing?.price),
-                    nativeAmount: String(activity.pricing?.price),
+        return getJoiActivityObject(
+          {
+            type: activity.type,
+            fromAddress: activity.fromAddress,
+            toAddress: activity.toAddress || null,
+            price: activity.pricing?.currency
+              ? await getJoiPriceObject(
+                  {
+                    gross: {
+                      amount: String(activity.pricing?.currencyPrice ?? activity.pricing?.price),
+                      nativeAmount: String(activity.pricing?.price),
+                    },
                   },
-                },
-                currency,
-                query.displayCurrency
-              )
-            : undefined,
-          amount: Number(activity.amount),
-          timestamp: activity.timestamp,
-          createdAt: new Date(activity.createdAt).toISOString(),
-          contract: activity.contract,
-          token: {
-            tokenId: activity.token?.id || null,
-            tokenName: query.includeMetadata
-              ? (tokenMetadata ? tokenMetadata.name : activity.token?.name) || null
+                  currency,
+                  query.displayCurrency
+                )
               : undefined,
-            tokenImage: query.includeMetadata
-              ? (tokenMetadata ? tokenMetadata.image : activity.token?.image) || null
-              : undefined,
-            tokenMedia: query.includeMetadata ? null : undefined,
-            tokenRarityRank: query.includeMetadata ? null : undefined,
-            tokenRarityScore: query.includeMetadata ? null : undefined,
-          },
-          collection: {
-            collectionId: activity.collection?.id,
-            collectionName: query.includeMetadata ? activity.collection?.name : undefined,
-            collectionImage:
-              query.includeMetadata && activity.collection?.image != null
-                ? activity.collection?.image
+            amount: Number(activity.amount),
+            timestamp: activity.timestamp,
+            createdAt: new Date(activity.createdAt).toISOString(),
+            contract: activity.contract,
+            token: {
+              tokenId: activity.token?.id || null,
+              tokenName: query.includeMetadata
+                ? (tokenMetadata ? tokenMetadata.name : activity.token?.name) || null
                 : undefined,
+              tokenImage: query.includeMetadata
+                ? (tokenMetadata ? tokenMetadata.image : activity.token?.image) || null
+                : undefined,
+              tokenMedia: query.includeMetadata ? null : undefined,
+              tokenRarityRank: query.includeMetadata ? null : undefined,
+              tokenRarityScore: query.includeMetadata ? null : undefined,
+              isSpam: activity.token?.isSpam,
+            },
+            collection: {
+              collectionId: activity.collection?.id,
+              collectionName: query.includeMetadata ? activity.collection?.name : undefined,
+              collectionImage:
+                query.includeMetadata && activity.collection?.image != null
+                  ? activity.collection?.image
+                  : undefined,
+              isSpam: activity.collection?.isSpam,
+            },
+            txHash: activity.event?.txHash,
+            logIndex: activity.event?.logIndex,
+            batchIndex: activity.event?.batchIndex,
+            fillSource: fillSource ? getJoiSourceObject(fillSource, false) : undefined,
+            order,
           },
-          txHash: activity.event?.txHash,
-          logIndex: activity.event?.logIndex,
-          batchIndex: activity.event?.batchIndex,
-          fillSource: fillSource ? getJoiSourceObject(fillSource, false) : undefined,
-          order,
-        };
+          Boolean(tokenMetadata?.metadata_disabled),
+          disabledCollectionMetadata
+        );
       });
 
       return { activities: await Promise.all(result), continuation };

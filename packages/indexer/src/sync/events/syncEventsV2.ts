@@ -1,7 +1,11 @@
-import { Filter } from "@ethersproject/abstract-provider";
+import { BlockWithTransactions, Filter } from "@ethersproject/abstract-provider";
+import _ from "lodash";
+import getUuidByString from "uuid-by-string";
 
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
+import { redis } from "@/common/redis";
+import { config } from "@/config/index";
 import { EventKind, getEventData } from "@/events-sync/data";
 import { EventsBatch, EventsByKind, processEventsBatchV2 } from "@/events-sync/handlers";
 import { EnhancedEvent } from "@/events-sync/handlers/utils";
@@ -9,16 +13,10 @@ import { parseEvent } from "@/events-sync/parserV2";
 import * as es from "@/events-sync/storage";
 import * as syncEventsUtils from "@/events-sync/utilsV2";
 import * as blocksModel from "@/models/blocks";
-import getUuidByString from "uuid-by-string";
-import { BlockWithTransactions } from "@ethersproject/abstract-provider";
 
-import { Block } from "@/models/blocks";
 import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
 import { blockCheckJob } from "@/jobs/events-sync/block-check-queue-job";
 import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
-import { redis } from "@/common/redis";
-import { config } from "@/config/index";
-import _ from "lodash";
 
 export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBatch[] => {
   const txHashToEvents = new Map<string, EnhancedEvent[]>();
@@ -255,6 +253,10 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
         kind: "createdotfun",
         data: kindToEvents.get("createdotfun") ?? [],
       },
+      {
+        kind: "payment-processor-v2",
+        data: kindToEvents.get("payment-processor-v2") ?? [],
+      },
     ];
 
     txHashToEventsBatch.set(txHash, {
@@ -276,7 +278,7 @@ const _getLogs = async (eventFilter: Filter) => {
   };
 };
 
-const _saveBlock = async (blockData: Block) => {
+const _saveBlock = async (blockData: blocksModel.Block) => {
   const timerStart = Date.now();
   await blocksModel.saveBlock(blockData);
   const timerEnd = Date.now();

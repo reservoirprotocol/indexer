@@ -16,6 +16,7 @@ import {
   toBuffer,
 } from "@/common/utils";
 import { Assets } from "@/utils/assets";
+import { getJoiTokenObject } from "@/common/joi";
 
 const version = "v4";
 
@@ -166,6 +167,8 @@ export const getTokensV4Options: RouteOptions = {
           "t"."image",
           "t"."media",
           "t"."collection_id",
+          "t"."metadata_disabled" as "t_metadata_disabled",
+          "c"."metadata_disabled" as "c_metadata_disabled",
           "c"."name" as "collection_name",
           "t"."floor_sell_source_id_int",
           ("c".metadata ->> 'imageUrl')::TEXT AS "collection_image",
@@ -413,36 +416,40 @@ export const getTokensV4Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const result = rawResult.map((r) => {
-        return {
-          contract: fromBuffer(r.contract),
-          tokenId: r.token_id,
-          name: r.name,
-          image: Assets.getLocalAssetsLink(r.image),
-          media: r.media,
-          collection: {
-            id: r.collection_id,
-            name: r.collection_name,
-            image: Assets.getLocalAssetsLink(r.collection_image),
-            slug: r.slug,
+        return getJoiTokenObject(
+          {
+            contract: fromBuffer(r.contract),
+            tokenId: r.token_id,
+            name: r.name,
+            image: Assets.getResizedImageUrl(r.image),
+            media: r.media,
+            collection: {
+              id: r.collection_id,
+              name: r.collection_name,
+              image: Assets.getLocalAssetsLink(r.collection_image),
+              slug: r.slug,
+            },
+            source: r.floor_sell_value
+              ? sources.get(Number(r.floor_sell_source_id_int))?.name
+              : undefined,
+            sourceDomain: r.floor_sell_value
+              ? sources.get(Number(r.floor_sell_source_id_int))?.domain
+              : undefined,
+            floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
+            topBidValue: query.includeTopBid
+              ? r.top_buy_value
+                ? formatEth(r.top_buy_value)
+                : null
+              : undefined,
+            rarity: r.rarity_score,
+            rarityRank: r.rarity_rank,
+            owner: r.owner ? fromBuffer(r.owner) : null,
+            isFlagged: Boolean(Number(r.is_flagged)),
+            lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
           },
-          source: r.floor_sell_value
-            ? sources.get(Number(r.floor_sell_source_id_int))?.name
-            : undefined,
-          sourceDomain: r.floor_sell_value
-            ? sources.get(Number(r.floor_sell_source_id_int))?.domain
-            : undefined,
-          floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
-          topBidValue: query.includeTopBid
-            ? r.top_buy_value
-              ? formatEth(r.top_buy_value)
-              : null
-            : undefined,
-          rarity: r.rarity_score,
-          rarityRank: r.rarity_rank,
-          owner: r.owner ? fromBuffer(r.owner) : null,
-          isFlagged: Boolean(Number(r.is_flagged)),
-          lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
-        };
+          r.t_metadata_disabled,
+          r.c_metadata_disabled
+        );
       });
 
       return {

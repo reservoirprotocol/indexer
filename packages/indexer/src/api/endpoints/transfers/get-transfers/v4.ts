@@ -340,7 +340,7 @@ export const getTransfersV4Options: RouteOptions = {
           contract: fromBuffer(r.address),
           tokenId: r.token_id,
           name: r.name,
-          image: Assets.getLocalAssetsLink(r.image),
+          image: Assets.getResizedImageUrl(r.image),
           collection: {
             id: r.collection_id,
             name: r.collection_name,

@@ -47,7 +47,8 @@ export const postOrderV4Options: RouteOptions = {
                   "seaport-v1.5",
                   "x2y2",
                   "alienswap",
-                  "payment-processor"
+                  "payment-processor",
+                  "payment-processor-v2"
                 )
                 .required(),
               data: Joi.object().required(),
@@ -65,6 +66,8 @@ export const postOrderV4Options: RouteOptions = {
             collection: Joi.string(),
             tokenSetId: Joi.string(),
             isNonFlagged: Joi.boolean(),
+            permitId: Joi.string(),
+            permitIndex: Joi.number(),
             bulkData: Joi.object({
               kind: Joi.string()
                 .valid("seaport-v1.4", "seaport-v1.5", "alienswap")
@@ -166,6 +169,10 @@ export const postOrderV4Options: RouteOptions = {
 
           // - only relevant for non-flagged tokens bids
           const isNonFlagged = item.isNonFlagged;
+
+          // Permits
+          const permitId = payload.permitId;
+          const permitIndex = payload.permitIndex;
 
           const signature = query.signature ?? order.data.signature;
           if (signature) {
@@ -366,6 +373,8 @@ export const postOrderV4Options: RouteOptions = {
                       metadata: {
                         schema,
                         source,
+                        permitId,
+                        permitIndex,
                       },
                     },
                   ]);
@@ -559,6 +568,27 @@ export const postOrderV4Options: RouteOptions = {
               };
 
               const [result] = await orders.paymentProcessor.save([orderInfo]);
+              if (["already-exists", "success"].includes(result.status)) {
+                return results.push({ message: "success", orderIndex: i, orderId: result.id });
+              } else {
+                return results.push({ message: result.status, orderIndex: i, orderId: result.id });
+              }
+            }
+
+            case "payment-processor-v2": {
+              if (orderbook !== "reservoir") {
+                return results.push({ message: "unsupported-orderbook", orderIndex: i });
+              }
+
+              const orderInfo: orders.paymentProcessorV2.OrderInfo = {
+                orderParams: order.data,
+                metadata: {
+                  schema,
+                  source,
+                },
+              };
+
+              const [result] = await orders.paymentProcessorV2.save([orderInfo]);
               if (["already-exists", "success"].includes(result.status)) {
                 return results.push({ message: "success", orderIndex: i, orderId: result.id });
               } else {

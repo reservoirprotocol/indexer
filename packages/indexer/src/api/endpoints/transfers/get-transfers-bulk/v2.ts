@@ -46,9 +46,11 @@ export const getTransfersBulkV2Options: RouteOptions = {
       endTimestamp: Joi.number().description(
         "Get events before a particular unix timestamp (inclusive)"
       ),
-      txHash: Joi.string()
-        .lowercase()
-        .pattern(regex.bytes32)
+      txHash: Joi.alternatives()
+        .try(
+          Joi.array().max(80).items(Joi.string().lowercase().pattern(regex.bytes32)),
+          Joi.string().lowercase().pattern(regex.bytes32)
+        )
         .description(
           "Filter to a particular transaction. Example: `0x04654cc4c81882ed4d20b958e0eeb107915d75730110cce65333221439de6afc`"
         ),
@@ -141,9 +143,15 @@ export const getTransfersBulkV2Options: RouteOptions = {
         conditions.push(`nft_transfer_events.address = $/contract/`);
         conditions.push(`nft_transfer_events.token_id = $/tokenId/`);
       }
+
       if (query.txHash) {
-        (query as any).txHash = toBuffer(query.txHash);
-        conditions.push(`nft_transfer_events.tx_hash = $/txHash/`);
+        if (Array.isArray(query.txHash)) {
+          query.txHash = query.txHash.map((txHash: string) => toBuffer(txHash));
+          conditions.push(`nft_transfer_events.tx_hash IN ($/txHash:csv/)`);
+        } else {
+          (query as any).txHash = toBuffer(query.txHash);
+          conditions.push(`nft_transfer_events.tx_hash = $/txHash/`);
+        }
       }
 
       // We default in the code so that these values don't appear in the docs

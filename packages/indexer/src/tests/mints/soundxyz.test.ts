@@ -8,6 +8,7 @@ import {
   getEnhancedEventsFromTx,
   extractOnChainData,
 } from "@/events-sync/handlers/royalties/utils";
+import { simulateCollectionMint } from "@/orderbook/mints/simulation";
 
 jest.setTimeout(1000 * 1000);
 
@@ -40,5 +41,23 @@ describe("Mints - Sound.xyz", () => {
       undefined
     );
     expect(onChainData.mints.length).toBe(2);
+  });
+
+  it("old-version", async () => {
+    const transcation = await utils.fetchTransaction(
+      "0x515e37a75788fbcaf833370f3a3558799dfd6c1ff2754cfa28487009443fc1df"
+    );
+    const collectionMints = await extractByTx(
+      "0x2fd2a508eb9a79eec48bcb783390d1dd69dac4fb",
+      transcation
+    );
+    // console.log("collectionMints", collectionMints);
+    for (const collectionMint of collectionMints) {
+      if (collectionMint.status === "open") {
+        const result = await simulateCollectionMint(collectionMint);
+        expect(result).toBe(true);
+      }
+    }
+    expect(collectionMints[0].stage.includes("claim-")).not.toBe(false);
   });
 });

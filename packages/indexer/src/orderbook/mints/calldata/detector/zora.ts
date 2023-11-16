@@ -267,14 +267,22 @@ export const extractByCollectionERC1155 = async (
       // Skip error for old version
     }
 
-    const zoraFactory = new Contract(
-      totalRewards
-        ? Sdk.Zora.Addresses.ERC1155FactoryV2[config.chainId]
-        : Sdk.Zora.Addresses.ERC1155Factory[config.chainId],
-      new Interface(["function defaultMinters() view returns (address[])"]),
-      baseProvider
-    );
-    const defaultMinters = await zoraFactory.defaultMinters();
+    const defaultMinters: string[] = [];
+    for (const factory of [
+      Sdk.Zora.Addresses.ERC1155Factory[config.chainId],
+      Sdk.Zora.Addresses.ERC1155FactoryV2[config.chainId],
+    ]) {
+      try {
+        const zoraFactory = new Contract(
+          factory,
+          new Interface(["function defaultMinters() view returns (address[])"]),
+          baseProvider
+        );
+        defaultMinters.push(...(await zoraFactory.defaultMinters()));
+      } catch {
+        // Skip errors
+      }
+    }
 
     for (const minter of defaultMinters) {
       // Try both `getPermissions` and `permissions` to cover as many versions as possible

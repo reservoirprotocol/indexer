@@ -7,6 +7,8 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
+import { getJoiTokenObject } from "@/common/joi";
+import { Assets } from "@/utils/assets";
 
 const version = "v2";
 
@@ -86,7 +88,7 @@ export const getUserTokensV2Options: RouteOptions = {
             collection: Joi.object({
               id: Joi.string().allow(null),
               name: Joi.string().allow("", null),
-              imageUrl: Joi.string().allow(null),
+              imageUrl: Joi.string().allow("", null),
               floorAskPrice: Joi.number().unsafe().allow(null),
             }),
           }),
@@ -180,6 +182,7 @@ export const getUserTokensV2Options: RouteOptions = {
                t.image, t.collection_id, b.floor_sell_id, b.floor_sell_value, t.top_buy_id,
                t.top_buy_value, t.total_buy_value, c.name as collection_name,
                c.metadata, c.floor_sell_value AS "collection_floor_sell_value",
+               c.metadata_disabled AS "c_metadata_disabled", t_metadata_disabled,
                (
                     CASE WHEN b.floor_sell_value IS NOT NULL
                     THEN 1
@@ -195,7 +198,8 @@ export const getUserTokensV2Options: RouteOptions = {
           ) AS b
           JOIN LATERAL (
             SELECT t.token_id, t.name, t.image, t.collection_id,
-               t.top_buy_id, t.top_buy_value, b.token_count * t.top_buy_value AS total_buy_value
+               t.top_buy_id, t.top_buy_value, b.token_count * t.top_buy_value AS total_buy_value,
+               t.metadata_disabled AS "t_metadata_disabled"
             FROM tokens t
             WHERE b.token_id = t.token_id
             AND b.contract = t.contract
@@ -206,32 +210,38 @@ export const getUserTokensV2Options: RouteOptions = {
         LIMIT $/limit/
       `;
 
-      const result = await redb.manyOrNone(baseQuery, { ...query, ...params }).then((result) =>
-        result.map((r) => ({
-          token: {
-            contract: fromBuffer(r.contract),
-            tokenId: r.token_id,
-            name: r.name,
-            image: r.image,
-            collection: {
-              id: r.collection_id,
-              name: r.collection_name,
-              imageUrl: r.metadata?.imageUrl,
-              floorAskPrice: r.collection_floor_sell_value
-                ? formatEth(r.collection_floor_sell_value)
-                : null,
+      const result = await redb
+        .manyOrNone(baseQuery, { ...query, ...params })
+        .then(async (result) => {
+          return result.map((r) => ({
+            token: getJoiTokenObject(
+              {
+                contract: fromBuffer(r.contract),
+                tokenId: r.token_id,
+                name: r.name,
+                image: Assets.getResizedImageUrl(r.image),
+                collection: {
+                  id: r.collection_id,
+                  name: r.collection_name,
+                  imageUrl: r.metadata?.imageUrl,
+                  floorAskPrice: r.collection_floor_sell_value
+                    ? formatEth(r.collection_floor_sell_value)
+                    : null,
+                },
+              },
+              r.t_metadata_disabled,
+              r.c_metadata_disabled
+            ),
+            ownership: {
+              tokenCount: String(r.token_count),
+              onSaleCount: String(r.on_sale_count),
+              floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
+              acquiredAt: r.acquired_at ? new Date(r.acquired_at).toISOString() : null,
             },
-          },
-          ownership: {
-            tokenCount: String(r.token_count),
-            onSaleCount: String(r.on_sale_count),
-            floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
-            acquiredAt: r.acquired_at ? new Date(r.acquired_at).toISOString() : null,
-          },
-        }))
-      );
+          }));
+        });
 
-      return { tokens: result };
+      return { tokens: await Promise.all(result) };
     } catch (error) {
       logger.error(`get-user-tokens-${version}-handler`, `Handler failure: ${error}`);
       throw error;

@@ -25,13 +25,30 @@ export class Exchange {
     };
   }
 
+  public depositAndPrevalidateTx(
+    user: string,
+    solver: string,
+    amount: string,
+    request: Order
+  ): TxData {
+    return {
+      from: user,
+      to: Addresses.Exchange[this.chainId],
+      data: this.contract.interface.encodeFunctionData("depositAndPrevalidate", [
+        solver,
+        request.params,
+      ]),
+      value: amount,
+    };
+  }
+
   public executeRequestTx(request: Order): TxData {
     return {
       from: request.params.solver,
       to: Addresses.Exchange[this.chainId],
       data: this.contract.interface.encodeFunctionData("executeRequest", [
         request.params,
-        request.params.signature!,
+        request.params.signature ?? "0x",
       ]),
     };
   }
@@ -39,18 +56,15 @@ export class Exchange {
   public async getRequestStatus(
     provider: Provider,
     requestHash: string
-  ): Promise<{ isExecuted: boolean }> {
+  ): Promise<{ isExecuted: boolean; isPrevalidated: boolean }> {
     const result = await this.contract.connect(provider).requestStatus(requestHash);
     return {
       isExecuted: result.isExecuted,
+      isPrevalidated: result.isPrevalidated,
     };
   }
 
-  public async getDepositedAmount(
-    provider: Provider,
-    user: string,
-    solver: string
-  ): Promise<string> {
+  public async getUserBalance(provider: Provider, user: string, solver: string): Promise<string> {
     const amount = await this.contract.connect(provider).perSolverBalance(user, solver);
     return amount.toString();
   }

@@ -13,6 +13,7 @@ import {
   getJoiPriceObject,
   getJoiSaleObject,
   getJoiSourceObject,
+  getJoiTokenObject,
   JoiAttributeValue,
   JoiPrice,
   JoiSale,
@@ -32,6 +33,8 @@ import { Sources } from "@/models/sources";
 import { Assets, ImageSize } from "@/utils/assets";
 import { CollectionSets } from "@/models/collection-sets";
 import { Collections } from "@/models/collections";
+import * as AsksIndex from "@/elasticsearch/indexes/asks";
+import { OrderComponents } from "@reservoir0x/sdk/dist/seaport-base/types";
 
 const version = "v6";
 
@@ -205,11 +208,17 @@ export const getTokensV6Options: RouteOptions = {
       includeTopBid: Joi.boolean()
         .default(false)
         .description("If true, top bid will be returned in the response."),
+      includeMintStages: Joi.boolean()
+        .default(false)
+        .description("If true, mint data for the tokens will be included in the response."),
       excludeEOA: Joi.boolean()
         .default(false)
         .description(
           "Exclude orders that can only be filled by EOAs, to support filling with smart contracts. defaults to false"
         ),
+      excludeSpam: Joi.boolean()
+        .default(false)
+        .description("If true, will filter any tokens marked as spam."),
       includeAttributes: Joi.boolean()
         .default(false)
         .description("If true, attributes will be returned in the response."),
@@ -273,6 +282,7 @@ export const getTokensV6Options: RouteOptions = {
             kind: Joi.string().allow("", null).description("Can be erc721, erc115, etc."),
             isFlagged: Joi.boolean().default(false),
             isSpam: Joi.boolean().default(false),
+            metadataDisabled: Joi.boolean().default(false),
             lastFlagUpdate: Joi.string().allow("", null),
             lastFlagChange: Joi.string().allow("", null),
             supply: Joi.number()
@@ -296,6 +306,7 @@ export const getTokensV6Options: RouteOptions = {
               symbol: Joi.string().allow("", null),
               creator: Joi.string().lowercase().pattern(regex.address).allow("", null),
               tokenCount: Joi.number().allow(null),
+              metadataDisabled: Joi.boolean().default(false),
             }),
             lastSale: JoiSale.optional(),
             owner: Joi.string().allow(null),
@@ -313,6 +324,17 @@ export const getTokensV6Options: RouteOptions = {
                 })
               )
               .optional(),
+            mintStages: Joi.array().items(
+              Joi.object({
+                stage: Joi.string().required(),
+                tokenId: Joi.string().pattern(regex.number).allow(null),
+                kind: Joi.string().required(),
+                price: JoiPrice.allow(null),
+                startTime: Joi.number().allow(null),
+                endTime: Joi.number().allow(null),
+                maxMintsPerWallet: Joi.number().unsafe().allow(null),
+              })
+            ),
           }),
           market: Joi.object({
             floorAsk: {
@@ -360,6 +382,36 @@ export const getTokensV6Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
+    let esTokens: any[] = [];
+
+    const enableElasticsearchAsks =
+      config.enableElasticsearchAsks &&
+      query.sortBy === "floorAskPrice" &&
+      !["tokenName", "tokenSetId"].some((filter) => query[filter]);
+
+    if (enableElasticsearchAsks) {
+      logger.info(
+        `get-tokens-${version}-handler`,
+        JSON.stringify({
+          topic: "debugAskIndex",
+          message: "Using Elasticsearch for asks",
+          query,
+        })
+      );
+
+      const listedTokens = await getListedTokensFromES(query);
+
+      if (listedTokens.continuation || query.source || query.nativeSource) {
+        return { tokens: listedTokens.tokens, continuation: listedTokens.continuation };
+      }
+
+      esTokens = listedTokens.tokens;
+
+      query.limit = query.limit - esTokens.length;
+      query.excludeEOA = false;
+      query.continuation = null;
+    }
 
     // Include attributes
     let selectAttributes = "";
@@ -472,6 +524,34 @@ export const getTokensV6Options: RouteOptions = {
         ORDER BY timestamp DESC LIMIT 1
         ) r ON TRUE
         `;
+    }
+
+    // Include mint stages
+    let mintStagesSelectQuery = "";
+    let mintStagesJoinQuery = "";
+    if (query.includeMintStages) {
+      mintStagesSelectQuery = ", v.*";
+      mintStagesJoinQuery = `
+        LEFT JOIN LATERAL (
+          SELECT
+            array_agg(
+              json_build_object(
+                'stage', collection_mints.stage,
+                'tokenId', collection_mints.token_id::TEXT,
+                'kind', collection_mints.kind,
+                'currency', concat('0x', encode(collection_mints.currency, 'hex')),
+                'price', collection_mints.price::TEXT,
+                'startTime', floor(extract(epoch from collection_mints.start_time)),
+                'endTime', floor(extract(epoch from collection_mints.end_time)),
+                'maxMintsPerWallet', collection_mints.max_mints_per_wallet
+              )
+            ) AS mint_stages
+          FROM collection_mints
+          WHERE collection_mints.collection_id = t.collection_id
+            AND collection_mints.token_id = t.token_id
+            AND collection_mints.status = 'open'
+        ) v ON TRUE
+      `;
     }
 
     // Get the collections from the collection set or community
@@ -637,6 +717,8 @@ export const getTokensV6Options: RouteOptions = {
           t.supply,
           t.remaining_supply,
           extract(epoch from t.updated_at) AS t_updated_at,
+          t.metadata_disabled AS t_metadata_disabled,
+          c.metadata_disabled AS c_metadata_disabled,
           c.slug,
           c.creator,
           c.token_count,
@@ -655,6 +737,7 @@ export const getTokensV6Options: RouteOptions = {
           ${selectIncludeQuantity}
           ${selectIncludeDynamicPricing}
           ${selectRoyaltyBreakdown}
+          ${mintStagesSelectQuery}
         FROM tokens t
         ${
           sourceCte !== ""
@@ -666,7 +749,10 @@ export const getTokensV6Options: RouteOptions = {
         ${includeQuantityQuery}
         ${includeDynamicPricingQuery}
         ${includeRoyaltyBreakdownQuery}
-        JOIN collections c ON t.collection_id = c.id
+        ${mintStagesJoinQuery}
+        JOIN collections c ON t.collection_id = c.id ${
+          query.excludeSpam ? `AND (c.is_spam IS NULL OR c.is_spam <= 0)` : ""
+        }
         JOIN contracts con ON t.contract = con.address
       `;
 
@@ -699,7 +785,6 @@ export const getTokensV6Options: RouteOptions = {
       }
 
       // Filters
-
       const conditions: string[] = [];
       if (query.collection) {
         conditions.push(`t.collection_id = $/collection/`);
@@ -718,6 +803,10 @@ export const getTokensV6Options: RouteOptions = {
         if (query.contract.length == 1) {
           conditions.push(`t.contract IN ($/contract:csv/)`);
         }
+      }
+
+      if (query.excludeSpam) {
+        conditions.push(`(t.is_spam IS NULL OR t.is_spam <= 0)`);
       }
 
       if (query.minRarityRank) {
@@ -940,6 +1029,15 @@ export const getTokensV6Options: RouteOptions = {
           (query as any).contContract = toBuffer(contArr[0]);
           (query as any).contTokenId = contArr[1];
         }
+      } else if (esTokens.length) {
+        const sortColumn =
+          query.nativeSource || query.excludeEOA
+            ? "s.floor_sell_value"
+            : query.normalizeRoyalties
+            ? "t.normalized_floor_sell_value"
+            : "t.floor_sell_value";
+
+        conditions.push(`${sortColumn} is null`);
       }
 
       if (conditions.length) {
@@ -1274,80 +1372,106 @@ export const getTokensV6Options: RouteOptions = {
         }
 
         return {
-          token: {
-            chainId: config.chainId,
-            contract,
-            tokenId,
-            name: r.name,
-            description: r.description,
-            image: Assets.getLocalAssetsLink(r.image),
-            imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small),
-            imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large),
-            metadata: Object.values(metadata).every((el) => el === undefined)
-              ? undefined
-              : metadata,
-            media: r.media,
-            kind: r.kind,
-            isFlagged: Boolean(Number(r.is_flagged)),
-            isSpam: Boolean(Number(r.t_is_spam)) || Boolean(Number(r.c_is_spam)),
-            lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
-            lastFlagChange: r.last_flag_change ? new Date(r.last_flag_change).toISOString() : null,
-            supply: !_.isNull(r.supply) ? r.supply : null,
-            remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : null,
-            rarity: r.rarity_score,
-            rarityRank: r.rarity_rank,
-            collection: {
-              id: r.collection_id,
-              name: r.collection_name,
-              image: Assets.getLocalAssetsLink(r.collection_image),
-              slug: r.slug,
-              symbol: r.symbol,
-              creator: r.creator ? fromBuffer(r.creator) : null,
-              tokenCount: r.token_count,
-            },
-            lastSale:
-              query.includeLastSale && r.last_sale_currency
-                ? await getJoiSaleObject({
-                    prices: {
-                      gross: {
-                        amount: r.last_sale_currency_price ?? r.last_sale_price,
-                        nativeAmount: r.last_sale_price,
-                        usdAmount: r.last_sale_usd_price,
+          token: getJoiTokenObject(
+            {
+              chainId: config.chainId,
+              contract,
+              tokenId,
+              name: r.name,
+              description: r.description,
+              image: Assets.getResizedImageUrl(r.image),
+              imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small),
+              imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large),
+              metadata: Object.values(metadata).every((el) => el === undefined)
+                ? undefined
+                : metadata,
+              media: r.media,
+              kind: r.kind,
+              isFlagged: Boolean(Number(r.is_flagged)),
+              isSpam: Number(r.t_is_spam) > 0 || Number(r.c_is_spam) > 0,
+              metadataDisabled:
+                Boolean(Number(r.t_metadata_disabled)) || Boolean(Number(r.c_metadata_disabled)),
+              lastFlagUpdate: r.last_flag_update
+                ? new Date(r.last_flag_update).toISOString()
+                : null,
+              lastFlagChange: r.last_flag_change
+                ? new Date(r.last_flag_change).toISOString()
+                : null,
+              supply: !_.isNull(r.supply) ? r.supply : null,
+              remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : null,
+              rarity: r.rarity_score,
+              rarityRank: r.rarity_rank,
+              collection: {
+                id: r.collection_id,
+                name: r.collection_name,
+                image: Assets.getLocalAssetsLink(r.collection_image),
+                slug: r.slug,
+                symbol: r.symbol,
+                creator: r.creator ? fromBuffer(r.creator) : null,
+                tokenCount: r.token_count,
+                metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
+              },
+              lastSale:
+                query.includeLastSale && r.last_sale_currency
+                  ? await getJoiSaleObject({
+                      prices: {
+                        gross: {
+                          amount: r.last_sale_currency_price ?? r.last_sale_price,
+                          nativeAmount: r.last_sale_price,
+                          usdAmount: r.last_sale_usd_price,
+                        },
                       },
-                    },
-                    fees: {
-                      royaltyFeeBps: r.last_sale_royalty_fee_bps,
-                      marketplaceFeeBps: r.last_sale_marketplace_fee_bps,
-                      paidFullRoyalty: r.last_sale_paid_full_royalty,
-                      royaltyFeeBreakdown: r.last_sale_royalty_fee_breakdown,
-                      marketplaceFeeBreakdown: r.last_sale_marketplace_fee_breakdown,
-                    },
-                    currencyAddress: r.last_sale_currency,
-                    timestamp: r.last_sale_timestamp,
-                    orderSourceId: r.last_sale_order_source_id_int,
-                    fillSourceId: r.last_sale_fill_source_id,
-                  })
+                      fees: {
+                        royaltyFeeBps: r.last_sale_royalty_fee_bps,
+                        marketplaceFeeBps: r.last_sale_marketplace_fee_bps,
+                        paidFullRoyalty: r.last_sale_paid_full_royalty,
+                        royaltyFeeBreakdown: r.last_sale_royalty_fee_breakdown,
+                        marketplaceFeeBreakdown: r.last_sale_marketplace_fee_breakdown,
+                      },
+                      currencyAddress: r.last_sale_currency,
+                      timestamp: r.last_sale_timestamp,
+                      orderSourceId: r.last_sale_order_source_id_int,
+                      fillSourceId: r.last_sale_fill_source_id,
+                    })
+                  : undefined,
+              owner: r.owner ? fromBuffer(r.owner) : null,
+              attributes: query.includeAttributes
+                ? r.attributes
+                  ? _.map(r.attributes, (attribute) => ({
+                      key: attribute.key,
+                      kind: attribute.kind,
+                      value: attribute.value,
+                      tokenCount: attribute.tokenCount,
+                      onSaleCount: attribute.onSaleCount,
+                      floorAskPrice: attribute.floorAskPrice
+                        ? formatEth(attribute.floorAskPrice)
+                        : attribute.floorAskPrice,
+                      topBidValue: attribute.topBidValue
+                        ? formatEth(attribute.topBidValue)
+                        : attribute.topBidValue,
+                      createdAt: new Date(attribute.createdAt).toISOString(),
+                    }))
+                  : []
                 : undefined,
-            owner: r.owner ? fromBuffer(r.owner) : null,
-            attributes: query.includeAttributes
-              ? r.attributes
-                ? _.map(r.attributes, (attribute) => ({
-                    key: attribute.key,
-                    kind: attribute.kind,
-                    value: attribute.value,
-                    tokenCount: attribute.tokenCount,
-                    onSaleCount: attribute.onSaleCount,
-                    floorAskPrice: attribute.floorAskPrice
-                      ? formatEth(attribute.floorAskPrice)
-                      : attribute.floorAskPrice,
-                    topBidValue: attribute.topBidValue
-                      ? formatEth(attribute.topBidValue)
-                      : attribute.topBidValue,
-                    createdAt: new Date(attribute.createdAt).toISOString(),
-                  }))
-                : []
-              : undefined,
-          },
+              mintStages: r.mint_stages
+                ? await Promise.all(
+                    r.mint_stages.map(async (m: any) => ({
+                      stage: m.stage,
+                      kind: m.kind,
+                      tokenId: m.tokenId,
+                      price: m.price
+                        ? await getJoiPriceObject({ gross: { amount: m.price } }, m.currency)
+                        : m.price,
+                      startTime: m.startTime,
+                      endTime: m.endTime,
+                      maxMintsPerWallet: m.maxMintsPerWallet,
+                    }))
+                  )
+                : [],
+            },
+            r.t_metadata_disabled,
+            r.c_metadata_disabled
+          ),
           market: {
             floorAsk: {
               id: r.floor_sell_id,
@@ -1412,8 +1536,10 @@ export const getTokensV6Options: RouteOptions = {
         };
       });
 
+      const dbTokens = await Promise.all(result);
+
       return {
-        tokens: await Promise.all(result),
+        tokens: esTokens.concat(dbTokens),
         continuation,
       };
     } catch (error) {
@@ -1421,4 +1547,617 @@ export const getTokensV6Options: RouteOptions = {
       throw error;
     }
   },
+};
+
+export const getListedTokensFromES = async (query: any) => {
+  let collections: any[] = [];
+
+  if (query.collection && !_.isArray(query.collection)) {
+    collections = [query.collection];
+  } else if (query.collection) {
+    collections = query.collection;
+  }
+
+  if (query.collectionsSetId) {
+    collections = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+
+    if (_.isEmpty(collections)) {
+      throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
+    }
+  }
+
+  if (query.community) {
+    collections = await Collections.getIdsByCommunity(query.community);
+
+    if (_.isEmpty(collections)) {
+      throw Boom.badRequest(`No collections for community ${query.community}`);
+    }
+  }
+
+  let tokens: { contract: string; tokenId: string }[] = [];
+
+  if (query.tokens) {
+    for (const token of query.tokens) {
+      const [contract, tokenId] = token.split(":");
+
+      tokens.push({
+        contract,
+        tokenId,
+      });
+    }
+  }
+
+  if (query.attributes) {
+    const attributes: string[] = [];
+
+    Object.entries(query.attributes).forEach(([key, values]) => {
+      (Array.isArray(values) ? values : [values]).forEach((value) =>
+        attributes.push(`('${key}', '${value}')`)
+      );
+    });
+
+    const tokensResult = await redb.manyOrNone(`
+            SELECT contract, token_id
+            FROM token_attributes
+            WHERE collection_id IN ('${query.collection.join(",")}')
+            AND (key, value) IN (${attributes.join(",")});
+          `);
+
+    if (tokensResult.length === 0) {
+      throw Boom.badRequest(`No tokens for attributes ${query.attributes}`);
+    }
+
+    tokens = _.map(tokensResult, (token) => ({
+      contract: fromBuffer(token.contract),
+      tokenId: token.token_id,
+    }));
+  }
+
+  if (query.source) {
+    const sources = await Sources.getInstance();
+    let source = sources.getByName(query.source, false);
+    if (!source) {
+      source = sources.getByDomain(query.source, false);
+    }
+
+    if (!source) {
+      return {
+        tokens: [],
+        continuation: null,
+      };
+    }
+
+    (query as any).sources = [source.id];
+  }
+
+  if (query.nativeSource) {
+    const sources = await Sources.getInstance();
+    let nativeSource = sources.getByName(query.nativeSource, false);
+    if (!nativeSource) {
+      nativeSource = sources.getByDomain(query.nativeSource, false);
+    }
+
+    if (!nativeSource) {
+      return {
+        tokens: [],
+        continuation: null,
+      };
+    }
+
+    (query as any).sources = [nativeSource.id];
+  }
+
+  if (query.excludeEOA) {
+    query.orderKinds = { operation: "exclude", kinds: ["blur"] };
+  }
+
+  if (_.indexOf([0, 1], query.flagStatus) !== -1) {
+    query.flaggedTokens = { operation: query.flagStatus ? "include" : "exclude" };
+  }
+
+  if (query.excludeSpam) {
+    query.spamTokens = { operation: "exclude" };
+  }
+
+  const { asks, continuation } = await AsksIndex.searchTokenAsks({
+    orderKinds: query.orderKinds,
+    contracts: query.contract && !_.isArray(query.contract) ? [query.contract] : query.contract,
+    collections,
+    tokens,
+    rarityRank: { min: query.minRarityRank, max: query.maxRarityRank },
+    floorAskPrice: { min: query.minFloorAskPrice, max: query.maxFloorAskPrice },
+    flaggedTokens: query.flaggedTokens,
+    spamTokens: query.spamTokens,
+    normalizeRoyalties: query.normalizeRoyalties,
+    limit: query.limit,
+    continuation: query.continuation,
+    sources: query.sources,
+    sortDirection: query.sortDirection,
+  });
+
+  let tokensResult: any[] = [];
+
+  if (asks.length) {
+    const tokensFilter = [];
+
+    for (const ask of asks) {
+      tokensFilter.push(`('${_.replace(ask.contract, "0x", "\\x")}', '${ask.token.id}')`);
+    }
+
+    let selectLastSaleQueryPart = "";
+    let joinLastSaleQueryPart = "";
+
+    if (query.includeLastSale) {
+      selectLastSaleQueryPart = ", r.*";
+      joinLastSaleQueryPart = `
+        LEFT JOIN LATERAL (
+        SELECT
+          fe.timestamp AS last_sale_timestamp,
+          fe.currency AS last_sale_currency,
+          fe.currency_price AS last_sale_currency_price,
+          fe.price AS last_sale_price,
+          fe.usd_price AS last_sale_usd_price,
+          fe.marketplace_fee_bps AS last_sale_marketplace_fee_bps,
+          fe.royalty_fee_bps AS last_sale_royalty_fee_bps,
+          fe.paid_full_royalty AS last_sale_paid_full_royalty,
+          fe.royalty_fee_breakdown AS last_sale_royalty_fee_breakdown,
+          fe.marketplace_fee_breakdown AS last_sale_marketplace_fee_breakdown,
+          fe.order_source_id_int AS last_sale_order_source_id_int,
+          fe.fill_source_id AS last_sale_fill_source_id
+        FROM fill_events_2 fe
+        WHERE fe.contract = t.contract AND fe.token_id = t.token_id AND fe.is_deleted = 0
+        ORDER BY timestamp DESC LIMIT 1
+        ) r ON TRUE
+        `;
+    }
+
+    // Include attributes
+    let selectAttributesQueryPart = "";
+    if (query.includeAttributes) {
+      selectAttributesQueryPart = `
+        , (
+          SELECT
+            array_agg(
+              json_build_object(
+                'key', ta.key,
+                'kind', attributes.kind,
+                'value', ta.value,
+                'createdAt', ta.created_at,
+                'tokenCount', attributes.token_count,
+                'onSaleCount', attributes.on_sale_count,
+                'floorAskPrice', attributes.floor_sell_value::TEXT,
+                'topBidValue', attributes.top_buy_value::TEXT
+              )
+            )
+          FROM token_attributes ta
+          JOIN attributes
+            ON ta.attribute_id = attributes.id
+          WHERE ta.contract = t.contract
+            AND ta.token_id = t.token_id
+            AND ta.key != ''
+        ) AS attributes
+      `;
+    }
+
+    let selectTopBidQueryPart = "";
+    let joinTopBidQueryPart = "";
+
+    if (query.includeTopBid) {
+      selectTopBidQueryPart = ", y.*";
+      joinTopBidQueryPart = `
+          LEFT JOIN LATERAL (
+            SELECT
+              o.id AS top_buy_id,
+              o.normalized_value AS top_buy_normalized_value,
+              o.currency_normalized_value AS top_buy_currency_normalized_value,
+              o.maker AS top_buy_maker,
+              o.currency AS top_buy_currency,
+              o.fee_breakdown AS top_buy_fee_breakdown,
+              o.currency_price AS top_buy_currency_price,
+              o.currency_value AS top_buy_currency_value,
+              o.price AS top_buy_price,
+              o.value AS top_buy_value,
+              o.source_id_int AS top_buy_source_id_int,
+              o.missing_royalties AS top_buy_missing_royalties,
+              DATE_PART('epoch', LOWER(o.valid_between)) AS top_buy_valid_from,
+              COALESCE(
+                NULLIF(DATE_PART('epoch', UPPER(o.valid_between)), 'Infinity'),
+                0
+              ) AS top_buy_valid_until
+            FROM orders o
+            JOIN token_sets_tokens tst
+              ON o.token_set_id = tst.token_set_id
+            WHERE tst.contract = t.contract
+              AND tst.token_id = t.token_id
+              AND o.side = 'buy'
+              AND o.fillability_status = 'fillable'
+              AND o.approval_status = 'approved'
+              ${query.excludeEOA ? `AND o.kind NOT IN ('blur')` : ""}
+              AND EXISTS(
+                SELECT FROM nft_balances nb
+                  WHERE nb.contract = t.contract
+                  AND nb.token_id = t.token_id
+                  AND nb.amount > 0
+                  AND nb.owner != o.maker
+                  AND (
+                    o.taker IS NULL
+                    OR o.taker = '\\x0000000000000000000000000000000000000000'
+                    OR o.taker = nb.owner
+                  )
+              )
+              ${query.normalizeRoyalties ? " AND o.normalized_value IS NOT NULL" : ""}
+            ORDER BY o.value DESC
+            LIMIT 1
+          ) y ON TRUE
+        `;
+    }
+
+    // Include mint stages
+    let selectMintStagesQueryPart = "";
+    let joinMintStagesQueryPart = "";
+
+    if (query.includeMintStages) {
+      selectMintStagesQueryPart = ", v.*";
+      joinMintStagesQueryPart = `
+        LEFT JOIN LATERAL (
+          SELECT
+            array_agg(
+              json_build_object(
+                'stage', collection_mints.stage,
+                'tokenId', collection_mints.token_id::TEXT,
+                'kind', collection_mints.kind,
+                'currency', concat('0x', encode(collection_mints.currency, 'hex')),
+                'price', collection_mints.price::TEXT,
+                'startTime', floor(extract(epoch from collection_mints.start_time)),
+                'endTime', floor(extract(epoch from collection_mints.end_time)),
+                'maxMintsPerWallet', collection_mints.max_mints_per_wallet
+              )
+            ) AS mint_stages
+          FROM collection_mints
+          WHERE collection_mints.collection_id = t.collection_id
+            AND collection_mints.token_id = t.token_id
+            AND collection_mints.status = 'open'
+        ) v ON TRUE
+      `;
+    }
+
+    tokensResult = await redb.manyOrNone(
+      `
+          SELECT 
+            t.contract,
+            t.token_id,
+            t.name,
+            t.description,
+            t.image,
+            t.metadata,
+            t.media,
+            t.collection_id,
+            c.name AS collection_name,
+            con.kind,
+            con.symbol,
+            t.rarity_score,
+            t.rarity_rank,
+            t.is_flagged,
+            t.is_spam AS t_is_spam,
+            t.last_flag_update,
+            t.last_flag_change,
+            t.supply,
+            t.remaining_supply,
+            t.metadata_disabled AS t_metadata_disabled,
+            extract(epoch from t.updated_at) AS t_updated_at,
+            c.slug,
+            c.creator,
+            c.token_count,
+            c.is_spam AS c_is_spam,
+            c.metadata_disabled AS c_metadata_disabled,
+            (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
+            (
+              SELECT
+                nb.owner
+              FROM nft_balances nb
+              WHERE nb.contract = t.contract
+                AND nb.token_id = t.token_id
+                AND nb.amount > 0
+              LIMIT 1
+            ) AS owner
+          ${selectAttributesQueryPart}  
+          ${selectLastSaleQueryPart}
+          ${selectTopBidQueryPart}
+          ${selectMintStagesQueryPart}
+          FROM tokens t
+          ${joinLastSaleQueryPart}
+          ${joinTopBidQueryPart}
+          ${joinMintStagesQueryPart}
+          JOIN collections c ON t.collection_id = c.id
+          JOIN contracts con ON t.contract = con.address
+          WHERE (t.contract, t.token_id) IN ($/tokensFilter:raw/)
+        `,
+      { tokensFilter: _.join(tokensFilter, ",") }
+    );
+  }
+
+  const sources = await Sources.getInstance();
+
+  const result = _.map(asks, async (ask) => {
+    const r = tokensResult.find(
+      (tokenResult) =>
+        fromBuffer(tokenResult.contract) == ask.contract && tokenResult.token_id == ask.token.id
+    );
+
+    const feeBreakdown = r.top_buy_fee_breakdown;
+
+    if (query.normalizeRoyalties && r.top_buy_missing_royalties) {
+      for (let i = 0; i < r.top_buy_missing_royalties.length; i++) {
+        const index: number = r.top_buy_fee_breakdown.findIndex(
+          (fee: { recipient: string }) => fee.recipient === r.top_buy_missing_royalties[i].recipient
+        );
+
+        const missingFeeBps = Number(r.top_buy_missing_royalties[i].bps);
+
+        if (index !== -1) {
+          feeBreakdown[index].bps += missingFeeBps;
+        } else {
+          feeBreakdown.push({
+            bps: missingFeeBps,
+            kind: "royalty",
+            recipient: r.top_buy_missing_royalties[i].recipient,
+          });
+        }
+      }
+    }
+
+    const contract = ask.contract;
+    const tokenId = ask.token.id;
+
+    const floorSellSource = ask.order.pricing.price
+      ? sources.get(Number(ask.order.sourceId), contract, tokenId)
+      : undefined;
+
+    const topBuySource = r.top_buy_id
+      ? sources.get(Number(r.top_buy_source_id_int), contract, tokenId)
+      : undefined;
+
+    // Use default currencies for backwards compatibility with entries
+    // that don't have the currencies cached in the tokens table
+    const floorAskCurrency =
+      ask.order.pricing.currency ?? Sdk.Common.Addresses.Native[config.chainId];
+
+    const topBidCurrency = r.top_buy_currency
+      ? fromBuffer(r.top_buy_currency)
+      : Sdk.Common.Addresses.WNative[config.chainId];
+
+    let dynamicPricing = undefined;
+
+    if (query.includeDynamicPricing) {
+      // Add missing royalties on top of the raw prices
+      const missingRoyalties = query.normalizeRoyalties
+        ? ((ask.order.missingRoyalties ?? []) as any[])
+            .map((mr: any) => bn(mr.amount))
+            .reduce((a, b) => a.add(b), bn(0))
+        : bn(0);
+
+      if (ask.order.rawData) {
+        if (ask.order.isDynamic && ask.order.kind === "seaport") {
+          const order = new Sdk.SeaportV11.Order(
+            config.chainId,
+            ask.order.rawData as OrderComponents
+          );
+
+          // Dutch auction
+          dynamicPricing = {
+            kind: "dutch",
+            data: {
+              price: {
+                start: await getJoiPriceObject(
+                  {
+                    gross: {
+                      amount: bn(order.getMatchingPrice(order.params.startTime))
+                        .add(missingRoyalties)
+                        .toString(),
+                    },
+                  },
+                  floorAskCurrency,
+                  query.displayCurrency
+                ),
+                end: await getJoiPriceObject(
+                  {
+                    gross: {
+                      amount: bn(order.getMatchingPrice(order.params.endTime))
+                        .add(missingRoyalties)
+                        .toString(),
+                    },
+                  },
+                  floorAskCurrency,
+                  query.displayCurrency
+                ),
+              },
+              time: {
+                start: order.params.startTime,
+                end: order.params.endTime,
+              },
+            },
+          };
+        } else if (
+          ["sudoswap", "sudoswap-v2", "nftx", "collectionxyz", "caviar-v1", "midaswap"].includes(
+            ask.order.kind
+          )
+        ) {
+          // Pool orders
+          dynamicPricing = {
+            kind: "pool",
+            data: {
+              pool: ask.order.rawData.pair ?? ask.order.rawData.pool,
+              prices: await Promise.all(
+                ((ask.order.rawData.extra as any).prices as string[])
+                  .filter((price) =>
+                    bn(price).lte(bn((ask.order.rawData.extra as any).floorPrice || MaxUint256))
+                  )
+                  .map((price) =>
+                    getJoiPriceObject(
+                      {
+                        gross: {
+                          amount: bn(price).add(missingRoyalties).toString(),
+                        },
+                      },
+                      floorAskCurrency,
+                      query.displayCurrency
+                    )
+                  )
+              ),
+            },
+          };
+        }
+      }
+    }
+
+    const metadata = {
+      imageOriginal: undefined,
+      mediaOriginal: undefined,
+    };
+
+    if (r.metadata?.image_original_url) {
+      metadata.imageOriginal = r.metadata.image_original_url;
+    }
+
+    if (r.metadata?.animation_original_url) {
+      metadata.mediaOriginal = r.metadata.animation_original_url;
+    }
+
+    return {
+      token: getJoiTokenObject(
+        {
+          chainId: config.chainId,
+          contract,
+          tokenId,
+          name: r.name,
+          description: r.description,
+          image: Assets.getResizedImageUrl(r.image),
+          imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small),
+          imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large),
+          metadata: Object.values(metadata).every((el) => el === undefined) ? undefined : metadata,
+          media: r.media,
+          kind: r.kind,
+          isFlagged: Boolean(Number(r.is_flagged)),
+          isSpam: Number(r.t_is_spam) > 0 || Number(r.c_is_spam) > 0,
+          metadataDisabled:
+            Boolean(Number(r.t_metadata_disabled)) || Boolean(Number(r.c_metadata_disabled)),
+          lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
+          lastFlagChange: r.last_flag_change ? new Date(r.last_flag_change).toISOString() : null,
+          supply: !_.isNull(r.supply) ? r.supply : null,
+          remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : null,
+          rarity: r.rarity_score,
+          rarityRank: r.rarity_rank,
+          collection: {
+            id: r.collection_id,
+            name: r.collection_name,
+            image: Assets.getLocalAssetsLink(r.collection_image),
+            slug: r.slug,
+            symbol: r.symbol,
+            creator: r.creator ? fromBuffer(r.creator) : null,
+            tokenCount: r.token_count,
+            metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
+          },
+          lastSale:
+            query.includeLastSale && r.last_sale_currency
+              ? await getJoiSaleObject({
+                  prices: {
+                    gross: {
+                      amount: r.last_sale_currency_price ?? r.last_sale_price,
+                      nativeAmount: r.last_sale_price,
+                      usdAmount: r.last_sale_usd_price,
+                    },
+                  },
+                  fees: {
+                    royaltyFeeBps: r.last_sale_royalty_fee_bps,
+                    marketplaceFeeBps: r.last_sale_marketplace_fee_bps,
+                    paidFullRoyalty: r.last_sale_paid_full_royalty,
+                    royaltyFeeBreakdown: r.last_sale_royalty_fee_breakdown,
+                    marketplaceFeeBreakdown: r.last_sale_marketplace_fee_breakdown,
+                  },
+                  currencyAddress: r.last_sale_currency,
+                  timestamp: r.last_sale_timestamp,
+                  orderSourceId: r.last_sale_order_source_id_int,
+                  fillSourceId: r.last_sale_fill_source_id,
+                })
+              : undefined,
+          owner: ask.order.maker,
+          attributes: query.includeAttributes
+            ? r.attributes
+              ? _.map(r.attributes, (attribute) => ({
+                  key: attribute.key,
+                  kind: attribute.kind,
+                  value: attribute.value,
+                  tokenCount: attribute.tokenCount,
+                  onSaleCount: attribute.onSaleCount,
+                  floorAskPrice: attribute.floorAskPrice
+                    ? formatEth(attribute.floorAskPrice)
+                    : attribute.floorAskPrice,
+                  topBidValue: attribute.topBidValue
+                    ? formatEth(attribute.topBidValue)
+                    : attribute.topBidValue,
+                  createdAt: new Date(attribute.createdAt).toISOString(),
+                }))
+              : []
+            : undefined,
+        },
+        r.t_metadata_disabled,
+        r.c_metadata_disabled
+      ),
+      market: {
+        floorAsk: {
+          id: ask.order.id,
+          price: await getJoiPriceObject(
+            {
+              gross: {
+                amount: ask.order.pricing.currencyPrice ?? ask.order.pricing.price,
+                nativeAmount: ask.order.pricing.price,
+              },
+            },
+            floorAskCurrency,
+            query.displayCurrency
+          ),
+          maker: ask.order.maker,
+          validFrom: ask.order.validFrom,
+          validUntil: ask.order.validUntil,
+          quantityFilled: query.includeQuantity ? ask.order.quantityFilled : undefined,
+          quantityRemaining: query.includeQuantity ? ask.order.quantityRemaining : undefined,
+          dynamicPricing,
+          source: getJoiSourceObject(floorSellSource),
+        },
+        topBid: query.includeTopBid
+          ? {
+              id: r.top_buy_id,
+              price: r.top_buy_value
+                ? await getJoiPriceObject(
+                    {
+                      net: {
+                        amount: query.normalizeRoyalties
+                          ? r.top_buy_currency_normalized_value ?? r.top_buy_value
+                          : r.top_buy_currency_value ?? r.top_buy_value,
+                        nativeAmount: query.normalizeRoyalties
+                          ? r.top_buy_normalized_value ?? r.top_buy_value
+                          : r.top_buy_value,
+                      },
+                      gross: {
+                        amount: r.top_buy_currency_price ?? r.top_buy_price,
+                        nativeAmount: r.top_buy_price,
+                      },
+                    },
+                    topBidCurrency,
+                    query.displayCurrency
+                  )
+                : null,
+              maker: r.top_buy_maker ? fromBuffer(r.top_buy_maker) : null,
+              validFrom: r.top_buy_valid_from,
+              validUntil: r.top_buy_value ? r.top_buy_valid_until : null,
+              source: getJoiSourceObject(topBuySource),
+              feeBreakdown: feeBreakdown,
+            }
+          : undefined,
+      },
+      updatedAt: new Date(r.t_updated_at * 1000).toISOString(),
+    };
+  });
+
+  return { tokens: await Promise.all(result), continuation };
 };

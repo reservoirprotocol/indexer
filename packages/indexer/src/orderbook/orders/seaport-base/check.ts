@@ -4,6 +4,7 @@ import { baseProvider } from "@/common/provider";
 import { bn } from "@/common/utils";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as onChainData from "@/utils/on-chain-data";
+import { getPersistentPermit } from "@/utils/permits";
 
 export type SeaportOrderKind = "alienswap" | "seaport" | "seaport-v1.4" | "seaport-v1.5";
 
@@ -25,6 +26,9 @@ export const offChainCheck = async (
     singleTokenERC721ApprovalCheck?: boolean;
     // Will do the balance/approval checks against this quantity
     quantityRemaining?: number;
+    // Permits to use
+    permitId?: string;
+    permitIndex?: number;
   }
 ) => {
   const id = order.hash();
@@ -87,7 +91,12 @@ export const offChainCheck = async (
       hasBalance = false;
     }
 
-    if (options?.onChainApprovalRecheck) {
+    if (options?.permitId) {
+      const permit = await getPersistentPermit(options.permitId, options.permitIndex ?? 0);
+      if (!permit) {
+        hasApproval = false;
+      }
+    } else if (options?.onChainApprovalRecheck) {
       if (
         bn(
           await onChainData
