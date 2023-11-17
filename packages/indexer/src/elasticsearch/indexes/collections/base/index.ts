@@ -33,7 +33,7 @@ export interface BuildCollectionDocumentData extends BuildDocumentData {
   all_time_volume: string;
   floor_sell_id?: string;
   floor_sell_value?: string;
-  floor_sell_currency?: string;
+  floor_sell_currency?: Buffer;
   floor_sell_currency_price?: string;
 }
 
@@ -61,7 +61,7 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
         ? {
             id: data.floor_sell_id,
             value: data.floor_sell_value,
-            currency: data.floor_sell_currency,
+            currency: data.floor_sell_currency ? fromBuffer(data.floor_sell_currency) : undefined,
             currencyPrice: data.floor_sell_currency_price,
           }
         : undefined,
