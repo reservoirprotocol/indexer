@@ -84,7 +84,7 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
       //     isSpam: [Number(data.is_spam) > 0],
       //   },
       // },
-      // nameSuggestV2: data.name,
+      nameSuggestV2: data.name,
     } as CollectionDocument;
 
     return document;
