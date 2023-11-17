@@ -80,7 +80,7 @@ export class BackfillCollectionsElasticsearchJob extends AbstractRabbitMqJobHand
             LEFT JOIN orders ON orders.id = collections.floor_sell_id
             ${continuationFilter}
             ${fromTimestampFilter}
-            ORDER BY updated_at, id
+            ORDER BY collections.updated_at, collections.id
             LIMIT $/limit/;
           `,
         {
