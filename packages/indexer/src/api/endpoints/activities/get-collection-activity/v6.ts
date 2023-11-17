@@ -133,6 +133,8 @@ export const getCollectionActivityV6Options: RouteOptions = {
             tokenName: Joi.string().allow("", null),
             tokenImage: Joi.string().allow("", null),
             isSpam: Joi.boolean().allow("", null),
+            rarityScore: Joi.number().allow(null),
+            rarityRank: Joi.number().allow(null),
           }),
           collection: Joi.object({
             collectionId: Joi.string().allow(null),
@@ -275,7 +277,9 @@ export const getCollectionActivityV6Options: RouteOptions = {
             tokens.token_id,
             tokens.name,
             tokens.image,
-            tokens.metadata_disabled
+            tokens.metadata_disabled,
+            tokens.rarity_score,
+            tokens.rarity_rank
           FROM tokens
           WHERE (tokens.contract, tokens.token_id) IN ($/tokensFilter:raw/)
         `,
@@ -290,6 +294,8 @@ export const getCollectionActivityV6Options: RouteOptions = {
                     name: token.name,
                     image: token.image,
                     metadata_disabled: token.metadata_disabled,
+                    rarity_score: token.rarity_score,
+                    rarity_rank: token.rarity_rank,
                   }))
                 );
 
@@ -306,6 +312,8 @@ export const getCollectionActivityV6Options: RouteOptions = {
                       name: tokenResult.name,
                       image: tokenResult.image,
                       metadata_disabled: tokenResult.metadata_disabled,
+                      rarity_score: tokenResult.rarity_score,
+                      rarity_rank: tokenResult.rarity_rank,
                     })
                   );
 
@@ -363,6 +371,8 @@ export const getCollectionActivityV6Options: RouteOptions = {
                   name: tokenMetadata ? tokenMetadata.name : activity.token?.name,
                   image: tokenMetadata ? tokenMetadata.image : activity.token?.image,
                   isSpam: activity.token?.isSpam,
+                  rarityScore: tokenMetadata?.rarity_score,
+                  rarityRank: tokenMetadata?.rarity_rank,
                 },
                 tokenMetadata?.metadata_disabled ||
                   disabledCollectionMetadata[activity.collection?.id ?? ""],

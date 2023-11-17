@@ -45,23 +45,52 @@ export class IndexerTokensHandler extends KafkaEventHandler {
       eventKind: WebsocketEventKind.TokenEvent,
     });
 
-    if (payload.after.name || payload.after.image) {
-      await redis.set(
-        `token-cache:${payload.after.contract}:${payload.after.token_id}`,
-        JSON.stringify({
-          contract: payload.after.contract,
-          token_id: payload.after.token_id,
-          name: payload.after.name,
-          image: payload.after.image,
-          metadata_disabled: payload.after.metadata_disabled,
-        }),
-        "EX",
-        60 * 60 * 24,
-        "XX"
-      );
-    }
-
     try {
+      // Update the elasticsearch activities token cache
+      const changed = [];
+
+      for (const key in payload.after) {
+        const beforeValue = payload.before[key];
+        const afterValue = payload.after[key];
+
+        if (beforeValue !== afterValue) {
+          changed.push(key);
+        }
+      }
+
+      if (
+        changed.find((i) =>
+          ["name", "image", "metadata_disabled", "rarity_rank", "rarity_score"].includes(i)
+        )
+      ) {
+        logger.info(
+          "kafka-event-handler",
+          JSON.stringify({
+            message: `Debug changed.`,
+            payload,
+            changed,
+          })
+        );
+      }
+
+      if (payload.after.name || payload.after.image) {
+        await redis.set(
+          `token-cache:${payload.after.contract}:${payload.after.token_id}`,
+          JSON.stringify({
+            contract: payload.after.contract,
+            token_id: payload.after.token_id,
+            name: payload.after.name,
+            image: payload.after.image,
+            metadata_disabled: payload.after.metadata_disabled,
+            rarity_rank: payload.after.rarity_rank,
+            rarity_score: payload.after.rarity_score,
+          }),
+          "EX",
+          60 * 60 * 24,
+          "XX"
+        );
+      }
+
       const spamStatusChanged = payload.before.is_spam !== payload.after.is_spam;
 
       // Update the elasticsearch activities index
