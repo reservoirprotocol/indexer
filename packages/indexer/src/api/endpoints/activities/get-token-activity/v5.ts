@@ -304,8 +304,6 @@ export const getTokenActivityV5Options: RouteOptions = {
                   name: tokenMetadata ? tokenMetadata.name : activity.token?.name,
                   image: tokenMetadata ? tokenMetadata.image : activity.token?.image,
                   isSpam: activity.token?.isSpam,
-                  rarityScore: tokenMetadata?.rarity_score,
-                  rarityRank: tokenMetadata?.rarity_rank,
                 },
                 tokenMetadata?.metadata_disabled ||
                   disabledCollectionMetadata[activity.collection?.id ?? ""],
@@ -374,6 +372,8 @@ export const getTokenActivityV5Options: RouteOptions = {
                   ? tokenMetadata.image
                   : activity.token?.image
                 : undefined,
+              rarityScore: tokenMetadata?.rarity_score,
+              rarityRank: tokenMetadata?.rarity_rank,
             },
             collection: {
               collectionId: activity.collection?.id,
