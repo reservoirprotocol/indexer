@@ -38,8 +38,10 @@ export class SingleTokenBuilder extends BaseBuilder {
   public build(params: BuildParams) {
     this.defaultInitialize(params);
 
+    const kind = params.beneficiary ? "item-offer-approval" : "sale-approval";
+
     return new Order(this.chainId, {
-      kind: params.beneficiary ? "item-offer-approval" : "sale-approval",
+      kind,
       protocol: params.protocol,
       cosigner: params.cosigner,
       sellerOrBuyer: params.maker,
@@ -49,12 +51,12 @@ export class SingleTokenBuilder extends BaseBuilder {
       amount: s(params.amount),
       itemPrice: s(params.itemPrice),
       expiration: s(params.expiration),
-      marketplaceFeeNumerator: s(params.marketplaceFeeNumerator) ?? "0",
+      marketplaceFeeNumerator: s(params.marketplaceFeeNumerator ?? "0"),
       nonce: s(params.nonce),
       masterNonce: s(params.masterNonce),
 
       maxRoyaltyFeeNumerator:
-        params.maxRoyaltyFeeNumerator != undefined ? s(params.maxRoyaltyFeeNumerator) : undefined,
+        kind === "sale-approval" ? s(params.maxRoyaltyFeeNumerator ?? "0") : undefined,
 
       beneficiary: params.beneficiary ?? undefined,
 

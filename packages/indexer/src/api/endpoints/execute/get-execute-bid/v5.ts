@@ -1494,7 +1494,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                   });
                 }
 
-                steps[4].items.push({
+                steps[5].items.push({
                   status: "incomplete",
                   data: {
                     sign: order.getSignatureData(),

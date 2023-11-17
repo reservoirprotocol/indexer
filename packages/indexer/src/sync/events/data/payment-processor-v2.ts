@@ -89,7 +89,10 @@ export const masterNonceInvalidated: EventData = {
   topic: "0xb06d2760711c1c15c05bc011b1009a36c0713c6d63567c267678c3a382188b61",
   numTopics: 3,
   abi: new Interface([
-    `event MasterNonceInvalidated(uint256 indexed nonce, address indexed account)`,
+    `event MasterNonceInvalidated(
+      uint256 indexed nonce,
+      address indexed account
+    )`,
   ]),
 };
 
@@ -101,8 +104,8 @@ export const nonceInvalidated: EventData = {
   numTopics: 3,
   abi: new Interface([
     `event NonceInvalidated(
-      uint256 indexed nonce, 
-      address indexed account, 
+      uint256 indexed nonce,
+      address indexed account,
       bool wasCancellation
     )`,
   ]),
@@ -112,12 +115,12 @@ export const orderDigestInvalidated: EventData = {
   kind: "payment-processor-v2",
   subKind: "payment-processor-v2-order-digest-invalidated",
   addresses: { [PaymentProcessorV2.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
-  topic: "0xf3003920635c7d35c4f314eaeeed4b4c653ccb36608a86d57df761d460eab09d",
+  topic: "0xc63c82396a1b7865295ff481988a98493c2c3cc29066c229b8001c6f5dd647a9",
   numTopics: 3,
   abi: new Interface([
     `event OrderDigestInvalidated(
-      bytes32 indexed orderDigest, 
-      address indexed account, 
+      bytes32 indexed orderDigest,
+      address indexed account,
       bool wasCancellation
     )`,
   ]),

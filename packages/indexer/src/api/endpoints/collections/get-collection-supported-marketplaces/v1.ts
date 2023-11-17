@@ -10,6 +10,7 @@ import { logger } from "@/common/logger";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings, getSubDomain } from "@/config/network";
+import { OrderKind } from "@/orderbook/orders";
 import { getOrUpdateBlurRoyalties } from "@/utils/blur";
 import { checkMarketplaceIsFiltered } from "@/utils/erc721c";
 import * as marketplaceFees from "@/utils/marketplace-fees";
@@ -34,7 +35,7 @@ type Marketplace = {
     maxBps: number;
   };
   orderbook: string | null;
-  orderKind: string | null;
+  orderKind: OrderKind | null;
   listingEnabled: boolean;
   customFeesSupported: boolean;
   collectionBidSupported?: boolean;
@@ -216,7 +217,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
             maxBps: royalties.map((r) => r.bps).reduce((a, b) => a + b, 0),
           },
           orderbook: "reservoir",
-          orderKind: "seaport-v1.5",
+          orderKind: config.chainId === 11155111 ? "payment-processor-v2" : "seaport-v1.5",
           listingEnabled: true,
           customFeesSupported: true,
           collectionBidSupported: Number(collectionResult.token_count) <= config.maxTokenSetSize,

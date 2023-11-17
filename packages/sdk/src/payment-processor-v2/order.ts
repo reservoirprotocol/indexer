@@ -68,15 +68,27 @@ export class Order {
   private detectKind(): Types.OrderKind {
     const params = this.params;
 
-    if (params.maxRoyaltyFeeNumerator && !params.beneficiary) {
+    if (
+      params.maxRoyaltyFeeNumerator !== undefined &&
+      params.beneficiary === undefined &&
+      params.tokenId !== undefined
+    ) {
       return "sale-approval";
     }
 
-    if (!params.maxRoyaltyFeeNumerator && params.beneficiary && params.tokenId) {
+    if (
+      params.maxRoyaltyFeeNumerator === undefined &&
+      params.beneficiary !== undefined &&
+      params.tokenId !== undefined
+    ) {
       return "item-offer-approval";
     }
 
-    if (!this.params.maxRoyaltyFeeNumerator && params.beneficiary && !params.tokenId) {
+    if (
+      params.maxRoyaltyFeeNumerator === undefined &&
+      params.beneficiary !== undefined &&
+      params.tokenId === undefined
+    ) {
       return "collection-offer-approval";
     }
 
