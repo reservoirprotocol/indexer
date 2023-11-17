@@ -60,11 +60,9 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
       floorSell: data.floor_sell_id
         ? {
             id: data.floor_sell_id,
-            value: data.floor_sell_value ? formatEth(data.floor_sell_value) : undefined,
+            value: data.floor_sell_value,
             currency: data.floor_sell_currency,
-            currencyPrice: data.floor_sell_currency_price
-              ? formatEth(data.floor_sell_currency_price)
-              : undefined,
+            currencyPrice: data.floor_sell_currency_price,
           }
         : undefined,
       nameSuggest: {

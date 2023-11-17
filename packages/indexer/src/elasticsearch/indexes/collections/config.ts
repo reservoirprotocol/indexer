@@ -19,8 +19,18 @@ export const CONFIG_DEFAULT = {
       community: { type: "keyword" },
       tokenCount: { type: "long" },
       isSpam: { type: "boolean" },
+      metadataDisabled: { type: "boolean" },
       createdAt: { type: "date" },
       indexedAt: { type: "date" },
+      allTimeVolumeDecimal: { type: "double" },
+      floorSell: {
+        properties: {
+          id: { type: "keyword" },
+          value: { type: "keyword" },
+          currency: { type: "keyword" },
+          currencyPrice: { type: "keyword" },
+        },
+      },
       nameSuggest: {
         type: "completion",
         contexts: [
