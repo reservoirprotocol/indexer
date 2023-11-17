@@ -1979,25 +1979,23 @@ export const updateActivitiesCollectionData = async (
       } else {
         keepGoing = pendingUpdateDocuments.length === batchSize;
 
-        if (collectionId === "0x1a92f7381b9f03921564a437210bb9396471050c") {
-          logger.info(
-            "elasticsearch-activities",
-            JSON.stringify({
-              topic: "updateActivitiesCollectionData",
-              message: `Success. collectionId=${collectionId}, collectionData=${JSON.stringify(
-                collectionData
-              )}`,
-              data: {
-                collectionId,
-                collectionData,
-              },
-              bulkParams: JSON.stringify(bulkParams),
-              response,
-              keepGoing,
-              queryJson: JSON.stringify(query),
-            })
-          );
-        }
+        // logger.info(
+        //     "elasticsearch-activities",
+        //     JSON.stringify({
+        //       topic: "updateActivitiesCollectionData",
+        //       message: `Success. collectionId=${collectionId}, collectionData=${JSON.stringify(
+        //           collectionData
+        //       )}`,
+        //       data: {
+        //         collectionId,
+        //         collectionData,
+        //       },
+        //       bulkParams: JSON.stringify(bulkParams),
+        //       response,
+        //       keepGoing,
+        //       queryJson: JSON.stringify(query),
+        //     })
+        // );
       }
     }
   } catch (error) {
