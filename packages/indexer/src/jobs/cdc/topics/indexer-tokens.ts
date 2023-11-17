@@ -59,8 +59,8 @@ export class IndexerTokensHandler extends KafkaEventHandler {
       }
 
       if (
-        changed.find((i) =>
-          ["name", "image", "metadata_disabled", "rarity_rank", "rarity_score"].includes(i)
+        changed.some((value) =>
+          ["name", "image", "metadata_disabled", "rarity_rank", "rarity_score"].includes(value)
         )
       ) {
         logger.info(
