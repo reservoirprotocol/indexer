@@ -79,7 +79,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
             "elasticsearch-asks",
             JSON.stringify({
               topic: "IndexerTokensHandler",
-              message: `Debug. payload=${payload.collectionId}, flagStatusChanged=${flagStatusChanged}, rarityRankChanged=${rarityRankChanged}, spamStatusChanged=${spamStatusChanged}`,
+              message: `Debug. payload=${payload.after.collection_id}, flagStatusChanged=${flagStatusChanged}, rarityRankChanged=${rarityRankChanged}, spamStatusChanged=${spamStatusChanged}`,
               payload,
             })
           );

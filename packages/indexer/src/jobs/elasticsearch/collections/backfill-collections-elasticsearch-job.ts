@@ -149,6 +149,15 @@ export class BackfillCollectionsElasticsearchJob extends AbstractRabbitMqJobHand
 
           await backfillCollectionsElasticsearchJob.addToQueue(payload.fromTimestamp, nextCursor);
         }
+      } else {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "debugCollectionsIndex",
+            message: `Done.`,
+            payload,
+          })
+        );
       }
     } catch (error) {
       logger.error(

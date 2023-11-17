@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { formatEth, fromBuffer } from "@/common/utils";
+import { fromBuffer } from "@/common/utils";
 
 import { BuildDocumentData, BaseDocument, DocumentBuilder } from "@/elasticsearch/indexes/base";
 import { config } from "@/config/index";
@@ -54,17 +54,17 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
       image: data.image,
       community: data.community,
       tokenCount: Number(data.token_count),
-      metadataDisabled: Number(data.metadata_disabled) > 0,
+      // metadataDisabled: Number(data.metadata_disabled) > 0,
       isSpam: Number(data.is_spam) > 0,
-      allTimeVolumeDecimal: formatEth(data.all_time_volume),
-      floorSell: data.floor_sell_id
-        ? {
-            id: data.floor_sell_id,
-            value: data.floor_sell_value,
-            currency: data.floor_sell_currency ? fromBuffer(data.floor_sell_currency) : undefined,
-            currencyPrice: data.floor_sell_currency_price,
-          }
-        : undefined,
+      // allTimeVolumeDecimal: formatEth(data.all_time_volume),
+      // floorSell: data.floor_sell_id
+      //   ? {
+      //       id: data.floor_sell_id,
+      //       value: data.floor_sell_value,
+      //       currency: data.floor_sell_currency ? fromBuffer(data.floor_sell_currency) : undefined,
+      //       currencyPrice: data.floor_sell_currency_price,
+      //     }
+      //   : undefined,
       nameSuggest: {
         input: this.generateInputValues(data),
         weight: this.formatAllTimeVolume(data),
@@ -76,7 +76,7 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
           isSpam: [Number(data.is_spam) > 0],
         },
       },
-      nameSuggestV2: data.name,
+      // nameSuggestV2: data.name,
     } as CollectionDocument;
 
     return document;
