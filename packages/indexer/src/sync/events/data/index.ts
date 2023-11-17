@@ -325,7 +325,8 @@ export type EventSubKind =
   | "payment-processor-v2-accept-offer-erc721"
   | "payment-processor-v2-accept-offer-erc1155"
   | "payment-processor-v2-master-nonce-invalidated"
-  | "payment-processor-v2-nonce-invalidated";
+  | "payment-processor-v2-nonce-invalidated"
+  | "payment-processor-v2-order-digest-invalidated";
 
 export type EventData = {
   kind: EventKind;
@@ -557,6 +558,7 @@ const allEventData = [
   paymentProcessorV2.buyListingERC721,
   paymentProcessorV2.masterNonceInvalidated,
   paymentProcessorV2.nonceInvalidated,
+  paymentProcessorV2.orderDigestInvalidated,
 ];
 
 export const getEventData = (events?: string[]) => {

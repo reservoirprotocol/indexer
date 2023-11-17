@@ -63,11 +63,12 @@ export class ContractWideBuilder extends BaseBuilder {
     order: Order,
     options: {
       taker: string;
+      amount?: BigNumberish;
       tokenId?: BigNumberish;
       maxRoyaltyFeeNumerator?: BigNumberish;
     }
   ): MatchedOrder {
     order.params.tokenId = options.tokenId!.toString();
-    return order.getMatchedOrder(options.taker);
+    return order.getMatchedOrder(options.taker, options.amount);
   }
 }

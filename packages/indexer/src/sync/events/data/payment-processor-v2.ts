@@ -107,3 +107,18 @@ export const nonceInvalidated: EventData = {
     )`,
   ]),
 };
+
+export const orderDigestInvalidated: EventData = {
+  kind: "payment-processor-v2",
+  subKind: "payment-processor-v2-order-digest-invalidated",
+  addresses: { [PaymentProcessorV2.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0xf3003920635c7d35c4f314eaeeed4b4c653ccb36608a86d57df761d460eab09d",
+  numTopics: 3,
+  abi: new Interface([
+    `event OrderDigestInvalidated(
+      bytes32 indexed orderDigest, 
+      address indexed account, 
+      bool wasCancellation
+    )`,
+  ]),
+};

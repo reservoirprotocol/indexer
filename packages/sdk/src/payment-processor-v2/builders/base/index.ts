@@ -7,6 +7,7 @@ import { getCurrentTimestamp, getRandomBytes } from "../../../utils";
 
 export type MatchingOptions = {
   taker: string;
+  amount?: BigNumberish;
   tokenId?: BigNumberish;
   maxRoyaltyFeeNumerator?: BigNumberish;
 };

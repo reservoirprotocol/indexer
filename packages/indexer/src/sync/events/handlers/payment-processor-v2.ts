@@ -46,6 +46,22 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         break;
       }
 
+      case "payment-processor-v2-order-digest-invalidated": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const orderId = parsedLog.args["orderDigest"].toLowerCase();
+        const wasCancellation = parsedLog.args["wasCancellation"];
+
+        if (wasCancellation) {
+          onChainData.cancelEventsOnChain.push({
+            orderKind: "payment-processor-v2",
+            orderId,
+            baseEventParams,
+          });
+        }
+
+        break;
+      }
+
       case "payment-processor-v2-master-nonce-invalidated": {
         const parsedLog = eventData.abi.parseLog(log);
         const maker = parsedLog.args["account"].toLowerCase();
