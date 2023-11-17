@@ -65,17 +65,17 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
       //       currencyPrice: data.floor_sell_currency_price,
       //     }
       //   : undefined,
-      nameSuggest: {
-        input: this.generateInputValues(data),
-        weight: this.formatAllTimeVolume(data),
-        contexts: {
-          chainId: [config.chainId],
-          id: [data.id],
-          community: data.community ? [data.community] : [],
-          hasTokens: [Number(data.token_count) > 0],
-          isSpam: [Number(data.is_spam) > 0],
-        },
-      },
+      // nameSuggest: {
+      //   input: this.generateInputValues(data),
+      //   weight: this.formatAllTimeVolume(data),
+      //   contexts: {
+      //     chainId: [config.chainId],
+      //     id: [data.id],
+      //     community: data.community ? [data.community] : [],
+      //     hasTokens: [Number(data.token_count) > 0],
+      //     isSpam: [Number(data.is_spam) > 0],
+      //   },
+      // },
       // nameSuggestV2: data.name,
     } as CollectionDocument;
 
