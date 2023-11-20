@@ -16,6 +16,7 @@ export interface CollectionDocument extends BaseDocument {
   tokenCount: number;
   metadataDisabled: boolean;
   isSpam: boolean;
+  allTimeVolume?: string;
   allTimeVolumeDecimal?: number;
   floorSell?: {
     id?: string;
@@ -23,6 +24,8 @@ export interface CollectionDocument extends BaseDocument {
     currency?: string;
     currencyPrice?: string;
   };
+
+  openseaVerificationStatus?: string;
 }
 
 export interface BuildCollectionDocumentData extends BuildDocumentData {
@@ -41,6 +44,7 @@ export interface BuildCollectionDocumentData extends BuildDocumentData {
   floor_sell_value?: string;
   floor_sell_currency?: Buffer;
   floor_sell_currency_price?: string;
+  opensea_verification_status?: string;
 }
 
 export class CollectionDocumentBuilder extends DocumentBuilder {
@@ -62,6 +66,7 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
       tokenCount: Number(data.token_count),
       metadataDisabled: Number(data.metadata_disabled) > 0,
       isSpam: Number(data.is_spam) > 0,
+      allTimeVolume: data.all_time_volume,
       allTimeVolumeDecimal: formatEth(data.all_time_volume),
       floorSell: data.floor_sell_id
         ? {
@@ -71,6 +76,7 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
             currencyPrice: data.floor_sell_currency_price,
           }
         : undefined,
+      openseaVerificationStatus: data.opensea_verification_status,
     } as CollectionDocument;
 
     return document;

@@ -25,6 +25,7 @@ export const CONFIG_DEFAULT = {
       metadataDisabled: { type: "boolean" },
       createdAt: { type: "date" },
       indexedAt: { type: "date" },
+      allTimeVolume: { type: "double" },
       allTimeVolumeDecimal: { type: "double" },
       floorSell: {
         properties: {
