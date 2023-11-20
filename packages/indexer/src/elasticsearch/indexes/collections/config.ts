@@ -12,7 +12,10 @@ export const CONFIG_DEFAULT = {
         },
       },
       id: { type: "keyword" },
-      name: { type: "keyword" },
+      name: {
+        type: "search_as_you_type",
+        max_shingle_size: 3,
+      },
       slug: { type: "keyword" },
       image: { type: "keyword" },
       contract: { type: "keyword" },
@@ -30,35 +33,6 @@ export const CONFIG_DEFAULT = {
           currency: { type: "keyword" },
           currencyPrice: { type: "keyword" },
         },
-      },
-      nameSuggest: {
-        type: "completion",
-        contexts: [
-          {
-            name: "chainId",
-            type: "category",
-          },
-          {
-            name: "id",
-            type: "category",
-          },
-          {
-            name: "community",
-            type: "category",
-          },
-          {
-            name: "hasTokens",
-            type: "category",
-          },
-          {
-            name: "isSpam",
-            type: "category",
-          },
-        ],
-      },
-      nameSuggestV2: {
-        type: "search_as_you_type",
-        max_shingle_size: 3,
       },
     },
   } as MappingTypeMapping,
