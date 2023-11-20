@@ -57,6 +57,7 @@ export const getAutocompleteCollectionsV1Options: RouteOptions = {
           contract: Joi.string(),
           image: Joi.string().allow("", null),
           name: Joi.string().allow("", null),
+          tokenCount: Joi.string(),
           isSpam: Joi.boolean().default(false),
           slug: Joi.string().allow("", null),
           allTimeVolume: Joi.number().unsafe().allow(null),
