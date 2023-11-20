@@ -12,7 +12,9 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { OrderKind } from "@/orderbook/orders";
 import * as b from "@/utils/auth/blur";
+import { cosigner, generateOffChainCancellationSignatureData } from "@/utils/cosign";
 
 const version = "v3";
 
@@ -37,6 +39,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
         "looks-rare-v2",
         "zeroex-v4-erc721",
         "zeroex-v4-erc1155",
+        "payment-processor-v2",
         "rarible",
         "alienswap"
       ),
@@ -113,6 +116,18 @@ export const getExecuteCancelV3Options: RouteOptions = {
         case "alienswap": {
           const exchange = new Sdk.Alienswap.Exchange(config.chainId);
           cancelTx = exchange.cancelAllOrdersTx(payload.maker);
+          break;
+        }
+
+        case "payment-processor": {
+          const exchange = new Sdk.PaymentProcessor.Exchange(config.chainId);
+          cancelTx = exchange.revokeMasterNonceTx(payload.maker);
+          break;
+        }
+
+        case "payment-processor-v2": {
+          const exchange = new Sdk.PaymentProcessorV2.Exchange(config.chainId);
+          cancelTx = exchange.revokeMasterNonceTx(payload.maker);
           break;
         }
 
@@ -315,7 +330,13 @@ export const getExecuteCancelV3Options: RouteOptions = {
       const orderResult = orderResults[0];
 
       // When bulk-cancelling, make sure all orders have the same kind
-      const supportedKinds = ["seaport", "seaport-v1.4", "seaport-v1.5", "alienswap"];
+      const supportedKinds = [
+        "seaport",
+        "seaport-v1.4",
+        "seaport-v1.5",
+        "alienswap",
+        "payment-processor-v2",
+      ];
       if (isBulkCancel) {
         const supportsBulkCancel =
           supportedKinds.includes(orderResult.kind) &&
@@ -328,32 +349,67 @@ export const getExecuteCancelV3Options: RouteOptions = {
       // Handle off-chain cancellations
 
       const cancellationZone = Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId];
-      const areAllSeaportV14OracleCancellable = orderResults.every(
+      const areAllSeaportV14OffChainCancellable = orderResults.every(
         (o) => o.kind === "seaport-v1.4" && o.raw_data.zone === cancellationZone
       );
-      const areAllSeaportV15OracleCancellable = orderResults.every(
+      const areAllSeaportV15OffChainCancellable = orderResults.every(
         (o) => o.kind === "seaport-v1.5" && o.raw_data.zone === cancellationZone
       );
-      const areAllAlienswapOracleCancellable = orderResults.every(
+      const areAllAlienswapOffChainCancellable = orderResults.every(
         (o) => o.kind === "alienswap" && o.raw_data.zone === cancellationZone
       );
+      const allArePPV2OffChainCancellable = orderResults.every(
+        (o) =>
+          o.kind === "payment-processor-v2" &&
+          o.raw_data.cosigner === cosigner().address.toLowerCase()
+      );
 
-      let oracleCancellableKind: string | undefined;
-      if (areAllSeaportV14OracleCancellable) {
-        oracleCancellableKind = "seaport-v1.4";
-      } else if (areAllSeaportV15OracleCancellable) {
-        oracleCancellableKind = "seaport-v1.5";
-      } else if (areAllAlienswapOracleCancellable) {
-        oracleCancellableKind = "alienswap";
+      let offChainCancellableKind: OrderKind | undefined;
+      if (areAllSeaportV14OffChainCancellable) {
+        offChainCancellableKind = "seaport-v1.4";
+      } else if (areAllSeaportV15OffChainCancellable) {
+        offChainCancellableKind = "seaport-v1.5";
+      } else if (areAllAlienswapOffChainCancellable) {
+        offChainCancellableKind = "alienswap";
+      } else if (allArePPV2OffChainCancellable) {
+        offChainCancellableKind = "payment-processor-v2";
       }
 
-      if (oracleCancellableKind) {
+      if (offChainCancellableKind === "payment-processor-v2") {
+        const orderIds = orderResults.map((o) => o.id).sort();
         return {
           steps: [
             {
               id: "cancellation-signature",
               action: "Cancel order",
-              description: "Authorize the cancellation of the order",
+              description: "Authorize the cancellation of the order(s)",
+              kind: "signature",
+              items: [
+                {
+                  status: "incomplete",
+                  data: {
+                    sign: generateOffChainCancellationSignatureData(orderIds),
+                    post: {
+                      endpoint: "/execute/cancel-signature/v1",
+                      method: "POST",
+                      body: {
+                        orderIds,
+                        orderKind: offChainCancellableKind,
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        };
+      } else if (offChainCancellableKind) {
+        return {
+          steps: [
+            {
+              id: "cancellation-signature",
+              action: "Cancel order",
+              description: "Authorize the cancellation of the order(s)",
               kind: "signature",
               items: [
                 {
@@ -378,7 +434,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
                       method: "POST",
                       body: {
                         orderIds: orderResults.map((o) => o.id).sort(),
-                        orderKind: oracleCancellableKind,
+                        orderKind: offChainCancellableKind,
                       },
                     },
                   },
@@ -498,6 +554,14 @@ export const getExecuteCancelV3Options: RouteOptions = {
           break;
         }
 
+        case "payment-processor-v2": {
+          const order = new Sdk.PaymentProcessorV2.Order(config.chainId, orderResult.raw_data);
+          const exchange = new Sdk.PaymentProcessorV2.Exchange(config.chainId);
+          cancelTx = exchange.cancelOrderTx(maker, order);
+
+          break;
+        }
+
         case "blur": {
           // Handle Blur authentication
           const blurAuthId = b.getAuthId(maker);
@@ -565,8 +629,6 @@ export const getExecuteCancelV3Options: RouteOptions = {
 
           break;
         }
-
-        // TODO: Add support for X2Y2
 
         default: {
           throw Boom.notImplemented("Unsupported order kind");

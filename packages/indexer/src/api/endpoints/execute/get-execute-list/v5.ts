@@ -142,6 +142,9 @@ export const getExecuteListV5Options: RouteOptions = {
                   otherwise: Joi.forbidden(),
                 }),
               }),
+              "payment-processor-v2": Joi.object({
+                useOffChainCancellation: Joi.boolean().required(),
+              }),
               alienswap: Joi.object({
                 useOffChainCancellation: Joi.boolean().required(),
                 replaceOrderId: Joi.string().when("useOffChainCancellation", {
@@ -1048,8 +1051,16 @@ export const getExecuteListV5Options: RouteOptions = {
                   return errors.push({ message: "Unsupported orderbook", orderIndex: i });
                 }
 
+                const options = (params.options?.["payment-processor-v2"] ??
+                  params.options?.["payment-processor-v2"]) as
+                  | {
+                      useOffChainCancellation?: boolean;
+                    }
+                  | undefined;
+
                 const order = await paymentProcessorV2SellToken.build({
                   ...params,
+                  ...options,
                   maker,
                   contract,
                   tokenId,

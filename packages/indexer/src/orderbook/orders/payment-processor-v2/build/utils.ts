@@ -6,6 +6,7 @@ import { redb } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
+import { cosigner } from "@/utils/cosign";
 import { getRoyalties } from "@/utils/royalties";
 
 export interface BaseOrderBuildOptions {
@@ -16,6 +17,7 @@ export interface BaseOrderBuildOptions {
   listingTime?: number;
   expirationTime?: number;
   quantity?: number;
+  useOffChainCancellation?: boolean;
 }
 
 type OrderBuildInfo = {
@@ -68,6 +70,10 @@ export const getBuildInfo = async (
         : Sdk.Common.Addresses.WNative[config.chainId]),
     masterNonce: await commonHelpers.getMinNonce("payment-processor-v2", options.maker),
   };
+
+  if (options.useOffChainCancellation) {
+    buildParams.cosigner = cosigner().address.toLowerCase();
+  }
 
   return {
     params: buildParams,

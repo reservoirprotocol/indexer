@@ -8,8 +8,8 @@ import {
 } from "@/jobs/websocket-events/websocket-event-router";
 import { refreshAsksTokenJob } from "@/jobs/asks/refresh-asks-token-job";
 import { logger } from "@/common/logger";
-import { config } from "@/config/index";
 import { refreshActivitiesTokenJob } from "@/jobs/activities/refresh-activities-token-job";
+import _ from "lodash";
 
 export class IndexerTokensHandler extends KafkaEventHandler {
   topicName = "indexer.public.tokens";
@@ -75,15 +75,6 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         const rarityRankChanged = payload.before.rarity_rank !== payload.after.rarity_rank;
 
         if (flagStatusChanged || rarityRankChanged || spamStatusChanged) {
-          logger.info(
-            "elasticsearch-asks",
-            JSON.stringify({
-              topic: "IndexerTokensHandler",
-              message: `Debug. payload=${payload.after.collection_id}, flagStatusChanged=${flagStatusChanged}, rarityRankChanged=${rarityRankChanged}, spamStatusChanged=${spamStatusChanged}`,
-              payload,
-            })
-          );
-
           await refreshAsksTokenJob.addToQueue(payload.after.contract, payload.after.token_id);
         }
       }
@@ -91,7 +82,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
       const metadataInitializedAtChanged =
         payload.before.metadata_initialized_at !== payload.after.metadata_initialized_at;
 
-      if (metadataInitializedAtChanged && config.chainId === 1) {
+      if (metadataInitializedAtChanged && _.random(100) <= 50) {
         logger.info(
           "token-metadata-latency-metric",
           JSON.stringify({
