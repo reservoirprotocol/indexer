@@ -25,6 +25,7 @@ import * as forgottenRunesWarriors from "./forgotten-runes-warriors";
 import * as forgottenSouls from "./forgotten-souls";
 import * as goldfinch from "./goldfinch";
 import * as lilnouns from "./lilnouns";
+import * as hape from "./hape";
 
 // import * as loot from "./loot";
 import * as mirageGalleryCurated from "./mirage-gallery-curated";
@@ -344,3 +345,6 @@ extend["1,0xacf63e56fd08970b43401492a02f6f38b6635c91"] = kanpaiPandas;
 // ZED Run
 extend["137,0x67f4732266c7300cca593c814d46bee72e40659f"] = zedRun;
 extend["80001,0xb8290f7a3ba474fe8e9179f419c1485c078e044b"] = zedRun;
+
+// Hape
+extend["1,0x4db1f25d3d98600140dfc18deb7515be5bd293af"] = hape;
