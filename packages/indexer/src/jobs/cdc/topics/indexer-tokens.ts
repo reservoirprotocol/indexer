@@ -75,15 +75,6 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         const rarityRankChanged = payload.before.rarity_rank !== payload.after.rarity_rank;
 
         if (flagStatusChanged || rarityRankChanged || spamStatusChanged) {
-          logger.info(
-            "elasticsearch-asks",
-            JSON.stringify({
-              topic: "IndexerTokensHandler",
-              message: `Debug. payload=${payload.after.collection_id}, flagStatusChanged=${flagStatusChanged}, rarityRankChanged=${rarityRankChanged}, spamStatusChanged=${spamStatusChanged}`,
-              payload,
-            })
-          );
-
           await refreshAsksTokenJob.addToQueue(payload.after.contract, payload.after.token_id);
         }
       }
