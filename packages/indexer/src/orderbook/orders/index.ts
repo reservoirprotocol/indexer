@@ -38,7 +38,7 @@ import { idb } from "@/common/db";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
-import { getCosigner } from "@/utils/cosign";
+import { cosigner } from "@/utils/cosign";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as registry from "@/utils/royalties/registry";
 
@@ -459,8 +459,7 @@ export const generateListingDetailsV6 = async (
     case "payment-processor-v2": {
       const rawOrder = new Sdk.PaymentProcessorV2.Order(config.chainId, order.rawData);
       if (rawOrder.isCosignedOrder() && options?.taker) {
-        const cosigner = getCosigner();
-        await rawOrder.cosign(cosigner, options.taker);
+        await rawOrder.cosign(cosigner(), options.taker);
       }
 
       return {
@@ -834,8 +833,7 @@ export const generateBidDetailsV6 = async (
     case "payment-processor-v2": {
       const sdkOrder = new Sdk.PaymentProcessorV2.Order(config.chainId, order.rawData);
       if (sdkOrder.isCosignedOrder() && options?.taker) {
-        const cosigner = getCosigner();
-        await sdkOrder.cosign(cosigner, options.taker);
+        await sdkOrder.cosign(cosigner(), options.taker);
       }
 
       return {

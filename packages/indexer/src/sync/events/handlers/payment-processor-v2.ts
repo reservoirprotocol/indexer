@@ -199,14 +199,15 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           break;
         }
 
-        const agrs = exchange.contract.interface.decodeFunctionData(
+        const args = exchange.contract.interface.decodeFunctionData(
           matchedMethod.name,
           relevantCalldata!
         );
 
-        const inputData = defaultAbiCoder.decode(matchedMethod.abi, agrs.data);
+        const inputData = defaultAbiCoder.decode(matchedMethod.abi, args.data);
         let saleDetailsArray = [inputData.saleDetails];
         let saleSignatures = [inputData.buyerSignature || inputData.sellerSignature];
+        const isCollectionLevelOffer = inputData.isCollectionLevelOffer;
 
         if (matchedMethod.name === "sweepCollection") {
           const sweepOrder = inputData.sweepOrder;
@@ -275,9 +276,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             : parsedLog.args["buyer"].toLowerCase();
 
           const orderSide = !isBuyOrder ? "sell" : "buy";
-
           const makerMinNonce = await commonHelpers.getMinNonce("payment-processor-v2", maker);
-          const singleBuilder = new Sdk.PaymentProcessorV2.Builders.SingleToken(config.chainId);
 
           const orderSignature = saleSignature;
           const signature = {
@@ -286,27 +285,49 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             v: orderSignature.v,
           };
 
-          const order = singleBuilder.build({
-            protocol: saleDetail["protocol"],
-            marketplace: saleDetail["marketplace"],
-            marketplaceFeeNumerator: saleDetail["marketplaceFeeNumerator"],
-            maxRoyaltyFeeNumerator: saleDetail["maxRoyaltyFeeNumerator"],
-            tokenAddress: saleDetail["tokenAddress"],
-            amount: saleDetail["amount"],
-            tokenId: saleDetail["tokenId"],
-            expiration: saleDetail["expiration"],
-            itemPrice: saleDetail["itemPrice"],
-            maker: saleDetail["maker"],
-            ...(isBuyOrder
-              ? {
-                  beneficiary: saleDetail["beneficiary"],
-                }
-              : {}),
-            nonce: saleDetail["nonce"],
-            paymentMethod: saleDetail["paymentMethod"],
-            masterNonce: makerMinNonce,
-            ...signature,
-          });
+          let order: Sdk.PaymentProcessorV2.Order;
+          if (isCollectionLevelOffer) {
+            const builder = new Sdk.PaymentProcessorV2.Builders.ContractWide(config.chainId);
+            order = builder.build({
+              protocol: saleDetail["protocol"],
+              marketplace: saleDetail["marketplace"],
+              beneficiary: saleDetail["beneficiary"],
+              marketplaceFeeNumerator: saleDetail["marketplaceFeeNumerator"],
+              maxRoyaltyFeeNumerator: saleDetail["maxRoyaltyFeeNumerator"],
+              maker: saleDetail["maker"],
+              tokenAddress: saleDetail["tokenAddress"],
+              amount: saleDetail["amount"],
+              itemPrice: saleDetail["itemPrice"],
+              expiration: saleDetail["expiration"],
+              nonce: saleDetail["nonce"],
+              paymentMethod: saleDetail["paymentMethod"],
+              masterNonce: makerMinNonce,
+              ...signature,
+            });
+          } else {
+            const builder = new Sdk.PaymentProcessorV2.Builders.SingleToken(config.chainId);
+            order = builder.build({
+              protocol: saleDetail["protocol"],
+              marketplace: saleDetail["marketplace"],
+              marketplaceFeeNumerator: saleDetail["marketplaceFeeNumerator"],
+              maxRoyaltyFeeNumerator: saleDetail["maxRoyaltyFeeNumerator"],
+              tokenAddress: saleDetail["tokenAddress"],
+              amount: saleDetail["amount"],
+              tokenId: saleDetail["tokenId"],
+              expiration: saleDetail["expiration"],
+              itemPrice: saleDetail["itemPrice"],
+              maker: saleDetail["maker"],
+              ...(isBuyOrder
+                ? {
+                    beneficiary: saleDetail["beneficiary"],
+                  }
+                : {}),
+              nonce: saleDetail["nonce"],
+              paymentMethod: saleDetail["paymentMethod"],
+              masterNonce: makerMinNonce,
+              ...signature,
+            });
+          }
 
           let isValidated = false;
           for (let nonce = Number(order.params.masterNonce); nonce >= 0; nonce--) {
@@ -330,7 +351,16 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             break;
           }
 
-          const orderId = isValidated ? order.hash() : undefined;
+          let orderId = isValidated ? order.hash() : undefined;
+
+          // If we couldn't parse the order id from the calldata try to get it from our db
+          if (!orderId) {
+            orderId = await commonHelpers.getOrderIdFromNonce(
+              "payment-processor-v2",
+              order.params.sellerOrBuyer,
+              order.params.nonce
+            );
+          }
 
           // Handle: attribution
           const orderKind = "payment-processor-v2";

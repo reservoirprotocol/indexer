@@ -29,6 +29,7 @@ describe("PaymentProcessorV2 - Indexer Integration Test", () => {
   beforeEach(async () => {
     // Reset Indexer
     await indexerHelper.reset();
+
     [deployer, alice, bob] = await ethers.getSigners();
     ({ erc721 } = await setupNFTs(deployer));
   });
@@ -308,7 +309,9 @@ describe("PaymentProcessorV2 - Indexer Integration Test", () => {
     console.log(green("\t Event Parsing:"));
     console.log(`\t\t - fillTx: ${fillTxHash}`);
     await new Promise((resolve) => setTimeout(resolve, 3000));
+    await indexerHelper.doEventParsing(fillTxHash, skipProcessing);
     const parseResult = await indexerHelper.doEventParsing(fillTxHash, skipProcessing);
+
     const onChainData = parseResult.onChainData[0];
     if (!onChainData) {
       console.log("\t\t  Parse Event Failed");
@@ -364,12 +367,12 @@ describe("PaymentProcessorV2 - Indexer Integration Test", () => {
   //     executeByRouterAPI: true,
   //   }));
 
-  it("Fill offer", async () => testCase({}));
+  // it("Fill offer", async () => testCase({}));
 
-  // it("Fill listing", async () =>
-  //   testCase({
-  //     isListing: true,
-  //   }));
+  it("Fill listing", async () =>
+    testCase({
+      isListing: true,
+    }));
 
   // it("Fill listing with bulk Cancel", async () =>
   //   testCase({

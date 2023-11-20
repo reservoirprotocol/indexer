@@ -1008,6 +1008,7 @@ export const postExecuteMintV1Options: RouteOptions = {
                 method: "POST",
                 body: {
                   kind: "cross-chain-transaction",
+                  chainId: requestedFromChainId,
                 },
               },
             });

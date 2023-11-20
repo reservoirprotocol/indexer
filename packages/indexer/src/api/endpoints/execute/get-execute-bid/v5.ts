@@ -157,6 +157,9 @@ export const getExecuteBidV5Options: RouteOptions = {
                   otherwise: Joi.forbidden(),
                 }),
               }),
+              "payment-processor-v2": Joi.object({
+                useOffChainCancellation: Joi.boolean().required(),
+              }),
             }).description("Additional options."),
             orderbook: Joi.string()
               .valid("blur", "reservoir", "opensea", "looks-rare", "x2y2")
@@ -1438,11 +1441,18 @@ export const getExecuteBidV5Options: RouteOptions = {
                   });
                 }
 
+                const options = params.options?.[params.orderKind] as
+                  | {
+                      useOffChainCancellation?: boolean;
+                    }
+                  | undefined;
+
                 let order: Sdk.PaymentProcessorV2.Order;
                 if (token) {
                   const [contract, tokenId] = token.split(":");
                   order = await paymentProcessorV2BuyToken.build({
                     ...params,
+                    ...options,
                     maker,
                     contract,
                     tokenId,
@@ -1450,6 +1460,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                 } else if (collection) {
                   order = await paymentProcessorV2BuyCollection.build({
                     ...params,
+                    ...options,
                     maker,
                     collection,
                   });

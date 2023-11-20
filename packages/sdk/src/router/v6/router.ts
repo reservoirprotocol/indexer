@@ -443,10 +443,6 @@ export class Router {
 
     // We don't have a module for PaymentProcessorV2 listings
     if (details.some(({ kind }) => kind === "payment-processor-v2")) {
-      if (options?.relayer) {
-        throw new Error("Relayer not supported for PaymentProcessorV2 orders");
-      }
-
       const ppv2Details = details.filter(({ kind }) => kind === "payment-processor-v2");
 
       const exchange = new Sdk.PaymentProcessorV2.Exchange(this.chainId);
@@ -500,7 +496,11 @@ export class Router {
             listings: { "payment-processor-v2": orders.length },
           },
           preSignatures: [],
-          txData: exchange.sweepCollectionTx(taker, orders, options),
+          txData: exchange.sweepCollectionTx(taker, orders, {
+            source: options?.source,
+            fee: allFees[0][0],
+            relayer: options?.relayer,
+          }),
           orderIds: ppv2Details.map((d) => d.orderId),
         });
       } else {
@@ -514,7 +514,7 @@ export class Router {
           txData: exchange.fillOrdersTx(
             taker,
             orders,
-            orders.map((c, i) => {
+            orders.map((_, i) => {
               return {
                 taker,
                 amount: ppv2Details[i].amount ?? 1,
@@ -523,6 +523,7 @@ export class Router {
             {
               source: options?.source,
               fees: allFees.map((c) => c[0]),
+              relayer: options?.relayer,
             }
           ),
           orderIds: ppv2Details.map((d) => d.orderId),

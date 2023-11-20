@@ -169,7 +169,10 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       } catch (error) {
         logger.error(
           "opensea-websocket-item-metadata-update-event",
-          `Error. network=${network}, event=${JSON.stringify(event)}, error=${error}`
+          JSON.stringify({
+            message: `Error. network=${network}, event=${JSON.stringify(event)}, error=${error}`,
+            error,
+          })
         );
       }
     });

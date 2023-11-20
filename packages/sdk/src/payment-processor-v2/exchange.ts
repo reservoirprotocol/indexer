@@ -77,6 +77,7 @@ export class Exchange {
     matchOptions: MatchingOptions,
     options?: {
       source?: string;
+      relayer?: string;
       fee?: {
         recipient: string;
         amount: BigNumberish;
@@ -93,6 +94,7 @@ export class Exchange {
     matchOptions: MatchingOptions,
     options?: {
       source?: string;
+      relayer?: string;
       fee?: {
         recipient: string;
         amount: BigNumberish;
@@ -103,6 +105,8 @@ export class Exchange {
       recipient: AddressZero,
       amount: bn(0),
     };
+
+    const sender = options?.relayer ?? taker;
 
     const matchedOrder = order.buildMatching(matchOptions);
 
@@ -193,7 +197,7 @@ export class Exchange {
       .add(feeOnTop.amount);
 
     return {
-      from: taker,
+      from: sender,
       to: this.contract.address,
       value: passValue ? fillValue.toString() : "0",
       data: data + generateSourceBytes(options?.source),
@@ -208,6 +212,7 @@ export class Exchange {
     matchOptions: MatchingOptions[],
     options?: {
       source?: string;
+      relayer?: string;
       fees?: {
         recipient: string;
         amount: BigNumberish;
@@ -220,6 +225,8 @@ export class Exchange {
         fee: options?.fees?.length ? options.fees[0] : undefined,
       });
     }
+
+    const sender = options?.relayer ?? taker;
 
     const allFees: {
       recipient: string;
@@ -291,7 +298,7 @@ export class Exchange {
       ]);
 
       return {
-        from: taker,
+        from: sender,
         to: this.contract.address,
         data: data + generateSourceBytes(options?.source),
       };
@@ -363,7 +370,7 @@ export class Exchange {
     ]);
 
     return {
-      from: taker,
+      from: sender,
       to: this.contract.address,
       value: price.toString(),
       data: data + generateSourceBytes(options?.source),
@@ -377,6 +384,7 @@ export class Exchange {
     orders: Order[],
     options?: {
       source?: string;
+      relayer?: string;
       fee?: {
         recipient: string;
         amount: BigNumberish;
@@ -387,6 +395,8 @@ export class Exchange {
       recipient: AddressZero,
       amount: bn(0),
     };
+
+    const sender = options?.relayer ?? taker;
 
     let price = bn(0);
     orders.forEach((order) => {
@@ -429,7 +439,7 @@ export class Exchange {
     ]);
 
     return {
-      from: taker,
+      from: sender,
       to: this.contract.address,
       value: price.toString(),
       data: data + generateSourceBytes(options?.source),
