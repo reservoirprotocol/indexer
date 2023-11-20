@@ -53,11 +53,15 @@ export async function executeBidV5(payload: any) {
 }
 
 export async function savePreSignature(signature: string, id: string) {
-  const { data } = await axios.post(`${indexUrl}/execute/pre-signature/v1?signature=${signature}`, {
-    id
-  }, {
-    validateStatus: () => true,
-  });
+  const { data } = await axios.post(
+    `${indexUrl}/execute/pre-signature/v1?signature=${signature}`,
+    {
+      id,
+    },
+    {
+      validateStatus: () => true,
+    }
+  );
   return data;
 }
 
@@ -70,5 +74,12 @@ export async function callStepAPI(endpoint: string, signature: string, payload: 
 
 export async function reset() {
   const { data } = await axios.get(`${indexUrl}/debug/reset`);
+  return data;
+}
+
+export async function executeCancelV3(payloady: any) {
+  const { data } = await axios.post(`${indexUrl}/execute/cancel/v3`, payloady, {
+    validateStatus: () => true,
+  });
   return data;
 }

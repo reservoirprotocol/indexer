@@ -557,7 +557,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
         if (!item.quantity) {
           if (preview) {
-            item.quantity = useSeaportIntent || useCrossChainIntent ? 1 : 30;
+            item.quantity = 30;
           } else {
             item.quantity = 1;
           }
@@ -857,9 +857,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
                       : item.quantity
                   ).toNumber();
 
-                  // If minting by collection was request but the current mint is tied to a token,
-                  // only mint a single quantity of the current token in order to mimick the logic
-                  // of buying by collection (where we choose as many token ids as the quantity)
+                  // If minting by collection was requested but the current mint is tied to a token,
+                  // only mint a single quantity of the current token in order to match the logic of
+                  // buying by collection (where we choose as many token ids as the quantity)
                   if (mint.tokenId) {
                     quantityToMint = Math.min(quantityToMint, 1);
                   }
@@ -916,6 +916,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
                             ? amountMintable.toString()
                             : null,
                         });
+
+                        // Solver filling is restricted to a single path item for now
+                        if ((useCrossChainIntent || useSeaportIntent) && path.length >= 1) {
+                          break;
+                        }
                       }
 
                       item.quantity -= quantityToMint;
@@ -1021,15 +1026,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
             // processed by the next pipeline of the same API rather than
             // building something custom for it.
 
-            for (
-              let i = 0;
-              i <
-              Math.min(
-                useCrossChainIntent || useSeaportIntent ? item.quantity : tokenResults.length,
-                tokenResults.length
-              );
-              i++
-            ) {
+            for (let i = 0; i < tokenResults.length; i++) {
               const t = tokenResults[i];
               items.push({
                 token: `${fromBuffer(t.contract)}:${t.token_id}`,
@@ -1141,6 +1138,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
                           itemIndex,
                           maxQuantity: amountMintable ? amountMintable.toString() : null,
                         });
+
+                        // Solver filling is restricted to a single path item for now
+                        if ((useCrossChainIntent || useSeaportIntent) && path.length >= 1) {
+                          break;
+                        }
                       }
 
                       item.quantity -= quantityToMint;
@@ -1256,8 +1258,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 continue;
               }
 
+              // Solver filling is restricted to a single path item for now
+              if (preview && (useCrossChainIntent || useSeaportIntent) && path.length >= 1) {
+                break;
+              }
+
               // Stop if we filled the total quantity
-              if (quantityToFill <= 0 && (!preview || useCrossChainIntent || useSeaportIntent)) {
+              if (quantityToFill <= 0 && !preview) {
                 break;
               }
 
@@ -1959,6 +1966,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 method: "POST",
                 body: {
                   kind: "cross-chain-transaction",
+                  chainId: requestedFromChainId,
                 },
               },
             });
