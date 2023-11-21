@@ -616,6 +616,12 @@ export const setupRoutes = (server: Server) => {
     options: collectionsEndpoints.postSpamStatusCollectionV1Options,
   });
 
+  server.route({
+    method: "GET",
+    path: "/collections/autocomplete/v1",
+    options: collectionsEndpoints.getAutocompleteCollectionsV1Options,
+  });
+
   // Chain
 
   server.route({

@@ -16,8 +16,7 @@ export interface CollectionDocument extends BaseDocument {
   tokenCount: number;
   metadataDisabled: boolean;
   isSpam: boolean;
-  nameSuggest: any;
-  nameSuggestV2: any;
+  allTimeVolume?: string;
   allTimeVolumeDecimal?: number;
   floorSell?: {
     id?: string;
@@ -25,6 +24,8 @@ export interface CollectionDocument extends BaseDocument {
     currency?: string;
     currencyPrice?: string;
   };
+
+  openseaVerificationStatus?: string;
 }
 
 export interface BuildCollectionDocumentData extends BuildDocumentData {
@@ -43,6 +44,7 @@ export interface BuildCollectionDocumentData extends BuildDocumentData {
   floor_sell_value?: string;
   floor_sell_currency?: Buffer;
   floor_sell_currency_price?: string;
+  opensea_verification_status?: string;
 }
 
 export class CollectionDocumentBuilder extends DocumentBuilder {
@@ -64,6 +66,7 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
       tokenCount: Number(data.token_count),
       metadataDisabled: Number(data.metadata_disabled) > 0,
       isSpam: Number(data.is_spam) > 0,
+      allTimeVolume: data.all_time_volume,
       allTimeVolumeDecimal: formatEth(data.all_time_volume),
       floorSell: data.floor_sell_id
         ? {
@@ -73,61 +76,9 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
             currencyPrice: data.floor_sell_currency_price,
           }
         : undefined,
-      // nameSuggest: {
-      //   input: this.generateInputValues(data),
-      //   weight: this.formatAllTimeVolume(data),
-      //   contexts: {
-      //     chainId: [config.chainId],
-      //     id: [data.id],
-      //     community: data.community ? [data.community] : [],
-      //     hasTokens: [Number(data.token_count) > 0],
-      //     isSpam: [Number(data.is_spam) > 0],
-      //   },
-      // },
-      nameSuggestV2: data.name,
+      openseaVerificationStatus: data.opensea_verification_status,
     } as CollectionDocument;
 
     return document;
-  }
-
-  formatAllTimeVolume(data: BuildCollectionDocumentData) {
-    const allTimeVolume = 0;
-
-    if (data.all_time_volume) {
-      // allTimeVolume = formatEth(data.all_time_volume);
-    }
-
-    // allTimeVolume = Math.trunc(allTimeVolume * 100000);
-    //
-    // if (allTimeVolume > 0) {
-    //   const normalizedAllTimeVolume = Math.ceil(allTimeVolume / 2147483647);
-    //
-    //   logger.info(
-    //     "elasticsearch-collections",
-    //     JSON.stringify({
-    //       topic: "debugCollectionsIndex",
-    //       message: `Document with volume. collectionId=${data.id}, allTimeVolume=${allTimeVolume}, normalizedAllTimeVolume=${normalizedAllTimeVolume}`,
-    //       data,
-    //       allTimeVolume,
-    //       normalizedAllTimeVolume,
-    //     })
-    //   );
-    //
-    //   allTimeVolume = normalizedAllTimeVolume;
-    // }
-
-    return allTimeVolume;
-  }
-
-  generateInputValues(data: BuildCollectionDocumentData): string[] {
-    const words = data.name.split(" ");
-    const combinations: string[] = [];
-
-    for (let i = 0; i < words.length; i++) {
-      const combination = words.slice(i).join(" ");
-      combinations.push(combination);
-    }
-
-    return combinations;
   }
 }
