@@ -406,7 +406,7 @@ export const getUserTokensV6Options: RouteOptions = {
     try {
       let baseQuery = `
         SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at, b.last_token_appraisal_value,
-               t.name, t.image, t.media, t.rarity_rank, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
+               t.name, t.image, t.image_version, t.media, t.rarity_rank, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
                t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to, t.floor_sell_source_id_int,
                t.rarity_score, t.last_sell_value, t.last_buy_value, t.last_sell_timestamp, t.last_buy_timestamp,
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
@@ -540,7 +540,7 @@ export const getUserTokensV6Options: RouteOptions = {
               tokenId: tokenId,
               kind: r.kind,
               name: r.name,
-              image: Assets.getResizedImageUrl(r.image),
+              image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
               lastBuy: {
                 value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
                 timestamp: r.last_buy_timestamp,

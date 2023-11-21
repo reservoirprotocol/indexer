@@ -265,7 +265,7 @@ export const getUserTopBidsV2Options: RouteOptions = {
             contract: contract,
             tokenId: tokenId,
             name: r.name,
-            image: Assets.getResizedImageUrl(r.image),
+            image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
             floorAskPrice: r.token_floor_sell_value ? formatEth(r.token_floor_sell_value) : null,
             lastSalePrice: r.token_last_sell_value ? formatEth(r.token_last_sell_value) : null,
             collection: {

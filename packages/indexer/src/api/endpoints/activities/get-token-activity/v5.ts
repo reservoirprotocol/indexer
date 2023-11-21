@@ -25,6 +25,7 @@ import { ActivityType } from "@/elasticsearch/indexes/activities/base";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { Sources } from "@/models/sources";
 import { MetadataStatus } from "@/models/metadata-status";
+import { Assets } from "@/utils/assets";
 
 const version = "v5";
 
@@ -209,7 +210,8 @@ export const getTokenActivityV5Options: RouteOptions = {
             tokens.token_id,
             tokens.name,
             tokens.image,
-            tokens.metadata_disabled
+            tokens.metadata_disabled,
+            tokens.image_version
           FROM tokens
           WHERE (tokens.contract, tokens.token_id) IN ($/tokensFilter:raw/)
         `,
@@ -223,6 +225,7 @@ export const getTokenActivityV5Options: RouteOptions = {
                   token_id: token.token_id,
                   name: token.name,
                   image: token.image,
+                  image_version: token.image_version,
                   metadata_disabled: token.metadata_disabled,
                 }))
               );
@@ -239,6 +242,7 @@ export const getTokenActivityV5Options: RouteOptions = {
                     token_id: tokenResult.token_id,
                     name: tokenResult.name,
                     image: tokenResult.image,
+                    image_version: tokenResult.image_version,
                     metadata_disabled: tokenResult.metadata_disabled,
                   })
                 );
@@ -332,6 +336,21 @@ export const getTokenActivityV5Options: RouteOptions = {
           ? sources.get(activity.event?.fillSourceId)
           : undefined;
 
+        const originalImageUrl = query.includeMetadata
+          ? tokenMetadata
+            ? tokenMetadata.image
+            : activity.token?.image
+          : undefined;
+
+        let tokenImageUrl = null;
+        if (originalImageUrl) {
+          tokenImageUrl = Assets.getResizedImageUrl(
+            originalImageUrl,
+            undefined,
+            tokenMetadata?.image_version
+          );
+        }
+
         return getJoiActivityObject(
           {
             type: activity.type,
@@ -359,11 +378,7 @@ export const getTokenActivityV5Options: RouteOptions = {
                   ? tokenMetadata.name
                   : activity.token?.name
                 : undefined,
-              tokenImage: query.includeMetadata
-                ? tokenMetadata
-                  ? tokenMetadata.image
-                  : activity.token?.image
-                : undefined,
+              tokenImage: tokenImageUrl,
             },
             collection: {
               collectionId: activity.collection?.id,

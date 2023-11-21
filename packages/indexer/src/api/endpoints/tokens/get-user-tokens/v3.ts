@@ -233,7 +233,7 @@ export const getUserTokensV3Options: RouteOptions = {
     try {
       const baseQuery = `
         SELECT b.contract, b.token_id, b.token_count, b.acquired_at, t.name,
-               t.image, t.collection_id, b.floor_sell_id, b.floor_sell_value, top_bid_id,
+               t.image, t.image_version, t.collection_id, b.floor_sell_id, b.floor_sell_value, top_bid_id,
                top_bid_value, c.name as collection_name, c.metadata,
                c.floor_sell_value AS "collection_floor_sell_value",
                c.metadata_disabled AS "c_metadata_disabled", t_metadata_disabled,
@@ -265,7 +265,7 @@ export const getUserTokensV3Options: RouteOptions = {
             contract: fromBuffer(r.contract),
             tokenId: r.token_id,
             name: r.name,
-            image: Assets.getResizedImageUrl(r.image),
+            image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
             collection: {
               id: r.collection_id,
               name: r.collection_name,
