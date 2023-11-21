@@ -111,6 +111,11 @@ export const OpenSeaProtectedOffersZone: ChainIdToAddress = {
   [Network.Arbitrum]: "0x000000e7ec00e7b300774b00001314b8610022b8",
   [Network.Avalanche]: "0x000000e7ec00e7b300774b00001314b8610022b8",
   [Network.Base]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.Zora]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.ArbitrumNova]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.Mumbai]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.BaseGoerli]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.ZoraTestnet]: "0x000000e7ec00e7b300774b00001314b8610022b8",
 };
 
 export const FxHashPausableZone: ChainIdToAddress = {
