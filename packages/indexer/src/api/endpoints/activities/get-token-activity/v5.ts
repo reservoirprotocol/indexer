@@ -350,7 +350,6 @@ export const getTokenActivityV5Options: RouteOptions = {
             tokenMetadata?.image_version
           );
         }
-        delete tokenMetadata?.image_version;
 
         return getJoiActivityObject(
           {

@@ -416,8 +416,6 @@ export const getCollectionActivityV6Options: RouteOptions = {
           );
         }
 
-        delete tokenMetadata?.image_version;
-
         return getJoiActivityObject(
           {
             type: activity.type,
