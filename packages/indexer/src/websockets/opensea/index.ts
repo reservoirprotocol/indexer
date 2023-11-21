@@ -11,6 +11,7 @@ import {
   ItemCancelledEventPayload,
   ItemListedEventPayload,
   OrderValidationEventPayload,
+  Payload,
 } from "@opensea/stream-js/dist/types";
 import * as Sdk from "@reservoir0x/sdk";
 import { WebSocket } from "ws";
@@ -78,13 +79,14 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
         const openSeaOrderParams = await handleEvent(eventType, event.payload);
 
         if (config.chainId === 7777777) {
-          logger.debug(
+          logger.info(
             "opensea-websocket-debug",
             JSON.stringify({
               message: "Processing event.",
               network,
               event,
               isSupported: !!openSeaOrderParams,
+              chain: (event.payload as Payload).item?.chain?.name,
             })
           );
         }
