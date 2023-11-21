@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import {
   BaseStreamMessage,
   CollectionOfferEventPayload,
@@ -11,7 +13,6 @@ import {
   ItemCancelledEventPayload,
   ItemListedEventPayload,
   OrderValidationEventPayload,
-  Payload,
 } from "@opensea/stream-js/dist/types";
 import * as Sdk from "@reservoir0x/sdk";
 import { WebSocket } from "ws";
@@ -75,10 +76,11 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
           return;
         }
 
+        const chainName = (event.payload as any).chain;
         const eventType = event.event_type as EventType;
         const openSeaOrderParams = await handleEvent(eventType, event.payload);
 
-        if (config.chainId === 7777777) {
+        if (config.chainId === 7777777 && !["matic", "ethereum"].includes(chainName)) {
           logger.info(
             "opensea-websocket-debug",
             JSON.stringify({
@@ -86,7 +88,8 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
               network,
               event,
               isSupported: !!openSeaOrderParams,
-              chain: (event.payload as Payload).item?.chain?.name,
+              chainName,
+              eventType,
             })
           );
         }
