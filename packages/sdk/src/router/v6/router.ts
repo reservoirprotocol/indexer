@@ -408,10 +408,10 @@ export class Router {
         const amountFilled = Number(detail.amount) ?? 1;
         const orderPrice = bn(order.params.details.initialAmount).mul(amountFilled).toString();
 
-        if (buyInCurrency !== Sdk.Common.Addresses.Native[this.chainId]) {
+        if (buyInCurrency !== detail.currency) {
           swapDetails.push({
             tokenIn: buyInCurrency,
-            tokenOut: Sdk.Common.Addresses.Native[this.chainId],
+            tokenOut: detail.currency,
             tokenOutAmount: orderPrice,
             recipient: taker,
             refundTo: taker,
@@ -421,7 +421,19 @@ export class Router {
         }
 
         txs.push({
-          approvals: [],
+          approvals: [
+            {
+              currency: detail.currency,
+              amount: orderPrice,
+              owner: taker,
+              operator: exchange.contract.address.toLowerCase(),
+              txData: generateFTApprovalTxData(
+                detail.currency,
+                taker,
+                exchange.contract.address.toLowerCase()
+              ),
+            },
+          ],
           permits: [],
           preSignatures: [],
           txTags: {
@@ -463,10 +475,10 @@ export class Router {
 
       for (const detail of ppv2Details) {
         const order = detail.order as Sdk.PaymentProcessorV2.Order;
-        if (buyInCurrency !== Sdk.Common.Addresses.Native[this.chainId]) {
+        if (buyInCurrency !== detail.currency) {
           swapDetails.push({
             tokenIn: buyInCurrency,
-            tokenOut: Sdk.Common.Addresses.Native[this.chainId],
+            tokenOut: detail.currency,
             tokenOutAmount: order.params.itemPrice,
             recipient: taker,
             refundTo: taker,
