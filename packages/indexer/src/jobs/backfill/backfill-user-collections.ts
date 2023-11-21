@@ -61,8 +61,13 @@ export class BackfillUserCollectionsJob extends AbstractRabbitMqJobHandler {
 
     if (results) {
       for (const result of results) {
+        if (_.isNull(result.collection_id)) {
+          continue;
+        }
+
         // Check if the user was already synced for this collection
         const memberKey = `${fromBuffer(result.owner)}:${result.collection_id}`;
+
         if ((await redis.hexists(redisKey, memberKey)) === 0) {
           const date = format(new Date(_.now()), "yyyy-MM-dd HH:mm:ss");
           await redis.hset(redisKey, memberKey, date);
@@ -82,7 +87,13 @@ export class BackfillUserCollectionsJob extends AbstractRabbitMqJobHandler {
     // Check if there are more potential users to sync
     if (results.length == values.limit) {
       const lastItem = _.last(results);
-      logger.info(this.queueName, `continue updating from ${JSON.stringify(lastItem)}`);
+      logger.info(
+        this.queueName,
+        `continue updating from ${JSON.stringify({
+          owner: fromBuffer(lastItem.owner),
+          acquiredAt: lastItem.acquired_at,
+        })}`
+      );
 
       return {
         addToQueue: true,
