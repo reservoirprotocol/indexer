@@ -86,7 +86,7 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
         `
             UPDATE user_collections
             SET token_count = $/amount/
-            WHERE owner = $/user/
+            WHERE owner = $/owner/
             AND collection_id = $/collection/
           `,
         {
