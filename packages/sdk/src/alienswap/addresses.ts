@@ -10,6 +10,7 @@ export const Exchange: ChainIdToAddress = {
   [Network.BaseGoerli]: "0x9c390efb05e09982e23993ebfa3b32c190e25f4b",
   [Network.Base]: "0x878dd5e0c3dedfebff67046bb218fb03c26e3e47",
   [Network.EthereumSepolia]: "0x33c551effdf1dbde4ffeaa133b2757819bd1353d",
+  [Network.X1Testnet]: "0x5119384015e153a299f381f773832dd63a88f411",
 };
 
 export const AlienswapConduitKey: ChainIdToAddress = {
@@ -22,4 +23,5 @@ export const AlienswapConduitKey: ChainIdToAddress = {
   [Network.BaseGoerli]: "0x7e727520b29773e7f23a8665649197aaf064cef1000000000000000000000000",
   [Network.Base]: "0xffa0cb9f057d077d85655be8823961c4fd4cb56a000000000000000000000000",
   [Network.EthereumSepolia]: "0x7e727520b29773e7f23a8665649197aaf064cef1000000000000000000000000",
+  [Network.X1Testnet]: "0xe8c0b0df50215e70269fb55eabd568088e0ad50c000000000000000000000000",
 };

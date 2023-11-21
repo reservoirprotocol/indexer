@@ -24,6 +24,7 @@ export const Native: ChainIdToAddress = {
   [Network.Linea]: AddressZero,
   [Network.Zksync]: AddressZero,
   [Network.PolygonZkevm]: AddressZero,
+  [Network.X1Testnet]: AddressZero,
 };
 
 // Wrapped native currency
@@ -48,6 +49,7 @@ export const WNative: ChainIdToAddress = {
   [Network.MantleTestnet]: "0xbaafec4b6ef4f5e0bafa850cbc48364b953efcf9",
   [Network.Zksync]: "0x5aea5775959fbc2557cc8789bc1bf90a239d9a91",
   [Network.PolygonZkevm]: "0x4f9a0e7fd2bf6067db6994cf12e4495df938e6e9",
+  [Network.X1Testnet]: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
 };
 
 export const Usdc: ChainIdToAddress = {

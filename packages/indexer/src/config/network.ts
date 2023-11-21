@@ -27,6 +27,9 @@ export const getNetworkName = () => {
     case 137:
       return "polygon";
 
+    case 195:
+      return "x1-testnet";
+
     case 324:
       return "zksync";
 
@@ -682,6 +685,43 @@ export const getNetworkSettings = (): NetworkSettings => {
                   'MATIC',
                   18,
                   '{"coingeckoCurrencyId": "matic-network"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // X1-TESTNET
+    case 195: {
+      return {
+        ...defaultNetworkSettings,
+        isTestnet: true,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        headBlockDelay: 10,
+        coingecko: {
+          networkId: "okb",
+        },
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+                `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'OKB',
+                  'OKB',
+                  18,
+                  '{"coingeckoCurrencyId": "okb", "image": "https://assets.coingecko.com/coins/images/4463/standard/WeChat_Image_20220118095654.png"}'
                 ) ON CONFLICT DO NOTHING
               `
             ),

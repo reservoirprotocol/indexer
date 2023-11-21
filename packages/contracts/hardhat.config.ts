@@ -30,6 +30,9 @@ const getNetworkConfig = (chainId?: number) => {
       case 137:
         url = `https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
         break;
+      case 195:
+        url = "https://testrpc.x1.tech";
+        break;
       case 8453:
         url = "https://developer-access-mainnet.base.org";
         break;
@@ -131,6 +134,7 @@ const config: HardhatUserConfig = {
     zora: getNetworkConfig(7777777),
     // Testnets
     goerli: getNetworkConfig(5),
+    x1Testnet: getNetworkConfig(195),
     zoraTestnet: getNetworkConfig(999),
     mantleTestnet: getNetworkConfig(5001),
     lineaTestnet: getNetworkConfig(59140),
@@ -142,6 +146,14 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
     customChains: [
+      {
+        network: "x1Testnet",
+        chainId: 195,
+        urls: {
+          apiURL: "",
+          browserURL: "https://www.oklink.com/cn/x1-test",
+        },
+      },
       {
         network: "mantleTestnet",
         chainId: 5001,
