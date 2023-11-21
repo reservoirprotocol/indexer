@@ -190,6 +190,7 @@ export const getUserTokensV3Options: RouteOptions = {
           t.token_id, 
           t.name,
           t.image,
+          t.image_version,
           t.collection_id,
           null AS top_bid_id,
           null AS top_bid_value,
@@ -203,7 +204,7 @@ export const getUserTokensV3Options: RouteOptions = {
     if (query.includeTopBid) {
       tokensJoin = `
         JOIN LATERAL (
-          SELECT t.token_id, t.name, t.image, t.collection_id, t.metadata_disabled AS "t_metadata_disabled"
+          SELECT t.token_id, t.name, t.image,t.image_version, t.collection_id, t.metadata_disabled AS "t_metadata_disabled"
           FROM tokens t
           WHERE b.token_id = t.token_id
           AND b.contract = t.contract

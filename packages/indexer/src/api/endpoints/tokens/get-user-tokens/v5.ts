@@ -271,6 +271,7 @@ export const getUserTokensV5Options: RouteOptions = {
           t.token_id,
           t.name,
           t.image,
+          t.image_version,
           t.collection_id,
           t.metadata_disabled AS "t_metadata_disabled",
           null AS top_bid_id,
@@ -293,6 +294,7 @@ export const getUserTokensV5Options: RouteOptions = {
             t.token_id,
             t.name,
             t.image,
+            t.image_version,
             t.collection_id,
             t.metadata_disabled AS "t_metadata_disabled",
             ${selectFloorData}
