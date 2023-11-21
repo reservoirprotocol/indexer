@@ -28,8 +28,43 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
   // get metadata methods
 
   async _getTokensMetadata(
-    tokens: { contract: string; tokenId: string }[]
+    tokens: { contract: string; tokenId: string; uri: string }[]
   ): Promise<TokenMetadata[]> {
+    const resolvedMetadata = await Promise.all(
+      tokens.map(async (token: any) => {
+        const [metadata, error] = await this.getTokenMetadataFromURI(
+          token.uri,
+          token.contract,
+          token.tokenId
+        );
+        if (error) {
+          if (error === 429) {
+            throw new RequestWasThrottledError(error.message, 10);
+          }
+
+          throw error;
+        }
+
+        return {
+          ...metadata,
+          ...token,
+        };
+      })
+    );
+
+    return resolvedMetadata.map((token) => {
+      return this.parseToken(token);
+    });
+  }
+
+  async _getTokensMetadataUri(tokens: { contract: string; tokenId: string }[]): Promise<
+    {
+      contract: string;
+      tokenId: string;
+      uri: string;
+      error?: string;
+    }[]
+  > {
     const tokenData: {
       contract: string;
       tokenId: string;
@@ -79,6 +114,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       }
     });
     const [batch, error] = await this.sendBatch(encodedTokens);
+
     if (error) {
       logger.error("onchain-fetcher", `fetchTokens sendBatch error. error:${error}`);
 
@@ -89,52 +125,27 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       throw error;
     }
 
-    const resolvedMetadata = await Promise.all(
+    const resolvedURIs = await Promise.all(
       batch.map(async (token: any) => {
         const uri = defaultAbiCoder.decode(["string"], token.result)[0];
         if (!uri || uri === "") {
           return {
             contract: idToToken[token.id].contract,
             tokenId: idToToken[token.id].tokenId,
+            uri: null,
             error: "Unable to decode tokenURI from contract",
           };
         }
 
-        const [metadata, error] = await this.getTokenMetadataFromURI(
-          uri,
-          idToToken[token.id].contract,
-          idToToken[token.id].tokenId
-        );
-        if (error) {
-          // logger.error(
-          //   "onchain-fetcher",
-          //   JSON.stringify({
-          //     message: "fetchTokens getTokenMetadataFromURI error",
-          //     chainId,
-          //     token,
-          //     error,
-          //     uri,
-          //   })
-          // );
-
-          if (error === 429) {
-            throw new RequestWasThrottledError(error.message, 10);
-          }
-
-          throw error;
-        }
-
         return {
-          ...metadata,
           contract: idToToken[token.id].contract,
           tokenId: idToToken[token.id].tokenId,
+          uri,
         };
       })
     );
 
-    return resolvedMetadata.map((token) => {
-      return this.parseToken(token);
-    });
+    return resolvedURIs;
   }
 
   async _getCollectionMetadata(contract: string): Promise<CollectionMetadata> {
@@ -184,6 +195,27 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
   // parsers
 
   parseToken(metadata: any): TokenMetadata {
+    // add handling for metadata.properties, convert to attributes
+    if (metadata?.properties) {
+      metadata.attributes = Object.keys(metadata.properties).map((key) => {
+        if (typeof metadata.properties[key] === "object") {
+          return {
+            trait_type: key,
+            value: metadata.properties[key],
+          };
+        } else {
+          return {
+            trait_type: key,
+            value: metadata.properties[key],
+          };
+        }
+      });
+    }
+
+    if (!metadata?.name) {
+      metadata.name = metadata.tokenId;
+    }
+
     return {
       contract: metadata.contract,
       slug: null,
@@ -195,8 +227,10 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       // so by default we ignore them (this behaviour can be overridden if needed).
       description: metadata.description || null,
       imageUrl: normalizeLink(metadata?.image) || null,
-      imageOriginalUrl: metadata?.metadata || null,
+      imageOriginalUrl: metadata?.image || null,
+      animationOriginalUrl: metadata?.animation_url || null,
       mediaUrl: normalizeLink(metadata?.animation_url) || null,
+      metadataOriginalUrl: this.parseIPFSURI(metadata.uri),
       attributes: (metadata.attributes || []).map((trait: any) => ({
         key: trait.trait_type ?? "property",
         value: trait.value,
@@ -409,23 +443,28 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     }
   }
 
+  parseIPFSURI(uri: string) {
+    if (uri.includes("ipfs://")) {
+      uri = uri.replace("ipfs://", "https://ipfs.io/ipfs/");
+    }
+
+    return uri;
+  }
+
   async getTokenMetadataFromURI(uri: string, contract: string, tokenId: string) {
     try {
-      if (uri.includes("ipfs://")) {
-        uri = uri.replace("ipfs://", "https://ipfs.io/ipfs/");
-      }
+      uri = this.parseIPFSURI(uri);
 
-      const isDataUri = uri.startsWith("data:application/json;base64,");
-      if (isDataUri) {
+      if (uri.startsWith("data:application/json;base64,")) {
         uri = uri.replace("data:application/json;base64,", "");
-      }
-
-      if (isDataUri) {
         return [JSON.parse(Buffer.from(uri, "base64").toString("utf-8")), null];
+      } else if (uri.startsWith("data:application/json")) {
+        // remove everything before the first comma
+        uri = uri.substring(uri.indexOf(",") + 1);
+        return [JSON.parse(uri), null];
       }
-
-      // if the uri is not a valid url, return null
       if (!uri.startsWith("http")) {
+        // if the uri is not a valid url, return null
         return [null, `Invalid URI: ${uri}`];
       }
 
@@ -434,9 +473,6 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         headers: {
           "Content-Type": "application/json",
         },
-        // timeout: FETCH_TIMEOUT,
-        // TODO: add proxy support to avoid rate limiting
-        // agent:
       });
 
       if (!response.ok) {
