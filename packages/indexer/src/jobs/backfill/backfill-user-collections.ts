@@ -8,7 +8,6 @@ import { AddressZero } from "@ethersproject/constants";
 import { redis } from "@/common/redis";
 import { format } from "date-fns";
 import { resyncUserCollectionsJob } from "@/jobs/nft-balance-updates/reynsc-user-collections-job";
-import { logger } from "@/common/logger";
 
 export type BackfillUserCollectionsJobCursorInfo = {
   owner: string;
@@ -31,7 +30,6 @@ export class BackfillUserCollectionsJob extends AbstractRabbitMqJobHandler {
       AddressZero: toBuffer(AddressZero),
     };
 
-    let counter = 0;
     let cursor = "";
 
     if (owner) {
@@ -71,7 +69,6 @@ export class BackfillUserCollectionsJob extends AbstractRabbitMqJobHandler {
         if ((await redis.hexists(redisKey, memberKey)) === 0) {
           const date = format(new Date(_.now()), "yyyy-MM-dd HH:mm:ss");
           await redis.hset(redisKey, memberKey, date);
-          ++counter;
 
           // Trigger resync for the user in the collection
           await resyncUserCollectionsJob.addToQueue({
@@ -82,18 +79,9 @@ export class BackfillUserCollectionsJob extends AbstractRabbitMqJobHandler {
       }
     }
 
-    logger.info(this.queueName, `total updated ${counter}`);
-
     // Check if there are more potential users to sync
     if (results.length == values.limit) {
       const lastItem = _.last(results);
-      logger.info(
-        this.queueName,
-        `continue updating from ${JSON.stringify({
-          owner: fromBuffer(lastItem.owner),
-          acquiredAt: lastItem.acquired_at,
-        })}`
-      );
 
       return {
         addToQueue: true,
