@@ -275,7 +275,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
               traitBidSupported: false,
             },
             "payment-processor-v2": {
-              orderKind: "payment-processor",
+              orderKind: "payment-processor-v2",
               enabled: true,
               customFeesSupported: true,
               collectionBidSupported:
