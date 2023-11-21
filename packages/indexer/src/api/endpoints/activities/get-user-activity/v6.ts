@@ -371,7 +371,6 @@ export const getUserActivityV6Options: RouteOptions = {
                   tokenId: activity.token?.id,
                   name: tokenMetadata ? tokenMetadata.name : activity.token?.name,
                   image: tokenMetadata ? tokenMetadata.image : activity.token?.image,
-                  image_version: tokenMetadata ? tokenMetadata.image_version : undefined,
                   isSpam: activity.token?.isSpam,
                 },
                 tokenMetadata?.metadata_disabled ||
