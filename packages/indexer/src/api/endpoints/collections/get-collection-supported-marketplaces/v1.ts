@@ -57,7 +57,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
   description: "Supported marketplaces by collection",
   notes:
     "The ReservoirKit `ListModal` client utilizes this API to identify the marketplace(s) it can list on.",
-  tags: ["api", "Collections"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 5,
@@ -111,7 +111,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
               Joi.object({
                 address: Joi.string(),
                 decimals: Joi.number(),
-                name: Joi.string(),
+                name: Joi.string().allow(null),
                 symbol: Joi.string(),
               })
             )

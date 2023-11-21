@@ -29,3 +29,4 @@ export * from "@/api/endpoints/collections/post-set-collection-disable-metadata/
 export * from "@/api/endpoints/collections/post-spam-status-collection/v1";
 export * from "@/api/endpoints/collections/post-collections-override/v1";
 export * from "@/api/endpoints/collections/get-autocomplete-collections/v1";
+export * from "@/api/endpoints/collections/get-collection-marketplace-configurations/v1";
