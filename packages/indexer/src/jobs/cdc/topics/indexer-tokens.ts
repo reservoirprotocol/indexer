@@ -53,6 +53,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
           token_id: payload.after.token_id,
           name: payload.after.name,
           image: payload.after.image,
+          image_version: payload.after?.image_version,
           metadata_disabled: payload.after.metadata_disabled,
         }),
         "EX",
@@ -82,7 +83,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
       const metadataInitializedAtChanged =
         payload.before.metadata_initialized_at !== payload.after.metadata_initialized_at;
 
-      if (metadataInitializedAtChanged && _.random(100) <= 50) {
+      if (metadataInitializedAtChanged && _.random(100) <= 25) {
         logger.info(
           "token-metadata-latency-metric",
           JSON.stringify({

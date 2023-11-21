@@ -3740,6 +3740,7 @@ export class Router {
           tokenId: detail.tokenId,
           taker,
           takerMasterNonce: await exchange.getMasterNonce(this.provider, taker),
+          maxRoyaltyFeeNumerator: detail.extraArgs?.maxRoyaltyFeeNumerator ?? "0",
         });
 
         orders.push(order);
@@ -3808,11 +3809,12 @@ export class Router {
         txData: exchange.fillOrdersTx(
           taker,
           orders,
-          orders.map((c, i) => {
+          orders.map((_, i) => {
             return {
               taker,
               tokenId: details[i].tokenId,
               amount: details[i].amount ?? 1,
+              maxRoyaltyFeeNumerator: details[i].extraArgs?.maxRoyaltyFeeNumerator ?? "0",
             };
           }),
           { fees: allFees.map((c) => c[0]) }

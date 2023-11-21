@@ -1001,24 +1001,27 @@ export const getExecuteBuyV7Options: RouteOptions = {
               // The max quantity is the total number of tokens which can be bought from the collection
               maxQuantities.push({
                 itemIndex: itemIndex,
-                maxQuantity: await idb
-                  .one(
-                    `
-                      SELECT
-                        count(*) AS on_sale_count
-                      FROM tokens
-                      WHERE tokens.collection_id = $/collection/
-                        AND ${
-                          payload.normalizeRoyalties
-                            ? "tokens.normalized_floor_sell_value"
-                            : "tokens.floor_sell_value"
-                        } IS NOT NULL
-                    `,
-                    {
-                      collection: item.collection,
-                    }
-                  )
-                  .then((r) => String(r.on_sale_count)),
+                maxQuantity:
+                  useSeaportIntent || useCrossChainIntent
+                    ? "1"
+                    : await idb
+                        .one(
+                          `
+                            SELECT
+                              count(*) AS on_sale_count
+                            FROM tokens
+                            WHERE tokens.collection_id = $/collection/
+                              AND ${
+                                payload.normalizeRoyalties
+                                  ? "tokens.normalized_floor_sell_value"
+                                  : "tokens.floor_sell_value"
+                              } IS NOT NULL
+                          `,
+                          {
+                            collection: item.collection,
+                          }
+                        )
+                        .then((r) => String(r.on_sale_count)),
               });
             }
 

@@ -163,7 +163,14 @@ export class Order {
     };
   }
 
-  public getMatchedOrder(taker: string, amount?: BigNumberish): Types.MatchedOrder {
+  public getMatchedOrder(
+    taker: string,
+    options?: {
+      amount?: BigNumberish;
+      tokenId?: BigNumberish;
+      maxRoyaltyFeeNumerator?: BigNumberish;
+    }
+  ): Types.MatchedOrder {
     const isBuyOrder = this.isBuyOrder();
     const params = this.params;
 
@@ -174,15 +181,16 @@ export class Order {
       marketplace: params.marketplace,
       paymentMethod: params.paymentMethod,
       tokenAddress: params.tokenAddress,
-      tokenId: params.tokenId ?? "0",
+      tokenId: options?.tokenId?.toString() ?? params.tokenId!,
       amount: params.amount,
       itemPrice: params.itemPrice,
       nonce: params.nonce,
       expiration: params.expiration,
       marketplaceFeeNumerator: params.marketplaceFeeNumerator,
-      maxRoyaltyFeeNumerator: params.maxRoyaltyFeeNumerator ?? "0",
-      requestedFillAmount: amount ? amount.toString() : "0",
-      minimumFillAmount: amount ? amount.toString() : "0",
+      maxRoyaltyFeeNumerator:
+        options?.maxRoyaltyFeeNumerator?.toString() ?? params.maxRoyaltyFeeNumerator ?? "0",
+      requestedFillAmount: options?.amount ? options.amount.toString() : "0",
+      minimumFillAmount: options?.amount ? options.amount.toString() : "0",
       signature: {
         r: this.params.r!,
         s: this.params.s!,

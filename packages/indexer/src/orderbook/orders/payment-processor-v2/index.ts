@@ -281,6 +281,17 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           : await royalties.getRoyaltiesByTokenSet(tokenSetId, "onchain")
       ).map((r) => ({ kind: "royalty", ...r }));
 
+      if (
+        order.params.marketplace !== AddressZero &&
+        Number(order.params.marketplaceFeeNumerator) !== 0
+      ) {
+        feeBreakdown.push({
+          kind: "marketplace",
+          recipient: order.params.marketplace,
+          bps: Number(order.params.marketplaceFeeNumerator),
+        });
+      }
+
       // Handle: royalties on top
       const defaultRoyalties =
         side === "sell"

@@ -142,6 +142,7 @@ export const getTokensDetailsV2Options: RouteOptions = {
           "t"."last_buy_timestamp",
           "t"."last_sell_value",
           "t"."last_sell_timestamp",
+          "t"."image_version",
           (
             SELECT "nb"."owner" FROM "nft_balances" "nb"
             WHERE "nb"."contract" = "t"."contract"
@@ -374,7 +375,7 @@ export const getTokensDetailsV2Options: RouteOptions = {
               tokenId,
               name: r.name,
               description: r.description,
-              image: Assets.getResizedImageUrl(r.image),
+              image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
               kind: r.kind,
               collection: {
                 id: r.collection_id,
