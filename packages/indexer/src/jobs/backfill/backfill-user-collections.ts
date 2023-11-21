@@ -10,12 +10,12 @@ import { format } from "date-fns";
 import { resyncUserCollectionsJob } from "@/jobs/nft-balance-updates/reynsc-user-collections-job";
 import { logger } from "@/common/logger";
 
-export type BackfillNftTransferEventsUpdatedAtJobCursorInfo = {
+export type BackfillUserCollectionsJobCursorInfo = {
   owner: string;
   acquiredAt: string;
 };
 
-export class BackfillNftTransferEventsUpdatedAtJob extends AbstractRabbitMqJobHandler {
+export class BackfillUserCollectionsJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-user-collections";
   maxRetries = 10;
   concurrency = 1;
@@ -23,7 +23,7 @@ export class BackfillNftTransferEventsUpdatedAtJob extends AbstractRabbitMqJobHa
   lazyMode = false;
   singleActiveConsumer = true;
 
-  protected async process(payload: BackfillNftTransferEventsUpdatedAtJobCursorInfo) {
+  protected async process(payload: BackfillUserCollectionsJobCursorInfo) {
     const { owner, acquiredAt } = payload;
     const redisKey = "sync-user-collections";
     const values: { limit: number; AddressZero: Buffer; owner?: Buffer; acquiredAt?: string } = {
@@ -97,7 +97,7 @@ export class BackfillNftTransferEventsUpdatedAtJob extends AbstractRabbitMqJobHa
     rabbitMqMessage: RabbitMQMessage,
     processResult: {
       addToQueue: boolean;
-      cursor?: BackfillNftTransferEventsUpdatedAtJobCursorInfo;
+      cursor?: BackfillUserCollectionsJobCursorInfo;
     }
   ) {
     if (processResult.addToQueue) {
@@ -105,9 +105,9 @@ export class BackfillNftTransferEventsUpdatedAtJob extends AbstractRabbitMqJobHa
     }
   }
 
-  public async addToQueue(cursor?: BackfillNftTransferEventsUpdatedAtJobCursorInfo, delay = 0) {
+  public async addToQueue(cursor?: BackfillUserCollectionsJobCursorInfo, delay = 0) {
     await this.send({ payload: cursor }, delay);
   }
 }
 
-export const backfillNftTransferEventsUpdatedAtJob = new BackfillNftTransferEventsUpdatedAtJob();
+export const backfillUserCollectionsJob = new BackfillUserCollectionsJob();

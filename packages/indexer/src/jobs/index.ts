@@ -177,6 +177,7 @@ import { onchainMetadataFetchTokenUriJob } from "./metadata-index/onchain-metada
 import { onchainMetadataProcessTokenUriJob } from "./metadata-index/onchain-metadata-process-job";
 import { updateUserCollectionsJob } from "@/jobs/nft-balance-updates/update-user-collections-job";
 import { resyncUserCollectionsJob } from "@/jobs/nft-balance-updates/reynsc-user-collections-job";
+import { backfillUserCollectionsJob } from "@/jobs/backfill/backfill-user-collections";
 
 export const allJobQueues = [
   backfillWrongNftBalances.queue,
@@ -336,6 +337,7 @@ export class RabbitMqJobsConsumer {
       backfillNftTransferEventsUpdatedAtJob,
       updateUserCollectionsJob,
       resyncUserCollectionsJob,
+      backfillUserCollectionsJob,
     ];
   }
 
