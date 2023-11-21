@@ -1114,7 +1114,7 @@ export const getTokensV6Options: RouteOptions = {
         query.attributes ||
         query.tokenSetId ||
         query.rarity ||
-        query.tokens ||
+        (query.tokens && query.tokens.length > 1) ||
         (query.sortBy === "updatedAt" &&
           !(query.collectionsSetId || query.community || query.contract))
       ) {
