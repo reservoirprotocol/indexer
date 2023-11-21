@@ -21,10 +21,14 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
 
   protected async process(payload: ResyncUserCollectionsJobPayload) {
     const { user, collectionId } = payload;
+    let contract = "";
     let newBalanceResults;
+    let isSpam;
 
     if (collectionId.match(regex.address)) {
       // If a non shared contract
+      contract = collectionId;
+
       // Calc the user balance
       const query = `
         SELECT owner, SUM(amount) AS "amount"
@@ -37,13 +41,16 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
 
       newBalanceResults = await ridb.oneOrNone(query, {
         owner: toBuffer(user),
-        contract: toBuffer(collectionId),
+        contract: toBuffer(contract),
       });
     } else if (collectionId.match(/^0x[a-fA-F0-9]{40}:\d+:\d+$/)) {
       // If a token range collection
       const collection = await Collections.getById(collectionId);
 
       if (collection && !_.isEmpty(collection.tokenIdRange)) {
+        contract = collection.contract;
+        isSpam = collection.isSpam;
+
         const query = `            
           SELECT owner, SUM(amount) AS "amount"
           FROM nft_balances
@@ -56,13 +63,13 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
 
         newBalanceResults = await ridb.oneOrNone(query, {
           owner: toBuffer(user),
-          contract: toBuffer(collection.contract),
+          contract: toBuffer(contract),
           tokenIdRange: `numrange(${collection.tokenIdRange[0]}, ${collection.tokenIdRange[1]}, '[]')`,
         });
       }
     } else {
       // If a token list collection
-      const [contract] = collectionId.split(":");
+      [contract] = collectionId.split(":");
 
       const query = `            
         SELECT owner, SUM(amount) AS "amount"
@@ -82,17 +89,27 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
     }
 
     if (newBalanceResults) {
+      if (_.isUndefined(isSpam)) {
+        const collection = await Collections.getById(collectionId);
+
+        if (collection) {
+          isSpam = collection.isSpam;
+        }
+      }
+
       await idb.none(
         `
-            UPDATE user_collections
-            SET token_count = $/amount/
-            WHERE owner = $/owner/
-            AND collection_id = $/collection/
+            INSERT INTO user_collections (owner, collection_id, contract, token_count, is_spam)
+            VALUES ($/owner/, $/collection/, $/contract/, $/amount/, $/isSpam/)
+            ON CONFLICT (owner, collection_id)
+            DO UPDATE SET token_count = GREATEST(user_collections.token_count - $/amount/, 0);
           `,
         {
           owner: toBuffer(user),
           collection: collectionId,
+          contract: toBuffer(contract),
           amount: newBalanceResults.amount,
+          isSpam: isSpam ?? 0,
         }
       );
     }
