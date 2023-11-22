@@ -27,7 +27,7 @@ export default class ProcessArchiveDataJob extends AbstractRabbitMqJobHandler {
     switch (tableName) {
       case "bid_events":
         // Archive bid events
-        if (await acquireLock(this.getLockName(tableName), 60 * 10 - 5)) {
+        if (await acquireLock(this.getLockName(tableName), 60 * 60 - 5)) {
           lock = true;
 
           try {
@@ -43,7 +43,7 @@ export default class ProcessArchiveDataJob extends AbstractRabbitMqJobHandler {
         // Archive bid events
         if (
           type === "bids" &&
-          (await acquireLock(this.getLockName(`${tableName}${nextBatchTime}`), 60 * 10 - 5))
+          (await acquireLock(this.getLockName(`${tableName}${nextBatchTime}`), 60 * 60 - 5))
         ) {
           lock = true;
 

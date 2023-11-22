@@ -80,15 +80,17 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           paymentProcessorV2.PaymentSettings.DefaultPaymentMethodWhitelist,
         ].includes(paymentSettings.paymentSettings)
       ) {
-        const isCustomPaymentMethodWhitelist = await exchange.isPaymentMethodWhitelisted(
-          paymentSettings.paymentMethodWhitelistId,
-          order.params.paymentMethod
-        );
-        if (!isCustomPaymentMethodWhitelist) {
-          return results.push({
-            id,
-            status: "payment-token-not-approved",
-          });
+        if (order.params.paymentMethod !== Sdk.Common.Addresses.Native[config.chainId]) {
+          const isCustomPaymentMethodWhitelist = await exchange.isPaymentMethodWhitelisted(
+            paymentSettings.paymentMethodWhitelistId,
+            order.params.paymentMethod
+          );
+          if (!isCustomPaymentMethodWhitelist) {
+            return results.push({
+              id,
+              status: "payment-token-not-approved",
+            });
+          }
         }
       } else if (
         paymentSettings?.paymentSettings === paymentProcessorV2.PaymentSettings.PricingConstraints
