@@ -161,6 +161,7 @@ export const Create3Factory: ChainIdToAddress = {
 export const GelatoRelay1BalanceERC2771: ChainIdToAddress = {
   [Network.Ethereum]: "0xd8253782c45a12053594b9deb72d8e8ab2fca54c",
   [Network.EthereumGoerli]: "0xd8253782c45a12053594b9deb72d8e8ab2fca54c",
+  [Network.EthereumSepolia]: "0xd8253782c45a12053594b9deb72d8e8ab2fca54c",
   [Network.Polygon]: "0xd8253782c45a12053594b9deb72d8e8ab2fca54c",
   [Network.Mumbai]: "0xd8253782c45a12053594b9deb72d8e8ab2fca54c",
 };
