@@ -217,7 +217,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
             maxBps: royalties.map((r) => r.bps).reduce((a, b) => a + b, 0),
           },
           orderbook: "reservoir",
-          orderKind: config.chainId === 11155111 ? "payment-processor-v2" : "seaport-v1.5",
+          orderKind: "seaport-v1.5",
           listingEnabled: true,
           customFeesSupported: true,
           collectionBidSupported: Number(collectionResult.token_count) <= config.maxTokenSetSize,
@@ -387,9 +387,10 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
 
           const blocked = await checkMarketplaceIsFiltered(params.collection, operators);
           if (blocked && marketplace.orderbook === "reservoir") {
-            marketplace.orderKind = "payment-processor";
-            marketplace.partialBidSupported = false;
-            marketplace.traitBidSupported = false;
+            marketplace.orderKind =
+              config.chainId === 11155111 ? "payment-processor-v2" : "payment-processor";
+            marketplace.partialBidSupported = config.chainId === 11155111 ? true : false;
+            marketplace.traitBidSupported = config.chainId === 11155111 ? true : false;
 
             if (
               config.chainId === 137 &&
