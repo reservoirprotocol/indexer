@@ -55,7 +55,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       }
 
       // For now, only single amounts are supported
-      if (order.params.amount !== "1") {
+      if (
+        order.params.protocol !==
+          Sdk.PaymentProcessorV2.Types.OrderProtocols.ERC1155_FILL_PARTIAL &&
+        order.params.amount !== "1"
+      ) {
         return results.push({
           id,
           status: "unsupported-amount",
