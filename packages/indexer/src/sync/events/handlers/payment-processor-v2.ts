@@ -10,6 +10,7 @@ import { getERC20Transfer } from "@/events-sync/handlers/utils/erc20";
 import * as utils from "@/events-sync/utils";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { getUSDAndNativePrices } from "@/utils/prices";
+import * as paymentProcessorV2Utils from "@/utils/payment-processor-v2";
 
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // For keeping track of all individual trades per transaction
@@ -435,6 +436,18 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             });
           }
         }
+
+        break;
+      }
+
+      case "payment-processor-v2-updated-token-level-pricing-boundaries":
+      case "payment-processor-v2-updated-collection-level-pricing-boundaries":
+      case "payment-processor-v2-updated-collection-payment-settings": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const tokenAddress = parsedLog.args["tokenAddress"].toLowerCase();
+
+        // Refresh
+        await paymentProcessorV2Utils.getCollectionPaymentSettings(tokenAddress, true);
 
         break;
       }
