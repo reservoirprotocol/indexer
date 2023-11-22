@@ -1527,7 +1527,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
             );
           });
 
-        if (ccConfig.maxPricePerItem && bn(quote).gt(ccConfig.maxPricePerItem)) {
+        if (ccConfig.maxPricePerItem && bn(quote).gt(ccConfig.maxPricePerItem) && !preview) {
           throw Boom.badRequest("Price too high to purchase cross-chain");
         }
 
