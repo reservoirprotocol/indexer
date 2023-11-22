@@ -70,21 +70,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       );
 
       if (
-        paymentSettings?.paymentSettings ===
-        paymentProcessorV2.PaymentSettings.DefaultPaymentMethodWhitelist
-      ) {
-        const isDefaultPaymentMethod = await exchange.isDefaultPaymentMethod(
-          order.params.paymentMethod
-        );
-        if (!isDefaultPaymentMethod) {
-          return results.push({
-            id,
-            status: "payment-token-not-approved",
-          });
-        }
-      } else if (
-        paymentSettings?.paymentSettings ===
-        paymentProcessorV2.PaymentSettings.CustomPaymentMethodWhitelist
+        paymentSettings?.paymentSettings &&
+        [
+          paymentProcessorV2.PaymentSettings.CustomPaymentMethodWhitelist,
+          paymentProcessorV2.PaymentSettings.DefaultPaymentMethodWhitelist,
+        ].includes(paymentSettings.paymentSettings)
       ) {
         const isCustomPaymentMethodWhitelist = await exchange.isPaymentMethodWhitelisted(
           paymentSettings.paymentMethodWhitelistId,
