@@ -351,6 +351,10 @@ export const getTrendingMints = async (params: {
 }): Promise<ElasticMintResult[]> => {
   const { contracts, startTime, limit } = params;
 
+  const currentTime = Math.floor(Date.now() / 1000);
+  const sixHoursAgo = currentTime - 6 * 60 * 60;
+  const oneHourAgo = currentTime - 1 * 60 * 60;
+
   const salesQuery = {
     bool: {
       filter: [
@@ -363,6 +367,7 @@ export const getTrendingMints = async (params: {
           range: {
             timestamp: {
               gte: startTime,
+              lte: currentTime,
               format: "epoch_second",
             },
           },
@@ -396,6 +401,40 @@ export const getTrendingMints = async (params: {
             field: "pricing.priceDecimal",
           },
         },
+        mints_last_6_hours: {
+          filter: {
+            range: {
+              timestamp: {
+                gte: sixHoursAgo,
+                format: "epoch_second",
+              },
+            },
+          },
+          aggs: {
+            count: {
+              value_count: {
+                field: "id",
+              },
+            },
+          },
+        },
+        mints_last_1_hour: {
+          filter: {
+            range: {
+              timestamp: {
+                gte: oneHourAgo,
+                format: "epoch_second",
+              },
+            },
+          },
+          aggs: {
+            count: {
+              value_count: {
+                field: "id",
+              },
+            },
+          },
+        },
       },
     },
   } as any;
@@ -412,7 +451,9 @@ export const getTrendingMints = async (params: {
   return esResult?.aggregations?.collections?.buckets?.map((bucket: any) => {
     return {
       volume: bucket?.total_volume?.value,
-      count: bucket?.total_mints.value,
+      mintCount: bucket?.total_mints?.value,
+      countLast6Hours: bucket?.mints_last_6_hours?.count?.value,
+      countLast1Hour: bucket?.mints_last_1_hour?.count?.value,
       id: bucket.key,
     };
   });

@@ -47,6 +47,7 @@ export interface Metadata {
   day1_volume: number;
   day7_volume: number;
   day30_volume: number;
+  sample_images: string[];
   on_sale_count: number;
   name: string;
   is_spam: number | null;
@@ -75,6 +76,7 @@ export interface Metadata {
     imageUrl: string;
     bannerImageUrl: string;
     description: string;
+    openseaVerificationStatus: string;
   };
   non_flagged_floor_sell_id: string;
   non_flagged_floor_sell_value: string;
@@ -109,7 +111,9 @@ export interface Metadata {
 
 export interface ElasticMintResult {
   volume: number;
-  count: number;
+  mintCount: number;
+  countLast6Hours: number;
+  countLast1Hours: number;
   id: string;
 }
 
