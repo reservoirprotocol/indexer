@@ -270,6 +270,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/update-image-version",
+    options: adminEndpoints.postUpdateImageVersionOptions,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/revalidate-order",
     options: adminEndpoints.postRevalidateOrderOptions,
   });

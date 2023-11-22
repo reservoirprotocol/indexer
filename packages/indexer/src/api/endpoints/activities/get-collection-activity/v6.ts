@@ -27,6 +27,7 @@ import { redb } from "@/common/db";
 import { redis } from "@/common/redis";
 import { Sources } from "@/models/sources";
 import { MetadataStatus } from "@/models/metadata-status";
+import { Assets } from "@/utils/assets";
 
 const version = "v6";
 
@@ -275,6 +276,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
             tokens.token_id,
             tokens.name,
             tokens.image,
+            tokens.image_version,
             tokens.metadata_disabled
           FROM tokens
           WHERE (tokens.contract, tokens.token_id) IN ($/tokensFilter:raw/)
@@ -289,6 +291,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
                     token_id: token.token_id,
                     name: token.name,
                     image: token.image,
+                    image_version: token.image_version,
                     metadata_disabled: token.metadata_disabled,
                   }))
                 );
@@ -305,6 +308,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
                       token_id: tokenResult.token_id,
                       name: tokenResult.name,
                       image: tokenResult.image,
+                      image_version: tokenResult.image_version,
                       metadata_disabled: tokenResult.metadata_disabled,
                     })
                   );
@@ -399,6 +403,19 @@ export const getCollectionActivityV6Options: RouteOptions = {
           ? sources.get(activity.event?.fillSourceId)
           : undefined;
 
+        const originalImageUrl = query.includeMetadata
+          ? (tokenMetadata ? tokenMetadata.image : activity.token?.image) || null
+          : undefined;
+
+        let tokenImageUrl = null;
+        if (originalImageUrl) {
+          tokenImageUrl = Assets.getResizedImageUrl(
+            originalImageUrl,
+            undefined,
+            tokenMetadata?.image_version
+          );
+        }
+
         return getJoiActivityObject(
           {
             type: activity.type,
@@ -424,9 +441,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
               tokenName: query.includeMetadata
                 ? (tokenMetadata ? tokenMetadata.name : activity.token?.name) || null
                 : undefined,
-              tokenImage: query.includeMetadata
-                ? (tokenMetadata ? tokenMetadata.image : activity.token?.image) || null
-                : undefined,
+              tokenImage: tokenImageUrl,
             },
             collection: {
               collectionId: activity.collection?.id,

@@ -179,6 +179,7 @@ export const getTokensV4Options: RouteOptions = {
           "t"."rarity_rank",
           "t"."is_flagged",
           "t"."last_flag_update",
+          "t"."image_version",
           (
             SELECT owner
             FROM "nft_balances" "nb"
@@ -421,7 +422,7 @@ export const getTokensV4Options: RouteOptions = {
             contract: fromBuffer(r.contract),
             tokenId: r.token_id,
             name: r.name,
-            image: Assets.getResizedImageUrl(r.image),
+            image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
             media: r.media,
             collection: {
               id: r.collection_id,

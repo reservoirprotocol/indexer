@@ -65,7 +65,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       const paymentSettings = await paymentProcessorV2.getCollectionPaymentSettings(
         order.params.tokenAddress
       );
-      const exchange = new Sdk.PaymentProcessor.Exchange(config.chainId).contract.connect(
+      const exchange = new Sdk.PaymentProcessorV2.Exchange(config.chainId).contract.connect(
         baseProvider
       );
 
@@ -73,13 +73,15 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         paymentSettings?.paymentSettings ===
         paymentProcessorV2.PaymentSettings.DefaultPaymentMethodWhitelist
       ) {
-        // const isDefaultPaymentMethod = await exchange.isDefaultPaymentMethod(order.params.paymentMethod);
-        // if (!isDefaultPaymentMethod) {
-        //   return results.push({
-        //     id,
-        //     status: "payment-token-not-approved",
-        //   });
-        // }
+        const isDefaultPaymentMethod = await exchange.isDefaultPaymentMethod(
+          order.params.paymentMethod
+        );
+        if (!isDefaultPaymentMethod) {
+          return results.push({
+            id,
+            status: "payment-token-not-approved",
+          });
+        }
       } else if (
         paymentSettings?.paymentSettings ===
         paymentProcessorV2.PaymentSettings.CustomPaymentMethodWhitelist
@@ -135,6 +137,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       // Check: order has no cosigner or a known cosigner
       if (
         order.params.cosigner &&
+        order.params.cosigner !== AddressZero &&
         order.params.cosigner.toLowerCase() !== cosigner().address.toLowerCase()
       ) {
         return results.push({
@@ -238,6 +241,21 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
           break;
         }
+
+        case "token-set-offer-approval": {
+          const merkleRoot = order.params.seaportStyleMerkleRoot;
+          if (merkleRoot) {
+            [{ id: tokenSetId }] = await tokenSet.tokenList.save([
+              {
+                id: `list:${order.params.tokenAddress}:${merkleRoot}`,
+                schemaHash,
+                schema: metadata.schema,
+              },
+            ]);
+          }
+
+          break;
+        }
       }
 
       if (!tokenSetId) {
@@ -279,6 +297,17 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           ? await royalties.getRoyalties(order.params.tokenAddress, order.params.tokenId, "onchain")
           : await royalties.getRoyaltiesByTokenSet(tokenSetId, "onchain")
       ).map((r) => ({ kind: "royalty", ...r }));
+
+      if (
+        order.params.marketplace !== AddressZero &&
+        Number(order.params.marketplaceFeeNumerator) !== 0
+      ) {
+        feeBreakdown.push({
+          kind: "marketplace",
+          recipient: order.params.marketplace,
+          bps: Number(order.params.marketplaceFeeNumerator),
+        });
+      }
 
       // Handle: royalties on top
       const defaultRoyalties =
