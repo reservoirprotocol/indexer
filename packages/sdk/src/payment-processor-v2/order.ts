@@ -52,7 +52,7 @@ export class Order {
   }
 
   public isCollectionLevelOffer() {
-    return this.params.kind === "collection-offer-approval";
+    return ["collection-offer-approval", "token-set-offer-approval"].includes(this.params.kind!);
   }
 
   public isPartial() {
@@ -87,9 +87,14 @@ export class Order {
     if (
       params.maxRoyaltyFeeNumerator === undefined &&
       params.beneficiary !== undefined &&
-      params.tokenId === undefined
+      params.tokenId === undefined &&
+      params.tokenSetMerkleRoot === undefined
     ) {
       return "collection-offer-approval";
+    }
+
+    if (params.tokenSetMerkleRoot !== undefined) {
+      return "token-set-offer-approval";
     }
 
     throw new Error("Could not detect order kind (order might have unsupported params/calldata)");
@@ -158,8 +163,8 @@ export class Order {
 
   public getTokenSetProof() {
     return {
-      rootHash: HashZero,
-      proof: [],
+      rootHash: this.params.tokenSetMerkleRoot ?? HashZero,
+      proof: this.params.tokenSetProof ?? [],
     };
   }
 
@@ -372,6 +377,10 @@ export class Order {
         return new Builders.ContractWide(this.chainId);
       }
 
+      case "token-set-offer-approval": {
+        return new Builders.TokenList(this.chainId);
+      }
+
       default: {
         throw new Error("Unknown order kind");
       }
@@ -504,6 +513,8 @@ const normalize = (order: Types.BaseOrder): Types.BaseOrder => {
 
     tokenSetMerkleRoot:
       order.tokenSetMerkleRoot !== undefined ? lc(order.tokenSetMerkleRoot) : undefined,
+    seaportStyleMerkleRoot:
+      order.seaportStyleMerkleRoot !== undefined ? lc(order.seaportStyleMerkleRoot) : undefined,
 
     v: order.v ?? 0,
     r: order.r ?? HashZero,

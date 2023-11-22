@@ -241,6 +241,21 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
           break;
         }
+
+        case "token-set-offer-approval": {
+          const merkleRoot = order.params.seaportStyleMerkleRoot;
+          if (merkleRoot) {
+            [{ id: tokenSetId }] = await tokenSet.tokenList.save([
+              {
+                id: `list:${order.params.tokenAddress}:${merkleRoot}`,
+                schemaHash,
+                schema: metadata.schema,
+              },
+            ]);
+          }
+
+          break;
+        }
       }
 
       if (!tokenSetId) {

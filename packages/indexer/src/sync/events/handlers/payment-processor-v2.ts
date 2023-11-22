@@ -1,5 +1,6 @@
 import { Result, defaultAbiCoder } from "@ethersproject/abi";
 import { Log } from "@ethersproject/abstract-provider";
+import { HashZero } from "@ethersproject/constants";
 import { searchForCall } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
 
@@ -208,6 +209,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const inputData = defaultAbiCoder.decode(matchedMethod.abi, args.data);
         let saleDetailsArray = [inputData.saleDetails];
         let saleSignatures = [inputData.buyerSignature || inputData.sellerSignature];
+        let tokenSetProofs = [inputData.tokenSetProof];
         const isCollectionLevelOffer = inputData.isCollectionLevelOffer;
 
         if (matchedMethod.name === "sweepCollection") {
@@ -236,6 +238,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         } else if (matchedMethod.name === "bulkAcceptOffers") {
           saleDetailsArray = inputData.params.saleDetailsArray;
           saleSignatures = inputData.params.buyerSignaturesArray;
+          tokenSetProofs = inputData.params.tokenSetProofsArray;
         }
 
         for (let i = 0; i < saleDetailsArray.length; i++) {
@@ -288,23 +291,46 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
           let order: Sdk.PaymentProcessorV2.Order;
           if (isCollectionLevelOffer) {
-            const builder = new Sdk.PaymentProcessorV2.Builders.ContractWide(config.chainId);
-            order = builder.build({
-              protocol: saleDetail["protocol"],
-              marketplace: saleDetail["marketplace"],
-              beneficiary: saleDetail["beneficiary"],
-              marketplaceFeeNumerator: saleDetail["marketplaceFeeNumerator"],
-              maxRoyaltyFeeNumerator: saleDetail["maxRoyaltyFeeNumerator"],
-              maker: saleDetail["maker"],
-              tokenAddress: saleDetail["tokenAddress"],
-              amount: saleDetail["amount"],
-              itemPrice: saleDetail["itemPrice"],
-              expiration: saleDetail["expiration"],
-              nonce: saleDetail["nonce"],
-              paymentMethod: saleDetail["paymentMethod"],
-              masterNonce: makerMinNonce,
-              ...signature,
-            });
+            const tokenSetProof = tokenSetProofs[i];
+            if (tokenSetProof.rootHash === HashZero) {
+              const builder = new Sdk.PaymentProcessorV2.Builders.ContractWide(config.chainId);
+              order = builder.build({
+                protocol: saleDetail["protocol"],
+                marketplace: saleDetail["marketplace"],
+                beneficiary: saleDetail["beneficiary"],
+                marketplaceFeeNumerator: saleDetail["marketplaceFeeNumerator"],
+                maxRoyaltyFeeNumerator: saleDetail["maxRoyaltyFeeNumerator"],
+                maker: saleDetail["maker"],
+                tokenAddress: saleDetail["tokenAddress"],
+                amount: saleDetail["amount"],
+                itemPrice: saleDetail["itemPrice"],
+                expiration: saleDetail["expiration"],
+                nonce: saleDetail["nonce"],
+                paymentMethod: saleDetail["paymentMethod"],
+                masterNonce: makerMinNonce,
+                ...signature,
+              });
+            } else {
+              const builder = new Sdk.PaymentProcessorV2.Builders.TokenList(config.chainId);
+              order = builder.build({
+                protocol: saleDetail["protocol"],
+                marketplace: saleDetail["marketplace"],
+                beneficiary: saleDetail["beneficiary"],
+                marketplaceFeeNumerator: saleDetail["marketplaceFeeNumerator"],
+                maxRoyaltyFeeNumerator: saleDetail["maxRoyaltyFeeNumerator"],
+                maker: saleDetail["maker"],
+                tokenAddress: saleDetail["tokenAddress"],
+                amount: saleDetail["amount"],
+                itemPrice: saleDetail["itemPrice"],
+                expiration: saleDetail["expiration"],
+                nonce: saleDetail["nonce"],
+                paymentMethod: saleDetail["paymentMethod"],
+                masterNonce: makerMinNonce,
+                tokenSetMerkleRoot: tokenSetProof.rootHash,
+                tokenIds: [],
+                ...signature,
+              });
+            }
           } else {
             const builder = new Sdk.PaymentProcessorV2.Builders.SingleToken(config.chainId);
             order = builder.build({

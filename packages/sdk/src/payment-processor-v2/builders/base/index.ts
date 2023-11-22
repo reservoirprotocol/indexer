@@ -10,6 +10,7 @@ export type MatchingOptions = {
   amount?: BigNumberish;
   tokenId?: BigNumberish;
   maxRoyaltyFeeNumerator?: BigNumberish;
+  tokenIds?: BigNumberish[];
 };
 
 export interface BaseBuildParams {
@@ -27,6 +28,7 @@ export interface BaseBuildParams {
   marketplaceFeeNumerator?: BigNumberish;
   maxRoyaltyFeeNumerator?: BigNumberish;
   nonce?: BigNumberish;
+  tokenSetMerkleRoot?: string;
 
   v?: number;
   r?: string;
