@@ -66,6 +66,7 @@ export const Usdc: ChainIdToAddressList = {
   ],
   [Network.EthereumSepolia]: [
     "0x8267cf9254734c6eb452a7bb9aaf97b392258b21", // Native
+    "0x7fc21ceb0c5003576ab5e101eb240c2b822c95d2"
   ],
   [Network.Optimism]: [
     "0x7f5c764cbc14f9669b88837ca1490cca17c31607", // Bridged

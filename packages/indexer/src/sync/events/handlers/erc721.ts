@@ -147,7 +147,10 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             to,
             tokenId,
             amount: "1",
-            baseEventParams,
+            baseEventParams: {
+              ...baseEventParams,
+              batchIndex: baseEventParams.batchIndex + (i - fromNumber),
+            },
           });
 
           if (ns.mintAddresses.includes(from)) {
