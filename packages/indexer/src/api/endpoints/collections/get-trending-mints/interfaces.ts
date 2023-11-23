@@ -47,7 +47,7 @@ export interface Metadata {
   day1_volume: number;
   day7_volume: number;
   day30_volume: number;
-  sample_images: string[];
+  sample_images?: string[];
   on_sale_count: number;
   name: string;
   is_spam: number | null;

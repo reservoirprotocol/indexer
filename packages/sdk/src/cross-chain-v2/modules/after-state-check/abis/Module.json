@@ -1,0 +1,463 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_escrow",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "CheckFailed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "IncorrectChainId",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidSignature",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "RequestIsExecuted",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "RequestIsExpired",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "RequestIsPrevalidated",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Unauthorized",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "UnknownCheckType",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "requestHash",
+        "type": "bytes32"
+      },
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "maker",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "solver",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "currency",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "price",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum AfterStateCheckModule.CheckType",
+            "name": "checkType",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes",
+            "name": "checkData",
+            "type": "bytes"
+          },
+          {
+            "internalType": "uint32",
+            "name": "originChainId",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "destinationChainId",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "deadline",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "salt",
+            "type": "uint32"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct AfterStateCheckModule.Request",
+        "name": "request",
+        "type": "tuple"
+      }
+    ],
+    "name": "RequestExecuted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "requestHash",
+        "type": "bytes32"
+      },
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "maker",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "solver",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "currency",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "price",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum AfterStateCheckModule.CheckType",
+            "name": "checkType",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes",
+            "name": "checkData",
+            "type": "bytes"
+          },
+          {
+            "internalType": "uint32",
+            "name": "originChainId",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "destinationChainId",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "deadline",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "salt",
+            "type": "uint32"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct AfterStateCheckModule.Request",
+        "name": "request",
+        "type": "tuple"
+      }
+    ],
+    "name": "RequestPrevalidated",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "DOMAIN_SEPARATOR",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "REQUEST_TYPEHASH",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "escrow",
+    "outputs": [
+      {
+        "internalType": "contract CrossChainEscrow",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "maker",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "solver",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "currency",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "price",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum AfterStateCheckModule.CheckType",
+            "name": "checkType",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes",
+            "name": "checkData",
+            "type": "bytes"
+          },
+          {
+            "internalType": "uint32",
+            "name": "originChainId",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "destinationChainId",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "deadline",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "salt",
+            "type": "uint32"
+          }
+        ],
+        "internalType": "struct AfterStateCheckModule.Request",
+        "name": "request",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "execute",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "maker",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "solver",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "currency",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "price",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum AfterStateCheckModule.CheckType",
+            "name": "checkType",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes",
+            "name": "checkData",
+            "type": "bytes"
+          },
+          {
+            "internalType": "uint32",
+            "name": "originChainId",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "destinationChainId",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "deadline",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "salt",
+            "type": "uint32"
+          }
+        ],
+        "internalType": "struct AfterStateCheckModule.Request",
+        "name": "request",
+        "type": "tuple"
+      }
+    ],
+    "name": "prevalidate",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "maker",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "solver",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "currency",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "price",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum AfterStateCheckModule.CheckType",
+            "name": "checkType",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes",
+            "name": "checkData",
+            "type": "bytes"
+          },
+          {
+            "internalType": "uint32",
+            "name": "originChainId",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "destinationChainId",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "deadline",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "salt",
+            "type": "uint32"
+          }
+        ],
+        "internalType": "struct AfterStateCheckModule.Request",
+        "name": "request",
+        "type": "tuple"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "prevalidateAndDeposit",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "requestStates",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "isExecuted",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "isPrevalidated",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]
