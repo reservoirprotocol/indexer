@@ -141,16 +141,18 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         for (let i = fromNumber; i <= toNumber; i++) {
           const tokenId = i.toString();
 
+          const updatedBaseEventParams = {
+            ...baseEventParams,
+            batchIndex: baseEventParams.batchIndex + (i - fromNumber),
+          };
+
           onChainData.nftTransferEvents.push({
             kind: "erc721",
             from,
             to,
             tokenId,
             amount: "1",
-            baseEventParams: {
-              ...baseEventParams,
-              batchIndex: baseEventParams.batchIndex + (i - fromNumber),
-            },
+            baseEventParams: updatedBaseEventParams,
           });
 
           if (ns.mintAddresses.includes(from)) {
@@ -176,7 +178,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 from,
                 to,
                 amount: "1",
-                baseEventParams,
+                baseEventParams: updatedBaseEventParams,
               });
             }
           }

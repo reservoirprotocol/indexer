@@ -29,6 +29,7 @@ export interface BaseBuildParams {
   maxRoyaltyFeeNumerator?: BigNumberish;
   nonce?: BigNumberish;
   tokenSetMerkleRoot?: string;
+  fallbackRoyaltyRecipient?: string;
 
   v?: number;
   r?: string;

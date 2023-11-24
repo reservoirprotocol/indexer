@@ -64,8 +64,6 @@ describe("PaymentProcessorV2 - OffChain Cancel Integration Test", () => {
           collection: erc721.address,
           tokenId: boughtTokenId.toString(),
           owner: seller.address,
-          attributeKey: "Hello",
-          attributeValue: "world",
           attributes: [
             {
               key: "Hello",
