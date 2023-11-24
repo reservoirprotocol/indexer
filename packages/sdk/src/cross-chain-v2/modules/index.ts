@@ -1,3 +1,3 @@
-import * as AfterStateCheck from "./after-state-check";
+import * as SingleInput from "./single-input";
 
-export { AfterStateCheck };
+export { SingleInput };

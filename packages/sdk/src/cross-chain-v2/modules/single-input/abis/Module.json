@@ -12,11 +12,6 @@
   },
   {
     "inputs": [],
-    "name": "CheckFailed",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "IncorrectChainId",
     "type": "error"
   },
@@ -47,7 +42,7 @@
   },
   {
     "inputs": [],
-    "name": "UnknownCheckType",
+    "name": "ZoneExecutionFailed",
     "type": "error"
   },
   {
@@ -82,16 +77,6 @@
             "type": "uint256"
           },
           {
-            "internalType": "enum AfterStateCheckModule.CheckType",
-            "name": "checkType",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bytes",
-            "name": "checkData",
-            "type": "bytes"
-          },
-          {
             "internalType": "uint32",
             "name": "originChainId",
             "type": "uint32"
@@ -110,10 +95,15 @@
             "internalType": "uint32",
             "name": "salt",
             "type": "uint32"
+          },
+          {
+            "internalType": "bytes",
+            "name": "zoneAndValueAndData",
+            "type": "bytes"
           }
         ],
         "indexed": false,
-        "internalType": "struct AfterStateCheckModule.Request",
+        "internalType": "struct SingleInputModule.Request",
         "name": "request",
         "type": "tuple"
       }
@@ -153,16 +143,6 @@
             "type": "uint256"
           },
           {
-            "internalType": "enum AfterStateCheckModule.CheckType",
-            "name": "checkType",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bytes",
-            "name": "checkData",
-            "type": "bytes"
-          },
-          {
             "internalType": "uint32",
             "name": "originChainId",
             "type": "uint32"
@@ -181,10 +161,15 @@
             "internalType": "uint32",
             "name": "salt",
             "type": "uint32"
+          },
+          {
+            "internalType": "bytes",
+            "name": "zoneAndValueAndData",
+            "type": "bytes"
           }
         ],
         "indexed": false,
-        "internalType": "struct AfterStateCheckModule.Request",
+        "internalType": "struct SingleInputModule.Request",
         "name": "request",
         "type": "tuple"
       }
@@ -256,16 +241,6 @@
             "type": "uint256"
           },
           {
-            "internalType": "enum AfterStateCheckModule.CheckType",
-            "name": "checkType",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bytes",
-            "name": "checkData",
-            "type": "bytes"
-          },
-          {
             "internalType": "uint32",
             "name": "originChainId",
             "type": "uint32"
@@ -284,9 +259,14 @@
             "internalType": "uint32",
             "name": "salt",
             "type": "uint32"
+          },
+          {
+            "internalType": "bytes",
+            "name": "zoneAndValueAndData",
+            "type": "bytes"
           }
         ],
-        "internalType": "struct AfterStateCheckModule.Request",
+        "internalType": "struct SingleInputModule.Request",
         "name": "request",
         "type": "tuple"
       },
@@ -298,7 +278,7 @@
     ],
     "name": "execute",
     "outputs": [],
-    "stateMutability": "nonpayable",
+    "stateMutability": "payable",
     "type": "function"
   },
   {
@@ -326,16 +306,6 @@
             "type": "uint256"
           },
           {
-            "internalType": "enum AfterStateCheckModule.CheckType",
-            "name": "checkType",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bytes",
-            "name": "checkData",
-            "type": "bytes"
-          },
-          {
             "internalType": "uint32",
             "name": "originChainId",
             "type": "uint32"
@@ -354,9 +324,14 @@
             "internalType": "uint32",
             "name": "salt",
             "type": "uint32"
+          },
+          {
+            "internalType": "bytes",
+            "name": "zoneAndValueAndData",
+            "type": "bytes"
           }
         ],
-        "internalType": "struct AfterStateCheckModule.Request",
+        "internalType": "struct SingleInputModule.Request",
         "name": "request",
         "type": "tuple"
       }
@@ -391,16 +366,6 @@
             "type": "uint256"
           },
           {
-            "internalType": "enum AfterStateCheckModule.CheckType",
-            "name": "checkType",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bytes",
-            "name": "checkData",
-            "type": "bytes"
-          },
-          {
             "internalType": "uint32",
             "name": "originChainId",
             "type": "uint32"
@@ -419,9 +384,14 @@
             "internalType": "uint32",
             "name": "salt",
             "type": "uint32"
+          },
+          {
+            "internalType": "bytes",
+            "name": "zoneAndValueAndData",
+            "type": "bytes"
           }
         ],
-        "internalType": "struct AfterStateCheckModule.Request",
+        "internalType": "struct SingleInputModule.Request",
         "name": "request",
         "type": "tuple"
       },

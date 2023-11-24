@@ -48,7 +48,7 @@ export class Order {
 }
 
 const EIP712_DOMAIN = (chainId: number) => ({
-  name: "AfterStateCheckModule",
+  name: "SingleInputModule",
   version: "1",
   verifyingContract: Addresses.Module[chainId],
 });
@@ -59,12 +59,11 @@ const EIP712_TYPES = {
     { name: "solver", type: "address" },
     { name: "currency", type: "address" },
     { name: "price", type: "uint256" },
-    { name: "checkType", type: "uint8" },
-    { name: "checkData", type: "bytes" },
     { name: "originChainId", type: "uint32" },
     { name: "destinationChainId", type: "uint32" },
     { name: "deadline", type: "uint32" },
     { name: "salt", type: "uint32" },
+    { name: "zoneAndValueAndData", type: "bytes" },
   ],
 };
 
@@ -79,12 +78,11 @@ const normalize = (order: Types.Request): Types.Request => {
     solver: lc(order.solver),
     currency: lc(order.currency),
     price: s(order.price),
-    checkType: n(order.checkType),
-    checkData: lc(order.checkData),
     originChainId: n(order.originChainId),
     destinationChainId: n(order.destinationChainId),
     deadline: n(order.deadline),
     salt: n(order.salt),
+    zoneAndValueAndData: lc(order.zoneAndValueAndData),
     signature: order.signature ? lc(order.signature) : undefined,
   };
 };
