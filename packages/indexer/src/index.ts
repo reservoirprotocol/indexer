@@ -10,8 +10,10 @@ import { logger } from "@/common/logger";
 import _ from "lodash";
 
 if (process.env.LOCAL_TESTING) {
+  logger.info("JUDEBUG", 'LOCAL_TESTING');
   import("./setup");
 } else {
+  logger.info("JUDEBUG", 'NO LOCAL_TESTING');
   RabbitMq.createVhost()
     .then(() => RabbitMq.connect())
     .then(async () => {

@@ -151,12 +151,8 @@ export const config = {
   doElasticsearchWork: Boolean(Number(process.env.DO_ELASTICSEARCH_WORK)),
 
   // RabbitMq
-  rabbitHttpUrl: `http://${String(process.env.RABBIT_USERNAME)}:${String(
-    process.env.RABBIT_PASSWORD
-  )}@${String(process.env.RABBIT_HOSTNAME)}:15672`,
-  rabbitHostname: String(process.env.RABBIT_HOSTNAME),
-  rabbitUsername: String(process.env.RABBIT_USERNAME),
-  rabbitPassword: String(process.env.RABBIT_PASSWORD),
+  rabbitHttpUrl: String(process.env.RABBIT_HTTP_URL),
+  rabbitUrl: String(process.env.RABBIT_URL),
   assertRabbitVhost: Boolean(Number(process.env.ASSERT_RABBIT_VHOST)),
   rabbitDisableQueuesConsuming: Boolean(Number(process.env.RABBIT_DISABLE_QUEUES_CONSUMING)),
   forceEnableRabbitJobsConsumer: Boolean(Number(process.env.FORCE_ENABLE_RABBIT_JOBS_CONSUMER)),
