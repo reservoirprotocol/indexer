@@ -877,12 +877,16 @@ export const checkBlacklistAndFallback = async (
 
   // Fallback to PaymentProcessor when Seaport is blocked
   if (["seaport-v1.5"].includes(params.orderKind) && ["reservoir"].includes(params.orderbook)) {
-    const blocked = await checkMarketplaceIsFiltered(collection, [
-      Sdk.SeaportV15.Addresses.Exchange[config.chainId],
-      new Sdk.SeaportV15.Exchange(config.chainId).deriveConduit(
-        Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId] ?? HashZero
-      ),
-    ]);
+    // FIX: deriveConduit throws incorrect error 
+    // const blocked = await checkMarketplaceIsFiltered(collection, [
+    //   Sdk.SeaportV15.Addresses.Exchange[config.chainId],
+    //   new Sdk.SeaportV15.Exchange(config.chainId).deriveConduit(
+    //     Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId] ?? HashZero
+    //   ),
+    // ]);
+
+    const blocked = false;
+
     if (blocked) {
       params.orderKind = "payment-processor";
     }
