@@ -2476,7 +2476,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           // Do not return unless all previous steps are completed
           data:
             !steps[2].items.length && !steps[3].items.length
-              ? new Sdk.Common.Helpers.ERC721C().generateVerificationTxData(
+              ? new Sdk.Common.Helpers.Erc721C().generateVerificationTxData(
                   tv,
                   payload.taker,
                   erc721cAuth!.signature
