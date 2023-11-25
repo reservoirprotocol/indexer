@@ -59,6 +59,7 @@ export const ConduitController: ChainIdToAddress = {
   [Network.Ancient8Testnet]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Scroll]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.ImmutableZkevmTestnet]: "0x119e7a6f1b21a370383bae957c97ddc54bb0885f",
+  [Network.Beam]: "0x00000000f9490004c11cef243f5400493c00ad63"
 };
 
 // https://github.com/ProjectOpenSea/seaport/blob/0a8e82ce7262b5ce0e67fa98a2131fd4c47c84e9/contracts/conduit/ConduitController.sol#L493
