@@ -57,13 +57,10 @@ export class RabbitMq {
   private static rabbitMqPublisherChannels: ChannelWrapper[] = [];
 
   public static async connect() {
+    const mqurl = `${config.rabbitUrl}/${getNetworkName()}`;
+    logger.info("JUDEBUG", `mqurl-connect:${mqurl}`); 
     RabbitMq.rabbitMqPublisherConnection = amqplibConnectionManager.connect(
-      {
-        hostname: config.rabbitHostname,
-        username: config.rabbitUsername,
-        password: config.rabbitPassword,
-        vhost: getNetworkName(),
-      },
+      mqurl,	    
       {
         reconnectTimeInSeconds: 5,
         heartbeatIntervalInSeconds: 0,
@@ -112,7 +109,7 @@ export class RabbitMq {
       }
     } catch (error) {
       logger.warn(
-        `rabbit-publish-error`,
+        `rabbit-publish-error01`,
         JSON.stringify({
           message: `failed to set lock to ${queueName} error ${error} lockTime ${lockTime} content=${JSON.stringify(
             content
@@ -176,7 +173,7 @@ export class RabbitMq {
         }
 
         logger.error(
-          `rabbit-publish-error`,
+          `rabbit-publish-error02`,
           JSON.stringify({
             message: `failed to publish and will be republish to ${queueName} error ${error} lockTime ${lockTime} content=${JSON.stringify(
               content
@@ -190,7 +187,7 @@ export class RabbitMq {
         await failedPublishMessages.add([{ queue: queueName, payload: content }]);
       } else {
         logger.error(
-          `rabbit-publish-error`,
+          `rabbit-publish-error03`,
           JSON.stringify({
             message: `failed to publish to ${queueName} error ${error} lockTime ${lockTime} content=${JSON.stringify(
               content
@@ -261,13 +258,9 @@ export class RabbitMq {
   public static async assertQueuesAndExchanges() {
     const abstract = await import("@/jobs/abstract-rabbit-mq-job-handler");
     const jobsIndex = await import("@/jobs/index");
-
-    const connection = await amqplib.connect({
-      hostname: config.rabbitHostname,
-      username: config.rabbitUsername,
-      password: config.rabbitPassword,
-      vhost: getNetworkName(),
-    });
+    const mqurl = `${config.rabbitUrl}/${getNetworkName()}`;
+    logger.info("JUDEBUG", `assertQAE:${mqurl}`);
+    const connection = await amqplib.connect(mqurl);
 
     const channel = await connection.createChannel();
 
