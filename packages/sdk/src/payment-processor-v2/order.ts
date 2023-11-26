@@ -52,7 +52,7 @@ export class Order {
   }
 
   public isCollectionLevelOffer() {
-    return this.params.kind === "collection-offer-approval";
+    return ["collection-offer-approval", "token-set-offer-approval"].includes(this.params.kind!);
   }
 
   public isPartial() {
@@ -68,16 +68,33 @@ export class Order {
   private detectKind(): Types.OrderKind {
     const params = this.params;
 
-    if (params.maxRoyaltyFeeNumerator && !params.beneficiary) {
+    if (
+      params.maxRoyaltyFeeNumerator !== undefined &&
+      params.beneficiary === undefined &&
+      params.tokenId !== undefined
+    ) {
       return "sale-approval";
     }
 
-    if (!params.maxRoyaltyFeeNumerator && params.beneficiary && params.tokenId) {
+    if (
+      params.maxRoyaltyFeeNumerator === undefined &&
+      params.beneficiary !== undefined &&
+      params.tokenId !== undefined
+    ) {
       return "item-offer-approval";
     }
 
-    if (!this.params.maxRoyaltyFeeNumerator && params.beneficiary && !params.tokenId) {
+    if (
+      params.maxRoyaltyFeeNumerator === undefined &&
+      params.beneficiary !== undefined &&
+      params.tokenId === undefined &&
+      params.tokenSetMerkleRoot === undefined
+    ) {
       return "collection-offer-approval";
+    }
+
+    if (params.tokenSetMerkleRoot !== undefined) {
+      return "token-set-offer-approval";
     }
 
     throw new Error("Could not detect order kind (order might have unsupported params/calldata)");
@@ -146,12 +163,19 @@ export class Order {
 
   public getTokenSetProof() {
     return {
-      rootHash: HashZero,
-      proof: [],
+      rootHash: this.params.tokenSetMerkleRoot ?? HashZero,
+      proof: this.params.tokenSetProof ?? [],
     };
   }
 
-  public getMatchedOrder(taker: string, amount?: BigNumberish): Types.MatchedOrder {
+  public getMatchedOrder(
+    taker: string,
+    options?: {
+      amount?: BigNumberish;
+      tokenId?: BigNumberish;
+      maxRoyaltyFeeNumerator?: BigNumberish;
+    }
+  ): Types.MatchedOrder {
     const isBuyOrder = this.isBuyOrder();
     const params = this.params;
 
@@ -160,17 +184,19 @@ export class Order {
       maker: params.sellerOrBuyer,
       beneficiary: isBuyOrder ? params.beneficiary! : taker,
       marketplace: params.marketplace,
+      fallbackRoyaltyRecipient: params.fallbackRoyaltyRecipient ?? AddressZero,
       paymentMethod: params.paymentMethod,
       tokenAddress: params.tokenAddress,
-      tokenId: params.tokenId ?? "0",
+      tokenId: options?.tokenId?.toString() ?? params.tokenId!,
       amount: params.amount,
       itemPrice: params.itemPrice,
       nonce: params.nonce,
       expiration: params.expiration,
       marketplaceFeeNumerator: params.marketplaceFeeNumerator,
-      maxRoyaltyFeeNumerator: params.maxRoyaltyFeeNumerator ?? "0",
-      requestedFillAmount: amount ? amount.toString() : "0",
-      minimumFillAmount: amount ? amount.toString() : "0",
+      maxRoyaltyFeeNumerator:
+        options?.maxRoyaltyFeeNumerator?.toString() ?? params.maxRoyaltyFeeNumerator ?? "0",
+      requestedFillAmount: options?.amount ? options.amount.toString() : "0",
+      minimumFillAmount: options?.amount ? options.amount.toString() : "0",
       signature: {
         r: this.params.r!,
         s: this.params.s!,
@@ -273,6 +299,7 @@ export class Order {
         cosigner: this.params.cosigner ?? AddressZero,
         seller: this.params.sellerOrBuyer,
         marketplace: this.params.marketplace,
+        fallbackRoyaltyRecipient: this.params.fallbackRoyaltyRecipient ?? AddressZero,
         paymentMethod: this.params.paymentMethod,
         tokenAddress: this.params.tokenAddress,
         tokenId: this.params.tokenId!,
@@ -292,6 +319,7 @@ export class Order {
         buyer: this.params.sellerOrBuyer,
         beneficiary: this.params.beneficiary!,
         marketplace: this.params.marketplace,
+        fallbackRoyaltyRecipient: this.params.fallbackRoyaltyRecipient ?? AddressZero,
         paymentMethod: this.params.paymentMethod,
         tokenAddress: this.params.tokenAddress,
         tokenId: this.params.tokenId!,
@@ -310,6 +338,7 @@ export class Order {
         buyer: this.params.sellerOrBuyer,
         beneficiary: this.params.beneficiary!,
         marketplace: this.params.marketplace,
+        fallbackRoyaltyRecipient: this.params.fallbackRoyaltyRecipient ?? AddressZero,
         paymentMethod: this.params.paymentMethod,
         tokenAddress: this.params.tokenAddress,
         amount: this.params.amount,
@@ -327,6 +356,7 @@ export class Order {
         buyer: this.params.sellerOrBuyer,
         beneficiary: this.params.beneficiary!,
         marketplace: this.params.marketplace,
+        fallbackRoyaltyRecipient: this.params.fallbackRoyaltyRecipient ?? AddressZero,
         paymentMethod: this.params.paymentMethod,
         tokenAddress: this.params.tokenAddress,
         amount: this.params.amount,
@@ -352,6 +382,10 @@ export class Order {
         return new Builders.ContractWide(this.chainId);
       }
 
+      case "token-set-offer-approval": {
+        return new Builders.TokenList(this.chainId);
+      }
+
       default: {
         throw new Error("Unknown order kind");
       }
@@ -369,6 +403,7 @@ export const EIP712_SALE_APPROVAL_TYPES = {
     { name: "cosigner", type: "address" },
     { name: "seller", type: "address" },
     { name: "marketplace", type: "address" },
+    { name: "fallbackRoyaltyRecipient", type: "address" },
     { name: "paymentMethod", type: "address" },
     { name: "tokenAddress", type: "address" },
     { name: "tokenId", type: "uint256" },
@@ -389,6 +424,7 @@ export const EIP712_ITEM_OFFER_APPROVAL_TYPES = {
     { name: "buyer", type: "address" },
     { name: "beneficiary", type: "address" },
     { name: "marketplace", type: "address" },
+    { name: "fallbackRoyaltyRecipient", type: "address" },
     { name: "paymentMethod", type: "address" },
     { name: "tokenAddress", type: "address" },
     { name: "tokenId", type: "uint256" },
@@ -408,6 +444,7 @@ export const EIP712_COLLECTION_OFFER_APPROVAL_TYPES = {
     { name: "buyer", type: "address" },
     { name: "beneficiary", type: "address" },
     { name: "marketplace", type: "address" },
+    { name: "fallbackRoyaltyRecipient", type: "address" },
     { name: "paymentMethod", type: "address" },
     { name: "tokenAddress", type: "address" },
     { name: "amount", type: "uint256" },
@@ -426,6 +463,7 @@ export const EIP712_TOKEN_SET_OFFER_APPROVAL_TYPES = {
     { name: "buyer", type: "address" },
     { name: "beneficiary", type: "address" },
     { name: "marketplace", type: "address" },
+    { name: "fallbackRoyaltyRecipient", type: "address" },
     { name: "paymentMethod", type: "address" },
     { name: "tokenAddress", type: "address" },
     { name: "amount", type: "uint256" },
@@ -449,8 +487,8 @@ export const EIP712_COSIGNATURE_TYPES = {
 };
 
 export const EIP712_DOMAIN = (chainId: number) => ({
-  name: "cPort",
-  version: "1",
+  name: "PaymentProcessor",
+  version: "2",
   chainId,
   verifyingContract: Addresses.Exchange[chainId],
 });
@@ -474,7 +512,8 @@ const normalize = (order: Types.BaseOrder): Types.BaseOrder => {
     marketplaceFeeNumerator: s(order.marketplaceFeeNumerator),
     nonce: s(order.nonce),
     masterNonce: s(order.masterNonce),
-
+    fallbackRoyaltyRecipient:
+      order.fallbackRoyaltyRecipient !== undefined ? lc(order.fallbackRoyaltyRecipient) : undefined,
     maxRoyaltyFeeNumerator:
       order.maxRoyaltyFeeNumerator !== undefined ? s(order.maxRoyaltyFeeNumerator) : undefined,
 
@@ -484,6 +523,8 @@ const normalize = (order: Types.BaseOrder): Types.BaseOrder => {
 
     tokenSetMerkleRoot:
       order.tokenSetMerkleRoot !== undefined ? lc(order.tokenSetMerkleRoot) : undefined,
+    seaportStyleMerkleRoot:
+      order.seaportStyleMerkleRoot !== undefined ? lc(order.seaportStyleMerkleRoot) : undefined,
 
     v: order.v ?? 0,
     r: order.r ?? HashZero,

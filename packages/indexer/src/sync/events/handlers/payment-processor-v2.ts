@@ -1,5 +1,6 @@
 import { Result, defaultAbiCoder } from "@ethersproject/abi";
 import { Log } from "@ethersproject/abstract-provider";
+import { HashZero } from "@ethersproject/constants";
 import { searchForCall } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
 
@@ -10,6 +11,7 @@ import { getERC20Transfer } from "@/events-sync/handlers/utils/erc20";
 import * as utils from "@/events-sync/utils";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { getUSDAndNativePrices } from "@/utils/prices";
+import * as paymentProcessorV2Utils from "@/utils/payment-processor-v2";
 
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // For keeping track of all individual trades per transaction
@@ -106,7 +108,24 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             name: "buyListing",
             abi: [
               "bytes32 domainSeparator",
-              "(uint8 protocol, address maker, address beneficiary, address marketplace, address paymentMethod, address tokenAddress, uint256 tokenId, uint248 amount, uint256 itemPrice, uint256 nonce ,uint256 expiration, uint256 marketplaceFeeNumerator, uint256 maxRoyaltyFeeNumerator, uint248 requestedFillAmount, uint248 minimumFillAmount) saleDetails",
+              `(
+                uint8 protocol,
+                address maker,
+                address beneficiary,
+                address marketplace,
+                address fallbackRoyaltyRecipient,
+                address paymentMethod,
+                address tokenAddress,
+                uint256 tokenId,
+                uint248 amount,
+                uint256 itemPrice,
+                uint256 nonce,
+                uint256 expiration,
+                uint256 marketplaceFeeNumerator,
+                uint256 maxRoyaltyFeeNumerator,
+                uint248 requestedFillAmount,
+                uint248 minimumFillAmount
+              ) saleDetails`,
               "(uint8 v, bytes32 r, bytes32 s) sellerSignature",
               "(address signer, address taker, uint256 expiration, uint8 v, bytes32 r, bytes32 s) cosignature",
               "(address recipient, uint256 amount) feeOnTop",
@@ -118,7 +137,24 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             abi: [
               "bytes32 domainSeparator",
               "bool isCollectionLevelOffer",
-              "(uint8 protocol, address maker, address beneficiary, address marketplace, address paymentMethod, address tokenAddress, uint256 tokenId, uint248 amount, uint256 itemPrice, uint256 nonce, uint256 expiration, uint256 marketplaceFeeNumerator, uint256 maxRoyaltyFeeNumerator, uint248 requestedFillAmount, uint248 minimumFillAmount) saleDetails",
+              `(
+                uint8 protocol,
+                address maker,
+                address beneficiary,
+                address marketplace,
+                address fallbackRoyaltyRecipient,
+                address paymentMethod,
+                address tokenAddress,
+                uint256 tokenId,
+                uint248 amount,
+                uint256 itemPrice,
+                uint256 nonce,
+                uint256 expiration,
+                uint256 marketplaceFeeNumerator,
+                uint256 maxRoyaltyFeeNumerator,
+                uint248 requestedFillAmount,
+                uint248 minimumFillAmount
+              ) saleDetails`,
               "(uint8 v, bytes32 r, bytes32 s) buyerSignature",
               "(bytes32 rootHash, bytes32[] proof) tokenSetProof",
               "(address signer, address taker, uint256 expiration, uint8 v, bytes32 r, bytes32 s) cosignature",
@@ -132,7 +168,24 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               "bytes32 domainSeparator",
               `(
                 bool[] isCollectionLevelOfferArray,
-                (uint8 protocol, address maker, address beneficiary, address marketplace, address paymentMethod, address tokenAddress, uint256 tokenId, uint248 amount, uint256 itemPrice, uint256 nonce, uint256 expiration, uint256 marketplaceFeeNumerator, uint256 maxRoyaltyFeeNumerator, uint248 requestedFillAmount, uint248 minimumFillAmount)[] saleDetailsArray,
+                (
+                  uint8 protocol,
+                  address maker,
+                  address beneficiary,
+                  address marketplace,
+                  address fallbackRoyaltyRecipient,
+                  address paymentMethod,
+                  address tokenAddress,
+                  uint256 tokenId,
+                  uint248 amount,
+                  uint256 itemPrice,
+                  uint256 nonce,
+                  uint256 expiration,
+                  uint256 marketplaceFeeNumerator,
+                  uint256 maxRoyaltyFeeNumerator,
+                  uint248 requestedFillAmount,
+                  uint248 minimumFillAmount
+                )[] saleDetailsArray,
                 (uint8 v, bytes32 r, bytes32 s)[] buyerSignaturesArray,
                 (bytes32 rootHash, bytes32[] proof)[] tokenSetProofsArray,
                 (address signer, address taker, uint256 expiration, uint8 v, bytes32 r, bytes32 s)[] cosignaturesArray,
@@ -145,7 +198,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             name: "bulkBuyListings",
             abi: [
               "bytes32 domainSeparator",
-              "(uint8 protocol, address maker, address beneficiary, address marketplace, address paymentMethod, address tokenAddress, uint256 tokenId, uint248 amount, uint256 itemPrice, uint256 nonce, uint256 expiration, uint256 marketplaceFeeNumerator, uint256 maxRoyaltyFeeNumerator, uint248 requestedFillAmount, uint248 minimumFillAmount)[] saleDetailsArray",
+              "(uint8 protocol, address maker, address beneficiary, address marketplace, address fallbackRoyaltyRecipient, address paymentMethod, address tokenAddress, uint256 tokenId, uint248 amount, uint256 itemPrice, uint256 nonce, uint256 expiration, uint256 marketplaceFeeNumerator, uint256 maxRoyaltyFeeNumerator, uint248 requestedFillAmount, uint248 minimumFillAmount)[] saleDetailsArray",
               "(uint8 v, bytes32 r, bytes32 s)[] sellerSignatures",
               "(address signer, address taker, uint256 expiration, uint8 v, bytes32 r, bytes32 s)[] cosignatures",
               "(address recipient, uint256 amount)[] feesOnTop",
@@ -158,7 +211,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               "bytes32 domainSeparator",
               "(address recipient, uint256 amount) feeOnTop",
               "(uint8 protocol, address tokenAddress, address paymentMethod, address beneficiary) sweepOrder",
-              "(address maker, address marketplace, uint256 tokenId, uint248 amount, uint256 itemPrice, uint256 nonce, uint256 expiration, uint256 marketplaceFeeNumerator, uint256 maxRoyaltyFeeNumerator)[] items",
+              "(address maker, address marketplace, address fallbackRoyaltyRecipient, uint256 tokenId, uint248 amount, uint256 itemPrice, uint256 nonce, uint256 expiration, uint256 marketplaceFeeNumerator, uint256 maxRoyaltyFeeNumerator)[] items",
               "(uint8 v, bytes32 r, bytes32 s)[] signedSellOrders",
               "(address signer, address taker, uint256 expiration, uint8 v, bytes32 r, bytes32 s)[] cosignatures",
             ],
@@ -199,14 +252,16 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           break;
         }
 
-        const agrs = exchange.contract.interface.decodeFunctionData(
+        const args = exchange.contract.interface.decodeFunctionData(
           matchedMethod.name,
           relevantCalldata!
         );
 
-        const inputData = defaultAbiCoder.decode(matchedMethod.abi, agrs.data);
+        const inputData = defaultAbiCoder.decode(matchedMethod.abi, args.data);
         let saleDetailsArray = [inputData.saleDetails];
         let saleSignatures = [inputData.buyerSignature || inputData.sellerSignature];
+        let tokenSetProofs = [inputData.tokenSetProof];
+        const isCollectionLevelOffer = inputData.isCollectionLevelOffer;
 
         if (matchedMethod.name === "sweepCollection") {
           const sweepOrder = inputData.sweepOrder;
@@ -234,6 +289,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         } else if (matchedMethod.name === "bulkAcceptOffers") {
           saleDetailsArray = inputData.params.saleDetailsArray;
           saleSignatures = inputData.params.buyerSignaturesArray;
+          tokenSetProofs = inputData.params.tokenSetProofsArray;
         }
 
         for (let i = 0; i < saleDetailsArray.length; i++) {
@@ -275,9 +331,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             : parsedLog.args["buyer"].toLowerCase();
 
           const orderSide = !isBuyOrder ? "sell" : "buy";
-
           const makerMinNonce = await commonHelpers.getMinNonce("payment-processor-v2", maker);
-          const singleBuilder = new Sdk.PaymentProcessorV2.Builders.SingleToken(config.chainId);
 
           const orderSignature = saleSignature;
           const signature = {
@@ -286,27 +340,72 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             v: orderSignature.v,
           };
 
-          const order = singleBuilder.build({
-            protocol: saleDetail["protocol"],
-            marketplace: saleDetail["marketplace"],
-            marketplaceFeeNumerator: saleDetail["marketplaceFeeNumerator"],
-            maxRoyaltyFeeNumerator: saleDetail["maxRoyaltyFeeNumerator"],
-            tokenAddress: saleDetail["tokenAddress"],
-            amount: saleDetail["amount"],
-            tokenId: saleDetail["tokenId"],
-            expiration: saleDetail["expiration"],
-            itemPrice: saleDetail["itemPrice"],
-            maker: saleDetail["maker"],
-            ...(isBuyOrder
-              ? {
-                  beneficiary: saleDetail["beneficiary"],
-                }
-              : {}),
-            nonce: saleDetail["nonce"],
-            paymentMethod: saleDetail["paymentMethod"],
-            masterNonce: makerMinNonce,
-            ...signature,
-          });
+          let order: Sdk.PaymentProcessorV2.Order;
+          if (isCollectionLevelOffer) {
+            const tokenSetProof = tokenSetProofs[i];
+            if (tokenSetProof.rootHash === HashZero) {
+              const builder = new Sdk.PaymentProcessorV2.Builders.ContractWide(config.chainId);
+              order = builder.build({
+                protocol: saleDetail["protocol"],
+                marketplace: saleDetail["marketplace"],
+                beneficiary: saleDetail["beneficiary"],
+                marketplaceFeeNumerator: saleDetail["marketplaceFeeNumerator"],
+                maxRoyaltyFeeNumerator: saleDetail["maxRoyaltyFeeNumerator"],
+                maker: saleDetail["maker"],
+                tokenAddress: saleDetail["tokenAddress"],
+                amount: saleDetail["amount"],
+                itemPrice: saleDetail["itemPrice"],
+                expiration: saleDetail["expiration"],
+                nonce: saleDetail["nonce"],
+                paymentMethod: saleDetail["paymentMethod"],
+                masterNonce: makerMinNonce,
+                ...signature,
+              });
+            } else {
+              const builder = new Sdk.PaymentProcessorV2.Builders.TokenList(config.chainId);
+              order = builder.build({
+                protocol: saleDetail["protocol"],
+                marketplace: saleDetail["marketplace"],
+                beneficiary: saleDetail["beneficiary"],
+                marketplaceFeeNumerator: saleDetail["marketplaceFeeNumerator"],
+                maxRoyaltyFeeNumerator: saleDetail["maxRoyaltyFeeNumerator"],
+                maker: saleDetail["maker"],
+                tokenAddress: saleDetail["tokenAddress"],
+                amount: saleDetail["amount"],
+                itemPrice: saleDetail["itemPrice"],
+                expiration: saleDetail["expiration"],
+                nonce: saleDetail["nonce"],
+                paymentMethod: saleDetail["paymentMethod"],
+                masterNonce: makerMinNonce,
+                tokenSetMerkleRoot: tokenSetProof.rootHash,
+                tokenIds: [],
+                ...signature,
+              });
+            }
+          } else {
+            const builder = new Sdk.PaymentProcessorV2.Builders.SingleToken(config.chainId);
+            order = builder.build({
+              protocol: saleDetail["protocol"],
+              marketplace: saleDetail["marketplace"],
+              marketplaceFeeNumerator: saleDetail["marketplaceFeeNumerator"],
+              maxRoyaltyFeeNumerator: saleDetail["maxRoyaltyFeeNumerator"],
+              tokenAddress: saleDetail["tokenAddress"],
+              amount: saleDetail["amount"],
+              tokenId: saleDetail["tokenId"],
+              expiration: saleDetail["expiration"],
+              itemPrice: saleDetail["itemPrice"],
+              maker: saleDetail["maker"],
+              ...(isBuyOrder
+                ? {
+                    beneficiary: saleDetail["beneficiary"],
+                  }
+                : {}),
+              nonce: saleDetail["nonce"],
+              paymentMethod: saleDetail["paymentMethod"],
+              masterNonce: makerMinNonce,
+              ...signature,
+            });
+          }
 
           let isValidated = false;
           for (let nonce = Number(order.params.masterNonce); nonce >= 0; nonce--) {
@@ -330,7 +429,16 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             break;
           }
 
-          const orderId = isValidated ? order.hash() : undefined;
+          let orderId = isValidated ? order.hash() : undefined;
+
+          // If we couldn't parse the order id from the calldata try to get it from our db
+          if (!orderId) {
+            orderId = await commonHelpers.getOrderIdFromNonce(
+              "payment-processor-v2",
+              order.params.sellerOrBuyer,
+              order.params.nonce
+            );
+          }
 
           // Handle: attribution
           const orderKind = "payment-processor-v2";
@@ -405,6 +513,18 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             });
           }
         }
+
+        break;
+      }
+
+      case "payment-processor-v2-updated-token-level-pricing-boundaries":
+      case "payment-processor-v2-updated-collection-level-pricing-boundaries":
+      case "payment-processor-v2-updated-collection-payment-settings": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const tokenAddress = parsedLog.args["tokenAddress"].toLowerCase();
+
+        // Refresh
+        await paymentProcessorV2Utils.getCollectionPaymentSettings(tokenAddress, true);
 
         break;
       }

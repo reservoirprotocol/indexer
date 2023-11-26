@@ -40,6 +40,7 @@ export type MatchedOrder = {
   marketplaceFeeNumerator: string;
   maxRoyaltyFeeNumerator: string;
   requestedFillAmount: string;
+  fallbackRoyaltyRecipient: string;
   minimumFillAmount: string;
   signature: SignatureECDSA;
 };
@@ -54,6 +55,7 @@ export type SweepOrder = {
 export type SweepItem = {
   maker: string;
   marketplace: string;
+  fallbackRoyaltyRecipient: string;
   tokenId: string;
   amount: string;
   itemPrice: string;
@@ -98,6 +100,10 @@ export type BaseOrder = {
 
   // "token-set-offer-approval" only
   tokenSetMerkleRoot?: string;
+  tokenSetProof?: string[];
+  // Internally we store the token-sets based on the Seaport logic
+  seaportStyleMerkleRoot?: string;
+  fallbackRoyaltyRecipient?: string;
 
   cosignature?: Cosignature;
 
@@ -113,6 +119,7 @@ export type SaleApproval = {
   cosigner: string;
   seller: string;
   marketplace: string;
+  fallbackRoyaltyRecipient: string;
   paymentMethod: string;
   tokenAddress: string;
   tokenId: string;
@@ -131,6 +138,7 @@ export type ItemOfferApproval = {
   buyer: string;
   beneficiary: string;
   marketplace: string;
+  fallbackRoyaltyRecipient: string;
   paymentMethod: string;
   tokenAddress: string;
   tokenId: string;
@@ -148,6 +156,7 @@ export type CollectionOfferApproval = {
   buyer: string;
   beneficiary: string;
   marketplace: string;
+  fallbackRoyaltyRecipient: string;
   paymentMethod: string;
   tokenAddress: string;
   amount: string;
@@ -164,6 +173,7 @@ export type TokenSetOfferApproval = {
   buyer: string;
   beneficiary: string;
   marketplace: string;
+  fallbackRoyaltyRecipient: string;
   paymentMethod: string;
   tokenAddress: string;
   amount: string;

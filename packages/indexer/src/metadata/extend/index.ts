@@ -25,6 +25,7 @@ import * as forgottenRunesWarriors from "./forgotten-runes-warriors";
 import * as forgottenSouls from "./forgotten-souls";
 import * as goldfinch from "./goldfinch";
 import * as lilnouns from "./lilnouns";
+import * as hape from "./hape";
 
 // import * as loot from "./loot";
 import * as mirageGalleryCurated from "./mirage-gallery-curated";
@@ -40,6 +41,7 @@ import * as utopiaAvatars from "./utopia-avatars";
 import * as superrareShared from "./superrare-shared";
 import * as foundationShared from "./foundation-shared";
 import * as kanpaiPandas from "./kanpai-pandas";
+import * as zedRun from "./zed-run";
 import { CollectionsOverride } from "@/models/collections-override";
 
 const extendCollection: any = {};
@@ -129,6 +131,7 @@ extendCollection["1,0x68d0f6d1d99bb830e17ffaa8adb5bbed9d6eec2e"] = ExtendLogicCl
 extendCollection["1,0x33eecbf908478c10614626a9d304bfe18b78dd73"] = ExtendLogicClasses.opensea;
 extendCollection["1,0x495f947276749ce646f68ac8c248420045cb7b5e"] = ExtendLogicClasses.opensea;
 extendCollection["1,0x48b17a2c46007471b3eb72d16268eaecdd1502b7"] = ExtendLogicClasses.opensea;
+extendCollection["137,0x2953399124f0cbb46d2cbacd8a89cf0599974963"] = ExtendLogicClasses.opensea;
 
 // Courtyard
 extendCollection["1,0xd4ac3ce8e1e14cd60666d49ac34ff2d2937cf6fa"] = ExtendLogicClasses.courtyard;
@@ -222,6 +225,7 @@ extend["1,0x68d0f6d1d99bb830e17ffaa8adb5bbed9d6eec2e"] = ExtendLogicClasses.open
 extend["1,0x33eecbf908478c10614626a9d304bfe18b78dd73"] = ExtendLogicClasses.opensea;
 extend["1,0x495f947276749ce646f68ac8c248420045cb7b5e"] = ExtendLogicClasses.opensea;
 extend["1,0x48b17a2c46007471b3eb72d16268eaecdd1502b7"] = ExtendLogicClasses.opensea;
+extend["137,0x2953399124f0cbb46d2cbacd8a89cf0599974963"] = ExtendLogicClasses.opensea;
 
 // Courtyard
 extend["1,0xd4ac3ce8e1e14cd60666d49ac34ff2d2937cf6fa"] = courtyard;
@@ -339,3 +343,10 @@ extend["1,0x3b3ee1931dc30c1957379fac9aba94d1c48a5405"] = foundationShared;
 
 // Kanpai Pandas
 extend["1,0xacf63e56fd08970b43401492a02f6f38b6635c91"] = kanpaiPandas;
+
+// ZED Run
+extend["137,0x67f4732266c7300cca593c814d46bee72e40659f"] = zedRun;
+extend["80001,0xb8290f7a3ba474fe8e9179f419c1485c078e044b"] = zedRun;
+
+// Hape
+extend["1,0x4db1f25d3d98600140dfc18deb7515be5bd293af"] = hape;

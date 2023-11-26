@@ -4,7 +4,9 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
 
+import _ from "lodash";
 import { idb, pgp } from "@/common/db";
+import PgPromise from "pg-promise";
 import { baseProvider } from "@/common/provider";
 import { toBuffer } from "@/common/utils";
 import * as allOrderHandlers from "@/orderbook/orders";
@@ -114,7 +116,7 @@ async function refreshNFTBalance(owner: string, contract: string, tokenId: strin
           slug,
           contract
         ) VALUES (
-          $/contract/,
+          $/id/,
           $/name/,
           $/slug/,
           $/contract/
@@ -122,6 +124,7 @@ async function refreshNFTBalance(owner: string, contract: string, tokenId: strin
         ON CONFLICT DO NOTHING RETURNING 1
       `,
       {
+        id: contract,
         contract: toBuffer(contract),
         name: "test",
         slug: contract,
@@ -203,7 +206,7 @@ export async function saveContract(address: string, kind: string) {
         token_count: 10000,
         slug: address,
         name: "Mock Name",
-        contract: address,
+        contract: toBuffer(address),
       },
       new pgp.helpers.ColumnSet(["id", "token_count", "slug", "name", "contract"], {
         table: "collections",
@@ -214,6 +217,252 @@ export async function saveContract(address: string, kind: string) {
   ];
 
   await idb.none(pgp.helpers.concat(queries));
+}
+
+async function mockTokenAttributes(
+  collection: string,
+  contract: string,
+  tokenId: string,
+  attributes: {
+    key: string;
+    value: string;
+    kind: string;
+    rank: string;
+  }[]
+) {
+  // Fetch all existing keys
+  const addedTokenAttributes = [];
+  const attributeIds = [];
+  const attributeKeysIds = await idb.manyOrNone(
+    `
+      SELECT key, id, info
+      FROM attribute_keys
+      WHERE collection_id = $/collection/
+      AND key IN ('${_.join(
+        _.map(attributes, (a) => PgPromise.as.value(a.key)),
+        "','"
+      )}')
+    `,
+    { collection }
+  );
+
+  const attributeKeysIdsMap = new Map(
+    _.map(attributeKeysIds, (a) => [a.key, { id: a.id, info: a.info }])
+  );
+
+  // Token attributes
+  for (const { key, value, kind, rank } of attributes) {
+    if (
+      attributeKeysIdsMap.has(key) &&
+      kind == "number" &&
+      (_.isNull(attributeKeysIdsMap.get(key)?.info) ||
+        attributeKeysIdsMap.get(key)?.info.min_range > value ||
+        attributeKeysIdsMap.get(key)?.info.max_range < value)
+    ) {
+      // If number type try to update range as well and return the ID
+      const infoUpdate = `
+        CASE WHEN info IS NULL THEN 
+          jsonb_object(array['min_range', 'max_range'], array[$/value/, $/value/]::text[])
+          ELSE
+            info || jsonb_object(array['min_range', 'max_range'], array[
+              CASE
+                WHEN (info->>'min_range')::numeric > $/value/::numeric THEN $/value/::numeric
+                ELSE (info->>'min_range')::numeric
+              END,
+              CASE
+                WHEN (info->>'max_range')::numeric < $/value/::numeric THEN $/value/::numeric
+                ELSE (info->>'max_range')::numeric
+              END
+            ]::text[])
+        END
+      `;
+
+      await idb.oneOrNone(
+        `
+              UPDATE attribute_keys
+              SET info = ${infoUpdate}
+              WHERE collection_id = $/collection/
+              AND key = $/key/
+            `,
+        {
+          collection,
+          key: String(key),
+          value,
+        }
+      );
+    }
+
+    // This is a new key, insert it and return the ID
+    if (!attributeKeysIdsMap.has(key)) {
+      let info = null;
+      if (kind == "number") {
+        info = { min_range: Number(value), max_range: Number(value) };
+      }
+
+      // If no attribute key is available, then save it and refetch
+      const attributeKeyResult = await idb.oneOrNone(
+        `
+          INSERT INTO "attribute_keys" (
+            "collection_id",
+            "key",
+            "kind",
+            "rank",
+            "info"
+          ) VALUES (
+            $/collection/,
+            $/key/,
+            $/kind/,
+            $/rank/,
+            $/info/
+          )
+          ON CONFLICT DO NOTHING
+          RETURNING "id"
+        `,
+        {
+          collection,
+          key: String(key),
+          kind,
+          rank: rank || null,
+          info,
+        }
+      );
+
+      if (!attributeKeyResult?.id) {
+        // Otherwise, fail (and retry)
+        throw new Error(`Could not fetch/save attribute key "${key}"`);
+      }
+
+      // Add the new key and id to the map
+      attributeKeysIdsMap.set(key, { id: attributeKeyResult.id, info });
+    }
+
+    // Fetch the attribute from the database (will succeed in the common case)
+    let attributeResult = await idb.oneOrNone(
+      `
+            SELECT id, COALESCE(array_length(sample_images, 1), 0) AS "sample_images_length"
+            FROM attributes
+            WHERE attribute_key_id = $/attributeKeyId/
+            AND value = $/value/
+          `,
+      {
+        attributeKeyId: attributeKeysIdsMap.get(key)?.id,
+        value: String(value),
+      }
+    );
+
+    if (!attributeResult?.id) {
+      // If no attribute is not available, then save it and refetch
+      attributeResult = await idb.oneOrNone(
+        `
+          WITH "x" AS (
+            INSERT INTO "attributes" (
+              "attribute_key_id",
+              "value",
+              "sell_updated_at",
+              "buy_updated_at",
+              "collection_id",
+              "kind",
+              "key"
+            ) VALUES (
+              $/attributeKeyId/,
+              $/value/,
+              NOW(),
+              NOW(),
+              $/collection/,
+              $/kind/,
+              $/key/
+            )
+            ON CONFLICT DO NOTHING
+            RETURNING "id"
+          )
+          
+          UPDATE attribute_keys
+          SET attribute_count = "attribute_count" + (SELECT COUNT(*) FROM "x")
+          WHERE id = $/attributeKeyId/
+          RETURNING (SELECT x.id FROM "x"), "attribute_count"
+        `,
+        {
+          attributeKeyId: attributeKeysIdsMap.get(key)?.id,
+          value: String(value),
+          collection,
+          kind,
+          key: String(key),
+        }
+      );
+    }
+
+    if (!attributeResult?.id) {
+      // Otherwise, fail (and retry)
+      throw new Error(
+        `Could not fetch/save attribute keyId ${
+          attributeKeysIdsMap.get(key)?.id
+        } key ${key} value ${value} attributeResult ${JSON.stringify(attributeResult)}`
+      );
+    }
+
+    attributeIds.push(attributeResult.id);
+
+    // Associate the attribute with the token
+    const tokenAttributeResult = await idb.oneOrNone(
+      `
+            INSERT INTO "token_attributes" (
+              "contract",
+              "token_id",
+              "attribute_id",
+              "collection_id",
+              "key",
+              "value"
+            ) VALUES (
+              $/contract/,
+              $/tokenId/,
+              $/attributeId/,
+              $/collection/,
+              $/key/,
+              $/value/
+            )
+            ON CONFLICT DO NOTHING
+            RETURNING key, value, attribute_id;
+          `,
+      {
+        contract: toBuffer(contract),
+        tokenId,
+        attributeId: attributeResult.id,
+        image: null,
+        collection,
+        key: String(key),
+        value: String(value),
+      }
+    );
+
+    if (tokenAttributeResult) {
+      addedTokenAttributes.push(tokenAttributeResult);
+    }
+  }
+
+  let attributeIdsFilter = "";
+
+  if (attributeIds.length) {
+    attributeIdsFilter = `AND attribute_id NOT IN ($/attributeIds:raw/)`;
+  }
+
+  // Clear deleted token attributes
+  await idb.manyOrNone(
+    `WITH x AS (
+                  DELETE FROM token_attributes
+                  WHERE contract = $/contract/
+                  AND token_id = $/tokenId/
+                  ${attributeIdsFilter}
+                  RETURNING contract, token_id, attribute_id, collection_id, key, value, created_at
+                 )
+                 INSERT INTO removed_token_attributes SELECT * FROM x
+                 ON CONFLICT (contract,token_id,attribute_id) DO UPDATE SET deleted_at = now()
+                 RETURNING key, value, attribute_id;`,
+    {
+      contract: toBuffer(contract),
+      tokenId,
+      attributeIds: _.join(attributeIds, ","),
+    }
+  );
 }
 
 export const orderSavingOptions: RouteOptions = {
@@ -236,6 +485,16 @@ export const orderSavingOptions: RouteOptions = {
             collection: Joi.string(),
             tokenId: Joi.string(),
             owner: Joi.string(),
+            attributes: Joi.array()
+              .items(
+                Joi.object({
+                  key: Joi.string(),
+                  value: Joi.string(),
+                  kind: Joi.string(),
+                  rank: Joi.number(),
+                })
+              )
+              .optional(),
           })
         )
         .default([])
@@ -268,7 +527,19 @@ export const orderSavingOptions: RouteOptions = {
     // Refresh NFT balance
     for (let index = 0; index < nfts.length; index++) {
       const nft = nfts[index];
-      await refreshNFTBalance(nft.owner, nft.collection.toLowerCase(), nft.tokenId);
+      try {
+        await refreshNFTBalance(nft.owner, nft.collection.toLowerCase(), nft.tokenId);
+        if (nft.attributes) {
+          await mockTokenAttributes(
+            nft.collection.toLowerCase(),
+            nft.collection.toLowerCase(),
+            nft.tokenId,
+            nft.attributes
+          );
+        }
+      } catch {
+        // Skip errors
+      }
     }
 
     // Store contract

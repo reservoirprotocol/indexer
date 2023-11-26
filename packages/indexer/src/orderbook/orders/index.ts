@@ -38,7 +38,7 @@ import { idb } from "@/common/db";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
-import { getCosigner } from "@/utils/cosign";
+import { cosigner } from "@/utils/cosign";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as registry from "@/utils/royalties/registry";
 
@@ -459,8 +459,7 @@ export const generateListingDetailsV6 = async (
     case "payment-processor-v2": {
       const rawOrder = new Sdk.PaymentProcessorV2.Order(config.chainId, order.rawData);
       if (rawOrder.isCosignedOrder() && options?.taker) {
-        const cosigner = getCosigner();
-        await rawOrder.cosign(cosigner, options.taker);
+        await rawOrder.cosign(cosigner(), options.taker);
       }
 
       return {
@@ -834,8 +833,30 @@ export const generateBidDetailsV6 = async (
     case "payment-processor-v2": {
       const sdkOrder = new Sdk.PaymentProcessorV2.Order(config.chainId, order.rawData);
       if (sdkOrder.isCosignedOrder() && options?.taker) {
-        const cosigner = getCosigner();
-        await sdkOrder.cosign(cosigner, options.taker);
+        await sdkOrder.cosign(cosigner(), options.taker);
+      }
+
+      const extraArgs: any = {};
+
+      if (sdkOrder.params.kind?.includes("token-set-offer-approval")) {
+        // When filling a "token-list" order, we also need to pass in the
+        // full list of tokens the order was made on (in order to be able
+        // to generate a valid merkle proof)
+        const tokens = await idb.manyOrNone(
+          `
+            SELECT
+              token_sets_tokens.token_id
+            FROM token_sets_tokens
+            WHERE token_sets_tokens.token_set_id = (
+              SELECT
+                orders.token_set_id
+              FROM orders
+              WHERE orders.id = $/id/
+            )
+          `,
+          { id: sdkOrder.hash() }
+        );
+        extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
       }
 
       return {
@@ -843,6 +864,7 @@ export const generateBidDetailsV6 = async (
         ...common,
         order: sdkOrder,
         extraArgs: {
+          ...extraArgs,
           maxRoyaltyFeeNumerator: await registry
             .getRegistryRoyalties(common.contract, common.tokenId)
             .then((royalties) => royalties.map((r) => r.bps).reduce((a, b) => a + b, 0)),

@@ -408,10 +408,10 @@ export class Router {
         const amountFilled = Number(detail.amount) ?? 1;
         const orderPrice = bn(order.params.details.initialAmount).mul(amountFilled).toString();
 
-        if (buyInCurrency !== Sdk.Common.Addresses.Native[this.chainId]) {
+        if (buyInCurrency !== detail.currency) {
           swapDetails.push({
             tokenIn: buyInCurrency,
-            tokenOut: Sdk.Common.Addresses.Native[this.chainId],
+            tokenOut: detail.currency,
             tokenOutAmount: orderPrice,
             recipient: taker,
             refundTo: taker,
@@ -421,7 +421,19 @@ export class Router {
         }
 
         txs.push({
-          approvals: [],
+          approvals: [
+            {
+              currency: detail.currency,
+              amount: orderPrice,
+              owner: taker,
+              operator: exchange.contract.address.toLowerCase(),
+              txData: generateFTApprovalTxData(
+                detail.currency,
+                taker,
+                exchange.contract.address.toLowerCase()
+              ),
+            },
+          ],
           permits: [],
           preSignatures: [],
           txTags: {
@@ -443,10 +455,6 @@ export class Router {
 
     // We don't have a module for PaymentProcessorV2 listings
     if (details.some(({ kind }) => kind === "payment-processor-v2")) {
-      if (options?.relayer) {
-        throw new Error("Relayer not supported for PaymentProcessorV2 orders");
-      }
-
       const ppv2Details = details.filter(({ kind }) => kind === "payment-processor-v2");
 
       const exchange = new Sdk.PaymentProcessorV2.Exchange(this.chainId);
@@ -467,10 +475,10 @@ export class Router {
 
       for (const detail of ppv2Details) {
         const order = detail.order as Sdk.PaymentProcessorV2.Order;
-        if (buyInCurrency !== Sdk.Common.Addresses.Native[this.chainId]) {
+        if (buyInCurrency !== detail.currency) {
           swapDetails.push({
             tokenIn: buyInCurrency,
-            tokenOut: Sdk.Common.Addresses.Native[this.chainId],
+            tokenOut: detail.currency,
             tokenOutAmount: order.params.itemPrice,
             recipient: taker,
             refundTo: taker,
@@ -500,7 +508,11 @@ export class Router {
             listings: { "payment-processor-v2": orders.length },
           },
           preSignatures: [],
-          txData: exchange.sweepCollectionTx(taker, orders, options),
+          txData: exchange.sweepCollectionTx(taker, orders, {
+            source: options?.source,
+            fee: allFees[0][0],
+            relayer: options?.relayer,
+          }),
           orderIds: ppv2Details.map((d) => d.orderId),
         });
       } else {
@@ -514,7 +526,7 @@ export class Router {
           txData: exchange.fillOrdersTx(
             taker,
             orders,
-            orders.map((c, i) => {
+            orders.map((_, i) => {
               return {
                 taker,
                 amount: ppv2Details[i].amount ?? 1,
@@ -523,6 +535,7 @@ export class Router {
             {
               source: options?.source,
               fees: allFees.map((c) => c[0]),
+              relayer: options?.relayer,
             }
           ),
           orderIds: ppv2Details.map((d) => d.orderId),
@@ -3739,6 +3752,7 @@ export class Router {
           tokenId: detail.tokenId,
           taker,
           takerMasterNonce: await exchange.getMasterNonce(this.provider, taker),
+          maxRoyaltyFeeNumerator: detail.extraArgs?.maxRoyaltyFeeNumerator ?? "0",
         });
 
         orders.push(order);
@@ -3807,10 +3821,12 @@ export class Router {
         txData: exchange.fillOrdersTx(
           taker,
           orders,
-          orders.map((c, i) => {
+          orders.map((_, i) => {
             return {
               taker,
+              tokenId: details[i].tokenId,
               amount: details[i].amount ?? 1,
+              ...(details[i].extraArgs ?? {}),
             };
           }),
           { fees: allFees.map((c) => c[0]) }

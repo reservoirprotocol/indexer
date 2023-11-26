@@ -135,7 +135,7 @@ export const getCurrentSupply = async (collectionMint: CollectionMint): Promise<
   let tokenCount: string;
   if (collectionMint.tokenId) {
     tokenCount = await idb
-      .one(
+      .oneOrNone(
         `
           SELECT
             coalesce(sum(nft_balances.amount), 0) AS token_count
@@ -149,13 +149,13 @@ export const getCurrentSupply = async (collectionMint: CollectionMint): Promise<
           tokenId: collectionMint.tokenId,
         }
       )
-      .then((r) => r.token_count);
+      .then((r) => (r ? r.token_count : 0));
   } else {
     tokenCount = await idb
-      .one(
+      .oneOrNone(
         `
           SELECT
-            collections.token_count
+            coalesce(collections.token_count, 0) AS token_count
           FROM collections
           WHERE collections.id = $/collection/
         `,
@@ -163,7 +163,7 @@ export const getCurrentSupply = async (collectionMint: CollectionMint): Promise<
           collection: collectionMint.collection,
         }
       )
-      .then((r) => r.token_count);
+      .then((r) => (r ? r.token_count : 0));
   }
 
   return bn(tokenCount);

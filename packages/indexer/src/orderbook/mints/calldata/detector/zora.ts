@@ -563,15 +563,31 @@ export const extractByTx = async (
     [
       "0x731133e9", // `mint`
       "0x9dbb844d", // `mintWithRewards`
+      "0xc9a05470", // `premint`
     ].some((bytes4) => tx.data.startsWith(bytes4))
   ) {
-    const tokenId = new Interface([
+    const iface = new Interface([
       "function mint(address minter, uint256 tokenId, uint256 quantity, bytes data)",
       "function mintWithRewards(address minter,uint256 tokenId,uint256 quantity,bytes minterArguments,address mintReferral)",
-    ])
-      .decodeFunctionData(tx.data.startsWith("0x9dbb844d") ? "mintWithRewards" : "mint", tx.data)
-      .tokenId.toString();
-    return extractByCollectionERC1155(collection, tokenId);
+      "function premint((address, string, string) contractConfig, ((string, uint256, uint64, uint96, uint64, uint64, uint32, uint32, address, address), uint32 tokenId, uint32, bool) premintConfig, bytes signature, uint256 quantityToMint, string mintComment)",
+    ]);
+
+    let tokenId: string;
+    switch (tx.data.slice(0, 10)) {
+      case "0x731133e9":
+        tokenId = iface.decodeFunctionData("mint", tx.data).tokenId.toString();
+        break;
+
+      case "0x9dbb844d":
+        tokenId = iface.decodeFunctionData("mintWithRewards", tx.data).tokenId.toString();
+        break;
+
+      case "0xc9a05470":
+        tokenId = String(iface.decodeFunctionData("premint", tx.data).premintConfig.tokenId);
+        break;
+    }
+
+    return extractByCollectionERC1155(collection, tokenId!);
   }
 
   return [];

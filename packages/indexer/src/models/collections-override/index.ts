@@ -30,8 +30,8 @@ export class CollectionsOverride {
       }
     });
 
-    updateString += `metadata = COALESCE(collections_override.metadata, '{}') || '$/metadata:raw/'::jsonb,`;
-    (replacementValues as any)[`metadata`] = JSON.stringify(metadataFields);
+    updateString += `metadata = COALESCE(collections_override.metadata, '{}') || $/metadata:json/,`;
+    (replacementValues as any)[`metadata`] = metadataFields;
 
     if (!_.isUndefined(royalties)) {
       updateString += _.isNull(royalties)

@@ -47,7 +47,7 @@ export class ContractWideBuilder extends BaseBuilder {
       amount: s(params.amount),
       itemPrice: s(params.itemPrice),
       expiration: s(params.expiration),
-      marketplaceFeeNumerator: s(params.marketplaceFeeNumerator) ?? "0",
+      marketplaceFeeNumerator: s(params.marketplaceFeeNumerator ?? "0"),
       nonce: s(params.nonce),
       masterNonce: s(params.masterNonce),
 
@@ -69,6 +69,6 @@ export class ContractWideBuilder extends BaseBuilder {
     }
   ): MatchedOrder {
     order.params.tokenId = options.tokenId!.toString();
-    return order.getMatchedOrder(options.taker, options.amount);
+    return order.getMatchedOrder(options.taker, options);
   }
 }

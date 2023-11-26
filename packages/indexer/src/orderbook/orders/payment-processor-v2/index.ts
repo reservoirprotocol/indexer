@@ -21,6 +21,7 @@ import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as paymentProcessorV2 from "@/utils/payment-processor-v2";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
+import { cosigner } from "@/utils/cosign";
 
 export type OrderInfo = {
   orderParams: Sdk.PaymentProcessorV2.Types.BaseOrder;
@@ -54,7 +55,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       }
 
       // For now, only single amounts are supported
-      if (order.params.amount !== "1") {
+      if (
+        order.params.protocol !==
+          Sdk.PaymentProcessorV2.Types.OrderProtocols.ERC1155_FILL_PARTIAL &&
+        order.params.amount !== "1"
+      ) {
         return results.push({
           id,
           status: "unsupported-amount",
@@ -64,34 +69,28 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       const paymentSettings = await paymentProcessorV2.getCollectionPaymentSettings(
         order.params.tokenAddress
       );
-      const exchange = new Sdk.PaymentProcessor.Exchange(config.chainId).contract.connect(
+      const exchange = new Sdk.PaymentProcessorV2.Exchange(config.chainId).contract.connect(
         baseProvider
       );
 
       if (
-        paymentSettings?.paymentSettings ===
-        paymentProcessorV2.PaymentSettings.DefaultPaymentMethodWhitelist
+        paymentSettings?.paymentSettings &&
+        [
+          paymentProcessorV2.PaymentSettings.CustomPaymentMethodWhitelist,
+          paymentProcessorV2.PaymentSettings.DefaultPaymentMethodWhitelist,
+        ].includes(paymentSettings.paymentSettings)
       ) {
-        // const isDefaultPaymentMethod = await exchange.isDefaultPaymentMethod(order.params.paymentMethod);
-        // if (!isDefaultPaymentMethod) {
-        //   return results.push({
-        //     id,
-        //     status: "payment-token-not-approved",
-        //   });
-        // }
-      } else if (
-        paymentSettings?.paymentSettings ===
-        paymentProcessorV2.PaymentSettings.CustomPaymentMethodWhitelist
-      ) {
-        const isCustomPaymentMethodWhitelist = await exchange.isPaymentMethodWhitelisted(
-          paymentSettings.paymentMethodWhitelistId,
-          order.params.paymentMethod
-        );
-        if (!isCustomPaymentMethodWhitelist) {
-          return results.push({
-            id,
-            status: "payment-token-not-approved",
-          });
+        if (order.params.paymentMethod !== Sdk.Common.Addresses.Native[config.chainId]) {
+          const isCustomPaymentMethodWhitelist = await exchange.isPaymentMethodWhitelisted(
+            paymentSettings.paymentMethodWhitelistId,
+            order.params.paymentMethod
+          );
+          if (!isCustomPaymentMethodWhitelist) {
+            return results.push({
+              id,
+              status: "payment-token-not-approved",
+            });
+          }
         }
       } else if (
         paymentSettings?.paymentSettings === paymentProcessorV2.PaymentSettings.PricingConstraints
@@ -128,6 +127,18 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         return results.push({
           id,
           status: "filtered",
+        });
+      }
+
+      // Check: order has no cosigner or a known cosigner
+      if (
+        order.params.cosigner &&
+        order.params.cosigner !== AddressZero &&
+        order.params.cosigner.toLowerCase() !== cosigner().address.toLowerCase()
+      ) {
+        return results.push({
+          id,
+          status: "unsupported-cosigner",
         });
       }
 
@@ -226,6 +237,21 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
           break;
         }
+
+        case "token-set-offer-approval": {
+          const merkleRoot = order.params.seaportStyleMerkleRoot;
+          if (merkleRoot) {
+            [{ id: tokenSetId }] = await tokenSet.tokenList.save([
+              {
+                id: `list:${order.params.tokenAddress}:${merkleRoot}`,
+                schemaHash,
+                schema: metadata.schema,
+              },
+            ]);
+          }
+
+          break;
+        }
       }
 
       if (!tokenSetId) {
@@ -267,6 +293,17 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           ? await royalties.getRoyalties(order.params.tokenAddress, order.params.tokenId, "onchain")
           : await royalties.getRoyaltiesByTokenSet(tokenSetId, "onchain")
       ).map((r) => ({ kind: "royalty", ...r }));
+
+      if (
+        order.params.marketplace !== AddressZero &&
+        Number(order.params.marketplaceFeeNumerator) !== 0
+      ) {
+        feeBreakdown.push({
+          kind: "marketplace",
+          recipient: order.params.marketplace,
+          bps: Number(order.params.marketplaceFeeNumerator),
+        });
+      }
 
       // Handle: royalties on top
       const defaultRoyalties =
