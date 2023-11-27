@@ -134,6 +134,8 @@ export const getCollectionActivityV6Options: RouteOptions = {
             tokenName: Joi.string().allow("", null),
             tokenImage: Joi.string().allow("", null),
             isSpam: Joi.boolean().allow("", null),
+            rarityScore: Joi.number().allow(null),
+            rarityRank: Joi.number().allow(null),
           }),
           collection: Joi.object({
             collectionId: Joi.string().allow(null),
@@ -277,7 +279,9 @@ export const getCollectionActivityV6Options: RouteOptions = {
             tokens.name,
             tokens.image,
             tokens.image_version,
-            tokens.metadata_disabled
+            tokens.metadata_disabled,
+            tokens.rarity_score,
+            tokens.rarity_rank
           FROM tokens
           WHERE (tokens.contract, tokens.token_id) IN ($/tokensFilter:raw/)
         `,
@@ -293,6 +297,8 @@ export const getCollectionActivityV6Options: RouteOptions = {
                     image: token.image,
                     image_version: token.image_version,
                     metadata_disabled: token.metadata_disabled,
+                    rarity_score: token.rarity_score,
+                    rarity_rank: token.rarity_rank,
                   }))
                 );
 
@@ -310,6 +316,8 @@ export const getCollectionActivityV6Options: RouteOptions = {
                       image: tokenResult.image,
                       image_version: tokenResult.image_version,
                       metadata_disabled: tokenResult.metadata_disabled,
+                      rarity_score: tokenResult.rarity_score,
+                      rarity_rank: tokenResult.rarity_rank,
                     })
                   );
 
@@ -442,6 +450,8 @@ export const getCollectionActivityV6Options: RouteOptions = {
                 ? (tokenMetadata ? tokenMetadata.name : activity.token?.name) || null
                 : undefined,
               tokenImage: tokenImageUrl,
+              rarityScore: tokenMetadata?.rarity_score,
+              rarityRank: tokenMetadata?.rarity_rank,
             },
             collection: {
               collectionId: activity.collection?.id,
