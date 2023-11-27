@@ -18,7 +18,7 @@ import {
 } from "@/common/joi";
 import { Sources } from "@/models/sources";
 import _ from "lodash";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 
 const version = "v5";
 
@@ -123,6 +123,8 @@ export const getUserTokensV5Options: RouteOptions = {
               id: Joi.string().allow(null),
               name: Joi.string().allow("", null),
               imageUrl: Joi.string().allow("", null),
+              imageUrlSmall: Joi.string().allow("", null),
+              imageUrlLarge: Joi.string().allow("", null),
               floorAskPrice: Joi.number().unsafe().allow(null),
             }),
             topBid: Joi.object({
@@ -393,7 +395,21 @@ export const getUserTokensV5Options: RouteOptions = {
               collection: {
                 id: r.collection_id,
                 name: r.collection_name,
-                imageUrl: r.metadata?.imageUrl,
+                imageUrl: Assets.getResizedImageUrl(
+                  r.metadata?.imageUrl,
+                  undefined,
+                  r.image_version
+                ),
+                imageUrlSmall: Assets.getResizedImageUrl(
+                  r.metadata?.imageUrl,
+                  ImageSize.small,
+                  r.image_version
+                ),
+                imageUrlLarge: Assets.getResizedImageUrl(
+                  r.metadata?.imageUrl,
+                  ImageSize.large,
+                  r.image_version
+                ),
                 floorAskPrice: r.collection_floor_sell_value
                   ? formatEth(r.collection_floor_sell_value)
                   : null,

@@ -301,6 +301,8 @@ export const getTokensV7Options: RouteOptions = {
               id: Joi.string().allow(null),
               name: Joi.string().allow("", null),
               image: Joi.string().allow("", null),
+              imageSmall: Joi.string().allow("", null),
+              imageLarge: Joi.string().allow("", null),
               slug: Joi.string().allow("", null),
               symbol: Joi.string().allow("", null),
               creator: Joi.string().lowercase().pattern(regex.address).allow("", null),
@@ -1402,7 +1404,17 @@ export const getTokensV7Options: RouteOptions = {
               collection: {
                 id: r.collection_id,
                 name: r.collection_name,
-                image: Assets.getLocalAssetsLink(r.collection_image),
+                image: Assets.getResizedImageUrl(r.collection_image, undefined, r.image_version),
+                imageSmall: Assets.getResizedImageUrl(
+                  r.collection_image,
+                  ImageSize.small,
+                  r.image_version
+                ),
+                imageLarge: Assets.getResizedImageUrl(
+                  r.collection_image,
+                  ImageSize.large,
+                  r.image_version
+                ),
                 slug: r.slug,
                 symbol: r.symbol,
                 creator: r.creator ? fromBuffer(r.creator) : null,

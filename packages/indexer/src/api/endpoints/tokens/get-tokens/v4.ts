@@ -15,7 +15,7 @@ import {
   splitContinuation,
   toBuffer,
 } from "@/common/utils";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 import { getJoiTokenObject } from "@/common/joi";
 
 const version = "v4";
@@ -108,6 +108,8 @@ export const getTokensV4Options: RouteOptions = {
             id: Joi.string().allow(null),
             name: Joi.string().allow("", null),
             image: Joi.string().allow("", null),
+            imageSmall: Joi.string().allow("", null),
+            imageLarge: Joi.string().allow("", null),
             slug: Joi.string().allow("", null),
           }),
           source: Joi.string().allow("", null),
@@ -427,7 +429,17 @@ export const getTokensV4Options: RouteOptions = {
             collection: {
               id: r.collection_id,
               name: r.collection_name,
-              image: Assets.getLocalAssetsLink(r.collection_image),
+              image: Assets.getResizedImageUrl(r.collection_image, undefined, r.image_version),
+              imageSmall: Assets.getResizedImageUrl(
+                r.collection_image,
+                ImageSize.small,
+                r.image_version
+              ),
+              imageLarge: Assets.getResizedImageUrl(
+                r.collection_image,
+                ImageSize.large,
+                r.image_version
+              ),
               slug: r.slug,
             },
             source: r.floor_sell_value

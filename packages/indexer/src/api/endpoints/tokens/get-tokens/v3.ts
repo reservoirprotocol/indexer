@@ -16,7 +16,7 @@ import {
 } from "@/common/utils";
 import * as Boom from "@hapi/boom";
 import { getJoiTokenObject } from "@/common/joi";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 
 const version = "v3";
 
@@ -83,6 +83,8 @@ export const getTokensV3Options: RouteOptions = {
             id: Joi.string().allow(null),
             name: Joi.string().allow("", null),
             image: Joi.string().allow("", null),
+            imageSmall: Joi.string().allow("", null),
+            imageLarge: Joi.string().allow("", null),
             slug: Joi.string().allow("", null),
           }),
           topBidValue: Joi.number().unsafe().allow(null),
@@ -306,7 +308,17 @@ export const getTokensV3Options: RouteOptions = {
             collection: {
               id: r.collection_id,
               name: r.collection_name,
-              image: r.collection_image,
+              image: Assets.getResizedImageUrl(r.collection_image, undefined, r.image_version),
+              imageSmall: Assets.getResizedImageUrl(
+                r.collection_image,
+                ImageSize.small,
+                r.image_version
+              ),
+              imageLarge: Assets.getResizedImageUrl(
+                r.collection_image,
+                ImageSize.large,
+                r.image_version
+              ),
               slug: r.slug,
             },
             floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,

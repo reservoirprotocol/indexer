@@ -16,7 +16,7 @@ import {
   toBuffer,
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 import { JoiAttributeKeyValueObject, getJoiTokenObject } from "@/common/joi";
 import * as Boom from "@hapi/boom";
 
@@ -98,6 +98,8 @@ export const getTokensDetailsV3Options: RouteOptions = {
               id: Joi.string().allow(null),
               name: Joi.string().allow("", null),
               image: Joi.string().allow("", null),
+              imageSmall: Joi.string().allow("", null),
+              imageLarge: Joi.string().allow("", null),
               slug: Joi.string().allow("", null),
             }),
             lastBuy: {
@@ -413,7 +415,17 @@ export const getTokensDetailsV3Options: RouteOptions = {
               collection: {
                 id: r.collection_id,
                 name: r.collection_name,
-                image: Assets.getLocalAssetsLink(r.collection_image),
+                image: Assets.getResizedImageUrl(r.collection_image, undefined, r.image_version),
+                imageSmall: Assets.getResizedImageUrl(
+                  r.collection_image,
+                  ImageSize.small,
+                  r.image_version
+                ),
+                imageLarge: Assets.getResizedImageUrl(
+                  r.collection_image,
+                  ImageSize.large,
+                  r.image_version
+                ),
                 slug: r.slug,
               },
               lastBuy: {

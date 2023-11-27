@@ -179,6 +179,8 @@ export const getUserTokensV7Options: RouteOptions = {
               slug: Joi.string().allow("", null).description("Open Sea slug"),
               symbol: Joi.string().allow("", null),
               imageUrl: Joi.string().allow("", null),
+              imageUrlSmall: Joi.string().allow("", null),
+              imageUrlLarge: Joi.string().allow("", null),
               isSpam: Joi.boolean().default(false),
               metadataDisabled: Joi.boolean().default(false),
               openseaVerificationStatus: Joi.string().allow("", null),
@@ -727,7 +729,21 @@ export const getUserTokensV7Options: RouteOptions = {
                 name: r.collection_name,
                 slug: r.slug,
                 symbol: r.symbol,
-                imageUrl: r.metadata?.imageUrl,
+                imageUrl: Assets.getResizedImageUrl(
+                  r.metadata?.imageUrl,
+                  undefined,
+                  r.image_version
+                ),
+                imageUrlSmall: Assets.getResizedImageUrl(
+                  r.metadata?.imageUrl,
+                  ImageSize.small,
+                  r.image_version
+                ),
+                imageUrlLarge: Assets.getResizedImageUrl(
+                  r.metadata?.imageUrl,
+                  ImageSize.large,
+                  r.image_version
+                ),
                 isSpam: Number(r.c_is_spam) > 0,
                 metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
                 openseaVerificationStatus: r.opensea_verification_status,
