@@ -79,6 +79,16 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 
         const chainName = (event.payload as Payload).chain;
 
+        logger.info(
+          "opensea-websocket",
+          JSON.stringify({
+            message: "Incoming event.",
+            network,
+            event,
+            chainName,
+          })
+        );
+
         if (getOpenseaNetworkName() != chainName) {
           return;
         }
@@ -88,7 +98,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 
         if (openSeaOrderParams) {
           if (![1, 137].includes(config.chainId)) {
-            logger.debug(
+            logger.info(
               "opensea-websocket",
               JSON.stringify({
                 message: "Processing event.",
@@ -98,7 +108,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
               })
             );
           } else if (_.random(100) <= 50) {
-            logger.debug(
+            logger.info(
               "opensea-websocket",
               JSON.stringify({
                 message: "Processing event.",
