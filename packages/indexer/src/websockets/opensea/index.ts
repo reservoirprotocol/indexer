@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import {
   BaseStreamMessage,
   CollectionOfferEventPayload,
@@ -74,6 +76,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
           return;
         }
 
+        const chainName = (event.payload as any).chain;
         const eventType = event.event_type as EventType;
         const openSeaOrderParams = await handleEvent(eventType, event.payload);
 
@@ -86,6 +89,8 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
               network,
               event,
               isSupported: !!openSeaOrderParams,
+              chainName,
+              hasChainName: !!chainName,
             })
           );
         }

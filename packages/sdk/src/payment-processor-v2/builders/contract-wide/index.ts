@@ -69,6 +69,6 @@ export class ContractWideBuilder extends BaseBuilder {
     }
   ): MatchedOrder {
     order.params.tokenId = options.tokenId!.toString();
-    return order.getMatchedOrder(options.taker, options.amount);
+    return order.getMatchedOrder(options.taker, options);
   }
 }

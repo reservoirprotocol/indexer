@@ -1001,24 +1001,27 @@ export const getExecuteBuyV7Options: RouteOptions = {
               // The max quantity is the total number of tokens which can be bought from the collection
               maxQuantities.push({
                 itemIndex: itemIndex,
-                maxQuantity: await idb
-                  .one(
-                    `
-                      SELECT
-                        count(*) AS on_sale_count
-                      FROM tokens
-                      WHERE tokens.collection_id = $/collection/
-                        AND ${
-                          payload.normalizeRoyalties
-                            ? "tokens.normalized_floor_sell_value"
-                            : "tokens.floor_sell_value"
-                        } IS NOT NULL
-                    `,
-                    {
-                      collection: item.collection,
-                    }
-                  )
-                  .then((r) => String(r.on_sale_count)),
+                maxQuantity:
+                  useSeaportIntent || useCrossChainIntent
+                    ? "1"
+                    : await idb
+                        .one(
+                          `
+                            SELECT
+                              count(*) AS on_sale_count
+                            FROM tokens
+                            WHERE tokens.collection_id = $/collection/
+                              AND ${
+                                payload.normalizeRoyalties
+                                  ? "tokens.normalized_floor_sell_value"
+                                  : "tokens.floor_sell_value"
+                              } IS NOT NULL
+                          `,
+                          {
+                            collection: item.collection,
+                          }
+                        )
+                        .then((r) => String(r.on_sale_count)),
               });
             }
 
@@ -1381,7 +1384,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
       const ordersEligibleForGlobalFees = listingDetails
         .filter(
           (b) =>
-            b.source !== "blur.io" && (hasBlurListings ? !["opensea.io"].includes(b.source!) : true)
+            // Any non-Blur orders
+            b.source !== "blur.io" &&
+            // Or if there are Blur orders we need to fill, any non-OpenSea or non-ERC721 orders
+            (hasBlurListings
+              ? !(["opensea.io"].includes(b.source!) && b.contractKind === "erc721")
+              : true)
         )
         .map((b) => b.orderId);
 
@@ -1524,7 +1532,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
             );
           });
 
-        if (ccConfig.maxPricePerItem && bn(quote).gt(ccConfig.maxPricePerItem)) {
+        if (ccConfig.maxPricePerItem && bn(quote).gt(ccConfig.maxPricePerItem) && !preview) {
           throw Boom.badRequest("Price too high to purchase cross-chain");
         }
 
@@ -2473,7 +2481,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           // Do not return unless all previous steps are completed
           data:
             !steps[2].items.length && !steps[3].items.length
-              ? new Sdk.Common.Helpers.ERC721C().generateVerificationTxData(
+              ? new Sdk.Common.Helpers.Erc721C().generateVerificationTxData(
                   tv,
                   payload.taker,
                   erc721cAuth!.signature

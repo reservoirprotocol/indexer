@@ -8,8 +8,8 @@ import {
 } from "@/jobs/websocket-events/websocket-event-router";
 import { refreshAsksTokenJob } from "@/jobs/asks/refresh-asks-token-job";
 import { logger } from "@/common/logger";
-import { config } from "@/config/index";
 import { refreshActivitiesTokenJob } from "@/jobs/activities/refresh-activities-token-job";
+import _ from "lodash";
 
 export class IndexerTokensHandler extends KafkaEventHandler {
   topicName = "indexer.public.tokens";
@@ -60,7 +60,14 @@ export class IndexerTokensHandler extends KafkaEventHandler {
 
       if (
         changed.some((value) =>
-          ["name", "image", "metadata_disabled", "rarity_rank", "rarity_score"].includes(value)
+          [
+            "name",
+            "image",
+            "metadata_disabled",
+            "image_version",
+            "rarity_rank",
+            "rarity_score",
+          ].includes(value)
         )
       ) {
         logger.info(
@@ -71,9 +78,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
             changed,
           })
         );
-      }
 
-      if (payload.after.name || payload.after.image) {
         await redis.set(
           `token-cache:${payload.after.contract}:${payload.after.token_id}`,
           JSON.stringify({
@@ -81,6 +86,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
             token_id: payload.after.token_id,
             name: payload.after.name,
             image: payload.after.image,
+            image_version: payload.after.image_version,
             metadata_disabled: payload.after.metadata_disabled,
             rarity_rank: payload.after.rarity_rank,
             rarity_score: payload.after.rarity_score,
@@ -111,7 +117,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
       const metadataInitializedAtChanged =
         payload.before.metadata_initialized_at !== payload.after.metadata_initialized_at;
 
-      if (metadataInitializedAtChanged && [1, 137].includes(config.chainId)) {
+      if (metadataInitializedAtChanged && _.random(100) <= 25) {
         logger.info(
           "token-metadata-latency-metric",
           JSON.stringify({

@@ -83,6 +83,12 @@ export class NewCollectionForTokenJob extends AbstractRabbitMqJobHandler {
           tokenIdRange = `'(,)'::numrange`;
         }
 
+        // Check we have a name for the collection
+        if (_.isNull(collectionMetadata.name)) {
+          logger.warn(this.queueName, `no name for ${JSON.stringify(payload)}`);
+          return;
+        }
+
         // For covering the case where the token id range is null
         const tokenIdRangeParam = tokenIdRange ? "$/tokenIdRange:raw/" : "$/tokenIdRange/";
 

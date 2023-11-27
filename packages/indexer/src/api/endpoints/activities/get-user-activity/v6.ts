@@ -28,6 +28,7 @@ import { redis } from "@/common/redis";
 import { redb } from "@/common/db";
 import { Sources } from "@/models/sources";
 import { MetadataStatus } from "@/models/metadata-status";
+import { Assets } from "@/utils/assets";
 
 const version = "v6";
 
@@ -281,6 +282,7 @@ export const getUserActivityV6Options: RouteOptions = {
             tokens.name,
             tokens.image,
             tokens.metadata_disabled,
+            tokens.image_version,
             tokens.rarity_score,
             tokens.rarity_rank
           FROM tokens
@@ -296,6 +298,7 @@ export const getUserActivityV6Options: RouteOptions = {
                     token_id: token.token_id,
                     name: token.name,
                     image: token.image,
+                    image_version: token.image_version,
                     metadata_disabled: token.metadata_disabled,
                     rarity_score: token.rarity_score,
                     rarity_rank: token.rarity_rank,
@@ -314,6 +317,7 @@ export const getUserActivityV6Options: RouteOptions = {
                       token_id: tokenResult.token_id,
                       name: tokenResult.name,
                       image: tokenResult.image,
+                      image_version: tokenResult.image_version,
                       metadata_disabled: tokenResult.metadata_disabled,
                       rarity_score: tokenResult.rarity_score,
                       rarity_rank: tokenResult.rarity_rank,
@@ -410,6 +414,19 @@ export const getUserActivityV6Options: RouteOptions = {
           ? sources.get(activity.event?.fillSourceId)
           : undefined;
 
+        const originalImageUrl = query.includeMetadata
+          ? (tokenMetadata ? tokenMetadata.image : activity.token?.image) || null
+          : undefined;
+
+        let tokenImageUrl = null;
+        if (originalImageUrl) {
+          tokenImageUrl = Assets.getResizedImageUrl(
+            originalImageUrl,
+            undefined,
+            tokenMetadata?.image_version
+          );
+        }
+
         return getJoiActivityObject(
           {
             type: activity.type,
@@ -436,9 +453,7 @@ export const getUserActivityV6Options: RouteOptions = {
               tokenName: query.includeMetadata
                 ? (tokenMetadata ? tokenMetadata.name : activity.token?.name) || null
                 : undefined,
-              tokenImage: query.includeMetadata
-                ? (tokenMetadata ? tokenMetadata.image : activity.token?.image) || null
-                : undefined,
+              tokenImage: tokenImageUrl,
               tokenMedia: query.includeMetadata ? null : undefined,
               tokenRarityRank: query.includeMetadata ? tokenMetadata?.rarity_score : undefined,
               tokenRarityScore: query.includeMetadata ? tokenMetadata?.rarity_rank : undefined,

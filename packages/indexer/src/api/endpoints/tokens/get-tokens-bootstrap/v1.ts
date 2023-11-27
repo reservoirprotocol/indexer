@@ -93,7 +93,8 @@ export const getTokensBootstrapV1Options: RouteOptions = {
           "t"."floor_sell_maker",
           "t"."floor_sell_source_id_int",
           "t"."floor_sell_valid_from",
-          "t"."floor_sell_valid_to"
+          "t"."floor_sell_valid_to",
+          "t"."image_version"
         FROM "tokens" "t"
         JOIN "collections" "c"
           ON "t"."collection_id" = "c"."id"
@@ -138,7 +139,7 @@ export const getTokensBootstrapV1Options: RouteOptions = {
           {
             contract: fromBuffer(r.contract),
             tokenId: r.token_id,
-            image: Assets.getResizedImageUrl(r.image),
+            image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
             orderId: r.floor_sell_id,
             maker: fromBuffer(r.floor_sell_maker),
             price: formatEth(r.floor_sell_value),

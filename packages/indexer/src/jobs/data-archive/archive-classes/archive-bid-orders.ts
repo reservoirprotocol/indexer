@@ -20,7 +20,7 @@ export class ArchiveBidOrders implements ArchiveInterface {
     const firstEventQuery = `
         SELECT updated_at
         FROM ${ArchiveBidOrders.tableName}
-        WHERE updated_at < current_date - INTERVAL '${ArchiveBidOrders.maxAgeDay} days'
+        WHERE updated_at < date_trunc('minute', current_timestamp) - (extract('minute' from current_timestamp)::int % 10) * interval '1 min' - INTERVAL '${ArchiveBidOrders.maxAgeDay} days'
         AND side = 'buy'
         AND fillability_status = 'expired'
         ORDER BY updated_at DESC, id ASC
@@ -143,7 +143,9 @@ export class ArchiveBidOrders implements ArchiveInterface {
 
       logger.info(
         "archive-bid-orders",
-        `Bids deleted. deletedOrdersCount=${JSON.stringify(deletedOrdersResult?.length)}`
+        `Bids deleted. ${startTime} - ${endTime} deletedOrdersCount=${JSON.stringify(
+          deletedOrdersResult?.length
+        )}`
       );
 
       if (deletedOrdersResult.length) {

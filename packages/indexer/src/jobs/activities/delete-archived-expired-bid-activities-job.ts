@@ -5,7 +5,8 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { PendingExpiredBidActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-expired-bid-activities-queue";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
-const BATCH_SIZE = 1000;
+const BATCH_SIZE = 2000;
+const MIN_BATCH_SIZE = 200;
 
 export default class DeleteArchivedExpiredBidActivitiesJob extends AbstractRabbitMqJobHandler {
   queueName = "delete-archived-expired-bid-activities-queue";
@@ -17,41 +18,48 @@ export default class DeleteArchivedExpiredBidActivitiesJob extends AbstractRabbi
 
   protected async process() {
     const pendingExpiredBidActivitiesQueue = new PendingExpiredBidActivitiesQueue();
-    const pendingActivityIds = await pendingExpiredBidActivitiesQueue.get(BATCH_SIZE);
+    const pendingActivitiesCount = await pendingExpiredBidActivitiesQueue.count();
 
     logger.info(
       this.queueName,
-      `deleting activities. pendingActivitiesCount=${pendingActivityIds?.length}`
+      `deleting activities debug. pendingActivitiesCount=${pendingActivitiesCount}`
     );
 
-    if (pendingActivityIds?.length > 0) {
-      try {
-        await ActivitiesIndex.deleteActivitiesById(pendingActivityIds);
-      } catch (error) {
-        logger.error(
-          this.queueName,
-          `failed to delete activities. error=${error}, pendingActivities=${JSON.stringify(
-            pendingActivityIds
-          )}`
-        );
+    if (pendingActivitiesCount >= MIN_BATCH_SIZE) {
+      const pendingActivityIds = await pendingExpiredBidActivitiesQueue.get(BATCH_SIZE);
 
-        await pendingExpiredBidActivitiesQueue.add(pendingActivityIds);
-      }
+      logger.info(
+        this.queueName,
+        `deleting activities. pendingActivitiesCount=${pendingActivityIds?.length}`
+      );
 
-      const pendingActivitiesCount = await pendingExpiredBidActivitiesQueue.count();
+      if (pendingActivityIds?.length > 0) {
+        try {
+          await ActivitiesIndex.deleteActivitiesById(pendingActivityIds);
+        } catch (error) {
+          logger.error(
+            this.queueName,
+            `failed to delete activities. error=${error}, pendingActivities=${JSON.stringify(
+              pendingActivityIds
+            )}`
+          );
 
-      if (pendingActivitiesCount > 0) {
-        await deleteArchivedExpiredBidActivitiesJob.addToQueue();
+          await pendingExpiredBidActivitiesQueue.add(pendingActivityIds);
+        }
+
+        if (pendingActivitiesCount > BATCH_SIZE) {
+          await deleteArchivedExpiredBidActivitiesJob.addToQueue();
+        }
       }
     }
   }
 
-  public async addToQueue() {
+  public async addToQueue(delay = 0) {
     if (!config.doElasticsearchWork) {
       return;
     }
 
-    await this.send();
+    await this.send({}, delay);
   }
 }
 
