@@ -466,7 +466,11 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
 
               exchange.enabled = !exchangeBlocked;
 
-              if (exchange.enabled && exchange.orderKind === "payment-processor") {
+              if (
+                exchange.enabled &&
+                (exchange.orderKind === "payment-processor" ||
+                  exchange.orderKind === "payment-processor-v2")
+              ) {
                 const ppConfig = await paymentProcessor.getConfigByContract(params.collection);
                 if (ppConfig && ppConfig.securityPolicy.enforcePricingConstraints) {
                   exchange.maxPriceRaw = ppConfig?.pricingBounds?.ceilingPrice;
