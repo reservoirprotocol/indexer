@@ -41,9 +41,9 @@ export const getCollectionPaymentSettings = async (
   if (!result || refresh) {
     try {
       const exchange = new Contract(
-        Sdk.PaymentProcessor.Addresses.Exchange[config.chainId],
+        Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId],
         new Interface([
-          `function collectionPaymentSettings(address collection) external view returns (
+          `function collectionPaymentSettings(address token) view returns (
             (
               uint8 paymentSettings,
               uint32 paymentMethodWhitelistId,
@@ -57,14 +57,14 @@ export const getCollectionPaymentSettings = async (
         baseProvider
       );
 
-      const collectionPaymentSettings = await exchange.collectionPaymentSettings(contract);
+      const paymentSettings = await exchange.collectionPaymentSettings(contract);
       result = {
-        paymentSettings: collectionPaymentSettings.paymentSettings,
-        paymentMethodWhitelistId: collectionPaymentSettings.paymentMethodWhitelistId,
-        constrainedPricingPaymentMethod: collectionPaymentSettings.constrainedPricingPaymentMethod,
-        royaltyBackfillNumerator: collectionPaymentSettings.royaltyBackfillNumerator,
-        royaltyBountyNumerator: collectionPaymentSettings.royaltyBountyNumerator,
-        isRoyaltyBountyExclusive: collectionPaymentSettings.isRoyaltyBountyExclusive,
+        paymentSettings: paymentSettings.paymentSettings,
+        paymentMethodWhitelistId: paymentSettings.paymentMethodWhitelistId,
+        constrainedPricingPaymentMethod: paymentSettings.constrainedPricingPaymentMethod,
+        royaltyBackfillNumerator: paymentSettings.royaltyBackfillNumerator,
+        royaltyBountyNumerator: paymentSettings.royaltyBountyNumerator,
+        isRoyaltyBountyExclusive: paymentSettings.isRoyaltyBountyExclusive,
       };
 
       if (result?.paymentSettings === PaymentSettings.PricingConstraints) {
@@ -78,6 +78,7 @@ export const getCollectionPaymentSettings = async (
         };
         result.pricingBounds = pricingBounds;
       }
+
       if (result) {
         await redis.set(cacheKey, JSON.stringify(result), "EX", 24 * 3600);
       }

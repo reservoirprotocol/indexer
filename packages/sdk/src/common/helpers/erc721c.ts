@@ -2,7 +2,7 @@ import { Interface } from "@ethersproject/abi";
 
 import { TxData } from "../../utils";
 
-export class ERC721C {
+export class Erc721C {
   public generateVerificationTxData(
     transferValidator: string,
     address: string,

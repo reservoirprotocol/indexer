@@ -12,6 +12,7 @@ export const OpenseaConduitKey: ChainIdToAddress = {
   [Network.Mumbai]: "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000",
   [Network.Avalanche]: "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000",
   [Network.Base]: "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000",
+  [Network.Zora]: "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000",
 };
 
 export const ReservoirConduitKey: ChainIdToAddress = {
@@ -111,6 +112,11 @@ export const OpenSeaProtectedOffersZone: ChainIdToAddress = {
   [Network.Arbitrum]: "0x000000e7ec00e7b300774b00001314b8610022b8",
   [Network.Avalanche]: "0x000000e7ec00e7b300774b00001314b8610022b8",
   [Network.Base]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.Zora]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.ArbitrumNova]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.Mumbai]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.BaseGoerli]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.ZoraTestnet]: "0x000000e7ec00e7b300774b00001314b8610022b8",
 };
 
 export const FxHashPausableZone: ChainIdToAddress = {

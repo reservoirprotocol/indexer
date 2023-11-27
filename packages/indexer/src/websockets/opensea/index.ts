@@ -13,6 +13,7 @@ import {
   ItemCancelledEventPayload,
   ItemListedEventPayload,
   OrderValidationEventPayload,
+  Payload,
 } from "@opensea/stream-js/dist/types";
 import * as Sdk from "@reservoir0x/sdk";
 import { WebSocket } from "ws";
@@ -76,38 +77,38 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
           return;
         }
 
-        const chainName = (event.payload as any).chain;
+        const chainName = (event.payload as Payload).chain;
+
+        if (getOpenseaNetworkName() != chainName) {
+          return;
+        }
+
         const eventType = event.event_type as EventType;
         const openSeaOrderParams = await handleEvent(eventType, event.payload);
 
-        if (config.chainId === 7777777 && !["matic", "ethereum"].includes(chainName)) {
-          logger.info(
-            "opensea-websocket-debug",
-            JSON.stringify({
-              message: "Processing event.",
-              network,
-              event,
-              isSupported: !!openSeaOrderParams,
-              chainName,
-              eventType,
-            })
-          );
-        }
-
-        // Reduce amount of logs by only total the amount of events received from Ethereum mainnet.
-        if (_.random(100) <= 50 && (openSeaOrderParams || config.chainId === 1)) {
-          logger.debug(
-            "opensea-websocket",
-            JSON.stringify({
-              message: "Processing event.",
-              network,
-              event,
-              isSupported: !!openSeaOrderParams,
-            })
-          );
-        }
-
         if (openSeaOrderParams) {
+          if (![1, 137].includes(config.chainId)) {
+            logger.debug(
+              "opensea-websocket",
+              JSON.stringify({
+                message: "Processing event.",
+                network,
+                event,
+                isSupported: true,
+              })
+            );
+          } else if (_.random(100) <= 50) {
+            logger.debug(
+              "opensea-websocket",
+              JSON.stringify({
+                message: "Processing event.",
+                network,
+                event,
+                isSupported: true,
+              })
+            );
+          }
+
           const protocolData = parseProtocolData(event.payload);
 
           let orderInfo: GenericOrderInfo;

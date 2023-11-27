@@ -408,10 +408,10 @@ export class Router {
         const amountFilled = Number(detail.amount) ?? 1;
         const orderPrice = bn(order.params.details.initialAmount).mul(amountFilled).toString();
 
-        if (buyInCurrency !== Sdk.Common.Addresses.Native[this.chainId]) {
+        if (buyInCurrency !== detail.currency) {
           swapDetails.push({
             tokenIn: buyInCurrency,
-            tokenOut: Sdk.Common.Addresses.Native[this.chainId],
+            tokenOut: detail.currency,
             tokenOutAmount: orderPrice,
             recipient: taker,
             refundTo: taker,
@@ -421,7 +421,19 @@ export class Router {
         }
 
         txs.push({
-          approvals: [],
+          approvals: [
+            {
+              currency: detail.currency,
+              amount: orderPrice,
+              owner: taker,
+              operator: exchange.contract.address.toLowerCase(),
+              txData: generateFTApprovalTxData(
+                detail.currency,
+                taker,
+                exchange.contract.address.toLowerCase()
+              ),
+            },
+          ],
           permits: [],
           preSignatures: [],
           txTags: {
@@ -463,10 +475,10 @@ export class Router {
 
       for (const detail of ppv2Details) {
         const order = detail.order as Sdk.PaymentProcessorV2.Order;
-        if (buyInCurrency !== Sdk.Common.Addresses.Native[this.chainId]) {
+        if (buyInCurrency !== detail.currency) {
           swapDetails.push({
             tokenIn: buyInCurrency,
-            tokenOut: Sdk.Common.Addresses.Native[this.chainId],
+            tokenOut: detail.currency,
             tokenOutAmount: order.params.itemPrice,
             recipient: taker,
             refundTo: taker,
@@ -714,7 +726,7 @@ export class Router {
             data: string;
             value: string;
             path: { contract: string; tokenId: string }[];
-            errors: { tokenId: string; reason: string }[];
+            errors: { tokenId: string; isUnrecoverable?: boolean; reason: string }[];
           };
         } = await axios
           .post(`${this.options?.orderFetcherBaseUrl}/api/blur-listing`, {
@@ -742,7 +754,7 @@ export class Router {
           }
 
           // Expose errors
-          for (const { tokenId, reason } of data.errors) {
+          for (const { tokenId, isUnrecoverable, reason } of data.errors) {
             if (options?.onError) {
               const listing = blurCompatibleListings.find(
                 (d) => d.contract === contract && d.tokenId === tokenId
@@ -751,10 +763,8 @@ export class Router {
                 await options.onError("order-fetcher-blur-listings", new Error(reason), {
                   isUnrecoverable:
                     listing.kind === "blur" &&
-                    reason === "ListingNotFound" &&
-                    listing.tokenId === tokenId
-                      ? true
-                      : false,
+                    (reason === "ListingNotFound" || isUnrecoverable) &&
+                    listing.tokenId === tokenId,
                   orderId: listing.orderId,
                   additionalInfo: { detail: listing, taker },
                 });
@@ -3814,7 +3824,7 @@ export class Router {
               taker,
               tokenId: details[i].tokenId,
               amount: details[i].amount ?? 1,
-              maxRoyaltyFeeNumerator: details[i].extraArgs?.maxRoyaltyFeeNumerator ?? "0",
+              ...(details[i].extraArgs ?? {}),
             };
           }),
           { fees: allFees.map((c) => c[0]) }
