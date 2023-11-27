@@ -306,6 +306,7 @@ async function formatCollections(
       }
 
       return {
+        ...metadata,
         id: metadata?.contract,
         image: metadata?.metadata ? metadata.metadata?.imageUrl : null,
         banner: metadata?.metadata ? metadata.metadata?.bannerImageUrl : null,
