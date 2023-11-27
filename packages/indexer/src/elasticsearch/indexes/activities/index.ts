@@ -26,6 +26,7 @@ import { backfillActivitiesElasticsearchJob } from "@/jobs/activities/backfill/b
 
 import * as CONFIG from "@/elasticsearch/indexes/activities/config";
 import { ElasticMintResult } from "@/api/endpoints/collections/get-trending-mints/interfaces";
+import { Period, getStartTime } from "@/models/top-selling-collections/top-selling-collections";
 
 const INDEX_NAME = `${getNetworkName()}.activities`;
 
@@ -346,117 +347,100 @@ export const getTopSellingCollections = async (params: {
 
 export const getTrendingMints = async (params: {
   contracts: string[];
-  startTime: number;
+  period: Period;
   limit: number;
 }): Promise<ElasticMintResult[]> => {
-  const { contracts, startTime, limit } = params;
+  const { contracts, period, limit } = params;
 
-  const currentTime = Math.floor(Date.now() / 1000);
-  const sixHoursAgo = currentTime - 6 * 60 * 60;
-  const oneHourAgo = currentTime - 1 * 60 * 60;
+  const results: Partial<Record<Period, ElasticMintResult[]>> = {};
 
-  const salesQuery = {
-    bool: {
-      filter: [
-        {
-          term: {
-            type: "mint",
-          },
-        },
-        {
-          range: {
-            timestamp: {
-              gte: startTime,
-              lte: currentTime,
-              format: "epoch_second",
+  [...new Set<Period>(["6h", "1h", period])].forEach((time) => (results[time] = []));
+
+  await Promise.all(
+    Object.keys(results).map(async (period: string) => {
+      const salesQuery = {
+        bool: {
+          filter: [
+            {
+              term: {
+                type: "mint",
+              },
             },
-          },
+            {
+              range: {
+                timestamp: {
+                  gte: getStartTime(period as Period),
+                  format: "epoch_second",
+                },
+              },
+            },
+            {
+              terms: {
+                "collection.id": contracts,
+              },
+            },
+          ],
         },
-        {
+      } as any;
+
+      const collectionAggregation = {
+        collections: {
           terms: {
-            "collection.id": contracts,
-          },
-        },
-      ],
-    },
-  } as any;
-
-  const collectionAggregation = {
-    collections: {
-      terms: {
-        field: "collection.id",
-        size: limit,
-        order: {
-          total_mints: "desc",
-        },
-      },
-      aggs: {
-        total_mints: {
-          value_count: {
-            field: "id",
-          },
-        },
-        total_volume: {
-          sum: {
-            field: "pricing.priceDecimal",
-          },
-        },
-        mints_last_6_hours: {
-          filter: {
-            range: {
-              timestamp: {
-                gte: sixHoursAgo,
-                format: "epoch_second",
-              },
+            field: "collection.id",
+            size: limit,
+            order: {
+              total_mints: "desc",
             },
           },
           aggs: {
-            count: {
+            total_mints: {
               value_count: {
                 field: "id",
               },
             },
-          },
-        },
-        mints_last_1_hour: {
-          filter: {
-            range: {
-              timestamp: {
-                gte: oneHourAgo,
-                format: "epoch_second",
-              },
-            },
-          },
-          aggs: {
-            count: {
-              value_count: {
-                field: "id",
+            total_volume: {
+              sum: {
+                field: "pricing.priceDecimal",
               },
             },
           },
         },
-      },
-    },
-  } as any;
+      } as any;
 
-  const esResult = (await elasticsearch.search({
-    index: INDEX_NAME,
-    size: 0,
-    body: {
-      query: salesQuery,
-      aggs: collectionAggregation,
-    },
-  })) as any;
+      const esResult = (await elasticsearch.search({
+        index: INDEX_NAME,
+        size: 0,
+        body: {
+          query: salesQuery,
+          aggs: collectionAggregation,
+        },
+      })) as any;
+      results[period as Period] = esResult?.aggregations?.collections?.buckets?.map(
+        (bucket: any) => {
+          return {
+            volume: bucket?.total_volume?.value,
+            mintCount: bucket?.total_mints?.value,
+            id: bucket.key,
+          };
+        }
+      );
+    })
+  );
 
-  return esResult?.aggregations?.collections?.buckets?.map((bucket: any) => {
-    return {
-      volume: bucket?.total_volume?.value,
-      mintCount: bucket?.total_mints?.value,
-      countLast6Hours: bucket?.mints_last_6_hours?.count?.value,
-      countLast1Hour: bucket?.mints_last_1_hour?.count?.value,
-      id: bucket.key,
-    };
+  const periodResults = results[period];
+  const sixHourMints = results["6h"];
+  const oneHourMints = results["1h"];
+
+  const finalResults: ElasticMintResult[] = [];
+  periodResults?.forEach((result) => {
+    finalResults.push({
+      ...result,
+      sixHourResult: sixHourMints?.find(({ id }) => id === result.id),
+      oneHourResult: oneHourMints?.find(({ id }) => id === result.id),
+    });
   });
+
+  return finalResults;
 };
 
 export const getRecentSalesByCollection = async (
