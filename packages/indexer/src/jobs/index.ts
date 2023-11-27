@@ -337,13 +337,10 @@ export class RabbitMqJobsConsumer {
     const mqurl = `${config.rabbitUrl}/${getNetworkName()}`;
     logger.info("JUDEBUG", `connectToVhost:${mqurl}`);
     for (let i = 0; i < RabbitMqJobsConsumer.maxConsumerConnectionsCount; ++i) {
-      const connection = amqplibConnectionManager.connect(
-        mqurl,
-        {
-          reconnectTimeInSeconds: 5,
-          heartbeatIntervalInSeconds: 0,
-        }
-      );
+      const connection = amqplibConnectionManager.connect(mqurl, {
+        reconnectTimeInSeconds: 5,
+        heartbeatIntervalInSeconds: 0,
+      });
 
       RabbitMqJobsConsumer.rabbitMqConsumerConnections.push(connection);
 

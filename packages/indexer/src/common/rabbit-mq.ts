@@ -58,14 +58,10 @@ export class RabbitMq {
 
   public static async connect() {
     const mqurl = `${config.rabbitUrl}/${getNetworkName()}`;
-    logger.info("JUDEBUG", `mqurl-connect:${mqurl}`); 
-    RabbitMq.rabbitMqPublisherConnection = amqplibConnectionManager.connect(
-      mqurl,	    
-      {
-        reconnectTimeInSeconds: 5,
-        heartbeatIntervalInSeconds: 0,
-      }
-    );
+    RabbitMq.rabbitMqPublisherConnection = amqplibConnectionManager.connect(mqurl, {
+      reconnectTimeInSeconds: 5,
+      heartbeatIntervalInSeconds: 0,
+    });
 
     for (let index = 0; index < RabbitMq.maxPublisherChannelsCount; ++index) {
       const channel = this.rabbitMqPublisherConnection.createChannel();
@@ -234,6 +230,7 @@ export class RabbitMq {
   public static async createVhost() {
     if (config.assertRabbitVhost) {
       const url = `${config.rabbitHttpUrl}/api/vhosts/${getNetworkName()}`;
+      logger.info("rabbitmq-vhost", `createVhost ${url}`);
       await axios.put(url);
     }
   }
@@ -259,7 +256,6 @@ export class RabbitMq {
     const abstract = await import("@/jobs/abstract-rabbit-mq-job-handler");
     const jobsIndex = await import("@/jobs/index");
     const mqurl = `${config.rabbitUrl}/${getNetworkName()}`;
-    logger.info("JUDEBUG", `assertQAE:${mqurl}`);
     const connection = await amqplib.connect(mqurl);
 
     const channel = await connection.createChannel();
