@@ -1390,7 +1390,7 @@ export const getExecuteBidV5Options: RouteOptions = {
 
                   steps[3].items.push({
                     status: "incomplete",
-                    data: new Sdk.Common.Helpers.ERC721C().generateVerificationTxData(
+                    data: new Sdk.Common.Helpers.Erc721C().generateVerificationTxData(
                       tv,
                       payload.maker,
                       erc721cAuth!.signature
@@ -1506,7 +1506,7 @@ export const getExecuteBidV5Options: RouteOptions = {
 
                   steps[3].items.push({
                     status: "incomplete",
-                    data: new Sdk.Common.Helpers.ERC721C().generateVerificationTxData(
+                    data: new Sdk.Common.Helpers.Erc721C().generateVerificationTxData(
                       tv,
                       payload.maker,
                       erc721cAuth!.signature

@@ -1,18 +1,21 @@
-import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { initOnChainData, processOnChainData } from "@/events-sync/handlers/utils";
-import { getNetworkSettings } from "@/config/network";
-import { BaseEventParams } from "@/events-sync/parser";
-import { getEventData } from "@/events-sync/data";
 import { Log } from "@ethersproject/abstract-provider";
 import _ from "lodash";
-import { handleMints } from "@/events-sync/handlers/utils/erc721";
+
 import { logger } from "@/common/logger";
-import { blockCheckJob } from "@/jobs/events-sync/block-check-queue-job";
 import { redis } from "@/common/redis";
+import { getNetworkSettings } from "@/config/network";
+import { getEventData } from "@/events-sync/data";
+import { initOnChainData, processOnChainData } from "@/events-sync/handlers/utils";
+import { handleMints } from "@/events-sync/handlers/utils/erc721";
+import { BaseEventParams } from "@/events-sync/parser";
+import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { blockCheckJob } from "@/jobs/events-sync/block-check-queue-job";
 
 export type ProcessConsecutiveTransferJobPayload = {
   fromAddress: string;
   toAddress: string;
+  // Needed for properly setting the `batchIndex`
+  globalFromTokenId: number;
   fromTokenId: number;
   toTokenId: number;
   baseEventParams: BaseEventParams;
@@ -40,7 +43,9 @@ export class ProcessConsecutiveTransferJob extends AbstractRabbitMqJobHandler {
   }
 
   protected async process(payload: ProcessConsecutiveTransferJobPayload) {
-    const { fromAddress, toAddress, fromTokenId, toTokenId, baseEventParams } = payload;
+    const { fromAddress, toAddress, globalFromTokenId, fromTokenId, toTokenId, baseEventParams } =
+      payload;
+
     const onChainData = initOnChainData();
     const ns = getNetworkSettings();
 
@@ -59,13 +64,18 @@ export class ProcessConsecutiveTransferJob extends AbstractRabbitMqJobHandler {
     for (let i = fromTokenId; i <= toTokenId; i++) {
       const tokenId = i.toString();
 
+      const updatedBaseEventParams = {
+        ...baseEventParams,
+        batchIndex: baseEventParams.batchIndex + (i - globalFromTokenId),
+      };
+
       onChainData.nftTransferEvents.push({
         kind: "erc721",
         from: fromAddress,
         to: toAddress,
         tokenId,
         amount: "1",
-        baseEventParams,
+        baseEventParams: updatedBaseEventParams,
       });
 
       if (ns.mintAddresses.includes(fromAddress)) {
@@ -91,7 +101,7 @@ export class ProcessConsecutiveTransferJob extends AbstractRabbitMqJobHandler {
             from: fromAddress,
             to: toAddress,
             amount: "1",
-            baseEventParams,
+            baseEventParams: updatedBaseEventParams,
           });
         }
       }
@@ -135,13 +145,16 @@ export class ProcessConsecutiveTransferJob extends AbstractRabbitMqJobHandler {
 
     // Split the log processing to batches
     let jobsCounter = 0;
+
     const jobs = [];
     for (let from = fromNumber; from <= toNumber; from += tokensPerBatch + 1) {
       ++jobsCounter;
+
       jobs.push({
         payload: {
           fromAddress,
           toAddress,
+          globalFromTokenId: fromNumber,
           fromTokenId: from,
           toTokenId: _.min([from + tokensPerBatch, toNumber]),
           baseEventParams,

@@ -179,8 +179,8 @@ export const updatedCollectionPaymentSettings: EventData = {
     `event UpdatedCollectionPaymentSettings(
       address indexed tokenAddress,
       uint8 paymentSettings,
-      uint32 paymentMethodWhitelistId,
-      address constrainedPricingPaymentMethod,
+      uint32 indexed paymentMethodWhitelistId,
+      address indexed constrainedPricingPaymentMethod,
       uint16 royaltyBackfillNumerator,
       address royaltyBackfillReceiver,
       uint16 royaltyBountyNumerator,

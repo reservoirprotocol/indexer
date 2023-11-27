@@ -1384,7 +1384,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
       const ordersEligibleForGlobalFees = listingDetails
         .filter(
           (b) =>
-            b.source !== "blur.io" && (hasBlurListings ? !["opensea.io"].includes(b.source!) : true)
+            // Any non-Blur orders
+            b.source !== "blur.io" &&
+            // Or if there are Blur orders we need to fill, any non-OpenSea or non-ERC721 orders
+            (hasBlurListings
+              ? !(["opensea.io"].includes(b.source!) && b.contractKind === "erc721")
+              : true)
         )
         .map((b) => b.orderId);
 
@@ -2476,7 +2481,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           // Do not return unless all previous steps are completed
           data:
             !steps[2].items.length && !steps[3].items.length
-              ? new Sdk.Common.Helpers.ERC721C().generateVerificationTxData(
+              ? new Sdk.Common.Helpers.Erc721C().generateVerificationTxData(
                   tv,
                   payload.taker,
                   erc721cAuth!.signature

@@ -14,8 +14,14 @@ import { baseProvider } from "@/common/provider";
 import { bn, fromBuffer, now } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
+import * as b from "@/utils/auth/blur";
 import { getUSDAndNativePrices } from "@/utils/prices";
-import { genericTaker, ensureBuyTxSucceeds, ensureSellTxSucceeds } from "@/utils/simulation";
+import {
+  genericTaker,
+  ensureBuyTxSucceeds,
+  ensureSellTxSucceeds,
+  customTaker,
+} from "@/utils/simulation";
 
 const version = "v1";
 
@@ -130,7 +136,6 @@ export const postSimulateOrderV1Options: RouteOptions = {
               : response.data.blurPrice
           );
         if (orderResult.currency_price !== blurPrice) {
-          logger.info("debug-blur-simulation", JSON.stringify({ contract, tokenId, id }));
           await logAndRevalidateOrder(id, "inactive", {
             revalidate: true,
           });
@@ -151,9 +156,10 @@ export const postSimulateOrderV1Options: RouteOptions = {
           // Skip errors
         }
       }
-      if (
-        ["blur", "nftx", "sudoswap", "sudoswap-v2", "payment-processor"].includes(orderResult.kind)
-      ) {
+      if (["nftx", "sudoswap", "sudoswap-v2", "payment-processor"].includes(orderResult.kind)) {
+        return { message: "Order not simulatable" };
+      }
+      if (orderResult.kind === "blur" && orderResult.side === "buy") {
         return { message: "Order not simulatable" };
       }
       if (getNetworkSettings().whitelistedCurrencies.has(currency)) {
@@ -193,6 +199,43 @@ export const postSimulateOrderV1Options: RouteOptions = {
       }
 
       if (orderResult.side === "sell") {
+        let taker = genericTaker;
+        let skipBalanceCheck = true;
+
+        // Ensure a Blur auth is available
+        if (orderResult.kind === "blur") {
+          const customTakerWallet = customTaker();
+
+          // Override some request fields
+          taker = customTakerWallet.address.toLowerCase();
+          skipBalanceCheck = false;
+
+          const blurAuthChallengeId = b.getAuthChallengeId(taker);
+
+          let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
+          if (!blurAuthChallenge) {
+            blurAuthChallenge = (await axios
+              .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${taker}`)
+              .then((response) => response.data.authChallenge)) as b.AuthChallenge;
+
+            await b.saveAuthChallenge(blurAuthChallengeId, blurAuthChallenge, 60);
+
+            await inject({
+              method: "POST",
+              url: `/execute/auth-signature/v1?signature=${await customTakerWallet.signMessage(
+                blurAuthChallenge.message
+              )}`,
+              headers: {
+                "Content-Type": "application/json",
+              },
+              payload: {
+                kind: "blur",
+                id: blurAuthChallengeId,
+              },
+            });
+          }
+        }
+
         const response = await inject({
           method: "POST",
           url: "/execute/buy/v7",
@@ -201,8 +244,8 @@ export const postSimulateOrderV1Options: RouteOptions = {
           },
           payload: {
             items: [{ orderId: id }],
-            taker: genericTaker,
-            skipBalanceCheck: true,
+            taker,
+            skipBalanceCheck,
             currency: Sdk.Common.Addresses.Native[config.chainId],
             allowInactiveOrderIds: true,
           },
@@ -230,7 +273,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
         const pathItem = parsedPayload.path[0];
 
         const { result: success, callTrace } = await ensureBuyTxSucceeds(
-          genericTaker,
+          taker,
           {
             kind: contractResult.kind as "erc721" | "erc1155",
             contract: pathItem.contract as string,

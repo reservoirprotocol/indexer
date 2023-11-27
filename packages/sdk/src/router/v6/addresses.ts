@@ -59,6 +59,7 @@ export const ApprovalProxy: ChainIdToAddress = {
 export const PermitProxy: ChainIdToAddress = {
   [Network.Ethereum]: "0x30b3de99ab1de0c9700181f7a2597150e9416aa6",
   [Network.EthereumGoerli]: "0x30b3de99ab1de0c9700181f7a2597150e9416aa6",
+  [Network.EthereumSepolia]: "0x30b3de99ab1de0c9700181f7a2597150e9416aa6",
   [Network.Polygon]: "0x30b3de99ab1de0c9700181f7a2597150e9416aa6",
   [Network.Mumbai]: "0x30b3de99ab1de0c9700181f7a2597150e9416aa6",
 };

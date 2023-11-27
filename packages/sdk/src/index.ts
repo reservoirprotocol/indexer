@@ -8,6 +8,7 @@ import * as BendDao from "./bend-dao";
 import * as Blur from "./blur";
 import * as CollectionXyz from "./collectionxyz";
 import * as CrossChain from "./cross-chain";
+import * as CrossChainV2 from "./cross-chain-v2";
 import * as CryptoArte from "./cryptoarte";
 import * as CryptoKitties from "./cryptokitties";
 import * as CryptoPunks from "./cryptopunks";
@@ -64,6 +65,7 @@ export {
   Blur,
   CollectionXyz,
   CrossChain,
+  CrossChainV2,
   CryptoArte,
   CryptoKitties,
   CryptoPunks,
