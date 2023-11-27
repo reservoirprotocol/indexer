@@ -120,8 +120,9 @@ export const OpenSeaProtectedOffersZone: ChainIdToAddress = {
 };
 
 export const FxHashPausableZone: ChainIdToAddress = {
-  [Network.EthereumGoerli]: "0x096cfb6826a5441a58fc13889f719651f9cf215d",
-  [Network.EthereumSepolia]: "0x096cfb6826a5441a58fc13889f719651f9cf215d",
+  [Network.Ethereum]: "0x0000000006b429721d1f4c4cd256bf3a38c09ac6",
+  [Network.EthereumGoerli]: "0x0000000006b429721d1f4c4cd256bf3a38c09ac6",
+  [Network.EthereumSepolia]: "0x0000000006b429721d1f4c4cd256bf3a38c09ac6",
 };
 
 // TODO: Deploy to all other supported networks

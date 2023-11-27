@@ -1391,7 +1391,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         ...defaultNetworkSettings,
         enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
-        realtimeSyncFrequencySeconds: 5,
+        realtimeSyncFrequencySeconds: 2,
         lastBlockLatency: 5,
         onStartup: async () => {
           // Insert the native currency
