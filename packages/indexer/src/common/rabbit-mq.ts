@@ -58,14 +58,11 @@ export class RabbitMq {
 
   public static async connect() {
     const mqurl = `${config.rabbitUrl}/${getNetworkName()}`;
-    logger.info("JUDEBUG", `mqurl-connect:${mqurl}`); 
-    RabbitMq.rabbitMqPublisherConnection = amqplibConnectionManager.connect(
-      mqurl,	    
-      {
-        reconnectTimeInSeconds: 5,
-        heartbeatIntervalInSeconds: 0,
-      }
-    );
+    logger.info("JUDEBUG", `mqurl-connect:${mqurl}`);
+    RabbitMq.rabbitMqPublisherConnection = amqplibConnectionManager.connect(mqurl, {
+      reconnectTimeInSeconds: 5,
+      heartbeatIntervalInSeconds: 0,
+    });
 
     for (let index = 0; index < RabbitMq.maxPublisherChannelsCount; ++index) {
       const channel = this.rabbitMqPublisherConnection.createChannel();
