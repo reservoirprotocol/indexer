@@ -179,6 +179,11 @@ export const getOrdersAsksV4Options: RouteOptions = {
   handler: async (request: Request) => {
     const query = request.query as any;
 
+    // Log timing to debug when limit is 1000 and sortBy is updatedAt
+    const debugLog = query.limit === 1000 && query.sortBy === "updatedAt";
+    const debugStart = Date.now();
+    const debugTimings = [];
+
     try {
       const criteriaBuildQuery = Orders.buildCriteriaQuery(
         "orders",
@@ -510,7 +515,15 @@ export const getOrdersAsksV4Options: RouteOptions = {
       // Pagination
       baseQuery += ` LIMIT $/limit/`;
 
+      if (debugLog) {
+        debugTimings.push({ beforeQuery: Date.now() - debugStart });
+      }
+
       const rawResult = await redb.manyOrNone(baseQuery, query);
+
+      if (debugLog) {
+        debugTimings.push({ afterQuery: Date.now() - debugStart });
+      }
 
       let continuation = null;
       if (rawResult.length === query.limit) {
@@ -583,6 +596,14 @@ export const getOrdersAsksV4Options: RouteOptions = {
           displayCurrency: query.displayCurrency,
         });
       });
+
+      if (debugLog) {
+        debugTimings.push({ sendingResponse: Date.now() - debugStart });
+        logger.info(
+          `get-orders-asks-${version}-timing`,
+          JSON.stringify({ debugStart, debugTimings })
+        );
+      }
 
       return {
         orders: await Promise.all(result),

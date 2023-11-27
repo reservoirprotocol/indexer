@@ -80,20 +80,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
         const eventType = event.event_type as EventType;
         const openSeaOrderParams = await handleEvent(eventType, event.payload);
 
-        if (config.chainId === 7777777 && !["matic", "ethereum"].includes(chainName)) {
-          logger.info(
-            "opensea-websocket-debug",
-            JSON.stringify({
-              message: "Processing event.",
-              network,
-              event,
-              isSupported: !!openSeaOrderParams,
-              chainName,
-              eventType,
-            })
-          );
-        }
-
         // Reduce amount of logs by only total the amount of events received from Ethereum mainnet.
         if (_.random(100) <= 50 && (openSeaOrderParams || config.chainId === 1)) {
           logger.debug(
@@ -103,6 +89,8 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
               network,
               event,
               isSupported: !!openSeaOrderParams,
+              chainName,
+              hasChainName: !!chainName,
             })
           );
         }
