@@ -3,7 +3,6 @@ import _ from "lodash";
 import { logger } from "@/common/logger";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import * as orders from "@/orderbook/orders";
-import { config } from "@/config/index";
 
 export type GenericOrderInfo =
   | {
@@ -276,16 +275,5 @@ export const processOrder = async (job: AbstractRabbitMqJobHandler, payload: Gen
 
   if (_.random(100) <= 75) {
     logger.debug(job.queueName, `[${kind}] Order save result: ${JSON.stringify(result)}`);
-  }
-
-  if (config.chainId === 7777777) {
-    logger.info(
-      job.queueName,
-      JSON.stringify({
-        message: `[${kind}] Order save result: ${JSON.stringify(result)}`,
-        payload,
-        result,
-      })
-    );
   }
 };
