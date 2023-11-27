@@ -1,105 +1,93 @@
-import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import _ from "lodash";
-
 import { logger } from "@/common/logger";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
 import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
-import { onchainMetadataProcessTokenUriJob } from "./onchain-metadata-process-job";
 import { RequestWasThrottledError } from "@/metadata/providers/utils";
 import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
-import { metadataIndexProcessJob } from "./metadata-process-job";
+import { metadataIndexProcessJob } from "@/jobs/metadata-index/metadata-process-job";
 import { config } from "@/config/index";
 
-export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJobHandler {
-  queueName = "metadata-index-onchain-process-uri-queue";
+export type OnchainMetadataProcessTokenUriJobPayload = {
+  contract: string;
+  tokenId: string;
+  uri: string;
+};
+
+export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJobHandler {
+  queueName = "onchain-metadata-index-process-token-uri-queue";
   maxRetries = 3;
-  concurrency = 3;
+  concurrency = 5;
   timeout = 5 * 60 * 1000;
   backoff = {
     type: "exponential",
     delay: 20000,
   } as BackoffStrategy;
 
-  protected async process() {
-    const count = 50; // Default number of tokens to fetch
+  protected async process(payload: OnchainMetadataProcessTokenUriJobPayload) {
+    const { contract, tokenId, uri } = payload;
 
-    // Get the onchain tokens from the list
-    const pendingRefreshTokens = new PendingRefreshTokens("onchain");
-    const fetchTokens = await pendingRefreshTokens.get(count);
-
-    // If no more tokens
-    if (_.isEmpty(fetchTokens)) {
-      return;
-    }
-
-    let results;
     try {
-      results = await onchainMetadataProvider._getTokensMetadataUri(fetchTokens);
+      const metadata = await onchainMetadataProvider.getTokensMetadata([
+        { contract, tokenId, uri },
+      ]);
+
+      if (metadata) {
+        await metadataIndexWriteJob.addToQueue(metadata);
+        return;
+      } else {
+        logger.warn(
+          this.queueName,
+          `No metadata found. contract=${contract}, tokenId=${tokenId}, uri=${uri}`
+        );
+      }
     } catch (e) {
       if (e instanceof RequestWasThrottledError) {
         logger.warn(
           this.queueName,
-          `Request was throttled. fetchUriTokenCount=${fetchTokens.length}`
+          `Request was throttled. contract=${contract}, tokenId=${tokenId}, uri=${uri}`
         );
 
-        // Add to queue again with a delay from the error
-        await this.addToQueue(e.delay);
+        // Add to queue again with a delay from the error if its a rate limit
+        await this.addToQueue(payload, e.delay);
         return;
-      } else {
-        logger.error(this.queueName, `Error. fetchUriTokenCount=${fetchTokens.length}, error=${e}`);
-        throw e;
       }
+      logger.error(
+        this.queueName,
+        `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, error=${e}, falling back to=${config.fallbackMetadataIndexingMethod}`
+      );
     }
 
-    const tokensToProcess: {
-      contract: string;
-      tokenId: string;
-      uri: string;
-      error?: string;
-    }[] = [];
-
-    const fallbackTokens: {
-      collection: string;
-      contract: string;
-      tokenId: string;
-    }[] = [];
-
-    // Filter out tokens that have no metadata
-    results.forEach((result) => {
-      if (result.uri) {
-        tokensToProcess.push(result);
-      } else {
-        logger.warn(
-          this.queueName,
-          `No uri found. contract=${result.contract}, tokenId=${result.tokenId}, error=${result.error}, fallback=${config.fallbackMetadataIndexingMethod}`
-        );
-
-        fallbackTokens.push({
-          collection: result.contract,
-          contract: result.contract,
-          tokenId: result.tokenId,
-        });
-      }
-    });
-
-    await onchainMetadataProcessTokenUriJob.addToQueueBulk(tokensToProcess);
-
-    // Default to simple hash if no uri found
-    if (!_.isEmpty(fallbackTokens)) {
-      const pendingRefreshTokens = new PendingRefreshTokens(config.fallbackMetadataIndexingMethod);
-      await pendingRefreshTokens.add(fallbackTokens);
-      await metadataIndexProcessJob.addToQueue({ method: config.fallbackMetadataIndexingMethod });
+    if (!config.fallbackMetadataIndexingMethod) {
+      logger.error(
+        this.queueName,
+        `No fallbackMetadataIndexingMethod set. contract=${contract}, tokenId=${tokenId}, uri=${uri}`
+      );
+      return;
     }
+    // for whatever reason, we didn't find the metadata, we fallback to simplehash
+    const pendingRefreshTokens = new PendingRefreshTokens(config.fallbackMetadataIndexingMethod);
+    await pendingRefreshTokens.add([
+      {
+        collection: contract,
+        contract,
+        tokenId,
+      },
+    ]);
 
-    // If there are potentially more token uris to process, trigger another job
-    const queueLength = await pendingRefreshTokens.length();
-    if (queueLength > 0) {
-      await this.addToQueue();
-    }
+    await metadataIndexProcessJob.addToQueue({ method: config.fallbackMetadataIndexingMethod });
   }
 
-  public async addToQueue(delay = 0) {
-    await this.send({}, delay);
+  public async addToQueue(params: OnchainMetadataProcessTokenUriJobPayload, delay = 0) {
+    await this.send({ payload: params }, delay);
+  }
+
+  public async addToQueueBulk(params: OnchainMetadataProcessTokenUriJobPayload[]) {
+    await this.sendBatch(
+      params.map((param) => {
+        return { payload: param };
+      })
+    );
   }
 }
 
-export const onchainMetadataFetchTokenUriJob = new OnchainMetadataFetchTokenUriJob();
+export const onchainMetadataProcessTokenUriJob = new OnchainMetadataProcessTokenUriJob();

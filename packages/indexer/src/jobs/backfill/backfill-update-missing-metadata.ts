@@ -16,7 +16,7 @@ import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { metadataIndexProcessJob } from "@/jobs/metadata-index/metadata-process-job";
 import { metadataIndexProcessBySlugJob } from "@/jobs/metadata-index/metadata-process-by-slug-job";
-import { onchainMetadataFetchTokenUriJob } from "../metadata-index/onchain-metadata-process-token-uri-job";
+import { onchainMetadataFetchTokenUriJob } from "@/jobs/metadata-index/onchain-metadata-fetch-token-uri-job";
 
 const QUEUE_NAME = "backfill-update-missing-metadata-queue";
 

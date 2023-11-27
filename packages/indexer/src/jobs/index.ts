@@ -173,8 +173,8 @@ import { processCollectionEventJob } from "@/jobs/elasticsearch/collections/proc
 import { processCollectionEventsJob } from "@/jobs/elasticsearch/collections/process-collection-events-job";
 import { backfillCollectionsElasticsearchJob } from "@/jobs/elasticsearch/collections/backfill-collections-elasticsearch-job";
 import { backfillNftTransferEventsUpdatedAtJob } from "@/jobs/backfill/backfill-nft-transfer-events-updated-at";
-import { onchainMetadataFetchTokenUriJob } from "./metadata-index/onchain-metadata-process-token-uri-job";
-import { onchainMetadataProcessTokenUriJob } from "./metadata-index/onchain-metadata-process-job";
+import { onchainMetadataFetchTokenUriJob } from "@/jobs/metadata-index/onchain-metadata-fetch-token-uri-job";
+import { onchainMetadataProcessTokenUriJob } from "@/jobs/metadata-index/onchain-metadata-process-token-uri-job";
 import { updateUserCollectionsJob } from "@/jobs/nft-balance-updates/update-user-collections-job";
 import { resyncUserCollectionsJob } from "@/jobs/nft-balance-updates/reynsc-user-collections-job";
 import { backfillUserCollectionsJob } from "@/jobs/backfill/backfill-user-collections";
