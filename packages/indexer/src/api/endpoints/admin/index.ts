@@ -32,3 +32,4 @@ export * from "@/api/endpoints/admin/post-pause-rabbit-queue";
 export * from "@/api/endpoints/admin/post-resume-rabbit-queue";
 export * from "@/api/endpoints/admin/post-retry-rabbit-queue";
 export * from "@/api/endpoints/admin/post-update-image-version";
+export * from "@/api/endpoints/admin/post-resync-user-collection-balance";
