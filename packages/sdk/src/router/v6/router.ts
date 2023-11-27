@@ -3522,7 +3522,7 @@ export class Router {
                   .toHexString(),
               },
             },
-            orderIds: executions.map((e) => e.orderIds).flat(),
+            orderIds: [...new Set(executions.map((e) => e.orderIds).flat())],
           },
           ...txs,
         ];
@@ -3570,7 +3570,7 @@ export class Router {
                       .toHexString(),
                   }),
             },
-            orderIds: executions.map((e) => e.orderIds).flat(),
+            orderIds: [...new Set(executions.map((e) => e.orderIds).flat())],
           },
           ...txs,
         ];
@@ -3697,7 +3697,7 @@ export class Router {
                 value: data.value,
               },
               preSignatures: [],
-              orderIds,
+              orderIds: [...new Set(orderIds)],
             });
           }
         }
@@ -3783,7 +3783,7 @@ export class Router {
           bids: { "payment-processor": orders.length },
         },
         txData: exchange.fillOrdersTx(taker, orders, takeOrders, options),
-        orderIds: paymentProcessorDetails.map((d) => d.orderId),
+        orderIds: [...new Set(paymentProcessorDetails.map((d) => d.orderId))],
       });
     }
 
@@ -3829,7 +3829,7 @@ export class Router {
           }),
           { fees: allFees.map((c) => c[0]) }
         ),
-        orderIds: ppv2Details.map((d) => d.orderId),
+        orderIds: [...new Set(ppv2Details.map((d) => d.orderId))],
       });
 
       for (const { orderId } of ppv2Details) {
@@ -4019,9 +4019,6 @@ export class Router {
 
     for (let i = 0; i < details.length; i++) {
       const detail = details[i];
-      if (success[detail.orderId]) {
-        continue;
-      }
 
       const fees = getFees(detail);
 
@@ -4831,7 +4828,7 @@ export class Router {
             this.contracts.router.interface.encodeFunctionData("execute", [[permitExecution]]) +
             generateSourceBytes(options?.source),
         },
-        orderIds: detailsWithPermits.map((d) => d.orderId),
+        orderIds: [...new Set(detailsWithPermits.map((d) => d.orderId))],
       });
     }
 
@@ -4943,7 +4940,7 @@ export class Router {
           ({ txData: { from, to, data } }) => `${from}-${to}-${data}`
         ),
         preSignatures: [],
-        orderIds: protectedSeaportV15Offers.map(({ detail }) => detail.orderId),
+        orderIds: [...new Set(protectedSeaportV15Offers.map(({ detail }) => detail.orderId))],
       });
     }
 
@@ -5008,7 +5005,7 @@ export class Router {
           ({ txData: { from, to, data } }) => `${from}-${to}-${data}`
         ),
         preSignatures: [],
-        orderIds: executionsWithDetails.map(({ detail }) => detail.orderId),
+        orderIds: [...new Set(executionsWithDetails.map(({ detail }) => detail.orderId))],
       });
     }
 
