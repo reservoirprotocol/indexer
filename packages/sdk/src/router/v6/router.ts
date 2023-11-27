@@ -726,7 +726,7 @@ export class Router {
             data: string;
             value: string;
             path: { contract: string; tokenId: string }[];
-            errors: { tokenId: string; reason: string }[];
+            errors: { tokenId: string; isUnrecoverable?: boolean; reason: string }[];
           };
         } = await axios
           .post(`${this.options?.orderFetcherBaseUrl}/api/blur-listing`, {
@@ -754,7 +754,7 @@ export class Router {
           }
 
           // Expose errors
-          for (const { tokenId, reason } of data.errors) {
+          for (const { tokenId, isUnrecoverable, reason } of data.errors) {
             if (options?.onError) {
               const listing = blurCompatibleListings.find(
                 (d) => d.contract === contract && d.tokenId === tokenId
@@ -763,10 +763,8 @@ export class Router {
                 await options.onError("order-fetcher-blur-listings", new Error(reason), {
                   isUnrecoverable:
                     listing.kind === "blur" &&
-                    reason === "ListingNotFound" &&
-                    listing.tokenId === tokenId
-                      ? true
-                      : false,
+                    (reason === "ListingNotFound" || isUnrecoverable) &&
+                    listing.tokenId === tokenId,
                   orderId: listing.orderId,
                   additionalInfo: { detail: listing, taker },
                 });
