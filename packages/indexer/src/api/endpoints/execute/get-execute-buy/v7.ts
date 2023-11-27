@@ -1384,7 +1384,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
       const ordersEligibleForGlobalFees = listingDetails
         .filter(
           (b) =>
-            b.source !== "blur.io" && (hasBlurListings ? !["opensea.io"].includes(b.source!) : true)
+            // Any non-Blur orders
+            b.source !== "blur.io" &&
+            // Or if there are Blur orders we need to fill, any non-OpenSea or non-ERC721 orders
+            (hasBlurListings
+              ? !(["opensea.io"].includes(b.source!) && b.contractKind === "erc721")
+              : true)
         )
         .map((b) => b.orderId);
 
