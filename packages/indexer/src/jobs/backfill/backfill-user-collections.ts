@@ -5,9 +5,10 @@ import { RabbitMQMessage } from "@/common/rabbit-mq";
 import _ from "lodash";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { AddressZero } from "@ethersproject/constants";
-import { redis } from "@/common/redis";
+import { redis, redlock } from "@/common/redis";
 import { format } from "date-fns";
 import { resyncUserCollectionsJob } from "@/jobs/nft-balance-updates/reynsc-user-collections-job";
+import { config } from "@/config/index";
 
 export type BackfillUserCollectionsJobCursorInfo = {
   owner: string;
@@ -25,9 +26,16 @@ export class BackfillUserCollectionsJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: BackfillUserCollectionsJobCursorInfo) {
     const { owner, acquiredAt } = payload;
     const redisKey = "sync-user-collections";
-    const values: { limit: number; AddressZero: Buffer; owner?: Buffer; acquiredAt?: string } = {
-      limit: 200,
+    const values: {
+      limit: number;
+      AddressZero: Buffer;
+      deadAddress: Buffer;
+      owner?: Buffer;
+      acquiredAt?: string;
+    } = {
+      limit: 400,
       AddressZero: toBuffer(AddressZero),
+      deadAddress: toBuffer("0x000000000000000000000000000000000000dead"),
     };
 
     let cursor = "";
@@ -40,20 +48,20 @@ export class BackfillUserCollectionsJob extends AbstractRabbitMqJobHandler {
 
     const results = await idb.manyOrNone(
       `
-          SELECT nb.owner, acquired_at::text, t.collection_id
-          FROM nft_balances nb
-          JOIN LATERAL (
-             SELECT collection_id
-             FROM tokens
-             WHERE nb.contract = tokens.contract
-             AND nb.token_id = tokens.token_id
-          ) t ON TRUE
-          WHERE nb.owner != $/AddressZero/
-          AND amount > 0
-          ${cursor}
-          ORDER BY nb.owner, acquired_at
-          LIMIT $/limit/
-          `,
+        SELECT nb.owner, acquired_at::text, t.collection_id
+        FROM nft_balances nb
+        JOIN LATERAL (
+           SELECT collection_id
+           FROM tokens
+           WHERE nb.contract = tokens.contract
+           AND nb.token_id = tokens.token_id
+        ) t ON TRUE
+        WHERE nb.owner NOT IN ($/AddressZero/, $/deadAddress/)
+        AND amount > 0
+        ${cursor}
+        ORDER BY nb.owner, acquired_at
+        LIMIT $/limit/
+        `,
       values
     );
 
@@ -105,8 +113,19 @@ export class BackfillUserCollectionsJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue(cursor?: BackfillUserCollectionsJobCursorInfo, delay = 0) {
-    await this.send({ payload: cursor }, delay);
+    await this.send({ payload: cursor ?? {} }, delay);
   }
 }
 
 export const backfillUserCollectionsJob = new BackfillUserCollectionsJob();
+
+if (config.chainId !== 1) {
+  redlock
+    .acquire(["backfill-user-collections-lock-2"], 60 * 60 * 24 * 30 * 1000)
+    .then(async () => {
+      await backfillUserCollectionsJob.addToQueue();
+    })
+    .catch(() => {
+      // Skip on any errors
+    });
+}
