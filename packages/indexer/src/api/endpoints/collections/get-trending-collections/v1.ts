@@ -65,6 +65,10 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
         .description(
           "If true, return the non flagged floor ask. Supported only when `normalizeRoyalties` is false."
         ),
+      floorAskPercentChange: Joi.string()
+        .valid("10m", "1h", "6h", "1d", "7d", "30d")
+        .default("1d")
+        .description("If true, floor ask percent change will be included in the response."),
     }),
   },
   response: {
@@ -84,6 +88,7 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
           volumePercentChange: Joi.number().unsafe().allow(null),
           countPercentChange: Joi.number().unsafe().allow(null),
           creator: Joi.string().allow("", null),
+          openseaVerificationStatus: Joi.string().allow("", null),
           onSaleCount: Joi.number().integer(),
           floorAsk: {
             id: Joi.string().allow(null),
@@ -101,6 +106,7 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
               .allow(null)
               .description("Lowest Ask Price."),
           },
+          floorAskPercentChange: Joi.number().unsafe().allow(null),
           tokenCount: Joi.number().description("Total tokens within the collection."),
           ownerCount: Joi.number().description("Unique number of owners."),
 
@@ -130,14 +136,17 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
     },
   },
   handler: async (request: Request, h) => {
-    const { normalizeRoyalties, useNonFlaggedFloorAsk } = request.query;
+    const { normalizeRoyalties, useNonFlaggedFloorAsk, floorAskPercentChange } = request.query;
 
     try {
       const collectionsResult = await getCollectionsResult(request);
       let collections = [];
 
       if (collectionsResult.length > 0) {
-        const collectionsMetadata = await getCollectionsMetadata(collectionsResult);
+        const collectionsMetadata = await getCollectionsMetadata(
+          collectionsResult,
+          floorAskPercentChange
+        );
 
         collections = await formatCollections(
           collectionsResult,
@@ -156,9 +165,12 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
   },
 };
 
-export async function getCollectionsMetadata(collectionsResult: any[]) {
+export async function getCollectionsMetadata(
+  collectionsResult: any[],
+  floorAskPercentChange: string
+) {
   const collectionIds = collectionsResult.map((collection: any) => collection.id);
-  const collectionsToFetch = collectionIds.map((id: string) => `collection-cache:v2:${id}`);
+  const collectionsToFetch = collectionIds.map((id: string) => `collection-cache:v3:${id}`);
   const batches = chunk(collectionsToFetch, REDIS_BATCH_SIZE);
   const tasks = batches.map(async (batch) => redis.mget(batch));
   const results = await Promise.all(tasks);
@@ -283,8 +295,8 @@ export async function getCollectionsMetadata(collectionsResult: any[]) {
 
     const commands = flatMap(collectionMetadataResponse, (metadata: any) => {
       return [
-        ["set", `collection-cache:v2:${metadata.id}`, JSON.stringify(metadata)],
-        ["expire", `collection-cache:v2:${metadata.id}`, REDIS_EXPIRATION],
+        ["set", `collection-cache:v3:${metadata.id}`, JSON.stringify(metadata)],
+        ["expire", `collection-cache:v3:${metadata.id}`, REDIS_EXPIRATION],
       ];
     });
 
@@ -296,8 +308,65 @@ export async function getCollectionsMetadata(collectionsResult: any[]) {
     }
   }
 
+  const endDate = new Date();
+  switch (floorAskPercentChange) {
+    case "10m":
+      endDate.setMinutes(endDate.getMinutes() - 10);
+      break;
+    case "1h":
+      endDate.setHours(endDate.getHours() - 1);
+      break;
+    case "6h":
+      endDate.setHours(endDate.getHours() - 6);
+      break;
+    case "1d":
+      endDate.setDate(endDate.getDate() - 1);
+      break;
+    case "7d":
+      endDate.setDate(endDate.getDate() - 7);
+      break;
+    case "30d":
+      endDate.setDate(endDate.getDate() - 30);
+      break;
+    default:
+      endDate.setDate(endDate.getDate() - 1);
+  }
+
+  const endTimestamp = Math.floor(endDate.getTime() / 1000);
+
+  const fullCollectionIdList = collectionIds.map((id: string) => `'${id}'`).join(", ");
+
+  const floorChangeQuery = `
+  SELECT
+    collections.id,
+    z.price
+  FROM
+    collections
+    LEFT JOIN LATERAL (
+      SELECT
+        collection_floor_sell_events.price
+      FROM
+        collection_floor_sell_events
+      WHERE
+        collection_floor_sell_events.collection_id = collections.id
+        AND collection_floor_sell_events.created_at <= to_timestamp(${endTimestamp})
+      ORDER BY
+        collection_floor_sell_events.created_at DESC
+      LIMIT 1) z ON TRUE
+  WHERE
+    collections.id IN (${fullCollectionIdList})
+  `;
+
+  const previousFloorPriceResponse = await redb.manyOrNone(floorChangeQuery);
+  const previousFloorPriceObject: any = {};
+
+  previousFloorPriceResponse.forEach((collection: any) => {
+    previousFloorPriceObject[collection.id] = collection.price;
+  });
+
   const collectionsMetadata: Record<string, any> = {};
   [...collectionMetadataResponse, ...collectionMetadataCache].forEach((metadata: any) => {
+    metadata["previous_floor_sell_currency_value"] = previousFloorPriceObject[metadata.id];
     collectionsMetadata[metadata.id] = metadata;
   });
 
@@ -353,6 +422,7 @@ async function formatCollections(
         ...response,
         image: metadata?.metadata?.imageUrl,
         isSpam: Number(metadata.is_spam) > 0,
+        openseaVerificationStatus: metadata?.metadata?.openseaVerificationStatus || null,
         name: metadata?.name || "",
         onSaleCount: Number(metadata.on_sale_count) || 0,
         volumeChange: {
@@ -368,6 +438,13 @@ async function formatCollections(
           allTime: metadata.all_time_volume ? formatEth(metadata.all_time_volume) : null,
         },
 
+        floorAskPercentChange:
+          Number(metadata.previous_floor_sell_currency_value) &&
+          Number(metadata.floor_sell_currency_value)
+            ? ((metadata.floor_sell_currency_value - metadata.previous_floor_sell_currency_value) /
+                metadata.previous_floor_sell_currency_value) *
+              100
+            : null,
         tokenCount: Number(metadata.token_count || 0),
         ownerCount: Number(metadata.owner_count || 0),
         banner: metadata?.metadata?.bannerImageUrl,
