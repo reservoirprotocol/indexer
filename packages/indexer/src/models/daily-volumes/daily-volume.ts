@@ -304,7 +304,8 @@ export class DailyVolume {
               day1_rank = $/rank/,
               day1_floor_sell_value = $/floor_sell_value/,
               day1_volume_change = $/volume_change/,
-              day1_sales_count = $/sales_count/
+              day1_sales_count = $/sales_count/,
+              updated_at = now()
             WHERE id = $/collection_id/
             `,
           values: values,
@@ -339,7 +340,8 @@ export class DailyVolume {
             day1_rank = NULL,
             day1_floor_sell_value = NULL,
             day1_volume_change = NULL,
-            day1_sales_count = 0
+            day1_sales_count = 0,
+            updated_at = now()
           WHERE id = $/collection_id/
         `,
           values: { collection_id: c.id },
@@ -485,7 +487,8 @@ export class DailyVolume {
           UPDATE collections
           SET all_time_volume = $/total_new_volume/,
             day7_volume = CASE WHEN day7_volume < $/volume_since_recent/ THEN $/volume_since_recent/ ELSE day7_volume END,
-            day30_volume = CASE WHEN day30_volume < $/volume_since_recent/ THEN $/volume_since_recent/ ELSE day30_volume END
+            day30_volume = CASE WHEN day30_volume < $/volume_since_recent/ THEN $/volume_since_recent/ ELSE day30_volume END,
+            updated_at = now()
           WHERE id = $/collection_id/
         `,
           values: values,

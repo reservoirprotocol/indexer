@@ -296,10 +296,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
       {
         let openseaMarketplaceFees: Royalty[] = collectionResult.marketplace_fees?.opensea;
         if (collectionResult.marketplace_fees?.opensea == null) {
-          openseaMarketplaceFees = await marketplaceFees.getCollectionOpenseaFees(
-            params.collection,
-            collectionResult.contract
-          );
+          openseaMarketplaceFees = marketplaceFees.getCollectionOpenseaFees();
         }
 
         const openseaRoyalties: Royalty[] = collectionResult.new_royalties?.opensea;
@@ -466,7 +463,11 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
 
               exchange.enabled = !exchangeBlocked;
 
-              if (exchange.enabled && exchange.orderKind === "payment-processor") {
+              if (
+                exchange.enabled &&
+                (exchange.orderKind === "payment-processor" ||
+                  exchange.orderKind === "payment-processor-v2")
+              ) {
                 const ppConfig = await paymentProcessor.getConfigByContract(params.collection);
                 if (ppConfig && ppConfig.securityPolicy.enforcePricingConstraints) {
                   exchange.maxPriceRaw = ppConfig?.pricingBounds?.ceilingPrice;

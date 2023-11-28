@@ -36,7 +36,7 @@ export abstract class AbstractBaseMetadataProvider {
   }
 
   async getTokensMetadata(
-    tokens: { contract: string; tokenId: string }[]
+    tokens: { contract: string; tokenId: string; uri?: string }[]
   ): Promise<TokenMetadata[]> {
     const customMetadata = await Promise.all(
       tokens.map(async (token) => {

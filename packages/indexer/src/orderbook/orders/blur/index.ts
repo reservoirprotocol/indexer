@@ -303,6 +303,7 @@ export const savePartialListings = async (
               raw_data = $/rawData:json/
             WHERE orders.id = $/id/
               AND (orders.fillability_status != 'fillable' OR orders.approval_status != 'approved')
+              AND (orders.fillability_status != 'cancelled' OR orders.approval_status != 'disabled')
             RETURNING orders.id
           `,
           {
