@@ -29,7 +29,12 @@ export class TopBidWebSocketEventsTriggerJob extends AbstractRabbitMqJobHandler 
     const { data } = payload;
 
     try {
-      const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
+      const criteriaBuildQuery = Orders.buildCriteriaQuery(
+        "orders",
+        "token_set_id",
+        false,
+        "token_set_schema_hash"
+      );
 
       const order = await idb.oneOrNone(
         `

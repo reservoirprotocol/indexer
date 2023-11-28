@@ -48,20 +48,20 @@ export class BackfillUserCollectionsJob extends AbstractRabbitMqJobHandler {
 
     const results = await idb.manyOrNone(
       `
-          SELECT nb.owner, acquired_at::text, t.collection_id
-          FROM nft_balances nb
-          JOIN LATERAL (
-             SELECT collection_id
-             FROM tokens
-             WHERE nb.contract = tokens.contract
-             AND nb.token_id = tokens.token_id
-          ) t ON TRUE
-          WHERE nb.owner NOT IN ($/AddressZero/, $/deadAddress/)
-          AND amount > 0
-          ${cursor}
-          ORDER BY nb.owner, acquired_at
-          LIMIT $/limit/
-          `,
+        SELECT nb.owner, acquired_at::text, t.collection_id
+        FROM nft_balances nb
+        JOIN LATERAL (
+           SELECT collection_id
+           FROM tokens
+           WHERE nb.contract = tokens.contract
+           AND nb.token_id = tokens.token_id
+        ) t ON TRUE
+        WHERE nb.owner NOT IN ($/AddressZero/, $/deadAddress/)
+        AND amount > 0
+        ${cursor}
+        ORDER BY nb.owner, acquired_at
+        LIMIT $/limit/
+        `,
       values
     );
 
