@@ -167,7 +167,7 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
 
 export async function getCollectionsMetadata(
   collectionsResult: any[],
-  floorAskPercentChange: string
+  floorAskPercentChange?: string
 ) {
   const collectionIds = collectionsResult.map((collection: any) => collection.id);
   const collectionsToFetch = collectionIds.map((id: string) => `collection-cache:v3:${id}`);
@@ -308,69 +308,78 @@ export async function getCollectionsMetadata(
     }
   }
 
-  const endDate = new Date();
-  switch (floorAskPercentChange) {
-    case "10m":
-      endDate.setMinutes(endDate.getMinutes() - 10);
-      break;
-    case "1h":
-      endDate.setHours(endDate.getHours() - 1);
-      break;
-    case "6h":
-      endDate.setHours(endDate.getHours() - 6);
-      break;
-    case "1d":
-      endDate.setDate(endDate.getDate() - 1);
-      break;
-    case "7d":
-      endDate.setDate(endDate.getDate() - 7);
-      break;
-    case "30d":
-      endDate.setDate(endDate.getDate() - 30);
-      break;
-    default:
-      endDate.setDate(endDate.getDate() - 1);
-  }
+  if (floorAskPercentChange) {
+    const endDate = new Date();
+    switch (floorAskPercentChange) {
+      case "10m":
+        endDate.setMinutes(endDate.getMinutes() - 10);
+        break;
+      case "1h":
+        endDate.setHours(endDate.getHours() - 1);
+        break;
+      case "6h":
+        endDate.setHours(endDate.getHours() - 6);
+        break;
+      case "1d":
+        endDate.setDate(endDate.getDate() - 1);
+        break;
+      case "7d":
+        endDate.setDate(endDate.getDate() - 7);
+        break;
+      case "30d":
+        endDate.setDate(endDate.getDate() - 30);
+        break;
+      default:
+        endDate.setDate(endDate.getDate() - 1);
+    }
 
-  const endTimestamp = Math.floor(endDate.getTime() / 1000);
+    const endTimestamp = Math.floor(endDate.getTime() / 1000);
 
-  const fullCollectionIdList = collectionIds.map((id: string) => `'${id}'`).join(", ");
+    const fullCollectionIdList = collectionIds.map((id: string) => `'${id}'`).join(", ");
 
-  const floorChangeQuery = `
-  SELECT
-    collections.id,
-    z.price
-  FROM
-    collections
-    LEFT JOIN LATERAL (
+    const floorChangeQuery = `
       SELECT
-        collection_floor_sell_events.price
+        collections.id,
+        z.price
       FROM
-        collection_floor_sell_events
+        collections
+        LEFT JOIN LATERAL (
+          SELECT
+            collection_floor_sell_events.price
+          FROM
+            collection_floor_sell_events
+          WHERE
+            collection_floor_sell_events.collection_id = collections.id
+            AND collection_floor_sell_events.created_at <= to_timestamp(${endTimestamp})
+          ORDER BY
+            collection_floor_sell_events.created_at DESC
+          LIMIT 1) z ON TRUE
       WHERE
-        collection_floor_sell_events.collection_id = collections.id
-        AND collection_floor_sell_events.created_at <= to_timestamp(${endTimestamp})
-      ORDER BY
-        collection_floor_sell_events.created_at DESC
-      LIMIT 1) z ON TRUE
-  WHERE
-    collections.id IN (${fullCollectionIdList})
-  `;
+        collections.id IN (${fullCollectionIdList})
+    `;
 
-  const previousFloorPriceResponse = await redb.manyOrNone(floorChangeQuery);
-  const previousFloorPriceObject: any = {};
+    const previousFloorPriceResponse = await redb.manyOrNone(floorChangeQuery);
+    const previousFloorPriceObject: any = {};
 
-  previousFloorPriceResponse.forEach((collection: any) => {
-    previousFloorPriceObject[collection.id] = collection.price;
-  });
+    previousFloorPriceResponse.forEach((collection: any) => {
+      previousFloorPriceObject[collection.id] = collection.price;
+    });
 
-  const collectionsMetadata: Record<string, any> = {};
-  [...collectionMetadataResponse, ...collectionMetadataCache].forEach((metadata: any) => {
-    metadata["previous_floor_sell_currency_value"] = previousFloorPriceObject[metadata.id];
-    collectionsMetadata[metadata.id] = metadata;
-  });
+    const collectionsMetadata: Record<string, any> = {};
+    [...collectionMetadataResponse, ...collectionMetadataCache].forEach((metadata: any) => {
+      metadata["previous_floor_sell_currency_value"] = previousFloorPriceObject[metadata.id];
+      collectionsMetadata[metadata.id] = metadata;
+    });
 
-  return collectionsMetadata;
+    return collectionsMetadata;
+  } else {
+    const collectionsMetadata: Record<string, any> = {};
+    [...collectionMetadataResponse, ...collectionMetadataCache].forEach((metadata: any) => {
+      collectionsMetadata[metadata.id] = metadata;
+    });
+
+    return collectionsMetadata;
+  }
 }
 
 async function formatCollections(
