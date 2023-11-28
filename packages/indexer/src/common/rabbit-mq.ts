@@ -58,6 +58,7 @@ export class RabbitMq {
 
   public static async connect() {
     const mqurl = `${config.rabbitUrl}/${getNetworkName()}`;
+    logger.info("rabbitmq-connect", `Connecting to rabbitmq as ${getNetworkName()}`);
     RabbitMq.rabbitMqPublisherConnection = amqplibConnectionManager.connect(mqurl, {
       reconnectTimeInSeconds: 5,
       heartbeatIntervalInSeconds: 0,
@@ -255,6 +256,7 @@ export class RabbitMq {
   public static async assertQueuesAndExchanges() {
     const abstract = await import("@/jobs/abstract-rabbit-mq-job-handler");
     const jobsIndex = await import("@/jobs/index");
+
     const mqurl = `${config.rabbitUrl}/${getNetworkName()}`;
     const connection = await amqplib.connect(mqurl);
 

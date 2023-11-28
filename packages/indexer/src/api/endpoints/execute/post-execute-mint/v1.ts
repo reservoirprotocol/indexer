@@ -784,7 +784,10 @@ export const postExecuteMintV1Options: RouteOptions = {
             isCollectionRequest,
             token,
             amount: item.quantity,
-            customMint,
+            context: {
+              customMint,
+              feesOnTop: payload.feesOnTop,
+            },
           })
           .then((response) => ({
             quote: response.data.price,
@@ -902,10 +905,6 @@ export const postExecuteMintV1Options: RouteOptions = {
           throw Boom.badRequest("Only single item cross-chain purchases are supported");
         }
 
-        if (payload.feeOnTop) {
-          throw Boom.badRequest("Fees on top are not supported when purchasing cross-chain");
-        }
-
         const requestedFromChainId = payload.currencyChainId;
 
         const item = path[0];
@@ -960,10 +959,10 @@ export const postExecuteMintV1Options: RouteOptions = {
         if (needsDeposit) {
           const exchange = new Sdk.CrossChain.Exchange(actualFromChainId);
 
-          const isCustomMint = Boolean(items[0].custom);
+          const hasContext = Boolean(items[0].custom) || Boolean(payload.feesOnTop);
 
           let depositTx: TxData;
-          if (isCustomMint) {
+          if (hasContext) {
             depositTx = exchange.depositTx(
               payload.taker,
               ccConfig.solver!,
@@ -997,7 +996,7 @@ export const postExecuteMintV1Options: RouteOptions = {
             };
           }
 
-          if (isCustomMint) {
+          if (hasContext) {
             customSteps[0].items.push({
               status: "incomplete",
               data: {
@@ -1009,6 +1008,7 @@ export const postExecuteMintV1Options: RouteOptions = {
                 method: "POST",
                 body: {
                   kind: "cross-chain-transaction",
+                  chainId: requestedFromChainId,
                 },
               },
             });
@@ -1026,6 +1026,7 @@ export const postExecuteMintV1Options: RouteOptions = {
                     chainId: actualFromChainId,
                     context: {
                       customMint: items[0].custom,
+                      feesOnTop: payload.feesOnTop,
                     },
                   },
                 },
@@ -1070,6 +1071,7 @@ export const postExecuteMintV1Options: RouteOptions = {
                   chainId: actualFromChainId,
                   context: {
                     customMint: items[0].custom,
+                    feesOnTop: payload.feesOnTop,
                   },
                 },
               },

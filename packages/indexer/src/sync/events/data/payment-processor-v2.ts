@@ -89,7 +89,10 @@ export const masterNonceInvalidated: EventData = {
   topic: "0xb06d2760711c1c15c05bc011b1009a36c0713c6d63567c267678c3a382188b61",
   numTopics: 3,
   abi: new Interface([
-    `event MasterNonceInvalidated(uint256 indexed nonce, address indexed account)`,
+    `event MasterNonceInvalidated(
+      uint256 indexed nonce,
+      address indexed account
+    )`,
   ]),
 };
 
@@ -101,8 +104,8 @@ export const nonceInvalidated: EventData = {
   numTopics: 3,
   abi: new Interface([
     `event NonceInvalidated(
-      uint256 indexed nonce, 
-      address indexed account, 
+      uint256 indexed nonce,
+      address indexed account,
       bool wasCancellation
     )`,
   ]),
@@ -112,13 +115,92 @@ export const orderDigestInvalidated: EventData = {
   kind: "payment-processor-v2",
   subKind: "payment-processor-v2-order-digest-invalidated",
   addresses: { [PaymentProcessorV2.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
-  topic: "0xf3003920635c7d35c4f314eaeeed4b4c653ccb36608a86d57df761d460eab09d",
+  topic: "0xc63c82396a1b7865295ff481988a98493c2c3cc29066c229b8001c6f5dd647a9",
   numTopics: 3,
   abi: new Interface([
     `event OrderDigestInvalidated(
-      bytes32 indexed orderDigest, 
-      address indexed account, 
+      bytes32 indexed orderDigest,
+      address indexed account,
       bool wasCancellation
+    )`,
+  ]),
+};
+
+export const paymentMethodAddedToWhitelist: EventData = {
+  kind: "payment-processor-v2",
+  subKind: "payment-processor-v2-payment-method-added-to-whitelist",
+  addresses: { [PaymentProcessorV2.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0xab066026be9f5f930c1018a7e9eeddf7921b9026531b1b9935a66eb62d163fe8",
+  numTopics: 3,
+  abi: new Interface([
+    `event PaymentMethodAddedToWhitelist(
+      uint32 indexed paymentMethodWhitelistId,
+      address indexed paymentMethod
+    )`,
+  ]),
+};
+
+export const paymentMethodRemovedFromWhitelist: EventData = {
+  kind: "payment-processor-v2",
+  subKind: "payment-processor-v2-payment-method-removed-from-whitelist",
+  addresses: { [PaymentProcessorV2.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0xf156bd3efe5d358c94cc34b12810b94f524f03ef4e7f71158e22b6775ef75ba3",
+  numTopics: 3,
+  abi: new Interface([
+    `event PaymentMethodRemovedFromWhitelist(
+      uint32 indexed paymentMethodWhitelistId,
+      address indexed paymentMethod
+    )`,
+  ]),
+};
+
+export const updatedCollectionLevelPricingBoundaries: EventData = {
+  kind: "payment-processor-v2",
+  subKind: "payment-processor-v2-updated-collection-level-pricing-boundaries",
+  addresses: { [PaymentProcessorV2.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0xdd61e240b8302b21ad48e3bec0f6e9538c9e4cfffdfde6d604963069d7e23c34",
+  numTopics: 2,
+  abi: new Interface([
+    `event UpdatedCollectionLevelPricingBoundaries(
+      address indexed tokenAddress,
+      uint256 floorPrice,
+      uint256 ceilingPrice
+    )`,
+  ]),
+};
+
+export const updatedCollectionPaymentSettings: EventData = {
+  kind: "payment-processor-v2",
+  subKind: "payment-processor-v2-updated-collection-payment-settings",
+  addresses: { [PaymentProcessorV2.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0x0e73abd6d60e5d56d0b22d84e13b838d5266e8b6fa897e36645565dce796dce5",
+  numTopics: 2,
+  abi: new Interface([
+    `event UpdatedCollectionPaymentSettings(
+      address indexed tokenAddress,
+      uint8 paymentSettings,
+      uint32 indexed paymentMethodWhitelistId,
+      address indexed constrainedPricingPaymentMethod,
+      uint16 royaltyBackfillNumerator,
+      address royaltyBackfillReceiver,
+      uint16 royaltyBountyNumerator,
+      address exclusiveBountyReceiver
+    )`,
+  ]),
+};
+
+export const updatedTokenLevelPricingBoundaries: EventData = {
+  kind: "payment-processor-v2",
+  subKind: "payment-processor-v2-updated-token-level-pricing-boundaries",
+  addresses: { [PaymentProcessorV2.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0x38d88037c7f872f6e5d89332cdae804370cd604776bfcabf8da1f2e11945e271",
+  numTopics: 3,
+  abi: new Interface([
+    `event UpdatedTokenLevelPricingBoundaries(
+      address indexed tokenAddress,
+      uint256 indexed tokenId,
+      uint256 floorPrice,
+      uint256 ceilingPrice
     )`,
   ]),
 };

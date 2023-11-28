@@ -234,7 +234,8 @@ export const getSalesV3Options: RouteOptions = {
           tokens_data.name,
           tokens_data.image,
           tokens_data.collection_id,
-          tokens_data.collection_name
+          tokens_data.collection_name,
+          tokens_data.image_version
         FROM (
           SELECT
             fill_events_2.contract,
@@ -278,6 +279,7 @@ export const getSalesV3Options: RouteOptions = {
             tokens.name,
             tokens.image,
             tokens.collection_id,
+            tokens.image_version,
             collections.name AS collection_name
           FROM tokens
           LEFT JOIN collections 
@@ -320,7 +322,7 @@ export const getSalesV3Options: RouteOptions = {
             contract: fromBuffer(r.contract),
             tokenId: r.token_id,
             name: r.name,
-            image: Assets.getResizedImageUrl(r.image),
+            image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
             collection: {
               id: r.collection_id,
               name: r.collection_name,

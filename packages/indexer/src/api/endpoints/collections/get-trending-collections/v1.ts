@@ -206,7 +206,8 @@ export async function getCollectionsMetadata(collectionsResult: any[]) {
       json_build_object(
         'imageUrl', (collections.metadata ->> 'imageUrl')::TEXT,
         'bannerImageUrl', (collections.metadata ->> 'bannerImageUrl')::TEXT,
-        'description', (collections.metadata ->> 'description')::TEXT
+        'description', (collections.metadata ->> 'description')::TEXT,
+        'openseaVerificationStatus', (collections.metadata ->> 'safelistRequestStatus')::TEXT
       ) AS metadata,
       collections.non_flagged_floor_sell_id,
       collections.non_flagged_floor_sell_value,
@@ -232,7 +233,16 @@ export async function getCollectionsMetadata(collectionsResult: any[]) {
       collections.top_buy_valid_between,
 
       collections.top_buy_source_id_int,
-      
+
+      ARRAY( 
+        SELECT 
+        tokens.image
+         FROM tokens
+          WHERE tokens.collection_id = collections.id 
+          ORDER BY rarity_rank DESC NULLS LAST 
+          LIMIT 4 
+        ) AS sample_images,
+
       (
             SELECT
               COUNT(*)

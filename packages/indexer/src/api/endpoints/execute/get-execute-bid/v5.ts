@@ -60,6 +60,7 @@ import * as paymentProcessorBuyCollection from "@/orderbook/orders/payment-proce
 // PaymentProcessorV2
 import * as paymentProcessorV2BuyToken from "@/orderbook/orders/payment-processor-v2/build/buy/token";
 import * as paymentProcessorV2BuyCollection from "@/orderbook/orders/payment-processor-v2/build/buy/collection";
+import * as paymentProcessorV2BuyAttribute from "@/orderbook/orders/payment-processor-v2/build/buy/attribute";
 
 const version = "v5";
 
@@ -156,6 +157,9 @@ export const getExecuteBidV5Options: RouteOptions = {
                   then: Joi.optional(),
                   otherwise: Joi.forbidden(),
                 }),
+              }),
+              "payment-processor-v2": Joi.object({
+                useOffChainCancellation: Joi.boolean().required(),
               }),
             }).description("Additional options."),
             orderbook: Joi.string()
@@ -1386,7 +1390,7 @@ export const getExecuteBidV5Options: RouteOptions = {
 
                   steps[3].items.push({
                     status: "incomplete",
-                    data: new Sdk.Common.Helpers.ERC721C().generateVerificationTxData(
+                    data: new Sdk.Common.Helpers.Erc721C().generateVerificationTxData(
                       tv,
                       payload.maker,
                       erc721cAuth!.signature
@@ -1438,18 +1442,34 @@ export const getExecuteBidV5Options: RouteOptions = {
                   });
                 }
 
+                const options = params.options?.[params.orderKind] as
+                  | {
+                      useOffChainCancellation?: boolean;
+                    }
+                  | undefined;
+
                 let order: Sdk.PaymentProcessorV2.Order;
                 if (token) {
                   const [contract, tokenId] = token.split(":");
                   order = await paymentProcessorV2BuyToken.build({
                     ...params,
+                    ...options,
                     maker,
                     contract,
                     tokenId,
                   });
+                } else if (attribute) {
+                  order = await paymentProcessorV2BuyAttribute.build({
+                    ...params,
+                    ...options,
+                    maker,
+                    collection: attribute.collection,
+                    attributes: [attribute],
+                  });
                 } else if (collection) {
                   order = await paymentProcessorV2BuyCollection.build({
                     ...params,
+                    ...options,
                     maker,
                     collection,
                   });
@@ -1486,7 +1506,7 @@ export const getExecuteBidV5Options: RouteOptions = {
 
                   steps[3].items.push({
                     status: "incomplete",
-                    data: new Sdk.Common.Helpers.ERC721C().generateVerificationTxData(
+                    data: new Sdk.Common.Helpers.Erc721C().generateVerificationTxData(
                       tv,
                       payload.maker,
                       erc721cAuth!.signature
@@ -1494,7 +1514,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                   });
                 }
 
-                steps[4].items.push({
+                steps[5].items.push({
                   status: "incomplete",
                   data: {
                     sign: order.getSignatureData(),

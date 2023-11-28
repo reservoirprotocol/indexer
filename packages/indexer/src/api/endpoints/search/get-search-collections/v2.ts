@@ -11,7 +11,7 @@ import { CollectionSets } from "@/models/collection-sets";
 import { Assets } from "@/utils/assets";
 import { getUSDAndCurrencyPrices } from "@/utils/prices";
 import { AddressZero } from "@ethersproject/constants";
-import { getJoiPriceObject, JoiPrice } from "@/common/joi";
+import { getJoiCollectionObject, getJoiPriceObject, JoiPrice } from "@/common/joi";
 
 const version = "v2";
 
@@ -67,6 +67,7 @@ export const getSearchCollectionsV2Options: RouteOptions = {
           image: Joi.string().allow("", null),
           name: Joi.string().allow("", null),
           isSpam: Joi.boolean().default(false),
+          metadataDisabled: Joi.boolean().default(false),
           slug: Joi.string().allow("", null),
           allTimeVolume: Joi.number().unsafe().allow(null),
           floorAskPrice: JoiPrice.allow(null).description("Current floor ask price."),
@@ -113,7 +114,7 @@ export const getSearchCollectionsV2Options: RouteOptions = {
     const baseQuery = `
             SELECT c.id, c.name, c.contract, (c.metadata ->> 'imageUrl')::TEXT AS image, c.all_time_volume, c.floor_sell_value,
                    c.slug, (c.metadata ->> 'safelistRequestStatus')::TEXT AS opensea_verification_status,
-                   o.currency AS floor_sell_currency, c.is_spam,
+                   o.currency AS floor_sell_currency, c.is_spam, c.metadata_disabled,
                    o.currency_price AS floor_sell_currency_price
             FROM collections c
             LEFT JOIN orders o ON o.id = c.floor_sell_id
@@ -143,30 +144,34 @@ export const getSearchCollectionsV2Options: RouteOptions = {
               : null;
           }
 
-          return {
-            collectionId: collection.id,
-            name: collection.name,
-            slug: collection.slug,
-            contract: fromBuffer(collection.contract),
-            image: Assets.getLocalAssetsLink(collection.image),
-            isSpam: Number(collection.is_spam) > 0,
-            allTimeVolume: allTimeVolume ? formatEth(allTimeVolume) : null,
-            floorAskPrice: collection.floor_sell_value
-              ? await getJoiPriceObject(
-                  {
-                    gross: {
-                      amount: String(
-                        collection.floor_sell_currency_price ?? collection.floor_sell_value
-                      ),
-                      nativeAmount: String(collection.floor_sell_value),
+          return getJoiCollectionObject(
+            {
+              collectionId: collection.id,
+              name: collection.name,
+              slug: collection.slug,
+              contract: fromBuffer(collection.contract),
+              image: Assets.getLocalAssetsLink(collection.image),
+              isSpam: Number(collection.is_spam) > 0,
+              metadataDisabled: Boolean(Number(collection.metadata_disabled)),
+              allTimeVolume: allTimeVolume ? formatEth(allTimeVolume) : null,
+              floorAskPrice: collection.floor_sell_value
+                ? await getJoiPriceObject(
+                    {
+                      gross: {
+                        amount: String(
+                          collection.floor_sell_currency_price ?? collection.floor_sell_value
+                        ),
+                        nativeAmount: String(collection.floor_sell_value),
+                      },
                     },
-                  },
-                  fromBuffer(collection.floor_sell_currency),
-                  query.displayCurrency
-                )
-              : undefined,
-            openseaVerificationStatus: collection.opensea_verification_status,
-          };
+                    fromBuffer(collection.floor_sell_currency),
+                    query.displayCurrency
+                  )
+                : undefined,
+              openseaVerificationStatus: collection.opensea_verification_status,
+            },
+            collection.metadata_disabled
+          );
         })
       ),
     };
