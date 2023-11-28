@@ -1323,6 +1323,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
+        metadataMintDelay: 0,
         coingecko: {
           networkId: "linea",
         },
