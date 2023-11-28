@@ -281,20 +281,6 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
         }
       }
 
-      if (eventType === "token.created" && config.chainId === 1) {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "processCDCEvent",
-            message: `Processing cdc event. contract=${contract}, tokenId=${tokenId}, eventType=${eventType}`,
-            data,
-            changed,
-            changedJson: JSON.stringify(changed),
-            token: `${contract}:${tokenId}`,
-          })
-        );
-      }
-
       await publishWebsocketEvent({
         event: eventType,
         tags: {
