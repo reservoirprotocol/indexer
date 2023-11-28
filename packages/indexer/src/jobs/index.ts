@@ -336,19 +336,12 @@ export class RabbitMqJobsConsumer {
   }
 
   public static async connectToVhost() {
+    const mqurl = `${config.rabbitUrl}/${getNetworkName()}`;
     for (let i = 0; i < RabbitMqJobsConsumer.maxConsumerConnectionsCount; ++i) {
-      const connection = amqplibConnectionManager.connect(
-        {
-          hostname: config.rabbitHostname,
-          username: config.rabbitUsername,
-          password: config.rabbitPassword,
-          vhost: getNetworkName(),
-        },
-        {
-          reconnectTimeInSeconds: 5,
-          heartbeatIntervalInSeconds: 0,
-        }
-      );
+      const connection = amqplibConnectionManager.connect(mqurl, {
+        reconnectTimeInSeconds: 5,
+        heartbeatIntervalInSeconds: 0,
+      });
 
       RabbitMqJobsConsumer.rabbitMqConsumerConnections.push(connection);
 
@@ -515,12 +508,8 @@ export class RabbitMqJobsConsumer {
         return 0;
       }
 
-      const connection = await amqplib.connect({
-        hostname: config.rabbitHostname,
-        username: config.rabbitUsername,
-        password: config.rabbitPassword,
-        vhost: getNetworkName(),
-      });
+      const mqurl = `${config.rabbitUrl}/${getNetworkName()}`;
+      const connection = await amqplib.connect(mqurl);
 
       const channel = await connection.createChannel();
       let counter = 0;

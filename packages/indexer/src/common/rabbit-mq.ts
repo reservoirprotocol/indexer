@@ -57,18 +57,12 @@ export class RabbitMq {
   private static rabbitMqPublisherChannels: ChannelWrapper[] = [];
 
   public static async connect() {
-    RabbitMq.rabbitMqPublisherConnection = amqplibConnectionManager.connect(
-      {
-        hostname: config.rabbitHostname,
-        username: config.rabbitUsername,
-        password: config.rabbitPassword,
-        vhost: getNetworkName(),
-      },
-      {
-        reconnectTimeInSeconds: 5,
-        heartbeatIntervalInSeconds: 0,
-      }
-    );
+    const mqurl = `${config.rabbitUrl}/${getNetworkName()}`;
+    logger.info("rabbitmq-connect", `Connecting to rabbitmq as ${getNetworkName()}`);
+    RabbitMq.rabbitMqPublisherConnection = amqplibConnectionManager.connect(mqurl, {
+      reconnectTimeInSeconds: 5,
+      heartbeatIntervalInSeconds: 0,
+    });
 
     for (let index = 0; index < RabbitMq.maxPublisherChannelsCount; ++index) {
       const channel = this.rabbitMqPublisherConnection.createChannel();
@@ -262,12 +256,8 @@ export class RabbitMq {
     const abstract = await import("@/jobs/abstract-rabbit-mq-job-handler");
     const jobsIndex = await import("@/jobs/index");
 
-    const connection = await amqplib.connect({
-      hostname: config.rabbitHostname,
-      username: config.rabbitUsername,
-      password: config.rabbitPassword,
-      vhost: getNetworkName(),
-    });
+    const mqurl = `${config.rabbitUrl}/${getNetworkName()}`;
+    const connection = await amqplib.connect(mqurl);
 
     const channel = await connection.createChannel();
 
