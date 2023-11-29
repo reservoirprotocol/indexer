@@ -93,5 +93,14 @@
       "tokenUrlRinkeby": "https://gmoney.market/${contract}/${tokenId}",
       "tokenUrlGoerli": "https://gmoney.market/${contract}/${tokenId}"
     }
+  },
+  "15": {
+    "domain": "sphere.market",
+    "domainHash": "0x1f78c5db",
+    "name": "Sphere",
+    "address": "0xbdd566695dead4d75756f77724189466e8ede255",
+    "data": {
+      "icon": "https://raw.githubusercontent.com/Merit-Circle/beam-brand/main/I.%20Sphere/icon.svg"
+    }
   }
 }
