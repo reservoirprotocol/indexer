@@ -21,6 +21,7 @@ import {
 
 import { getJoiCollectionObject, getJoiPriceObject, JoiPrice } from "@/common/joi";
 import { Sources } from "@/models/sources";
+import { Assets } from "@/utils/assets";
 
 const version = "v1";
 
@@ -85,6 +86,7 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
           countPercentChange: Joi.number().unsafe().allow(null),
           creator: Joi.string().allow("", null),
           openseaVerificationStatus: Joi.string().allow("", null),
+          sampleImages: Joi.array().items(Joi.string().allow("", null)),
           onSaleCount: Joi.number().integer(),
           floorAsk: {
             id: Joi.string().allow(null),
@@ -352,6 +354,10 @@ async function formatCollections(
 
       return {
         ...response,
+        sampleImages:
+          metadata?.sample_images && metadata?.sample_images?.length > 0
+            ? Assets.getLocalAssetsLink(metadata?.sample_images)
+            : [],
         image: metadata?.metadata?.imageUrl,
         isSpam: Number(metadata.is_spam) > 0,
         openseaVerificationStatus: metadata?.metadata?.openseaVerificationStatus || null,

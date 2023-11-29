@@ -112,8 +112,8 @@ export interface Metadata {
 export interface ElasticMintResult {
   volume: number;
   mintCount: number;
-  countLast6Hours: number;
-  countLast1Hours: number;
+  sixHourResult?: Omit<this, "sixHourResult" | "oneHourResult">;
+  oneHourResult?: Omit<this, "oneHourResult" | "sixHourResult">;
   id: string;
 }
 
