@@ -519,6 +519,10 @@ jobs:
             ${{ github.sha }} \
             indexer-worker-ancient8-testnet
           ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-master-ancient8-testnet.yaml \
+            ${{ github.sha }} \
+            indexer-worker-master-ancient8-testnet
+          ./utils/version_update.sh \
             ./prod/platform/indexer-kafka-worker-ancient8-testnet.yaml \
             ${{ github.sha }} \
             indexer-worker-ancient8-testnet

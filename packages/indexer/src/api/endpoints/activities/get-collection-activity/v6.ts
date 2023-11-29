@@ -387,7 +387,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
             }
 
             if (activity.order.criteria.kind === "custom") {
-              (orderCriteria as any).data.collection = undefined;
+              delete (orderCriteria as any).data.collection;
             }
           }
 
