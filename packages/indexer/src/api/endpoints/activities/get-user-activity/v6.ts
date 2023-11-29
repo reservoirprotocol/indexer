@@ -282,7 +282,9 @@ export const getUserActivityV6Options: RouteOptions = {
             tokens.name,
             tokens.image,
             tokens.metadata_disabled,
-            tokens.image_version
+            tokens.image_version,
+            tokens.rarity_score,
+            tokens.rarity_rank
           FROM tokens
           WHERE (tokens.contract, tokens.token_id) IN ($/tokensFilter:raw/)
         `,
@@ -298,6 +300,8 @@ export const getUserActivityV6Options: RouteOptions = {
                     image: token.image,
                     image_version: token.image_version,
                     metadata_disabled: token.metadata_disabled,
+                    rarity_score: token.rarity_score,
+                    rarity_rank: token.rarity_rank,
                   }))
                 );
 
@@ -315,6 +319,8 @@ export const getUserActivityV6Options: RouteOptions = {
                       image: tokenResult.image,
                       image_version: tokenResult.image_version,
                       metadata_disabled: tokenResult.metadata_disabled,
+                      rarity_score: tokenResult.rarity_score,
+                      rarity_rank: tokenResult.rarity_rank,
                     })
                   );
 
@@ -449,8 +455,8 @@ export const getUserActivityV6Options: RouteOptions = {
                 : undefined,
               tokenImage: tokenImageUrl,
               tokenMedia: query.includeMetadata ? null : undefined,
-              tokenRarityRank: query.includeMetadata ? null : undefined,
-              tokenRarityScore: query.includeMetadata ? null : undefined,
+              tokenRarityRank: query.includeMetadata ? tokenMetadata?.rarity_score : undefined,
+              tokenRarityScore: query.includeMetadata ? tokenMetadata?.rarity_rank : undefined,
               isSpam: activity.token?.isSpam,
             },
             collection: {

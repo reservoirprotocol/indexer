@@ -51,7 +51,12 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
       let askDocument;
 
       try {
-        const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", true);
+        const criteriaBuildQuery = Orders.buildCriteriaQuery(
+          "orders",
+          "token_set_id",
+          true,
+          "token_set_schema_hash"
+        );
 
         const rawResult = await idb.oneOrNone(
           `

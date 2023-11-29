@@ -138,6 +138,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/resync-user-balance",
+    options: adminEndpoints.postResyncUserCollectionBalance,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/retry-rabbit-queue",
     options: adminEndpoints.postRetryRabbitQueue,
   });
@@ -602,6 +608,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/collections/{collection}/supported-marketplaces/v1",
     options: collectionsEndpoints.getCollectionSupportedMarketplacesV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/collections/{collection}/marketplace-configurations/v1",
+    options: collectionsEndpoints.getCollectionMarketplaceConfigurationsV1Options,
   });
 
   server.route({

@@ -57,7 +57,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
   description: "Supported marketplaces by collection",
   notes:
     "The ReservoirKit `ListModal` client utilizes this API to identify the marketplace(s) it can list on.",
-  tags: ["api", "Collections"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 5,
@@ -111,7 +111,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
               Joi.object({
                 address: Joi.string(),
                 decimals: Joi.number(),
-                name: Joi.string(),
+                name: Joi.string().allow(null),
                 symbol: Joi.string(),
               })
             )
@@ -217,7 +217,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
             maxBps: royalties.map((r) => r.bps).reduce((a, b) => a + b, 0),
           },
           orderbook: "reservoir",
-          orderKind: config.chainId === 11155111 ? "payment-processor-v2" : "seaport-v1.5",
+          orderKind: "seaport-v1.5",
           listingEnabled: true,
           customFeesSupported: true,
           collectionBidSupported: Number(collectionResult.token_count) <= config.maxTokenSetSize,
@@ -231,10 +231,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
       {
         let openseaMarketplaceFees: Royalty[] = collectionResult.marketplace_fees?.opensea;
         if (collectionResult.marketplace_fees?.opensea == null) {
-          openseaMarketplaceFees = await marketplaceFees.getCollectionOpenseaFees(
-            params.collection,
-            collectionResult.contract
-          );
+          openseaMarketplaceFees = marketplaceFees.getCollectionOpenseaFees();
         }
 
         const openseaRoyalties: Royalty[] = collectionResult.new_royalties?.opensea;
@@ -387,9 +384,10 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
 
           const blocked = await checkMarketplaceIsFiltered(params.collection, operators);
           if (blocked && marketplace.orderbook === "reservoir") {
-            marketplace.orderKind = "payment-processor";
-            marketplace.partialBidSupported = false;
-            marketplace.traitBidSupported = false;
+            marketplace.orderKind =
+              config.chainId === 11155111 ? "payment-processor-v2" : "payment-processor";
+            marketplace.partialBidSupported = config.chainId === 11155111 ? true : false;
+            marketplace.traitBidSupported = config.chainId === 11155111 ? true : false;
 
             if (
               config.chainId === 137 &&

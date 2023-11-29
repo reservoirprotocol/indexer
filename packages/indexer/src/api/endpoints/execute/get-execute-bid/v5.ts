@@ -60,6 +60,7 @@ import * as paymentProcessorBuyCollection from "@/orderbook/orders/payment-proce
 // PaymentProcessorV2
 import * as paymentProcessorV2BuyToken from "@/orderbook/orders/payment-processor-v2/build/buy/token";
 import * as paymentProcessorV2BuyCollection from "@/orderbook/orders/payment-processor-v2/build/buy/collection";
+import * as paymentProcessorV2BuyAttribute from "@/orderbook/orders/payment-processor-v2/build/buy/attribute";
 
 const version = "v5";
 
@@ -159,6 +160,11 @@ export const getExecuteBidV5Options: RouteOptions = {
               }),
               "payment-processor-v2": Joi.object({
                 useOffChainCancellation: Joi.boolean().required(),
+                replaceOrderId: Joi.string().when("useOffChainCancellation", {
+                  is: true,
+                  then: Joi.optional(),
+                  otherwise: Joi.forbidden(),
+                }),
               }),
             }).description("Additional options."),
             orderbook: Joi.string()
@@ -1389,7 +1395,7 @@ export const getExecuteBidV5Options: RouteOptions = {
 
                   steps[3].items.push({
                     status: "incomplete",
-                    data: new Sdk.Common.Helpers.ERC721C().generateVerificationTxData(
+                    data: new Sdk.Common.Helpers.Erc721C().generateVerificationTxData(
                       tv,
                       payload.maker,
                       erc721cAuth!.signature
@@ -1444,6 +1450,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                 const options = params.options?.[params.orderKind] as
                   | {
                       useOffChainCancellation?: boolean;
+                      replaceOrderId?: string;
                     }
                   | undefined;
 
@@ -1456,6 +1463,14 @@ export const getExecuteBidV5Options: RouteOptions = {
                     maker,
                     contract,
                     tokenId,
+                  });
+                } else if (attribute) {
+                  order = await paymentProcessorV2BuyAttribute.build({
+                    ...params,
+                    ...options,
+                    maker,
+                    collection: attribute.collection,
+                    attributes: [attribute],
                   });
                 } else if (collection) {
                   order = await paymentProcessorV2BuyCollection.build({
@@ -1497,7 +1512,7 @@ export const getExecuteBidV5Options: RouteOptions = {
 
                   steps[3].items.push({
                     status: "incomplete",
-                    data: new Sdk.Common.Helpers.ERC721C().generateVerificationTxData(
+                    data: new Sdk.Common.Helpers.Erc721C().generateVerificationTxData(
                       tv,
                       payload.maker,
                       erc721cAuth!.signature

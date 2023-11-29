@@ -26,6 +26,7 @@ import { backfillActivitiesElasticsearchJob } from "@/jobs/activities/backfill/b
 
 import * as CONFIG from "@/elasticsearch/indexes/activities/config";
 import { ElasticMintResult } from "@/api/endpoints/collections/get-trending-mints/interfaces";
+import { Period, getStartTime } from "@/models/top-selling-collections/top-selling-collections";
 
 const INDEX_NAME = `${getNetworkName()}.activities`;
 
@@ -346,76 +347,100 @@ export const getTopSellingCollections = async (params: {
 
 export const getTrendingMints = async (params: {
   contracts: string[];
-  startTime: number;
+  period: Period;
   limit: number;
 }): Promise<ElasticMintResult[]> => {
-  const { contracts, startTime, limit } = params;
+  const { contracts, period, limit } = params;
 
-  const salesQuery = {
-    bool: {
-      filter: [
-        {
-          term: {
-            type: "mint",
-          },
+  const results: Partial<Record<Period, ElasticMintResult[]>> = {};
+
+  [...new Set<Period>(["6h", "1h", period])].forEach((time) => (results[time] = []));
+
+  await Promise.all(
+    Object.keys(results).map(async (period: string) => {
+      const salesQuery = {
+        bool: {
+          filter: [
+            {
+              term: {
+                type: "mint",
+              },
+            },
+            {
+              range: {
+                timestamp: {
+                  gte: getStartTime(period as Period),
+                  format: "epoch_second",
+                },
+              },
+            },
+            {
+              terms: {
+                "collection.id": contracts,
+              },
+            },
+          ],
         },
-        {
-          range: {
-            timestamp: {
-              gte: startTime,
-              format: "epoch_second",
+      } as any;
+
+      const collectionAggregation = {
+        collections: {
+          terms: {
+            field: "collection.id",
+            size: limit,
+            order: {
+              total_mints: "desc",
+            },
+          },
+          aggs: {
+            total_mints: {
+              value_count: {
+                field: "id",
+              },
+            },
+            total_volume: {
+              sum: {
+                field: "pricing.priceDecimal",
+              },
             },
           },
         },
-        {
-          terms: {
-            "collection.id": contracts,
-          },
-        },
-      ],
-    },
-  } as any;
+      } as any;
 
-  const collectionAggregation = {
-    collections: {
-      terms: {
-        field: "collection.id",
-        size: limit,
-        order: {
-          total_mints: "desc",
+      const esResult = (await elasticsearch.search({
+        index: INDEX_NAME,
+        size: 0,
+        body: {
+          query: salesQuery,
+          aggs: collectionAggregation,
         },
-      },
-      aggs: {
-        total_mints: {
-          value_count: {
-            field: "id",
-          },
-        },
-        total_volume: {
-          sum: {
-            field: "pricing.priceDecimal",
-          },
-        },
-      },
-    },
-  } as any;
+      })) as any;
+      results[period as Period] = esResult?.aggregations?.collections?.buckets?.map(
+        (bucket: any) => {
+          return {
+            volume: bucket?.total_volume?.value,
+            mintCount: bucket?.total_mints?.value,
+            id: bucket.key,
+          };
+        }
+      );
+    })
+  );
 
-  const esResult = (await elasticsearch.search({
-    index: INDEX_NAME,
-    size: 0,
-    body: {
-      query: salesQuery,
-      aggs: collectionAggregation,
-    },
-  })) as any;
+  const periodResults = results[period];
+  const sixHourMints = results["6h"];
+  const oneHourMints = results["1h"];
 
-  return esResult?.aggregations?.collections?.buckets?.map((bucket: any) => {
-    return {
-      volume: bucket?.total_volume?.value,
-      count: bucket?.total_mints.value,
-      id: bucket.key,
-    };
+  const finalResults: ElasticMintResult[] = [];
+  periodResults?.forEach((result) => {
+    finalResults.push({
+      ...result,
+      sixHourResult: sixHourMints?.find(({ id }) => id === result.id),
+      oneHourResult: oneHourMints?.find(({ id }) => id === result.id),
+    });
   });
+
+  return finalResults;
 };
 
 export const getRecentSalesByCollection = async (

@@ -62,7 +62,12 @@ export class FillEventCreatedEventHandler extends BaseActivityEventHandler {
   }
 
   public static buildBaseQuery(): string {
-    const orderCriteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
+    const orderCriteriaBuildQuery = Orders.buildCriteriaQuery(
+      "orders",
+      "token_set_id",
+      false,
+      "token_set_schema_hash"
+    );
 
     return `SELECT
                   contract,

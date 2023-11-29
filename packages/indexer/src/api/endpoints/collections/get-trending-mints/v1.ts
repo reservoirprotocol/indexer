@@ -3,7 +3,6 @@
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, regex } from "@/common/utils";
-import { getStartTime } from "@/models/top-selling-collections/top-selling-collections";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
@@ -22,6 +21,7 @@ import {
 } from "@/api/endpoints/collections/get-trending-mints/interfaces";
 import { JoiPrice, getJoiPriceObject } from "@/common/joi";
 import { Sources } from "@/models/sources";
+import { Assets } from "@/utils/assets";
 
 const version = "v1";
 
@@ -52,6 +52,18 @@ export const getTrendingMintsV1Options: RouteOptions = {
         .description(
           "Amount of items returned in response. Default is 50 and max is 50. Expected to be sorted and filtered on client side."
         ),
+      normalizeRoyalties: Joi.boolean()
+        .default(false)
+        .description("If true, prices will include missing royalties to be added on-top."),
+      useNonFlaggedFloorAsk: Joi.boolean()
+        .when("normalizeRoyalties", {
+          is: Joi.boolean().valid(true),
+          then: Joi.valid(false),
+        })
+        .default(false)
+        .description(
+          "If true, return the non flagged floor ask. Supported only when `normalizeRoyalties` is false."
+        ),
     }),
   },
   response: {
@@ -63,11 +75,10 @@ export const getTrendingMintsV1Options: RouteOptions = {
           image: Joi.string().allow("", null),
           banner: Joi.string().allow("", null),
           isSpam: Joi.boolean().default(false),
+          openseaVerificationStatus: Joi.string().allow("", null),
           description: Joi.string().allow("", null),
           primaryContract: Joi.string().lowercase().pattern(regex.address),
           contract: Joi.string().lowercase().pattern(regex.address),
-          count: Joi.number().integer(),
-          volume: Joi.number(),
           volumePercentChange: Joi.number().unsafe().allow(null),
           countPercentChange: Joi.number().unsafe().allow(null),
           creator: Joi.string().allow("", null),
@@ -95,9 +106,12 @@ export const getTrendingMintsV1Options: RouteOptions = {
           startDate: Joi.date().allow("", null),
           endDate: Joi.date().allow("", null),
           maxSupply: Joi.number().allow(null),
-          mintPrice: Joi.number().allow(null),
-          mintVolume: Joi.any(),
+          mintPrice: Joi.string().allow(null),
+          sampleImages: Joi.array().items(Joi.string().allow("", null)),
+          mintVolume: Joi.number().allow(null),
           mintCount: Joi.number().allow(null),
+          sixHourCount: Joi.number().allow(null),
+          oneHourCount: Joi.number().allow(null),
           mintType: Joi.string().allow("free", "paid", "", null),
           mintStatus: Joi.string().allow("", null),
           mintStages: Joi.array().items(
@@ -136,7 +150,6 @@ export const getTrendingMintsV1Options: RouteOptions = {
   },
   handler: async ({ query }: Request, h) => {
     const { normalizeRoyalties, useNonFlaggedFloorAsk, type, period, limit } = query;
-
     try {
       const mintingCollections = await getMintingCollections(type);
 
@@ -145,25 +158,25 @@ export const getTrendingMintsV1Options: RouteOptions = {
         return response;
       }
 
-      const elasticMintData = await getTrendingMints({
+      const trendingMints = await getTrendingMints({
         contracts: mintingCollections.map(({ collection_id }) => collection_id),
-        startTime: getStartTime(period),
+        period,
         limit,
       });
 
-      if (elasticMintData.length < 1) {
+      if (trendingMints.length < 0) {
         const response = h.response({ mints: [] });
         return response;
       }
 
-      const collectionsMetadata = await getCollectionsMetadata(elasticMintData);
+      const collectionsMetadata = await getCollectionsMetadata(trendingMints);
 
       const mintStages = await getMintStages(Object.keys(collectionsMetadata));
 
       const mints = await formatCollections(
         mintStages,
         mintingCollections,
-        elasticMintData,
+        trendingMints,
         collectionsMetadata,
         normalizeRoyalties,
         useNonFlaggedFloorAsk
@@ -291,8 +304,7 @@ async function formatCollections(
       }
 
       return {
-        ...r,
-
+        id: metadata?.id,
         image: metadata?.metadata ? metadata.metadata?.imageUrl : null,
         banner: metadata?.metadata ? metadata.metadata?.bannerImageUrl : null,
         name: metadata ? metadata?.name : "",
@@ -315,16 +327,23 @@ async function formatCollections(
 
         tokenCount: Number(metadata.token_count || 0),
         ownerCount: Number(metadata.owner_count || 0),
-
+        sampleImages:
+          metadata?.sample_images && metadata?.sample_images?.length > 0
+            ? Assets.getLocalAssetsLink(metadata?.sample_images)
+            : [],
         mintType: Number(mintData?.price) > 0 ? "paid" : "free",
+        mintPrice: mintData?.price,
         maxSupply: Number.isSafeInteger(Number(mintData?.max_supply))
           ? Number(mintData?.max_supply)
           : null,
         createdAt: mintData?.created_at && new Date(mintData?.created_at).toISOString(),
         startDate: mintData?.start_time && new Date(mintData?.start_time).toISOString(),
         endDate: mintData?.end_time && new Date(mintData?.end_time).toISOString(),
-        mintCount: r.count,
+        mintCount: r?.mintCount || 0,
+        sixHourCount: r.sixHourResult?.mintCount || 0,
+        oneHourCount: r.oneHourResult?.mintCount || 0,
         mintVolume: r.volume,
+        openseaVerificationStatus: metadata?.metadata?.openseaVerificationStatus || null,
         mintStages:
           mintData.mint_stages.length > 0
             ? await Promise.all(

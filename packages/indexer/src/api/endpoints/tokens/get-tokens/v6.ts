@@ -307,6 +307,7 @@ export const getTokensV6Options: RouteOptions = {
               creator: Joi.string().lowercase().pattern(regex.address).allow("", null),
               tokenCount: Joi.number().allow(null),
               metadataDisabled: Joi.boolean().default(false),
+              floorAskPrice: JoiPrice.allow(null).description("Can be null if no active asks."),
             }),
             lastSale: JoiSale.optional(),
             owner: Joi.string().allow(null),
@@ -692,6 +693,28 @@ export const getTokensV6Options: RouteOptions = {
         )`;
     }
 
+    let collectionFloorAskSelectQuery;
+
+    if (query.normalizeRoyalties) {
+      collectionFloorAskSelectQuery = `
+          c.normalized_floor_sell_id AS c_floor_sell_id,
+          c.normalized_floor_sell_value AS c_floor_sell_value,
+          c.normalized_floor_sell_maker AS c_floor_sell_maker,
+          least(2147483647::NUMERIC, date_part('epoch', lower(c.normalized_floor_sell_valid_between)))::INT AS c_floor_sell_valid_from,
+          least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(c.normalized_floor_sell_valid_between)), 'Infinity'),0))::INT AS c_floor_sell_valid_until,
+          c.normalized_floor_sell_source_id_int AS c_floor_sell_source_id_int
+        `;
+    } else {
+      collectionFloorAskSelectQuery = `
+          c.floor_sell_id AS c_floor_sell_id,
+          c.floor_sell_value AS c_floor_sell_value,
+          c.floor_sell_maker AS c_floor_sell_maker,
+          least(2147483647::NUMERIC, date_part('epoch', lower(c.floor_sell_valid_between)))::INT AS c_floor_sell_valid_from,
+          least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(c.floor_sell_valid_between)), 'Infinity'),0))::INT AS c_floor_sell_valid_until,
+          c.floor_sell_source_id_int AS c_floor_sell_source_id_int
+        `;
+    }
+
     try {
       let baseQuery = `
         ${sourceCte}
@@ -733,7 +756,8 @@ export const getTokensV6Options: RouteOptions = {
               AND nb.token_id = t.token_id
               AND nb.amount > 0
             LIMIT 1
-          ) AS owner
+          ) AS owner,
+          ${collectionFloorAskSelectQuery}
           ${selectAttributes}
           ${selectIncludeQuantity}
           ${selectIncludeDynamicPricing}
@@ -1117,7 +1141,7 @@ export const getTokensV6Options: RouteOptions = {
 
         baseQuery = `
           ${unionQueries.join(` UNION ALL `)}
-          ${getSort(query.sortBy, true)}
+          ${getSort(query.sortBy, unionValues.length > 1)}
         `;
       }
 
@@ -1274,6 +1298,10 @@ export const getTokensV6Options: RouteOptions = {
           ? fromBuffer(r.top_buy_currency)
           : Sdk.Common.Addresses.WNative[config.chainId];
 
+        const collectionFloorAskCurrency = r.c_floor_sell_currency
+          ? fromBuffer(r.c_floor_sell_currency)
+          : Sdk.Common.Addresses.Native[config.chainId];
+
         let dynamicPricing = undefined;
         if (query.includeDynamicPricing) {
           // Add missing royalties on top of the raw prices
@@ -1411,6 +1439,18 @@ export const getTokensV6Options: RouteOptions = {
                 creator: r.creator ? fromBuffer(r.creator) : null,
                 tokenCount: r.token_count,
                 metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
+                floorAskPrice: r.c_floor_sell_value
+                  ? await getJoiPriceObject(
+                      {
+                        gross: {
+                          amount: String(r.c_floor_sell_currency_value ?? r.c_floor_sell_value),
+                          nativeAmount: String(r.c_floor_sell_value),
+                        },
+                      },
+                      collectionFloorAskCurrency,
+                      query.displayCurrency
+                    )
+                  : null,
               },
               lastSale:
                 query.includeLastSale && r.last_sale_currency
@@ -1822,6 +1862,28 @@ export const getListedTokensFromES = async (query: any) => {
       `;
     }
 
+    let selectCollectionFloorAskQueryPart;
+
+    if (query.normalizeRoyalties) {
+      selectCollectionFloorAskQueryPart = `
+          c.normalized_floor_sell_id AS c_floor_sell_id,
+          c.normalized_floor_sell_value AS c_floor_sell_value,
+          c.normalized_floor_sell_maker AS c_floor_sell_maker,
+          least(2147483647::NUMERIC, date_part('epoch', lower(c.normalized_floor_sell_valid_between)))::INT AS c_floor_sell_valid_from,
+          least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(c.normalized_floor_sell_valid_between)), 'Infinity'),0))::INT AS c_floor_sell_valid_until,
+          c.normalized_floor_sell_source_id_int AS c_floor_sell_source_id_int
+        `;
+    } else {
+      selectCollectionFloorAskQueryPart = `
+          c.floor_sell_id AS c_floor_sell_id,
+          c.floor_sell_value AS c_floor_sell_value,
+          c.floor_sell_maker AS c_floor_sell_maker,
+          least(2147483647::NUMERIC, date_part('epoch', lower(c.floor_sell_valid_between)))::INT AS c_floor_sell_valid_from,
+          least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(c.floor_sell_valid_between)), 'Infinity'),0))::INT AS c_floor_sell_valid_until,
+          c.floor_sell_source_id_int AS c_floor_sell_source_id_int
+        `;
+    }
+
     tokensResult = await redb.manyOrNone(
       `
           SELECT 
@@ -1860,7 +1922,8 @@ export const getListedTokensFromES = async (query: any) => {
                 AND nb.token_id = t.token_id
                 AND nb.amount > 0
               LIMIT 1
-            ) AS owner
+            ) AS owner,
+          ${selectCollectionFloorAskQueryPart}
           ${selectAttributesQueryPart}  
           ${selectLastSaleQueryPart}
           ${selectTopBidQueryPart}
@@ -1926,6 +1989,10 @@ export const getListedTokensFromES = async (query: any) => {
     const topBidCurrency = r.top_buy_currency
       ? fromBuffer(r.top_buy_currency)
       : Sdk.Common.Addresses.WNative[config.chainId];
+
+    const collectionFloorAskCurrency = r.c_floor_sell_currency
+      ? fromBuffer(r.c_floor_sell_currency)
+      : Sdk.Common.Addresses.Native[config.chainId];
 
     let dynamicPricing = undefined;
 
@@ -2057,6 +2124,18 @@ export const getListedTokensFromES = async (query: any) => {
             creator: r.creator ? fromBuffer(r.creator) : null,
             tokenCount: r.token_count,
             metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
+            floorAskPrice: r.c_floor_sell_value
+              ? await getJoiPriceObject(
+                  {
+                    gross: {
+                      amount: String(r.c_floor_sell_currency_value ?? r.c_floor_sell_value),
+                      nativeAmount: String(r.c_floor_sell_value),
+                    },
+                  },
+                  collectionFloorAskCurrency,
+                  query.displayCurrency
+                )
+              : null,
           },
           lastSale:
             query.includeLastSale && r.last_sale_currency
