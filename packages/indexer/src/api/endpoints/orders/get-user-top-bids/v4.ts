@@ -241,7 +241,8 @@ export const getUserTopBidsV4Options: RouteOptions = {
       const criteriaBuildQuery = Orders.buildCriteriaQuery(
         "y",
         "token_set_id",
-        query.includeCriteriaMetadata
+        query.includeCriteriaMetadata,
+        "token_set_schema_hash"
       );
 
       const collectionFloorSellValueColumnName = query.useNonFlaggedFloorAsk
@@ -290,7 +291,7 @@ export const getUserTopBidsV4Options: RouteOptions = {
             LIMIT 1
         ) y ON TRUE
         LEFT JOIN LATERAL (
-            SELECT t.token_id, t.name, t.image, t.collection_id, t.floor_sell_value AS "token_floor_sell_value", t.last_sell_value AS "token_last_sell_value", o.currency AS "token_floor_sell_currency", o.currency_price AS "token_floor_sell_currency_price"
+            SELECT t.token_id, t.image_version, t.name, t.image, t.collection_id, t.floor_sell_value AS "token_floor_sell_value", t.last_sell_value AS "token_last_sell_value", o.currency AS "token_floor_sell_currency", o.currency_price AS "token_floor_sell_currency_price"
             FROM tokens t
             LEFT JOIN orders o ON o.id = t.floor_sell_id
             WHERE t.contract = nb.contract
@@ -389,7 +390,7 @@ export const getUserTopBidsV4Options: RouteOptions = {
               contract: contract,
               tokenId: tokenId,
               name: r.name,
-              image: Assets.getResizedImageUrl(r.image),
+              image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
               floorAskPrice: r.token_floor_sell_value
                 ? await getJoiPriceObject(
                     {

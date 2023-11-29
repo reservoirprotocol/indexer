@@ -78,6 +78,10 @@ export const normalizeMetadata = (collection: Collection): Metadata => {
       key: "externalUrl",
       normalize: (value: string) => normalizeLink(value),
     },
+    external_link: {
+      key: "externalUrl",
+      normalize: (value: string) => normalizeLink(value),
+    },
     project_url: {
       // From Opensea V2 APIs
       key: "externalUrl",

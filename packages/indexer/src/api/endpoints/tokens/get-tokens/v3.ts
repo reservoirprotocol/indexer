@@ -113,7 +113,8 @@ export const getTokensV3Options: RouteOptions = {
           ("c".metadata ->> 'imageUrl')::TEXT AS "collection_image",
           "c"."slug",
           "t"."floor_sell_value",
-          "t"."top_buy_value"
+          "t"."top_buy_value",
+          "t"."image_version"
         FROM "tokens" "t"
         JOIN "collections" "c"
           ON "t"."collection_id" = "c"."id"
@@ -301,7 +302,7 @@ export const getTokensV3Options: RouteOptions = {
             contract: fromBuffer(r.contract),
             tokenId: r.token_id,
             name: r.name,
-            image: Assets.getResizedImageUrl(r.image),
+            image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
             collection: {
               id: r.collection_id,
               name: r.collection_name,

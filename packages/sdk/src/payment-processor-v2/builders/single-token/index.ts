@@ -76,6 +76,6 @@ export class SingleTokenBuilder extends BaseBuilder {
       maxRoyaltyFeeNumerator?: BigNumberish;
     }
   ): MatchedOrder {
-    return order.getMatchedOrder(options.taker, options.amount);
+    return order.getMatchedOrder(options.taker, options);
   }
 }

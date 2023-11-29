@@ -89,7 +89,9 @@ export const postSpamStatusCollectionV1Options: RouteOptions = {
       updateResult = await idb.manyOrNone(
         `
             UPDATE collections
-            SET is_spam = $/spam/
+            SET
+              is_spam = $/spam/,
+              updated_at = now()
             WHERE id IN ($/ids:list/)
             AND is_spam IS DISTINCT FROM $/spam/
             RETURNING id

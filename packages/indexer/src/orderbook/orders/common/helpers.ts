@@ -260,7 +260,7 @@ export const getOrderIdFromNonce = async (
   const order = await idb.oneOrNone(
     `
       SELECT orders.id FROM orders
-      WHERE orders.order_kind = $/orderKind/
+      WHERE orders.kind = $/orderKind/
         AND orders.maker = $/maker/
         AND orders.nonce = $/nonce/
         AND orders.contract IS NOT NULL
