@@ -24,8 +24,8 @@ export const config = {
   fallbackMetadataIndexingMethod: String(process.env.FALLBACK_METADATA_INDEXING_METHOD),
   metadataIndexingMethodCollection: String(
     process.env.METADATA_INDEXING_METHOD_COLLECTION ||
-      process.env.METADATA_INDEXING_METHOD ||
-      "opensea"
+    process.env.METADATA_INDEXING_METHOD ||
+    "opensea"
   ),
   disableFlagStatusRefreshJob: Boolean(Number(process.env.DISABLE_FLAG_STATUS_REFRESH_JOB)),
 
@@ -101,18 +101,18 @@ export const config = {
   ),
   openSeaTokenMetadataBySlugApiKey: String(
     process.env.OPENSEA_SLUG_API_KEY ||
-      process.env.OPENSEA_TOKENS_API_KEY ||
-      process.env.OPENSEA_API_KEY
+    process.env.OPENSEA_TOKENS_API_KEY ||
+    process.env.OPENSEA_API_KEY
   ),
   openSeaCollectionMetadataApiKey: String(
     process.env.OPENSEA_COLLECTION_API_KEY ||
-      process.env.OPENSEA_TOKENS_API_KEY ||
-      process.env.OPENSEA_API_KEY
+    process.env.OPENSEA_TOKENS_API_KEY ||
+    process.env.OPENSEA_API_KEY
   ),
   openSeaTokenFlagStatusApiKey: String(
     process.env.OPENSEA_TOKEN_FLAG_STATUS_API_KEY ||
-      process.env.OPENSEA_TOKENS_API_KEY ||
-      process.env.OPENSEA_API_KEY
+    process.env.OPENSEA_TOKENS_API_KEY ||
+    process.env.OPENSEA_API_KEY
   ),
 
   openSeaCrossPostingApiKey: String(
@@ -163,4 +163,6 @@ export const config = {
   assertRabbitVhost: Boolean(Number(process.env.ASSERT_RABBIT_VHOST)),
   rabbitDisableQueuesConsuming: Boolean(Number(process.env.RABBIT_DISABLE_QUEUES_CONSUMING)),
   forceEnableRabbitJobsConsumer: Boolean(Number(process.env.FORCE_ENABLE_RABBIT_JOBS_CONSUMER)),
+
+  host: String(process.env.HOST),
 };
