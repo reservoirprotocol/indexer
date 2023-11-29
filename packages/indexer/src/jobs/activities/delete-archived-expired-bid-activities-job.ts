@@ -6,7 +6,7 @@ import { PendingExpiredBidActivitiesQueue } from "@/elasticsearch/indexes/activi
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
 const BATCH_SIZE = 2000;
-const MIN_BATCH_SIZE = 200;
+const MIN_BATCH_SIZE = [1, 137].includes(config.chainId) ? 1000 : 100;
 
 export default class DeleteArchivedExpiredBidActivitiesJob extends AbstractRabbitMqJobHandler {
   queueName = "delete-archived-expired-bid-activities-queue";
@@ -19,11 +19,6 @@ export default class DeleteArchivedExpiredBidActivitiesJob extends AbstractRabbi
   protected async process() {
     const pendingExpiredBidActivitiesQueue = new PendingExpiredBidActivitiesQueue();
     const pendingActivitiesCount = await pendingExpiredBidActivitiesQueue.count();
-
-    logger.info(
-      this.queueName,
-      `deleting activities debug. pendingActivitiesCount=${pendingActivitiesCount}`
-    );
 
     if (pendingActivitiesCount >= MIN_BATCH_SIZE) {
       const pendingActivityIds = await pendingExpiredBidActivitiesQueue.get(BATCH_SIZE);

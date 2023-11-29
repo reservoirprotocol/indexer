@@ -227,7 +227,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         },
         collections: {
           numberOfShards: 2,
-          disableMappingsUpdate: true,
         },
       },
     },
