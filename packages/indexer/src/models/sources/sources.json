@@ -94,7 +94,7 @@
       "tokenUrlGoerli": "https://gmoney.market/${contract}/${tokenId}"
     }
   },
-  "15": {
+  "4": {
     "domain": "sphere.market",
     "domainHash": "0x1f78c5db",
     "name": "Sphere",
