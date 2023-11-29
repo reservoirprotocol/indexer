@@ -160,6 +160,11 @@ export const getExecuteBidV5Options: RouteOptions = {
               }),
               "payment-processor-v2": Joi.object({
                 useOffChainCancellation: Joi.boolean().required(),
+                replaceOrderId: Joi.string().when("useOffChainCancellation", {
+                  is: true,
+                  then: Joi.optional(),
+                  otherwise: Joi.forbidden(),
+                }),
               }),
             }).description("Additional options."),
             orderbook: Joi.string()
@@ -1445,6 +1450,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                 const options = params.options?.[params.orderKind] as
                   | {
                       useOffChainCancellation?: boolean;
+                      replaceOrderId?: string;
                     }
                   | undefined;
 

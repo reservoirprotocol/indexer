@@ -116,9 +116,9 @@ export const backfillUserCollectionsJob = new BackfillUserCollectionsJob();
 
 if (config.chainId !== 1) {
   redlock
-    .acquire(["backfill-user-collections-lock-3"], 60 * 60 * 24 * 30 * 1000)
+    .acquire(["backfill-user-collections-lock-4"], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
-      await redis.del("sync-user-collections");
+      await redis.expire("sync-user-collections", 10);
     })
     .catch(() => {
       // Skip on any errors

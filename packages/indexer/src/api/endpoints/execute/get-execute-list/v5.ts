@@ -144,6 +144,11 @@ export const getExecuteListV5Options: RouteOptions = {
               }),
               "payment-processor-v2": Joi.object({
                 useOffChainCancellation: Joi.boolean().required(),
+                replaceOrderId: Joi.string().when("useOffChainCancellation", {
+                  is: true,
+                  then: Joi.optional(),
+                  otherwise: Joi.forbidden(),
+                }),
               }),
               alienswap: Joi.object({
                 useOffChainCancellation: Joi.boolean().required(),
@@ -1055,6 +1060,7 @@ export const getExecuteListV5Options: RouteOptions = {
                   params.options?.["payment-processor-v2"]) as
                   | {
                       useOffChainCancellation?: boolean;
+                      replaceOrderId?: string;
                     }
                   | undefined;
 
