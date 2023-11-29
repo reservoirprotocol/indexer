@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { isAddress } from "@ethersproject/address";
 
 import { elasticsearch } from "@/common/elasticsearch";
 import { logger } from "@/common/logger";
@@ -194,7 +195,7 @@ export const autocomplete = async (params: {
     bool: {
       must: {
         multi_match: {
-          query: "bored",
+          query: params.prefix,
           type: "bool_prefix",
           analyzer: "keyword",
           fields: ["name", "name._2gram", "name._3gram"],
@@ -207,6 +208,10 @@ export const autocomplete = async (params: {
       ],
     },
   };
+
+  if (isAddress(params.prefix)) {
+    (esQuery as any).bool.must.multi_match.fields.push("contract");
+  }
 
   if (params.chains?.length) {
     const chains = params.chains?.map((chainId) => chainId);

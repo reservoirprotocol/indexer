@@ -19,6 +19,8 @@ export default class ProcessCollectionEventsJob extends AbstractRabbitMqJobHandl
   lazyMode = true;
 
   protected async process() {
+    return;
+
     const pendingCollectionEventsQueue = new PendingCollectionEventsQueue();
     const pendingCollectionEvents = await pendingCollectionEventsQueue.get(BATCH_SIZE);
 
