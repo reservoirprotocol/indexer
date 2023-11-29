@@ -52,7 +52,16 @@ export const postSimulateOrderV1Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
-    if (![Network.Ethereum, Network.EthereumGoerli, Network.Polygon].includes(config.chainId)) {
+    if (
+      ![
+        Network.Ethereum,
+        Network.EthereumGoerli,
+        Network.EthereumSepolia,
+        Network.Polygon,
+        Network.Arbitrum,
+        Network.Optimism,
+      ].includes(config.chainId)
+    ) {
       return { message: "Simulation not supported" };
     }
 
