@@ -809,7 +809,12 @@ export const getTokensV7Options: RouteOptions = {
       // Filters
       const conditions: string[] = [];
       if (query.collection) {
-        conditions.push(`t.collection_id = $/collection/`);
+        (query as any).collectionContract = toBuffer(query.collection.split(":")[0]);
+        conditions.push(`t.contract = $/collectionContract/`);
+
+        if (query.collection.includes(":")) {
+          conditions.push(`t.collection_id = $/collection/`);
+        }
       }
 
       if (_.indexOf([0, 1], query.flagStatus) !== -1) {
@@ -1124,13 +1129,22 @@ export const getTokensV7Options: RouteOptions = {
         const unionValues = query.contract ? query.contract : collections;
 
         for (const i in unionValues) {
-          const unionType = query.contract ? "contract" : "collection_id";
+          const sharedContract = unionValues[i].includes(":");
+          const unionType = query.contract || !sharedContract ? "contract" : "collection_id";
           const unionFilter = `${unionType}${i}`;
-          (query as any)[unionFilter] = unionValues[i];
+          (query as any)[unionFilter] =
+            !query.contract && !sharedContract ? toBuffer(unionValues[i]) : unionValues[i];
+
+          // For shared contracts, filter by both contract and collection
+          if (sharedContract) {
+            (query as any)[`collectionContract${i}`] = unionValues[i].split(":")[0];
+          }
+
           unionQueries.push(
             `(
               ${baseQuery}
               ${conditions.length ? `AND ` : `WHERE `} t.${unionType} = $/${unionFilter}/
+              ${sharedContract ? `AND t.contract = $/collectionContract${i}/` : ""}
               ${unionValues.length > 1 ? `${getSort(query.sortBy, false)} LIMIT $/limit/` : ""}
             )`
           );
@@ -1138,7 +1152,7 @@ export const getTokensV7Options: RouteOptions = {
 
         baseQuery = `
           ${unionQueries.join(` UNION ALL `)}
-          ${getSort(query.sortBy, true)}
+          ${getSort(query.sortBy, unionValues.length > 1)}
         `;
       }
 
