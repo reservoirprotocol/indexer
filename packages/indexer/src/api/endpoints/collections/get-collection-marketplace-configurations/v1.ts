@@ -10,6 +10,7 @@ import { logger } from "@/common/logger";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings, getSubDomain } from "@/config/network";
+import { OrderKind } from "@/orderbook/orders";
 import { getOrUpdateBlurRoyalties } from "@/utils/blur";
 import { checkMarketplaceIsFiltered } from "@/utils/erc721c";
 import * as marketplaceFees from "@/utils/marketplace-fees";
@@ -42,7 +43,7 @@ type Marketplace = {
       enabled: boolean;
       paymentTokens?: PaymentToken[];
       traitBidSupported: boolean;
-      orderKind: string | null;
+      orderKind: OrderKind | null;
       customFeesSupported: boolean;
       collectionBidSupported?: boolean;
       partialOrderSupported: boolean;
@@ -452,6 +453,16 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
                     Sdk.LooksRareV2.Addresses.Exchange[config.chainId],
                     Sdk.LooksRareV2.Addresses.TransferManager[config.chainId],
                   ];
+                  break;
+                }
+
+                case "payment-processor": {
+                  operators = [Sdk.PaymentProcessor.Addresses.Exchange[config.chainId]];
+                  break;
+                }
+
+                case "payment-processor-v2": {
+                  operators = [Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId]];
                   break;
                 }
               }
