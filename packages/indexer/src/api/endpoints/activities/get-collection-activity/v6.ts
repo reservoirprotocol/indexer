@@ -385,6 +385,10 @@ export const getCollectionActivityV6Options: RouteOptions = {
             if (activity.order.criteria.kind === "attribute") {
               (orderCriteria as any).data.attribute = activity.order.criteria.data.attribute;
             }
+
+            if (activity.order.criteria.kind === "custom") {
+              (orderCriteria as any).data.collection = undefined;
+            }
           }
 
           order = activity.order?.id

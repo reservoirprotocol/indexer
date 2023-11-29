@@ -106,7 +106,12 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         }
       }
 
-      const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", true);
+      const criteriaBuildQuery = Orders.buildCriteriaQuery(
+        "orders",
+        "token_set_id",
+        true,
+        "token_set_schema_hash"
+      );
 
       const rawResult = await idb.oneOrNone(
         `

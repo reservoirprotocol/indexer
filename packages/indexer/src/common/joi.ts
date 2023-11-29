@@ -271,7 +271,7 @@ export const JoiOrderCriteria = Joi.alternatives(
   Joi.object({
     kind: "custom",
     data: Joi.object({
-      collection: JoiOrderCriteriaCollection,
+      tokenSetId: Joi.string().allow("", null),
     }),
   })
 );
@@ -1026,10 +1026,11 @@ export const getJoiCollectionObject = (
   contract?: string
 ) => {
   if (metadataDisabled) {
+    const collectionContract = collection.primaryContract ?? collection.contract ?? contract;
     const metadataDisabledCollection: any = {
-      id: collection.primaryContract ?? contract,
-      name: collection.primaryContract ?? contract,
-      slug: collection.primaryContract ?? contract,
+      id: collectionContract,
+      name: collectionContract,
+      slug: collectionContract,
       description: null,
       metadata: null,
       image: null,
@@ -1042,7 +1043,7 @@ export const getJoiCollectionObject = (
       openseaVerificationStatus: null,
       community: null,
       tokenIdRange: null,
-      tokenSetId: `contract:${collection.primaryContract ?? contract}`,
+      tokenSetId: `contract:${collectionContract}`,
       royalties: null,
       newRoyalties: null,
     };

@@ -176,10 +176,7 @@ export const getBuildInfo = async (
       collectionResult.marketplace_fees?.opensea;
 
     if (collectionResult.marketplace_fees?.opensea == null) {
-      openseaMarketplaceFees = await marketplaceFees.getCollectionOpenseaFees(
-        collection,
-        fromBuffer(collectionResult.contract)
-      );
+      openseaMarketplaceFees = marketplaceFees.getCollectionOpenseaFees();
     }
 
     for (const openseaMarketplaceFee of openseaMarketplaceFees) {

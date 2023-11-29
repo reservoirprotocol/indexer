@@ -249,7 +249,8 @@ export const refreshDefaultRoyalties = async (collection: string) => {
     `
       UPDATE collections SET
         royalties = $/royalties:json/,
-        royalties_bps = $/royaltiesBps/
+        royalties_bps = $/royaltiesBps/,
+        updated_at = now()
       WHERE collections.id = $/id/
     `,
     {

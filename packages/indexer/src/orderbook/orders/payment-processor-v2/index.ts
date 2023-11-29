@@ -21,7 +21,7 @@ import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as paymentProcessorV2 from "@/utils/payment-processor-v2";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
-import { cosigner } from "@/utils/cosign";
+import { cosigner, saveOffChainCancellations } from "@/utils/cosign";
 
 export type OrderInfo = {
   orderParams: Sdk.PaymentProcessorV2.Types.BaseOrder;
@@ -425,6 +425,35 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       // Handle: conduit
       const conduit = Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId];
+
+      // Handle: off-chain cancellation via replacement
+      if (order.isCosignedOrder()) {
+        const replacedOrderResult = await idb.oneOrNone(
+          `
+            SELECT
+              orders.raw_data
+            FROM orders
+            WHERE orders.id = $/id/
+          `,
+          {
+            id: bn(order.params.nonce).toHexString(),
+          }
+        );
+
+        if (
+          replacedOrderResult &&
+          // Replacement is only possible if the replaced order is an off-chain cancellable order
+          replacedOrderResult.raw_data.toLowerCase() !== cosigner().address.toLowerCase()
+        ) {
+          const rawOrder = new Sdk.PaymentProcessorV2.Order(
+            config.chainId,
+            replacedOrderResult.raw_data
+          );
+          if (rawOrder.params.sellerOrBuyer === order.params.sellerOrBuyer) {
+            await saveOffChainCancellations([replacedOrderResult.id]);
+          }
+        }
+      }
 
       const validFrom = `date_trunc('seconds', now())`;
       const validTo = `date_trunc('seconds', to_timestamp(${order.params.expiration}))`;

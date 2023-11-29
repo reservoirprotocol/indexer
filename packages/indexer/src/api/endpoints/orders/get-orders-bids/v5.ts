@@ -303,7 +303,8 @@ export const getOrdersBidsV5Options: RouteOptions = {
       const criteriaBuildQuery = Orders.buildCriteriaQuery(
         "orders",
         "token_set_id",
-        query.includeCriteriaMetadata
+        query.includeCriteriaMetadata,
+        "token_set_schema_hash"
       );
 
       let baseQuery = `
