@@ -106,7 +106,7 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
             INSERT INTO user_collections (owner, collection_id, contract, token_count, is_spam)
             VALUES ($/owner/, $/collection/, $/contract/, $/amount/, $/isSpam/)
             ON CONFLICT (owner, collection_id)
-            DO UPDATE SET token_count = $/amount/, updated_at = now();
+            DO UPDATE SET token_count = $/amount/, is_spam = $/isSpam/, updated_at = now();
           `,
         {
           owner: toBuffer(user),
