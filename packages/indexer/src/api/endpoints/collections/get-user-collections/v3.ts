@@ -76,6 +76,17 @@ export const getUserCollectionsV3Options: RouteOptions = {
         .description(
           "Input any ERC20 address to return result in given currency. Applies to `topBid` and `floorAsk`."
         ),
+      sortBy: Joi.string()
+        .valid("allTimeVolume", "totalValue")
+        .default("allTimeVolume")
+        .description(
+          "Order the items are returned in the response. Options are `allTimeVolume`, `totalValue`"
+        ),
+      sortDirection: Joi.string()
+        .lowercase()
+        .valid("asc", "desc")
+        .default("desc")
+        .description("Order the items are returned in the response."),
     }),
   },
   response: {
@@ -143,6 +154,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
             tokenCount: Joi.string(),
             onSaleCount: Joi.string(),
             liquidCount: Joi.string().optional(),
+            totalValue: Joi.number().unsafe().allow(null),
           }),
         })
       ),
@@ -162,93 +174,91 @@ export const getUserCollectionsV3Options: RouteOptions = {
       selectLiquidCount = "SUM(owner_liquid_count) AS owner_liquid_count,";
       liquidCount = `
         LEFT JOIN LATERAL (
-            SELECT 1 AS owner_liquid_count
-            FROM "orders" "o"
-            JOIN "token_sets_tokens" "tst" ON "o"."token_set_id" = "tst"."token_set_id"
-            WHERE "tst"."contract" = nbsample."contract"
-            AND "tst"."token_id" = nbsample."token_id"
-            AND "o"."side" = 'buy'
-            AND "o"."fillability_status" = 'fillable'
-            AND "o"."approval_status" = 'approved'
-            AND EXISTS(
-              SELECT FROM "nft_balances" "nb"
-                WHERE "nb"."contract" = nbsample."contract"
-                AND "nb"."token_id" = nbsample."token_id"
-                AND "nb"."amount" > 0
-                AND "nb"."owner" != "o"."maker"
-            )
-            LIMIT 1
-        ) "y" ON TRUE
+          SELECT 1 AS owner_liquid_count
+          FROM "orders" "o"
+          JOIN "token_sets_tokens" "tst" ON "o"."token_set_id" = "tst"."token_set_id"
+          WHERE "tst"."contract" = nb."contract"
+          AND "tst"."token_id" = nb."token_id"
+          AND "o"."side" = 'buy'
+          AND "o"."fillability_status" = 'fillable'
+          AND "o"."approval_status" = 'approved'
+          AND EXISTS(
+            SELECT FROM "nft_balances"
+            WHERE "nft_balances"."contract" = nb."contract"
+            AND "nft_balances"."token_id" = nb."token_id"
+            AND "nft_balances"."amount" > 0
+            AND "nft_balances"."owner" != "o"."maker"
+          )
+          LIMIT 1
+        ) "lc" ON TRUE
       `;
     }
 
     try {
-      let baseQuery = `
-        WITH nbsample as (SELECT contract, token_id, "owner", amount
-            FROM nft_balances
-            WHERE "owner" = $/user/
-              AND amount > 0
-            ORDER BY last_token_appraisal_value DESC NULLS LAST
-            LIMIT 50000
-        ),
-        token_images AS (
-            SELECT tokens.collection_id, tokens.image,
-                  ROW_NUMBER() OVER (PARTITION BY tokens.collection_id ORDER BY tokens.token_id) AS image_row_num
-            FROM nbsample
-            JOIN tokens ON nbsample.contract = tokens.contract AND nbsample.token_id = tokens.token_id
-            WHERE tokens.image IS NOT NULL
-        ),
-        filtered_token_images AS (
-            SELECT collection_id, array_agg(image) AS images
-            FROM token_images
-            WHERE image_row_num <= 4
-            GROUP BY collection_id
-        )
-        SELECT  collections.id,
-                collections.slug,
-                collections.name,
-                (collections.metadata ->> 'imageUrl')::TEXT AS "image",
-                (collections.metadata ->> 'bannerImageUrl')::TEXT AS "banner",
-                (collections.metadata ->> 'discordUrl')::TEXT AS "discord_url",
-                (collections.metadata ->> 'description')::TEXT AS "description",
-                (collections.metadata ->> 'externalUrl')::TEXT AS "external_url",
-                (collections.metadata ->> 'twitterUsername')::TEXT AS "twitter_username",
-                (collections.metadata ->> 'twitterUrl')::TEXT AS "twitter_url",
-                (collections.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
-                collections.contract,
-                collections.token_set_id,
-                collections.is_spam, 
-                collections.token_count,
-                collections.metadata_disabled,
-                filtered_token_images.images AS sample_images,
-                collections.day1_volume,
-                collections.day7_volume,
-                collections.day30_volume,
-                collections.all_time_volume,
-                collections.day1_rank,
-                collections.day7_rank,
-                collections.day30_rank,
-                collections.all_time_rank,
-                collections.day1_volume_change,
-                collections.day7_volume_change,
-                collections.day30_volume_change,
-                collections.floor_sell_value,
-                collections.day1_floor_sell_value,
-                collections.day7_floor_sell_value,
-                collections.day30_floor_sell_value,
-                SUM(COALESCE(nbsample.amount, 0)) AS owner_token_count,
-                ${selectLiquidCount}
-                SUM(CASE WHEN tokens.floor_sell_value IS NULL THEN 0 ELSE 1 END) AS owner_on_sale_count,
-                (SELECT orders.currency FROM orders WHERE orders.id = collections.floor_sell_id) AS floor_sell_currency,                
-                (SELECT orders.currency_price FROM orders WHERE orders.id = collections.floor_sell_id) AS floor_sell_currency_price,
-                (SELECT orders.currency FROM orders WHERE orders.id = collections.top_buy_id) AS top_buy_currency,
-                (SELECT orders.currency_price FROM orders WHERE orders.id = collections.top_buy_id) AS top_buy_currency_price,
-                (SELECT contracts.kind FROM contracts WHERE contracts.address = collections.contract) AS contract_kind
-        FROM nbsample 
-        JOIN tokens ON nbsample.contract = tokens.contract AND nbsample.token_id = tokens.token_id
+      let baseQuery = `        
+        SELECT
+          collections.id,
+          collections.slug,
+          collections.name,
+          (collections.metadata ->> 'imageUrl')::TEXT AS "image",
+          (collections.metadata ->> 'bannerImageUrl')::TEXT AS "banner",
+          (collections.metadata ->> 'discordUrl')::TEXT AS "discord_url",
+          (collections.metadata ->> 'description')::TEXT AS "description",
+          (collections.metadata ->> 'externalUrl')::TEXT AS "external_url",
+          (collections.metadata ->> 'twitterUsername')::TEXT AS "twitter_username",
+          (collections.metadata ->> 'twitterUrl')::TEXT AS "twitter_url",
+          (collections.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
+          collections.contract,
+          collections.token_set_id,
+          collections.is_spam, 
+          collections.token_count,
+          collections.metadata_disabled,
+          collections.day1_volume,
+          collections.day7_volume,
+          collections.day30_volume,
+          collections.all_time_volume,
+          collections.day1_rank,
+          collections.day7_rank,
+          collections.day30_rank,
+          collections.all_time_rank,
+          collections.day1_volume_change,
+          collections.day7_volume_change,
+          collections.day30_volume_change,
+          collections.floor_sell_value,
+          collections.day1_floor_sell_value,
+          collections.day7_floor_sell_value,
+          collections.day30_floor_sell_value,
+          COALESCE(collections.floor_sell_value, 0) * uc.token_count AS owner_total_value,
+          uc.token_count AS owner_token_count,
+          ${selectLiquidCount}
+          nb.owner_on_sale_count,
+          (SELECT orders.currency FROM orders WHERE orders.id = collections.floor_sell_id) AS floor_sell_currency,                
+          (SELECT orders.currency_price FROM orders WHERE orders.id = collections.floor_sell_id) AS floor_sell_currency_price,
+          (SELECT orders.currency FROM orders WHERE orders.id = collections.top_buy_id) AS top_buy_currency,
+          (SELECT orders.currency_price FROM orders WHERE orders.id = collections.top_buy_id) AS top_buy_currency_price,
+          (SELECT contracts.kind FROM contracts WHERE contracts.address = collections.contract) AS contract_kind,
+          ARRAY(
+            SELECT tokens.image
+            FROM tokens
+            WHERE tokens.collection_id = collections.id
+            ORDER BY rarity_rank DESC NULLS LAST
+            LIMIT 4
+          ) AS sample_images
+        FROM user_collections uc
+        JOIN collections ON uc.collection_id = collections.id
+        LEFT JOIN LATERAL (
+          SELECT COUNT(*) AS "owner_on_sale_count"
+          FROM nft_balances
+          JOIN tokens ON nft_balances.contract = tokens.contract AND nft_balances.token_id = tokens.token_id
+          WHERE "owner" = $/user/
+          AND nft_balances.contract = uc.contract
+          AND amount > 0
+          AND tokens.floor_sell_value IS NOT NULL
+        ) nb ON TRUE
         ${liquidCount}
-        JOIN collections ON tokens.collection_id = collections.id
-        LEFT JOIN filtered_token_images ON collections.id = filtered_token_images.collection_id
+        WHERE "owner" = $/user/
+        AND uc.token_count > 0
+        ${query.excludeSpam ? `AND uc.is_spam <= 0` : ""}
       `;
 
       // Filters
@@ -272,19 +282,20 @@ export const getUserCollectionsV3Options: RouteOptions = {
         conditions.push(`collections.id = $/collection/`);
       }
 
-      if (query.excludeSpam) {
-        conditions.push(`(collections.is_spam IS NULL OR collections.is_spam <= 0)`);
-      }
-
       if (conditions.length) {
         baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
       }
 
-      // Grouping
-      baseQuery += ` GROUP BY collections.id, nbsample.owner, filtered_token_images.images`;
-
       // Sorting
-      baseQuery += ` ORDER BY collections.all_time_volume DESC`;
+      switch (query.sortBy) {
+        case "totalValue":
+          baseQuery += ` ORDER BY (COALESCE(collections.floor_sell_value, 0) * uc.token_count) ${query.sortDirection}`;
+          break;
+
+        default:
+          baseQuery += ` ORDER BY collections.all_time_volume ${query.sortDirection}`;
+          break;
+      }
 
       // Pagination
       baseQuery += ` OFFSET $/offset/`;
@@ -292,16 +303,6 @@ export const getUserCollectionsV3Options: RouteOptions = {
 
       let topBidQuery = "";
       if (query.includeTopBid) {
-        topBidQuery = `LEFT JOIN LATERAL (
-          SELECT
-            token_sets.top_buy_value,
-            token_sets.top_buy_maker
-          FROM token_sets
-          WHERE token_sets.id = x.token_set_id
-          ORDER BY token_sets.top_buy_value DESC
-          LIMIT 1
-        ) y ON TRUE`;
-
         topBidQuery = `LEFT JOIN LATERAL (
           SELECT
             ts.top_buy_id,
@@ -393,6 +394,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
             liquidCount: query.includeLiquidCount
               ? String(Number(r.owner_liquid_count))
               : undefined,
+            totalValue: r.owner_total_value ? formatEth(r.owner_total_value) : 0,
           },
         };
 

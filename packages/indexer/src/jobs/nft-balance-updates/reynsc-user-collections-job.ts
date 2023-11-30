@@ -25,10 +25,6 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
     let newBalanceResults;
     let isSpam;
 
-    if (!collectionId) {
-      return;
-    }
-
     if (collectionId.match(regex.address)) {
       // If a non shared contract
       contract = collectionId;
