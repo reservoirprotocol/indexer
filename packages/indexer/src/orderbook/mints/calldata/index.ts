@@ -360,29 +360,53 @@ export const refreshMintsForCollection = async (collection: string) => {
   if (standardResult) {
     switch (standardResult.standard) {
       case "createdotfun":
-        return mints.createdotfun.refreshByCollection(collection);
+        await mints.createdotfun.refreshByCollection(collection);
+        break;
+
       case "decent":
-        return mints.decent.refreshByCollection(collection);
+        await mints.decent.refreshByCollection(collection);
+        break;
+
       case "foundation":
-        return mints.foundation.refreshByCollection(collection);
+        await mints.foundation.refreshByCollection(collection);
+        break;
+
       case "manifold":
-        return mints.manifold.refreshByCollection(collection);
+        await mints.manifold.refreshByCollection(collection);
+        break;
+
       case "mintdotfun":
-        return mints.mintdotfun.refreshByCollection(collection);
+        await mints.mintdotfun.refreshByCollection(collection);
+        break;
+
       case "seadrop-v1.0":
-        return mints.seadrop.refreshByCollection(collection);
+        await mints.seadrop.refreshByCollection(collection);
+        break;
+
       case "soundxyz":
-        return mints.soundxyz.refreshByCollection(collection);
+        await mints.soundxyz.refreshByCollection(collection);
+        break;
+
       case "thirdweb":
-        return mints.thirdweb.refreshByCollection(collection);
+        await mints.thirdweb.refreshByCollection(collection);
+        break;
+
       case "titlesxyz":
-        return mints.titlesxyz.refreshByCollection(collection);
+        await mints.titlesxyz.refreshByCollection(collection);
+        break;
+
       case "unknown":
-        return mints.generic.refreshByCollection(collection);
+        await mints.generic.refreshByCollection(collection);
+        break;
+
       case "zora":
-        return mints.zora.refreshByCollection(collection);
+        await mints.zora.refreshByCollection(collection);
+        break;
     }
-  } else {
+  }
+
+  // To be able to switch from `unknown` to a known standard on collection refresh
+  if (!standardResult || standardResult.standard === "unknown") {
     const lastMintsResult = await idb.manyOrNone(
       `
         SELECT
