@@ -113,6 +113,7 @@ export class ApiKeyManager {
         tier: 5,
         permissions: {
           update_metadata_disabled: true,
+          entity_data_override: true,
         },
         ips: [],
         origins: [],
@@ -266,9 +267,8 @@ export class ApiKeyManager {
     }
 
     if (log.route) {
-      log.fullUrl = `https://${getSubDomain()}.reservoir.tools${log.route}${
-        request.pre.queryString ? `?${request.pre.queryString}` : ""
-      }`;
+      log.fullUrl = `https://${getSubDomain()}.reservoir.tools${log.route}${request.pre.queryString ? `?${request.pre.queryString}` : ""
+        }`;
     }
 
     // Add key information if it exists
