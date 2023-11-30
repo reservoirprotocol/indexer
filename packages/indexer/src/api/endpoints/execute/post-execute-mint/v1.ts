@@ -509,9 +509,9 @@ export const postExecuteMintV1Options: RouteOptions = {
                   // Mostly coming from allowlist mints for which the user is not authorized
                   // TODO: Have an allowlist check instead of handling it via `try` / `catch`
                 }
-
-                hasActiveMints = true;
               }
+
+              hasActiveMints = true;
             }
           }
 
