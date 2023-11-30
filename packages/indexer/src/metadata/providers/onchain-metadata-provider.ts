@@ -216,6 +216,11 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       metadata.name = metadata.tokenId;
     }
 
+    const attributes =
+      typeof metadata.attributes === "string"
+        ? JSON.parse(metadata.attributes)
+        : metadata?.attributes || [];
+
     return {
       contract: metadata.contract,
       slug: null,
@@ -231,7 +236,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       animationOriginalUrl: metadata?.animation_url || null,
       mediaUrl: normalizeLink(metadata?.animation_url) || null,
       metadataOriginalUrl: this.parseIPFSURI(metadata.uri),
-      attributes: (metadata.attributes || []).map((trait: any) => ({
+      attributes: attributes.map((trait: any) => ({
         key: trait.trait_type ?? "property",
         value: trait.value,
         kind: typeof trait.value == "number" ? "number" : "string",

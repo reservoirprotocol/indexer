@@ -25,6 +25,10 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
     let newBalanceResults;
     let isSpam;
 
+    if (!collectionId) {
+      return;
+    }
+
     if (collectionId.match(regex.address)) {
       // If a non shared contract
       contract = collectionId;
@@ -116,6 +120,10 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
   }
 
   public async addToQueue(payload: ResyncUserCollectionsJobPayload, delay = 0) {
+    if (!payload.collectionId) {
+      return;
+    }
+
     await this.send({ payload, jobId: `${payload.user}:${payload.collectionId}` }, delay);
   }
 }

@@ -405,7 +405,7 @@ export const getTokenActivityV5Options: RouteOptions = {
             fillSource: fillSource ? getJoiSourceObject(fillSource, false) : undefined,
             order,
           },
-          tokenMetadata.metadata_disabled,
+          tokenMetadata?.metadata_disabled,
           disabledCollectionMetadata
         );
       });
