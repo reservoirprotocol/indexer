@@ -41,7 +41,9 @@ export class BeamMetadataProvider extends AbstractBaseMetadataProvider {
   method = "beam";
 
   async _getCollectionMetadata(contract: string, tokenId: string): Promise<CollectionMetadata> {
-    throw new Error("Method not implemented.");
+    // TODO: implement
+    // @ts-expect-error
+    return {};
   }
 
   async _getTokensMetadata(tokens: { contract: string; tokenId: string }[]): Promise<TokenMetadata[]> {
