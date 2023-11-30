@@ -278,6 +278,10 @@ export const extractEventsBatches = async (
             kind: "payment-processor-v2",
             data: kindToEvents.get("payment-processor-v2") ?? [],
           },
+          {
+            kind: "titlesxyz",
+            data: kindToEvents.get("titlesxyz") ?? [],
+          },
         ];
 
         txHashToEventsBatch.set(txHash, {

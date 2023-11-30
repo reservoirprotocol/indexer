@@ -23,7 +23,8 @@ export type CollectionMintStandard =
   | "lanyard"
   | "mintdotfun"
   | "soundxyz"
-  | "createdotfun";
+  | "createdotfun"
+  | "titlesxyz";
 
 export type CollectionMintDetails = {
   tx: MintTxSchema;

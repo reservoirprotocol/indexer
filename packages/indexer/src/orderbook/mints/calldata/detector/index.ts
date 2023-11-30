@@ -20,6 +20,7 @@ import * as seadrop from "@/orderbook/mints/calldata/detector/seadrop";
 import * as soundxyz from "@/orderbook/mints/calldata/detector/soundxyz";
 import * as thirdweb from "@/orderbook/mints/calldata/detector/thirdweb";
 import * as zora from "@/orderbook/mints/calldata/detector/zora";
+import * as titlesxyz from "@/orderbook/mints/calldata/detector/titlesxyz";
 
 export {
   decent,
@@ -32,6 +33,7 @@ export {
   thirdweb,
   zora,
   createdotfun,
+  titlesxyz,
 };
 
 export const extractByTx = async (txHash: string, skipCache = false) => {
@@ -207,6 +209,12 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
   const createdotfunResults = await createdotfun.extractByTx(collection, tx);
   if (createdotfunResults.length) {
     return createdotfunResults;
+  }
+
+  // Titlesxyz
+  const titlesXYZResults = await titlesxyz.extractByTx(collection, tx);
+  if (titlesXYZResults.length) {
+    return titlesXYZResults;
   }
 
   // Generic

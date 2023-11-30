@@ -9,7 +9,7 @@ import { formatEth } from "@/common/utils";
 import { Assets } from "@/utils/assets";
 
 import * as collectionsIndex from "@/elasticsearch/indexes/collections";
-import { JoiPrice } from "@/common/joi";
+// import { JoiPrice } from "@/common/joi";
 
 const version = "v1";
 
@@ -34,7 +34,7 @@ export const getAutocompleteCollectionsV1Options: RouteOptions = {
           .description("Array of chains. Max limit is 50. Example: `chains[0]: 1`"),
         Joi.number().description("Array of chains. Max limit is 50. Example: `chains[0]: 1`")
       ),
-      name: Joi.string()
+      prefix: Joi.string()
         .lowercase()
         .required()
         .description("Lightweight search for collections that match a string. Example: `bored`"),
@@ -53,6 +53,7 @@ export const getAutocompleteCollectionsV1Options: RouteOptions = {
     schema: Joi.object({
       collections: Joi.array().items(
         Joi.object({
+          chainId: Joi.number(),
           id: Joi.string(),
           contract: Joi.string(),
           image: Joi.string().allow("", null),
@@ -61,7 +62,7 @@ export const getAutocompleteCollectionsV1Options: RouteOptions = {
           isSpam: Joi.boolean().default(false),
           slug: Joi.string().allow("", null),
           allTimeVolume: Joi.number().unsafe().allow(null),
-          floorAskPrice: JoiPrice.allow(null).description("Current floor ask price."),
+          floorAskPrice: Joi.number().unsafe().allow(null),
           openseaVerificationStatus: Joi.string().allow("", null),
         })
       ),
@@ -83,12 +84,13 @@ export const getAutocompleteCollectionsV1Options: RouteOptions = {
 
     const { collections } = await collectionsIndex.autocomplete({
       chains: query.chains,
-      prefix: query.name,
+      prefix: query.prefix,
       communities: query.community ? [query.community] : undefined,
     });
 
     const result = _.map(collections, async (collection) => {
       return {
+        chainId: collection.chain.id,
         id: collection.id,
         name: collection.name,
         contract: collection.contract,

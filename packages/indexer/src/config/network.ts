@@ -225,6 +225,9 @@ export const getNetworkSettings = (): NetworkSettings => {
         asks: {
           numberOfShards: 1,
         },
+        collections: {
+          numberOfShards: 2,
+        },
       },
     },
     isTestnet: false,

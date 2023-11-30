@@ -30,6 +30,165 @@ const getMethod = (object: { [key: string]: any }) => {
   }
 };
 
+let openapiData = {};
+
+export const generateOpenApiSpec = async () => {
+  try {
+    const response = await inject({
+      method: "GET",
+      url: "/swagger.json",
+    });
+
+    const swagger = JSON.parse(response.payload);
+
+    const data = await swagger2openapi.convertObj(swagger, {
+      patch: true,
+      warnOnly: true,
+    });
+
+    data.openapi["servers"] = [
+      {
+        url: "https://api.reservoir.tools",
+      },
+      {
+        url: "https://api-goerli.reservoir.tools",
+      },
+      {
+        url: "https://api-optimism.reservoir.tools",
+      },
+      {
+        url: "https://api-polygon.reservoir.tools",
+      },
+      {
+        url: "https://api-mumbai.reservoir.tools",
+      },
+      {
+        url: "https://api-bsc.reservoir.tools",
+      },
+      {
+        url: "https://api-arbitrum.reservoir.tools",
+      },
+      {
+        url: "https://api-arbitrum-nova.reservoir.tools",
+      },
+      {
+        url: "https://api-sepolia.reservoir.tools",
+      },
+      {
+        url: "https://api-base.reservoir.tools",
+      },
+      {
+        url: "https://api-base-goerli.reservoir.tools",
+      },
+      {
+        url: "https://api-scroll-alpha.reservoir.tools",
+      },
+      {
+        url: "https://api-zora.reservoir.tools",
+      },
+      {
+        url: "https://api-zora-testnet.reservoir.tools",
+      },
+      {
+        url: "https://api-linea.reservoir.tools",
+      },
+      {
+        url: "https://api-avalanche.reservoir.tools",
+      },
+      {
+        url: "https://api-zksync.reservoir.tools",
+      },
+      {
+        url: "https://api-polygon-zkevm.reservoir.tools",
+      },
+      {
+        url: "https://api-scroll.reservoir.tools",
+      },
+    ];
+
+    // Preset list of tags.
+    const tagOrder = [
+      "Tokens",
+      "Collections",
+      "Attributes",
+      "Activity",
+      "Orders",
+      "Sales",
+      "Transfers",
+      "Events",
+      "Owners",
+      "Stats",
+      "Sources",
+      "Chain",
+    ];
+
+    data.openapi["paths"] = Object.fromEntries(
+      // eslint-disable-next-line
+      Object.entries(data.openapi["paths"]).sort((a: any, b: any) => {
+        const aMethod = parseMethod(a[1]);
+        const bMethod = parseMethod(b[1]);
+
+        aMethod["tags"] = aMethod["tags"] ? aMethod["tags"] : [];
+        bMethod["tags"] = bMethod["tags"] ? bMethod["tags"] : [];
+
+        // Get the index of the tags in the preset array.
+        let aTagIndex = tagOrder.indexOf(aMethod["tags"][0]);
+        let bTagIndex = tagOrder.indexOf(bMethod["tags"][0]);
+
+        // If a tag doesn't exist in the preset array, give it a high index.
+        if (aTagIndex === -1) {
+          aTagIndex = tagOrder.length;
+        }
+
+        if (bTagIndex === -1) {
+          bTagIndex = tagOrder.length;
+        }
+
+        // Compare the indices of the tags in the preset array.
+        if (aTagIndex < bTagIndex) {
+          return -1;
+        }
+
+        if (aTagIndex > bTagIndex) {
+          return 1;
+        }
+
+        return 0;
+      })
+    );
+
+    data.openapi["paths"] = Object.fromEntries(
+      // eslint-disable-next-line
+      Object.entries(data.openapi["paths"]).map((path: any) => {
+        const pathMethod = parseMethod(path[1]);
+
+        if (pathMethod.parameters?.length) {
+          for (const parameter of pathMethod.parameters) {
+            const parameterDefault = parameter.schema?.default;
+
+            if (parameterDefault !== undefined) {
+              delete parameter.schema.default;
+              const defaultDescription = `defaults to **${parameterDefault}**`;
+
+              parameter.description = parameter.description
+                ? `${parameter.description} ${defaultDescription}`
+                : defaultDescription;
+            }
+          }
+
+          path[1][getMethod(path[1])!] = pathMethod;
+        }
+
+        return path;
+      })
+    );
+
+    openapiData = data.openapi;
+  } catch (e) {
+    logger.error("generation-openapi-spec", `generate openapi spec error: ${e}`);
+  }
+};
+
 export const getOpenApiOptions: RouteOptions = {
   description: "Get swagger json in OpenApi V3",
   tags: ["api", "x-admin"],
@@ -38,156 +197,11 @@ export const getOpenApiOptions: RouteOptions = {
   },
   handler: async () => {
     try {
-      const response = await inject({
-        method: "GET",
-        url: "/swagger.json",
-      });
+      if (!openapiData) {
+        await generateOpenApiSpec();
+      }
 
-      const swagger = JSON.parse(response.payload);
-
-      const data = await swagger2openapi.convertObj(swagger, {
-        patch: true,
-        warnOnly: true,
-      });
-
-      data.openapi["servers"] = [
-        {
-          url: "https://api.reservoir.tools",
-        },
-        {
-          url: "https://api-goerli.reservoir.tools",
-        },
-        {
-          url: "https://api-optimism.reservoir.tools",
-        },
-        {
-          url: "https://api-polygon.reservoir.tools",
-        },
-        {
-          url: "https://api-mumbai.reservoir.tools",
-        },
-        {
-          url: "https://api-bsc.reservoir.tools",
-        },
-        {
-          url: "https://api-arbitrum.reservoir.tools",
-        },
-        {
-          url: "https://api-arbitrum-nova.reservoir.tools",
-        },
-        {
-          url: "https://api-sepolia.reservoir.tools",
-        },
-        {
-          url: "https://api-base.reservoir.tools",
-        },
-        {
-          url: "https://api-base-goerli.reservoir.tools",
-        },
-        {
-          url: "https://api-scroll-alpha.reservoir.tools",
-        },
-        {
-          url: "https://api-zora.reservoir.tools",
-        },
-        {
-          url: "https://api-zora-testnet.reservoir.tools",
-        },
-        {
-          url: "https://api-linea.reservoir.tools",
-        },
-        {
-          url: "https://api-avalanche.reservoir.tools",
-        },
-        {
-          url: "https://api-zksync.reservoir.tools",
-        },
-        {
-          url: "https://api-polygon-zkevm.reservoir.tools",
-        },
-        {
-          url: "https://api-scroll.reservoir.tools",
-        },
-      ];
-
-      // Preset list of tags.
-      const tagOrder = [
-        "Tokens",
-        "Collections",
-        "Attributes",
-        "Activity",
-        "Orders",
-        "Sales",
-        "Transfers",
-        "Events",
-        "Owners",
-        "Stats",
-        "Sources",
-        "Chain",
-      ];
-
-      data.openapi["paths"] = Object.fromEntries(
-        // eslint-disable-next-line
-        Object.entries(data.openapi["paths"]).sort((a: any, b: any) => {
-          const aMethod = parseMethod(a[1]);
-          const bMethod = parseMethod(b[1]);
-
-          aMethod["tags"] = aMethod["tags"] ? aMethod["tags"] : [];
-          bMethod["tags"] = bMethod["tags"] ? bMethod["tags"] : [];
-
-          // Get the index of the tags in the preset array.
-          let aTagIndex = tagOrder.indexOf(aMethod["tags"][0]);
-          let bTagIndex = tagOrder.indexOf(bMethod["tags"][0]);
-
-          // If a tag doesn't exist in the preset array, give it a high index.
-          if (aTagIndex === -1) {
-            aTagIndex = tagOrder.length;
-          }
-
-          if (bTagIndex === -1) {
-            bTagIndex = tagOrder.length;
-          }
-
-          // Compare the indices of the tags in the preset array.
-          if (aTagIndex < bTagIndex) {
-            return -1;
-          }
-
-          if (aTagIndex > bTagIndex) {
-            return 1;
-          }
-
-          return 0;
-        })
-      );
-
-      data.openapi["paths"] = Object.fromEntries(
-        // eslint-disable-next-line
-        Object.entries(data.openapi["paths"]).map((path: any) => {
-          const pathMethod = parseMethod(path[1]);
-
-          if (pathMethod.parameters?.length) {
-            for (const parameter of pathMethod.parameters) {
-              const parameterDefault = parameter.schema?.default;
-
-              if (parameterDefault !== undefined) {
-                delete parameter.schema.default;
-                const defaultDescription = `defaults to **${parameterDefault}**`;
-
-                parameter.description = parameter.description
-                  ? `${parameter.description} ${defaultDescription}`
-                  : defaultDescription;
-              }
-            }
-
-            path[1][getMethod(path[1])!] = pathMethod;
-          }
-
-          return path;
-        })
-      );
-
-      return data.openapi;
+      return openapiData;
     } catch (error) {
       logger.error("get-open-api-handler", `Handler failure: ${error}`);
       throw error;

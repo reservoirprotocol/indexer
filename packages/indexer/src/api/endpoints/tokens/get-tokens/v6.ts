@@ -1132,7 +1132,7 @@ export const getTokensV6Options: RouteOptions = {
         const unionValues = query.contract ? query.contract : collections;
 
         for (const i in unionValues) {
-          const sharedContract = unionValues[i].includes(":");
+          const sharedContract = !query.contract && unionValues[i].includes(":");
           const unionType = query.contract || !sharedContract ? "contract" : "collection_id";
           const unionFilter = `${unionType}${i}`;
           (query as any)[unionFilter] =
