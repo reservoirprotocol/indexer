@@ -49,6 +49,7 @@ import * as joepeg from "@/events-sync/data/joepeg";
 import * as metadataUpdate from "@/events-sync/data/metadata-update";
 import * as soundxyz from "@/events-sync/data/soundxyz";
 import * as createdotfun from "@/events-sync/data/createdotfun";
+import * as erc721cV2 from "@/events-sync/data/erc721c-v2";
 import * as titlesxyz from "@/events-sync/data/titlesxyz";
 
 // All events we're syncing should have an associated `EventData`
@@ -102,6 +103,7 @@ export type EventKind =
   | "soundxyz"
   | "createdotfun"
   | "payment-processor-v2"
+  | "erc721c-v2"
   | "titlesxyz";
 
 // Event sub-kind in each of the above protocol/standard
@@ -334,7 +336,12 @@ export type EventSubKind =
   | "payment-processor-v2-payment-method-removed-from-whitelist"
   | "payment-processor-v2-updated-collection-level-pricing-boundaries"
   | "payment-processor-v2-updated-collection-payment-settings"
-  | "payment-processor-v2-updated-token-level-pricing-boundaries";
+  | "payment-processor-v2-updated-token-level-pricing-boundaries"
+  | "erc721c-v2-added-account-to-list"
+  | "erc721c-v2-added-code-hash-to-list"
+  | "erc721c-v2-removed-account-from-list"
+  | "erc721c-v2-removed-code-hash-from-list"
+  | "erc721c-v2-applied-list-to-collection";
 
 export type EventData = {
   kind: EventKind;
@@ -573,6 +580,11 @@ const allEventData = [
   paymentProcessorV2.updatedTokenLevelPricingBoundaries,
   paymentProcessorV2.updatedCollectionLevelPricingBoundaries,
   paymentProcessorV2.updatedCollectionPaymentSettings,
+  erc721cV2.addedAccountToList,
+  erc721cV2.addedCodeHashToList,
+  erc721cV2.removedAccountFromList,
+  erc721cV2.removedCodeHashFromList,
+  erc721cV2.appliedListToCollection,
 ];
 
 export const getEventData = (events?: string[]) => {

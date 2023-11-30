@@ -279,6 +279,10 @@ export const extractEventsBatches = async (
             data: kindToEvents.get("payment-processor-v2") ?? [],
           },
           {
+            kind: "erc721c-v2",
+            data: kindToEvents.get("erc721c-v2") ?? [],
+          },
+          {
             kind: "titlesxyz",
             data: kindToEvents.get("titlesxyz") ?? [],
           },

@@ -2129,14 +2129,17 @@ export const getExecuteBuyV7Options: RouteOptions = {
       await Promise.all(
         listingDetails.map(async (d) => {
           try {
-            const config = await erc721c.getERC721CConfigFromDB(d.contract);
-            if (config && [4, 6].includes(config.transferSecurityLevel)) {
-              const isVerified = await erc721c.isVerifiedEOA(
-                config.transferValidator,
-                payload.taker
-              );
+            const configV1 = await erc721c.v1.getConfig(d.contract);
+            const configV2 = await erc721c.v2.getConfig(d.contract);
+            if (
+              (configV1 && [4, 6].includes(configV1.transferSecurityLevel)) ||
+              (configV2 && [6, 8].includes(configV2.transferSecurityLevel))
+            ) {
+              const transferValidator = (configV1 ?? configV2)!.transferValidator;
+
+              const isVerified = await erc721c.isVerifiedEOA(transferValidator, payload.maker);
               if (!isVerified) {
-                unverifiedERC721CTransferValidators.push(config.transferValidator);
+                unverifiedERC721CTransferValidators.push(transferValidator);
               }
             }
           } catch {

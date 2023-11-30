@@ -12,7 +12,7 @@ import { config } from "@/config/index";
 import { getNetworkSettings, getSubDomain } from "@/config/network";
 import { OrderKind } from "@/orderbook/orders";
 import { getOrUpdateBlurRoyalties } from "@/utils/blur";
-import { checkMarketplaceIsFiltered } from "@/utils/erc721c";
+import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import * as registry from "@/utils/royalties/registry";
 import * as paymentProcessor from "@/utils/payment-processor";
