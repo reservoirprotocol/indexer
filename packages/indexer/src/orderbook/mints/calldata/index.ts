@@ -375,6 +375,8 @@ export const refreshMintsForCollection = async (collection: string) => {
         return mints.soundxyz.refreshByCollection(collection);
       case "thirdweb":
         return mints.thirdweb.refreshByCollection(collection);
+      case "titlesxyz":
+        return mints.titlesxyz.refreshByCollection(collection);
       case "unknown":
         return mints.generic.refreshByCollection(collection);
       case "zora":

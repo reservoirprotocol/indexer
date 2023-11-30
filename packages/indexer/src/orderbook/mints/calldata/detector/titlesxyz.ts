@@ -1,13 +1,17 @@
 import { Interface } from "@ethersproject/abi";
+import { BigNumber } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk";
 
 import { baseProvider } from "@/common/provider";
-import { CollectionMint } from "@/orderbook/mints";
 import { now } from "@/common/utils";
 import { config } from "@/config/index";
-import { BigNumber } from "ethers";
 import { Transaction } from "@/models/transactions";
+import {
+  CollectionMint,
+  getCollectionMints,
+  simulateAndUpsertCollectionMint,
+} from "@/orderbook/mints";
 
 const STANDARD = "titlesxyz";
 
@@ -35,7 +39,6 @@ const STANDARD = "titlesxyz";
 export const extractByCollectionERC721 = async (collection: string): Promise<CollectionMint[]> => {
   const results: CollectionMint[] = [];
 
-  // we will need info from collection about the projectId
   const contract = new Contract(
     collection,
     new Interface([
@@ -92,7 +95,7 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
     price: endPrice,
     maxSupply: maxSupply === "0" ? undefined : maxSupply,
     maxMintsPerWallet: mintLimitPerWallet === "0" ? undefined : mintLimitPerWallet,
-    endTime: endTime == 0 ? undefined : endTime,
+    endTime: endTime === 0 ? undefined : endTime,
   });
 
   return results;
@@ -110,4 +113,34 @@ export const extractByTx = async (
   }
 
   return [];
+};
+
+export const refreshByCollection = async (collection: string) => {
+  const existingCollectionMints = await getCollectionMints(collection, {
+    standard: STANDARD,
+  });
+
+  // Fetch and save/update the currently available mints
+  const latestCollectionMints = await extractByCollectionERC721(collection);
+  for (const collectionMint of latestCollectionMints) {
+    await simulateAndUpsertCollectionMint(collectionMint);
+  }
+
+  // Assume anything that exists in our system but was not returned
+  // in the above call is not available anymore so we can close
+  for (const existing of existingCollectionMints) {
+    if (
+      !latestCollectionMints.find(
+        (latest) =>
+          latest.collection === existing.collection &&
+          latest.stage === existing.stage &&
+          latest.tokenId === existing.tokenId
+      )
+    ) {
+      await simulateAndUpsertCollectionMint({
+        ...existing,
+        status: "closed",
+      });
+    }
+  }
 };
