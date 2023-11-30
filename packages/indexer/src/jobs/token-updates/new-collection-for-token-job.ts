@@ -225,7 +225,7 @@ export class NewCollectionForTokenJob extends AbstractRabbitMqJobHandler {
         SELECT owner 
         FROM nft_balances
         WHERE contract = $/contract/
-        AND token_id" = $/tokenId/
+        AND token_id = $/tokenId/
         AND amount > 0
       `,
         {
