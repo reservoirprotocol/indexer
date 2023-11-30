@@ -45,7 +45,7 @@ export class BeamMetadataProvider extends AbstractBaseMetadataProvider {
   }
 
   async _getTokensMetadata(tokens: { contract: string; tokenId: string }[]): Promise<TokenMetadata[]> {
-    const tokenQueries = tokens.map(({ contract, tokenId }) => `${contract}:${tokenId}`).join('&tokens=');
+    const tokenQueries = tokens.map(({ contract, tokenId }) => `${contract}:${tokenId}`).join(',');
     const url = `http://35.159.15.191:3000/metadata/tokens/${config.chainId}?tokens=${encodeURIComponent(tokenQueries)}`;
 
     try {
