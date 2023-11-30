@@ -14,24 +14,6 @@ if (process.env.DATADOG_AGENT_URL) {
     service,
     url: process.env.DATADOG_AGENT_URL,
     env: config.environment,
-    samplingRules: [
-      {
-        service: `${service}-postgres`,
-        sampleRate: 0,
-      },
-      {
-        service: `${service}-redis`,
-        sampleRate: 0,
-      },
-      {
-        service: `${service}-amqp`,
-        sampleRate: 0,
-      },
-      {
-        service: `${service}-elasticsearch`,
-        sampleRate: 0,
-      },
-    ],
   });
 
   tracer.use("hapi", {
@@ -39,19 +21,19 @@ if (process.env.DATADOG_AGENT_URL) {
   });
 
   tracer.use("ioredis", {
-    enabled: config.chainId === 137 ? true : false,
+    enabled: false,
   });
 
   tracer.use("amqplib", {
-    enabled: config.chainId === 137 ? true : false,
+    enabled: false,
   });
 
   tracer.use("pg", {
-    enabled: config.chainId === 137 ? true : false,
+    enabled: false,
   });
 
   tracer.use("elasticsearch", {
-    enabled: config.chainId === 137 ? true : false,
+    enabled: true,
   });
 }
 

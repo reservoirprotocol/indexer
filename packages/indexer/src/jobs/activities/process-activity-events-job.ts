@@ -40,7 +40,7 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
     const pendingActivitiesQueue = new PendingActivitiesQueue();
     const pendingActivityEventsQueue = new PendingActivityEventsQueue(eventKind);
 
-    const limit = Number(await redis.get(`${this.queueName}-limit`)) || 100;
+    const limit = Number(await redis.get(`${this.queueName}-${eventKind}-limit`)) || 100;
 
     const pendingActivityEvents = await pendingActivityEventsQueue.get(limit);
 
@@ -83,6 +83,18 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
 
         if (activities?.length) {
           await pendingActivitiesQueue.add(activities);
+        }
+
+        if (config.chainId === 1) {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              message: `debug process activity events. eventKind=${eventKind}, pendingActivityEvents=${pendingActivityEvents.length}, activities=${activities?.length}, limit=${limit}`,
+              tooManyActivities: activities?.length > pendingActivityEvents.length,
+              pendingActivityEvents:
+                activities?.length > pendingActivityEvents.length ? pendingActivityEvents : null,
+            })
+          );
         }
       } catch (error) {
         logger.error(

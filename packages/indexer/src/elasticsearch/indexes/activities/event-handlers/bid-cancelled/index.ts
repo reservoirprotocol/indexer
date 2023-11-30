@@ -72,6 +72,7 @@ export class BidCancelledEventHandler extends BidCreatedEventHandler {
                     JOIN tokens ON tokens.contract = token_sets_tokens.contract AND tokens.token_id = token_sets_tokens.token_id 
                     JOIN collections ON collections.id = tokens.collection_id
                     WHERE token_sets_tokens.token_set_id = orders.token_set_id AND token_sets_tokens.contract = orders.contract
+                    LIMIT 1
                  ) t ON TRUE
         LEFT JOIN LATERAL (
                     SELECT
