@@ -3,10 +3,12 @@ import { BigNumber } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk";
 
+import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { now } from "@/common/utils";
 import { config } from "@/config/index";
 import { Transaction } from "@/models/transactions";
+import { getStatus } from "@/orderbook/mints/calldata/helpers";
 import {
   CollectionMint,
   getCollectionMints,
@@ -51,52 +53,66 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
     baseProvider
   );
 
-  const [price, maxSupply, mintLimitPerWallet, endTime, derivativeFee]: [
-    BigNumber,
-    string,
-    string,
-    number,
-    BigNumber
-  ] = await Promise.all([
-    contract.price(),
-    contract.maxSupply().then((res: BigNumber) => res.toString()),
-    contract.mintLimitPerWallet().then((res: BigNumber) => res.toString()),
-    contract.saleEndTime().then((res: BigNumber) => res.toNumber()),
-    contract.DERIVATIVE_FEE(),
-  ]);
+  try {
+    const [price, maxSupply, mintLimitPerWallet, endTime, derivativeFee]: [
+      BigNumber,
+      string,
+      string,
+      number,
+      BigNumber
+    ] = await Promise.all([
+      contract.price(),
+      contract.maxSupply().then((res: BigNumber) => res.toString()),
+      contract.mintLimitPerWallet().then((res: BigNumber) => res.toString()),
+      contract.saleEndTime().then((res: BigNumber) => res.toNumber()),
+      contract.DERIVATIVE_FEE(),
+    ]);
 
-  const endPrice = price.add(derivativeFee).toString();
+    const endPrice = price.add(derivativeFee).toString();
 
-  const isOpen = endTime < now();
+    const isOpen = endTime < now();
 
-  results.push({
-    collection,
-    contract: collection,
-    stage: `public-sale-${collection}`,
-    kind: "public",
-    status: isOpen ? "open" : "closed",
-    standard: STANDARD,
-    details: {
-      tx: {
-        to: collection,
-        data: {
-          // "purchase"
-          signature: "0xefef39a1",
-          params: [
-            {
-              kind: "quantity",
-              abiType: "uint256",
-            },
-          ],
+    results.push({
+      collection,
+      contract: collection,
+      stage: `public-sale-${collection}`,
+      kind: "public",
+      status: isOpen ? "open" : "closed",
+      standard: STANDARD,
+      details: {
+        tx: {
+          to: collection,
+          data: {
+            // "purchase"
+            signature: "0xefef39a1",
+            params: [
+              {
+                kind: "quantity",
+                abiType: "uint256",
+              },
+            ],
+          },
         },
       },
-    },
-    currency: Sdk.Common.Addresses.Native[config.chainId],
-    price: endPrice,
-    maxSupply: maxSupply === "0" ? undefined : maxSupply,
-    maxMintsPerWallet: mintLimitPerWallet === "0" ? undefined : mintLimitPerWallet,
-    endTime: endTime === 0 ? undefined : endTime,
-  });
+      currency: Sdk.Common.Addresses.Native[config.chainId],
+      price: endPrice,
+      maxSupply: maxSupply === "0" ? undefined : maxSupply,
+      maxMintsPerWallet: mintLimitPerWallet === "0" ? undefined : mintLimitPerWallet,
+      endTime: endTime === 0 ? undefined : endTime,
+    });
+  } catch (error) {
+    logger.error("mint-detector", JSON.stringify({ kind: STANDARD, error }));
+  }
+
+  // Update the status of each collection mint
+  await Promise.all(
+    results.map(async (cm) => {
+      await getStatus(cm).then(({ status, reason }) => {
+        cm.status = status;
+        cm.statusReason = reason;
+      });
+    })
+  );
 
   return results;
 };
@@ -105,10 +121,11 @@ export const extractByTx = async (
   collection: string,
   tx: Transaction
 ): Promise<CollectionMint[]> => {
-  const iface = new Interface(["function purchase(uint256 quantity) external payable"]);
-
-  const result = iface.parseTransaction({ data: tx.data });
-  if (result) {
+  if (
+    [
+      "0xefef39a1", // `purchase`
+    ].some((bytes4) => tx.data.startsWith(bytes4))
+  ) {
     return extractByCollectionERC721(collection);
   }
 
