@@ -85,7 +85,7 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
           await pendingActivitiesQueue.add(activities);
         }
 
-        if (config.chainId === 1) {
+        if (config.chainId === 1 && eventKind === "newBuyOrder") {
           logger.info(
             this.queueName,
             JSON.stringify({
