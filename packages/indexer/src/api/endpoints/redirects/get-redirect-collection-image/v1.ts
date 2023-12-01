@@ -3,9 +3,9 @@
 import _ from "lodash";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
+import * as Boom from "@hapi/boom";
 
 import { Collections } from "@/models/collections";
-import * as Boom from "@hapi/boom";
 import { regex } from "@/common/utils";
 import { Assets } from "@/utils/assets";
 
