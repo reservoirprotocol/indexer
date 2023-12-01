@@ -7,7 +7,7 @@ import { redis, redlock } from "@/common/redis";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
 import { PendingActivityEventsQueue } from "@/elasticsearch/indexes/activities/pending-activity-events-queue";
-import { EventKind } from "@/jobs/activities/process-activity-event-job";
+import { EventKind } from "@/jobs/elasticsearch/activities/process-activity-event-job";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import {
   NftTransferEventInfo,
@@ -83,18 +83,6 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
 
         if (activities?.length) {
           await pendingActivitiesQueue.add(activities);
-        }
-
-        if (config.chainId === 1) {
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              message: `debug process activity events. eventKind=${eventKind}, pendingActivityEvents=${pendingActivityEvents.length}, activities=${activities?.length}, limit=${limit}`,
-              tooManyActivities: activities?.length > pendingActivityEvents.length,
-              pendingActivityEvents:
-                activities?.length > pendingActivityEvents.length ? pendingActivityEvents : null,
-            })
-          );
         }
       } catch (error) {
         logger.error(

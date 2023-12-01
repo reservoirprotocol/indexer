@@ -5,6 +5,7 @@ import { Collections } from "@/models/collections";
 import _ from "lodash";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import { ActivitiesCollectionUpdateData } from "@/elasticsearch/indexes/activities";
+import { logger } from "@/common/logger";
 
 export type RefreshActivitiesCollectionMetadataJobPayload = {
   collectionId: string;
@@ -39,6 +40,21 @@ export default class RefreshActivitiesCollectionMetadataJob extends AbstractRabb
 
       if (keepGoing) {
         addToQueue = true;
+      }
+
+      if (config.chainId === 1) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "updateActivitiesCollectionMetadata",
+            message: `updateActivitiesTokenMetadata! collectionId=${collectionId}, collectionUpdateData=${JSON.stringify(
+              collectionUpdateData
+            )}`,
+            payload,
+            collectionUpdateData,
+            keepGoing,
+          })
+        );
       }
 
       return { addToQueue };

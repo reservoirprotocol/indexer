@@ -14,7 +14,7 @@ import * as es from "@/events-sync/storage";
 import * as syncEventsUtils from "@/events-sync/utilsV2";
 import * as blocksModel from "@/models/blocks";
 
-import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
+import { removeUnsyncedEventsActivitiesJob } from "@/jobs/elasticsearch/activities/remove-unsynced-events-activities-job";
 import { blockCheckJob } from "@/jobs/events-sync/block-check-queue-job";
 import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
 
