@@ -20,6 +20,7 @@ import {
   metadataIndexFetchJob,
   MetadataIndexFetchJobPayload,
 } from "@/jobs/metadata-index/metadata-fetch-job";
+import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
 import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
 import { blurBidsRefreshJob } from "@/jobs/order-updates/misc/blur-bids-refresh-job";
 import { blurListingsRefreshJob } from "@/jobs/order-updates/misc/blur-listings-refresh-job";
@@ -102,6 +103,9 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
       }
 
       const currentUtcTime = new Date().toISOString();
+
+      // Refresh collection mints
+      await mintsRefreshJob.addToQueue({ collection: collection.id });
 
       if (payload.metadataOnly) {
         // Refresh the collection metadata
