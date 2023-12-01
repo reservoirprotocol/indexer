@@ -84,6 +84,18 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
         if (activities?.length) {
           await pendingActivitiesQueue.add(activities);
         }
+
+        if (config.chainId === 1) {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              message: `debug process activity events. eventKind=${eventKind}, pendingActivityEvents=${pendingActivityEvents.length}, activities=${activities?.length}, limit=${limit}`,
+              tooManyActivities: activities?.length > pendingActivityEvents.length,
+              pendingActivityEvents:
+                activities?.length > pendingActivityEvents.length ? pendingActivityEvents : null,
+            })
+          );
+        }
       } catch (error) {
         logger.error(
           this.queueName,
