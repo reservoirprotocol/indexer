@@ -1586,37 +1586,41 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
           await Promise.all(
             payload.alternativeCurrencies.map(async (c: string) => {
-              const [currency, chainId] = c.split(":");
-              if (Number(chainId) === config.chainId) {
-                item.buyIn!.push(
-                  await getJoiPriceObject(
-                    {
-                      gross: { amount: item.rawQuote },
-                    },
-                    item.currency,
-                    currency
-                  )
-                );
-              } else {
-                if (currency !== Sdk.Common.Addresses.Native[Number(chainId)]) {
-                  throw Boom.badRequest("Unsupported alternative currency");
-                }
+              try {
+                const [currency, chainId] = c.split(":");
+                if (Number(chainId) === config.chainId) {
+                  item.buyIn!.push(
+                    await getJoiPriceObject(
+                      {
+                        gross: { amount: item.rawQuote },
+                      },
+                      item.currency,
+                      currency
+                    )
+                  );
+                } else {
+                  if (currency !== Sdk.Common.Addresses.Native[Number(chainId)]) {
+                    throw Boom.badRequest("Unsupported alternative currency");
+                  }
 
-                const { quote } = await getCrossChainQuote(Number(chainId), item);
-                item.buyIn!.push(
-                  await getJoiPriceObject(
-                    {
-                      gross: { amount: quote },
-                    },
-                    currency
-                  ).then((p) => ({
-                    ...p,
-                    currency: {
-                      ...p.currency,
-                      chainId: Number(chainId),
-                    },
-                  }))
-                );
+                  const { quote } = await getCrossChainQuote(Number(chainId), item);
+                  item.buyIn!.push(
+                    await getJoiPriceObject(
+                      {
+                        gross: { amount: quote },
+                      },
+                      currency
+                    ).then((p) => ({
+                      ...p,
+                      currency: {
+                        ...p.currency,
+                        chainId: Number(chainId),
+                      },
+                    }))
+                  );
+                }
+              } catch {
+                // Skip errors
               }
             })
           );

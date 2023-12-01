@@ -100,6 +100,7 @@ export const MintModule: ChainIdToAddress = {
   [Network.BaseGoerli]: "0xe3de16f7ed5a124686cc27571898e394959e8b39",
   [Network.Zora]: "0xe3de16f7ed5a124686cc27571898e394959e8b39",
   [Network.Avalanche]: "0x849ef788b40af342e2883c3112dd636f03a4203e",
+  [Network.Polygon]: "0x849ef788b40af342e2883c3112dd636f03a4203e",
   [Network.PolygonZkevm]: "0x849ef788b40af342e2883c3112dd636f03a4203e",
   [Network.Ancient8Testnet]: "0xe3de16f7ed5a124686cc27571898e394959e8b39",
   [Network.Scroll]: "0xe3de16f7ed5a124686cc27571898e394959e8b39",

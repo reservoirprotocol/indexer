@@ -3,6 +3,7 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 import { regex, toBuffer } from "@/common/utils";
 import { Collections } from "@/models/collections";
 import _ from "lodash";
+import { config } from "@/config/index";
 
 export type ResyncUserCollectionsJobPayload = {
   user: string;
@@ -25,7 +26,7 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
     let newBalanceResults;
     let isSpam;
 
-    if (!collectionId) {
+    if (config.chainId === 137 && collectionId === "0xcf2576238640a3a232fa6046d549dfb753a805f4") {
       return;
     }
 

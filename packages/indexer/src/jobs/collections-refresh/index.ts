@@ -9,7 +9,7 @@ import { collectionRefreshSpamJob } from "@/jobs/collections-refresh/collections
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork && getNetworkSettings().enableMetadataAutoRefresh) {
-  cron.schedule("30 23 * * *", async () => {
+  cron.schedule("0 23 * * *", async () => {
     try {
       if (await acquireLock("daily-collections-metadata-refresh", 10)) {
         logger.info("daily-collections-refresh", "Starting refresh collections metadata");
