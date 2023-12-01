@@ -9,7 +9,7 @@ import { logger } from "@/common/logger";
 
 import { ArchiveInterface } from "@/jobs/data-archive/archive-classes/archive-interface";
 import { PendingExpiredBidActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-expired-bid-activities-queue";
-import { deleteArchivedExpiredBidActivitiesJob } from "@/jobs/activities/delete-archived-expired-bid-activities-job";
+import { deleteArchivedExpiredBidActivitiesJob } from "@/jobs/elasticsearch/activities/delete-archived-expired-bid-activities-job";
 
 export class ArchiveBidOrders implements ArchiveInterface {
   static tableName = "orders";

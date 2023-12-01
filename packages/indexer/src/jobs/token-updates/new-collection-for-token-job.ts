@@ -12,7 +12,7 @@ import { collectionFloorJob } from "@/jobs/collection-updates/collection-floor-q
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { Collections } from "@/models/collections";
 import { updateCollectionDailyVolumeJob } from "@/jobs/collection-updates/update-collection-daily-volume-job";
-import { replaceActivitiesCollectionJob } from "@/jobs/activities/replace-activities-collection-job";
+import { replaceActivitiesCollectionJob } from "@/jobs/elasticsearch/activities/replace-activities-collection-job";
 import _ from "lodash";
 import * as royalties from "@/utils/royalties";
 import * as marketplaceFees from "@/utils/marketplace-fees";

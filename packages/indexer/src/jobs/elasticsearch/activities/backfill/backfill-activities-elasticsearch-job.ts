@@ -5,7 +5,7 @@ import { elasticsearch } from "@/common/elasticsearch";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
-import { backfillSaveActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-save-activities-elasticsearch-job";
+import { backfillSaveActivitiesElasticsearchJob } from "@/jobs/elasticsearch/activities/backfill/backfill-save-activities-elasticsearch-job";
 
 import * as CONFIG from "@/elasticsearch/indexes/activities/config";
 import { getNetworkName } from "@/config/network";

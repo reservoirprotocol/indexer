@@ -10,7 +10,7 @@ import {
   EventKind as ProcessActivityEventKind,
   processActivityEventJob,
   ProcessActivityEventJobPayload,
-} from "@/jobs/activities/process-activity-event-job";
+} from "@/jobs/elasticsearch/activities/process-activity-event-job";
 import { nftBalanceUpdateFloorAskJob } from "@/jobs/nft-balance-updates/update-floor-ask-price-job";
 import { TriggerKind } from "@/jobs/order-updates/types";
 import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";

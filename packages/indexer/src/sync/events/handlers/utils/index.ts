@@ -21,7 +21,7 @@ import {
   processActivityEventJob,
   EventKind as ProcessActivityEventKind,
   ProcessActivityEventJobPayload,
-} from "@/jobs/activities/process-activity-event-job";
+} from "@/jobs/elasticsearch/activities/process-activity-event-job";
 import { fillUpdatesJob, FillUpdatesJobPayload } from "@/jobs/fill-updates/fill-updates-job";
 import { fillPostProcessJob } from "@/jobs/fill-updates/fill-post-process-job";
 import { mintsProcessJob, MintsProcessJobPayload } from "@/jobs/mints/mints-process-job";

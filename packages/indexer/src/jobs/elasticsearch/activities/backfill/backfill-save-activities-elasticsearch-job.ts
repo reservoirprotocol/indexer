@@ -8,7 +8,7 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 import {
   OrderCursorInfo,
   EventCursorInfo,
-} from "@/jobs/activities/backfill/backfill-activities-elasticsearch-job";
+} from "@/jobs/elasticsearch/activities/backfill/backfill-activities-elasticsearch-job";
 import { AskCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-created";
 import { elasticsearch } from "@/common/elasticsearch";
 import { AskCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-cancelled";

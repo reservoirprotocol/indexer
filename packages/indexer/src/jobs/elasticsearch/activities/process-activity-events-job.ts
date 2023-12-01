@@ -7,7 +7,7 @@ import { redis, redlock } from "@/common/redis";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
 import { PendingActivityEventsQueue } from "@/elasticsearch/indexes/activities/pending-activity-events-queue";
-import { EventKind } from "@/jobs/activities/process-activity-event-job";
+import { EventKind } from "@/jobs/elasticsearch/activities/process-activity-event-job";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import {
   NftTransferEventInfo,

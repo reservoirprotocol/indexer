@@ -22,7 +22,7 @@ import {
 import { getNetworkName, getNetworkSettings } from "@/config/network";
 import _ from "lodash";
 import { buildContinuation, splitContinuation } from "@/common/utils";
-import { backfillActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-activities-elasticsearch-job";
+import { backfillActivitiesElasticsearchJob } from "@/jobs/elasticsearch/activities/backfill/backfill-activities-elasticsearch-job";
 
 import * as CONFIG from "@/elasticsearch/indexes/activities/config";
 import { ElasticMintResult } from "@/api/endpoints/collections/get-trending-mints/interfaces";

@@ -11,8 +11,8 @@ import {
 } from "@/jobs/websocket-events/websocket-event-router";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { refreshAsksCollectionJob } from "@/jobs/asks/refresh-asks-collection-job";
-import { refreshActivitiesCollectionMetadataJob } from "@/jobs/activities/refresh-activities-collection-metadata-job";
+import { refreshAsksCollectionJob } from "@/jobs/elasticsearch/asks/refresh-asks-collection-job";
+import { refreshActivitiesCollectionMetadataJob } from "@/jobs/elasticsearch/activities/refresh-activities-collection-metadata-job";
 import {
   EventKind,
   processCollectionEventJob,
