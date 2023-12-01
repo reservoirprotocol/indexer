@@ -19,6 +19,7 @@ import * as marketplaceFees from "@/utils/marketplace-fees";
 import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 import PgPromise from "pg-promise";
 import { resyncUserCollectionsJob } from "@/jobs/nft-balance-updates/reynsc-user-collections-job";
+import { updateUserCollectionsJob } from "@/jobs/nft-balance-updates/update-user-collections-job";
 
 export type NewCollectionForTokenJobPayload = {
   contract: string;
@@ -222,7 +223,7 @@ export class NewCollectionForTokenJob extends AbstractRabbitMqJobHandler {
       // Resync owners collections count
       const results = await ridb.manyOrNone(
         `
-        SELECT owner 
+        SELECT owner, amount
         FROM nft_balances
         WHERE contract = $/contract/
         AND token_id = $/tokenId/
@@ -240,7 +241,14 @@ export class NewCollectionForTokenJob extends AbstractRabbitMqJobHandler {
 
           await Promise.all([
             resyncUserCollectionsJob.addToQueue({ user, collectionId: oldCollectionId }),
-            resyncUserCollectionsJob.addToQueue({ user, collectionId: collection.id }),
+            await updateUserCollectionsJob.addToQueue([
+              {
+                toAddress: user,
+                contract,
+                tokenId,
+                amount: result.amount,
+              },
+            ]),
           ]);
         }
       }

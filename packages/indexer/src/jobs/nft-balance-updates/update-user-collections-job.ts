@@ -9,7 +9,7 @@ import { Tokens } from "@/models/tokens";
 import { Collections } from "@/models/collections";
 
 export type UpdateUserCollectionsJobPayload = {
-  fromAddress: string;
+  fromAddress?: string;
   toAddress: string;
   contract: string;
   tokenId: string;
@@ -19,7 +19,7 @@ export type UpdateUserCollectionsJobPayload = {
 export default class UpdateUserCollectionsJob extends AbstractRabbitMqJobHandler {
   queueName = "user-collections";
   maxRetries = 15;
-  concurrency = 15;
+  concurrency = 10;
   lazyMode = true;
   backoff = {
     type: "exponential",
@@ -61,7 +61,7 @@ export default class UpdateUserCollectionsJob extends AbstractRabbitMqJobHandler
     }
 
     // Don't update transfer from zero
-    if (fromAddress !== AddressZero) {
+    if (fromAddress && fromAddress !== AddressZero) {
       queries.push(`
         INSERT INTO user_collections (owner, collection_id, contract, token_count, is_spam)
         VALUES ($/fromAddress/, $/collection/, $/contract/, $/amount/, $/isSpam/)
@@ -82,7 +82,7 @@ export default class UpdateUserCollectionsJob extends AbstractRabbitMqJobHandler
 
     if (!_.isEmpty(queries)) {
       await idb.none(pgp.helpers.concat(queries), {
-        fromAddress: toBuffer(fromAddress),
+        fromAddress: fromAddress ? toBuffer(fromAddress) : "",
         toAddress: toBuffer(toAddress),
         collection: collection.id,
         contract: toBuffer(contract),
