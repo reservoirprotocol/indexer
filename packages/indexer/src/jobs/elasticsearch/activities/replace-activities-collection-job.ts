@@ -49,7 +49,7 @@ export default class ReplaceActivitiesCollectionJob extends AbstractRabbitMqJobH
       logger.info(
         this.queueName,
         JSON.stringify({
-          topic: "updateActivitiesCollection",
+          topic: "debugActivitiesErrors",
           message: `updateActivitiesCollection! collectionId=${newCollectionId}, oldCollectionId=${oldCollectionId}`,
           payload,
           collection,
