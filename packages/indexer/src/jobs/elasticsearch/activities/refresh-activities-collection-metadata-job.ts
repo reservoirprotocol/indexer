@@ -46,9 +46,7 @@ export default class RefreshActivitiesCollectionMetadataJob extends AbstractRabb
         this.queueName,
         JSON.stringify({
           topic: "updateActivitiesCollectionMetadata",
-          message: `updateActivitiesTokenMetadata! collectionId=${collectionId}, collectionUpdateData=${JSON.stringify(
-            collectionUpdateData
-          )}`,
+          message: `updateActivitiesTokenMetadata! collectionId=${collectionId}`,
           payload,
           collection,
           collectionUpdateData,

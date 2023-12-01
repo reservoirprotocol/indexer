@@ -2,6 +2,7 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { config } from "@/config/index";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { Collections } from "@/models/collections";
+import { logger } from "@/common/logger";
 
 export type ReplaceActivitiesCollectionJobPayload = {
   contract: string;
@@ -44,6 +45,17 @@ export default class ReplaceActivitiesCollectionJob extends AbstractRabbitMqJobH
       if (keepGoing) {
         await this.addToQueue(payload, true);
       }
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "updateActivitiesCollection",
+          message: `updateActivitiesCollection! collectionId=${newCollectionId}, oldCollectionId=${oldCollectionId}`,
+          payload,
+          collection,
+          keepGoing,
+        })
+      );
     }
   }
 
