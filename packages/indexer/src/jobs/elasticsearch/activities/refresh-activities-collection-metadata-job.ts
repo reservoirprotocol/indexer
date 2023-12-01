@@ -42,20 +42,19 @@ export default class RefreshActivitiesCollectionMetadataJob extends AbstractRabb
         addToQueue = true;
       }
 
-      if (config.chainId === 1) {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "updateActivitiesCollectionMetadata",
-            message: `updateActivitiesTokenMetadata! collectionId=${collectionId}, collectionUpdateData=${JSON.stringify(
-              collectionUpdateData
-            )}`,
-            payload,
-            collectionUpdateData,
-            keepGoing,
-          })
-        );
-      }
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "updateActivitiesCollectionMetadata",
+          message: `updateActivitiesTokenMetadata! collectionId=${collectionId}, collectionUpdateData=${JSON.stringify(
+            collectionUpdateData
+          )}`,
+          payload,
+          collection,
+          collectionUpdateData,
+          keepGoing,
+        })
+      );
 
       return { addToQueue };
     }
