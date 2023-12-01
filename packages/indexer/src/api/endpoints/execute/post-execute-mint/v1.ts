@@ -723,16 +723,6 @@ export const postExecuteMintV1Options: RouteOptions = {
         }
       }
 
-      // Add fees on top
-      for (const md of mintDetails) {
-        for (const fee of globalFees) {
-          md.fees.push({
-            recipient: fee.recipient,
-            amount: bn(fee.amount).div(mintDetails.length).toString(),
-          });
-        }
-      }
-
       const getCrossChainQuote = async (
         chainId: number,
         item: (typeof path)[0],
@@ -832,26 +822,27 @@ export const postExecuteMintV1Options: RouteOptions = {
 
           await Promise.all(
             payload.alternativeCurrencies.map(async (c: string) => {
-              const [currency, chainId] = c.split(":");
-              if (currency !== Sdk.Common.Addresses.Native[Number(chainId)]) {
-                throw Boom.badRequest("Unsupported alternative currency");
-              }
+              try {
+                const [currency, chainId] = c.split(":");
 
-              const { quote } = await getCrossChainQuote(Number(chainId), item);
-              item.buyIn!.push(
-                await getJoiPriceObject(
-                  {
-                    gross: { amount: quote },
-                  },
-                  currency
-                ).then((p) => ({
-                  ...p,
-                  currency: {
-                    ...p.currency,
-                    chainId: Number(chainId),
-                  },
-                }))
-              );
+                const { quote } = await getCrossChainQuote(Number(chainId), item);
+                item.buyIn!.push(
+                  await getJoiPriceObject(
+                    {
+                      gross: { amount: quote },
+                    },
+                    currency
+                  ).then((p) => ({
+                    ...p,
+                    currency: {
+                      ...p.currency,
+                      chainId: Number(chainId),
+                    },
+                  }))
+                );
+              } catch {
+                // Skip errors
+              }
             })
           );
         }
