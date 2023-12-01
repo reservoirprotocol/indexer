@@ -1415,7 +1415,7 @@ export const updateActivitiesCollection = async (
           "elasticsearch-activities",
           JSON.stringify({
             topic: "debugActivitiesErrors",
-            message: `bulkSuccess`,
+            message: `updateActivitiesCollection - bulkSuccess`,
             contract,
             tokenId,
             newCollection,
@@ -2006,7 +2006,7 @@ export const updateActivitiesCollectionData = async (
           "elasticsearch-activities",
           JSON.stringify({
             topic: "debugActivitiesErrors",
-            message: `bulkSuccess. collectionId=${collectionId}`,
+            message: `updateActivitiesCollectionData - bulkSuccess. collectionId=${collectionId}`,
             collectionId,
             collectionData,
             pendingUpdateDocumentsCount: pendingUpdateDocuments.length,

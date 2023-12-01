@@ -4,6 +4,7 @@ import { regex, toBuffer } from "@/common/utils";
 import { Collections } from "@/models/collections";
 import _ from "lodash";
 import { config } from "@/config/index";
+import { getNetworkSettings } from "@/config/network";
 
 export type ResyncUserCollectionsJobPayload = {
   user: string;
@@ -122,6 +123,10 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
 
   public async addToQueue(payload: ResyncUserCollectionsJobPayload, delay = 0) {
     if (!payload.collectionId) {
+      return;
+    }
+
+    if (_.includes(getNetworkSettings().burnAddresses, payload.user)) {
       return;
     }
 
