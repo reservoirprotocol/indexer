@@ -4,13 +4,10 @@ import _ from "lodash";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
-import { logger } from "@/common/logger";
 import { Collections } from "@/models/collections";
 import * as Boom from "@hapi/boom";
 import { regex } from "@/common/utils";
 import { Assets } from "@/utils/assets";
-
-const version = "v1";
 
 export const getRedirectCollectionImageV1Options: RouteOptions = {
   cache: {
@@ -38,21 +35,18 @@ export const getRedirectCollectionImageV1Options: RouteOptions = {
   },
   handler: async (request: Request, response) => {
     const params = request.params as any;
-    try {
-      const collection = await Collections.getById(params.collection, true);
 
-      if (_.isNull(collection) || _.isNull(collection.metadata)) {
-        throw Boom.badData(`Collection ${params.collection} not found`);
-      }
+    const collection = await Collections.getById(params.collection, true);
 
-      const imageWithQueryParams = Assets.addImageParams(
-        collection.metadata.imageUrl ?? "",
-        request.query
-      );
-      return response.redirect(imageWithQueryParams).header("cache-control", `${1000 * 60}`);
-    } catch (error) {
-      logger.error(`get-redirect-collection-image-${version}-handler`, `Handler failure: ${error}`);
-      throw error;
+    if (_.isNull(collection) || _.isNull(collection.metadata?.imageUrl)) {
+      throw Boom.badData(`Collection ${params.collection} not found`);
     }
+
+    const imageWithQueryParams = Assets.addImageParams(
+      collection.metadata.imageUrl ?? "",
+      request.query
+    );
+
+    return response.redirect(imageWithQueryParams).header("cache-control", `${1000 * 60}`);
   },
 };
