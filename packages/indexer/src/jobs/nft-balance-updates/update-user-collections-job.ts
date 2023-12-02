@@ -1,4 +1,4 @@
-import { idb, pgp } from "@/common/db";
+import { edb, pgp } from "@/common/db";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { toBuffer } from "@/common/utils";
 import { AddressZero } from "@ethersproject/constants";
@@ -7,6 +7,7 @@ import _ from "lodash";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { Tokens } from "@/models/tokens";
 import { Collections } from "@/models/collections";
+import { config } from "@/config/index";
 
 export type UpdateUserCollectionsJobPayload = {
   fromAddress?: string;
@@ -19,7 +20,7 @@ export type UpdateUserCollectionsJobPayload = {
 export default class UpdateUserCollectionsJob extends AbstractRabbitMqJobHandler {
   queueName = "user-collections";
   maxRetries = 15;
-  concurrency = 10;
+  concurrency = config.chainId === 56 ? 1 : 5;
   lazyMode = true;
   backoff = {
     type: "exponential",
@@ -30,13 +31,13 @@ export default class UpdateUserCollectionsJob extends AbstractRabbitMqJobHandler
     const { fromAddress, toAddress, contract, tokenId, amount } = payload;
     const queries = [];
 
-    // Get the collection by token range
-    let collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
+    // Try to get the collection from the token record
+    let collection = await Tokens.getCollection(contract, tokenId);
 
     // If no collection found throw an error to trigger a retry
     if (!collection) {
-      // Try to get the collection from the token record
-      collection = await Tokens.getCollection(contract, tokenId);
+      // Get the collection by token range
+      collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
 
       if (!collection) {
         // Try refreshing the token
@@ -81,7 +82,7 @@ export default class UpdateUserCollectionsJob extends AbstractRabbitMqJobHandler
     }
 
     if (!_.isEmpty(queries)) {
-      await idb.none(pgp.helpers.concat(queries), {
+      await edb.none(pgp.helpers.concat(queries), {
         fromAddress: fromAddress ? toBuffer(fromAddress) : "",
         toAddress: toBuffer(toAddress),
         collection: collection.id,

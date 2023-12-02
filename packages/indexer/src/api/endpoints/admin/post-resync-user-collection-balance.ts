@@ -27,10 +27,12 @@ export const postResyncUserCollectionBalance: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      await resyncUserCollectionsJob.addToQueue({
-        user: payload.user,
-        collectionId: payload.collection,
-      });
+      await resyncUserCollectionsJob.addToQueue([
+        {
+          user: payload.user,
+          collectionId: payload.collection,
+        },
+      ]);
 
       return {
         message: `Triggered balance resync for user ${payload.user} in collection ${payload.collection}`,

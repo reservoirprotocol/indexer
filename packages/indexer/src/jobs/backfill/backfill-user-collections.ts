@@ -74,10 +74,12 @@ export class BackfillUserCollectionsJob extends AbstractRabbitMqJobHandler {
 
         if (await acquireLock(lock, 60 * 60 * 6)) {
           // Trigger resync for the user in the collection
-          await resyncUserCollectionsJob.addToQueue({
-            user: fromBuffer(result.owner),
-            collectionId: result.collection_id,
-          });
+          await resyncUserCollectionsJob.addToQueue([
+            {
+              user: fromBuffer(result.owner),
+              collectionId: result.collection_id,
+            },
+          ]);
         }
       }
     }

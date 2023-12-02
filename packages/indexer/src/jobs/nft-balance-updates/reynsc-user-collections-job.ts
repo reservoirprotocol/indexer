@@ -121,16 +121,16 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
     }
   }
 
-  public async addToQueue(payload: ResyncUserCollectionsJobPayload, delay = 0) {
-    if (!payload.collectionId) {
-      return;
-    }
+  public async addToQueue(payload: ResyncUserCollectionsJobPayload[], delay = 0) {
+    const filteredPayload = payload.filter(
+      (p) => p.collectionId && !_.includes(getNetworkSettings().burnAddresses, p.user)
+    );
 
-    if (_.includes(getNetworkSettings().burnAddresses, payload.user)) {
-      return;
+    if (!_.isEmpty(filteredPayload)) {
+      await this.sendBatch(
+        filteredPayload.map((p) => ({ payload: p, jobId: `${p.user}:${p.collectionId}`, delay }))
+      );
     }
-
-    await this.send({ payload, jobId: `${payload.user}:${payload.collectionId}` }, delay);
   }
 }
 
