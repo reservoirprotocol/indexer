@@ -48,6 +48,7 @@ export default class RefreshActivitiesCollectionMetadataJob extends AbstractRabb
           topic: "debugActivitiesErrors",
           message: `updateActivitiesCollectionMetadata! collectionId=${collectionId}`,
           payload,
+          collectionId,
           collection,
           collectionUpdateData,
           keepGoing,

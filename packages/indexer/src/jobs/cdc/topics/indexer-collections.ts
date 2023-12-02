@@ -109,6 +109,15 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
 
       // Update the elasticsearch activities index
       if (spamStatusChanged) {
+        logger.info(
+          "cdc-indexer-collections",
+          JSON.stringify({
+            topic: "debugActivitiesErrors",
+            message: `spamStatusChanged. collectionId=${payload.after.id}, before=${payload.before.is_spam}, after=${payload.after.is_spam}`,
+            collectionId: payload.after.id,
+          })
+        );
+
         await refreshActivitiesCollectionMetadataJob.addToQueue({
           collectionId: payload.after.id,
           context: "spamStatusChanged",
