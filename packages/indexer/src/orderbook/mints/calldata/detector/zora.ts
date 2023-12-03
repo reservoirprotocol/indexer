@@ -16,7 +16,7 @@ import {
   simulateAndUpsertCollectionMint,
 } from "@/orderbook/mints";
 import { AllowlistItem, allowlistExists, createAllowlist } from "@/orderbook/mints/allowlists";
-import { getStatus, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
+import { getStatus, toSafeNumber, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
 import { getContractKind } from "@/orderbook/orders/common/helpers";
 
 const STANDARD = "zora";
@@ -113,8 +113,8 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
         },
         currency: Sdk.Common.Addresses.Native[config.chainId],
         price,
-        maxMintsPerWallet: saleDetails.maxSalePurchasePerAddress.toString(),
-        maxSupply: saleDetails.maxSupply.toString(),
+        maxMintsPerWallet: toSafeNumber(saleDetails.maxSalePurchasePerAddress),
+        maxSupply: toSafeNumber(saleDetails.maxSupply),
         startTime: toSafeTimestamp(saleDetails.publicSaleStart),
         endTime: toSafeTimestamp(saleDetails.publicSaleEnd),
       });
@@ -212,7 +212,7 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
           },
         },
         currency: Sdk.Common.Addresses.Native[config.chainId],
-        maxSupply: saleDetails.maxSupply.toString(),
+        maxSupply: toSafeNumber(saleDetails.maxSupply),
         startTime: toSafeTimestamp(saleDetails.presaleStart),
         endTime: toSafeTimestamp(saleDetails.presaleEnd),
         allowlistId: merkleRoot,
@@ -389,13 +389,11 @@ export const extractByCollectionERC1155 = async (
                       },
               },
             },
+            tokenId,
             currency: Sdk.Common.Addresses.Native[config.chainId],
             price,
-            maxMintsPerWallet: bn(saleConfig.maxTokensPerAddress).gt(0)
-              ? saleConfig.maxTokensPerAddress.toString()
-              : undefined,
-            tokenId,
-            maxSupply: tokenInfo.maxSupply.toString(),
+            maxMintsPerWallet: toSafeNumber(saleConfig.maxTokensPerAddress),
+            maxSupply: toSafeNumber(tokenInfo.maxSupply),
             startTime: toSafeTimestamp(saleConfig.saleStart),
             endTime: toSafeTimestamp(saleConfig.saleEnd),
           });
@@ -513,7 +511,7 @@ export const extractByCollectionERC1155 = async (
               },
             },
             currency: Sdk.Common.Addresses.Native[config.chainId],
-            maxSupply: tokenInfo.maxSupply.toString(),
+            maxSupply: toSafeNumber(tokenInfo.maxSupply),
             startTime: toSafeTimestamp(saleConfig.presaleStart),
             endTime: toSafeTimestamp(saleConfig.presaleEnd),
             allowlistId: merkleRoot,

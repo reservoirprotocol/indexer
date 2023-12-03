@@ -3,8 +3,10 @@ import { BigNumber } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk";
 
+import { idb, ridb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
 import { redis } from "@/common/redis";
+import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
 export enum PaymentSettings {
@@ -21,6 +23,7 @@ export type CollectionPaymentSettings = {
   royaltyBackfillNumerator: number;
   royaltyBountyNumerator: number;
   isRoyaltyBountyExclusive: boolean;
+  blockTradesFromUntrustedChannels: boolean;
   pricingBounds?: PricingBounds;
 };
 
@@ -51,6 +54,7 @@ export const getCollectionPaymentSettings = async (
               uint16 royaltyBackfillNumerator,
               uint16 royaltyBountyNumerator,
               bool isRoyaltyBountyExclusive,
+              bool blockTradesFromUntrustedChannels
             )
           )`,
         ]),
@@ -65,6 +69,7 @@ export const getCollectionPaymentSettings = async (
         royaltyBackfillNumerator: paymentSettings.royaltyBackfillNumerator,
         royaltyBountyNumerator: paymentSettings.royaltyBountyNumerator,
         isRoyaltyBountyExclusive: paymentSettings.isRoyaltyBountyExclusive,
+        blockTradesFromUntrustedChannels: paymentSettings.blockTradesFromUntrustedChannels,
       };
 
       if (result?.paymentSettings === PaymentSettings.PricingConstraints) {
@@ -88,4 +93,57 @@ export const getCollectionPaymentSettings = async (
   }
 
   return result;
+};
+
+export const addTrustedChannel = async (tokenAddress: string, channel: string, signer: string) =>
+  idb.none(
+    `
+      INSERT INTO payment_processor_v2_trusted_channels (
+        contract,
+        channel,
+        signer
+      ) VALUES (
+        $/tokenAddress/,
+        $/channel/,
+        $/signer/
+      ) ON CONFLICT DO NOTHING
+    `,
+    {
+      tokenAddress: toBuffer(tokenAddress),
+      channel: toBuffer(channel),
+      signer: toBuffer(signer),
+    }
+  );
+
+export const removeTrustedChannel = async (tokenAddress: string, channel: string) =>
+  idb.none(
+    `
+      DELETE FROM payment_processor_v2_trusted_channels
+      WHERE payment_processor_v2_trusted_channels.contract = $/tokenAddress/
+        AND payment_processor_v2_trusted_channels.channel = $/channel/
+    `,
+    {
+      tokenAddress: toBuffer(tokenAddress),
+      channel: toBuffer(channel),
+    }
+  );
+
+export const getAllTrustedChannels = async (tokenAddress: string) => {
+  const results = await ridb.manyOrNone(
+    `
+      SELECT
+        payment_processor_v2_trusted_channels.channel,
+        payment_processor_v2_trusted_channels.signer
+      FROM payment_processor_v2_trusted_channels
+      WHERE payment_processor_v2_trusted_channels.contract = $/tokenAddress/
+    `,
+    {
+      tokenAddress: toBuffer(tokenAddress),
+    }
+  );
+
+  return results.map((c) => ({
+    channel: fromBuffer(c.channel),
+    signer: fromBuffer(c.signer),
+  }));
 };

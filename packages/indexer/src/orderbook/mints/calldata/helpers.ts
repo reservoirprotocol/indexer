@@ -13,8 +13,39 @@ import {
   CollectionMintStatusReason,
 } from "@/orderbook/mints";
 
-export const toSafeTimestamp = (value: BigNumberish) =>
-  bn(value).gte(9999999999) ? undefined : bn(value).toNumber();
+// Any number greater than a particular threshold is assumed to represent "infinite" / "unknown"
+export const toSafeTimestamp = (value?: BigNumberish) => {
+  if (!value) {
+    return undefined;
+  }
+
+  const converted = bn(value);
+  return converted.eq(0) || converted.gte(9999999999) ? undefined : bn(value).toNumber();
+};
+
+// Any number having a particular threshold value is assumed to represent "infinite" / "unknown"
+export const toSafeNumber = (value?: BigNumberish) => {
+  if (!value) {
+    return undefined;
+  }
+
+  const converted = bn(value);
+  return [
+    "0",
+    // max(int32)
+    "2147483647",
+    // max(uint32)
+    "4294967295",
+    // max(uint64)
+    "18446744073709551615",
+    // max(uint128)
+    "340282366920938463463374607431768211455",
+    // max(uint256)
+    "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+  ].includes(converted.toString())
+    ? undefined
+    : converted.toString();
+};
 
 export const fetchMetadata = async (url: string) => {
   if (url.startsWith("ipfs://")) {

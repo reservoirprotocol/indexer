@@ -8,7 +8,7 @@ import { baseProvider } from "@/common/provider";
 import { now } from "@/common/utils";
 import { config } from "@/config/index";
 import { Transaction } from "@/models/transactions";
-import { getStatus } from "@/orderbook/mints/calldata/helpers";
+import { getStatus, toSafeNumber, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
 import {
   CollectionMint,
   getCollectionMints,
@@ -16,27 +16,6 @@ import {
 } from "@/orderbook/mints";
 
 const STANDARD = "titlesxyz";
-
-/*
-  Network: ZORA
-
-  Factory: 0xAb359D0Eac42f94fd512f0a98D16Bf60D512CE72
-  event EditionPublished(
-      address indexed creator,
-      address remixContractAddress,
-      address creatorProceedRecipient,
-      address derivativeFeeRecipient
-  );
-
-  EditionsV1:
-  function purchase(uint256 quantity) external payable;
-
-  Non editable:
-  function price() external view (uint256)
-  function maxSupply() external view (uint256)
-  function mintLimitPerWallet() external view (uint256)
-  function saleEndTime() external view (uint256)
-*/
 
 export const extractByCollectionERC721 = async (collection: string): Promise<CollectionMint[]> => {
   const results: CollectionMint[] = [];
@@ -96,9 +75,9 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
       },
       currency: Sdk.Common.Addresses.Native[config.chainId],
       price: endPrice,
-      maxSupply: maxSupply === "0" ? undefined : maxSupply,
-      maxMintsPerWallet: mintLimitPerWallet === "0" ? undefined : mintLimitPerWallet,
-      endTime: endTime === 0 ? undefined : endTime,
+      maxSupply: toSafeNumber(maxSupply),
+      maxMintsPerWallet: toSafeNumber(mintLimitPerWallet),
+      endTime: toSafeTimestamp(endTime),
     });
   } catch (error) {
     logger.error("mint-detector", JSON.stringify({ kind: STANDARD, error }));

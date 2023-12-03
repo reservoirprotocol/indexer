@@ -51,6 +51,7 @@ import * as PaymentProcessorV2 from "./payment-processor-v2";
 import * as Seadrop from "./seadrop";
 import * as BlurV2 from "./blur-v2";
 import * as Joepeg from "./joepeg";
+import * as ArtBlocks from "./artblocks";
 
 export {
   // Common
@@ -108,4 +109,5 @@ export {
   Seadrop,
   BlurV2,
   Joepeg,
+  ArtBlocks,
 };

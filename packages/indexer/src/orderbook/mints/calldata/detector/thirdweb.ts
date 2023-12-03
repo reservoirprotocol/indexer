@@ -15,7 +15,12 @@ import {
   getCollectionMints,
   simulateAndUpsertCollectionMint,
 } from "@/orderbook/mints";
-import { fetchMetadata, getStatus, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
+import {
+  fetchMetadata,
+  getStatus,
+  toSafeNumber,
+  toSafeTimestamp,
+} from "@/orderbook/mints/calldata/helpers";
 import {
   AllowlistItem,
   allowlistExists,
@@ -68,14 +73,6 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
       const currency = claimCondition.currency.toLowerCase();
       if (currency === NATIVE_CURRENCY) {
         const price = claimCondition.pricePerToken.toString();
-        const maxMintsPerWallet =
-          claimCondition.quantityLimitPerWallet.eq(0) ||
-          claimCondition.quantityLimitPerWallet.eq(MaxUint256)
-            ? null
-            : claimCondition.quantityLimitPerWallet.toString();
-        const maxSupply = claimCondition.maxClaimableSupply.eq(MaxUint256)
-          ? null
-          : claimCondition.maxClaimableSupply.toString();
 
         // Public sale
         if (claimCondition.merkleRoot === HashZero) {
@@ -114,7 +111,12 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
                     {
                       kind: "unknown",
                       abiType: "(bytes32[],uint256,uint256,address)",
-                      abiValue: [[HashZero], maxMintsPerWallet ?? 0, price, currency],
+                      abiValue: [
+                        [HashZero],
+                        claimCondition.quantityLimitPerWallet.toString() ?? 0,
+                        price,
+                        currency,
+                      ],
                     },
                     {
                       kind: "unknown",
@@ -127,8 +129,8 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
             },
             currency: Sdk.Common.Addresses.Native[config.chainId],
             price,
-            maxMintsPerWallet,
-            maxSupply,
+            maxMintsPerWallet: toSafeNumber(claimCondition.quantityLimitPerWallet),
+            maxSupply: toSafeNumber(claimCondition.maxClaimableSupply),
             startTime: toSafeTimestamp(claimCondition.startTimestamp),
           });
         }
@@ -211,7 +213,7 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
                 },
               },
               currency: Sdk.Common.Addresses.Native[config.chainId],
-              maxSupply,
+              maxSupply: toSafeNumber(claimCondition.maxClaimableSupply),
               startTime: toSafeTimestamp(claimCondition.startTimestamp),
               allowlistId: claimCondition.merkleRoot,
             });
@@ -280,14 +282,6 @@ export const extractByCollectionERC1155 = async (
       const currency = claimCondition.currency.toLowerCase();
       if (currency === NATIVE_CURRENCY) {
         const price = claimCondition.pricePerToken.toString();
-        const maxMintsPerWallet =
-          claimCondition.quantityLimitPerWallet.eq(0) ||
-          claimCondition.quantityLimitPerWallet.eq(MaxUint256)
-            ? null
-            : claimCondition.quantityLimitPerWallet.toString();
-        const maxSupply = claimCondition.maxClaimableSupply.eq(MaxUint256)
-          ? null
-          : claimCondition.maxClaimableSupply.toString();
 
         // Public sale
         if (claimCondition.merkleRoot === HashZero) {
@@ -331,7 +325,12 @@ export const extractByCollectionERC1155 = async (
                     {
                       kind: "unknown",
                       abiType: "(bytes32[],uint256,uint256,address)",
-                      abiValue: [[HashZero], maxMintsPerWallet ?? 0, price, currency],
+                      abiValue: [
+                        [HashZero],
+                        claimCondition.quantityLimitPerWallet ?? 0,
+                        price,
+                        currency,
+                      ],
                     },
                     {
                       kind: "unknown",
@@ -345,8 +344,8 @@ export const extractByCollectionERC1155 = async (
             currency: Sdk.Common.Addresses.Native[config.chainId],
             price,
             tokenId,
-            maxMintsPerWallet,
-            maxSupply,
+            maxMintsPerWallet: toSafeNumber(claimCondition.quantityLimitPerWallet),
+            maxSupply: toSafeNumber(claimCondition.maxClaimableSupply),
             startTime: toSafeTimestamp(claimCondition.startTimestamp),
           });
         }
@@ -435,7 +434,7 @@ export const extractByCollectionERC1155 = async (
               },
               currency: Sdk.Common.Addresses.Native[config.chainId],
               tokenId,
-              maxSupply,
+              maxSupply: toSafeNumber(claimCondition.quantityLimitPerWallet),
               startTime: toSafeTimestamp(claimCondition.startTimestamp),
               allowlistId: claimCondition.merkleRoot,
             });
@@ -541,7 +540,12 @@ export const refreshByCollection = async (collection: string) => {
 const hashFn = (item: AllowlistItem) =>
   solidityKeccak256(
     ["address", "uint256", "uint256", "address"],
-    [item.address, item.maxMints ?? 0, item.price ?? MaxUint256, AddressZero]
+    [
+      item.address,
+      item.maxMints === "unlimited" ? 0 : item.maxMints ?? "0",
+      item.price ?? MaxUint256,
+      AddressZero,
+    ]
   );
 
 const SHARD_NYBBLES = 2;
