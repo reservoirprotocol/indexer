@@ -89,6 +89,18 @@ export class BackfillDeleteExpiredBidsElasticsearchJob extends AbstractRabbitMqJ
       }
 
       if (continuation) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `Keep Going - V3. activitiesCount=${
+              activities.length
+            }, activitiesToBeDeletedCount=${
+              toBeDeletedActivityIds.length
+            }, lastActivity=${JSON.stringify(activities[0])}, continuation=${continuation}`,
+            payload,
+          })
+        );
+
         await this.addToQueue(collectionId, continuation, dryRun);
       } else {
         logger.info(

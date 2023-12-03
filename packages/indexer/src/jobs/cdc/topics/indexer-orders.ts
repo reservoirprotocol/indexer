@@ -79,12 +79,12 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
     } else if (payload.after.side === "buy") {
       eventKind = WebsocketEventKind.BuyOrder;
     } else {
-      logger.warn(
-        "kafka-event-handler",
-        `${this.topicName}: Unknown order kind, skipping websocket event router for order=${
-          JSON.stringify(payload.after) || "null"
-        }`
-      );
+      // logger.warn(
+      //   "kafka-event-handler",
+      //   `${this.topicName}: Unknown order kind, skipping websocket event router for order=${
+      //     JSON.stringify(payload.after) || "null"
+      //   }`
+      // );
 
       return;
     }
