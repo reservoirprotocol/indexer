@@ -19,6 +19,7 @@ import {
   fetchMetadata,
   getContractKind,
   getStatus,
+  toSafeNumber,
   toSafeTimestamp,
 } from "@/orderbook/mints/calldata/helpers";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
@@ -296,12 +297,10 @@ export const extractByCollectionERC721 = async (
             },
             currency: Sdk.Common.Addresses.Native[config.chainId],
             price,
-            maxMintsPerWallet: bn(claimConfig.walletMax).gt(0)
-              ? claimConfig.walletMax.toString()
-              : undefined,
-            maxSupply: bn(claimConfig.totalMax).gt(0) ? claimConfig.totalMax.toString() : undefined,
-            startTime: claimConfig.startDate ? toSafeTimestamp(claimConfig.startDate) : undefined,
-            endTime: claimConfig.endDate ? toSafeTimestamp(claimConfig.endDate) : undefined,
+            maxMintsPerWallet: toSafeNumber(claimConfig.walletMax),
+            maxSupply: toSafeNumber(claimConfig.totalMax),
+            startTime: toSafeTimestamp(claimConfig.startDate),
+            endTime: toSafeTimestamp(claimConfig.endDate),
           });
         }
 
@@ -363,12 +362,10 @@ export const extractByCollectionERC721 = async (
             },
             currency: Sdk.Common.Addresses.Native[config.chainId],
             price,
-            maxMintsPerWallet: bn(claimConfig.walletMax).gt(0)
-              ? claimConfig.walletMax.toString()
-              : undefined,
-            maxSupply: bn(claimConfig.totalMax).gt(0) ? claimConfig.totalMax.toString() : undefined,
-            startTime: claimConfig.startDate ? toSafeTimestamp(claimConfig.startDate) : undefined,
-            endTime: claimConfig.endDate ? toSafeTimestamp(claimConfig.endDate) : undefined,
+            maxMintsPerWallet: toSafeNumber(claimConfig.walletMax),
+            maxSupply: toSafeNumber(claimConfig.totalMax),
+            startTime: toSafeTimestamp(claimConfig.startDate),
+            endTime: toSafeTimestamp(claimConfig.endDate),
             allowlistId: claimConfig.merkleRoot,
           });
         }
@@ -596,10 +593,10 @@ export const extractByCollectionERC1155 = async (
             currency: Sdk.Common.Addresses.Native[config.chainId],
             price,
             tokenId,
-            maxMintsPerWallet: bn(claim.walletMax).gt(0) ? claim.walletMax.toString() : undefined,
-            maxSupply: bn(claim.totalMax).gt(0) ? claim.totalMax.toString() : undefined,
-            startTime: claim.startDate ? toSafeTimestamp(claim.startDate) : undefined,
-            endTime: claim.endDate ? toSafeTimestamp(claim.endDate) : undefined,
+            maxMintsPerWallet: toSafeNumber(claim.walletMax),
+            maxSupply: toSafeNumber(claim.totalMax),
+            startTime: toSafeTimestamp(claim.startDate),
+            endTime: toSafeTimestamp(claim.endDate),
           });
         }
 
@@ -662,10 +659,10 @@ export const extractByCollectionERC1155 = async (
             currency: Sdk.Common.Addresses.Native[config.chainId],
             price,
             tokenId,
-            maxMintsPerWallet: bn(claim.walletMax).gt(0) ? claim.walletMax.toString() : undefined,
-            maxSupply: bn(claim.totalMax).gt(0) ? claim.totalMax.toString() : undefined,
-            startTime: claim.startDate ? toSafeTimestamp(claim.startDate) : undefined,
-            endTime: claim.endDate ? toSafeTimestamp(claim.endDate) : undefined,
+            maxMintsPerWallet: toSafeNumber(claim.walletMax),
+            maxSupply: toSafeNumber(claim.totalMax),
+            startTime: toSafeTimestamp(claim.startDate),
+            endTime: toSafeTimestamp(claim.endDate),
             allowlistId: claim.merkleRoot,
           });
         }

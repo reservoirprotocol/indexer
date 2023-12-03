@@ -23,7 +23,7 @@ import {
   createAllowlist,
   getAllowlist,
 } from "@/orderbook/mints/allowlists";
-import { getStatus, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
+import { getStatus, toSafeNumber, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
 
 const STANDARD = "decent";
 
@@ -159,11 +159,10 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
         },
         currency: Sdk.Common.Addresses.Native[config.chainId],
         price: editionConfig.tokenPrice,
-        maxMintsPerWallet: editionConfig.maxTokenPurchase,
-        maxSupply: editionConfig.maxTokens,
-        startTime:
-          editionConfig.saleStart != "0" ? toSafeTimestamp(editionConfig.saleStart) : undefined,
-        endTime: editionConfig.saleEnd != "0" ? toSafeTimestamp(editionConfig.saleEnd) : undefined,
+        maxMintsPerWallet: toSafeNumber(editionConfig.maxTokenPurchase),
+        maxSupply: toSafeNumber(editionConfig.maxTokens),
+        startTime: toSafeTimestamp(editionConfig.saleStart),
+        endTime: toSafeTimestamp(editionConfig.saleEnd),
       });
     }
 
@@ -233,13 +232,9 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
           },
           currency: Sdk.Common.Addresses.Native[config.chainId],
           allowlistId: editionConfig.presaleMerkleRoot,
-          maxSupply: editionConfig.maxTokens,
-          startTime:
-            editionConfig.presaleStart != "0"
-              ? toSafeTimestamp(editionConfig.presaleStart)
-              : undefined,
-          endTime:
-            editionConfig.presaleEnd != "0" ? toSafeTimestamp(editionConfig.presaleEnd) : undefined,
+          maxSupply: toSafeNumber(editionConfig.maxTokens),
+          startTime: toSafeTimestamp(editionConfig.presaleStart),
+          endTime: toSafeTimestamp(editionConfig.presaleEnd),
         });
       }
     }
