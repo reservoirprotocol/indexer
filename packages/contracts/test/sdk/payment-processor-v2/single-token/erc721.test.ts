@@ -1,3 +1,4 @@
+import { Interface } from "@ethersproject/abi";
 import { Contract } from "@ethersproject/contracts";
 import { parseEther } from "@ethersproject/units";
 import * as Common from "@reservoir0x/sdk/src/common";
@@ -975,5 +976,124 @@ describe("PaymentProcessorV2 - SingleToken Erc721", () => {
     expect(receiveAmount).to.gte(price.mul(2));
     expect(ownerAfter).to.eq(buyer.address);
     expect(ownerAfter2).to.eq(buyer.address);
+  });
+
+  it("Build and fill multiple sell orders via a trusted channel", async () => {
+    const buyer = alice;
+    const seller = bob;
+    const price = parseEther("1");
+    const soldTokenId = 1;
+    const soldTokenId2 = 2;
+    const relayer = tom;
+
+    // Mint erc721 to seller
+    await erc721.connect(seller).mint(soldTokenId);
+    await erc721.connect(seller).mint(soldTokenId2);
+
+    const nft = new Common.Helpers.Erc721(ethers.provider, erc721.address);
+
+    // Approve the exchange
+    await nft.approve(seller, PaymentProcessorV2.Addresses.Exchange[chainId]);
+
+    const exchange = new PaymentProcessorV2.Exchange(chainId);
+
+    const sellerMasterNonce = await exchange.getMasterNonce(ethers.provider, seller.address);
+    const blockTime = await getCurrentTimestamp(ethers.provider);
+
+    const builder = new PaymentProcessorV2.Builders.SingleToken(chainId);
+    const orderParameters = {
+      protocol: PaymentProcessorV2.Types.OrderProtocols.ERC721_FILL_OR_KILL,
+      marketplace: constants.AddressZero,
+      marketplaceFeeNumerator: "0",
+      maxRoyaltyFeeNumerator: "0",
+      maker: seller.address,
+      tokenAddress: erc721.address,
+      tokenId: soldTokenId,
+      amount: "1",
+      itemPrice: price,
+      expiration: (blockTime + 60 * 60).toString(),
+      paymentMethod: constants.AddressZero,
+      masterNonce: sellerMasterNonce,
+    };
+
+    // Build sell order
+    const sellOrder = builder.build(orderParameters);
+    await sellOrder.sign(seller);
+
+    sellOrder.checkSignature();
+    await sellOrder.checkFillability(ethers.provider);
+
+    const orderParameters2 = {
+      protocol: PaymentProcessorV2.Types.OrderProtocols.ERC721_FILL_OR_KILL,
+      marketplace: constants.AddressZero,
+      marketplaceFeeNumerator: "0",
+      maxRoyaltyFeeNumerator: "0",
+      maker: seller.address,
+      tokenAddress: erc721.address,
+      tokenId: soldTokenId2,
+      amount: "1",
+      itemPrice: price,
+      expiration: (blockTime + 60 * 60).toString(),
+      paymentMethod: constants.AddressZero,
+      masterNonce: sellerMasterNonce,
+    };
+
+    const fee1 = bn(550);
+
+    // Build sell order
+    const sellOrder2 = builder.build(orderParameters2);
+    await sellOrder2.sign(seller);
+
+    sellOrder2.checkSignature();
+    await sellOrder2.checkFillability(ethers.provider);
+
+    const router = new Sdk.RouterV6.Router(chainId, ethers.provider);
+    const nonPartialTx = await router.fillListingsTx(
+      [
+        {
+          orderId: "0",
+          kind: "payment-processor-v2",
+          contractKind: "erc721",
+          contract: erc721.address,
+          tokenId: soldTokenId.toString(),
+          order: sellOrder,
+          currency: Sdk.Common.Addresses.Native[chainId],
+          price: price.toString(),
+          fees: [
+            {
+              amount: price.mul(fee1).div(10000),
+              recipient: deployer.address,
+            },
+          ],
+          extraArgs: {
+            trustedChannel: constants.AddressZero,
+          },
+        },
+        {
+          orderId: "2",
+          kind: "payment-processor-v2",
+          contractKind: "erc721",
+          contract: erc721.address,
+          tokenId: soldTokenId2.toString(),
+          order: sellOrder2,
+          currency: Sdk.Common.Addresses.Native[chainId],
+          price: price.toString(),
+        },
+      ],
+      buyer.address,
+      Sdk.Common.Addresses.Native[chainId],
+      {
+        source: "reservoir.market",
+        relayer: relayer.address,
+      }
+    );
+
+    const forwardSelector = new Interface([
+      "function forwardCall(address target, bytes calldata message) external payable",
+    ]).getSighash("forwardCall");
+
+    expect(nonPartialTx.txs.length).to.eq(2);
+    expect(nonPartialTx.txs[0].txData.data.includes(forwardSelector)).to.eq(true);
+    expect(nonPartialTx.txs[1].txData.data.includes(forwardSelector)).to.eq(false);
   });
 });

@@ -204,3 +204,31 @@ export const updatedTokenLevelPricingBoundaries: EventData = {
     )`,
   ]),
 };
+
+export const trustedChannelRemovedForCollection: EventData = {
+  kind: "payment-processor-v2",
+  subKind: "payment-processor-v2-trusted-channel-removed-for-collection",
+  addresses: { [PaymentProcessorV2.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0x0a96ed211f335f5d4fe7b4fa19c97f07198b6582d6ae3ef987740c0798de3c18",
+  numTopics: 3,
+  abi: new Interface([
+    `event TrustedChannelRemovedForCollection(
+      address indexed tokenAddress,
+      uint256 indexed channel
+    )`,
+  ]),
+};
+
+export const trustedChannelAddedForCollection: EventData = {
+  kind: "payment-processor-v2",
+  subKind: "payment-processor-v2-trusted-channel-added-for-collection",
+  addresses: { [PaymentProcessorV2.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0x5ad5afe7f91207e8a3eba0274c5fb0599a0cc2b72709ec47fa5e157ae8375ba5",
+  numTopics: 3,
+  abi: new Interface([
+    `event TrustedChannelAddedForCollection(
+      address indexed tokenAddress, 
+      address indexed channel
+    )`,
+  ]),
+};

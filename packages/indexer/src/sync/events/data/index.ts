@@ -340,6 +340,8 @@ export type EventSubKind =
   | "payment-processor-v2-updated-collection-level-pricing-boundaries"
   | "payment-processor-v2-updated-collection-payment-settings"
   | "payment-processor-v2-updated-token-level-pricing-boundaries"
+  | "payment-processor-v2-trusted-channel-removed-for-collection"
+  | "payment-processor-v2-trusted-channel-added-for-collection"
   | "artblocks-project-updated"
   | "artblocks-minter-registered"
   | "artblocks-minter-removed"
@@ -589,6 +591,8 @@ const allEventData = [
   paymentProcessorV2.updatedTokenLevelPricingBoundaries,
   paymentProcessorV2.updatedCollectionLevelPricingBoundaries,
   paymentProcessorV2.updatedCollectionPaymentSettings,
+  paymentProcessorV2.trustedChannelAddedForCollection,
+  paymentProcessorV2.trustedChannelRemovedForCollection,
   artblocks.projectUpdated,
   artblocks.projectMinterRegistered,
   artblocks.projectMinterRemoved,

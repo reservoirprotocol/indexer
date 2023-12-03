@@ -66,6 +66,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
+      // Check: various collection restrictions
+
       const paymentSettings = await paymentProcessorV2.getCollectionPaymentSettings(
         order.params.tokenAddress
       );
@@ -120,6 +122,20 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         }
       }
 
+      // Check: trusted channels
+      if (paymentSettings?.blockTradesFromUntrustedChannels) {
+        const trustedChannels = await paymentProcessorV2.getAllTrustedChannels(
+          order.params.tokenAddress
+        );
+        if (trustedChannels.every((c) => c.signer !== AddressZero)) {
+          return results.push({
+            id,
+            status: "signed-trusted-channels-not-yet-supported",
+          });
+        }
+      }
+
+      // Check: operator filtering
       const isFiltered = await checkMarketplaceIsFiltered(order.params.tokenAddress, [
         Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId],
       ]);
