@@ -9,7 +9,6 @@ import { redb } from "@/common/db";
 export type BackfillDeleteExpiredBidsElasticsearchJobPayload = {
   collectionId?: string;
   cursor: string | null;
-  dryRun: boolean;
 };
 
 export class BackfillDeleteExpiredBidsElasticsearchJob extends AbstractRabbitMqJobHandler {
@@ -20,7 +19,7 @@ export class BackfillDeleteExpiredBidsElasticsearchJob extends AbstractRabbitMqJ
   lazyMode = true;
 
   protected async process(payload: BackfillDeleteExpiredBidsElasticsearchJobPayload) {
-    const { collectionId, cursor, dryRun } = payload;
+    const { collectionId, cursor } = payload;
 
     if (cursor == null) {
       logger.info(
@@ -72,7 +71,7 @@ export class BackfillDeleteExpiredBidsElasticsearchJob extends AbstractRabbitMqJ
         }
       }
 
-      if (toBeDeletedActivityIds.length && !dryRun) {
+      if (toBeDeletedActivityIds.length) {
         await ActivitiesIndex.deleteActivitiesById(toBeDeletedActivityIds);
 
         logger.info(
@@ -86,22 +85,20 @@ export class BackfillDeleteExpiredBidsElasticsearchJob extends AbstractRabbitMqJ
             payload,
           })
         );
-      }
-
-      if (continuation) {
+      } else {
         logger.info(
           this.queueName,
           JSON.stringify({
-            message: `Keep Going - V3. activitiesCount=${
-              activities.length
-            }, activitiesToBeDeletedCount=${
-              toBeDeletedActivityIds.length
-            }, lastActivity=${JSON.stringify(activities[0])}, continuation=${continuation}`,
+            message: `No Activities To Be Deleted - V3. lastActivity=${JSON.stringify(
+              activities[0]
+            )}, continuation=${continuation}`,
             payload,
           })
         );
+      }
 
-        await this.addToQueue(collectionId, continuation, dryRun);
+      if (continuation) {
+        await this.addToQueue(collectionId, continuation);
       } else {
         logger.info(
           this.queueName,
@@ -122,16 +119,11 @@ export class BackfillDeleteExpiredBidsElasticsearchJob extends AbstractRabbitMqJ
     }
   }
 
-  public async addToQueue(
-    collectionId?: string,
-    cursor?: string | null,
-    dryRun = true,
-    delay = 1000
-  ) {
+  public async addToQueue(collectionId?: string, cursor?: string | null, delay = 1000) {
     if (!config.doElasticsearchWork) {
       return;
     }
-    await this.send({ payload: { collectionId, cursor, dryRun } }, delay);
+    await this.send({ payload: { collectionId, cursor } }, delay);
   }
 }
 
