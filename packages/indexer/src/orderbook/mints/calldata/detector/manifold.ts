@@ -718,34 +718,52 @@ export const extractByTx = async (
 export const refreshByCollection = async (collection: string) => {
   const existingCollectionMints = await getCollectionMints(collection, { standard: STANDARD });
 
-  for (const { tokenId, details } of existingCollectionMints) {
+  // Dedupe by collection, tokenId and instanceId
+  const dedupedExistingMints = existingCollectionMints.filter((existing, index) => {
+    return (
+      index ===
+      latestCollectionMints.findIndex((found) => {
+        return (
+          existing.collection === found.collection &&
+          existing.tokenId === found.tokenId &&
+          (existing.details.info! as Info).instanceId === (found.details.info! as Info).instanceId
+        );
+      })
+    );
+  });
+
+  let latestCollectionMints: CollectionMint[] = [];
+  for (const { tokenId, details } of dedupedExistingMints) {
     // Fetch and save/update the currently available mints
-    const latestCollectionMints = tokenId
+    const collectionMints = tokenId
       ? await extractByCollectionERC1155(collection, {
           tokenId,
           instanceId: (details.info! as Info).instanceId,
         })
       : await extractByCollectionERC721(collection, (details.info! as Info).instanceId!);
-    for (const collectionMint of latestCollectionMints) {
-      await simulateAndUpsertCollectionMint(collectionMint);
-    }
 
-    // Assume anything that exists in our system but was not returned
-    // in the above call is not available anymore so we can close
-    for (const existing of existingCollectionMints) {
-      if (
-        !latestCollectionMints.find(
-          (latest) =>
-            latest.collection === existing.collection &&
-            latest.stage === existing.stage &&
-            latest.tokenId === existing.tokenId
-        )
-      ) {
-        await simulateAndUpsertCollectionMint({
-          ...existing,
-          status: "closed",
-        });
-      }
+    latestCollectionMints = latestCollectionMints.concat(collectionMints);
+  }
+
+  for (const collectionMint of latestCollectionMints) {
+    await simulateAndUpsertCollectionMint(collectionMint);
+  }
+
+  // Assume anything that exists in our system but was not returned
+  // in the above call is not available anymore so we can close
+  for (const existing of existingCollectionMints) {
+    if (
+      !latestCollectionMints.find(
+        (latest) =>
+          latest.collection === existing.collection &&
+          latest.stage === existing.stage &&
+          latest.tokenId === existing.tokenId
+      )
+    ) {
+      await simulateAndUpsertCollectionMint({
+        ...existing,
+        status: "closed",
+      });
     }
   }
 };

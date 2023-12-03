@@ -24,7 +24,8 @@ export type CollectionMintStandard =
   | "mintdotfun"
   | "soundxyz"
   | "createdotfun"
-  | "titlesxyz";
+  | "titlesxyz"
+  | "artblocks";
 
 export type CollectionMintDetails = {
   tx: MintTxSchema;

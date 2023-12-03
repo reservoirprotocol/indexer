@@ -68,7 +68,8 @@ type BaseCustomInfo = {
 
 export type CustomInfo =
   | (BaseCustomInfo & mints.manifold.Info)
-  | (BaseCustomInfo & mints.soundxyz.Info);
+  | (BaseCustomInfo & mints.soundxyz.Info)
+  | (BaseCustomInfo & mints.artblocks.Info);
 
 export type PartialCollectionMint = Pick<
   CollectionMint,
@@ -354,8 +355,19 @@ export const generateCollectionMintTxData = async (
       : "");
 
   let price = collectionMint.price;
+
+  // Compute the price just-in-time
+  if (
+    collectionMint.standard === "artblocks" &&
+    (collectionMint.details.info as mints.artblocks.Info).daConfig
+  ) {
+    price = await mints.artblocks.getPrice(
+      (collectionMint.details.info as mints.artblocks.Info).daConfig!
+    );
+  }
+
+  // If the price is not available on the main `CollectionMint`, get it from the allowlist
   if (!price && allowlistData) {
-    // If the price is not available on the main `CollectionMint`, get it from the allowlist
     price = allowlistData.actual_price!;
   }
 
@@ -384,6 +396,10 @@ export const refreshMintsForCollection = async (collection: string) => {
   );
   if (standardResult) {
     switch (standardResult.standard) {
+      case "artblocks":
+        await mints.artblocks.refreshByCollection(collection);
+        break;
+
       case "createdotfun":
         await mints.createdotfun.refreshByCollection(collection);
         break;
