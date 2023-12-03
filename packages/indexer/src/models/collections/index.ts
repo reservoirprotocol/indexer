@@ -247,9 +247,21 @@ export class Collections {
 
     try {
       if (
-        result?.old_metadata.name != collection.name ||
-        result?.old_metadata.metadata?.imageUrl != (collection.metadata as any)?.imageUrl
+        result &&
+        (result?.old_metadata.name != collection.name ||
+          result?.old_metadata.metadata?.imageUrl != (collection.metadata as any)?.imageUrl)
       ) {
+        logger.info(
+          "updateCollectionCache",
+          JSON.stringify({
+            topic: "debugActivitiesErrors",
+            message: `refreshActivitiesCollectionMetadataJob. collectionId=${collection.id}, contract=${contract}, tokenId=${tokenId}, community=${community}`,
+            collectionId: collection.id,
+            collection,
+            result,
+          })
+        );
+
         await refreshActivitiesCollectionMetadataJob.addToQueue({
           collectionId: collection.id,
           context: "updateCollectionCache",
