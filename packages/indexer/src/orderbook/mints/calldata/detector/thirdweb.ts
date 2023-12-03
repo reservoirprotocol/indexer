@@ -540,7 +540,12 @@ export const refreshByCollection = async (collection: string) => {
 const hashFn = (item: AllowlistItem) =>
   solidityKeccak256(
     ["address", "uint256", "uint256", "address"],
-    [item.address, item.maxMints ?? 0, item.price ?? MaxUint256, AddressZero]
+    [
+      item.address,
+      item.maxMints === "unlimited" ? 0 : item.maxMints ?? "0",
+      item.price ?? MaxUint256,
+      AddressZero,
+    ]
   );
 
 const SHARD_NYBBLES = 2;
