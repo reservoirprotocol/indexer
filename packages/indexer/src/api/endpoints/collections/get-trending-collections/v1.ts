@@ -67,7 +67,7 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
           "If true, return the non flagged floor ask. Supported only when `normalizeRoyalties` is false."
         ),
       floorAskPercentChange: Joi.string()
-        .valid("10m", "1h", "6h", "1d", "7d", "30d")
+        .valid("none", "10m", "1h", "6h", "1d", "7d", "30d")
         .default("none")
         .description("Time window to calculate the percent change in floor ask for."),
     }),
