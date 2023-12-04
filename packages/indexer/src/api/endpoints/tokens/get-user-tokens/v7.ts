@@ -552,13 +552,16 @@ export const getUserTokensV7Options: RouteOptions = {
     try {
       let baseQuery = `
         SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at, b.last_token_appraisal_value,
-               t.name, t.image, t.metadata AS token_metadata, t.media, t.rarity_rank, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
-               t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to, t.floor_sell_source_id_int, t.supply, t.remaining_supply, t.description,
+               t.name, t.image, t.metadata AS token_metadata, t.media, t.rarity_rank, t.collection_id,
+               t.supply, t.remaining_supply, t.description,
                t.rarity_score, t.t_is_spam, t.image_version, ${selectLastSale}
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value, top_bid_source_id_int,
                o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price,
                c.name as collection_name, con.kind, con.symbol, c.metadata, c.royalties, (c.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
-               c.royalties_bps, ot.kind AS floor_sell_kind, c.slug, c.is_spam AS c_is_spam, c.metadata_disabled AS c_metadata_disabled, t_metadata_disabled,
+               c.royalties_bps, ot.kind AS floor_sell_kind, c.slug, c.is_spam AS c_is_spam, c.metadata_disabled AS c_metadata_disabled, t_metadata_disabled, ot.value as floor_sell_value, ot.currency_value as floor_sell_currency_value, ot.currency_price, ot.currency as floor_sell_currency, ot.maker as floor_sell_maker,
+                date_part('epoch', lower(ot.valid_between)) AS "floor_sell_valid_from",
+                coalesce(nullif(date_part('epoch', upper(ot.valid_between)), 'Infinity'), 0) AS "floor_sell_valid_to",
+               ot.source_id_int as floor_sell_source_id_int, ot.id as floor_sell_id,
                ${query.includeRawData ? "ot.raw_data AS floor_sell_raw_data," : ""}
                ${
                  query.useNonFlaggedFloorAsk
@@ -566,7 +569,7 @@ export const getUserTokensV7Options: RouteOptions = {
                    : "c.non_flagged_floor_sell_value"
                } AS "collection_floor_sell_value",
                (
-                    CASE WHEN t.floor_sell_value IS NOT NULL
+                    CASE WHEN ot.value IS NOT NULL
                     THEN 1
                     ELSE 0
                     END
@@ -593,8 +596,27 @@ export const getUserTokensV7Options: RouteOptions = {
             query.excludeSpam ? `AND (c.is_spam IS NULL OR c.is_spam <= 0)` : ""
           }
           LEFT JOIN orders o ON o.id = c.floor_sell_id
-          LEFT JOIN orders ot ON ot.id = t.floor_sell_id
           JOIN contracts con ON b.contract = con.address
+          LEFT JOIN orders ot ON ot.id = CASE WHEN con.kind = 'erc1155' THEN (
+            SELECT 
+              id 
+            FROM 
+              orders 
+              JOIN token_sets_tokens ON orders.token_set_id = token_sets_tokens.token_set_id 
+            WHERE 
+              con.kind = 'erc1155' 
+              AND token_sets_tokens.contract = b.contract 
+              AND token_sets_tokens.token_id = b.token_id 
+              AND orders.side = 'sell' 
+              AND orders.fillability_status = 'fillable' 
+              AND orders.approval_status = 'approved' 
+              AND orders.maker = $/user/ 
+            ORDER BY 
+              orders.value ASC 
+            LIMIT 
+              1
+          ) ELSE t.floor_sell_id END
+
       `;
 
       const conditions: string[] = [];
