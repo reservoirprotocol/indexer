@@ -68,8 +68,8 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
         ),
       floorAskPercentChange: Joi.string()
         .valid("10m", "1h", "6h", "1d", "7d", "30d")
-        .default("1d")
-        .description("If true, floor ask percent change will be included in the response."),
+        .default("none")
+        .description("Time window to calculate the percent change in floor ask for."),
     }),
   },
   response: {
@@ -154,7 +154,8 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
           collectionsResult,
           collectionsMetadata,
           normalizeRoyalties,
-          useNonFlaggedFloorAsk
+          useNonFlaggedFloorAsk,
+          floorAskPercentChange
         );
       }
 
@@ -310,7 +311,7 @@ export async function getCollectionsMetadata(
     }
   }
 
-  if (floorAskPercentChange) {
+  if (floorAskPercentChange && floorAskPercentChange !== "none") {
     const endDate = new Date();
     switch (floorAskPercentChange) {
       case "10m":
@@ -388,7 +389,8 @@ async function formatCollections(
   collectionsResult: any[],
   collectionsMetadata: Record<string, any>,
   normalizeRoyalties: boolean,
-  useNonFlaggedFloorAsk: boolean
+  useNonFlaggedFloorAsk: boolean,
+  floorAskPercentChangeParam: string
 ) {
   const sources = await Sources.getInstance();
 
@@ -396,6 +398,7 @@ async function formatCollections(
     collectionsResult.map(async (response: any) => {
       const metadata = collectionsMetadata[response.id] || {};
       let floorAsk;
+      let floorAskPercentChange;
       let prefix = "";
 
       if (normalizeRoyalties) {
@@ -429,6 +432,16 @@ async function formatCollections(
         };
       }
 
+      if (floorAskPercentChangeParam && floorAskPercentChangeParam !== "none") {
+        floorAskPercentChange =
+          Number(metadata.previous_floor_sell_currency_value) &&
+          Number(metadata.floor_sell_currency_value)
+            ? ((metadata.floor_sell_currency_value - metadata.previous_floor_sell_currency_value) /
+                metadata.previous_floor_sell_currency_value) *
+              100
+            : null;
+      }
+
       return {
         ...response,
         sampleImages:
@@ -453,13 +466,7 @@ async function formatCollections(
           allTime: metadata.all_time_volume ? formatEth(metadata.all_time_volume) : null,
         },
 
-        floorAskPercentChange:
-          Number(metadata.previous_floor_sell_currency_value) &&
-          Number(metadata.floor_sell_currency_value)
-            ? ((metadata.floor_sell_currency_value - metadata.previous_floor_sell_currency_value) /
-                metadata.previous_floor_sell_currency_value) *
-              100
-            : null,
+        floorAskPercentChange,
         tokenCount: Number(metadata.token_count || 0),
         ownerCount: Number(metadata.owner_count || 0),
         banner: metadata?.metadata?.bannerImageUrl,
