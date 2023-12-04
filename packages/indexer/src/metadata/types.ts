@@ -52,12 +52,6 @@ export interface CollectionMetadata {
   creator?: string | null;
 }
 
-export interface TokenMetadataBySlugResult {
-  metadata: TokenMetadata[];
-  continuation: string | null;
-  previous: string;
-}
-
 export type ProviderMethod = "opensea" | "onchain" | "simplehash";
 
 export interface SocialUrls {

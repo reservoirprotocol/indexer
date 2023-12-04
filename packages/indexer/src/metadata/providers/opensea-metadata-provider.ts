@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { config } from "@/config/index";
-import { CollectionMetadata, TokenMetadata, TokenMetadataBySlugResult } from "../types";
+import { CollectionMetadata, TokenMetadata } from "../types";
 import { logger } from "@/common/logger";
 import { Contract } from "ethers";
 import { Interface } from "ethers/lib/utils";
@@ -125,73 +125,6 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
       });
 
     return data.assets.map(this.parseToken).filter(Boolean);
-  }
-
-  protected async _getTokensMetadataBySlug(
-    slug: string,
-    continuation?: string | null
-  ): Promise<TokenMetadataBySlugResult> {
-    const searchParams = new URLSearchParams();
-    if (continuation) {
-      searchParams.append("cursor", continuation);
-    }
-    if (slug) {
-      searchParams.append("collection_slug", slug);
-    } else {
-      throw new Error("Missing slug");
-    }
-    searchParams.append("limit", "200");
-
-    const url = `${
-      !this.isOSTestnet() ? "https://api.opensea.io" : "https://testnets-api.opensea.io"
-    }/api/v1/assets?${searchParams.toString()}`;
-    const data = await axios
-      .get(!this.isOSTestnet() ? config.openSeaApiUrl || url : url, {
-        headers: !this.isOSTestnet()
-          ? {
-              url,
-              "X-API-KEY": config.openSeaTokenMetadataBySlugApiKey,
-              Accept: "application/json",
-            }
-          : {
-              Accept: "application/json",
-            },
-      })
-      .then((response) => response.data)
-      .catch((error) => this.handleError(error));
-
-    const assets = data.assets.map(this.parseToken).filter(Boolean);
-
-    // Get custom metadata
-    const customAssets = await Promise.all(
-      assets.map(async (asset: any) => {
-        if (hasCustomHandler(asset.contract)) {
-          const result = await customHandleToken({
-            contract: asset.contract,
-            tokenId: asset.tokenId,
-          });
-          return result;
-        }
-        return asset;
-      })
-    );
-
-    // Get extended metadata
-    const extendedMetadata = await Promise.all(
-      customAssets.map(async (asset: any) => {
-        if (hasExtendHandler(asset.contract)) {
-          const result = await extendMetadata(asset);
-          return result;
-        }
-        return asset;
-      })
-    );
-
-    return {
-      metadata: extendedMetadata,
-      continuation: data.next ?? undefined,
-      previous: data.previous ?? undefined,
-    };
   }
 
   async _getTokenFlagStatus(

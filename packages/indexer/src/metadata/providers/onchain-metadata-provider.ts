@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { config } from "@/config/index";
-import { CollectionMetadata, TokenMetadata, TokenMetadataBySlugResult } from "../types";
+import { CollectionMetadata, TokenMetadata } from "../types";
 
 import { baseProvider } from "@/common/provider";
 import { defaultAbiCoder } from "ethers/lib/utils";
@@ -186,10 +186,6 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         isFallback: true,
       };
     }
-  }
-
-  async _getTokensMetadataBySlug(): Promise<TokenMetadataBySlugResult> {
-    throw new Error("Method not implemented.");
   }
 
   // parsers

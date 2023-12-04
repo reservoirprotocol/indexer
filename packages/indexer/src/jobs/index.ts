@@ -113,7 +113,6 @@ import { contractFlagStatusSyncJob } from "@/jobs/flag-status/contract-flag-stat
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { metadataIndexProcessJob } from "@/jobs/metadata-index/metadata-process-job";
 import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
-import { metadataIndexProcessBySlugJob } from "@/jobs/metadata-index/metadata-process-by-slug-job";
 import { mintsProcessJob } from "@/jobs/mints/mints-process-job";
 import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
 import { mintsCheckJob } from "@/jobs/mints/mints-check-job";
@@ -272,7 +271,6 @@ export class RabbitMqJobsConsumer {
       metadataIndexFetchJob,
       metadataIndexProcessJob,
       metadataIndexWriteJob,
-      metadataIndexProcessBySlugJob,
       onchainMetadataFetchTokenUriJob,
       onchainMetadataProcessTokenUriJob,
       mintsProcessJob,

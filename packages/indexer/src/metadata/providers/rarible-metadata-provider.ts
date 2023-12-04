@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { config } from "@/config/index";
-import { CollectionMetadata, TokenMetadata, TokenMetadataBySlugResult } from "../types";
+import { CollectionMetadata, TokenMetadata } from "../types";
 
 import axios from "axios";
 import _ from "lodash";
@@ -26,9 +26,6 @@ export class RaribleMetadataProvider extends AbstractBaseMetadataProvider {
   }
 
   async _getCollectionMetadata(): Promise<CollectionMetadata> {
-    throw new Error("Method not implemented.");
-  }
-  async _getTokensMetadataBySlug(): Promise<TokenMetadataBySlugResult> {
     throw new Error("Method not implemented.");
   }
 
