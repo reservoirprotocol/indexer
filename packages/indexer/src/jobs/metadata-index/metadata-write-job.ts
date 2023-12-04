@@ -22,6 +22,7 @@ export type MetadataIndexWriteJobPayload = {
   collection: string;
   contract: string;
   tokenId: string;
+  tokenURI: string;
   name?: string;
   description?: string;
   originalMetadata?: JSON;
@@ -67,6 +68,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       collection,
       contract,
       tokenId,
+      tokenURI,
       name,
       description,
       originalMetadata,
@@ -90,6 +92,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
                 CASE WHEN (name IS DISTINCT FROM $/name/
                     OR image IS DISTINCT FROM $/image/
                     OR media IS DISTINCT FROM $/media/
+                    OR token_uri IS DISTINCT FROM $/tokenURI/
                     OR description IS DISTINCT FROM $/description/
                     OR metadata IS DISTINCT FROM $/metadata:json/) THEN true
                 ELSE false
@@ -100,6 +103,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
         )
         UPDATE tokens SET
           name = $/name/,
+          token_uri = $/tokenURI/,
           description = $/description/,
           image = $/image/,
           metadata = $/metadata:json/,
@@ -152,6 +156,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
         name: name || null,
         description: description || null,
         image: imageUrl || null,
+        tokenURI: tokenURI || null,
         metadata:
           {
             original_metadata: originalMetadata || null,

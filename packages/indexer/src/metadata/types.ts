@@ -4,6 +4,7 @@ export interface TokenMetadata {
   contract: string;
   // TODO: standardize as string or number throughout the indexer
   tokenId: any;
+  tokenURI?: string;
   slug: string | null;
   collection: string;
   flagged: boolean | null;

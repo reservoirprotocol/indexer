@@ -971,9 +971,16 @@ export const getTokensV7Options: RouteOptions = {
               }
               query.sortDirection = query.sortDirection || "asc"; // Default sorting for rarity is ASC
               const sign = query.sortDirection == "desc" ? "<" : ">";
-              conditions.push(
-                `(t.rarity_rank, t.contract, t.token_id) ${sign} ($/contRarity/, $/contContract/, $/contTokenId/)`
-              );
+              if (contArr[0] !== "null") {
+                conditions.push(
+                  `(t.rarity_rank, t.contract, t.token_id) ${sign} ($/contRarity/, $/contContract/, $/contTokenId/)
+                  OR t.rarity_rank IS null`
+                );
+              } else {
+                conditions.push(
+                  `(t.rarity_rank IS null AND (t.contract, t.token_id) ${sign} ($/contContract/, $/contTokenId/))`
+                );
+              }
               (query as any).contRarity = contArr[0];
               (query as any).contContract = toBuffer(contArr[1]);
               (query as any).contTokenId = contArr[2];
