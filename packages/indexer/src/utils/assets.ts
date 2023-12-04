@@ -95,7 +95,7 @@ export class Assets {
     if (imageUrl?.includes("imgix.net")) {
       const url = new URL(imageUrl);
 
-      url.searchParams.set('w', `${size}`);
+      url.searchParams.set('w', `${size ?? ImageSize.large}`);
       url.searchParams.set('q', '75');
       url.searchParams.set('auto', 'compress,format');
 
