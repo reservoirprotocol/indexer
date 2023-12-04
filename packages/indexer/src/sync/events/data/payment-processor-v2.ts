@@ -173,7 +173,7 @@ export const updatedCollectionPaymentSettings: EventData = {
   kind: "payment-processor-v2",
   subKind: "payment-processor-v2-updated-collection-payment-settings",
   addresses: { [PaymentProcessorV2.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
-  topic: "0x0e73abd6d60e5d56d0b22d84e13b838d5266e8b6fa897e36645565dce796dce5",
+  topic: "0x6d5dde4446d5ea78fc1298a77b69b20187e9b8057bf46d48fce390fe05a989ed",
   numTopics: 2,
   abi: new Interface([
     `event UpdatedCollectionPaymentSettings(
@@ -184,7 +184,8 @@ export const updatedCollectionPaymentSettings: EventData = {
       uint16 royaltyBackfillNumerator,
       address royaltyBackfillReceiver,
       uint16 royaltyBountyNumerator,
-      address exclusiveBountyReceiver
+      address exclusiveBountyReceiver,
+      bool blockTradesFromUntrustedChannels
     )`,
   ]),
 };

@@ -1,5 +1,6 @@
 import { Interface } from "@ethersproject/abi";
 import { BigNumber } from "@ethersproject/bignumber";
+import { AddressZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk";
 
@@ -8,6 +9,7 @@ import { baseProvider } from "@/common/provider";
 import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { Royalty, updateRoyaltySpec } from "@/utils/royalties";
 
 export enum PaymentSettings {
   DefaultPaymentMethodWhitelist = 0,
@@ -147,3 +149,10 @@ export const getAllTrustedChannels = async (tokenAddress: string) => {
     signer: fromBuffer(c.signer),
   }));
 };
+
+export const saveBackfilledRoyalties = async (tokenAddress: string, royalties: Royalty[]) =>
+  updateRoyaltySpec(
+    tokenAddress,
+    "pp-v2-backfill",
+    royalties.some((r) => r.recipient !== AddressZero) ? royalties : undefined
+  );

@@ -528,6 +528,16 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         // Refresh
         await paymentProcessorV2Utils.getCollectionPaymentSettings(tokenAddress, true);
 
+        // Update backfilled royalties
+        const royaltyBackfillReceiver = parsedLog.args["royaltyBackfillReceiver"].toLowerCase();
+        const royaltyBackfillNumerator = parsedLog.args["royaltyBackfillNumerator"];
+        await paymentProcessorV2Utils.saveBackfilledRoyalties(tokenAddress, [
+          {
+            recipient: royaltyBackfillReceiver,
+            bps: royaltyBackfillNumerator,
+          },
+        ]);
+
         break;
       }
 
