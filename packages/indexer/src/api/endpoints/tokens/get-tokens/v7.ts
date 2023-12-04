@@ -273,7 +273,7 @@ export const getTokensV7Options: RouteOptions = {
             tokenId: Joi.string().pattern(regex.number).required(),
             name: Joi.string().allow("", null),
             description: Joi.string().allow("", null),
-            image: Joi.string().allow("", null).description("Original non-resized image"),
+            image: Joi.string().allow("", null).description("Original full-size image"),
             imageSmall: Joi.string().allow("", null).description("250px, about 1mb>"),
             imageLarge: Joi.string().allow("", null).description("1000px, about 15mb>"),
             metadata: Joi.object().allow(null),
