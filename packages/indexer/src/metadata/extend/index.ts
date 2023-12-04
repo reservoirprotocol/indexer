@@ -42,6 +42,7 @@ import * as superrareShared from "./superrare-shared";
 import * as foundationShared from "./foundation-shared";
 import * as kanpaiPandas from "./kanpai-pandas";
 import * as zedRun from "./zed-run";
+import * as rdogPass from "./rdog-pass";
 import { CollectionsOverride } from "@/models/collections-override";
 
 const extendCollection: any = {};
@@ -210,6 +211,9 @@ soundxyz.SoundxyzReleaseContracts.forEach(
   (address) => (extendCollection[`1,${address}`] = soundxyz)
 );
 extendCollection["5,0xbe8f3dfce2fcbb6dd08a7e8109958355785c968b"] = soundxyz;
+
+// RDog Pass
+extendCollection["137,0xf0440b94765c53c14d6596def74bc2c068a0ba74"] = rdogPass;
 
 // Opensea Shared Contract
 extend["1,0x495f947276749ce646f68ac8c248420045cb7b5e"] = ExtendLogicClasses.opensea;
