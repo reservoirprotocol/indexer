@@ -13,28 +13,38 @@ interface Token {
   tokenId: string;
   contract: string;
   chain: number;
-  rawMetadata?: RawMetadata;
-  rawMetadataUrl: string;
-  image?: Image;
   animationUrl?: string;
-}
 
-interface RawMetadata {
+  imageId?: string;
+  image?: Asset;
+
+  tokenURI: string;
+  tokenURL: string;
+  tokenURLMimeType: string;
+
   name?: string;
-  image?: string;
   description?: string;
-  external_url?: string;
-  animation_url?: string;
+  contentURL?: string;
+  contentURLMimeType?: string;
+  imageURL?: string;
+  imageURLMimeType?: string;
+  externalLink?: string;
+  attributes?: Attribute[];
 }
 
-interface Image {
+interface Asset {
   id: string;
   originalUrl: string;
   s3Key: string;
   s3Bucket: string;
-  s3Url: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date;
+  updatedAt: Date;
+  url: string;
+}
+
+interface Attribute {
+  trait_type: string;
+  value: string | number; // Assuming value can be string or number
 }
 
 export class BeamMetadataProvider extends AbstractBaseMetadataProvider {
@@ -86,7 +96,8 @@ export class BeamMetadataProvider extends AbstractBaseMetadataProvider {
     return {
       contract: _.toLower(metadata.contract),
       tokenId: metadata.tokenId,
-      name: metadata.rawMetadata?.name,
+      name: metadata.name,
+
       collection: _.toLower(metadata.contract),
       flagged: null,
       slug: null,
@@ -96,26 +107,25 @@ export class BeamMetadataProvider extends AbstractBaseMetadataProvider {
       //   )[0]?.marketplace_collection_id ?? undefined,
       // Token descriptions are a waste of space for most collections we deal with
       // so by default we ignore them (this behaviour can be overridden if needed).
-      description: metadata.rawMetadata?.description,
-      originalMetadata: metadata.rawMetadata as JSON,
-      imageUrl: metadata.image?.s3Url,
-      imageOriginalUrl: metadata.rawMetadata?.image,
-      animationOriginalUrl: metadata.rawMetadata?.animation_url,
-      metadataOriginalUrl: metadata.rawMetadataUrl,
+      description: metadata.description,
+      // originalMetadata: metadata.rawMetadata as JSON,
+      imageUrl: metadata.image?.url,
+      imageOriginalUrl: metadata.imageURL,
+      animationOriginalUrl: metadata.animationUrl,
+      metadataOriginalUrl: metadata.tokenURI,
       imageProperties: undefined,
       mediaUrl: undefined,
-      attributes: [],
 
       // TODO: support media url
       // mediaUrl: metadata.video_url ?? metadata.audio_url ?? media,
 
       // TODO: support attributes
-      // attributes: (attributes || []).map((trait: any) => ({
-      //   key: trait.trait_type ?? "property",
-      //   value: trait.value,
-      //   kind: typeof trait.value == "number" ? "number" : "string",
-      //   rank: 1,
-      // })),
+      attributes: (metadata.attributes || []).map((trait: any) => ({
+        key: trait.trait_type ?? "property",
+        value: trait.value,
+        kind: typeof trait.value == "number" ? "number" : "string",
+        rank: 1,
+      })),
     };
   }
 
