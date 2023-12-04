@@ -282,7 +282,7 @@ export class Collections {
     await marketplaceFees.updateMarketplaceFeeSpec(collection.id, "opensea", openseaFees);
 
     // Refresh any contract blacklists
-    await marketplaceBlacklist.checkMarketplaceIsFiltered(collection.contract, [], true);
+    // await marketplaceBlacklist.checkMarketplaceIsFiltered(collection.contract, [], true);
 
     // Refresh ERC721C config
     await erc721c.refreshERC721CConfig(collection.contract);
