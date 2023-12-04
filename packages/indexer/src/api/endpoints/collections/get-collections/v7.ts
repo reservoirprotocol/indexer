@@ -196,8 +196,8 @@ export const getCollectionsV7Options: RouteOptions = {
           contractDeployedAt: Joi.string()
             .description("Time when contract was deployed")
             .allow("", null),
-          image: Joi.string().allow("", null),
-          banner: Joi.string().allow("", null),
+          image: Joi.string().allow("", null).description("Collection Image; Recommended size is 350x350"),
+          banner: Joi.string().allow("", null).description("Collection Banner, can be null"),
           discordUrl: Joi.string().allow("", null),
           externalUrl: Joi.string().allow("", null),
           twitterUsername: Joi.string().allow("", null),
@@ -206,7 +206,7 @@ export const getCollectionsV7Options: RouteOptions = {
           description: Joi.string().allow("", null),
           metadataDisabled: Joi.boolean().default(false),
           isSpam: Joi.boolean().default(false),
-          sampleImages: Joi.array().items(Joi.string().allow("", null)),
+          sampleImages: Joi.array().items(Joi.string().allow("", null)).description("Images from some tokens; Recommended size is 350x350"),
           tokenCount: Joi.string().description("Total tokens within the collection."),
           onSaleCount: Joi.string().description("Total tokens currently on sale."),
           primaryContract: Joi.string().lowercase().pattern(regex.address),
