@@ -92,6 +92,16 @@ export class Assets {
       }
     }
 
+    if (imageUrl?.includes("imgix.net")) {
+      const url = new URL(imageUrl);
+
+      url.searchParams.set('w', `${size}`);
+      url.searchParams.set('q', '75');
+      url.searchParams.set('auto', 'compress,format');
+
+      return url.toString();
+    }
+
     return imageUrl;
   }
 
@@ -116,8 +126,7 @@ export class Assets {
       config.privateImageResizingSigningKey
     ).toString();
 
-    return `${config.imageResizingBaseUrl}/${encodeURIComponent(ciphertext)}${
-      width ? "?width=" + width : ""
-    }`;
+    return `${config.imageResizingBaseUrl}/${encodeURIComponent(ciphertext)}${width ? "?width=" + width : ""
+      }`;
   }
 }
