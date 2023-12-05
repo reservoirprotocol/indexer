@@ -406,7 +406,7 @@ export const getUserCollectionsV4Options: RouteOptions = {
           ),
           ownership: {
             tokenCount: String(r.owner_token_count),
-            onSaleCount: String(r.owner_on_sale_count),
+            onSaleCount: query.includeOnSaleCount ? String(r.owner_on_sale_count) : undefined,
             liquidCount: query.includeLiquidCount
               ? String(Number(r.owner_liquid_count))
               : undefined,
