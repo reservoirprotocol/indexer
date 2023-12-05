@@ -256,14 +256,18 @@ export const getUserCollectionsV3Options: RouteOptions = {
           AND tokens.floor_sell_value IS NOT NULL
         ) nb ON TRUE
         ${liquidCount}
-        WHERE "owner" = $/user/
-        AND uc.token_count > 0
-        ${query.excludeSpam ? `AND uc.is_spam <= 0` : ""}
       `;
 
       // Filters
       (params as any).user = toBuffer(params.user);
       const conditions: string[] = [];
+
+      conditions.push(`"owner" = $/user/`);
+      conditions.push(`uc.token_count > 0`);
+
+      if (query.excludeSpam) {
+        conditions.push(`uc.is_spam <= 0`);
+      }
 
       if (query.community) {
         conditions.push(`collections.community = $/community/`);
