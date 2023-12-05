@@ -13,13 +13,13 @@ import { getJoiCollectionObject, getJoiPriceObject, JoiPrice } from "@/common/jo
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 
-const version = "v3";
+const version = "v4";
 
-export const getUserCollectionsV3Options: RouteOptions = {
+export const getUserCollectionsV4Options: RouteOptions = {
   description: "User collections",
   notes:
     "Get aggregate stats for a user, grouped by collection. Useful for showing total portfolio information.",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
       order: 3,
@@ -55,6 +55,9 @@ export const getUserCollectionsV3Options: RouteOptions = {
       includeLiquidCount: Joi.boolean()
         .default(false)
         .description("If true, number of tokens with bids will be returned in the response."),
+      includeOnSaleCount: Joi.boolean()
+        .default(false)
+        .description("If true, number of listed tokens will be returned in the response."),
       excludeSpam: Joi.boolean()
         .default(false)
         .description("If true, will filter any collections marked as spam."),
@@ -152,7 +155,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
           }),
           ownership: Joi.object({
             tokenCount: Joi.string(),
-            onSaleCount: Joi.string(),
+            onSaleCount: Joi.string().optional(),
             liquidCount: Joi.string().optional(),
             totalValue: Joi.number().unsafe().allow(null),
           }),
@@ -194,6 +197,23 @@ export const getUserCollectionsV3Options: RouteOptions = {
       `;
     }
 
+    let onSaleCount = "";
+    let selectOnSaleCount = "";
+    if (query.includeOnSaleCount) {
+      selectOnSaleCount = "nb.owner_on_sale_count,";
+      onSaleCount = `
+        LEFT JOIN LATERAL (
+          SELECT COUNT(*) AS "owner_on_sale_count"
+          FROM nft_balances
+          JOIN tokens ON nft_balances.contract = tokens.contract AND nft_balances.token_id = tokens.token_id
+          WHERE "owner" = $/user/
+          AND nft_balances.contract = uc.contract
+          AND amount > 0
+          AND tokens.floor_sell_value IS NOT NULL
+        ) nb ON TRUE
+      `;
+    }
+
     try {
       let baseQuery = `        
         SELECT
@@ -231,7 +251,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
           COALESCE(collections.floor_sell_value, 0) * uc.token_count AS owner_total_value,
           uc.token_count AS owner_token_count,
           ${selectLiquidCount}
-          nb.owner_on_sale_count,
+          ${selectOnSaleCount}
           (SELECT orders.currency FROM orders WHERE orders.id = collections.floor_sell_id) AS floor_sell_currency,                
           (SELECT orders.currency_price FROM orders WHERE orders.id = collections.floor_sell_id) AS floor_sell_currency_price,
           (SELECT orders.currency FROM orders WHERE orders.id = collections.top_buy_id) AS top_buy_currency,
@@ -246,15 +266,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
           ) AS sample_images
         FROM user_collections uc
         JOIN collections ON uc.collection_id = collections.id
-        LEFT JOIN LATERAL (
-          SELECT COUNT(*) AS "owner_on_sale_count"
-          FROM nft_balances
-          JOIN tokens ON nft_balances.contract = tokens.contract AND nft_balances.token_id = tokens.token_id
-          WHERE "owner" = $/user/
-          AND nft_balances.contract = uc.contract
-          AND amount > 0
-          AND tokens.floor_sell_value IS NOT NULL
-        ) nb ON TRUE
+        ${onSaleCount}
         ${liquidCount}
         WHERE "owner" = $/user/
         AND uc.token_count > 0

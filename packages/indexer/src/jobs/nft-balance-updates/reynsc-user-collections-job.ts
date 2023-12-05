@@ -3,6 +3,7 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 import { regex, toBuffer } from "@/common/utils";
 import { Collections } from "@/models/collections";
 import _ from "lodash";
+import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 
 export type ResyncUserCollectionsJobPayload = {
@@ -25,6 +26,10 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
     let contract = "";
     let newBalanceResults;
     let isSpam;
+
+    if (config.chainId === 137 && collectionId === "0xcf2576238640a3a232fa6046d549dfb753a805f4") {
+      return;
+    }
 
     if (collectionId.match(regex.address)) {
       // If a non shared contract
