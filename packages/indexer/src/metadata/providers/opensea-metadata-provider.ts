@@ -336,6 +336,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
         royalties.push({
           recipient: fee.recipient,
           bps: Math.trunc(fee.fee * 100),
+          required: fee.required,
         });
       }
     }

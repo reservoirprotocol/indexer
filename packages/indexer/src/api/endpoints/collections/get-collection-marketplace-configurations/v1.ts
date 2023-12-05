@@ -318,7 +318,10 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
           },
           royalties: maxOpenseaRoyaltiesBps
             ? {
-                minBps: Math.min(maxOpenseaRoyaltiesBps, 50),
+                minBps: Math.min(
+                  maxOpenseaRoyaltiesBps,
+                  openseaRoyalties.some((r) => (r as any).required) ? maxOpenseaRoyaltiesBps : 50
+                ),
                 maxBps: maxOpenseaRoyaltiesBps,
               }
             : undefined,
