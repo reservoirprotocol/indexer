@@ -96,10 +96,15 @@ export class Assets {
   }
 
   public static signImage(imageUrl: string, width?: number, image_version?: number): string {
+    const validImagePrefixes = ["http", "data:image"];
     if (config.imageResizingBaseUrl == null) {
       throw new Error("Image resizing base URL is not set");
     } else if (config.privateImageResizingSigningKey == null) {
       throw new Error("Private image resizing signing key is not set");
+    } else if (imageUrl == null) {
+      throw new Error("Image URL is not set");
+    } else if (!validImagePrefixes.some((prefix) => imageUrl.startsWith(prefix))) {
+      throw new Error("Image URL is not valid");
     }
 
     let v = "";

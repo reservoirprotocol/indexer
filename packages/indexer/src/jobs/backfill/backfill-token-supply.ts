@@ -27,7 +27,7 @@ export class BackfillTokenSupplyJob extends AbstractRabbitMqJobHandler {
         SELECT contract, token_id
         FROM tokens
         WHERE supply IS NULL
-        ${config.chainId === 56 ? "AND updated_at > '2023-05-25 23:17:36'" : ""}
+        ${config.chainId === 56 ? "AND updated_at > '2023-06-13 03:46:11'" : ""}
         ORDER BY updated_at ASC
         LIMIT $/limit/
         `,

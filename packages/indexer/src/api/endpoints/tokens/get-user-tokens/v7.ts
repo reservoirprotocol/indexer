@@ -768,7 +768,7 @@ export const getUserTokensV7Options: RouteOptions = {
                     )
                   : null,
                 royaltiesBps: r.royalties_bps ?? 0,
-                royalties: r.royalties,
+                royalties: r.royalties.map((r: any) => ({ bps: r.bps, recipient: r.recipient })),
               },
               lastSale:
                 query.includeLastSale && r.last_sale_currency
