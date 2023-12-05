@@ -268,14 +268,18 @@ export const getUserCollectionsV4Options: RouteOptions = {
         JOIN collections ON uc.collection_id = collections.id
         ${onSaleCount}
         ${liquidCount}
-        WHERE "owner" = $/user/
-        AND uc.token_count > 0
-        ${query.excludeSpam ? `AND uc.is_spam <= 0` : ""}
       `;
 
       // Filters
       (params as any).user = toBuffer(params.user);
       const conditions: string[] = [];
+
+      conditions.push(`"owner" = $/user/`);
+      conditions.push(`uc.token_count > 0`);
+
+      if (query.excludeSpam) {
+        conditions.push(`uc.is_spam <= 0`);
+      }
 
       if (query.community) {
         conditions.push(`collections.community = $/community/`);
