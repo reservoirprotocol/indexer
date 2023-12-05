@@ -1855,6 +1855,16 @@ export const getExecuteBuyV7Options: RouteOptions = {
           },
         });
 
+        const key = request.headers["x-api-key"];
+        const apiKey = await ApiKeyManager.getApiKey(key);
+        logger.info(
+          `get-execute-buy-${version}-handler`,
+          JSON.stringify({
+            request: payload,
+            apiKey,
+          })
+        );
+
         return {
           steps: steps.filter((s) => s.items.length),
           path,
@@ -2056,6 +2066,16 @@ export const getExecuteBuyV7Options: RouteOptions = {
             },
           });
         }
+
+        const key = request.headers["x-api-key"];
+        const apiKey = await ApiKeyManager.getApiKey(key);
+        logger.info(
+          `get-execute-buy-${version}-handler`,
+          JSON.stringify({
+            request: payload,
+            apiKey,
+          })
+        );
 
         return {
           steps: customSteps.filter((s) => s.items.length),
