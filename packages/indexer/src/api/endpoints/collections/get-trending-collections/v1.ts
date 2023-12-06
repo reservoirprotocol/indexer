@@ -31,7 +31,7 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
     privacy: "public",
   },
   description: "Top Trending Collections",
-  notes: "Trending selling/minting collections",
+  notes: "Get trending selling/minting collections",
   tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
