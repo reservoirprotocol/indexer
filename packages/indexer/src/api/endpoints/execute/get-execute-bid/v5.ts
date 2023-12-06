@@ -327,8 +327,9 @@ export const getExecuteBidV5Options: RouteOptions = {
         },
         {
           id: "currency-wrapping",
-          action: `Wrapping currency`,
-          description: `We'll ask your approval to wrap the currency for bidding. Gas fee required.`,
+          action: "Wrapping currency",
+          description:
+            "We'll ask your approval to wrap the currency for bidding. Gas fee required.",
           kind: "transaction",
           items: [],
         },
