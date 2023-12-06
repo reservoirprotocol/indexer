@@ -567,6 +567,29 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         break;
       }
+
+      case "payment-processor-v2-payment-method-added-to-whitelist":
+      case "payment-processor-v2-payment-method-removed-from-whitelist": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const paymentMethodWhitelistId = parsedLog.args["paymentMethodWhitelistId"];
+        const paymentMethod = parsedLog.args["paymentMethod"].toLowerCase();
+
+        const removed = subKind.includes("removed");
+
+        if (removed) {
+          await paymentProcessorV2Utils.removePaymentMethodFromWhitelist(
+            paymentMethodWhitelistId,
+            paymentMethod
+          );
+        } else {
+          await paymentProcessorV2Utils.addPaymentMethodToWhitelist(
+            paymentMethodWhitelistId,
+            paymentMethod
+          );
+        }
+
+        break;
+      }
     }
   }
 };
