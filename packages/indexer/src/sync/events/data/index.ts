@@ -107,7 +107,8 @@ export type EventKind =
   | "titlesxyz"
   | "artblocks"
   | "erc721c-v2"
-  | "titlesxyz";
+  | "titlesxyz"
+  | "ditto";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -352,7 +353,8 @@ export type EventSubKind =
   | "erc721c-v2-added-code-hash-to-list"
   | "erc721c-v2-removed-account-from-list"
   | "erc721c-v2-removed-code-hash-from-list"
-  | "erc721c-v2-applied-list-to-collection";
+  | "erc721c-v2-applied-list-to-collection"
+  | "ditto-pool-initialized";
 
 export type EventData = {
   kind: EventKind;
