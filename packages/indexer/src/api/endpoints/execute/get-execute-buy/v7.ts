@@ -1956,6 +1956,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
         const { actualFromChainId, ccConfig, isCollectionRequest, tokenId, quote, gasCost } =
           await getCrossChainQuote(requestedFromChainId, item);
 
+        item.totalPrice = formatPrice(quote);
+        item.totalRawPrice = quote;
         item.fromChainId = actualFromChainId;
         item.gasCost = gasCost;
 
