@@ -5,7 +5,7 @@ import { RabbitMQMessage } from "@/common/rabbit-mq";
 import _ from "lodash";
 import { fromBuffer, toBuffer } from "@/common/utils";
 
-export type BackfillUserCollectionsJobCursorInfo = {
+export type BackfillFtBalancesDatesJobCursorInfo = {
   owner: string;
   contract: string;
 };
@@ -18,7 +18,7 @@ export class BackfillFtBalancesDatesJob extends AbstractRabbitMqJobHandler {
   lazyMode = false;
   singleActiveConsumer = true;
 
-  protected async process(payload: BackfillUserCollectionsJobCursorInfo) {
+  protected async process(payload: BackfillFtBalancesDatesJobCursorInfo) {
     const { owner, contract } = payload;
     const values: {
       limit: number;
@@ -59,7 +59,7 @@ export class BackfillFtBalancesDatesJob extends AbstractRabbitMqJobHandler {
 
       return {
         addToQueue: true,
-        cursor: { owner: fromBuffer(lastItem.owner), acquiredAt: fromBuffer(lastItem.contract) },
+        cursor: { owner: fromBuffer(lastItem.owner), contract: fromBuffer(lastItem.contract) },
       };
     }
 
@@ -70,7 +70,7 @@ export class BackfillFtBalancesDatesJob extends AbstractRabbitMqJobHandler {
     rabbitMqMessage: RabbitMQMessage,
     processResult: {
       addToQueue: boolean;
-      cursor?: BackfillUserCollectionsJobCursorInfo;
+      cursor?: BackfillFtBalancesDatesJobCursorInfo;
     }
   ) {
     if (processResult.addToQueue) {
@@ -78,7 +78,7 @@ export class BackfillFtBalancesDatesJob extends AbstractRabbitMqJobHandler {
     }
   }
 
-  public async addToQueue(cursor?: BackfillUserCollectionsJobCursorInfo, delay = 0) {
+  public async addToQueue(cursor?: BackfillFtBalancesDatesJobCursorInfo, delay = 0) {
     await this.send({ payload: cursor ?? {} }, delay);
   }
 }
