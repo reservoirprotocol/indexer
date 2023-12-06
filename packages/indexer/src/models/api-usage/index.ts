@@ -68,7 +68,7 @@ export class ApiUsage {
       VALUES ${pgp.helpers.values(values, columns)}
       ON CONFLICT ("hour", "api_key", "route", "status_code") DO UPDATE
       SET api_calls_count = hourly_api_usage.api_calls_count + EXCLUDED.api_calls_count,
-          points = hourly_api_usage.points + EXCLUDED.points;
+          points = hourly_api_usage.points + EXCLUDED.points, updated_at = now();
     `;
 
     await idb.none(query);
@@ -117,7 +117,7 @@ export class ApiUsage {
       VALUES ${pgp.helpers.values(values, columns)}
       ON CONFLICT ("day", "api_key", "route", "status_code") DO UPDATE
       SET api_calls_count = daily_api_usage.api_calls_count + EXCLUDED.api_calls_count,
-          points = daily_api_usage.points + EXCLUDED.points;
+          points = daily_api_usage.points + EXCLUDED.points, updated_at = now();
     `;
 
     await idb.none(query);
@@ -166,7 +166,7 @@ export class ApiUsage {
       VALUES ${pgp.helpers.values(values, columns)}
       ON CONFLICT ("month", "api_key", "route", "status_code") DO UPDATE
       SET api_calls_count = monthly_api_usage.api_calls_count + EXCLUDED.api_calls_count,
-          points = monthly_api_usage.points + EXCLUDED.points;
+          points = monthly_api_usage.points + EXCLUDED.points, updated_at = now();
     `;
 
     await idb.none(query);
