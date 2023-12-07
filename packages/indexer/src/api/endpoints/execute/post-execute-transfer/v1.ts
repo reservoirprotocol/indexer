@@ -12,7 +12,8 @@ import * as commonHelpers from "@/orderbook/orders/common/helpers";
 const version = "v1";
 
 export const postExecuteTransferV1Options: RouteOptions = {
-  description: "Batch transfer NFTs",
+  description: "Transfer Tokens",
+  notes: "Use this endpoint to bulk transfer an array of NFTs."
   tags: ["api", "Misc"],
   plugins: {
     "hapi-swagger": {
