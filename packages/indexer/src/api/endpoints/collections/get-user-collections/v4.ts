@@ -351,8 +351,8 @@ export const getUserCollectionsV4Options: RouteOptions = {
               slug: r.slug,
               name: r.name,
               image:
-                Assets.getLocalAssetsLink(r.image) ||
-                (r.sample_images?.length ? Assets.getLocalAssetsLink(r.sample_images[0]) : null),
+                Assets.getResizedImageURLs(r.image) ||
+                (r.sample_images?.length ? Assets.getResizedImageURLs(r.sample_images[0]) : null),
               isSpam: Number(r.is_spam) > 0,
               banner: r.banner,
               twitterUrl: r.twitter_url,
@@ -362,7 +362,7 @@ export const getUserCollectionsV4Options: RouteOptions = {
               openseaVerificationStatus: r.opensea_verification_status,
               description: r.description,
               metadataDisabled: Boolean(Number(r.metadata_disabled)),
-              sampleImages: Assets.getLocalAssetsLink(r.sample_images) || [],
+              sampleImages: Assets.getResizedImageURLs(r.sample_images) || [],
               tokenCount: String(r.token_count),
               primaryContract: fromBuffer(r.contract),
               tokenSetId: r.token_set_id,

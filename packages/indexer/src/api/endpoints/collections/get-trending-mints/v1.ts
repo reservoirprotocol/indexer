@@ -308,7 +308,7 @@ async function formatCollections(
         image:
           metadata?.metadata?.imageUrl ??
           (metadata?.sample_images?.length
-            ? Assets.getLocalAssetsLink(metadata.sample_images[0])
+            ? Assets.getResizedImageURLs(metadata.sample_images[0])
             : null),
         banner: metadata?.metadata ? metadata.metadata?.bannerImageUrl : null,
         name: metadata ? metadata?.name : "",
