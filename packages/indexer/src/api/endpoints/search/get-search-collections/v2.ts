@@ -12,6 +12,7 @@ import { Assets } from "@/utils/assets";
 import { getUSDAndCurrencyPrices } from "@/utils/prices";
 import { AddressZero } from "@ethersproject/constants";
 import { getJoiCollectionObject, getJoiPriceObject, JoiPrice } from "@/common/joi";
+import { isAddress } from "@ethersproject/address";
 
 const version = "v2";
 
@@ -86,8 +87,12 @@ export const getSearchCollectionsV2Options: RouteOptions = {
     const conditions: string[] = [`token_count > 0`];
 
     if (query.name) {
-      query.name = `%${query.name}%`;
-      conditions.push(`name ILIKE $/name/`);
+      if (isAddress(query.name)) {
+        query.name = `%${query.name}%`;
+        conditions.push(`name ILIKE $/name/`);
+      } else {
+        conditions.push(`c.contract = $/name/`);
+      }
     }
 
     if (query.community) {
