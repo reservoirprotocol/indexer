@@ -1771,6 +1771,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
           })
           .then((response) => ({ quote: response.data.price, gasCost: response.data.gasCost }));
 
+        item.quote = formatPrice(quote);
+        item.rawQuote = quote;
         item.totalPrice = formatPrice(quote);
         item.totalRawPrice = quote;
         item.gasCost = gasCost;
@@ -1958,6 +1960,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
         item.totalPrice = formatPrice(quote);
         item.totalRawPrice = quote;
+        item.quote = formatPrice(quote);
+        item.rawQuote = quote;
         item.fromChainId = actualFromChainId;
         item.gasCost = gasCost;
 

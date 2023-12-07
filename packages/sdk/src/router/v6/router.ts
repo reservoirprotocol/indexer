@@ -793,7 +793,8 @@ export class Router {
                 await options.onError("order-fetcher-blur-listings", new Error(reason), {
                   isUnrecoverable:
                     listing.kind === "blur" &&
-                    (reason === "ListingNotFound" || isUnrecoverable) &&
+                    (["RestrictedContract", "ListingNotFound"].includes(reason) ||
+                      isUnrecoverable) &&
                     listing.tokenId === tokenId,
                   orderId: listing.orderId,
                   additionalInfo: { detail: listing, taker },
