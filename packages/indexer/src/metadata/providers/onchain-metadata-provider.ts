@@ -32,11 +32,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
   ): Promise<TokenMetadata[]> {
     const resolvedMetadata = await Promise.all(
       tokens.map(async (token: any) => {
-        const [metadata, error] = await this.getTokenMetadataFromURI(
-          token.uri,
-          token.contract,
-          token.tokenId
-        );
+        const [metadata, error] = await this.getTokenMetadataFromURI(token.uri);
         if (error) {
           if (error === 429) {
             throw new RequestWasThrottledError(error.message, 10);
@@ -65,6 +61,8 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       error?: string;
     }[]
   > {
+    // eslint-disable-next-line
+    console.log("onchain fetcher _getTokensMetadataUri", tokens);
     const tokenData: {
       contract: string;
       tokenId: string;
@@ -161,19 +159,6 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
             uri,
           };
         } catch (error) {
-          logger.error(
-            "onchain-fetcher",
-            JSON.stringify({
-              topic: "fetchTokensError",
-              message: `Could not fetch tokenURI.  contract=${
-                idToToken[token.id].contract
-              }, tokenId=${idToToken[token.id].tokenId}, error=${error}`,
-              contract: idToToken[token.id].contract,
-              tokenId: idToToken[token.id].tokenId,
-              error,
-            })
-          );
-
           return {
             contract: idToToken[token.id].contract,
             tokenId: idToToken[token.id].tokenId,
@@ -509,7 +494,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     return uri;
   }
 
-  async getTokenMetadataFromURI(uri: string, contract: string, tokenId: string) {
+  async getTokenMetadataFromURI(uri: string) {
     try {
       uri = this.parseIPFSURI(uri);
 
@@ -540,16 +525,6 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       const json = await response.json();
       return [json, null];
     } catch (e) {
-      logger.error(
-        "onchain-fetcher",
-        JSON.stringify({
-          message: "getTokenMetadataFromURI error",
-          contract,
-          tokenId,
-          uri,
-          error: e,
-        })
-      );
       return [null, e];
     }
   }
