@@ -88,10 +88,10 @@ export const getSearchCollectionsV2Options: RouteOptions = {
 
     if (query.name) {
       if (isAddress(query.name)) {
+        conditions.push(`c.contract = $/name/`);
+      } else {
         query.name = `%${query.name}%`;
         conditions.push(`name ILIKE $/name/`);
-      } else {
-        conditions.push(`c.contract = $/name/`);
       }
     }
 
