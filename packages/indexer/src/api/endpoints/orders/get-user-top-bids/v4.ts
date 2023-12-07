@@ -28,7 +28,7 @@ import { config } from "@/config/index";
 import { CollectionSets } from "@/models/collection-sets";
 import { ContractSets } from "@/models/contract-sets";
 import { Sources } from "@/models/sources";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 import { Orders } from "@/utils/orders";
 
 const version = "v4";
@@ -304,6 +304,7 @@ export const getUserTopBidsV4Options: RouteOptions = {
                 c.id AS "collection_id",
                 c.name AS "collection_name",
                 c.metadata AS "collection_metadata",
+                c.image_version AS "collection_image_version",
                 ${collectionFloorSellValueColumnName} AS "collection_floor_sell_value",
                 (${collectionFloorSellValueColumnName} * (1-((COALESCE(c.royalties_bps, 0)::float + 250) / 10000)))::numeric(78, 0) AS "net_listing",
                 o.currency AS "collection_floor_sell_currency",
@@ -420,7 +421,11 @@ export const getUserTopBidsV4Options: RouteOptions = {
               collection: {
                 id: r.collection_id,
                 name: r.collection_name,
-                imageUrl: Assets.getLocalAssetsLink(r.collection_metadata?.imageUrl),
+                imageUrl: Assets.getResizedImageUrl(
+                  r.collection_metadata?.imageUrl,
+                  ImageSize.small,
+                  r.collection_image_version
+                ),
                 floorAskPrice: r.collection_floor_sell_value
                   ? await getJoiPriceObject(
                       {

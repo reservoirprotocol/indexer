@@ -7,7 +7,7 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, regex, toBuffer } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 import { Sources } from "@/models/sources";
 import { getJoiCollectionObject, getJoiPriceObject, JoiPrice } from "@/common/joi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -208,6 +208,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
           (collections.metadata ->> 'twitterUsername')::TEXT AS "twitter_username",
           (collections.metadata ->> 'twitterUrl')::TEXT AS "twitter_url",
           (collections.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
+          collections.image_version AS "image_version",
           collections.contract,
           collections.token_set_id,
           collections.is_spam, 
@@ -339,10 +340,12 @@ export const getUserCollectionsV3Options: RouteOptions = {
               slug: r.slug,
               name: r.name,
               image:
-                Assets.getLocalAssetsLink(r.image) ||
-                (r.sample_images?.length ? Assets.getLocalAssetsLink(r.sample_images[0]) : null),
+                Assets.getResizedImageUrl(r.image, ImageSize.small, r.image_version) ||
+                (r.sample_images?.length
+                  ? Assets.getResizedImageUrl(r.sample_images[0], ImageSize.small, r.image_version)
+                  : null),
               isSpam: Number(r.is_spam) > 0,
-              banner: r.banner,
+              banner: Assets.getResizedImageUrl(r.banner),
               twitterUrl: r.twitter_url,
               discordUrl: r.discord_url,
               externalUrl: r.external_url,
@@ -350,7 +353,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
               openseaVerificationStatus: r.opensea_verification_status,
               description: r.description,
               metadataDisabled: Boolean(Number(r.metadata_disabled)),
-              sampleImages: Assets.getLocalAssetsLink(r.sample_images) || [],
+              sampleImages: Assets.getResizedImageURLs(r.sample_images) || [],
               tokenCount: String(r.token_count),
               primaryContract: fromBuffer(r.contract),
               tokenSetId: r.token_set_id,

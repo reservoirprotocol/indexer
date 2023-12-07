@@ -333,7 +333,7 @@ async function formatCollections(
         ownerCount: Number(metadata.owner_count || 0),
         sampleImages:
           metadata?.sample_images && metadata?.sample_images?.length > 0
-            ? Assets.getLocalAssetsLink(metadata?.sample_images)
+            ? Assets.getResizedImageURLs(metadata?.sample_images)
             : [],
         mintType: Number(mintData?.price) > 0 ? "paid" : "free",
         mintPrice: mintData?.price,

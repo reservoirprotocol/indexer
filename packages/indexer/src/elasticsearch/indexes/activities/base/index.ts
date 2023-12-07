@@ -58,6 +58,7 @@ export interface ActivityDocument extends BaseDocument {
     name: string;
     image: string;
     isSpam: boolean;
+    imageVersion: number;
   };
   order?: {
     id: string;
@@ -127,6 +128,7 @@ export interface BuildActivityData extends BuildDocumentData {
   order_source_id_int?: number;
   order_kind?: string;
   collection_is_spam?: number | null;
+  collection_image_version?: number | null;
   token_is_spam?: number | null;
   order_criteria?: {
     kind: string;
@@ -202,6 +204,7 @@ export class ActivityBuilder extends DocumentBuilder {
             name: data.collection_name,
             image: data.collection_image,
             isSpam: Number(data.collection_is_spam) > 0,
+            imageVersion: data.collection_image_version,
           }
         : undefined,
       order: data.order_id

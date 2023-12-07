@@ -745,6 +745,7 @@ export const getTokensV7Options: RouteOptions = {
           c.token_count,
           c.is_spam AS c_is_spam,
           (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
+          c.image_version AS collection_image_version,
           (
             SELECT
               nb.owner
@@ -1448,7 +1449,11 @@ export const getTokensV7Options: RouteOptions = {
               collection: {
                 id: r.collection_id,
                 name: r.collection_name,
-                image: Assets.getLocalAssetsLink(r.collection_image),
+                image: Assets.getResizedImageUrl(
+                  r.collection_image,
+                  ImageSize.small,
+                  r.collection_image_version
+                ),
                 slug: r.slug,
                 symbol: r.symbol,
                 creator: r.creator ? fromBuffer(r.creator) : null,
@@ -1619,7 +1624,7 @@ export const getTokensV7Options: RouteOptions = {
             collection: {
               id: r.collection_id,
               name: r.collection_name,
-              image: Assets.getLocalAssetsLink(r.collection_image),
+              image: Assets.getResizedImageUrl(r.collection_image, ImageSize.small),
               slug: r.slug,
               symbol: r.symbol,
               creator: r.creator ? fromBuffer(r.creator) : null,

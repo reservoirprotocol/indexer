@@ -9,6 +9,7 @@ import { logger } from "@/common/logger";
 import { formatEth, fromBuffer } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
 import { getJoiCollectionObject } from "@/common/joi";
+import { Assets, ImageSize } from "@/utils/assets";
 
 const version = "v4";
 
@@ -145,6 +146,7 @@ export const getCollectionsV4Options: RouteOptions = {
           collections.slug,
           collections.name,
           (collections.metadata ->> 'imageUrl')::TEXT AS "image",
+          collections.image_version AS "image_version",
           (collections.metadata ->> 'bannerImageUrl')::TEXT AS "banner",
           (collections.metadata ->> 'discordUrl')::TEXT AS "discord_url",
           (collections.metadata ->> 'description')::TEXT AS "description",
@@ -293,13 +295,20 @@ export const getCollectionsV4Options: RouteOptions = {
 
       if (result) {
         collections = result.map((r) => {
+          let imageUrl = r.image;
+          if (imageUrl) {
+            imageUrl = Assets.getResizedImageUrl(imageUrl, ImageSize.small, r.image_version);
+          } else if (r.sample_images.length) {
+            imageUrl = Assets.getResizedImageUrl(r.sample_images[0], ImageSize.small);
+          }
+
           const response = getJoiCollectionObject(
             {
               id: r.id,
               slug: r.slug,
               name: r.name,
-              image: r.image || (r.sample_images?.length ? r.sample_images[0] : null),
-              banner: r.banner,
+              image: imageUrl || null,
+              banner: Assets.getResizedImageUrl(r.banner),
               discordUrl: r.discord_url,
               externalUrl: r.external_url,
               twitterUsername: r.twitter_username,
