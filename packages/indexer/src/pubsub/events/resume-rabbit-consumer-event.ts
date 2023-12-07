@@ -19,11 +19,11 @@ export class ResumeRabbitConsumerEvent {
     if (job) {
       await PausedRabbitMqQueues.delete(queueName);
       await RabbitMqJobsConsumer.subscribe(job);
-    }
 
-    logger.info(
-      Channel.ResumeRabbitConsumerQueue,
-      `Resumed rabbit consumer queue message=${message}`
-    );
+      logger.info(
+        Channel.ResumeRabbitConsumerQueue,
+        `Resumed rabbit consumer queue message=${message}`
+      );
+    }
   }
 }

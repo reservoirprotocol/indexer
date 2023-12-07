@@ -29,7 +29,8 @@ export class Assets {
         return this.signImage(assets);
       }
     } catch (error) {
-      logger.error("getLocalAssetsLink", `Error: ${error}`);
+      // logger.error("getLocalAssetsLink", `Error: ${error}`);
+      return [];
     }
 
     return assets;

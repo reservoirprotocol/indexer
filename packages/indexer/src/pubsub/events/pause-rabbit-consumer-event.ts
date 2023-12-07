@@ -20,11 +20,11 @@ export class PauseRabbitConsumerEvent {
       if (await RabbitMqJobsConsumer.unsubscribe(job)) {
         await PausedRabbitMqQueues.add(queueName);
       }
-    }
 
-    logger.info(
-      Channel.PauseRabbitConsumerQueue,
-      `Paused rabbit consumer queue message=${message}`
-    );
+      logger.info(
+        Channel.PauseRabbitConsumerQueue,
+        `Paused rabbit consumer queue message=${message}`
+      );
+    }
   }
 }

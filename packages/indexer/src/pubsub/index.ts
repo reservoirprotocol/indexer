@@ -71,42 +71,45 @@ allChainsSyncRedisSubscriber.subscribe(_.values(AllChainsChannel), (error, count
 });
 
 allChainsSyncRedisSubscriber.on("message", async (channel, message) => {
-  // Prevent multiple pods processing same message
-  if (await acquireLock(getUuidByString(message), 60)) {
+  // For some events prevent multiple pods processing same message
+  const lockAcquired = await acquireLock(getUuidByString(message), 60);
+
+  // For log received log only once
+  if (lockAcquired) {
     logger.info(
       "pubsub-all-chains",
       `Received message on channel ${channel}, message = ${message}`
     );
+  }
 
-    // For some events mainnet acts as the master, no need to handle for updates on mainnet for those
-    switch (channel) {
-      case config.chainId !== 1 && AllChainsChannel.ApiKeyCreated:
-        await ApiKeyCreatedAllChainsEvent.handleEvent(message);
-        break;
+  // For some events mainnet acts as the master, no need to handle for updates on mainnet for those
+  switch (channel) {
+    case lockAcquired && config.chainId !== 1 && AllChainsChannel.ApiKeyCreated:
+      await ApiKeyCreatedAllChainsEvent.handleEvent(message);
+      break;
 
-      case config.chainId !== 1 && AllChainsChannel.ApiKeyUpdated:
-        await ApiKeyUpdatedAllChainsEvent.handleEvent(message);
-        break;
+    case lockAcquired && config.chainId !== 1 && AllChainsChannel.ApiKeyUpdated:
+      await ApiKeyUpdatedAllChainsEvent.handleEvent(message);
+      break;
 
-      case config.chainId !== 1 && AllChainsChannel.RateLimitRuleCreated:
-        await RateLimitCreatedEvent.handleEvent(message);
-        break;
+    case lockAcquired && config.chainId !== 1 && AllChainsChannel.RateLimitRuleCreated:
+      await RateLimitCreatedEvent.handleEvent(message);
+      break;
 
-      case config.chainId !== 1 && AllChainsChannel.RateLimitRuleUpdated:
-        await RateLimitUpdatedEvent.handleEvent(message);
-        break;
+    case lockAcquired && config.chainId !== 1 && AllChainsChannel.RateLimitRuleUpdated:
+      await RateLimitUpdatedEvent.handleEvent(message);
+      break;
 
-      case config.chainId !== 1 && AllChainsChannel.RateLimitRuleDeleted:
-        await RateLimitDeletedEvent.handleEvent(message);
-        break;
+    case lockAcquired && config.chainId !== 1 && AllChainsChannel.RateLimitRuleDeleted:
+      await RateLimitDeletedEvent.handleEvent(message);
+      break;
 
-      case AllChainsChannel.PauseRabbitConsumerQueue:
-        await PauseRabbitConsumerAllChainsEvent.handleEvent(message);
-        break;
+    case AllChainsChannel.PauseRabbitConsumerQueue:
+      await PauseRabbitConsumerAllChainsEvent.handleEvent(message);
+      break;
 
-      case AllChainsChannel.ResumeRabbitConsumerQueue:
-        await ResumeRabbitConsumerAllChainsEvent.handleEvent(message);
-        break;
-    }
+    case AllChainsChannel.ResumeRabbitConsumerQueue:
+      await ResumeRabbitConsumerAllChainsEvent.handleEvent(message);
+      break;
   }
 });
