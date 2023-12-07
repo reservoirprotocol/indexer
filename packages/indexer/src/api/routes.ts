@@ -1131,6 +1131,12 @@ export const setupRoutes = (server: Server) => {
     options: ordersEndpoints.getCrossPostingOrdersV1Options,
   });
 
+  server.route({
+    method: "POST",
+    path: "/orders/invalidate/v1",
+    options: ordersEndpoints.postInvalidateOrdersOptions,
+  });
+
   // Owners
 
   server.route({
