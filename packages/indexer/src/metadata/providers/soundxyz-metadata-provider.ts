@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { CollectionMetadata, TokenMetadata, TokenMetadataBySlugResult } from "../types";
+import { CollectionMetadata, TokenMetadata } from "../types";
 import { logger } from "@/common/logger";
 
 import _ from "lodash";
@@ -53,10 +53,6 @@ export class SoundxyzMetadataProvider extends AbstractBaseMetadataProvider {
 
     // TODO: remove this
     return data.filter(Boolean) as TokenMetadata[];
-  }
-
-  async _getTokensMetadataBySlug(): Promise<TokenMetadataBySlugResult> {
-    throw new Error("Method not implemented.");
   }
 
   async getCollectionId(contract: string, tokenId: string) {

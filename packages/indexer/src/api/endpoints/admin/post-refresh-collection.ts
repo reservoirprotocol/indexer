@@ -37,9 +37,7 @@ export const postRefreshCollectionOptions: RouteOptions = {
           "Refresh the given collection. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         )
         .required(),
-      refreshKind: Joi.string()
-        .valid("full-collection", "full-collection-by-slug")
-        .default("full-collection"),
+      refreshKind: Joi.string().valid("full-collection").default("full-collection"),
       cacheOnly: Joi.boolean()
         .default(false)
         .description("If true, will only refresh the collection cache."),
@@ -160,7 +158,7 @@ export const postRefreshCollectionOptions: RouteOptions = {
         ]);
 
         const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
-        let metadataIndexInfo: MetadataIndexFetchJobPayload = {
+        const metadataIndexInfo: MetadataIndexFetchJobPayload = {
           kind: "full-collection",
           data: {
             method,
@@ -172,18 +170,6 @@ export const postRefreshCollectionOptions: RouteOptions = {
         if (method === "opensea") {
           // Refresh contract orders from OpenSea
           await OpenseaIndexerApi.fastContractSync(collection.id);
-          if (collection.slug && payload.refreshKind === "full-collection-by-slug") {
-            metadataIndexInfo = {
-              kind: "full-collection-by-slug",
-              data: {
-                method,
-                contract: collection.contract,
-                slug: collection.slug,
-                collection: collection.id,
-              },
-              context: "post-refresh-collection",
-            };
-          }
         }
 
         // Refresh the collection tokens metadata

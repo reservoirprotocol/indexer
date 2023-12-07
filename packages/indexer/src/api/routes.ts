@@ -587,6 +587,12 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
+    method: "GET",
+    path: "/collections/{collection}/top-traders/v1",
+    options: collectionsEndpoints.getCollectionTopTradersV1Options,
+  });
+
+  server.route({
     method: "POST",
     path: "/collections-sets/v1",
     options: collectionsEndpoints.postCreateCollectionsSetV1Options,

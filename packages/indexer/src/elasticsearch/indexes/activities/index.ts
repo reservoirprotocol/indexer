@@ -183,6 +183,83 @@ export const getChainStatsFromActivity = async () => {
   }, {});
 };
 
+type Trader = {
+  count: number;
+  address: string;
+  volume: number;
+};
+
+export const getTopTraders = async (params: {
+  startTime: number;
+  limit: number;
+  collection: string;
+}): Promise<Trader> => {
+  const { startTime, limit, collection } = params;
+
+  const salesQuery: Record<string, any> = {
+    bool: {
+      filter: [
+        {
+          term: {
+            type: "sale",
+          },
+        },
+        {
+          term: {
+            "collection.id": collection,
+          },
+        },
+        {
+          range: {
+            timestamp: {
+              gte: startTime,
+              format: "epoch_second",
+            },
+          },
+        },
+      ],
+    },
+  };
+
+  const collectionAggregation = {
+    collections: {
+      terms: {
+        field: "toAddress",
+        size: limit,
+      },
+      aggs: {
+        total_sales: {
+          value_count: {
+            field: "id",
+          },
+        },
+        total_volume: {
+          sum: {
+            field: "pricing.priceDecimal",
+          },
+        },
+      },
+    },
+  };
+
+  const esResult = (await elasticsearch.search({
+    index: INDEX_NAME,
+    size: 0,
+    body: {
+      query: salesQuery,
+      aggs: collectionAggregation,
+    },
+  })) as any;
+
+  return esResult?.aggregations?.collections?.buckets?.map((bucket: any) => {
+    return {
+      volume: bucket?.total_volume?.value,
+      count: bucket?.total_sales.value,
+      address: bucket.key,
+    };
+  });
+};
+
 export enum TopSellingFillOptions {
   sale = "sale",
   mint = "mint",

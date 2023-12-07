@@ -974,9 +974,16 @@ export const getTokensV6Options: RouteOptions = {
               }
               query.sortDirection = query.sortDirection || "asc"; // Default sorting for rarity is ASC
               const sign = query.sortDirection == "desc" ? "<" : ">";
-              conditions.push(
-                `(t.rarity_rank, t.contract, t.token_id) ${sign} ($/contRarity/, $/contContract/, $/contTokenId/)`
-              );
+              if (contArr[0] !== "null") {
+                conditions.push(
+                  `(t.rarity_rank, t.contract, t.token_id) ${sign} ($/contRarity/, $/contContract/, $/contTokenId/)
+                  OR t.rarity_rank IS null`
+                );
+              } else {
+                conditions.push(
+                  `(t.rarity_rank IS null AND (t.contract, t.token_id) ${sign} ($/contContract/, $/contTokenId/))`
+                );
+              }
               (query as any).contRarity = contArr[0];
               (query as any).contContract = toBuffer(contArr[1]);
               (query as any).contTokenId = contArr[2];
@@ -1422,7 +1429,7 @@ export const getTokensV6Options: RouteOptions = {
               tokenId,
               name: r.name,
               description: r.description,
-              image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
+              image: Assets.getResizedImageUrl(r.image, ImageSize.medium, r.image_version),
               imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small, r.image_version),
               imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large, r.image_version),
               metadata: Object.values(metadata).every((el) => el === undefined)
@@ -2113,7 +2120,7 @@ export const getListedTokensFromES = async (query: any) => {
           tokenId,
           name: r.name,
           description: r.description,
-          image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
+          image: Assets.getResizedImageUrl(r.image, ImageSize.medium, r.image_version),
           imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small, r.image_version),
           imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large, r.image_version),
           metadata: Object.values(metadata).every((el) => el === undefined) ? undefined : metadata,

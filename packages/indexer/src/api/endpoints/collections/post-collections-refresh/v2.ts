@@ -219,7 +219,7 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         // Do these refresh operation only for small collections
         if (!isLargeCollection) {
           const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
-          let metadataIndexInfo: MetadataIndexFetchJobPayload = {
+          const metadataIndexInfo: MetadataIndexFetchJobPayload = {
             kind: "full-collection",
             data: {
               method,
@@ -227,18 +227,6 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
             },
             context: "post-refresh-collection-v2",
           };
-          if (method === "opensea" && collection.slug) {
-            metadataIndexInfo = {
-              kind: "full-collection-by-slug",
-              data: {
-                method,
-                contract: collection.contract,
-                slug: collection.slug,
-                collection: collection.id,
-              },
-              context: "post-refresh-collection-v2",
-            };
-          }
 
           // Refresh the collection tokens metadata
           await metadataIndexFetchJob.addToQueue([metadataIndexInfo], true);

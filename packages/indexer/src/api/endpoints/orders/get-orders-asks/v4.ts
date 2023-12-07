@@ -20,8 +20,6 @@ import { ContractSets } from "@/models/contract-sets";
 import { Sources } from "@/models/sources";
 import { TokenSets } from "@/models/token-sets";
 import { Orders } from "@/utils/orders";
-import { ApiKeyManager } from "@/models/api-keys";
-import { config } from "@/config/index";
 
 const version = "v4";
 
@@ -180,17 +178,6 @@ export const getOrdersAsksV4Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
-
-    if (config.chainId === 137) {
-      const apiKey = await ApiKeyManager.getApiKey(request.headers["x-api-key"]);
-
-      if (apiKey?.key === "2928d17a-93f9-54e8-bba8-d416dda826f9") {
-        return {
-          orders: [],
-          continuation: null,
-        };
-      }
-    }
 
     // Log timing to debug when limit is 1000 and sortBy is updatedAt
     const debugLog = query.limit === 1000 && query.sortBy === "updatedAt";

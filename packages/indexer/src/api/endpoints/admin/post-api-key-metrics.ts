@@ -29,7 +29,7 @@ export const postApiKeyMetrics: RouteOptions = {
     payload: Joi.object({
       keys: Joi.alternatives()
         .try(
-          Joi.array().items(Joi.string().uuid()).min(1).max(50).description("Array API keys"),
+          Joi.array().items(Joi.string().uuid()).min(1).max(1000).description("Array API keys"),
           Joi.string().uuid().description("Array API keys")
         )
         .required(),

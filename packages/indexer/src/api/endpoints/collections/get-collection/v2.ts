@@ -265,7 +265,9 @@ export const getCollectionV2Options: RouteOptions = {
               onSaleCount: String(r.on_sale_count),
               primaryContract: fromBuffer(r.contract),
               tokenSetId: r.token_set_id,
-              royalties: r.royalties ? r.royalties[0] : null,
+              royalties: !_.isEmpty(r.royalties)
+                ? { recipient: r.royalties[0].recipient, bps: r.royalties[0].bps }
+                : null,
               lastBuy: {
                 value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
                 timestamp: r.last_buy_timestamp,
