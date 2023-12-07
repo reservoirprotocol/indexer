@@ -5,7 +5,7 @@ import { RabbitMqJobsConsumer } from "@/jobs/index";
 import { PausedRabbitMqQueues } from "@/models/paused-rabbit-mq-queues";
 import { config } from "@/config/index";
 
-export class ResumeRabbitConsumerQueueEvent {
+export class PauseRabbitConsumerAllChainsEvent {
   public static async handleEvent(message: string) {
     // This event is relevant only for consumers
     if (!config.doBackgroundWork) {
@@ -15,15 +15,22 @@ export class ResumeRabbitConsumerQueueEvent {
     const parsedMessage = JSON.parse(message);
     const queueName = parsedMessage.queueName;
 
+    // Check if the queue is paused
+    const pausedQueues = await PausedRabbitMqQueues.getPausedQueues();
+    if (_.indexOf(pausedQueues, queueName) !== -1) {
+      return;
+    }
+
     const job = _.find(RabbitMqJobsConsumer.getQueues(), (queue) => queue.getQueue() === queueName);
     if (job) {
-      await PausedRabbitMqQueues.delete(queueName);
-      await RabbitMqJobsConsumer.subscribe(job);
+      if (await RabbitMqJobsConsumer.unsubscribe(job)) {
+        await PausedRabbitMqQueues.add(queueName);
+      }
     }
 
     logger.info(
-      Channel.ResumeRabbitConsumerQueue,
-      `Resumed rabbit consumer queue message=${message}`
+      Channel.PauseRabbitConsumerQueue,
+      `Paused rabbit consumer queue message=${message}`
     );
   }
 }

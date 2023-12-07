@@ -6,8 +6,8 @@ import Joi from "joi";
 import _ from "lodash";
 
 import { config } from "@/config/index";
-import { redis } from "@/common/redis";
-import { Channel } from "@/pubsub/channels";
+import { allChainsSyncRedis, redis } from "@/common/redis";
+import { AllChainsChannel, Channel } from "@/pubsub/channels";
 import { PausedRabbitMqQueues } from "@/models/paused-rabbit-mq-queues";
 
 export const postPauseRabbitQueueOptions: RouteOptions = {
@@ -19,6 +19,7 @@ export const postPauseRabbitQueueOptions: RouteOptions = {
     }).options({ allowUnknown: true }),
     payload: Joi.object({
       queueName: Joi.string().description("The queue name to pause").required(),
+      allChains: Joi.boolean().default(false),
     }),
   },
   handler: async (request: Request) => {
@@ -38,6 +39,13 @@ export const postPauseRabbitQueueOptions: RouteOptions = {
       Channel.PauseRabbitConsumerQueue,
       JSON.stringify({ queueName: payload.queueName })
     );
+
+    if (payload.allChains) {
+      await allChainsSyncRedis.publish(
+        AllChainsChannel.PauseRabbitConsumerQueue,
+        JSON.stringify({ queueName: payload.queueName })
+      );
+    }
 
     return { message: `${payload.queueName} paused` };
   },
