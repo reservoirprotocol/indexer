@@ -76,93 +76,92 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
 
     // How many minutes between each refresh
     const refreshCoolDownMin = 60 * 4;
+    const apiKey = await ApiKeyManager.getApiKey(request.headers["x-api-key"]);
+    const refreshTokens = Number(apiKey?.tier) >= 2;
 
-    try {
-      let overrideCoolDown = false;
-      let isLargeCollection = false;
+    let overrideCoolDown = false;
+    let isLargeCollection = false;
 
-      if (payload.overrideCoolDown) {
-        const apiKey = await ApiKeyManager.getApiKey(request.headers["x-api-key"]);
-
-        if (_.isNull(apiKey)) {
-          throw Boom.unauthorized("Invalid API key");
-        }
-
-        if (!apiKey.permissions?.override_collection_refresh_cool_down) {
-          throw Boom.unauthorized("Not allowed");
-        }
-
-        overrideCoolDown = true;
+    if (payload.overrideCoolDown) {
+      if (_.isNull(apiKey)) {
+        throw Boom.unauthorized("Invalid API key");
       }
 
-      const collection = await Collections.getById(payload.collection);
-
-      // If no collection found
-      if (_.isNull(collection)) {
-        throw Boom.badRequest(`Collection ${payload.collection} not found`);
+      if (!apiKey.permissions?.override_collection_refresh_cool_down) {
+        throw Boom.unauthorized("Not allowed");
       }
 
-      const currentUtcTime = new Date().toISOString();
+      overrideCoolDown = true;
+    }
 
-      // Refresh collection mints
-      await mintsRefreshJob.addToQueue({ collection: collection.id });
+    const collection = await Collections.getById(payload.collection);
 
-      if (payload.metadataOnly) {
-        // Refresh the collection metadata
-        const tokenId = await Tokens.getSingleToken(payload.collection);
+    // If no collection found
+    if (_.isNull(collection)) {
+      throw Boom.badRequest(`Collection ${payload.collection} not found`);
+    }
 
-        await collectionMetadataQueueJob.addToQueue({
-          contract: collection.contract,
-          tokenId,
-          community: collection.community,
-          forceRefresh: true,
+    const currentUtcTime = new Date().toISOString();
+
+    // Refresh collection mints
+    await mintsRefreshJob.addToQueue({ collection: collection.id });
+
+    if (payload.metadataOnly) {
+      // Refresh the collection metadata
+      const tokenId = await Tokens.getSingleToken(payload.collection);
+
+      await collectionMetadataQueueJob.addToQueue({
+        contract: collection.contract,
+        tokenId,
+        community: collection.community,
+        forceRefresh: true,
+      });
+
+      if (collection.slug) {
+        // Refresh opensea collection offers
+        await openseaOrdersProcessJob.addToQueue([
+          {
+            kind: "collection-offers",
+            data: {
+              contract: collection.contract,
+              collectionId: collection.id,
+              collectionSlug: collection.slug,
+            },
+          },
+        ]);
+      }
+
+      // Refresh Blur bids
+      await blurBidsRefreshJob.addToQueue(collection.id, true);
+      await blurListingsRefreshJob.addToQueue(collection.id, true);
+
+      // Refresh listings
+      await OpenseaIndexerApi.fastContractSync(collection.id);
+    } else {
+      isLargeCollection = collection.tokenCount > 30000;
+
+      // Disable large collections refresh
+      if (isLargeCollection) {
+        throw Boom.badRequest("Refreshing large collections is currently disabled");
+      }
+
+      if (!overrideCoolDown) {
+        // Check when the last sync was performed
+        const nextAvailableSync = add(new Date(collection.lastMetadataSync), {
+          minutes: refreshCoolDownMin,
         });
 
-        if (collection.slug) {
-          // Refresh opensea collection offers
-          await openseaOrdersProcessJob.addToQueue([
-            {
-              kind: "collection-offers",
-              data: {
-                contract: collection.contract,
-                collectionId: collection.id,
-                collectionSlug: collection.slug,
-              },
-            },
-          ]);
+        if (!_.isNull(collection.lastMetadataSync) && isAfter(nextAvailableSync, Date.now())) {
+          throw Boom.tooEarly(`Next available sync ${formatISO9075(nextAvailableSync)} UTC`);
         }
+      }
 
-        // Refresh Blur bids
-        await blurBidsRefreshJob.addToQueue(collection.id, true);
-        await blurListingsRefreshJob.addToQueue(collection.id, true);
+      // Update the last sync date
+      await Collections.update(payload.collection, { lastMetadataSync: currentUtcTime });
 
-        // Refresh listings
-        await OpenseaIndexerApi.fastContractSync(collection.id);
-      } else {
-        isLargeCollection = collection.tokenCount > 30000;
-
-        // Disable large collections refresh
-        if (isLargeCollection) {
-          throw Boom.badRequest("Refreshing large collections is currently disabled");
-        }
-
-        if (!overrideCoolDown) {
-          // Check when the last sync was performed
-          const nextAvailableSync = add(new Date(collection.lastMetadataSync), {
-            minutes: refreshCoolDownMin,
-          });
-
-          if (!_.isNull(collection.lastMetadataSync) && isAfter(nextAvailableSync, Date.now())) {
-            throw Boom.tooEarly(`Next available sync ${formatISO9075(nextAvailableSync)} UTC`);
-          }
-        }
-
-        // Update the last sync date
-        await Collections.update(payload.collection, { lastMetadataSync: currentUtcTime });
-
-        // Update the collection id of any missing tokens
-        await edb.none(
-          `
+      // Update the collection id of any missing tokens
+      await edb.none(
+        `
             WITH x AS (
               SELECT
                 collections.contract,
@@ -178,94 +177,94 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
               AND tokens.token_id <@ x.token_id_range
               AND tokens.collection_id IS NULL
           `,
-          { collection: payload.collection }
-        );
+        { collection: payload.collection }
+      );
 
-        // Refresh the collection metadata
-        const tokenId = await Tokens.getSingleToken(payload.collection);
+      // Refresh the collection metadata
+      const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionMetadataQueueJob.addToQueue({
-          contract: collection.contract,
-          tokenId,
-          community: collection.community,
-          forceRefresh: payload.overrideCoolDown,
-        });
+      await collectionMetadataQueueJob.addToQueue({
+        contract: collection.contract,
+        tokenId,
+        community: collection.community,
+        forceRefresh: payload.overrideCoolDown,
+      });
+
+      if (collection.slug) {
+        // Refresh opensea collection offers
+        await openseaOrdersProcessJob.addToQueue([
+          {
+            kind: "collection-offers",
+            data: {
+              contract: collection.contract,
+              collectionId: collection.id,
+              collectionSlug: collection.slug,
+            },
+          },
+        ]);
+      }
+
+      // Refresh the contract floor sell and top bid
+      await collectionRefreshCacheJob.addToQueue({ collection: collection.id });
+
+      // Revalidate the contract orders
+      await orderFixesJob.addToQueue([{ by: "contract", data: { contract: collection.contract } }]);
+
+      // Refresh Blur bids
+      if (collection.id.match(regex.address)) {
+        await blurBidsRefreshJob.addToQueue(collection.id, true);
+      }
+
+      // Refresh listings
+      await OpenseaIndexerApi.fastContractSync(collection.id);
+
+      if (refreshTokens) {
+        const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
+        const metadataIndexInfo: MetadataIndexFetchJobPayload = {
+          kind: "full-collection",
+          data: {
+            method,
+            collection: collection.id,
+          },
+          context: "post-refresh-collection-v1",
+        };
+
+        // Refresh the collection tokens metadata
+        await metadataIndexFetchJob.addToQueue([metadataIndexInfo], true);
 
         if (collection.slug) {
-          // Refresh opensea collection offers
-          await openseaOrdersProcessJob.addToQueue([
+          await PendingFlagStatusSyncCollectionSlugs.add([
             {
-              kind: "collection-offers",
-              data: {
-                contract: collection.contract,
-                collectionId: collection.id,
-                collectionSlug: collection.slug,
-              },
+              slug: collection.slug,
+              contract: collection.contract,
+              collectionId: collection.id,
+              continuation: null,
+            },
+          ]);
+        } else {
+          await PendingFlagStatusSyncContracts.add([
+            {
+              contract: collection.contract,
+              collectionId: collection.id,
+              continuation: null,
             },
           ]);
         }
-
-        // Refresh the contract floor sell and top bid
-        await collectionRefreshCacheJob.addToQueue({ collection: collection.id });
-
-        // Revalidate the contract orders
-        await orderFixesJob.addToQueue([
-          { by: "contract", data: { contract: collection.contract } },
-        ]);
-
-        // Refresh Blur bids
-        if (collection.id.match(regex.address)) {
-          await blurBidsRefreshJob.addToQueue(collection.id, true);
-        }
-
-        // Refresh listings
-        await OpenseaIndexerApi.fastContractSync(collection.id);
-
-        // Do these refresh operation only for small collections
-        if (!isLargeCollection) {
-          const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
-          const metadataIndexInfo: MetadataIndexFetchJobPayload = {
-            kind: "full-collection",
-            data: {
-              method,
-              collection: collection.id,
-            },
-            context: "post-refresh-collection-v1",
-          };
-
-          // Refresh the collection tokens metadata
-          await metadataIndexFetchJob.addToQueue([metadataIndexInfo], true);
-
-          if (collection.slug) {
-            await PendingFlagStatusSyncCollectionSlugs.add([
-              {
-                slug: collection.slug,
-                contract: collection.contract,
-                collectionId: collection.id,
-                continuation: null,
-              },
-            ]);
-          } else {
-            await PendingFlagStatusSyncContracts.add([
-              {
-                contract: collection.contract,
-                collectionId: collection.id,
-                continuation: null,
-              },
-            ]);
-          }
-        }
       }
-
-      logger.info(
-        `post-collections-refresh-${version}-handler`,
-        `Request accepted. collection=${payload.collection}, overrideCoolDown=${overrideCoolDown}, refreshTokens=${payload.refreshTokens}, isLargeCollection=${isLargeCollection}, currentUtcTime=${currentUtcTime}`
-      );
-
-      return { message: "Request accepted" };
-    } catch (error) {
-      logger.error(`post-collections-refresh-${version}-handler`, `Handler failure: ${error}`);
-      throw error;
     }
+
+    logger.info(
+      `post-collections-refresh-${version}-handler`,
+      JSON.stringify({
+        message: `Request accepted. collection=${payload.collection}`,
+        payload,
+        overrideCoolDown,
+        refreshTokens,
+        isLargeCollection,
+        apiKey,
+      })
+    );
+
+    return { message: "Request accepted" };
   },
 };
