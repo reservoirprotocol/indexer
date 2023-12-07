@@ -1,11 +1,11 @@
 import { logger } from "@/common/logger";
-import { Channel } from "@/pubsub/channels";
+import { AllChainsChannel } from "@/pubsub/channels";
 import _ from "lodash";
 import { RabbitMqJobsConsumer } from "@/jobs/index";
 import { PausedRabbitMqQueues } from "@/models/paused-rabbit-mq-queues";
 import { config } from "@/config/index";
 
-export class ResumeRabbitConsumerQueueEvent {
+export class ResumeRabbitConsumerAllChainsEvent {
   public static async handleEvent(message: string) {
     // This event is relevant only for consumers
     if (!config.doBackgroundWork) {
@@ -19,11 +19,11 @@ export class ResumeRabbitConsumerQueueEvent {
     if (job) {
       await PausedRabbitMqQueues.delete(queueName);
       await RabbitMqJobsConsumer.subscribe(job);
-    }
 
-    logger.info(
-      Channel.ResumeRabbitConsumerQueue,
-      `Resumed rabbit consumer queue message=${message}`
-    );
+      logger.info(
+        AllChainsChannel.ResumeRabbitConsumerQueue,
+        `Resumed rabbit consumer queue message=${message}`
+      );
+    }
   }
 }

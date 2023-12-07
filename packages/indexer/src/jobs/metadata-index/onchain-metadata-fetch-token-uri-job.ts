@@ -45,7 +45,12 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
         await this.addToQueue(e.delay);
         return;
       } else {
-        logger.error(this.queueName, `Error. fetchUriTokenCount=${fetchTokens.length}, error=${e}`);
+        logger.error(
+          this.queueName,
+          `Error. fetchUriTokenCount=${fetchTokens.length}, tokens=${JSON.stringify(
+            fetchTokens
+          )}, error=${e}`
+        );
         throw e;
       }
     }

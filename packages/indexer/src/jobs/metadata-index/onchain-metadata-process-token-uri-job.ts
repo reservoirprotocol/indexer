@@ -51,10 +51,10 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
         await this.addToQueue(payload, e.delay);
         return;
       }
-      logger.error(
-        this.queueName,
-        `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, error=${e}, falling back to=${config.fallbackMetadataIndexingMethod}`
-      );
+      // logger.error(
+      //   this.queueName,
+      //   `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, error=${e}, falling back to=${config.fallbackMetadataIndexingMethod}`
+      // );
     }
 
     if (!config.fallbackMetadataIndexingMethod) {
