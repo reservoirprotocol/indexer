@@ -19,7 +19,7 @@ import { orderbookPostOrderExternalJob } from "@/jobs/orderbook/post-order-exter
 const version = "v4";
 
 export const postOrderV4Options: RouteOptions = {
-  description: "Submit signed orders",
+  description: "Submit Signed Orders",
   tags: ["api", "Create Orders (list & bid)"],
   plugins: {
     "hapi-swagger": {

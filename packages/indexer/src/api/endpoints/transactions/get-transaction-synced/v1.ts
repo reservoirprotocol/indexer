@@ -8,7 +8,7 @@ import { toBuffer } from "@/common/utils";
 const version = "v1";
 
 export const getTransactionSyncedV1Options: RouteOptions = {
-  description: "Transaction status",
+  description: "Check Transaction Status",
   notes: "Get a boolean response on whether a particular transaction was synced or not.",
   tags: ["api", "Create Orders (list & bid)"],
   plugins: {
