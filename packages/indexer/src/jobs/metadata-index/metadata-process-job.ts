@@ -97,11 +97,6 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
 
     const metadata = results.flat(1);
 
-    logger.info(
-      this.queueName,
-      `Debug. method=${method}, refreshTokensCount=${refreshTokens.length}, metadataCount=${metadata.length}, rateLimitExpiredIn=${rateLimitExpiredIn}`
-    );
-
     await metadataIndexWriteJob.addToQueue(
       metadata.map((m) => ({
         ...m,

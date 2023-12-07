@@ -3,6 +3,9 @@ import { MergeRefs, ReqRefDefaults } from "@hapi/hapi";
 import { config } from "../config";
 import { logger } from "@/common/logger";
 import crypto from "crypto-js";
+import { getNetworkName } from "@/config/network";
+
+const IMAGE_RESIZE_WORKER_VERSION = "v2";
 
 export enum ImageSize {
   small = 250,
@@ -118,10 +121,17 @@ export class Assets {
 
     const ciphertext = crypto.AES.encrypt(
       imageUrl + v,
-      config.privateImageResizingSigningKey
+      crypto.enc.Hex.parse(config.privateImageResizingSigningKey),
+      {
+        iv: crypto.enc.Utf8.parse(config.privateImageResizingSigningKey),
+        mode: crypto.mode.CBC,
+        padding: crypto.pad.Pkcs7,
+      }
     ).toString();
 
-    return `${config.imageResizingBaseUrl}/${encodeURIComponent(ciphertext)}${
+    return `${
+      config.imageResizingBaseUrl
+    }/${IMAGE_RESIZE_WORKER_VERSION}/${getNetworkName()}/${encodeURIComponent(ciphertext)}${
       width ? "?width=" + width : ""
     }`;
   }
