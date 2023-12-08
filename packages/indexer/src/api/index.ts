@@ -21,6 +21,7 @@ import { ApiKeyManager } from "@/models/api-keys";
 import { RateLimitRules } from "@/models/rate-limit-rules";
 import { BlockedRouteError } from "@/models/rate-limit-rules/errors";
 import { countApiUsageJob } from "@/jobs/metrics/count-api-usage-job";
+import { generateOpenApiSpec } from "./endpoints/admin";
 
 let server: Hapi.Server;
 
@@ -372,7 +373,7 @@ export const start = async (): Promise<void> => {
   setupRoutes(server);
 
   server.listener.keepAliveTimeout = 61000;
-
+  await generateOpenApiSpec();
   await server.start();
   logger.info("process", `Started on port ${config.port}`);
 };

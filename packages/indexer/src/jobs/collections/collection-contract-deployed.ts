@@ -7,6 +7,7 @@ import { toBuffer } from "@/common/utils";
 
 import * as registry from "@/utils/royalties/registry";
 import * as royalties from "@/utils/royalties";
+import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
 
 export type CollectionContractDeployed = {
   contract: string;
@@ -68,6 +69,8 @@ export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler
 
     const { symbol, name } = await getContractNameAndSymbol(contract);
 
+    const contractMetadata = await onchainMetadataProvider._getCollectionMetadata(contract);
+
     await Promise.all([
       idb.none(
         `
@@ -76,17 +79,19 @@ export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler
             kind,
             symbol,
             name,
-            deployed_at
+            deployed_at,
+            metadata,
+            deployer
         ) VALUES (
           $/address/,
           $/kind/,
           $/symbol/,
           $/name/,
-          $/deployed_at/
+          $/deployed_at/,
+          $/metadata:json/,
+          $/deployer/
         )
-        ON CONFLICT (address) DO UPDATE SET
-          symbol = EXCLUDED.symbol,
-          name = EXCLUDED.name
+        ON CONFLICT DO NOTHING
       `,
         {
           address: toBuffer(contract),
@@ -94,6 +99,8 @@ export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler
           symbol: symbol || null,
           name: name || null,
           deployed_at: payload.blockTimestamp ? new Date(payload.blockTimestamp * 1000) : null,
+          metadata: contractMetadata ? contractMetadata : null,
+          deployer: deployer ? toBuffer(deployer) : null,
         }
       ),
       name
@@ -105,14 +112,16 @@ export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler
                 contract,
                 creator,
                 token_id_range,
-                token_set_id
+                token_set_id,
+                metadata
               ) VALUES (
                 $/id/,
                 $/name/,
                 $/contract/,
                 $/creator/,
                 '(,)'::numrange,
-                $/tokenSetId/
+                $/tokenSetId/,
+                $/metadata:json/
               ) ON CONFLICT DO NOTHING
             `,
             {
@@ -121,6 +130,7 @@ export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler
               contract: toBuffer(contract),
               creator: deployer ? toBuffer(deployer) : null,
               tokenSetId: `contract:${contract}`,
+              metadata: contractMetadata ? contractMetadata : null,
             }
           )
         : null,

@@ -5,7 +5,6 @@ import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { baseProvider } from "@/common/provider";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
@@ -66,39 +65,32 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      const paymentSettings = await paymentProcessorV2.getCollectionPaymentSettings(
+      // Check: various collection restrictions
+
+      const settings = await paymentProcessorV2.getCollectionPaymentSettings(
         order.params.tokenAddress
       );
-      const exchange = new Sdk.PaymentProcessorV2.Exchange(config.chainId).contract.connect(
-        baseProvider
-      );
-
       if (
-        paymentSettings?.paymentSettings &&
+        settings &&
         [
-          paymentProcessorV2.PaymentSettings.CustomPaymentMethodWhitelist,
           paymentProcessorV2.PaymentSettings.DefaultPaymentMethodWhitelist,
-        ].includes(paymentSettings.paymentSettings)
+          paymentProcessorV2.PaymentSettings.CustomPaymentMethodWhitelist,
+        ].includes(settings.paymentSettings) &&
+        order.params.paymentMethod !== Sdk.Common.Addresses.Native[config.chainId]
       ) {
-        if (order.params.paymentMethod !== Sdk.Common.Addresses.Native[config.chainId]) {
-          const isCustomPaymentMethodWhitelist = await exchange.isPaymentMethodWhitelisted(
-            paymentSettings.paymentMethodWhitelistId,
-            order.params.paymentMethod
-          );
-          if (!isCustomPaymentMethodWhitelist) {
-            return results.push({
-              id,
-              status: "payment-token-not-approved",
-            });
-          }
+        const paymentMethodWhitelist = settings.whitelistedPaymentMethods.includes(
+          order.params.paymentMethod
+        );
+        if (!paymentMethodWhitelist) {
+          return results.push({
+            id,
+            status: "payment-token-not-approved",
+          });
         }
       } else if (
-        paymentSettings?.paymentSettings === paymentProcessorV2.PaymentSettings.PricingConstraints
+        settings?.paymentSettings === paymentProcessorV2.PaymentSettings.PricingConstraints
       ) {
-        if (
-          paymentSettings.constrainedPricingPaymentMethod.toLowerCase() !=
-          order.params.paymentMethod.toLowerCase()
-        ) {
+        if (settings.constrainedPricingPaymentMethod !== order.params.paymentMethod.toLowerCase()) {
           return results.push({
             id,
             status: "payment-token-not-approved",
@@ -106,13 +98,13 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         }
 
         const price = bn(order.params.itemPrice).div(order.params.amount);
-        if (price.lt(paymentSettings.pricingBounds!.floorPrice)) {
+        if (price.lt(settings.pricingBounds!.floorPrice)) {
           return results.push({
             id,
             status: "sale-price-below-configured-floor-price",
           });
         }
-        if (price.gt(paymentSettings.pricingBounds!.ceilingPrice)) {
+        if (price.gt(settings.pricingBounds!.ceilingPrice)) {
           return results.push({
             id,
             status: "sale-price-above-configured-ceiling-price",
@@ -120,6 +112,20 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         }
       }
 
+      // Check: trusted channels
+      if (settings?.blockTradesFromUntrustedChannels) {
+        const trustedChannels = await paymentProcessorV2.getAllTrustedChannels(
+          order.params.tokenAddress
+        );
+        if (trustedChannels.every((c) => c.signer !== AddressZero)) {
+          return results.push({
+            id,
+            status: "signed-trusted-channels-not-yet-supported",
+          });
+        }
+      }
+
+      // Check: operator filtering
       const isFiltered = await checkMarketplaceIsFiltered(order.params.tokenAddress, [
         Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId],
       ]);
@@ -265,10 +271,16 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       // Handle: security level 4 and 6 EOA verification
       if (side === "buy") {
-        const config = await erc721c.getERC721CConfigFromDB(order.params.tokenAddress);
-        if (config && [4, 6].includes(config.transferSecurityLevel)) {
+        const configV1 = await erc721c.v1.getConfig(order.params.tokenAddress);
+        const configV2 = await erc721c.v2.getConfig(order.params.tokenAddress);
+        if (
+          (configV1 && [4, 6].includes(configV1.transferSecurityLevel)) ||
+          (configV2 && [6, 8].includes(configV2.transferSecurityLevel))
+        ) {
+          const transferValidator = (configV1 ?? configV2)!.transferValidator;
+
           const isVerified = await erc721c.isVerifiedEOA(
-            config.transferValidator,
+            transferValidator,
             order.params.sellerOrBuyer
           );
           if (!isVerified) {

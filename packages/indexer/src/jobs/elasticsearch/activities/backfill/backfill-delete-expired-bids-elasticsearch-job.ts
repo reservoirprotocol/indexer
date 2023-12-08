@@ -7,8 +7,8 @@ import { ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { redb } from "@/common/db";
 
 export type BackfillDeleteExpiredBidsElasticsearchJobPayload = {
+  collectionId?: string;
   cursor: string | null;
-  dryRun: boolean;
 };
 
 export class BackfillDeleteExpiredBidsElasticsearchJob extends AbstractRabbitMqJobHandler {
@@ -19,19 +19,27 @@ export class BackfillDeleteExpiredBidsElasticsearchJob extends AbstractRabbitMqJ
   lazyMode = true;
 
   protected async process(payload: BackfillDeleteExpiredBidsElasticsearchJobPayload) {
-    const { cursor, dryRun } = payload;
+    const { collectionId, cursor } = payload;
 
     if (cursor == null) {
-      logger.info(this.queueName, `Start - V3. payload=${JSON.stringify(payload)}`);
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          message: `Start - V3.`,
+          payload,
+        })
+      );
     }
 
     const limit = (await redis.get(`${this.queueName}-limit`)) || 1000;
 
     const { activities, continuation } = await ActivitiesIndex.search(
       {
+        collections: collectionId ? [collectionId] : [],
         types: [ActivityType.bid],
         continuation: cursor,
         sortBy: "timestamp",
+        sortDirection: "asc",
         limit: Number(limit),
       },
       true
@@ -64,37 +72,59 @@ export class BackfillDeleteExpiredBidsElasticsearchJob extends AbstractRabbitMqJ
         }
       }
 
-      if (toBeDeletedActivityIds.length && !dryRun) {
+      if (toBeDeletedActivityIds.length) {
         await ActivitiesIndex.deleteActivitiesById(toBeDeletedActivityIds);
 
         logger.info(
           this.queueName,
-          `Deleted - V3. payload=${JSON.stringify(payload)}, activitiesCount=${
-            activities.length
-          }, activitiesToBeDeletedCount=${
-            toBeDeletedActivityIds.length
-          }, lastActivity=${JSON.stringify(activities[0])}, continuation=${continuation}`
+          JSON.stringify({
+            message: `Deleted - V3. activitiesCount=${
+              activities.length
+            }, activitiesToBeDeletedCount=${
+              toBeDeletedActivityIds.length
+            }, lastActivity=${JSON.stringify(activities[0])}, continuation=${continuation}`,
+            payload,
+          })
+        );
+      } else {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `No Activities To Be Deleted - V3. lastActivity=${JSON.stringify(
+              activities[0]
+            )}, continuation=${continuation}`,
+            payload,
+          })
         );
       }
 
       if (continuation) {
-        await this.addToQueue(continuation, dryRun);
+        await this.addToQueue(collectionId, continuation);
       } else {
         logger.info(
           this.queueName,
-          `End - No Continuation - V3. payload=${JSON.stringify(payload)}`
+          JSON.stringify({
+            message: `End - No Continuation - V3.`,
+            payload,
+          })
         );
       }
     } else {
-      logger.info(this.queueName, `End - No Activities - V3. payload=${JSON.stringify(payload)}`);
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          message: `End - No Activities - V3.`,
+          payload,
+        })
+      );
     }
   }
 
-  public async addToQueue(cursor?: string | null, dryRun = true, delay = 1000) {
+  public async addToQueue(collectionId?: string, cursor?: string | null, delay = 1000) {
     if (!config.doElasticsearchWork) {
       return;
     }
-    await this.send({ payload: { cursor, dryRun } }, delay);
+    await this.send({ payload: { collectionId, cursor } }, delay);
   }
 }
 

@@ -53,6 +53,7 @@ export const getAutocompleteCollectionsV1Options: RouteOptions = {
     schema: Joi.object({
       collections: Joi.array().items(
         Joi.object({
+          chainId: Joi.number(),
           id: Joi.string(),
           contract: Joi.string(),
           image: Joi.string().allow("", null),
@@ -89,6 +90,7 @@ export const getAutocompleteCollectionsV1Options: RouteOptions = {
 
     const result = _.map(collections, async (collection) => {
       return {
+        chainId: collection.chain.id,
         id: collection.id,
         name: collection.name,
         contract: collection.contract,

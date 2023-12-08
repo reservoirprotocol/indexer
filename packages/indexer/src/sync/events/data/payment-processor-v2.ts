@@ -173,7 +173,7 @@ export const updatedCollectionPaymentSettings: EventData = {
   kind: "payment-processor-v2",
   subKind: "payment-processor-v2-updated-collection-payment-settings",
   addresses: { [PaymentProcessorV2.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
-  topic: "0x0e73abd6d60e5d56d0b22d84e13b838d5266e8b6fa897e36645565dce796dce5",
+  topic: "0x6d5dde4446d5ea78fc1298a77b69b20187e9b8057bf46d48fce390fe05a989ed",
   numTopics: 2,
   abi: new Interface([
     `event UpdatedCollectionPaymentSettings(
@@ -184,7 +184,8 @@ export const updatedCollectionPaymentSettings: EventData = {
       uint16 royaltyBackfillNumerator,
       address royaltyBackfillReceiver,
       uint16 royaltyBountyNumerator,
-      address exclusiveBountyReceiver
+      address exclusiveBountyReceiver,
+      bool blockTradesFromUntrustedChannels
     )`,
   ]),
 };
@@ -201,6 +202,34 @@ export const updatedTokenLevelPricingBoundaries: EventData = {
       uint256 indexed tokenId,
       uint256 floorPrice,
       uint256 ceilingPrice
+    )`,
+  ]),
+};
+
+export const trustedChannelRemovedForCollection: EventData = {
+  kind: "payment-processor-v2",
+  subKind: "payment-processor-v2-trusted-channel-removed-for-collection",
+  addresses: { [PaymentProcessorV2.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0x0a96ed211f335f5d4fe7b4fa19c97f07198b6582d6ae3ef987740c0798de3c18",
+  numTopics: 3,
+  abi: new Interface([
+    `event TrustedChannelRemovedForCollection(
+      address indexed tokenAddress,
+      uint256 indexed channel
+    )`,
+  ]),
+};
+
+export const trustedChannelAddedForCollection: EventData = {
+  kind: "payment-processor-v2",
+  subKind: "payment-processor-v2-trusted-channel-added-for-collection",
+  addresses: { [PaymentProcessorV2.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0x5ad5afe7f91207e8a3eba0274c5fb0599a0cc2b72709ec47fa5e157ae8375ba5",
+  numTopics: 3,
+  abi: new Interface([
+    `event TrustedChannelAddedForCollection(
+      address indexed tokenAddress, 
+      address indexed channel
     )`,
   ]),
 };

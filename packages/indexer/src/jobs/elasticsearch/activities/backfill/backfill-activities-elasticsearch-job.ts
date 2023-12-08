@@ -5,7 +5,7 @@ import { elasticsearch } from "@/common/elasticsearch";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
-import { backfillSaveActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-save-activities-elasticsearch-job";
+import { backfillSaveActivitiesElasticsearchJob } from "@/jobs/elasticsearch/activities/backfill/backfill-save-activities-elasticsearch-job";
 
 import * as CONFIG from "@/elasticsearch/indexes/activities/config";
 import { getNetworkName } from "@/config/network";
@@ -43,7 +43,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         index: indexName,
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
-        ...CONFIG[indexConfig!],
+        ...CONFIG[indexConfig || "CONFIG_DEFAULT"],
       };
 
       const createIndexResponse = await elasticsearch.indices.create(params);
@@ -259,7 +259,9 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
       promises.push(backfillBidCancelActivities());
     }
 
-    await Promise.all(promises);
+    if (promises.length) {
+      await Promise.all(promises);
+    }
   }
 
   public async addToQueue(
@@ -267,18 +269,19 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
     indexName = "",
     indexConfig = "",
     keepGoing = false,
-    backfillTransferActivities = true,
-    backfillSaleActivities = true,
-    backfillAskActivities = true,
-    backfillAskCancelActivities = true,
-    backfillBidActivities = true,
-    backfillBidCancelActivities = true,
+    backfillTransferActivities = false,
+    backfillSaleActivities = false,
+    backfillAskActivities = false,
+    backfillAskCancelActivities = false,
+    backfillBidActivities = false,
+    backfillBidCancelActivities = false,
     fromTimestamp?: number,
     toTimestamp?: number
   ) {
     if (!config.doElasticsearchWork) {
       return;
     }
+
     await this.send({
       payload: {
         createIndex,

@@ -30,8 +30,8 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
     expiresIn: 60 * 1000,
     privacy: "public",
   },
-  description: "Top Selling Collections",
-  notes: "Get top selling and minting collections",
+  description: "Top Trending Collections",
+  notes: "Get trending selling/minting collections",
   tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
@@ -66,6 +66,10 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
         .description(
           "If true, return the non flagged floor ask. Supported only when `normalizeRoyalties` is false."
         ),
+      floorAskPercentChange: Joi.string()
+        .valid("none", "10m", "1h", "6h", "1d", "7d", "30d")
+        .default("none")
+        .description("Time window to calculate the percent change in floor ask for."),
     }),
   },
   response: {
@@ -104,6 +108,7 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
               .allow(null)
               .description("Lowest Ask Price."),
           },
+          floorAskPercentChange: Joi.number().unsafe().allow(null),
           tokenCount: Joi.number().description("Total tokens within the collection."),
           ownerCount: Joi.number().description("Unique number of owners."),
 
@@ -133,20 +138,24 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
     },
   },
   handler: async (request: Request, h) => {
-    const { normalizeRoyalties, useNonFlaggedFloorAsk } = request.query;
+    const { normalizeRoyalties, useNonFlaggedFloorAsk, floorAskPercentChange } = request.query;
 
     try {
       const collectionsResult = await getCollectionsResult(request);
       let collections = [];
 
       if (collectionsResult.length > 0) {
-        const collectionsMetadata = await getCollectionsMetadata(collectionsResult);
+        const collectionsMetadata = await getCollectionsMetadata(
+          collectionsResult,
+          floorAskPercentChange
+        );
 
         collections = await formatCollections(
           collectionsResult,
           collectionsMetadata,
           normalizeRoyalties,
-          useNonFlaggedFloorAsk
+          useNonFlaggedFloorAsk,
+          floorAskPercentChange
         );
       }
 
@@ -159,7 +168,10 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
   },
 };
 
-export async function getCollectionsMetadata(collectionsResult: any[]) {
+export async function getCollectionsMetadata(
+  collectionsResult: any[],
+  floorAskPercentChange?: string
+) {
   const collectionIds = collectionsResult.map((collection: any) => collection.id);
   const collectionsToFetch = collectionIds.map((id: string) => `collection-cache:v3:${id}`);
   const batches = chunk(collectionsToFetch, REDIS_BATCH_SIZE);
@@ -299,19 +311,86 @@ export async function getCollectionsMetadata(collectionsResult: any[]) {
     }
   }
 
-  const collectionsMetadata: Record<string, any> = {};
-  [...collectionMetadataResponse, ...collectionMetadataCache].forEach((metadata: any) => {
-    collectionsMetadata[metadata.id] = metadata;
-  });
+  if (floorAskPercentChange && floorAskPercentChange !== "none") {
+    const endDate = new Date();
+    switch (floorAskPercentChange) {
+      case "10m":
+        endDate.setMinutes(endDate.getMinutes() - 10);
+        break;
+      case "1h":
+        endDate.setHours(endDate.getHours() - 1);
+        break;
+      case "6h":
+        endDate.setHours(endDate.getHours() - 6);
+        break;
+      case "1d":
+        endDate.setDate(endDate.getDate() - 1);
+        break;
+      case "7d":
+        endDate.setDate(endDate.getDate() - 7);
+        break;
+      case "30d":
+        endDate.setDate(endDate.getDate() - 30);
+        break;
+      default:
+        endDate.setDate(endDate.getDate() - 1);
+    }
 
-  return collectionsMetadata;
+    const endTimestamp = Math.floor(endDate.getTime() / 1000);
+
+    const fullCollectionIdList = collectionIds.map((id: string) => `'${id}'`).join(", ");
+
+    const floorChangeQuery = `
+      SELECT
+        collections.id,
+        z.price
+      FROM
+        collections
+        LEFT JOIN LATERAL (
+          SELECT
+            collection_floor_sell_events.price
+          FROM
+            collection_floor_sell_events
+          WHERE
+            collection_floor_sell_events.collection_id = collections.id
+            AND collection_floor_sell_events.created_at <= to_timestamp(${endTimestamp})
+          ORDER BY
+            collection_floor_sell_events.created_at DESC
+          LIMIT 1) z ON TRUE
+      WHERE
+        collections.id IN (${fullCollectionIdList})
+    `;
+
+    const previousFloorPriceResponse = await redb.manyOrNone(floorChangeQuery);
+    const previousFloorPriceObject: any = {};
+
+    previousFloorPriceResponse.forEach((collection: any) => {
+      previousFloorPriceObject[collection.id] = collection.price;
+    });
+
+    const collectionsMetadata: Record<string, any> = {};
+    [...collectionMetadataResponse, ...collectionMetadataCache].forEach((metadata: any) => {
+      metadata["previous_floor_sell_currency_value"] = previousFloorPriceObject[metadata.id];
+      collectionsMetadata[metadata.id] = metadata;
+    });
+
+    return collectionsMetadata;
+  } else {
+    const collectionsMetadata: Record<string, any> = {};
+    [...collectionMetadataResponse, ...collectionMetadataCache].forEach((metadata: any) => {
+      collectionsMetadata[metadata.id] = metadata;
+    });
+
+    return collectionsMetadata;
+  }
 }
 
 async function formatCollections(
   collectionsResult: any[],
   collectionsMetadata: Record<string, any>,
   normalizeRoyalties: boolean,
-  useNonFlaggedFloorAsk: boolean
+  useNonFlaggedFloorAsk: boolean,
+  floorAskPercentChangeParam: string
 ) {
   const sources = await Sources.getInstance();
 
@@ -319,6 +398,7 @@ async function formatCollections(
     collectionsResult.map(async (response: any) => {
       const metadata = collectionsMetadata[response.id] || {};
       let floorAsk;
+      let floorAskPercentChange;
       let prefix = "";
 
       if (normalizeRoyalties) {
@@ -352,6 +432,16 @@ async function formatCollections(
         };
       }
 
+      if (floorAskPercentChangeParam && floorAskPercentChangeParam !== "none") {
+        floorAskPercentChange =
+          Number(metadata.previous_floor_sell_currency_value) &&
+          Number(metadata.floor_sell_currency_value)
+            ? ((metadata.floor_sell_currency_value - metadata.previous_floor_sell_currency_value) /
+                metadata.previous_floor_sell_currency_value) *
+              100
+            : null;
+      }
+
       return {
         ...response,
         sampleImages:
@@ -376,6 +466,7 @@ async function formatCollections(
           allTime: metadata.all_time_volume ? formatEth(metadata.all_time_volume) : null,
         },
 
+        floorAskPercentChange,
         tokenCount: Number(metadata.token_count || 0),
         ownerCount: Number(metadata.owner_count || 0),
         banner: metadata?.metadata?.bannerImageUrl,

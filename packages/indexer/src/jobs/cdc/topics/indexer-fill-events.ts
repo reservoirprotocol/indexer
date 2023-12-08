@@ -9,7 +9,7 @@ import {
 import {
   EventKind as ProcessActivityEventKind,
   processActivityEventJob,
-} from "@/jobs/activities/process-activity-event-job";
+} from "@/jobs/elasticsearch/activities/process-activity-event-job";
 
 export class IndexerFillEventsHandler extends KafkaEventHandler {
   topicName = "indexer.public.fill_events_2";

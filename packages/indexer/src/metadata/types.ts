@@ -4,6 +4,7 @@ export interface TokenMetadata {
   contract: string;
   // TODO: standardize as string or number throughout the indexer
   tokenId: any;
+  tokenURI?: string;
   slug: string | null;
   collection: string;
   flagged: boolean | null;
@@ -50,12 +51,6 @@ export interface CollectionMetadata {
   isFallback?: boolean;
   paymentTokens?: object | null;
   creator?: string | null;
-}
-
-export interface TokenMetadataBySlugResult {
-  metadata: TokenMetadata[];
-  continuation: string | null;
-  previous: string;
 }
 
 export type ProviderMethod = "opensea" | "onchain" | "simplehash";

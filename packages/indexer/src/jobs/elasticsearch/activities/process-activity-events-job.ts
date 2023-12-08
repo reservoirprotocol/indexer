@@ -7,7 +7,7 @@ import { redis, redlock } from "@/common/redis";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
 import { PendingActivityEventsQueue } from "@/elasticsearch/indexes/activities/pending-activity-events-queue";
-import { EventKind } from "@/jobs/activities/process-activity-event-job";
+import { EventKind } from "@/jobs/elasticsearch/activities/process-activity-event-job";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import {
   NftTransferEventInfo,
@@ -40,7 +40,7 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
     const pendingActivitiesQueue = new PendingActivitiesQueue();
     const pendingActivityEventsQueue = new PendingActivityEventsQueue(eventKind);
 
-    const limit = Number(await redis.get(`${this.queueName}-limit`)) || 100;
+    const limit = Number(await redis.get(`${this.queueName}-${eventKind}-limit`)) || 100;
 
     const pendingActivityEvents = await pendingActivityEventsQueue.get(limit);
 
@@ -83,6 +83,16 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
 
         if (activities?.length) {
           await pendingActivitiesQueue.add(activities);
+
+          if (config.chainId === 1 && eventKind === "newBuyOrder") {
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                message: `debug process activity events. eventKind=${eventKind}, pendingActivityEvents=${pendingActivityEvents.length}, activities=${activities?.length}, limit=${limit}`,
+                lastActivity: activities?.length > 0 ? activities[0] : null,
+              })
+            );
+          }
         }
       } catch (error) {
         logger.error(

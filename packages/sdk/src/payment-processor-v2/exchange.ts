@@ -1,4 +1,4 @@
-import { defaultAbiCoder } from "@ethersproject/abi";
+import { Interface, defaultAbiCoder } from "@ethersproject/abi";
 import { Provider } from "@ethersproject/abstract-provider";
 import { Signer } from "@ethersproject/abstract-signer";
 import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
@@ -76,6 +76,7 @@ export class Exchange {
     order: Order,
     matchOptions: MatchingOptions,
     options?: {
+      trustedChannel?: string;
       source?: string;
       relayer?: string;
       fee?: {
@@ -93,6 +94,7 @@ export class Exchange {
     order: Order,
     matchOptions: MatchingOptions,
     options?: {
+      trustedChannel?: string;
       source?: string;
       relayer?: string;
       fee?: {
@@ -198,12 +200,18 @@ export class Exchange {
       .mul(bn(fillAmount))
       .add(feeOnTop.amount);
 
-    return {
+    let tx: TxData = {
       from: sender,
       to: this.contract.address,
       value: passValue ? fillValue.toString() : "0",
       data: data + generateSourceBytes(options?.source),
     };
+
+    if (options?.trustedChannel) {
+      tx = this.forwardCallTx(tx, options?.trustedChannel, options);
+    }
+
+    return tx;
   }
 
   // --- Fill multiple orders ---
@@ -213,6 +221,7 @@ export class Exchange {
     orders: Order[],
     matchOptions: MatchingOptions[],
     options?: {
+      trustedChannel?: string;
       source?: string;
       relayer?: string;
       fees?: {
@@ -223,6 +232,7 @@ export class Exchange {
   ): TxData {
     if (orders.length === 1) {
       return this.fillOrderTx(taker, orders[0], matchOptions[0], {
+        trustedChannel: options?.trustedChannel,
         source: options?.source,
         fee: options?.fees?.length ? options.fees[0] : undefined,
       });
@@ -236,6 +246,8 @@ export class Exchange {
     }[] = [];
 
     let price = bn(0);
+
+    let tx: TxData;
 
     const isBuyOrder = orders[0].isBuyOrder();
     if (isBuyOrder) {
@@ -300,85 +312,91 @@ export class Exchange {
         ),
       ]);
 
-      return {
+      tx = {
         from: sender,
         to: this.contract.address,
         data: data + generateSourceBytes(options?.source),
       };
+    } else {
+      const saleDetails = orders.map((order, i) => {
+        const matchedOrder = order.buildMatching(matchOptions[i]);
+
+        const associatedFee =
+          options?.fees && options.fees[i]
+            ? options.fees[i]
+            : {
+                recipient: AddressZero,
+                amount: bn(0),
+              };
+
+        const fillAmount = matchOptions[i].amount ?? 1;
+        const fillValue = bn(order.params.itemPrice)
+          .div(order.params.amount)
+          .mul(bn(fillAmount))
+          .add(associatedFee.amount);
+
+        const passValue =
+          !order.isBuyOrder() &&
+          order.params.sellerOrBuyer != taker.toLowerCase() &&
+          matchedOrder.paymentMethod === AddressZero;
+        if (passValue) {
+          price = price.add(fillValue);
+        }
+
+        allFees.push(associatedFee);
+
+        return matchedOrder;
+      });
+
+      const data = this.contract.interface.encodeFunctionData("bulkBuyListings", [
+        defaultAbiCoder.encode(
+          [
+            "bytes32",
+            `(
+              uint8 protocol,
+              address maker,
+              address beneficiary,
+              address marketplace,
+              address fallbackRoyaltyRecipient,
+              address paymentMethod,
+              address tokenAddress,
+              uint256 tokenId,
+              uint248 amount,
+              uint256 itemPrice,
+              uint256 nonce,
+              uint256 expiration,
+              uint256 marketplaceFeeNumerator,
+              uint256 maxRoyaltyFeeNumerator,
+              uint248 requestedFillAmount,
+              uint248 minimumFillAmount
+            )[]`,
+            "(uint8 v, bytes32 r, bytes32 s)[]",
+            "(address signer, address taker, uint256 expiration, uint8 v, bytes32 r, bytes32 s)[]",
+            "(address recipient, uint256 amount)[]",
+          ],
+          [
+            this.domainSeparator,
+            saleDetails,
+            saleDetails.map((c) => c.signature),
+            orders.map((c) => c.getCosignature()),
+            allFees,
+          ]
+        ),
+      ]);
+
+      tx = {
+        from: sender,
+        to: this.contract.address,
+        value: price.toString(),
+        data: data + generateSourceBytes(options?.source),
+      };
     }
 
-    const saleDetails = orders.map((order, i) => {
-      const matchedOrder = order.buildMatching(matchOptions[i]);
+    if (options?.trustedChannel) {
+      tx = this.forwardCallTx(tx, options?.trustedChannel, options);
+    }
 
-      const associatedFee =
-        options?.fees && options.fees[i]
-          ? options.fees[i]
-          : {
-              recipient: AddressZero,
-              amount: bn(0),
-            };
-
-      const fillAmount = matchOptions[i].amount ?? 1;
-      const fillValue = bn(order.params.itemPrice)
-        .div(order.params.amount)
-        .mul(bn(fillAmount))
-        .add(associatedFee.amount);
-
-      const passValue =
-        !order.isBuyOrder() &&
-        order.params.sellerOrBuyer != taker.toLowerCase() &&
-        matchedOrder.paymentMethod === AddressZero;
-      if (passValue) {
-        price = price.add(fillValue);
-      }
-
-      allFees.push(associatedFee);
-
-      return matchedOrder;
-    });
-
-    const data = this.contract.interface.encodeFunctionData("bulkBuyListings", [
-      defaultAbiCoder.encode(
-        [
-          "bytes32",
-          `(
-            uint8 protocol,
-            address maker,
-            address beneficiary,
-            address marketplace,
-            address fallbackRoyaltyRecipient,
-            address paymentMethod,
-            address tokenAddress,
-            uint256 tokenId,
-            uint248 amount,
-            uint256 itemPrice,
-            uint256 nonce,
-            uint256 expiration,
-            uint256 marketplaceFeeNumerator,
-            uint256 maxRoyaltyFeeNumerator,
-            uint248 requestedFillAmount,
-            uint248 minimumFillAmount
-          )[]`,
-          "(uint8 v, bytes32 r, bytes32 s)[]",
-          "(address signer, address taker, uint256 expiration, uint8 v, bytes32 r, bytes32 s)[]",
-          "(address recipient, uint256 amount)[]",
-        ],
-        [
-          this.domainSeparator,
-          saleDetails,
-          saleDetails.map((c) => c.signature),
-          orders.map((c) => c.getCosignature()),
-          allFees,
-        ]
-      ),
-    ]);
-
-    return {
-      from: sender,
-      to: this.contract.address,
-      value: price.toString(),
-      data: data + generateSourceBytes(options?.source),
-    };
+    return tx;
   }
 
   // --- Fill multiple listings from the same collection ---
@@ -387,6 +405,7 @@ export class Exchange {
     taker: string,
     orders: Order[],
     options?: {
+      trustedChannel?: string;
       source?: string;
       relayer?: string;
       fee?: {
@@ -443,11 +462,31 @@ export class Exchange {
       ),
     ]);
 
-    return {
+    let tx: TxData = {
       from: sender,
       to: this.contract.address,
       value: price.toString(),
       data: data + generateSourceBytes(options?.source),
+    };
+
+    if (options?.trustedChannel) {
+      tx = this.forwardCallTx(tx, options?.trustedChannel, options);
+    }
+
+    return tx;
+  }
+
+  // --- Wrap tx data via a trusted channel forwarder ---
+
+  public forwardCallTx(tx: TxData, channel: string, options?: { source?: string }) {
+    return {
+      ...tx,
+      to: channel,
+      data:
+        new Interface([
+          "function forwardCall(address target, bytes calldata message) external payable",
+        ]).encodeFunctionData("forwardCall", [tx.to, tx.data]) +
+        generateSourceBytes(options?.source),
     };
   }
 

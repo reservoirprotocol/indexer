@@ -40,6 +40,7 @@ import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { cosigner } from "@/utils/cosign";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
+import * as paymentProcessorV2Utils from "@/utils/payment-processor-v2";
 import * as registry from "@/utils/royalties/registry";
 
 // Whenever a new order kind is added, make sure to also include an
@@ -462,9 +463,24 @@ export const generateListingDetailsV6 = async (
         await rawOrder.cosign(cosigner(), options.taker);
       }
 
+      const extraArgs: any = {};
+
+      const settings = await paymentProcessorV2Utils.getCollectionPaymentSettings(
+        rawOrder.params.tokenAddress
+      );
+      if (settings?.blockTradesFromUntrustedChannels) {
+        const trustedChannels = await paymentProcessorV2Utils.getAllTrustedChannels(
+          rawOrder.params.tokenAddress
+        );
+        if (trustedChannels.length) {
+          extraArgs.trustedChannel = trustedChannels[0].channel;
+        }
+      }
+
       return {
         kind: "payment-processor-v2",
         ...common,
+        extraArgs,
         order: rawOrder,
       };
     }
@@ -857,6 +873,18 @@ export const generateBidDetailsV6 = async (
           { id: sdkOrder.hash() }
         );
         extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
+      }
+
+      const settings = await paymentProcessorV2Utils.getCollectionPaymentSettings(
+        sdkOrder.params.tokenAddress
+      );
+      if (settings?.blockTradesFromUntrustedChannels) {
+        const trustedChannels = await paymentProcessorV2Utils.getAllTrustedChannels(
+          sdkOrder.params.tokenAddress
+        );
+        if (trustedChannels.length) {
+          extraArgs.trustedChannel = trustedChannels[0].channel;
+        }
       }
 
       return {

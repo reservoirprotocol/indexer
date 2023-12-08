@@ -24,6 +24,8 @@ import * as zeroExV4Check from "@/orderbook/orders/zeroex-v4/check";
 import * as seaportCheck from "@/orderbook/orders/seaport-base/check";
 import * as nftxCheck from "@/orderbook/orders/nftx/check";
 import * as raribleCheck from "@/orderbook/orders/rarible/check";
+import * as paymentProcessorCheck from "@/orderbook/orders/payment-processor/check";
+import * as paymentProcessorV2Check from "@/orderbook/orders/payment-processor-v2/check";
 
 export type OrderFixesJobPayload =
   | {
@@ -475,6 +477,62 @@ export default class OrderFixesJob extends AbstractRabbitMqJobHandler {
                 const order = new Sdk.Rarible.Order(config.chainId, result.raw_data);
                 try {
                   await raribleCheck.offChainCheck(order, {
+                    onChainApprovalRecheck: true,
+                    checkFilledOrCancelled: true,
+                  });
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                } catch (error: any) {
+                  if (error.message === "cancelled") {
+                    fillabilityStatus = "cancelled";
+                  } else if (error.message === "filled") {
+                    fillabilityStatus = "filled";
+                  } else if (error.message === "no-balance") {
+                    fillabilityStatus = "no-balance";
+                  } else if (error.message === "no-approval") {
+                    approvalStatus = "no-approval";
+                  } else if (error.message === "no-balance-no-approval") {
+                    fillabilityStatus = "no-balance";
+                    approvalStatus = "no-approval";
+                  } else {
+                    return;
+                  }
+                }
+
+                break;
+              }
+
+              case "payment-processor": {
+                const order = new Sdk.PaymentProcessor.Order(config.chainId, result.raw_data);
+                try {
+                  await paymentProcessorCheck.offChainCheck(order, {
+                    onChainApprovalRecheck: true,
+                    checkFilledOrCancelled: true,
+                  });
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                } catch (error: any) {
+                  if (error.message === "cancelled") {
+                    fillabilityStatus = "cancelled";
+                  } else if (error.message === "filled") {
+                    fillabilityStatus = "filled";
+                  } else if (error.message === "no-balance") {
+                    fillabilityStatus = "no-balance";
+                  } else if (error.message === "no-approval") {
+                    approvalStatus = "no-approval";
+                  } else if (error.message === "no-balance-no-approval") {
+                    fillabilityStatus = "no-balance";
+                    approvalStatus = "no-approval";
+                  } else {
+                    return;
+                  }
+                }
+
+                break;
+              }
+
+              case "payment-processor-v2": {
+                const order = new Sdk.PaymentProcessorV2.Order(config.chainId, result.raw_data);
+                try {
+                  await paymentProcessorV2Check.offChainCheck(order, {
                     onChainApprovalRecheck: true,
                     checkFilledOrCancelled: true,
                   });

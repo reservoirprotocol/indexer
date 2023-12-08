@@ -1,5 +1,5 @@
 import { Interface } from "@ethersproject/abi";
-import { HashZero } from "@ethersproject/constants";
+import { AddressZero, HashZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
@@ -14,13 +14,15 @@ import {
   getCollectionMints,
   simulateAndUpsertCollectionMint,
 } from "@/orderbook/mints";
-import { getStatus, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
+import { getStatus, toSafeNumber, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
 
 const STANDARD = "soundxyz";
 
 export type Info = {
   minter?: string;
   mintId?: string;
+  // Relevant for `SuperMinter` mints
+  scheduleNum?: string;
 };
 
 export enum InterfaceId {
@@ -32,7 +34,8 @@ export enum InterfaceId {
 export const extractByCollection = async (
   collection: string,
   minterAddress: string,
-  mintId?: string
+  mintId?: string,
+  scheduleNum?: string
 ): Promise<CollectionMint[]> => {
   const results: CollectionMint[] = [];
 
@@ -50,6 +53,180 @@ export const extractByCollection = async (
   }
 
   try {
+    // Using `SuperMinter`
+    if (scheduleNum && !moduleInterfaceId) {
+      const minter = new Contract(
+        minterAddress,
+        new Interface([
+          `function totalPriceAndFees(
+            address edition,
+            uint8 tier,
+            uint8 scheduleNum,
+            uint32 quantity
+          ) view returns (
+            (
+              uint256 total,
+              uint256 subTotal,
+              uint256 unitPrice,
+              uint256 platformFee,
+              uint256 platformFlatFee,
+              uint256 platformTxFlatFee,
+              uint256 platformMintFlatFee,
+              uint256 platformMintBPSFee,
+              uint256 affiliateFee
+            ) fee
+          )`,
+          `function mintInfo(
+            address edition,
+            uint8 tier,
+            uint8 scheduleNum
+          ) view returns (
+            (
+              address edition,
+              uint8 tier,
+              uint8 scheduleNum,
+              address platform,
+              uint96 price,
+              uint32 startTime,
+              uint32 endTime,
+              uint32 maxMintablePerAccount,
+              uint32 maxMintable,
+              uint32 minted,
+              uint16 affiliateFeeBPS,
+              uint8 mode,
+              bool paused,
+              bool hasMints,
+              bytes32 affiliateMerkleRoot,
+              bytes32 merkleRoot,
+              address signer,
+              bool usePlatformSigner
+            ) info
+          )`,
+        ]),
+        baseProvider
+      );
+
+      const mintInfo = await minter.mintInfo(collection, mintId, scheduleNum);
+      const totalPrice = await minter.totalPriceAndFees(collection, mintId, scheduleNum, 1);
+
+      // Public sale
+      if (!mintInfo.paused) {
+        const price = totalPrice.total.toString();
+
+        results.push({
+          collection,
+          contract: collection,
+          stage: `claim-${minterAddress.toLowerCase()}-${mintId}`,
+          kind: "public",
+          status: "open",
+          standard: STANDARD,
+          details: {
+            tx: {
+              to: minterAddress.toLowerCase(),
+              data: {
+                // `mintTo`
+                signature: "0x4a04a1c9",
+                params: [
+                  {
+                    kind: "tuple",
+                    params: [
+                      {
+                        kind: "contract",
+                        abiType: "address",
+                      },
+                      {
+                        kind: "unknown",
+                        abiType: "uint8",
+                        abiValue: mintId,
+                      },
+                      {
+                        kind: "unknown",
+                        abiType: "uint8",
+                        abiValue: scheduleNum,
+                      },
+                      {
+                        kind: "recipient",
+                        abiType: "address",
+                      },
+                      {
+                        kind: "quantity",
+                        abiType: "uint32",
+                      },
+                      {
+                        kind: "unknown",
+                        abiType: "address",
+                        abiValue: AddressZero,
+                      },
+                      {
+                        kind: "unknown",
+                        abiType: "uint32",
+                        abiValue: 0,
+                      },
+                      {
+                        kind: "unknown",
+                        abiType: "bytes3[]",
+                        abiValue: [],
+                      },
+                      {
+                        kind: "unknown",
+                        abiType: "uint96",
+                        abiValue: 0,
+                      },
+                      {
+                        kind: "unknown",
+                        abiType: "uint32",
+                        abiValue: 0,
+                      },
+                      {
+                        kind: "unknown",
+                        abiType: "uint32",
+                        abiValue: 0,
+                      },
+                      {
+                        kind: "unknown",
+                        abiType: "uint32",
+                        abiValue: 0,
+                      },
+                      {
+                        kind: "unknown",
+                        abiType: "bytes",
+                        abiValue: AddressZero,
+                      },
+                      {
+                        kind: "referrer",
+                        abiType: "address",
+                      },
+                      {
+                        kind: "unknown",
+                        abiType: "bytes3[]",
+                        abiValue: [],
+                      },
+                      {
+                        kind: "unknown",
+                        abiType: "uint256",
+                        abiValue: 0,
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+            info: {
+              minter: minterAddress.toLowerCase(),
+              mintId,
+              scheduleNum,
+            },
+          },
+          currency: Sdk.Common.Addresses.Native[config.chainId],
+          price,
+          maxMintsPerWallet: toSafeNumber(mintInfo.maxMintablePerAccount),
+          maxSupply: toSafeNumber(mintInfo.maxMintable),
+          startTime: toSafeTimestamp(mintInfo.startTime),
+          endTime: toSafeTimestamp(mintInfo.endTime),
+        });
+      }
+    }
+
     if (moduleInterfaceId === InterfaceId.RangeEditionMinterV2_1) {
       const minter = new Contract(
         minterAddress,
@@ -136,8 +313,8 @@ export const extractByCollection = async (
           },
           currency: Sdk.Common.Addresses.Native[config.chainId],
           price,
-          maxMintsPerWallet: mintInfo.maxMintablePerAccount,
-          maxSupply: mintInfo.maxMintableUpper,
+          maxMintsPerWallet: toSafeNumber(mintInfo.maxMintablePerAccount),
+          maxSupply: toSafeNumber(mintInfo.maxMintableUpper),
           startTime: toSafeTimestamp(mintInfo.startTime),
           endTime: toSafeTimestamp(mintInfo.cutoffTime),
         });
@@ -233,8 +410,8 @@ export const extractByCollection = async (
           },
           currency: Sdk.Common.Addresses.Native[config.chainId],
           price,
-          maxMintsPerWallet: mintInfo.maxMintablePerAccount,
-          maxSupply: mintInfo.maxMintable,
+          maxMintsPerWallet: toSafeNumber(mintInfo.maxMintablePerAccount),
+          maxSupply: toSafeNumber(mintInfo.maxMintable),
           startTime: toSafeTimestamp(mintInfo.startTime),
           endTime: toSafeTimestamp(mintInfo.cutoffTime),
           allowlistId: mintInfo.merkleRoot,
@@ -335,8 +512,7 @@ export const extractByCollection = async (
         },
         currency: Sdk.Common.Addresses.Native[config.chainId],
         price,
-        maxSupply: mintInfo.maxSupply,
-        startTime: undefined,
+        maxSupply: toSafeNumber(mintInfo.maxSupply),
         endTime: toSafeTimestamp(mintInfo.buyFreezeTime),
       });
     }
@@ -368,6 +544,7 @@ export const extractByTx = async (
       "0x159a76bd", // `MerkleDropMinterV2_1.mint`
       "0xb24e737e", // `MerkleDropMinterV2_1.mintTo`
       "0xafab4364", // `SAM.buy`
+      "0x4a04a1c9", // `SuperMinter.mintTo`
     ].some((bytes4) => tx.data.startsWith(bytes4))
   ) {
     try {
@@ -377,9 +554,40 @@ export const extractByTx = async (
         "function mintTo(address edition, uint128 mintId, address to, uint32 quantity, address affiliate, bytes32[] affiliateProof, uint256 attributionId)",
         "function mintTo(address edition, uint128 mintId, address to, uint32 quantity, address allowlisted, bytes32[] proof, address affiliate, bytes32[] affiliateProof, uint256 attributionId)",
         "function buy(address edition, address to, uint32 quantity, address affiliate, bytes32[] affiliateProof, uint256 attributonId)",
+        `function mintTo(
+          (
+            address edition,
+            uint8 tier,
+            uint8 scheduleNum,
+            address to,
+            uint32 quantity,
+            address allowlisted,
+            uint32 allowlistedQuantity,
+            bytes32[] allowlistProof,
+            uint96 signedPrice,
+            uint32 signedQuantity,
+            uint32 signedClaimTicket,
+            uint32 signedDeadline,
+            bytes signature,
+            address affiliate,
+            bytes32[] affiliateProof,
+            uint256 attributionId
+          ) mintData
+        )`,
       ]).parseTransaction({
         data: tx.data,
       });
+
+      // Using `SuperMinter`
+      if (parsed.args.mintData) {
+        const params = parsed.args.mintData;
+        return extractByCollection(
+          collection,
+          tx.to,
+          params.tier.toString(),
+          params.scheduleNum.toString()
+        );
+      }
 
       const mintId = parsed.args.mintId ? parsed.args.mintId.toString() : undefined;
       return extractByCollection(collection, tx.to, mintId);
@@ -399,7 +607,8 @@ export const refreshByCollection = async (collection: string) => {
     const latestCollectionMints = await extractByCollection(
       collection,
       (details.info! as Info).minter!,
-      (details.info! as Info).mintId!
+      (details.info! as Info).mintId!,
+      (details.info! as Info).scheduleNum
     );
     for (const collectionMint of latestCollectionMints) {
       await simulateAndUpsertCollectionMint(collectionMint);

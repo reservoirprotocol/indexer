@@ -12,7 +12,7 @@ export class PausedRabbitMqQueues {
   }
 
   public static async delete(queueName: string) {
-    await redis.hdel(PausedRabbitMqQueues.key, queueName);
+    return redis.hdel(PausedRabbitMqQueues.key, queueName);
   }
 
   public static async getPausedQueues() {

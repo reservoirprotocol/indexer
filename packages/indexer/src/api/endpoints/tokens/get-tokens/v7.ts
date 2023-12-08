@@ -809,7 +809,12 @@ export const getTokensV7Options: RouteOptions = {
       // Filters
       const conditions: string[] = [];
       if (query.collection) {
-        conditions.push(`t.collection_id = $/collection/`);
+        (query as any).collectionContract = toBuffer(query.collection.split(":")[0]);
+        conditions.push(`t.contract = $/collectionContract/`);
+
+        if (query.collection.includes(":")) {
+          conditions.push(`t.collection_id = $/collection/`);
+        }
       }
 
       if (_.indexOf([0, 1], query.flagStatus) !== -1) {
@@ -901,12 +906,16 @@ export const getTokensV7Options: RouteOptions = {
         (query as any).tokenNameAsId = query.tokenName;
         query.tokenName = `%${query.tokenName}%`;
 
-        conditions.push(`
-          CASE
-            WHEN t.name IS NULL THEN t.token_id::text = $/tokenNameAsId/
-            ELSE t.name ILIKE $/tokenName/
-          END
-        `);
+        if (isNaN(query.tokenName)) {
+          conditions.push(`t.name ILIKE $/tokenName/`);
+        } else {
+          conditions.push(`
+            CASE
+              WHEN t.name IS NULL THEN t.token_id::text = $/tokenNameAsId/
+              ELSE t.name ILIKE $/tokenName/
+            END
+          `);
+        }
       }
 
       if (query.tokenSetId) {
@@ -966,9 +975,16 @@ export const getTokensV7Options: RouteOptions = {
               }
               query.sortDirection = query.sortDirection || "asc"; // Default sorting for rarity is ASC
               const sign = query.sortDirection == "desc" ? "<" : ">";
-              conditions.push(
-                `(t.rarity_rank, t.contract, t.token_id) ${sign} ($/contRarity/, $/contContract/, $/contTokenId/)`
-              );
+              if (contArr[0] !== "null") {
+                conditions.push(
+                  `(t.rarity_rank, t.contract, t.token_id) ${sign} ($/contRarity/, $/contContract/, $/contTokenId/)
+                  OR t.rarity_rank IS null`
+                );
+              } else {
+                conditions.push(
+                  `(t.rarity_rank IS null AND (t.contract, t.token_id) ${sign} ($/contContract/, $/contTokenId/))`
+                );
+              }
               (query as any).contRarity = contArr[0];
               (query as any).contContract = toBuffer(contArr[1]);
               (query as any).contTokenId = contArr[2];
@@ -1069,25 +1085,22 @@ export const getTokensV7Options: RouteOptions = {
       // Sorting
 
       const getSort = function (sortBy: string, union: boolean) {
+        const sortDirection = query.sortDirection || "asc";
         switch (sortBy) {
           case "rarity": {
-            return ` ORDER BY ${union ? "" : "t."}rarity_rank ${
-              query.sortDirection || "ASC"
-            } NULLS LAST, t_contract ${query.sortDirection || "ASC"}, t_token_id ${
-              query.sortDirection || "ASC"
+            return ` ORDER BY ${union ? "" : "t."}rarity_rank ${sortDirection} NULLS ${
+              sortDirection === "asc" ? "FIRST" : "LAST"
+            }, t_contract ${sortDirection === "asc" ? "desc" : "asc"}, t_token_id ${
+              sortDirection === "asc" ? "desc" : "asc"
             }`;
           }
           case "tokenId": {
-            return ` ORDER BY t_contract ${query.sortDirection || "ASC"}, t_token_id ${
-              query.sortDirection || "ASC"
-            }`;
+            return ` ORDER BY t_contract ${sortDirection}, t_token_id ${sortDirection}`;
           }
           case "updatedAt": {
-            return ` ORDER BY ${union ? "t_" : "t."}updated_at ${
-              query.sortDirection || "ASC"
-            }, t_contract ${query.sortDirection || "ASC"}, t_token_id ${
-              query.sortDirection || "ASC"
-            }`;
+            return ` ORDER BY ${
+              union ? "t_" : "t."
+            }updated_at ${sortDirection}, t_contract ${sortDirection}, t_token_id ${sortDirection}`;
           }
           case "floorAskPrice":
           default: {
@@ -1098,9 +1111,9 @@ export const getTokensV7Options: RouteOptions = {
                 ? `${union ? "" : "t."}normalized_floor_sell_value`
                 : `${union ? "" : "t."}floor_sell_value`;
 
-            return ` ORDER BY ${sortColumn} ${query.sortDirection || "ASC"} NULLS LAST, ${
-              contractSort ? `t_contract ${query.sortDirection || "ASC"}, ` : ""
-            }t_token_id ${query.sortDirection || "ASC"}`;
+            return ` ORDER BY ${sortColumn} ${sortDirection} NULLS ${
+              sortDirection === "asc" ? "LAST" : "FIRST"
+            }, ${contractSort ? `t_contract ${sortDirection}, ` : ""}t_token_id ${sortDirection}`;
           }
         }
       };
@@ -1124,13 +1137,22 @@ export const getTokensV7Options: RouteOptions = {
         const unionValues = query.contract ? query.contract : collections;
 
         for (const i in unionValues) {
-          const unionType = query.contract ? "contract" : "collection_id";
+          const sharedContract = !query.contract && unionValues[i].includes(":");
+          const unionType = query.contract || !sharedContract ? "contract" : "collection_id";
           const unionFilter = `${unionType}${i}`;
-          (query as any)[unionFilter] = unionValues[i];
+          (query as any)[unionFilter] =
+            !query.contract && !sharedContract ? toBuffer(unionValues[i]) : unionValues[i];
+
+          // For shared contracts, filter by both contract and collection
+          if (sharedContract) {
+            (query as any)[`collectionContract${i}`] = unionValues[i].split(":")[0];
+          }
+
           unionQueries.push(
             `(
               ${baseQuery}
               ${conditions.length ? `AND ` : `WHERE `} t.${unionType} = $/${unionFilter}/
+              ${sharedContract ? `AND t.contract = $/collectionContract${i}/` : ""}
               ${unionValues.length > 1 ? `${getSort(query.sortBy, false)} LIMIT $/limit/` : ""}
             )`
           );
@@ -1405,7 +1427,7 @@ export const getTokensV7Options: RouteOptions = {
               tokenId,
               name: r.name,
               description: r.description,
-              image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
+              image: Assets.getResizedImageUrl(r.image, ImageSize.medium, r.image_version),
               imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small, r.image_version),
               imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large, r.image_version),
               metadata: Object.values(metadata).every((el) => el === undefined)

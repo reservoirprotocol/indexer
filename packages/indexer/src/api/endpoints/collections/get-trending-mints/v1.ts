@@ -28,7 +28,7 @@ const version = "v1";
 export const getTrendingMintsV1Options: RouteOptions = {
   description: "Top Trending Mints",
   notes: "Get top trending mints",
-  tags: ["api", "mints"],
+  tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
       order: 3,
@@ -241,8 +241,8 @@ async function getMintingCollections(type: "paid" | "free" | "any"): Promise<Min
 SELECT 
     collection_id, start_time, end_time, created_at, updated_at, max_supply, max_mints_per_wallet, price
 FROM 
-    collection_mints 
-${whereClause}
+    collection_mints
+${whereClause} LIMIT 50000;
   `;
 
   const result = await redb.manyOrNone<Mint>(baseQuery);
@@ -305,7 +305,11 @@ async function formatCollections(
 
       return {
         id: metadata?.id,
-        image: metadata?.metadata ? metadata.metadata?.imageUrl : null,
+        image:
+          metadata?.metadata?.imageUrl ??
+          (metadata?.sample_images?.length
+            ? Assets.getLocalAssetsLink(metadata.sample_images[0])
+            : null),
         banner: metadata?.metadata ? metadata.metadata?.bannerImageUrl : null,
         name: metadata ? metadata?.name : "",
         description: metadata?.metadata ? metadata.metadata?.description : null,

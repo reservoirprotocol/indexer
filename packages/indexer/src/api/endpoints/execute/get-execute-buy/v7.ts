@@ -1427,9 +1427,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
         );
         const rawAmount = bn(adjustedFeeAmount).toString();
 
-        // To avoid numeric overflow
-        const maxBps = 10000;
-        const bps = bn(feeAmount).mul(10000).div(item.rawQuote);
+        // To avoid numeric overflow and division by zero
+        const maxBps = bn(10000);
+        const bps = bn(item.rawQuote).gt(0) ? bn(feeAmount).mul(10000).div(item.rawQuote) : maxBps;
 
         item.feesOnTop.push({
           recipient: fee.recipient,
@@ -1586,37 +1586,41 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
           await Promise.all(
             payload.alternativeCurrencies.map(async (c: string) => {
-              const [currency, chainId] = c.split(":");
-              if (Number(chainId) === config.chainId) {
-                item.buyIn!.push(
-                  await getJoiPriceObject(
-                    {
-                      gross: { amount: item.rawQuote },
-                    },
-                    item.currency,
-                    currency
-                  )
-                );
-              } else {
-                if (currency !== Sdk.Common.Addresses.Native[Number(chainId)]) {
-                  throw Boom.badRequest("Unsupported alternative currency");
-                }
+              try {
+                const [currency, chainId] = c.split(":");
+                if (Number(chainId) === config.chainId) {
+                  item.buyIn!.push(
+                    await getJoiPriceObject(
+                      {
+                        gross: { amount: item.rawQuote },
+                      },
+                      item.currency,
+                      currency
+                    )
+                  );
+                } else {
+                  if (currency !== Sdk.Common.Addresses.Native[Number(chainId)]) {
+                    throw Boom.badRequest("Unsupported alternative currency");
+                  }
 
-                const { quote } = await getCrossChainQuote(Number(chainId), item);
-                item.buyIn!.push(
-                  await getJoiPriceObject(
-                    {
-                      gross: { amount: quote },
-                    },
-                    currency
-                  ).then((p) => ({
-                    ...p,
-                    currency: {
-                      ...p.currency,
-                      chainId: Number(chainId),
-                    },
-                  }))
-                );
+                  const { quote } = await getCrossChainQuote(Number(chainId), item);
+                  item.buyIn!.push(
+                    await getJoiPriceObject(
+                      {
+                        gross: { amount: quote },
+                      },
+                      currency
+                    ).then((p) => ({
+                      ...p,
+                      currency: {
+                        ...p.currency,
+                        chainId: Number(chainId),
+                      },
+                    }))
+                  );
+                }
+              } catch {
+                // Skip errors
               }
             })
           );
@@ -1767,6 +1771,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
           })
           .then((response) => ({ quote: response.data.price, gasCost: response.data.gasCost }));
 
+        item.quote = formatPrice(quote);
+        item.rawQuote = quote;
         item.totalPrice = formatPrice(quote);
         item.totalRawPrice = quote;
         item.gasCost = gasCost;
@@ -1828,7 +1834,71 @@ export const getExecuteBuyV7Options: RouteOptions = {
           totalOriginalConsiderationItems: 1 + (details.fees?.length ?? 0),
         });
 
-        steps[3].items.push({
+        const customSteps: StepType[] = [
+          {
+            id: "currency-wrapping",
+            action: "Wrapping currency",
+            description:
+              "We'll ask your approval to wrap the currency for making the request. Gas fee required.",
+            kind: "transaction",
+            items: [],
+          },
+          {
+            id: "currency-approval",
+            action: "Approve exchange contract",
+            description: "A one-time setup transaction to enable trading",
+            kind: "transaction",
+            items: [],
+          },
+          {
+            id: "order-signature",
+            action: "Authorize request",
+            description: "A free off-chain signature to create the request",
+            kind: "signature",
+            items: [],
+          },
+        ];
+
+        // Check balance
+        const currency = new Sdk.Common.Helpers.Erc20(
+          baseProvider,
+          Sdk.Common.Addresses.WNative[config.chainId]
+        );
+        const wBalance = await currency.getBalance(order.params.offerer);
+        if (wBalance.lt(quote)) {
+          const balance = await baseProvider.getBalance(order.params.offerer);
+          const needed = bn(quote).sub(wBalance);
+          if (balance.gt(needed)) {
+            customSteps[0].items.push({
+              status: "incomplete",
+              data: new Sdk.Common.Helpers.WNative(baseProvider, config.chainId).depositTransaction(
+                order.params.offerer,
+                needed
+              ),
+            });
+          } else if (!payload.skipBalanceCheck) {
+            throw Boom.badRequest("Insufficient balance");
+          }
+        }
+
+        // Check allowance
+        const operator = new Sdk.SeaportBase.ConduitController(config.chainId).deriveConduit(
+          Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
+        );
+        const approvedAmount = await onChainData
+          .fetchAndUpdateFtApproval(currency.contract.address, order.params.offerer, operator)
+          .then((a) => a.value);
+        if (bn(approvedAmount).lt(quote)) {
+          customSteps[1].items.push({
+            status: "incomplete",
+            data: new Sdk.Common.Helpers.Erc20(
+              baseProvider,
+              currency.contract.address
+            ).approveTransaction(order.params.offerer, operator),
+          });
+        }
+
+        customSteps[2].items.push({
           status: "incomplete",
           data: {
             sign: order.getSignatureData(),
@@ -1851,8 +1921,18 @@ export const getExecuteBuyV7Options: RouteOptions = {
           },
         });
 
+        const key = request.headers["x-api-key"];
+        const apiKey = await ApiKeyManager.getApiKey(key);
+        logger.info(
+          `get-execute-buy-${version}-handler`,
+          JSON.stringify({
+            request: payload,
+            apiKey,
+          })
+        );
+
         return {
-          steps: steps.filter((s) => s.items.length),
+          steps: customSteps,
           path,
         };
       }
@@ -1878,6 +1958,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
         const { actualFromChainId, ccConfig, isCollectionRequest, tokenId, quote, gasCost } =
           await getCrossChainQuote(requestedFromChainId, item);
 
+        item.totalPrice = formatPrice(quote);
+        item.totalRawPrice = quote;
+        item.quote = formatPrice(quote);
+        item.rawQuote = quote;
         item.fromChainId = actualFromChainId;
         item.gasCost = gasCost;
 
@@ -2053,6 +2137,16 @@ export const getExecuteBuyV7Options: RouteOptions = {
           });
         }
 
+        const key = request.headers["x-api-key"];
+        const apiKey = await ApiKeyManager.getApiKey(key);
+        logger.info(
+          `get-execute-buy-${version}-handler`,
+          JSON.stringify({
+            request: payload,
+            apiKey,
+          })
+        );
+
         return {
           steps: customSteps.filter((s) => s.items.length),
           path,
@@ -2129,14 +2223,17 @@ export const getExecuteBuyV7Options: RouteOptions = {
       await Promise.all(
         listingDetails.map(async (d) => {
           try {
-            const config = await erc721c.getERC721CConfigFromDB(d.contract);
-            if (config && [4, 6].includes(config.transferSecurityLevel)) {
-              const isVerified = await erc721c.isVerifiedEOA(
-                config.transferValidator,
-                payload.taker
-              );
+            const configV1 = await erc721c.v1.getConfig(d.contract);
+            const configV2 = await erc721c.v2.getConfig(d.contract);
+            if (
+              (configV1 && [4, 6].includes(configV1.transferSecurityLevel)) ||
+              (configV2 && [6, 8].includes(configV2.transferSecurityLevel))
+            ) {
+              const transferValidator = (configV1 ?? configV2)!.transferValidator;
+
+              const isVerified = await erc721c.isVerifiedEOA(transferValidator, payload.maker);
               if (!isVerified) {
-                unverifiedERC721CTransferValidators.push(config.transferValidator);
+                unverifiedERC721CTransferValidators.push(transferValidator);
               }
             }
           } catch {
@@ -2455,7 +2552,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
           const balance = await baseProvider.getBalance(txSender);
           if (!payload.skipBalanceCheck && bn(balance).lt(totalBuyInCurrencyPrice)) {
-            throw getExecuteError("Balance too low to proceed with transaction");
+            throw getExecuteError(
+              "Balance too low to proceed with transaction (use skipBalanceCheck=true to skip balance checking)"
+            );
           }
         } else {
           // Get the price in the buy-in currency via the approval amounts
@@ -2466,7 +2565,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
           const erc20 = new Sdk.Common.Helpers.Erc20(baseProvider, buyInCurrency);
           const balance = await erc20.getBalance(txSender);
           if (!payload.skipBalanceCheck && bn(balance).lt(totalBuyInCurrencyPrice)) {
-            throw getExecuteError("Balance too low to proceed with transaction");
+            throw getExecuteError(
+              "Balance too low to proceed with transaction (use skipBalanceCheck=true to skip balance checking)"
+            );
           }
         }
       }

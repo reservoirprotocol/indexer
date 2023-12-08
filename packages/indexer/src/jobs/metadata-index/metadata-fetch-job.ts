@@ -5,10 +5,8 @@ import _ from "lodash";
 import { config } from "@/config/index";
 import { PendingRefreshTokens, RefreshTokens } from "@/models/pending-refresh-tokens";
 import { logger } from "@/common/logger";
-import { PendingRefreshTokensBySlug } from "@/models/pending-refresh-tokens-by-slug";
 import { AddressZero } from "@ethersproject/constants";
 import { metadataIndexProcessJob } from "@/jobs/metadata-index/metadata-process-job";
-import { metadataIndexProcessBySlugJob } from "@/jobs/metadata-index/metadata-process-by-slug-job";
 import { onchainMetadataFetchTokenUriJob } from "@/jobs/metadata-index/onchain-metadata-fetch-token-uri-job";
 
 export type MetadataIndexFetchJobPayload =
@@ -18,16 +16,6 @@ export type MetadataIndexFetchJobPayload =
         method: string;
         collection: string;
         continuation?: string;
-      };
-      context?: string;
-    }
-  | {
-      kind: "full-collection-by-slug";
-      data: {
-        method: string;
-        contract: string;
-        collection: string;
-        slug: string;
       };
       context?: string;
     }
@@ -80,23 +68,6 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
       }
     }
 
-    if (kind === "full-collection-by-slug") {
-      logger.info(this.queueName, `Full collection by slug. data=${JSON.stringify(data)}`);
-
-      // Add the collections slugs to the list
-      const pendingRefreshTokensBySlug = new PendingRefreshTokensBySlug();
-      await pendingRefreshTokensBySlug.add(
-        {
-          slug: data.slug,
-          contract: data.contract,
-          collection: data.collection,
-        },
-        prioritized
-      );
-
-      await metadataIndexProcessBySlugJob.addToQueue();
-      return;
-    }
     if (kind === "full-collection") {
       logger.info(this.queueName, `Full collection. data=${JSON.stringify(data)}`);
 

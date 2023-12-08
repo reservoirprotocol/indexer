@@ -158,8 +158,10 @@ export const blockNumberToHex = (blockNumber: number) => {
 const processCall = (trace: TransactionTrace, call: CallTrace) => {
   const processedCalls = [];
   if (
-    (call.type as "CALL" | "STATICCALL" | "DELEGATECALL" | "CREATE" | "CREATE2") === "CREATE" ||
-    (call.type as "CALL" | "STATICCALL" | "DELEGATECALL" | "CREATE" | "CREATE2") === "CREATE2"
+    (call.type.toUpperCase() as "CALL" | "STATICCALL" | "DELEGATECALL" | "CREATE" | "CREATE2") ===
+      "CREATE" ||
+    (call.type.toUpperCase() as "CALL" | "STATICCALL" | "DELEGATECALL" | "CREATE" | "CREATE2") ===
+      "CREATE2"
   ) {
     processedCalls.push({
       address: call.to,

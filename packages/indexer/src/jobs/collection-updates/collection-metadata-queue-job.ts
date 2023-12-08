@@ -35,41 +35,21 @@ export default class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandl
       if (await acquireLock(this.queueName, 1)) {
         try {
           await Collections.updateCollectionCache(contract, tokenId, community);
-
-          if (retries > 0) {
-            logger.info(
-              this.queueName,
-              JSON.stringify({
-                message: `updateCollectionCache Retry success. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}, retries=${retries}`,
-                payload,
-              })
-            );
-          }
         } catch (error) {
-          logger.error(
-            this.queueName,
-            JSON.stringify({
-              message: `updateCollectionCache error. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}, retries=${retries}, error=${error}`,
-              payload,
-              error,
-            })
-          );
-
           if (retries < 5) {
             payload.forceRefresh = true;
             payload.retries = retries + 1;
 
             await this.addToQueue(payload, payload.retries * 1000 * 60);
           } else {
-            if (retries > 0) {
-              logger.info(
-                this.queueName,
-                JSON.stringify({
-                  message: `updateCollectionCache Retry stop. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}, retries=${retries}`,
-                  payload,
-                })
-              );
-            }
+            logger.error(
+              this.queueName,
+              JSON.stringify({
+                message: `updateCollectionCache failed. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}, retries=${retries}, error=${error}`,
+                payload,
+                error,
+              })
+            );
           }
         }
       } else {

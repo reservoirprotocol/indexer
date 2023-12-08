@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { config } from "@/config/index";
-import { CollectionMetadata, TokenMetadata, TokenMetadataBySlugResult } from "../types";
+import { CollectionMetadata, TokenMetadata } from "../types";
 import { logger } from "@/common/logger";
 import { Contract } from "ethers";
 import { Interface } from "ethers/lib/utils";
@@ -72,10 +72,6 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
       .catch((error) => this.handleError(error));
 
     return data.nfts.map(this.parseToken).filter(Boolean);
-  }
-
-  async _getTokensMetadataBySlug(): Promise<TokenMetadataBySlugResult> {
-    throw new Error("Method not implemented.");
   }
 
   handleError(error: any) {

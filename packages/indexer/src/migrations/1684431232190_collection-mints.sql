@@ -22,4 +22,8 @@ ALTER TABLE "collection_mints"
   ADD CONSTRAINT "collection_mints_pk"
   PRIMARY KEY ("collection_id");
 
+CREATE INDEX "collection_mints_kind_status_price_index"
+  ON "collection_mints" ("kind", "status", "price")
+  WHERE "kind" = 'public' AND "status" = 'open';
+
 -- Down Migration

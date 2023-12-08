@@ -5,7 +5,7 @@ import { RabbitMqJobsConsumer } from "@/jobs/index";
 import { PausedRabbitMqQueues } from "@/models/paused-rabbit-mq-queues";
 import { config } from "@/config/index";
 
-export class PauseRabbitConsumerQueueEvent {
+export class PauseRabbitConsumerEvent {
   public static async handleEvent(message: string) {
     // This event is relevant only for consumers
     if (!config.doBackgroundWork) {
@@ -20,11 +20,11 @@ export class PauseRabbitConsumerQueueEvent {
       if (await RabbitMqJobsConsumer.unsubscribe(job)) {
         await PausedRabbitMqQueues.add(queueName);
       }
-    }
 
-    logger.info(
-      Channel.PauseRabbitConsumerQueue,
-      `Paused rabbit consumer queue message=${message}`
-    );
+      logger.info(
+        Channel.PauseRabbitConsumerQueue,
+        `Paused rabbit consumer queue message=${message}`
+      );
+    }
   }
 }

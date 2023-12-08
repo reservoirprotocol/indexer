@@ -47,14 +47,12 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           `Request was throttled. contract=${contract}, tokenId=${tokenId}, uri=${uri}`
         );
 
-        // Add to queue again with a delay from the error if its a rate limit
-        await this.addToQueue(payload, e.delay);
-        return;
+        throw e;
       }
-      logger.error(
-        this.queueName,
-        `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, error=${e}, falling back to=${config.fallbackMetadataIndexingMethod}`
-      );
+      // logger.error(
+      //   this.queueName,
+      //   `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, error=${e}, falling back to=${config.fallbackMetadataIndexingMethod}`
+      // );
     }
 
     if (!config.fallbackMetadataIndexingMethod) {

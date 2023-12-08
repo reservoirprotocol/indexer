@@ -2,8 +2,8 @@ import { ChainIdToAddress, Network } from "../../../utils";
 
 export const Module: ChainIdToAddress = {
   // Testnets
-  [Network.EthereumGoerli]: "0x6c30a570d602515821de568b15a6214a5bf7fa5f",
-  [Network.EthereumSepolia]: "0xd04d42429b36ae07de931beda07bcaefa5b31070",
-  [Network.ZoraTestnet]: "0xcc2dad8af1d1e98a54c88d47faca30dc1a1c4fa8",
-  [Network.BaseGoerli]: "0x9de1cc86b65fbf7d2dcb1e60d8568c44645bcaba",
+  [Network.EthereumGoerli]: "0x12bc09532c1c9ed08944b2f351db8abbddf90b30",
+  [Network.EthereumSepolia]: "0xb505c75f4d135c65a9806e2b8ff72b1816be931c",
+  [Network.ZoraTestnet]: "0x208960b3bb6fa00bdcfa2cc9cdb8d412bbce9f64",
+  [Network.BaseGoerli]: "0xc63cca6e3cf565921d3c8241f74ef7b1e404bb78",
 };
