@@ -31,17 +31,17 @@ export default class ProcessAskEventsJob extends AbstractRabbitMqJobHandler {
             bulkOps.push({
               index: {
                 _index: AskIndex.getIndexName(),
-                _id: pendingAskEvent.document.id,
+                _id: pendingAskEvent.info.id,
               },
             });
-            bulkOps.push(pendingAskEvent.document);
+            bulkOps.push(pendingAskEvent.info.document);
           }
 
           if (pendingAskEvent.kind === "delete") {
             bulkOps.push({
               delete: {
                 _index: AskIndex.getIndexName(),
-                _id: pendingAskEvent.document.id,
+                _id: pendingAskEvent.info.id,
               },
             });
           }

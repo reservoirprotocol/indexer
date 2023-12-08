@@ -7,7 +7,10 @@ import { AskDocument } from "@/elasticsearch/indexes/asks/base";
 
 export type AskEvent = {
   kind: "index" | "delete";
-  document: Partial<AskDocument>;
+  info: {
+    id: string;
+    document?: AskDocument;
+  };
 };
 
 export class PendingAskEventsQueue {
