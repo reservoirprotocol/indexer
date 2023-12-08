@@ -61,8 +61,6 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       error?: string;
     }[]
   > {
-    // eslint-disable-next-line
-    console.log("onchain fetcher _getTokensMetadataUri", tokens);
     const tokenData: {
       contract: string;
       tokenId: string;
