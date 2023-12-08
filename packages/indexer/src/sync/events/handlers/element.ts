@@ -89,7 +89,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         // Handle: prices
 
         let currency = erc20Token;
-        if (currency === Sdk.ZeroExV4.Addresses.Native[config.chainId]) {
+        if (currency === Sdk.Element.Addresses.NativeEthAddress) {
           // Map the weird ZeroEx ETH address to the default ETH address
           currency = Sdk.Common.Addresses.Native[config.chainId];
         }
@@ -180,7 +180,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         // Handle: prices
 
         let currency = erc20Token;
-        if (currency === Sdk.ZeroExV4.Addresses.Native[config.chainId]) {
+        if (currency === Sdk.Element.Addresses.NativeEthAddress) {
           // Map the weird ZeroEx ETH address to the default ETH address
           currency = Sdk.Common.Addresses.Native[config.chainId];
         }
@@ -265,7 +265,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         // Handle: prices
         let currency = erc20Token;
-        if (currency === Sdk.ZeroExV4.Addresses.Native[config.chainId]) {
+        if (currency === Sdk.Element.Addresses.NativeEthAddress) {
           // Map the weird ZeroEx ETH address to the default ETH address
           currency = Sdk.Common.Addresses.Native[config.chainId];
         }
@@ -351,7 +351,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         // Handle: prices
         let currency = erc20Token;
-        if (currency === Sdk.ZeroExV4.Addresses.Native[config.chainId]) {
+        if (currency === Sdk.Element.Addresses.NativeEthAddress) {
           // Map the weird ZeroEx ETH address to the default ETH address
           currency = Sdk.Common.Addresses.Native[config.chainId];
         }
@@ -436,7 +436,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         // Handle: prices
         let currency = erc20Token;
-        if (currency === Sdk.ZeroExV4.Addresses.Native[config.chainId]) {
+        if (currency === Sdk.Element.Addresses.NativeEthAddress) {
           // Map the weird ZeroEx ETH address to the default ETH address
           currency = Sdk.Common.Addresses.Native[config.chainId];
         }
@@ -523,7 +523,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         // Handle: prices
 
         let currency = erc20Token;
-        if (currency === Sdk.ZeroExV4.Addresses.Native[config.chainId]) {
+        if (currency === Sdk.Element.Addresses.NativeEthAddress) {
           // Map the weird ZeroEx ETH address to the default ETH address
           currency = Sdk.Common.Addresses.Native[config.chainId];
         }

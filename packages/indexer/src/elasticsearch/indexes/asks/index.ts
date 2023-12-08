@@ -16,6 +16,7 @@ import {
   Sort,
   SortResults,
 } from "@elastic/elasticsearch/lib/api/types";
+import { acquireLock } from "@/common/redis";
 
 const INDEX_NAME = `${getNetworkName()}.asks`;
 
@@ -77,6 +78,20 @@ export const getIndexName = (): string => {
 };
 
 export const initIndex = async (): Promise<void> => {
+  const acquiredLock = await acquireLock("elasticsearch-asks-init-index", 60);
+
+  if (!acquiredLock) {
+    logger.info(
+      "elasticsearch-asks",
+      JSON.stringify({
+        topic: "initIndex",
+        message: "Skip.",
+      })
+    );
+
+    return;
+  }
+
   try {
     const indexConfigName =
       getNetworkSettings().elasticsearch?.indexes?.asks?.configName ?? "CONFIG_DEFAULT";

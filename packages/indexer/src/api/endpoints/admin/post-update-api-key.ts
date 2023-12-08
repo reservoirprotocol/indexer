@@ -27,6 +27,7 @@ export const postUpdateApiKeyOptions: RouteOptions = {
         assign_collection_to_community: Joi.boolean().optional(),
         update_metadata_disabled: Joi.boolean().optional(),
         update_spam_status: Joi.boolean().optional(),
+        entity_data_override: Joi.boolean().optional(),
       }).optional(),
       revShareBps: Joi.number().allow(null).optional(),
     }),

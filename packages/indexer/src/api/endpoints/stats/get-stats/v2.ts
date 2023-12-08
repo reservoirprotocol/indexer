@@ -373,6 +373,7 @@ export const getStatsV2Options: RouteOptions = {
               "t"."token_id",
               "t"."name",
               "t"."image",
+              "t"."image_version",
               ${floorAskSelectQuery}
               date_part('epoch', lower("os"."valid_between")) AS "floor_sell_valid_from",
               coalesce(
@@ -397,6 +398,7 @@ export const getStatsV2Options: RouteOptions = {
             "c"."top_buy_id",
             "c"."top_buy_value",
             "c"."top_buy_maker",
+            "x"."image_version",
             (
               SELECT COUNT(*) FROM "tokens"
               WHERE "collection_id" = $/collection/
@@ -472,7 +474,7 @@ export const getStatsV2Options: RouteOptions = {
                     contract: r.contract ? fromBuffer(r.contract) : null,
                     tokenId: r.token_id,
                     name: r.name,
-                    image: Assets.getLocalAssetsLink(r.image),
+                    image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
                   },
                 },
                 topBid: {

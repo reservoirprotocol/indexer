@@ -13,7 +13,7 @@ import { SortResults } from "@elastic/elasticsearch/lib/api/typesWithBodyKey";
 import { logger } from "@/common/logger";
 import { CollectionsEntity } from "@/models/collections/collections-entity";
 
-import { redis } from "@/common/redis";
+import { acquireLock, redis } from "@/common/redis";
 import {
   ActivityDocument,
   ActivityType,
@@ -22,9 +22,11 @@ import {
 import { getNetworkName, getNetworkSettings } from "@/config/network";
 import _ from "lodash";
 import { buildContinuation, splitContinuation } from "@/common/utils";
-import { backfillActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-activities-elasticsearch-job";
+import { backfillActivitiesElasticsearchJob } from "@/jobs/elasticsearch/activities/backfill/backfill-activities-elasticsearch-job";
 
 import * as CONFIG from "@/elasticsearch/indexes/activities/config";
+import { ElasticMintResult } from "@/api/endpoints/collections/get-trending-mints/interfaces";
+import { Period, getStartTime } from "@/models/top-selling-collections/top-selling-collections";
 
 const INDEX_NAME = `${getNetworkName()}.activities`;
 
@@ -179,6 +181,83 @@ export const getChainStatsFromActivity = async () => {
       },
     };
   }, {});
+};
+
+type Trader = {
+  count: number;
+  address: string;
+  volume: number;
+};
+
+export const getTopTraders = async (params: {
+  startTime: number;
+  limit: number;
+  collection: string;
+}): Promise<Trader> => {
+  const { startTime, limit, collection } = params;
+
+  const salesQuery: Record<string, any> = {
+    bool: {
+      filter: [
+        {
+          term: {
+            type: "sale",
+          },
+        },
+        {
+          term: {
+            "collection.id": collection,
+          },
+        },
+        {
+          range: {
+            timestamp: {
+              gte: startTime,
+              format: "epoch_second",
+            },
+          },
+        },
+      ],
+    },
+  };
+
+  const collectionAggregation = {
+    collections: {
+      terms: {
+        field: "toAddress",
+        size: limit,
+      },
+      aggs: {
+        total_sales: {
+          value_count: {
+            field: "id",
+          },
+        },
+        total_volume: {
+          sum: {
+            field: "pricing.priceDecimal",
+          },
+        },
+      },
+    },
+  };
+
+  const esResult = (await elasticsearch.search({
+    index: INDEX_NAME,
+    size: 0,
+    body: {
+      query: salesQuery,
+      aggs: collectionAggregation,
+    },
+  })) as any;
+
+  return esResult?.aggregations?.collections?.buckets?.map((bucket: any) => {
+    return {
+      volume: bucket?.total_volume?.value,
+      count: bucket?.total_sales.value,
+      address: bucket.key,
+    };
+  });
 };
 
 export enum TopSellingFillOptions {
@@ -341,6 +420,104 @@ export const getTopSellingCollections = async (params: {
   return esResult?.aggregations?.collections?.buckets?.map((bucket: any) =>
     mapBucketToCollection(bucket, params.includeRecentSales)
   );
+};
+
+export const getTrendingMints = async (params: {
+  contracts: string[];
+  period: Period;
+  limit: number;
+}): Promise<ElasticMintResult[]> => {
+  const { contracts, period, limit } = params;
+
+  const results: Partial<Record<Period, ElasticMintResult[]>> = {};
+
+  [...new Set<Period>(["6h", "1h", period])].forEach((time) => (results[time] = []));
+
+  await Promise.all(
+    Object.keys(results).map(async (period: string) => {
+      const salesQuery = {
+        bool: {
+          filter: [
+            {
+              term: {
+                type: "mint",
+              },
+            },
+            {
+              range: {
+                timestamp: {
+                  gte: getStartTime(period as Period),
+                  format: "epoch_second",
+                },
+              },
+            },
+            {
+              terms: {
+                "collection.id": contracts,
+              },
+            },
+          ],
+        },
+      } as any;
+
+      const collectionAggregation = {
+        collections: {
+          terms: {
+            field: "collection.id",
+            size: limit,
+            order: {
+              total_mints: "desc",
+            },
+          },
+          aggs: {
+            total_mints: {
+              value_count: {
+                field: "id",
+              },
+            },
+            total_volume: {
+              sum: {
+                field: "pricing.priceDecimal",
+              },
+            },
+          },
+        },
+      } as any;
+
+      const esResult = (await elasticsearch.search({
+        index: INDEX_NAME,
+        size: 0,
+        body: {
+          query: salesQuery,
+          aggs: collectionAggregation,
+        },
+      })) as any;
+      results[period as Period] = esResult?.aggregations?.collections?.buckets?.map(
+        (bucket: any) => {
+          return {
+            volume: bucket?.total_volume?.value,
+            mintCount: bucket?.total_mints?.value,
+            id: bucket.key,
+          };
+        }
+      );
+    })
+  );
+
+  const periodResults = results[period];
+  const sixHourMints = results["6h"];
+  const oneHourMints = results["1h"];
+
+  const finalResults: ElasticMintResult[] = [];
+  periodResults?.forEach((result) => {
+    finalResults.push({
+      ...result,
+      sixHourResult: sixHourMints?.find(({ id }) => id === result.id),
+      oneHourResult: oneHourMints?.find(({ id }) => id === result.id),
+    });
+  });
+
+  return finalResults;
 };
 
 export const getRecentSalesByCollection = async (
@@ -682,6 +859,7 @@ export const search = async (
     limit?: number;
     continuation?: string | null;
     continuationAsInt?: boolean;
+    excludeSpam?: boolean;
   },
   debug = false
 ): Promise<{ activities: ActivityDocument[]; continuation: string | null }> => {
@@ -795,6 +973,14 @@ export const search = async (
   // Backward compatibility
   if (searchAfter?.length != 1 && !params.continuationAsInt) {
     esSort.push({ id: { order: params.sortDirection } });
+  }
+
+  if (params.excludeSpam) {
+    (esQuery as any).bool.filter.push({
+      bool: {
+        must_not: [{ term: { "collection.isSpam": true } }, { term: { "token.isSpam": true } }],
+      },
+    });
   }
 
   try {
@@ -941,6 +1127,20 @@ export const getIndexName = (): string => {
 };
 
 export const initIndex = async (): Promise<void> => {
+  const acquiredLock = await acquireLock("elasticsearch-activities-init-index", 60);
+
+  if (!acquiredLock) {
+    logger.info(
+      "elasticsearch-activities",
+      JSON.stringify({
+        topic: "initIndex",
+        message: "Skip.",
+      })
+    );
+
+    return;
+  }
+
   try {
     const indexConfigName =
       getNetworkSettings().elasticsearch?.indexes?.activities?.configName ?? "CONFIG_DEFAULT";
@@ -1099,11 +1299,12 @@ export const updateActivitiesMissingCollection = async (
           {
             script: {
               source:
-                "ctx._source.collection = [:]; ctx._source.collection.id = params.collection_id; ctx._source.collection.name = params.collection_name; ctx._source.collection.image = params.collection_image;",
+                "ctx._source.collection = [:]; ctx._source.collection.id = params.collection_id; ctx._source.collection.name = params.collection_name; ctx._source.collection.image = params.collection_image; ctx._source.collection.isSpam = params.collection_is_spam;",
               params: {
                 collection_id: collection.id,
                 collection_name: collection.name,
                 collection_image: collection.metadata?.imageUrl,
+                collection_is_spam: Number(collection.isSpam) > 0,
               },
             },
           },
@@ -1251,11 +1452,12 @@ export const updateActivitiesCollection = async (
           {
             script: {
               source:
-                "ctx._source.collection = [:]; ctx._source.collection.id = params.collection_id; ctx._source.collection.name = params.collection_name; ctx._source.collection.image = params.collection_image;",
+                "ctx._source.collection = [:]; ctx._source.collection.id = params.collection_id; ctx._source.collection.name = params.collection_name; ctx._source.collection.image = params.collection_image; ctx._source.collection.isSpam = params.collection_is_spam;",
               params: {
                 collection_id: newCollection.id,
                 collection_name: newCollection.name,
                 collection_image: newCollection.metadata?.imageUrl,
+                collection_is_spam: Number(newCollection.isSpam) > 0,
               },
             },
           },
@@ -1286,22 +1488,20 @@ export const updateActivitiesCollection = async (
       } else {
         keepGoing = pendingUpdateDocuments.length === 1000;
 
-        // logger.info(
-        //   "elasticsearch-activities",
-        //   JSON.stringify({
-        //     topic: "updateActivitiesCollection",
-        //     message: `Success`,
-        //     data: {
-        //       contract,
-        //       tokenId,
-        //       newCollection,
-        //       oldCollectionId,
-        //     },
-        //     bulkParams,
-        //     response,
-        //     keepGoing,
-        //   })
-        // );
+        logger.info(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "debugActivitiesErrors",
+            message: `updateActivitiesCollection - bulkSuccess`,
+            contract,
+            tokenId,
+            newCollection,
+            oldCollectionId,
+            keepGoing,
+            pendingUpdateDocumentsCount: pendingUpdateDocuments.length,
+            queryJson: JSON.stringify(query),
+          })
+        );
       }
     }
   } catch (error) {
@@ -1557,13 +1757,205 @@ export const updateActivitiesTokenMetadata = async (
   return keepGoing;
 };
 
-export const updateActivitiesCollectionMetadata = async (
-  collectionId: string,
-  collectionData: { name: string | null; image: string | null }
+export const updateActivitiesToken = async (
+  contract: string,
+  tokenId: string,
+  isSpam: number
 ): Promise<boolean> => {
   let keepGoing = false;
 
   const should: any[] = [
+    {
+      bool:
+        isSpam > 0
+          ? {
+              must_not: [
+                {
+                  term: {
+                    "token.isSpam": isSpam > 0,
+                  },
+                },
+              ],
+            }
+          : {
+              must: [
+                {
+                  exists: {
+                    field: "token.isSpam",
+                  },
+                },
+                {
+                  term: {
+                    "token.isSpam": true,
+                  },
+                },
+              ],
+            },
+    },
+  ];
+
+  const query = {
+    bool: {
+      filter: {
+        bool: {
+          should,
+        },
+      },
+      must: [
+        {
+          term: {
+            contract: contract.toLowerCase(),
+          },
+        },
+        {
+          term: {
+            "token.id": tokenId,
+          },
+        },
+      ],
+    },
+  };
+
+  try {
+    const esResult = await _search(
+      {
+        _source: ["id"],
+        // This is needed due to issue with elasticsearch DSL.
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        query,
+        size: 1000,
+      },
+      0
+    );
+
+    const pendingUpdateDocuments: { id: string; index: string }[] = esResult.hits.hits.map(
+      (hit) => ({ id: hit._source!.id, index: hit._index })
+    );
+
+    if (pendingUpdateDocuments.length) {
+      const bulkParams = {
+        body: pendingUpdateDocuments.flatMap((document) => [
+          { update: { _index: document.index, _id: document.id, retry_on_conflict: 3 } },
+          {
+            script: {
+              source: "ctx._source.token.isSpam = params.is_spam",
+              params: {
+                is_spam: isSpam > 0,
+              },
+            },
+          },
+        ]),
+        filter_path: "items.*.error",
+      };
+
+      const response = await elasticsearch.bulk(bulkParams, { ignore: [404] });
+
+      if (response?.errors) {
+        keepGoing = response?.items.some((item) => item.update?.status !== 400);
+
+        logger.error(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "updateActivitiesToken",
+            message: `Errors in response`,
+            data: {
+              contract,
+              tokenId,
+              isSpam,
+            },
+            bulkParams,
+            response,
+          })
+        );
+      } else {
+        keepGoing = pendingUpdateDocuments.length === 1000;
+      }
+    }
+  } catch (error) {
+    const retryableError =
+      (error as any).meta?.meta?.aborted ||
+      (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+
+    if (retryableError) {
+      logger.warn(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "updateActivitiesToken",
+          message: `Unexpected error`,
+          data: {
+            contract,
+            tokenId,
+            isSpam,
+          },
+          error,
+        })
+      );
+
+      keepGoing = true;
+    } else {
+      logger.error(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "updateActivitiesToken",
+          message: `Unexpected error`,
+          data: {
+            contract,
+            tokenId,
+            isSpam,
+          },
+          error,
+        })
+      );
+
+      throw error;
+    }
+  }
+
+  return keepGoing;
+};
+
+export type ActivitiesCollectionUpdateData = {
+  name: string | null;
+  image: string | null;
+  isSpam: number;
+};
+
+export const updateActivitiesCollectionData = async (
+  collectionId: string,
+  collectionData: ActivitiesCollectionUpdateData
+): Promise<boolean> => {
+  const batchSize = 1000;
+  let keepGoing = false;
+
+  const should: any[] = [
+    {
+      bool:
+        collectionData.isSpam > 0
+          ? {
+              must_not: [
+                {
+                  term: {
+                    "collection.isSpam": collectionData.isSpam > 0,
+                  },
+                },
+              ],
+            }
+          : {
+              must: [
+                {
+                  exists: {
+                    field: "collection.isSpam",
+                  },
+                },
+                {
+                  term: {
+                    "collection.isSpam": true,
+                  },
+                },
+              ],
+            },
+    },
     {
       bool: collectionData.name
         ? {
@@ -1633,10 +2025,10 @@ export const updateActivitiesCollectionMetadata = async (
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         query,
-        size: 1000,
+        size: batchSize,
       },
       0,
-      true
+      false
     );
 
     const pendingUpdateDocuments: { id: string; index: string }[] = esResult.hits.hits.map(
@@ -1650,10 +2042,11 @@ export const updateActivitiesCollectionMetadata = async (
           {
             script: {
               source:
-                "if (params.collection_name == null) { ctx._source.collection.remove('name') } else { ctx._source.collection.name = params.collection_name } if (params.collection_image == null) { ctx._source.collection.remove('image') } else { ctx._source.collection.image = params.collection_image }",
+                "if (params.collection_name == null) { ctx._source.collection.remove('name') } else { ctx._source.collection.name = params.collection_name } if (params.collection_image == null) { ctx._source.collection.remove('image') } else { ctx._source.collection.image = params.collection_image } ctx._source.collection.isSpam = params.is_spam",
               params: {
                 collection_name: collectionData.name ?? null,
                 collection_image: collectionData.image ?? null,
+                is_spam: collectionData.isSpam > 0,
               },
             },
           },
@@ -1669,7 +2062,7 @@ export const updateActivitiesCollectionMetadata = async (
         logger.error(
           "elasticsearch-activities",
           JSON.stringify({
-            topic: "updateActivitiesCollectionMetadata",
+            topic: "updateActivitiesCollectionData",
             message: `Errors in response. collectionId=${collectionId}, collectionData=${JSON.stringify(
               collectionData
             )}`,
@@ -1684,21 +2077,16 @@ export const updateActivitiesCollectionMetadata = async (
           })
         );
       } else {
-        keepGoing = pendingUpdateDocuments.length === 1000;
+        keepGoing = pendingUpdateDocuments.length === batchSize;
 
         logger.info(
           "elasticsearch-activities",
           JSON.stringify({
-            topic: "updateActivitiesCollectionMetadata",
-            message: `Success. collectionId=${collectionId}, collectionData=${JSON.stringify(
-              collectionData
-            )}`,
-            data: {
-              collectionId,
-              collectionData,
-            },
-            bulkParams: JSON.stringify(bulkParams),
-            response,
+            topic: "debugActivitiesErrors",
+            message: `updateActivitiesCollectionData - bulkSuccess. collectionId=${collectionId}`,
+            collectionId,
+            collectionData,
+            pendingUpdateDocumentsCount: pendingUpdateDocuments.length,
             keepGoing,
             queryJson: JSON.stringify(query),
           })
@@ -1714,7 +2102,7 @@ export const updateActivitiesCollectionMetadata = async (
       logger.warn(
         "elasticsearch-activities",
         JSON.stringify({
-          topic: "updateActivitiesCollectionMetadata",
+          topic: "updateActivitiesCollectionData",
           message: `Unexpected error`,
           data: {
             collectionId,
@@ -1729,7 +2117,7 @@ export const updateActivitiesCollectionMetadata = async (
       logger.error(
         "elasticsearch-activities",
         JSON.stringify({
-          topic: "updateActivitiesCollectionMetadata",
+          topic: "updateActivitiesCollectionData",
           message: `Unexpected error`,
           data: {
             collectionId,

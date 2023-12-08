@@ -47,7 +47,8 @@ export const postOrderV4Options: RouteOptions = {
                   "seaport-v1.5",
                   "x2y2",
                   "alienswap",
-                  "payment-processor"
+                  "payment-processor",
+                  "payment-processor-v2"
                 )
                 .required(),
               data: Joi.object().required(),
@@ -567,6 +568,27 @@ export const postOrderV4Options: RouteOptions = {
               };
 
               const [result] = await orders.paymentProcessor.save([orderInfo]);
+              if (["already-exists", "success"].includes(result.status)) {
+                return results.push({ message: "success", orderIndex: i, orderId: result.id });
+              } else {
+                return results.push({ message: result.status, orderIndex: i, orderId: result.id });
+              }
+            }
+
+            case "payment-processor-v2": {
+              if (orderbook !== "reservoir") {
+                return results.push({ message: "unsupported-orderbook", orderIndex: i });
+              }
+
+              const orderInfo: orders.paymentProcessorV2.OrderInfo = {
+                orderParams: order.data,
+                metadata: {
+                  schema,
+                  source,
+                },
+              };
+
+              const [result] = await orders.paymentProcessorV2.save([orderInfo]);
               if (["already-exists", "success"].includes(result.status)) {
                 return results.push({ message: "success", orderIndex: i, orderId: result.id });
               } else {

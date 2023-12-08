@@ -227,10 +227,16 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       // Handle: security level 4 and 6 EOA verification
       if (side === "buy") {
-        const config = await erc721c.getERC721CConfigFromDB(order.params.tokenAddress);
-        if (config && [4, 6].includes(config.transferSecurityLevel)) {
+        const configV1 = await erc721c.v1.getConfig(order.params.tokenAddress);
+        const configV2 = await erc721c.v2.getConfig(order.params.tokenAddress);
+        if (
+          (configV1 && [4, 6].includes(configV1.transferSecurityLevel)) ||
+          (configV2 && [6, 8].includes(configV2.transferSecurityLevel))
+        ) {
+          const transferValidator = (configV1 ?? configV2)!.transferValidator;
+
           const isVerified = await erc721c.isVerifiedEOA(
-            config.transferValidator,
+            transferValidator,
             order.params.sellerOrBuyer
           );
           if (!isVerified) {
@@ -297,7 +303,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             // TODO: Handle lost precision (by paying it to the last or first recipient)
             missingRoyalties.push({
               bps: Math.floor((bpsDiff * bps) / totalBps),
-              amount: amount.mul(bps).div(totalBps).toString(),
+              amount: amount.mul(Math.floor(bps)).div(totalBps).toString(),
               recipient,
             });
           }

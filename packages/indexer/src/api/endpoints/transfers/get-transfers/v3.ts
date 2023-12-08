@@ -118,6 +118,7 @@ export const getTransfersV3Options: RouteOptions = {
           tokens.name,
           tokens.image,
           tokens.collection_id,
+          tokens.image_version,
           collections.name as collection_name,
           nft_transfer_events.from,
           nft_transfer_events.to,
@@ -307,7 +308,7 @@ export const getTransfersV3Options: RouteOptions = {
           contract: fromBuffer(r.address),
           tokenId: r.token_id,
           name: r.name,
-          image: Assets.getLocalAssetsLink(r.image),
+          image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
           collection: {
             id: r.collection_id,
             name: r.collection_name,

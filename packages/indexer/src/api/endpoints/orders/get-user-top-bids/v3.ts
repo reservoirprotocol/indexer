@@ -219,7 +219,8 @@ export const getUserTopBidsV3Options: RouteOptions = {
       const criteriaBuildQuery = Orders.buildCriteriaQuery(
         "y",
         "token_set_id",
-        query.includeCriteriaMetadata
+        query.includeCriteriaMetadata,
+        "token_set_schema_hash"
       );
 
       const collectionFloorSellValueColumnName = query.useNonFlaggedFloorAsk
@@ -245,7 +246,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
         FROM nb
         JOIN LATERAL (
             SELECT o.token_set_id, o.id AS "top_bid_id", o.price AS "top_bid_price", o.value AS "top_bid_value",
-                   o.currency AS "top_bid_currency", o.currency_value AS "top_bid_currency_value", o.missing_royalties,
+                   o.currency AS "top_bid_currency", o.currency_price AS "top_bid_currency_price", o.currency_value AS "top_bid_currency_value", o.missing_royalties,
                    o.normalized_value AS "top_bid_normalized_value", o.currency_normalized_value AS "top_bid_currency_normalized_value",
                    o.maker AS "top_bid_maker", source_id_int, o.created_at "order_created_at", o.token_set_schema_hash,
                    extract(epoch from o.created_at) * 1000000 AS "order_created_at_micro",
@@ -267,7 +268,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
             LIMIT 1
         ) y ON TRUE
         LEFT JOIN LATERAL (
-            SELECT t.token_id, t.name, t.image, t.collection_id, floor_sell_value AS "token_floor_sell_value", last_sell_value AS "token_last_sell_value"
+            SELECT t.token_id, t.image_version, t.name, t.image, t.collection_id, floor_sell_value AS "token_floor_sell_value", last_sell_value AS "token_last_sell_value"
             FROM tokens t
             WHERE t.contract = nb.contract
             AND t.token_id = nb.token_id
@@ -362,7 +363,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
               contract: contract,
               tokenId: tokenId,
               name: r.name,
-              image: Assets.getLocalAssetsLink(r.image),
+              image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
               floorAskPrice: r.token_floor_sell_value ? formatEth(r.token_floor_sell_value) : null,
               lastSalePrice: r.token_last_sell_value ? formatEth(r.token_last_sell_value) : null,
               collection: {

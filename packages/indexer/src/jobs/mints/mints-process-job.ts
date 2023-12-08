@@ -216,8 +216,8 @@ export default class MintsProcessJob extends AbstractRabbitMqJobHandler {
           case "soundxyz": {
             collectionMints = await detector.soundxyz.extractByCollection(
               data.collection,
-              data.additionalInfo.mintId,
-              data.additionalInfo.minter
+              data.additionalInfo.minter,
+              data.additionalInfo.mintId
             );
             break;
           }
@@ -226,6 +226,11 @@ export default class MintsProcessJob extends AbstractRabbitMqJobHandler {
             collectionMints = await detector.createdotfun.extractByCollectionERC721(
               data.collection
             );
+            break;
+          }
+
+          case "titlesxyz": {
+            collectionMints = await detector.titlesxyz.extractByCollectionERC721(data.collection);
             break;
           }
         }

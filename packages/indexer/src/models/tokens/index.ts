@@ -11,7 +11,7 @@ import {
 } from "@/models/tokens/tokens-entity";
 import { config } from "@/config/index";
 import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
-import { logger } from "@/common/logger";
+import { CollectionsEntity } from "@/models/collections/collections-entity";
 
 export type TokenAttributes = {
   attributeId: number;
@@ -48,20 +48,24 @@ export class Tokens {
     return null;
   }
 
-  public static async getCollectionId(contract: string, tokenId: string) {
-    const collectionId = await redb.oneOrNone(
-      `SELECT collection_id
-              FROM tokens
-              WHERE contract = $/contract/
-              AND token_id = $/tokenId/`,
+  public static async getCollection(contract: string, tokenId: string) {
+    const collection = await redb.oneOrNone(
+      `SELECT *
+              FROM collections
+              WHERE id = (
+                SELECT collection_id
+                FROM tokens
+                WHERE contract = $/contract/
+                AND token_id = $/tokenId/
+              )`,
       {
         contract: toBuffer(contract),
         tokenId,
       }
     );
 
-    if (collectionId) {
-      return collectionId["collection_id"];
+    if (collection) {
+      return new CollectionsEntity(collection);
     }
 
     return null;
@@ -111,17 +115,6 @@ export class Tokens {
                    ${updateString}
                    WHERE contract = $/contract/
                    AND token_id = $/tokenId/`;
-
-    if (config.chainId === 11155111) {
-      logger.info(
-        "updateToken",
-        JSON.stringify({
-          topic: "debugTokenUpdate",
-          message: `Update token. contract=${contract}, tokenId=${tokenId}`,
-          token: `${contract}:${tokenId}`,
-        })
-      );
-    }
 
     return await idb.none(query, replacementValues);
   }

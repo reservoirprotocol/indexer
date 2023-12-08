@@ -19,7 +19,7 @@ import * as royalties from "@/utils/royalties";
 
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
-import { refreshActivitiesCollectionMetadataJob } from "@/jobs/activities/refresh-activities-collection-metadata-job";
+import { refreshActivitiesCollectionMetadataJob } from "@/jobs/elasticsearch/activities/refresh-activities-collection-metadata-job";
 import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
 import {
   topBidCollectionJob,
@@ -28,7 +28,7 @@ import {
 import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
 import { Contracts } from "@/models/contracts";
 import * as registry from "@/utils/royalties/registry";
-import { config } from "@/config/index";
+
 import { AlchemyApi } from "@/utils/alchemy";
 import { AlchemySpamContracts } from "@/models/alchemy-spam-contracts";
 import {
@@ -183,17 +183,6 @@ export class Collections {
       },
     ]);
 
-    if (config.chainId === 11155111) {
-      logger.info(
-        "updateCollectionCache",
-        JSON.stringify({
-          topic: "debugCollectionUpdates",
-          message: `Update collection. collectionId=${collection.id}`,
-          collectionId: collection.id,
-        })
-      );
-    }
-
     // Check if the collection already marked as spam
     let isSpamContract = false;
     if (Number(collectionResult.isSpam) === 0) {
@@ -221,15 +210,13 @@ export class Collections {
         metadata = $/metadata:json/,
         name = $/name/,
         slug = $/slug/,
-        payment_tokens = $/paymentTokens/,
         creator = $/creator/,
         is_spam = CASE WHEN (is_spam IS NULL OR is_spam = 0) THEN $/isSpamContract/ ELSE is_spam END,
         updated_at = now()
       WHERE id = $/id/
       AND (metadata IS DISTINCT FROM $/metadata:json/ 
             OR name IS DISTINCT FROM $/name/ 
-            OR slug IS DISTINCT FROM $/slug/ 
-            OR payment_tokens IS DISTINCT FROM $/paymentTokens/ 
+            OR slug IS DISTINCT FROM $/slug/
             OR creator IS DISTINCT FROM $/creator/
             OR ((is_spam IS NULL OR is_spam = 0) AND $/isSpamContract/ = 1)
             )
@@ -249,7 +236,6 @@ export class Collections {
       metadata: collection.metadata || {},
       name: collection.name,
       slug: collection.slug,
-      paymentTokens: collection.paymentTokens ? { opensea: collection.paymentTokens } : {},
       creator: collection.creator ? toBuffer(collection.creator) : null,
       isSpamContract: Number(isSpamContract),
     };
@@ -258,11 +244,24 @@ export class Collections {
 
     try {
       if (
-        result?.old_metadata.name != collection.name ||
-        result?.old_metadata.metadata?.imageUrl != (collection.metadata as any)?.imageUrl
+        result &&
+        (result?.old_metadata.name != collection.name ||
+          result?.old_metadata.metadata?.imageUrl != (collection.metadata as any)?.imageUrl)
       ) {
+        logger.info(
+          "updateCollectionCache",
+          JSON.stringify({
+            topic: "debugActivitiesErrors",
+            message: `refreshActivitiesCollectionMetadataJob. collectionId=${collection.id}, contract=${contract}, tokenId=${tokenId}, community=${community}`,
+            collectionId: collection.id,
+            collection,
+            result,
+          })
+        );
+
         await refreshActivitiesCollectionMetadataJob.addToQueue({
           collectionId: collection.id,
+          context: "updateCollectionCache",
         });
       }
     } catch (error) {
@@ -295,7 +294,7 @@ export class Collections {
     await marketplaceBlacklist.checkMarketplaceIsFiltered(collection.contract, [], true);
 
     // Refresh ERC721C config
-    await erc721c.refreshERC721CConfig(collection.contract);
+    await erc721c.refreshConfig(collection.contract);
   }
 
   public static async update(collectionId: string, fields: CollectionsEntityUpdateParams) {
@@ -316,17 +315,6 @@ export class Collections {
         SET updated_at = now(), ${updateString}
       WHERE id = $/collectionId/
     `;
-
-    if (config.chainId === 11155111) {
-      logger.info(
-        "updateCollection",
-        JSON.stringify({
-          topic: "debugCollectionUpdates",
-          message: `Update collection. collectionId=${collectionId}`,
-          collectionId,
-        })
-      );
-    }
 
     return await idb.none(query, replacementValues);
   }
@@ -368,17 +356,6 @@ export class Collections {
   }
 
   public static async recalculateCollectionFloorSell(collection: string) {
-    if (config.chainId === 11155111) {
-      logger.info(
-        "recalculateCollectionFloorSell",
-        JSON.stringify({
-          topic: "debugCollectionUpdates",
-          message: `Update collection. collectionId=${collection}`,
-          collectionId: collection,
-        })
-      );
-    }
-
     const query = `
       UPDATE collections SET
         floor_sell_id = x.floor_sell_id,

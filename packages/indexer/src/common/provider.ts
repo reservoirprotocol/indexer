@@ -10,12 +10,11 @@ import { WebSocketProvider } from "@ethersproject/providers";
 export const baseProvider = new StaticJsonRpcProvider(
   {
     url: config.baseNetworkHttpUrl,
-    headers:
-      config.chainId === 324
-        ? {}
-        : {
-            "x-session-hash": getUuidByString(`${config.baseNetworkHttpUrl}${config.chainId}`),
-          },
+    headers: [1, 324].includes(config.chainId)
+      ? {}
+      : {
+          "x-session-hash": getUuidByString(`${config.baseNetworkHttpUrl}${config.chainId}`),
+        },
   },
   config.chainId
 );

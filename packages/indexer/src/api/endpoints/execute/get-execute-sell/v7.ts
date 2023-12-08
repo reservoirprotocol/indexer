@@ -6,7 +6,7 @@ import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { BidDetails, FillBidsResult } from "@reservoir0x/sdk/dist/router/v6/types";
-import { estimateGas } from "@reservoir0x/sdk/dist/router/v6/utils";
+import { estimateGasFromTxTags } from "@reservoir0x/sdk/dist/router/v6/utils";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
 import axios from "axios";
 import { randomUUID } from "crypto";
@@ -31,7 +31,6 @@ import * as sudoswap from "@/orderbook/orders/sudoswap";
 import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import { ExecutionsBuffer } from "@/utils/executions";
-import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
 import { getPersistentPermit } from "@/utils/permits";
 import { getPreSignatureId, getPreSignature, savePreSignature } from "@/utils/pre-signatures";
 import { getUSDAndCurrencyPrices } from "@/utils/prices";
@@ -116,7 +115,7 @@ export const getExecuteSellV7Options: RouteOptions = {
       feesOnTop: Joi.array()
         .items(Joi.string().pattern(regex.fee))
         .description(
-          "List of fees (formatted as `feeRecipient:feeAmount`) to be taken when filling.\nThe currency used for any fees on top matches the accepted bid's currency.\nExample: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:1000000000000000`"
+          "List of fees (formatted as `feeRecipient:feeAmount`) to be taken when filling.\nThe currency used for any fees on top is always the wrapped native currency of the chain.\nExample: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:1000000000000000`"
         ),
       onlyPath: Joi.boolean()
         .default(false)
@@ -388,9 +387,8 @@ export const getExecuteSellV7Options: RouteOptions = {
             };
           }),
           feesOnTop: [
-            // For now, the only additional fees are the normalized royalties
             ...additionalFees.map((f) => ({
-              kind: "royalty",
+              kind: "marketplace",
               recipient: f.recipient,
               bps: bn(f.amount).mul(10000).div(unitPrice).toNumber(),
               amount: formatPrice(f.amount, currency.decimals, true),
@@ -426,7 +424,10 @@ export const getExecuteSellV7Options: RouteOptions = {
               amount: token.quantity,
               owner: token.owner,
             },
-            permit
+            {
+              permit,
+              taker: payload.taker,
+            }
           )
         );
       };
@@ -446,7 +447,6 @@ export const getExecuteSellV7Options: RouteOptions = {
         }[];
       }[] = payload.items;
 
-      const tokenToSuspicious = await tryGetTokensSuspiciousStatus(items.map((i) => i.token));
       for (const item of items) {
         const [contract, tokenId] = item.token.split(":");
 
@@ -647,20 +647,16 @@ export const getExecuteSellV7Options: RouteOptions = {
             }
           }
 
-          // Do not fill X2Y2 and Seaport orders with flagged tokens
+          // Do not fill Seaport orders with flagged tokens
           if (
             [
-              "x2y2",
               "seaport-v1.4",
               "seaport-v1.5",
               "seaport-v1.4-partial",
               "seaport-v1.5-partial",
             ].includes(result.kind)
           ) {
-            if (
-              (tokenToSuspicious.has(item.token) && tokenToSuspicious.get(item.token)) ||
-              tokenResult.is_flagged
-            ) {
+            if (tokenResult.is_flagged) {
               if (payload.partial) {
                 continue;
               } else {
@@ -775,20 +771,16 @@ export const getExecuteSellV7Options: RouteOptions = {
               }
             }
 
-            // Do not fill X2Y2 and Seaport orders with flagged tokens
+            // Do not fill Seaport orders with flagged tokens
             if (
               [
-                "x2y2",
                 "seaport-v1.4",
                 "seaport-v1.5",
                 "seaport-v1.4-partial",
                 "seaport-v1.5-partial",
               ].includes(result.kind)
             ) {
-              if (
-                (tokenToSuspicious.has(item.token) && tokenToSuspicious.get(item.token)) ||
-                tokenResult.is_flagged
-              ) {
+              if (tokenResult.is_flagged) {
                 if (payload.partial) {
                   continue;
                 }
@@ -896,16 +888,16 @@ export const getExecuteSellV7Options: RouteOptions = {
         // Global fees get split across all eligible orders
         let adjustedFeeAmount = bn(feeAmount).div(ordersEligibleForGlobalFees.length).toString();
 
-        // If the item's currency is not the same with the buy-in currency,
-        if (item.currency !== Sdk.Common.Addresses.Native[config.chainId]) {
+        // If the item's currency is not the same with the sell-in currency
+        if (item.currency !== Sdk.Common.Addresses.WNative[config.chainId]) {
           feeAmount = await getUSDAndCurrencyPrices(
-            Sdk.Common.Addresses.Native[config.chainId],
+            Sdk.Common.Addresses.WNative[config.chainId],
             item.currency,
             feeAmount,
             now()
           ).then((p) => p.currencyPrice!);
           adjustedFeeAmount = await getUSDAndCurrencyPrices(
-            Sdk.Common.Addresses.Native[config.chainId],
+            Sdk.Common.Addresses.WNative[config.chainId],
             item.currency,
             adjustedFeeAmount,
             now()
@@ -1311,7 +1303,7 @@ export const getExecuteSellV7Options: RouteOptions = {
                 maxPriorityFeePerGas,
               }
             : undefined,
-          gasEstimate: txTags ? estimateGas(txTags) : undefined,
+          gasEstimate: txTags ? estimateGasFromTxTags(txTags) : undefined,
         });
       }
 

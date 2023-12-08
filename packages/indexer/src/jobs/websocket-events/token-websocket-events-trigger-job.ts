@@ -167,14 +167,16 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
               },
               r?.collection_metadata_disabled
             ),
-            attributes: _.map(r.attributes, (attribute) => ({
-              key: attribute.key,
-              kind: attribute.kind,
-              value: attribute.value,
-            })),
+            attributes: r?.attributes
+              ? _.map(r.attributes, (attribute) => ({
+                  key: attribute.key,
+                  kind: attribute.kind,
+                  value: attribute.value,
+                }))
+              : [],
           },
           Boolean(data.after.metadata_disabled),
-          r.collection_metadata_disabled
+          r?.collection_metadata_disabled
         ),
         market: {
           floorAsk: data.after.floor_sell_value && {
@@ -336,6 +338,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
           t.is_spam,
           t.description,
           t.image,
+          t.image_version,
           t.media,
           t.collection_id,
           c.name AS collection_name,
@@ -413,7 +416,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
             name: r.name,
             isSpam: Number(r.is_spam) > 0,
             description: r.description,
-            image: Assets.getLocalAssetsLink(r.image),
+            image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
             media: r.media,
             kind: r.kind,
             metadataDisabled:
@@ -436,11 +439,13 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
               },
               r.collection_metadata_disabled
             ),
-            attributes: _.map(r.attributes, (attribute) => ({
-              key: attribute.key,
-              kind: attribute.kind,
-              value: attribute.value,
-            })),
+            attributes: r?.attributes
+              ? _.map(r.attributes, (attribute) => ({
+                  key: attribute.key,
+                  kind: attribute.kind,
+                  value: attribute.value,
+                }))
+              : [],
           },
           r.token_metadata_disabled,
           r.collection_metadata_disabled

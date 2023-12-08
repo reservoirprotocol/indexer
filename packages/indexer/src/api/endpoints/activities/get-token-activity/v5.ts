@@ -25,6 +25,7 @@ import { ActivityType } from "@/elasticsearch/indexes/activities/base";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { Sources } from "@/models/sources";
 import { MetadataStatus } from "@/models/metadata-status";
+import { Assets } from "@/utils/assets";
 
 const version = "v5";
 
@@ -67,6 +68,9 @@ export const getTokenActivityV5Options: RouteOptions = {
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
       ),
+      excludeSpam: Joi.boolean()
+        .default(false)
+        .description("If true, will filter any activities marked as spam."),
       types: Joi.alternatives()
         .try(
           Joi.array().items(
@@ -109,11 +113,15 @@ export const getTokenActivityV5Options: RouteOptions = {
             tokenId: Joi.string().allow(null),
             tokenName: Joi.string().allow("", null),
             tokenImage: Joi.string().allow("", null),
+            isSpam: Joi.boolean().allow("", null),
+            rarityScore: Joi.number().allow(null),
+            rarityRank: Joi.number().allow(null),
           }),
           collection: Joi.object({
             collectionId: Joi.string().allow(null),
             collectionName: Joi.string().allow("", null),
             collectionImage: Joi.string().allow("", null),
+            isSpam: Joi.boolean().default(false),
           }),
           txHash: Joi.string()
             .lowercase()
@@ -149,6 +157,7 @@ export const getTokenActivityV5Options: RouteOptions = {
         sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
         limit: query.limit,
         continuation: query.continuation,
+        excludeSpam: query.excludeSpam,
       });
 
       if (activities.length === 0) {
@@ -203,7 +212,10 @@ export const getTokenActivityV5Options: RouteOptions = {
             tokens.token_id,
             tokens.name,
             tokens.image,
-            tokens.metadata_disabled
+            tokens.metadata_disabled,
+            tokens.image_version,
+            tokens.rarity_score,
+            tokens.rarity_rank
           FROM tokens
           WHERE (tokens.contract, tokens.token_id) IN ($/tokensFilter:raw/)
         `,
@@ -217,7 +229,10 @@ export const getTokenActivityV5Options: RouteOptions = {
                   token_id: token.token_id,
                   name: token.name,
                   image: token.image,
+                  image_version: token.image_version,
                   metadata_disabled: token.metadata_disabled,
+                  rarity_score: token.rarity_score,
+                  rarity_rank: token.rarity_rank,
                 }))
               );
 
@@ -233,7 +248,10 @@ export const getTokenActivityV5Options: RouteOptions = {
                     token_id: tokenResult.token_id,
                     name: tokenResult.name,
                     image: tokenResult.image,
+                    image_version: tokenResult.image_version,
                     metadata_disabled: tokenResult.metadata_disabled,
+                    rarity_score: tokenResult.rarity_score,
+                    rarity_rank: tokenResult.rarity_rank,
                   })
                 );
 
@@ -275,6 +293,7 @@ export const getTokenActivityV5Options: RouteOptions = {
                     id: activity.collection?.id,
                     name: activity.collection?.name,
                     image: activity.collection?.image,
+                    isSpam: activity.collection?.isSpam,
                   },
                   disabledCollectionMetadata[activity.collection?.id ?? ""],
                   activity.contract
@@ -288,6 +307,7 @@ export const getTokenActivityV5Options: RouteOptions = {
                   tokenId: activity.token?.id,
                   name: tokenMetadata ? tokenMetadata.name : activity.token?.name,
                   image: tokenMetadata ? tokenMetadata.image : activity.token?.image,
+                  isSpam: activity.token?.isSpam,
                 },
                 tokenMetadata?.metadata_disabled ||
                   disabledCollectionMetadata[activity.collection?.id ?? ""],
@@ -324,6 +344,21 @@ export const getTokenActivityV5Options: RouteOptions = {
           ? sources.get(activity.event?.fillSourceId)
           : undefined;
 
+        const originalImageUrl = query.includeMetadata
+          ? tokenMetadata
+            ? tokenMetadata.image
+            : activity.token?.image
+          : undefined;
+
+        let tokenImageUrl = null;
+        if (originalImageUrl) {
+          tokenImageUrl = Assets.getResizedImageUrl(
+            originalImageUrl,
+            undefined,
+            tokenMetadata?.image_version
+          );
+        }
+
         return getJoiActivityObject(
           {
             type: activity.type,
@@ -345,19 +380,19 @@ export const getTokenActivityV5Options: RouteOptions = {
             contract: activity.contract,
             token: {
               tokenId: activity.token?.id,
+              isSpam: activity.token?.isSpam,
               tokenName: query.includeMetadata
                 ? tokenMetadata
                   ? tokenMetadata.name
                   : activity.token?.name
                 : undefined,
-              tokenImage: query.includeMetadata
-                ? tokenMetadata
-                  ? tokenMetadata.image
-                  : activity.token?.image
-                : undefined,
+              tokenImage: tokenImageUrl,
+              rarityScore: tokenMetadata?.rarity_score,
+              rarityRank: tokenMetadata?.rarity_rank,
             },
             collection: {
               collectionId: activity.collection?.id,
+              isSpam: activity.collection?.isSpam,
               collectionName: query.includeMetadata ? activity.collection?.name : undefined,
               collectionImage:
                 query.includeMetadata && activity.collection?.image != null
@@ -370,7 +405,7 @@ export const getTokenActivityV5Options: RouteOptions = {
             fillSource: fillSource ? getJoiSourceObject(fillSource, false) : undefined,
             order,
           },
-          tokenMetadata.metadata_disabled,
+          tokenMetadata?.metadata_disabled,
           disabledCollectionMetadata
         );
       });

@@ -7,7 +7,6 @@ import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
-import { config } from "@/config/index";
 
 export type TopBidCollectionJobPayload = {
   kind: string;
@@ -28,17 +27,6 @@ export default class TopBidCollectionJob extends AbstractRabbitMqJobHandler {
 
   protected async process(payload: TopBidCollectionJobPayload) {
     try {
-      if (config.chainId === 11155111) {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "debugCollectionUpdates",
-            message: `Update collection. collectionId=${payload.collectionId}`,
-            collectionId: payload.collectionId,
-          })
-        );
-      }
-
       const collectionTopBid = await idb.oneOrNone(
         `
             WITH y AS (

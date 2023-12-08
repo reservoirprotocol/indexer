@@ -2,6 +2,7 @@ import { AddressZero } from "@ethersproject/constants";
 import { parseUnits } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
+import _ from "lodash";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
@@ -303,7 +304,11 @@ export const getUSDAndNativePrices = async (
   }
 
   // If zeroCommunityTokens and community tokens set native/usd value to 0
-  if (!options?.nonZeroCommunityTokens && isWhitelistedCurrency(currencyAddress)) {
+  if (
+    !options?.nonZeroCommunityTokens &&
+    isWhitelistedCurrency(currencyAddress) &&
+    !_.includes(Sdk.Common.Addresses.Usdc[config.chainId], currencyAddress)
+  ) {
     usdPrice = "0";
     nativePrice = "0";
   }
@@ -333,7 +338,11 @@ export const getUSDAndCurrencyPrices = async (
   if (
     getNetworkSettings().coingecko?.networkId ||
     (isTestnetCurrency(fromCurrencyAddress) && isTestnetCurrency(toCurrencyAddress)) ||
-    (isWhitelistedCurrency(fromCurrencyAddress) && isWhitelistedCurrency(toCurrencyAddress))
+    (isWhitelistedCurrency(fromCurrencyAddress) && isWhitelistedCurrency(toCurrencyAddress)) ||
+    // Allow price conversion on Zora which is not supported by Coingecko
+    (config.chainId === 7777777 &&
+      fromCurrencyAddress === AddressZero &&
+      toCurrencyAddress === AddressZero)
   ) {
     // Get the FROM currency price
     const fromCurrencyUSDPrice = await getAvailableUSDPrice(
@@ -376,7 +385,10 @@ export const getUSDAndCurrencyPrices = async (
   }
 
   // Set community tokens native/usd value to 0
-  if (isWhitelistedCurrency(fromCurrencyAddress)) {
+  if (
+    isWhitelistedCurrency(fromCurrencyAddress) &&
+    !_.includes(Sdk.Common.Addresses.Usdc[config.chainId], fromCurrencyAddress)
+  ) {
     usdPrice = "0";
     currencyPrice = "0";
   }

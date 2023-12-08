@@ -3,8 +3,6 @@ import { toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { acquireLock, doesLockExist, releaseLock } from "@/common/redis";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
-import { config } from "@/config/index";
-import { logger } from "@/common/logger";
 
 export type NonFlaggedFloorQueueJobPayload = {
   kind: string;
@@ -59,17 +57,6 @@ export default class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler 
       if (!acquiredLock) {
         return;
       }
-    }
-
-    if (config.chainId === 11155111) {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "debugCollectionUpdates",
-          message: `Update collection. collectionId=${collectionResult.collection_id}`,
-          collectionId: collectionResult.collection_id,
-        })
-      );
     }
 
     const nonFlaggedCollectionFloorAsk = await idb.oneOrNone(

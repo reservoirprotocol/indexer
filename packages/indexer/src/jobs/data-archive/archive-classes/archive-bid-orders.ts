@@ -8,8 +8,8 @@ import { fromBuffer } from "@/common/utils";
 import { logger } from "@/common/logger";
 
 import { ArchiveInterface } from "@/jobs/data-archive/archive-classes/archive-interface";
-import { PendingExpiredBidActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-expired-bid-activities-queue";
-import { deleteArchivedExpiredBidActivitiesJob } from "@/jobs/activities/delete-archived-expired-bid-activities-job";
+// import { PendingExpiredBidActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-expired-bid-activities-queue";
+import { deleteArchivedExpiredBidActivitiesJob } from "@/jobs/elasticsearch/activities/delete-archived-expired-bid-activities-job";
 
 export class ArchiveBidOrders implements ArchiveInterface {
   static tableName = "orders";
@@ -20,7 +20,7 @@ export class ArchiveBidOrders implements ArchiveInterface {
     const firstEventQuery = `
         SELECT updated_at
         FROM ${ArchiveBidOrders.tableName}
-        WHERE updated_at < current_date - INTERVAL '${ArchiveBidOrders.maxAgeDay} days'
+        WHERE updated_at < date_trunc('minute', current_timestamp) - (extract('minute' from current_timestamp)::int % 10) * interval '1 min' - INTERVAL '${ArchiveBidOrders.maxAgeDay} days'
         AND side = 'buy'
         AND fillability_status = 'expired'
         ORDER BY updated_at DESC, id ASC
@@ -123,7 +123,7 @@ export class ArchiveBidOrders implements ArchiveInterface {
   async deleteFromTable(startTime: string, endTime: string) {
     const limit = 5000;
     let deletedOrdersResult;
-    let deleteActivities = false;
+    const deleteActivities = false;
 
     do {
       const deleteQuery = `
@@ -143,18 +143,20 @@ export class ArchiveBidOrders implements ArchiveInterface {
 
       logger.info(
         "archive-bid-orders",
-        `Bids deleted. deletedOrdersCount=${JSON.stringify(deletedOrdersResult?.length)}`
+        `Bids deleted. ${startTime} - ${endTime} deletedOrdersCount=${JSON.stringify(
+          deletedOrdersResult?.length
+        )}`
       );
 
-      if (deletedOrdersResult.length) {
-        const pendingExpiredBidActivitiesQueue = new PendingExpiredBidActivitiesQueue();
-
-        await pendingExpiredBidActivitiesQueue.add(
-          deletedOrdersResult.map((deletedOrder) => deletedOrder.id)
-        );
-
-        deleteActivities = true;
-      }
+      // if (deletedOrdersResult.length) {
+      //   const pendingExpiredBidActivitiesQueue = new PendingExpiredBidActivitiesQueue();
+      //
+      //   await pendingExpiredBidActivitiesQueue.add(
+      //     deletedOrdersResult.map((deletedOrder) => deletedOrder.id)
+      //   );
+      //
+      //   deleteActivities = true;
+      // }
     } while (deletedOrdersResult.length === limit);
 
     if (deleteActivities) {

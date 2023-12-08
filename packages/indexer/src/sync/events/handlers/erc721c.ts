@@ -1,6 +1,6 @@
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent } from "@/events-sync/handlers/utils";
-import * as erc721c from "@/utils/erc721c";
+import * as erc721c from "@/utils/erc721c/index";
 
 export const handleEvents = async (events: EnhancedEvent[]) => {
   for (const { subKind, baseEventParams, log } of events) {
@@ -20,12 +20,13 @@ export const handleEvents = async (events: EnhancedEvent[]) => {
       case "erc721c-set-transfer-security-level": {
         const parsedLog = eventData.abi.parseLog(log);
         const collection = parsedLog.args["collection"].toLowerCase();
-        await erc721c.refreshERC721CConfig(collection);
+
+        await erc721c.v1.refreshConfig(collection);
         break;
       }
 
       case "erc721c-transfer-validator-updated": {
-        await erc721c.refreshERC721CConfig(baseEventParams.address);
+        await erc721c.v1.refreshConfig(baseEventParams.address);
         break;
       }
 
@@ -36,8 +37,8 @@ export const handleEvents = async (events: EnhancedEvent[]) => {
         const transferValidator = baseEventParams.address.toLowerCase();
 
         parsedLog.args.kind === 0
-          ? await erc721c.refreshERC721COperatorWhitelist(transferValidator, id)
-          : await erc721c.refreshERC721CPermittedContractReceiverAllowlist(transferValidator, id);
+          ? await erc721c.v1.refreshOperatorWhitelist(transferValidator, id)
+          : await erc721c.v1.refreshPermittedContractReceiverAllowlist(transferValidator, id);
 
         break;
       }

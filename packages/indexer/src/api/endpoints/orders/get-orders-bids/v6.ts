@@ -65,7 +65,7 @@ export const getOrdersBidsV6Options: RouteOptions = {
       collectionsSetId: Joi.string()
         .lowercase()
         .description(
-          "Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
+          "Filter to a particular collection set. Requires `maker` to be passed. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
         ),
       contractsSetId: Joi.string().lowercase().description("Filter to a particular contracts set."),
       collection: Joi.string()
@@ -322,7 +322,8 @@ export const getOrdersBidsV6Options: RouteOptions = {
       const criteriaBuildQuery = Orders.buildCriteriaQuery(
         "orders",
         "token_set_id",
-        query.includeCriteriaMetadata
+        query.includeCriteriaMetadata,
+        "token_set_schema_hash"
       );
 
       let baseQuery = `

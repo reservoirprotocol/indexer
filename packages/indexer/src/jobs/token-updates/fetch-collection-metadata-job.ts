@@ -1,16 +1,17 @@
-import { idb, pgp, PgPromiseQuery } from "@/common/db";
-import { toBuffer } from "@/common/utils";
-import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { logger } from "@/common/logger";
-import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 import _ from "lodash";
-import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
-import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
+
+import { idb, pgp, PgPromiseQuery } from "@/common/db";
+import { logger } from "@/common/logger";
+import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
-import * as royalties from "@/utils/royalties";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
+import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
+import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import * as royalties from "@/utils/royalties";
 
 export type FetchCollectionMetadataJobPayload = {
   contract: string;
@@ -58,32 +59,32 @@ export default class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandl
       const queries: PgPromiseQuery[] = [];
       queries.push({
         query: `
-            INSERT INTO "collections" (
-              "id",
-              "slug",
-              "name",
-              "community",
-              "metadata",
-              "contract",
-              "token_id_range",
-              "token_set_id",
-              "minted_timestamp",
-              "payment_tokens",
-              "creator"
-            ) VALUES (
-              $/id/,
-              $/slug/,
-              $/name/,
-              $/community/,
-              $/metadata:json/,
-              $/contract/,
-              ${tokenIdRangeParam},
-              $/tokenSetId/,
-              $/mintedTimestamp/,
-              $/paymentTokens/,
-              $/creator/
-            ) ON CONFLICT DO NOTHING;
-          `,
+          INSERT INTO "collections" (
+            "id",
+            "slug",
+            "name",
+            "community",
+            "metadata",
+            "contract",
+            "token_id_range",
+            "token_set_id",
+            "minted_timestamp",
+            "payment_tokens",
+            "creator"
+          ) VALUES (
+            $/id/,
+            $/slug/,
+            $/name/,
+            $/community/,
+            $/metadata:json/,
+            $/contract/,
+            ${tokenIdRangeParam},
+            $/tokenSetId/,
+            $/mintedTimestamp/,
+            $/paymentTokens/,
+            $/creator/
+          ) ON CONFLICT DO NOTHING;
+        `,
         values: {
           id: collection.id,
           slug: collection.slug,
@@ -104,27 +105,16 @@ export default class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandl
         tokenFilter = `AND "token_id" = $/tokenId/`;
       }
 
-      if (config.chainId === 11155111) {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "debugTokenUpdate",
-            message: `Update token. contract=${contract}, tokenId=${tokenId}`,
-            token: `${contract}:${tokenId}`,
-          })
-        );
-      }
-
       // Since this is the first time we run into this collection,
       // we update all tokens that match its token definition
       queries.push({
         query: `
-                UPDATE "tokens"
-                SET "collection_id" = $/collection/,
-                    "updated_at" = now()
-                WHERE "contract" = $/contract/
-                ${tokenFilter}
-            `,
+          UPDATE "tokens"
+          SET "collection_id" = $/collection/,
+              "updated_at" = now()
+          WHERE "contract" = $/contract/
+          ${tokenFilter}
+        `,
         values: {
           contract: toBuffer(collection.contract),
           tokenIdRange,

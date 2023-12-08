@@ -28,6 +28,7 @@ import { redis } from "@/common/redis";
 import { redb } from "@/common/db";
 import { Sources } from "@/models/sources";
 import { MetadataStatus } from "@/models/metadata-status";
+import { Assets } from "@/utils/assets";
 
 const version = "v6";
 
@@ -66,6 +67,9 @@ export const getUserActivityV6Options: RouteOptions = {
       ).description(
         "Filter to one or more collections. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
       ),
+      excludeSpam: Joi.boolean()
+        .default(false)
+        .description("If true, will filter any activities marked as spam."),
       collectionsSetId: Joi.string()
         .lowercase()
         .description("Filter to a particular collection set."),
@@ -138,6 +142,7 @@ export const getUserActivityV6Options: RouteOptions = {
             tokenId: Joi.string().allow(null),
             tokenName: Joi.string().allow("", null),
             tokenImage: Joi.string().allow("", null),
+            isSpam: Joi.boolean().default(false),
             lastBuy: {
               value: Joi.number().unsafe().allow(null),
               timestamp: Joi.number().unsafe().allow(null),
@@ -158,6 +163,7 @@ export const getUserActivityV6Options: RouteOptions = {
             collectionId: Joi.string().allow(null),
             collectionName: Joi.string().allow("", null),
             collectionImage: Joi.string().allow("", null),
+            isSpam: Joi.boolean().default(false),
           }),
           txHash: Joi.string()
             .lowercase()
@@ -219,6 +225,7 @@ export const getUserActivityV6Options: RouteOptions = {
         types: query.types,
         users: query.users,
         collections: query.collection,
+        excludeSpam: query.excludeSpam,
         contracts: query.contracts,
         sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
         limit: query.limit,
@@ -274,7 +281,10 @@ export const getUserActivityV6Options: RouteOptions = {
             tokens.token_id,
             tokens.name,
             tokens.image,
-            tokens.metadata_disabled
+            tokens.metadata_disabled,
+            tokens.image_version,
+            tokens.rarity_score,
+            tokens.rarity_rank
           FROM tokens
           WHERE (tokens.contract, tokens.token_id) IN ($/tokensFilter:raw/)
         `,
@@ -288,7 +298,10 @@ export const getUserActivityV6Options: RouteOptions = {
                     token_id: token.token_id,
                     name: token.name,
                     image: token.image,
+                    image_version: token.image_version,
                     metadata_disabled: token.metadata_disabled,
+                    rarity_score: token.rarity_score,
+                    rarity_rank: token.rarity_rank,
                   }))
                 );
 
@@ -304,7 +317,10 @@ export const getUserActivityV6Options: RouteOptions = {
                       token_id: tokenResult.token_id,
                       name: tokenResult.name,
                       image: tokenResult.image,
+                      image_version: tokenResult.image_version,
                       metadata_disabled: tokenResult.metadata_disabled,
+                      rarity_score: tokenResult.rarity_score,
+                      rarity_rank: tokenResult.rarity_rank,
                     })
                   );
 
@@ -347,6 +363,7 @@ export const getUserActivityV6Options: RouteOptions = {
                     id: activity.collection?.id,
                     name: activity.collection?.name,
                     image: activity.collection?.image,
+                    isSpam: activity.collection?.isSpam,
                   },
                   disabledCollectionMetadata[activity.collection?.id ?? ""],
                   activity.contract
@@ -360,6 +377,7 @@ export const getUserActivityV6Options: RouteOptions = {
                   tokenId: activity.token?.id,
                   name: tokenMetadata ? tokenMetadata.name : activity.token?.name,
                   image: tokenMetadata ? tokenMetadata.image : activity.token?.image,
+                  isSpam: activity.token?.isSpam,
                 },
                 tokenMetadata?.metadata_disabled ||
                   disabledCollectionMetadata[activity.collection?.id ?? ""],
@@ -396,6 +414,19 @@ export const getUserActivityV6Options: RouteOptions = {
           ? sources.get(activity.event?.fillSourceId)
           : undefined;
 
+        const originalImageUrl = query.includeMetadata
+          ? (tokenMetadata ? tokenMetadata.image : activity.token?.image) || null
+          : undefined;
+
+        let tokenImageUrl = null;
+        if (originalImageUrl) {
+          tokenImageUrl = Assets.getResizedImageUrl(
+            originalImageUrl,
+            undefined,
+            tokenMetadata?.image_version
+          );
+        }
+
         return getJoiActivityObject(
           {
             type: activity.type,
@@ -422,12 +453,11 @@ export const getUserActivityV6Options: RouteOptions = {
               tokenName: query.includeMetadata
                 ? (tokenMetadata ? tokenMetadata.name : activity.token?.name) || null
                 : undefined,
-              tokenImage: query.includeMetadata
-                ? (tokenMetadata ? tokenMetadata.image : activity.token?.image) || null
-                : undefined,
+              tokenImage: tokenImageUrl,
               tokenMedia: query.includeMetadata ? null : undefined,
-              tokenRarityRank: query.includeMetadata ? null : undefined,
-              tokenRarityScore: query.includeMetadata ? null : undefined,
+              tokenRarityRank: query.includeMetadata ? tokenMetadata?.rarity_score : undefined,
+              tokenRarityScore: query.includeMetadata ? tokenMetadata?.rarity_rank : undefined,
+              isSpam: activity.token?.isSpam,
             },
             collection: {
               collectionId: activity.collection?.id,
@@ -436,6 +466,7 @@ export const getUserActivityV6Options: RouteOptions = {
                 query.includeMetadata && activity.collection?.image != null
                   ? activity.collection?.image
                   : undefined,
+              isSpam: activity.collection?.isSpam,
             },
             txHash: activity.event?.txHash,
             logIndex: activity.event?.logIndex,

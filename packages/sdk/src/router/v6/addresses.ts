@@ -59,6 +59,7 @@ export const ApprovalProxy: ChainIdToAddress = {
 export const PermitProxy: ChainIdToAddress = {
   [Network.Ethereum]: "0x30b3de99ab1de0c9700181f7a2597150e9416aa6",
   [Network.EthereumGoerli]: "0x30b3de99ab1de0c9700181f7a2597150e9416aa6",
+  [Network.EthereumSepolia]: "0x30b3de99ab1de0c9700181f7a2597150e9416aa6",
   [Network.Polygon]: "0x30b3de99ab1de0c9700181f7a2597150e9416aa6",
   [Network.Mumbai]: "0x30b3de99ab1de0c9700181f7a2597150e9416aa6",
 };
@@ -68,6 +69,7 @@ export const PermitProxy: ChainIdToAddress = {
 export const SwapModule: ChainIdToAddress = {
   [Network.Ethereum]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
   [Network.EthereumGoerli]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+  [Network.EthereumSepolia]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
   [Network.Polygon]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
   [Network.Optimism]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
   [Network.Arbitrum]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
@@ -98,6 +100,7 @@ export const MintModule: ChainIdToAddress = {
   [Network.BaseGoerli]: "0xe3de16f7ed5a124686cc27571898e394959e8b39",
   [Network.Zora]: "0xe3de16f7ed5a124686cc27571898e394959e8b39",
   [Network.Avalanche]: "0x849ef788b40af342e2883c3112dd636f03a4203e",
+  [Network.Polygon]: "0x849ef788b40af342e2883c3112dd636f03a4203e",
   [Network.PolygonZkevm]: "0x849ef788b40af342e2883c3112dd636f03a4203e",
   [Network.Ancient8Testnet]: "0xe3de16f7ed5a124686cc27571898e394959e8b39",
   [Network.Scroll]: "0xe3de16f7ed5a124686cc27571898e394959e8b39",

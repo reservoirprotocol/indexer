@@ -174,9 +174,9 @@ export class Order {
     };
 
     const [types, value] = this.getEip712TypesAndValue();
-    const recoverSinger = verifyTypedData(EIP712_DOMAIN(this.chainId), types, value, signature);
+    const recoveredSigner = verifyTypedData(EIP712_DOMAIN(this.chainId), types, value, signature);
 
-    if (lc(this.params.sellerOrBuyer) !== lc(recoverSinger)) {
+    if (lc(this.params.sellerOrBuyer) !== lc(recoveredSigner)) {
       throw new Error("Invalid listing signature");
     }
   }

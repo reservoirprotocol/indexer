@@ -138,6 +138,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/resync-user-balance",
+    options: adminEndpoints.postResyncUserCollectionBalance,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/retry-rabbit-queue",
     options: adminEndpoints.postRetryRabbitQueue,
   });
@@ -266,6 +272,12 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/admin/fix-token-cache",
     options: adminEndpoints.postFixTokenCacheOptions,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/admin/update-image-version",
+    options: adminEndpoints.postUpdateImageVersionOptions,
   });
 
   server.route({
@@ -425,6 +437,12 @@ export const setupRoutes = (server: Server) => {
   // Collections
 
   server.route({
+    method: "POST",
+    path: "/collections/{collection}/override/v1",
+    options: collectionsEndpoints.postCollectionsOverrideV1Options,
+  });
+
+  server.route({
     method: "GET",
     path: "/collections/sources/v1",
     options: collectionsEndpoints.getSourcesListingsV1Options,
@@ -516,6 +534,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/collections/trending-mints/v1",
+    options: collectionsEndpoints.getTrendingMintsV1Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/collections/trending/v1",
     options: collectionsEndpoints.getTrendingCollectionsV1Options,
   });
@@ -563,6 +587,12 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
+    method: "GET",
+    path: "/collections/{collection}/top-traders/v1",
+    options: collectionsEndpoints.getCollectionTopTradersV1Options,
+  });
+
+  server.route({
     method: "POST",
     path: "/collections-sets/v1",
     options: collectionsEndpoints.postCreateCollectionsSetV1Options,
@@ -587,9 +617,21 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
+    method: "GET",
+    path: "/collections/{collection}/marketplace-configurations/v1",
+    options: collectionsEndpoints.getCollectionMarketplaceConfigurationsV1Options,
+  });
+
+  server.route({
     method: "POST",
     path: "/collections/spam-status/v1",
     options: collectionsEndpoints.postSpamStatusCollectionV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/collections/autocomplete/v1",
+    options: collectionsEndpoints.getAutocompleteCollectionsV1Options,
   });
 
   // Chain
@@ -774,6 +816,12 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/execute/cancel-signature/v1",
     options: executeEndpoints.postCancelSignatureV1Options,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/execute/mint/v1",
+    options: executeEndpoints.postExecuteMintV1Options,
   });
 
   server.route({
@@ -1075,6 +1123,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/cross-posting-orders/v1",
     options: ordersEndpoints.getCrossPostingOrdersV1Options,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/orders/invalidate/v1",
+    options: ordersEndpoints.postInvalidateOrdersOptions,
   });
 
   // Owners

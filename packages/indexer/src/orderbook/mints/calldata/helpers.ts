@@ -13,8 +13,39 @@ import {
   CollectionMintStatusReason,
 } from "@/orderbook/mints";
 
-export const toSafeTimestamp = (value: BigNumberish) =>
-  bn(value).gte(9999999999) ? undefined : bn(value).toNumber();
+// Any number greater than a particular threshold is assumed to represent "infinite" / "unknown"
+export const toSafeTimestamp = (value?: BigNumberish) => {
+  if (!value) {
+    return undefined;
+  }
+
+  const converted = bn(value);
+  return converted.eq(0) || converted.gte(9999999999) ? undefined : bn(value).toNumber();
+};
+
+// Any number having a particular threshold value is assumed to represent "infinite" / "unknown"
+export const toSafeNumber = (value?: BigNumberish) => {
+  if (!value) {
+    return undefined;
+  }
+
+  const converted = bn(value);
+  return [
+    "0",
+    // max(int32)
+    "2147483647",
+    // max(uint32)
+    "4294967295",
+    // max(uint64)
+    "18446744073709551615",
+    // max(uint128)
+    "340282366920938463463374607431768211455",
+    // max(uint256)
+    "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+  ].includes(converted.toString())
+    ? undefined
+    : converted.toString();
+};
 
 export const fetchMetadata = async (url: string) => {
   if (url.startsWith("ipfs://")) {
@@ -135,7 +166,7 @@ export const getCurrentSupply = async (collectionMint: CollectionMint): Promise<
   let tokenCount: string;
   if (collectionMint.tokenId) {
     tokenCount = await idb
-      .one(
+      .oneOrNone(
         `
           SELECT
             coalesce(sum(nft_balances.amount), 0) AS token_count
@@ -149,13 +180,13 @@ export const getCurrentSupply = async (collectionMint: CollectionMint): Promise<
           tokenId: collectionMint.tokenId,
         }
       )
-      .then((r) => r.token_count);
+      .then((r) => (r ? r.token_count : 0));
   } else {
     tokenCount = await idb
-      .one(
+      .oneOrNone(
         `
           SELECT
-            collections.token_count
+            coalesce(collections.token_count, 0) AS token_count
           FROM collections
           WHERE collections.id = $/collection/
         `,
@@ -163,7 +194,7 @@ export const getCurrentSupply = async (collectionMint: CollectionMint): Promise<
           collection: collectionMint.collection,
         }
       )
-      .then((r) => r.token_count);
+      .then((r) => (r ? r.token_count : 0));
   }
 
   return bn(tokenCount);

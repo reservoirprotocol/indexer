@@ -21,6 +21,7 @@ export const config = {
   // When running in liquidity-only mode, all metadata processes are disabled
   liquidityOnly: Boolean(Number(process.env.LIQUIDITY_ONLY)),
   metadataIndexingMethod: String(process.env.METADATA_INDEXING_METHOD || "opensea"),
+  fallbackMetadataIndexingMethod: String(process.env.FALLBACK_METADATA_INDEXING_METHOD),
   metadataIndexingMethodCollection: String(
     process.env.METADATA_INDEXING_METHOD_COLLECTION ||
       process.env.METADATA_INDEXING_METHOD ||
@@ -85,9 +86,15 @@ export const config = {
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
   openSeaApiUrl: String(process.env.OPENSEA_API_URL || ""),
 
+  // Cosigner
+  cosignerPrivateKey: String(process.env.COSIGNER_PRIVATE_KEY),
+
   // Solvers
   crossChainSolverBaseUrl: process.env.CROSS_CHAIN_SOLVER_BASE_URL,
   seaportSolverBaseUrl: process.env.SEAPORT_SOLVER_BASE_URL,
+
+  // Custom taker (used for simulation)
+  customTakerPrivateKey: process.env.CUSTOM_TAKER_PRIVATE_KEY,
 
   openSeaTokenMetadataApiKey: String(
     process.env.OPENSEA_TOKENS_API_KEY || process.env.OPENSEA_API_KEY

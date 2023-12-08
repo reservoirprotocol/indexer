@@ -22,6 +22,7 @@ export type MetadataIndexWriteJobPayload = {
   collection: string;
   contract: string;
   tokenId: string;
+  tokenURI: string;
   name?: string;
   description?: string;
   originalMetadata?: JSON;
@@ -67,6 +68,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       collection,
       contract,
       tokenId,
+      tokenURI,
       name,
       description,
       originalMetadata,
@@ -85,19 +87,35 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
     // Update the token's metadata
     const result = await idb.oneOrNone(
       `
+        WITH updated_check AS (
+            SELECT
+                CASE WHEN (name IS DISTINCT FROM $/name/
+                    OR image IS DISTINCT FROM $/image/
+                    OR media IS DISTINCT FROM $/media/
+                    OR token_uri IS DISTINCT FROM $/tokenURI/
+                    OR description IS DISTINCT FROM $/description/
+                    OR metadata IS DISTINCT FROM $/metadata:json/) THEN true
+                ELSE false
+                END AS is_updated
+            FROM tokens
+            WHERE tokens.contract = $/contract/
+            AND tokens.token_id = $/tokenId/
+        )
         UPDATE tokens SET
           name = $/name/,
+          token_uri = $/tokenURI/,
           description = $/description/,
           image = $/image/,
           metadata = $/metadata:json/,
           media = $/media/,
-          updated_at = CASE WHEN (name IS DISTINCT FROM $/name/
-                                 OR image IS DISTINCT FROM $/image/
-                                 OR media IS DISTINCT FROM $/media/
-                                 OR description IS DISTINCT FROM $/description/
-                                 OR metadata IS DISTINCT FROM $/metadata:json/) THEN now()
-                            ELSE updated_at
-                       END,       
+          updated_at = CASE 
+                WHEN (SELECT is_updated FROM updated_check) THEN now()
+                ELSE updated_at
+          END,
+          image_version = CASE 
+                WHEN (SELECT is_updated FROM updated_check) THEN now()
+                ELSE image_version
+          END,
           collection_id = collection_id,
           created_at = created_at,
           metadata_indexed_at = CASE 
@@ -138,6 +156,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
         name: name || null,
         description: description || null,
         image: imageUrl || null,
+        tokenURI: tokenURI || null,
         metadata:
           {
             original_metadata: originalMetadata || null,

@@ -11,7 +11,12 @@ import {
   getCollectionMints,
   simulateAndUpsertCollectionMint,
 } from "@/orderbook/mints";
-import { getMaxSupply, getStatus, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
+import {
+  getMaxSupply,
+  getStatus,
+  toSafeNumber,
+  toSafeTimestamp,
+} from "@/orderbook/mints/calldata/helpers";
 
 const STANDARD = "seadrop-v1.0";
 
@@ -88,7 +93,7 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
           },
           currency: Sdk.Common.Addresses.Native[config.chainId],
           price: drop.mintPrice.toString(),
-          maxMintsPerWallet: String(drop.maxTotalMintableByWallet),
+          maxMintsPerWallet: toSafeNumber(drop.maxTotalMintableByWallet),
           maxSupply: await getMaxSupply(collection),
           startTime: toSafeTimestamp(drop.startTime),
           endTime: toSafeTimestamp(drop.endTime),

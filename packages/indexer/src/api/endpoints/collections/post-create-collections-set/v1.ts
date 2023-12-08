@@ -8,9 +8,9 @@ import { CollectionSets } from "@/models/collection-sets";
 const version = "v1";
 
 export const postCreateCollectionsSetV1Options: RouteOptions = {
-  description: "Create Collection Set",
+  description: "Create collection set",
   notes:
-    'Array of collections to gather in a set. Adding or removing a collection will change the response. You may use this set when `collectionSetId` is an available param. An example is below.\n\n`"collections": "0xba30E5F9Bb24caa003E9f2f0497Ad287FDF95623", "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D"`\n\n`"collectionsSetId": "8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65"`',
+    'Array of collections to gather in a set. Adding or removing a collection will change the response. You may use this set when `collectionSetId` is an available param. The max limit of collection in an array is 500. An example is below.\n\n`"collections": "0xba30E5F9Bb24caa003E9f2f0497Ad287FDF95623", "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D"`\n\n`"collectionsSetId": "8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65"`',
   tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {

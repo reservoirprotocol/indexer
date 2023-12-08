@@ -24,6 +24,7 @@ export * as sudoswapV2 from "@/orderbook/orders/sudoswap-v2";
 export * as midaswap from "@/orderbook/orders/midaswap";
 export * as caviarV1 from "@/orderbook/orders/caviar-v1";
 export * as paymentProcessor from "@/orderbook/orders/payment-processor";
+export * as paymentProcessorV2 from "@/orderbook/orders/payment-processor-v2";
 
 // Imports
 
@@ -37,7 +38,9 @@ import { idb } from "@/common/db";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
+import { cosigner } from "@/utils/cosign";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
+import * as paymentProcessorV2Utils from "@/utils/payment-processor-v2";
 import * as registry from "@/utils/royalties/registry";
 
 // Whenever a new order kind is added, make sure to also include an
@@ -85,7 +88,8 @@ export type OrderKind =
   | "caviar-v1"
   | "payment-processor"
   | "blur-v2"
-  | "joepeg";
+  | "joepeg"
+  | "payment-processor-v2";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
@@ -206,7 +210,7 @@ export const getOrderSourceByOrderKind = async (
 };
 
 // Support for filling listings
-export const generateListingDetailsV6 = (
+export const generateListingDetailsV6 = async (
   order: {
     id: string;
     kind: OrderKind;
@@ -222,8 +226,11 @@ export const generateListingDetailsV6 = (
     tokenId: string;
     amount?: number;
     isFlagged?: boolean;
+  },
+  options?: {
+    taker?: string;
   }
-): ListingDetails => {
+): Promise<ListingDetails> => {
   const common = {
     orderId: order.id,
     contractKind: token.kind,
@@ -450,6 +457,34 @@ export const generateListingDetailsV6 = (
       };
     }
 
+    case "payment-processor-v2": {
+      const rawOrder = new Sdk.PaymentProcessorV2.Order(config.chainId, order.rawData);
+      if (rawOrder.isCosignedOrder() && options?.taker) {
+        await rawOrder.cosign(cosigner(), options.taker);
+      }
+
+      const extraArgs: any = {};
+
+      const settings = await paymentProcessorV2Utils.getCollectionPaymentSettings(
+        rawOrder.params.tokenAddress
+      );
+      if (settings?.blockTradesFromUntrustedChannels) {
+        const trustedChannels = await paymentProcessorV2Utils.getAllTrustedChannels(
+          rawOrder.params.tokenAddress
+        );
+        if (trustedChannels.length) {
+          extraArgs.trustedChannel = trustedChannels[0].channel;
+        }
+      }
+
+      return {
+        kind: "payment-processor-v2",
+        ...common,
+        extraArgs,
+        order: rawOrder,
+      };
+    }
+
     default: {
       throw new Error("Unsupported order kind");
     }
@@ -475,7 +510,10 @@ export const generateBidDetailsV6 = async (
     amount?: number;
     owner?: string;
   },
-  permit?: Permit
+  options?: {
+    permit?: Permit;
+    taker?: string;
+  }
 ): Promise<BidDetails> => {
   const common = {
     orderId: order.id,
@@ -488,7 +526,7 @@ export const generateBidDetailsV6 = async (
     owner: token.owner,
     isProtected: order.isProtected,
     fees: order.fees ?? [],
-    permit,
+    permit: options?.permit,
   };
 
   switch (order.kind) {
@@ -801,6 +839,60 @@ export const generateBidDetailsV6 = async (
         ...common,
         order: sdkOrder,
         extraArgs: {
+          maxRoyaltyFeeNumerator: await registry
+            .getRegistryRoyalties(common.contract, common.tokenId)
+            .then((royalties) => royalties.map((r) => r.bps).reduce((a, b) => a + b, 0)),
+        },
+      };
+    }
+
+    case "payment-processor-v2": {
+      const sdkOrder = new Sdk.PaymentProcessorV2.Order(config.chainId, order.rawData);
+      if (sdkOrder.isCosignedOrder() && options?.taker) {
+        await sdkOrder.cosign(cosigner(), options.taker);
+      }
+
+      const extraArgs: any = {};
+
+      if (sdkOrder.params.kind?.includes("token-set-offer-approval")) {
+        // When filling a "token-list" order, we also need to pass in the
+        // full list of tokens the order was made on (in order to be able
+        // to generate a valid merkle proof)
+        const tokens = await idb.manyOrNone(
+          `
+            SELECT
+              token_sets_tokens.token_id
+            FROM token_sets_tokens
+            WHERE token_sets_tokens.token_set_id = (
+              SELECT
+                orders.token_set_id
+              FROM orders
+              WHERE orders.id = $/id/
+            )
+          `,
+          { id: sdkOrder.hash() }
+        );
+        extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
+      }
+
+      const settings = await paymentProcessorV2Utils.getCollectionPaymentSettings(
+        sdkOrder.params.tokenAddress
+      );
+      if (settings?.blockTradesFromUntrustedChannels) {
+        const trustedChannels = await paymentProcessorV2Utils.getAllTrustedChannels(
+          sdkOrder.params.tokenAddress
+        );
+        if (trustedChannels.length) {
+          extraArgs.trustedChannel = trustedChannels[0].channel;
+        }
+      }
+
+      return {
+        kind: "payment-processor-v2",
+        ...common,
+        order: sdkOrder,
+        extraArgs: {
+          ...extraArgs,
           maxRoyaltyFeeNumerator: await registry
             .getRegistryRoyalties(common.contract, common.tokenId)
             .then((royalties) => royalties.map((r) => r.bps).reduce((a, b) => a + b, 0)),

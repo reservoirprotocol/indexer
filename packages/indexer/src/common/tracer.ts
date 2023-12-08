@@ -14,24 +14,6 @@ if (process.env.DATADOG_AGENT_URL) {
     service,
     url: process.env.DATADOG_AGENT_URL,
     env: config.environment,
-    samplingRules: [
-      {
-        service: `${service}-postgres`,
-        sampleRate: 0,
-      },
-      {
-        service: `${service}-redis`,
-        sampleRate: 0,
-      },
-      {
-        service: `${service}-amqp`,
-        sampleRate: 0,
-      },
-      {
-        service: `${service}-elasticsearch`,
-        sampleRate: 0,
-      },
-    ],
   });
 
   tracer.use("hapi", {
@@ -51,7 +33,7 @@ if (process.env.DATADOG_AGENT_URL) {
   });
 
   tracer.use("elasticsearch", {
-    enabled: false,
+    enabled: true,
   });
 }
 

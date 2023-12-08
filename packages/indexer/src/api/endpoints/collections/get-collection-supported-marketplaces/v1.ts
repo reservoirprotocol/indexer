@@ -10,8 +10,9 @@ import { logger } from "@/common/logger";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings, getSubDomain } from "@/config/network";
+import { OrderKind } from "@/orderbook/orders";
 import { getOrUpdateBlurRoyalties } from "@/utils/blur";
-import { checkMarketplaceIsFiltered } from "@/utils/erc721c";
+import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import * as registry from "@/utils/royalties/registry";
 
@@ -34,7 +35,7 @@ type Marketplace = {
     maxBps: number;
   };
   orderbook: string | null;
-  orderKind: string | null;
+  orderKind: OrderKind | null;
   listingEnabled: boolean;
   customFeesSupported: boolean;
   collectionBidSupported?: boolean;
@@ -56,7 +57,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
   description: "Supported marketplaces by collection",
   notes:
     "The ReservoirKit `ListModal` client utilizes this API to identify the marketplace(s) it can list on.",
-  tags: ["api", "Collections"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 5,
@@ -110,7 +111,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
               Joi.object({
                 address: Joi.string(),
                 decimals: Joi.number(),
-                name: Joi.string(),
+                name: Joi.string().allow(null),
                 symbol: Joi.string(),
               })
             )
@@ -230,10 +231,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
       {
         let openseaMarketplaceFees: Royalty[] = collectionResult.marketplace_fees?.opensea;
         if (collectionResult.marketplace_fees?.opensea == null) {
-          openseaMarketplaceFees = await marketplaceFees.getCollectionOpenseaFees(
-            params.collection,
-            collectionResult.contract
-          );
+          openseaMarketplaceFees = marketplaceFees.getCollectionOpenseaFees();
         }
 
         const openseaRoyalties: Royalty[] = collectionResult.new_royalties?.opensea;
@@ -386,9 +384,10 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
 
           const blocked = await checkMarketplaceIsFiltered(params.collection, operators);
           if (blocked && marketplace.orderbook === "reservoir") {
-            marketplace.orderKind = "payment-processor";
-            marketplace.partialBidSupported = false;
-            marketplace.traitBidSupported = false;
+            marketplace.orderKind =
+              config.chainId === 11155111 ? "payment-processor-v2" : "payment-processor";
+            marketplace.partialBidSupported = config.chainId === 11155111 ? true : false;
+            marketplace.traitBidSupported = config.chainId === 11155111 ? true : false;
 
             if (
               config.chainId === 137 &&

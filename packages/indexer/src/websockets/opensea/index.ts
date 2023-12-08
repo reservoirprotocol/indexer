@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import {
   BaseStreamMessage,
   CollectionOfferEventPayload,
@@ -74,6 +76,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
           return;
         }
 
+        const chainName = (event.payload as any).chain;
         const eventType = event.event_type as EventType;
         const openSeaOrderParams = await handleEvent(eventType, event.payload);
 
@@ -86,6 +89,8 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
               network,
               event,
               isSupported: !!openSeaOrderParams,
+              chainName,
+              hasChainName: !!chainName,
             })
           );
         }
@@ -169,7 +174,10 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       } catch (error) {
         logger.error(
           "opensea-websocket-item-metadata-update-event",
-          `Error. network=${network}, event=${JSON.stringify(event)}, error=${error}`
+          JSON.stringify({
+            message: `Error. network=${network}, event=${JSON.stringify(event)}, error=${error}`,
+            error,
+          })
         );
       }
     });

@@ -78,6 +78,15 @@ export const normalizeMetadata = (collection: Collection): Metadata => {
       key: "externalUrl",
       normalize: (value: string) => normalizeLink(value),
     },
+    external_link: {
+      key: "externalUrl",
+      normalize: (value: string) => normalizeLink(value),
+    },
+    project_url: {
+      // From Opensea V2 APIs
+      key: "externalUrl",
+      normalize: (value: string) => normalizeLink(value),
+    },
     image: {
       key: "imageUrl",
       normalize: (value: string) => normalizeLink(value),
@@ -98,6 +107,7 @@ export const normalizeMetadata = (collection: Collection): Metadata => {
       key: "safelistRequestStatus",
     },
     safelist_status: {
+      // From Opensea V2 APIs
       key: "safelistRequestStatus",
     },
     name: {

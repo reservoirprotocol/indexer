@@ -55,7 +55,12 @@ export class BidCreatedEventHandler extends BaseActivityEventHandler {
   }
 
   public static buildBaseQuery() {
-    const orderCriteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
+    const orderCriteriaBuildQuery = Orders.buildCriteriaQuery(
+      "orders",
+      "token_set_id",
+      false,
+      "token_set_schema_hash"
+    );
 
     return `
         SELECT
@@ -87,6 +92,8 @@ export class BidCreatedEventHandler extends BaseActivityEventHandler {
                         tokens.name AS "token_name",
                         tokens.image AS "token_image",   
                         tokens.media AS "token_media",
+                        tokens.is_spam AS "token_is_spam",
+                        collections.is_spam AS "collection_is_spam",
                         collections.id AS "collection_id",
                         collections.name AS "collection_name",
                         (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image"

@@ -16,7 +16,7 @@ import {
 const version = "v1";
 
 export const postSpamStatusCollectionV1Options: RouteOptions = {
-  description: "Update the collections spam status",
+  description: "Update collections spam status",
   notes: "This API can be used by allowed API keys to update the spam status of a collection.",
   tags: ["api", "Management"],
   plugins: {
@@ -89,7 +89,9 @@ export const postSpamStatusCollectionV1Options: RouteOptions = {
       updateResult = await idb.manyOrNone(
         `
             UPDATE collections
-            SET is_spam = $/spam/
+            SET
+              is_spam = $/spam/,
+              updated_at = now()
             WHERE id IN ($/ids:list/)
             AND is_spam IS DISTINCT FROM $/spam/
             RETURNING id

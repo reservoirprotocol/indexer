@@ -9,6 +9,7 @@ import { logger } from "@/common/logger";
 import { getJoiSaleObject, JoiSale } from "@/common/joi";
 import { buildContinuation, regex, splitContinuation, toBuffer } from "@/common/utils";
 import * as Boom from "@hapi/boom";
+import { Assets } from "@/utils/assets";
 
 const version = "v5";
 
@@ -262,7 +263,8 @@ export const getSalesV5Options: RouteOptions = {
                   tokens_data.name,
                   tokens_data.image,
                   tokens_data.collection_id,
-                  tokens_data.collection_name
+                  tokens_data.collection_name,
+                  tokens_data.image_version
                 `
               : ""
           }
@@ -320,6 +322,7 @@ export const getSalesV5Options: RouteOptions = {
                     tokens.name,
                     tokens.image,
                     tokens.collection_id,
+                    tokens.image_version,
                     collections.name AS collection_name
                   FROM tokens
                   LEFT JOIN collections 
@@ -366,7 +369,7 @@ export const getSalesV5Options: RouteOptions = {
           contract: r.contract,
           tokenId: r.token_id,
           name: r.name,
-          image: r.image,
+          image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
           collectionId: r.collection_id,
           collectionName: r.collection_name,
           washTradingScore: r.wash_trading_score,

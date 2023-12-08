@@ -7,6 +7,7 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
 import { getJoiTokenObject } from "@/common/joi";
+import { Assets } from "@/utils/assets";
 
 const version = "v1";
 
@@ -105,6 +106,7 @@ export const getUserTokensV1Options: RouteOptions = {
           "t"."floor_sell_id",
           "t"."top_buy_id",
           "t"."top_buy_value",
+          "t"."image_version",
           "ts"."schema" AS "top_buy_schema",
           "nb"."amount" * "t"."top_buy_value" AS "total_buy_value",
           (
@@ -172,7 +174,7 @@ export const getUserTokensV1Options: RouteOptions = {
                 contract: fromBuffer(r.contract),
                 tokenId: r.token_id,
                 name: r.name,
-                image: r.image,
+                image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
                 collection: {
                   id: r.collection_id,
                   name: r.collection_name,

@@ -5,8 +5,8 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
 import { config } from "@/config/index";
-import { redis } from "@/common/redis";
-import { Channel } from "@/pubsub/channels";
+import { allChainsSyncRedis, redis } from "@/common/redis";
+import { AllChainsChannel, Channel } from "@/pubsub/channels";
 import _ from "lodash";
 import { PausedRabbitMqQueues } from "@/models/paused-rabbit-mq-queues";
 
@@ -19,6 +19,7 @@ export const postResumeRabbitQueueOptions: RouteOptions = {
     }).options({ allowUnknown: true }),
     payload: Joi.object({
       queueName: Joi.string().description("The queue name to resume").required(),
+      allChains: Joi.boolean().default(false),
     }),
   },
   handler: async (request: Request) => {
@@ -34,10 +35,17 @@ export const postResumeRabbitQueueOptions: RouteOptions = {
       return { message: `${payload.queueName} already running` };
     }
 
-    await redis.publish(
-      Channel.ResumeRabbitConsumerQueue,
-      JSON.stringify({ queueName: payload.queueName })
-    );
+    if (payload.allChains) {
+      await allChainsSyncRedis.publish(
+        AllChainsChannel.ResumeRabbitConsumerQueue,
+        JSON.stringify({ queueName: payload.queueName })
+      );
+    } else {
+      await redis.publish(
+        Channel.ResumeRabbitConsumerQueue,
+        JSON.stringify({ queueName: payload.queueName })
+      );
+    }
 
     return { message: `${payload.queueName} resumed` };
   },

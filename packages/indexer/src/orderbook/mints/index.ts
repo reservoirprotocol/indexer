@@ -23,7 +23,9 @@ export type CollectionMintStandard =
   | "lanyard"
   | "mintdotfun"
   | "soundxyz"
-  | "createdotfun";
+  | "createdotfun"
+  | "titlesxyz"
+  | "artblocks";
 
 export type CollectionMintDetails = {
   tx: MintTxSchema;
@@ -258,7 +260,11 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
           standard: collectionMint.standard,
         }
       );
-    } else if (standardResult.standard !== collectionMint.standard) {
+    } else if (
+      standardResult.standard !== collectionMint.standard &&
+      // Never update back to "unknown"
+      collectionMint.standard !== "unknown"
+    ) {
       await idb.none(
         `
           UPDATE collection_mint_standards SET
@@ -267,6 +273,7 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
         `,
         {
           collection: collectionMint.collection,
+          standard: collectionMint.standard,
         }
       );
 

@@ -37,8 +37,8 @@ export const CONFIG_DEFAULT = {
           taker: { type: "keyword" },
           validFrom: { type: "date" },
           validUntil: { type: "date" },
-          quantityFilled: { type: "long" },
-          quantityRemaining: { type: "long" },
+          quantityFilled: { type: "keyword" },
+          quantityRemaining: { type: "keyword" },
           tokenSetId: { type: "keyword" },
           sourceId: { type: "integer" },
           criteria: {
@@ -62,6 +62,7 @@ export const CONFIG_DEFAULT = {
                       value: { type: "keyword" },
                     },
                   },
+                  tokenSetId: { type: "keyword" },
                 },
               },
             },

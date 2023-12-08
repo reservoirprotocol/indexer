@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { BigNumber } from "@ethersproject/bignumber";
+import { MaxUint256 } from "@ethersproject/constants";
 import { _TypedDataEncoder } from "@ethersproject/hash";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
@@ -55,6 +56,11 @@ import * as zeroExV4BuyCollection from "@/orderbook/orders/zeroex-v4/build/buy/c
 // PaymentProcessor
 import * as paymentProcessorBuyToken from "@/orderbook/orders/payment-processor/build/buy/token";
 import * as paymentProcessorBuyCollection from "@/orderbook/orders/payment-processor/build/buy/collection";
+
+// PaymentProcessorV2
+import * as paymentProcessorV2BuyToken from "@/orderbook/orders/payment-processor-v2/build/buy/token";
+import * as paymentProcessorV2BuyCollection from "@/orderbook/orders/payment-processor-v2/build/buy/collection";
+import * as paymentProcessorV2BuyAttribute from "@/orderbook/orders/payment-processor-v2/build/buy/attribute";
 
 const version = "v5";
 
@@ -128,7 +134,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                 "looks-rare-v2",
                 "x2y2",
                 "alienswap",
-                "payment-processor"
+                "payment-processor",
+                "payment-processor-v2"
               )
               .default("seaport-v1.5")
               .description("Exchange protocol used to create order. Example: `seaport-v1.5`"),
@@ -144,6 +151,14 @@ export const getExecuteBidV5Options: RouteOptions = {
               }),
               "seaport-v1.5": Joi.object({
                 conduitKey: Joi.string().pattern(regex.bytes32),
+                useOffChainCancellation: Joi.boolean().required(),
+                replaceOrderId: Joi.string().when("useOffChainCancellation", {
+                  is: true,
+                  then: Joi.optional(),
+                  otherwise: Joi.forbidden(),
+                }),
+              }),
+              "payment-processor-v2": Joi.object({
                 useOffChainCancellation: Joi.boolean().required(),
                 replaceOrderId: Joi.string().when("useOffChainCancellation", {
                   is: true,
@@ -312,8 +327,9 @@ export const getExecuteBidV5Options: RouteOptions = {
         },
         {
           id: "currency-wrapping",
-          action: `Wrapping currency`,
-          description: `We'll ask your approval to wrap the currency for bidding. Gas fee required.`,
+          action: "Wrapping currency",
+          description:
+            "We'll ask your approval to wrap the currency for bidding. Gas fee required.",
           kind: "transaction",
           items: [],
         },
@@ -465,14 +481,17 @@ export const getExecuteBidV5Options: RouteOptions = {
             if (p.token || p.collection) {
               const contract = p.token ? p.token.split(":")[0] : p.collection!;
 
-              const config = await erc721c.getERC721CConfigFromDB(contract);
-              if (config && [4, 6].includes(config.transferSecurityLevel)) {
-                const isVerified = await erc721c.isVerifiedEOA(
-                  config.transferValidator,
-                  payload.maker
-                );
+              const configV1 = await erc721c.v1.getConfig(contract);
+              const configV2 = await erc721c.v2.getConfig(contract);
+              if (
+                (configV1 && [4, 6].includes(configV1.transferSecurityLevel)) ||
+                (configV2 && [6, 8].includes(configV2.transferSecurityLevel))
+              ) {
+                const transferValidator = (configV1 ?? configV2)!.transferValidator;
+
+                const isVerified = await erc721c.isVerifiedEOA(transferValidator, payload.maker);
                 if (!isVerified) {
-                  unverifiedERC721CTransferValidators.push(config.transferValidator);
+                  unverifiedERC721CTransferValidators.push(transferValidator);
                 }
               }
             }
@@ -857,7 +876,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                     {
                       kind: "no-transfers",
                       token: params.currency,
-                      amount: price,
+                      amount: MaxUint256.toString(),
                     },
                     order.params.endTime - now()
                   );
@@ -1380,7 +1399,7 @@ export const getExecuteBidV5Options: RouteOptions = {
 
                   steps[3].items.push({
                     status: "incomplete",
-                    data: new Sdk.Common.Helpers.ERC721C().generateVerificationTxData(
+                    data: new Sdk.Common.Helpers.Erc721C().generateVerificationTxData(
                       tv,
                       payload.maker,
                       erc721cAuth!.signature
@@ -1400,6 +1419,123 @@ export const getExecuteBidV5Options: RouteOptions = {
                           {
                             order: {
                               kind: "payment-processor",
+                              data: {
+                                ...order.params,
+                              },
+                            },
+                            tokenSetId,
+                            attribute,
+                            collection,
+                            isNonFlagged: params.excludeFlaggedTokens,
+                            orderbook: params.orderbook,
+                            orderbookApiKey: params.orderbookApiKey,
+                          },
+                        ],
+                        source,
+                      },
+                    },
+                  },
+                  orderIndexes: [i],
+                });
+
+                addExecution(order.hash(), params.quantity);
+
+                break;
+              }
+
+              case "payment-processor-v2": {
+                if (!["reservoir"].includes(params.orderbook)) {
+                  return errors.push({
+                    message: "Unsupported orderbook",
+                    orderIndex: i,
+                  });
+                }
+
+                const options = params.options?.[params.orderKind] as
+                  | {
+                      useOffChainCancellation?: boolean;
+                      replaceOrderId?: string;
+                    }
+                  | undefined;
+
+                let order: Sdk.PaymentProcessorV2.Order;
+                if (token) {
+                  const [contract, tokenId] = token.split(":");
+                  order = await paymentProcessorV2BuyToken.build({
+                    ...params,
+                    ...options,
+                    maker,
+                    contract,
+                    tokenId,
+                  });
+                } else if (attribute) {
+                  order = await paymentProcessorV2BuyAttribute.build({
+                    ...params,
+                    ...options,
+                    maker,
+                    collection: attribute.collection,
+                    attributes: [attribute],
+                  });
+                } else if (collection) {
+                  order = await paymentProcessorV2BuyCollection.build({
+                    ...params,
+                    ...options,
+                    maker,
+                    collection,
+                  });
+                } else {
+                  return errors.push({
+                    message: "Only token and collection bids are supported",
+                    orderIndex: i,
+                  });
+                }
+
+                // Check the maker's approval
+                let approvalTx: TxData | undefined;
+                const currencyApproval = await currency.getAllowance(
+                  maker,
+                  Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId]
+                );
+                if (bn(currencyApproval).lt(bn(order.params.itemPrice))) {
+                  approvalTx = currency.approveTransaction(
+                    maker,
+                    Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId]
+                  );
+                }
+
+                steps[2].items.push({
+                  status: !approvalTx ? "complete" : "incomplete",
+                  data: approvalTx,
+                  orderIndexes: [i],
+                });
+
+                // Handle on-chain authentication
+                for (const tv of _.uniq(unverifiedERC721CTransferValidators)) {
+                  const erc721cAuthId = e.getAuthId(payload.maker);
+                  const erc721cAuth = await e.getAuth(erc721cAuthId);
+
+                  steps[3].items.push({
+                    status: "incomplete",
+                    data: new Sdk.Common.Helpers.Erc721C().generateVerificationTxData(
+                      tv,
+                      payload.maker,
+                      erc721cAuth!.signature
+                    ),
+                  });
+                }
+
+                steps[5].items.push({
+                  status: "incomplete",
+                  data: {
+                    sign: order.getSignatureData(),
+                    post: {
+                      endpoint: "/order/v4",
+                      method: "POST",
+                      body: {
+                        items: [
+                          {
+                            order: {
+                              kind: "payment-processor-v2",
                               data: {
                                 ...order.params,
                               },

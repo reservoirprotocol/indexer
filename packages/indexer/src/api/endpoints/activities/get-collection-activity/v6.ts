@@ -27,6 +27,7 @@ import { redb } from "@/common/db";
 import { redis } from "@/common/redis";
 import { Sources } from "@/models/sources";
 import { MetadataStatus } from "@/models/metadata-status";
+import { Assets } from "@/utils/assets";
 
 const version = "v6";
 
@@ -61,6 +62,9 @@ export const getCollectionActivityV6Options: RouteOptions = {
         .description(
           "Filter to a particular attribute. Note: Our docs do not support this parameter correctly. To test, you can use the following URL in your browser. Example: `https://api.reservoir.tools/collections/activity/v6?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attribute[Type]=Original` or `https://api.reservoir.tools/collections/activity/v6?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attribute[Type]=Original&attribute[Type]=Sibling`"
         ),
+      excludeSpam: Joi.boolean()
+        .default(false)
+        .description("If true, will filter any activities marked as spam."),
       limit: Joi.number()
         .integer()
         .min(1)
@@ -129,11 +133,15 @@ export const getCollectionActivityV6Options: RouteOptions = {
             tokenId: Joi.string().allow(null),
             tokenName: Joi.string().allow("", null),
             tokenImage: Joi.string().allow("", null),
+            isSpam: Joi.boolean().allow("", null),
+            rarityScore: Joi.number().allow(null),
+            rarityRank: Joi.number().allow(null),
           }),
           collection: Joi.object({
             collectionId: Joi.string().allow(null),
             collectionName: Joi.string().allow("", null),
             collectionImage: Joi.string().allow("", null),
+            isSpam: Joi.boolean().allow("", null),
           }),
           txHash: Joi.string()
             .lowercase()
@@ -214,6 +222,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
         types: query.types,
         contracts,
         tokens,
+        excludeSpam: query.excludeSpam,
         collections: query.collection,
         sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
         limit: query.limit,
@@ -269,7 +278,10 @@ export const getCollectionActivityV6Options: RouteOptions = {
             tokens.token_id,
             tokens.name,
             tokens.image,
-            tokens.metadata_disabled
+            tokens.image_version,
+            tokens.metadata_disabled,
+            tokens.rarity_score,
+            tokens.rarity_rank
           FROM tokens
           WHERE (tokens.contract, tokens.token_id) IN ($/tokensFilter:raw/)
         `,
@@ -283,7 +295,10 @@ export const getCollectionActivityV6Options: RouteOptions = {
                     token_id: token.token_id,
                     name: token.name,
                     image: token.image,
+                    image_version: token.image_version,
                     metadata_disabled: token.metadata_disabled,
+                    rarity_score: token.rarity_score,
+                    rarity_rank: token.rarity_rank,
                   }))
                 );
 
@@ -299,7 +314,10 @@ export const getCollectionActivityV6Options: RouteOptions = {
                       token_id: tokenResult.token_id,
                       name: tokenResult.name,
                       image: tokenResult.image,
+                      image_version: tokenResult.image_version,
                       metadata_disabled: tokenResult.metadata_disabled,
+                      rarity_score: tokenResult.rarity_score,
+                      rarity_rank: tokenResult.rarity_rank,
                     })
                   );
 
@@ -342,6 +360,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
                     id: activity.collection?.id,
                     name: activity.collection?.name,
                     image: activity.collection?.image,
+                    isSpam: activity.collection?.isSpam,
                   },
                   disabledCollectionMetadata[activity.collection?.id ?? ""],
                   activity.contract
@@ -355,6 +374,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
                   tokenId: activity.token?.id,
                   name: tokenMetadata ? tokenMetadata.name : activity.token?.name,
                   image: tokenMetadata ? tokenMetadata.image : activity.token?.image,
+                  isSpam: activity.token?.isSpam,
                 },
                 tokenMetadata?.metadata_disabled ||
                   disabledCollectionMetadata[activity.collection?.id ?? ""],
@@ -364,6 +384,10 @@ export const getCollectionActivityV6Options: RouteOptions = {
 
             if (activity.order.criteria.kind === "attribute") {
               (orderCriteria as any).data.attribute = activity.order.criteria.data.attribute;
+            }
+
+            if (activity.order.criteria.kind === "custom") {
+              delete (orderCriteria as any).data.collection;
             }
           }
 
@@ -391,6 +415,19 @@ export const getCollectionActivityV6Options: RouteOptions = {
           ? sources.get(activity.event?.fillSourceId)
           : undefined;
 
+        const originalImageUrl = query.includeMetadata
+          ? (tokenMetadata ? tokenMetadata.image : activity.token?.image) || null
+          : undefined;
+
+        let tokenImageUrl = null;
+        if (originalImageUrl) {
+          tokenImageUrl = Assets.getResizedImageUrl(
+            originalImageUrl,
+            undefined,
+            tokenMetadata?.image_version
+          );
+        }
+
         return getJoiActivityObject(
           {
             type: activity.type,
@@ -412,15 +449,17 @@ export const getCollectionActivityV6Options: RouteOptions = {
             contract: activity.contract,
             token: {
               tokenId: activity.token?.id || null,
+              isSpam: activity.token?.isSpam,
               tokenName: query.includeMetadata
                 ? (tokenMetadata ? tokenMetadata.name : activity.token?.name) || null
                 : undefined,
-              tokenImage: query.includeMetadata
-                ? (tokenMetadata ? tokenMetadata.image : activity.token?.image) || null
-                : undefined,
+              tokenImage: tokenImageUrl,
+              rarityScore: tokenMetadata?.rarity_score,
+              rarityRank: tokenMetadata?.rarity_rank,
             },
             collection: {
               collectionId: activity.collection?.id,
+              isSpam: activity.collection?.isSpam,
               collectionName: query.includeMetadata ? activity.collection?.name : undefined,
               collectionImage:
                 query.includeMetadata && activity.collection?.image != null

@@ -19,6 +19,7 @@ import {
   fetchMetadata,
   getContractKind,
   getStatus,
+  toSafeNumber,
   toSafeTimestamp,
 } from "@/orderbook/mints/calldata/helpers";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
@@ -296,12 +297,10 @@ export const extractByCollectionERC721 = async (
             },
             currency: Sdk.Common.Addresses.Native[config.chainId],
             price,
-            maxMintsPerWallet: bn(claimConfig.walletMax).gt(0)
-              ? claimConfig.walletMax.toString()
-              : undefined,
-            maxSupply: bn(claimConfig.totalMax).gt(0) ? claimConfig.totalMax.toString() : undefined,
-            startTime: claimConfig.startDate ? toSafeTimestamp(claimConfig.startDate) : undefined,
-            endTime: claimConfig.endDate ? toSafeTimestamp(claimConfig.endDate) : undefined,
+            maxMintsPerWallet: toSafeNumber(claimConfig.walletMax),
+            maxSupply: toSafeNumber(claimConfig.totalMax),
+            startTime: toSafeTimestamp(claimConfig.startDate),
+            endTime: toSafeTimestamp(claimConfig.endDate),
           });
         }
 
@@ -363,12 +362,10 @@ export const extractByCollectionERC721 = async (
             },
             currency: Sdk.Common.Addresses.Native[config.chainId],
             price,
-            maxMintsPerWallet: bn(claimConfig.walletMax).gt(0)
-              ? claimConfig.walletMax.toString()
-              : undefined,
-            maxSupply: bn(claimConfig.totalMax).gt(0) ? claimConfig.totalMax.toString() : undefined,
-            startTime: claimConfig.startDate ? toSafeTimestamp(claimConfig.startDate) : undefined,
-            endTime: claimConfig.endDate ? toSafeTimestamp(claimConfig.endDate) : undefined,
+            maxMintsPerWallet: toSafeNumber(claimConfig.walletMax),
+            maxSupply: toSafeNumber(claimConfig.totalMax),
+            startTime: toSafeTimestamp(claimConfig.startDate),
+            endTime: toSafeTimestamp(claimConfig.endDate),
             allowlistId: claimConfig.merkleRoot,
           });
         }
@@ -596,10 +593,10 @@ export const extractByCollectionERC1155 = async (
             currency: Sdk.Common.Addresses.Native[config.chainId],
             price,
             tokenId,
-            maxMintsPerWallet: bn(claim.walletMax).gt(0) ? claim.walletMax.toString() : undefined,
-            maxSupply: bn(claim.totalMax).gt(0) ? claim.totalMax.toString() : undefined,
-            startTime: claim.startDate ? toSafeTimestamp(claim.startDate) : undefined,
-            endTime: claim.endDate ? toSafeTimestamp(claim.endDate) : undefined,
+            maxMintsPerWallet: toSafeNumber(claim.walletMax),
+            maxSupply: toSafeNumber(claim.totalMax),
+            startTime: toSafeTimestamp(claim.startDate),
+            endTime: toSafeTimestamp(claim.endDate),
           });
         }
 
@@ -662,10 +659,10 @@ export const extractByCollectionERC1155 = async (
             currency: Sdk.Common.Addresses.Native[config.chainId],
             price,
             tokenId,
-            maxMintsPerWallet: bn(claim.walletMax).gt(0) ? claim.walletMax.toString() : undefined,
-            maxSupply: bn(claim.totalMax).gt(0) ? claim.totalMax.toString() : undefined,
-            startTime: claim.startDate ? toSafeTimestamp(claim.startDate) : undefined,
-            endTime: claim.endDate ? toSafeTimestamp(claim.endDate) : undefined,
+            maxMintsPerWallet: toSafeNumber(claim.walletMax),
+            maxSupply: toSafeNumber(claim.totalMax),
+            startTime: toSafeTimestamp(claim.startDate),
+            endTime: toSafeTimestamp(claim.endDate),
             allowlistId: claim.merkleRoot,
           });
         }
@@ -721,34 +718,52 @@ export const extractByTx = async (
 export const refreshByCollection = async (collection: string) => {
   const existingCollectionMints = await getCollectionMints(collection, { standard: STANDARD });
 
-  for (const { tokenId, details } of existingCollectionMints) {
+  // Dedupe by collection, tokenId and instanceId
+  const dedupedExistingMints = existingCollectionMints.filter((existing, index) => {
+    return (
+      index ===
+      latestCollectionMints.findIndex((found) => {
+        return (
+          existing.collection === found.collection &&
+          existing.tokenId === found.tokenId &&
+          (existing.details.info! as Info).instanceId === (found.details.info! as Info).instanceId
+        );
+      })
+    );
+  });
+
+  let latestCollectionMints: CollectionMint[] = [];
+  for (const { tokenId, details } of dedupedExistingMints) {
     // Fetch and save/update the currently available mints
-    const latestCollectionMints = tokenId
+    const collectionMints = tokenId
       ? await extractByCollectionERC1155(collection, {
           tokenId,
           instanceId: (details.info! as Info).instanceId,
         })
       : await extractByCollectionERC721(collection, (details.info! as Info).instanceId!);
-    for (const collectionMint of latestCollectionMints) {
-      await simulateAndUpsertCollectionMint(collectionMint);
-    }
 
-    // Assume anything that exists in our system but was not returned
-    // in the above call is not available anymore so we can close
-    for (const existing of existingCollectionMints) {
-      if (
-        !latestCollectionMints.find(
-          (latest) =>
-            latest.collection === existing.collection &&
-            latest.stage === existing.stage &&
-            latest.tokenId === existing.tokenId
-        )
-      ) {
-        await simulateAndUpsertCollectionMint({
-          ...existing,
-          status: "closed",
-        });
-      }
+    latestCollectionMints = latestCollectionMints.concat(collectionMints);
+  }
+
+  for (const collectionMint of latestCollectionMints) {
+    await simulateAndUpsertCollectionMint(collectionMint);
+  }
+
+  // Assume anything that exists in our system but was not returned
+  // in the above call is not available anymore so we can close
+  for (const existing of existingCollectionMints) {
+    if (
+      !latestCollectionMints.find(
+        (latest) =>
+          latest.collection === existing.collection &&
+          latest.stage === existing.stage &&
+          latest.tokenId === existing.tokenId
+      )
+    ) {
+      await simulateAndUpsertCollectionMint({
+        ...existing,
+        status: "closed",
+      });
     }
   }
 };

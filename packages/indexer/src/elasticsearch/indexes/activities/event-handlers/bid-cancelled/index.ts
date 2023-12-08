@@ -27,7 +27,12 @@ export class BidCancelledEventHandler extends BidCreatedEventHandler {
   }
 
   public static buildBaseQuery() {
-    const orderCriteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
+    const orderCriteriaBuildQuery = Orders.buildCriteriaQuery(
+      "orders",
+      "token_set_id",
+      false,
+      "token_set_schema_hash"
+    );
 
     return `
         SELECT
@@ -58,6 +63,8 @@ export class BidCancelledEventHandler extends BidCreatedEventHandler {
                         tokens.name AS "token_name",
                         tokens.image AS "token_image",   
                         tokens.media AS "token_media",
+                        tokens.is_spam AS "token_is_spam",
+                        collections.is_spam AS "collection_is_spam",
                         collections.id AS "collection_id",
                         collections.name AS "collection_name",
                         (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image"
@@ -65,6 +72,7 @@ export class BidCancelledEventHandler extends BidCreatedEventHandler {
                     JOIN tokens ON tokens.contract = token_sets_tokens.contract AND tokens.token_id = token_sets_tokens.token_id 
                     JOIN collections ON collections.id = tokens.collection_id
                     WHERE token_sets_tokens.token_set_id = orders.token_set_id AND token_sets_tokens.contract = orders.contract
+                    LIMIT 1
                  ) t ON TRUE
         LEFT JOIN LATERAL (
                     SELECT

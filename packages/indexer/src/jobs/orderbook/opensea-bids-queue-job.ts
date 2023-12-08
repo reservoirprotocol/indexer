@@ -2,6 +2,7 @@ import { logger } from "@/common/logger";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { GenericOrderInfo } from "@/jobs/orderbook/utils";
 import * as orders from "@/orderbook/orders";
+import _ from "lodash";
 
 export default class OpenseaBidsQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "orderbook-opensea-bids-queue";
@@ -126,7 +127,9 @@ export default class OpenseaBidsQueueJob extends AbstractRabbitMqJobHandler {
       throw error;
     }
 
-    logger.debug(this.queueName, `[${kind}] Order save result: ${JSON.stringify(result)}`);
+    if (_.random(100) <= 75) {
+      logger.debug(this.queueName, `[${kind}] Order save result: ${JSON.stringify(result)}`);
+    }
   }
 
   public async addToQueue(orderInfos: GenericOrderInfo[]) {

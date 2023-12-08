@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { config } from "@/config/index";
-import { CollectionMetadata, TokenMetadata, TokenMetadataBySlugResult } from "../types";
+import { CollectionMetadata, TokenMetadata } from "../types";
 
 import { baseProvider } from "@/common/provider";
 import { defaultAbiCoder } from "ethers/lib/utils";
@@ -28,8 +28,43 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
   // get metadata methods
 
   async _getTokensMetadata(
-    tokens: { contract: string; tokenId: string }[]
+    tokens: { contract: string; tokenId: string; uri: string }[]
   ): Promise<TokenMetadata[]> {
+    const resolvedMetadata = await Promise.all(
+      tokens.map(async (token: any) => {
+        const [metadata, error] = await this.getTokenMetadataFromURI(
+          token.uri,
+          token.contract,
+          token.tokenId
+        );
+        if (error) {
+          if (error === 429) {
+            throw new RequestWasThrottledError(error.message, 10);
+          }
+
+          throw error;
+        }
+
+        return {
+          ...metadata,
+          ...token,
+        };
+      })
+    );
+
+    return resolvedMetadata.map((token) => {
+      return this.parseToken(token);
+    });
+  }
+
+  async _getTokensMetadataUri(tokens: { contract: string; tokenId: string }[]): Promise<
+    {
+      contract: string;
+      tokenId: string;
+      uri: string | null;
+      error?: string;
+    }[]
+  > {
     const tokenData: {
       contract: string;
       tokenId: string;
@@ -69,7 +104,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       token.requestId = randomInt;
     });
 
-    const encodedTokens = tokenData.map((token) => {
+    let encodedTokens = tokenData.map((token) => {
       if (token.standard === "ERC721") {
         return this.encodeTokenERC721(token);
       } else if (token.standard === "ERC1155") {
@@ -78,9 +113,27 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         return null;
       }
     });
+
+    encodedTokens = encodedTokens.filter((token) => token !== null);
+    if (encodedTokens.length === 0) {
+      // return array of tokens with error
+      return tokenData.map((token) => {
+        return {
+          contract: token.contract,
+          tokenId: token.tokenId,
+          uri: null,
+          error: "Unsupported token standard",
+        };
+      });
+    }
+
     const [batch, error] = await this.sendBatch(encodedTokens);
+
     if (error) {
-      logger.error("onchain-fetcher", `fetchTokens sendBatch error. error:${error}`);
+      logger.error(
+        "onchain-fetcher",
+        `fetchTokens sendBatch error. error: ${JSON.stringify(error)}`
+      );
 
       if (error.status === 429) {
         throw new RequestWasThrottledError(error.message, 10);
@@ -89,52 +142,66 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       throw error;
     }
 
-    const resolvedMetadata = await Promise.all(
+    const resolvedURIs = await Promise.all(
       batch.map(async (token: any) => {
-        const uri = defaultAbiCoder.decode(["string"], token.result)[0];
-        if (!uri || uri === "") {
+        try {
+          const uri = defaultAbiCoder.decode(["string"], token.result)[0];
+          if (!uri || uri === "") {
+            return {
+              contract: idToToken[token.id].contract,
+              tokenId: idToToken[token.id].tokenId,
+              uri: null,
+              error: "Unable to decode tokenURI from contract",
+            };
+          }
+
           return {
             contract: idToToken[token.id].contract,
             tokenId: idToToken[token.id].tokenId,
+            uri,
+          };
+        } catch (error) {
+          logger.error(
+            "onchain-fetcher",
+            JSON.stringify({
+              topic: "fetchTokensError",
+              message: `Could not fetch tokenURI.  contract=${
+                idToToken[token.id].contract
+              }, tokenId=${idToToken[token.id].tokenId}, error=${error}`,
+              contract: idToToken[token.id].contract,
+              tokenId: idToToken[token.id].tokenId,
+              error,
+            })
+          );
+
+          return {
+            contract: idToToken[token.id].contract,
+            tokenId: idToToken[token.id].tokenId,
+            uri: null,
             error: "Unable to decode tokenURI from contract",
           };
         }
-
-        const [metadata, error] = await this.getTokenMetadataFromURI(
-          uri,
-          idToToken[token.id].contract,
-          idToToken[token.id].tokenId
-        );
-        if (error) {
-          // logger.error(
-          //   "onchain-fetcher",
-          //   JSON.stringify({
-          //     message: "fetchTokens getTokenMetadataFromURI error",
-          //     chainId,
-          //     token,
-          //     error,
-          //     uri,
-          //   })
-          // );
-
-          if (error === 429) {
-            throw new RequestWasThrottledError(error.message, 10);
-          }
-
-          throw error;
-        }
-
-        return {
-          ...metadata,
-          contract: idToToken[token.id].contract,
-          tokenId: idToToken[token.id].tokenId,
-        };
       })
     );
 
-    return resolvedMetadata.map((token) => {
-      return this.parseToken(token);
+    // add tokens that are in the batch but not in the response
+    // (this happens when the token doesn't exist)
+    const missingTokens = tokenData.filter(
+      (token) =>
+        !resolvedURIs.find(
+          (uri) => uri.tokenId === token.tokenId && uri.contract === token.contract
+        )
+    );
+    missingTokens.forEach((token) => {
+      resolvedURIs.push({
+        contract: token.contract,
+        tokenId: token.tokenId,
+        uri: null,
+        error: "Token not found",
+      });
     });
+
+    return resolvedURIs;
   }
 
   async _getCollectionMetadata(contract: string): Promise<CollectionMetadata> {
@@ -177,16 +244,39 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     }
   }
 
-  async _getTokensMetadataBySlug(): Promise<TokenMetadataBySlugResult> {
-    throw new Error("Method not implemented.");
-  }
-
   // parsers
 
   parseToken(metadata: any): TokenMetadata {
+    // add handling for metadata.properties, convert to attributes
+    if (metadata?.properties) {
+      metadata.attributes = Object.keys(metadata.properties).map((key) => {
+        if (typeof metadata.properties[key] === "object") {
+          return {
+            trait_type: key,
+            value: metadata.properties[key],
+          };
+        } else {
+          return {
+            trait_type: key,
+            value: metadata.properties[key],
+          };
+        }
+      });
+    }
+
+    if (!metadata?.name) {
+      metadata.name = metadata.tokenId;
+    }
+
+    const attributes =
+      typeof metadata.attributes === "string"
+        ? JSON.parse(metadata.attributes)
+        : metadata?.attributes || [];
+
     return {
       contract: metadata.contract,
       slug: null,
+      tokenURI: metadata.uri,
       tokenId: metadata.tokenId,
       collection: _.toLower(metadata.contract),
       name: metadata?.name || null,
@@ -195,9 +285,11 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       // so by default we ignore them (this behaviour can be overridden if needed).
       description: metadata.description || null,
       imageUrl: normalizeLink(metadata?.image) || null,
-      imageOriginalUrl: metadata?.metadata || null,
+      imageOriginalUrl: metadata?.image || null,
+      animationOriginalUrl: metadata?.animation_url || null,
       mediaUrl: normalizeLink(metadata?.animation_url) || null,
-      attributes: (metadata.attributes || []).map((trait: any) => ({
+      metadataOriginalUrl: this.parseIPFSURI(metadata.uri),
+      attributes: attributes.map((trait: any) => ({
         key: trait.trait_type ?? "property",
         value: trait.value,
         kind: typeof trait.value == "number" ? "number" : "string",
@@ -222,13 +314,13 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
   // helpers
 
   async detectTokenStandard(contractAddress: string) {
-    const contract = new ethers.Contract(
-      contractAddress,
-      [...erc721Interface.fragments, ...erc1155Interface.fragments],
-      baseProvider
-    );
-
     try {
+      const contract = new ethers.Contract(
+        contractAddress,
+        [...erc721Interface.fragments, ...erc1155Interface.fragments],
+        baseProvider
+      );
+
       const erc721Supported = await contract.supportsInterface("0x80ac58cd");
       const erc1155Supported = await contract.supportsInterface("0xd9b67a26");
 
@@ -252,47 +344,65 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
   }
 
   encodeTokenERC721(token: any) {
-    const iface = new ethers.utils.Interface([
-      {
-        name: "tokenURI",
-        type: "function",
-        stateMutability: "view",
-        inputs: [
-          {
-            type: "uint256",
-            name: "tokenId",
-          },
-        ],
-      },
-    ]);
+    try {
+      const iface = new ethers.utils.Interface([
+        {
+          name: "tokenURI",
+          type: "function",
+          stateMutability: "view",
+          inputs: [
+            {
+              type: "uint256",
+              name: "tokenId",
+            },
+          ],
+        },
+      ]);
 
-    return {
-      id: token.requestId,
-      encodedTokenID: iface.encodeFunctionData("tokenURI", [token.tokenId]),
-      contract: token.contract,
-    };
+      return {
+        id: token.requestId,
+        encodedTokenID: iface.encodeFunctionData("tokenURI", [token.tokenId]),
+        contract: token.contract,
+      };
+    } catch (error) {
+      logger.error(
+        "onchain-fetcher",
+        `encodeTokenERC721 error. contractAddress:${token.contract}, tokenId:${token.tokenId}, error:${error}`
+      );
+
+      return null;
+    }
   }
 
   encodeTokenERC1155(token: any) {
-    const iface = new ethers.utils.Interface([
-      {
-        name: "uri",
-        type: "function",
-        stateMutability: "view",
-        inputs: [
-          {
-            type: "uint256",
-            name: "tokenId",
-          },
-        ],
-      },
-    ]);
+    try {
+      const iface = new ethers.utils.Interface([
+        {
+          name: "uri",
+          type: "function",
+          stateMutability: "view",
+          inputs: [
+            {
+              type: "uint256",
+              name: "tokenId",
+            },
+          ],
+        },
+      ]);
 
-    return {
-      id: token.requestId,
-      encodedTokenID: iface.encodeFunctionData("uri", [token.tokenId]),
-      contract: token.contract,
-    };
+      return {
+        id: token.requestId,
+        encodedTokenID: iface.encodeFunctionData("uri", [token.tokenId]),
+        contract: token.contract,
+      };
+    } catch (error) {
+      logger.error(
+        "onchain-fetcher",
+        `encodeTokenERC1155 error. contractAddress:${token.contract}, tokenId:${token.tokenId}, error:${error}`
+      );
+
+      return null;
+    }
   }
 
   getRPC() {
@@ -397,7 +507,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       const json = JSON.parse(body);
       return [json, null];
     } catch (e: any) {
-      logger.error("onchain-fetcher", `sendBatch error. error:${e}`);
+      logger.error("onchain-fetcher", `sendBatch error. error:${JSON.stringify(e)}`);
 
       return [
         null,
@@ -409,23 +519,28 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     }
   }
 
+  parseIPFSURI(uri: string) {
+    if (uri && uri?.includes("ipfs://")) {
+      uri = uri.replace("ipfs://", "https://ipfs.io/ipfs/");
+    }
+
+    return uri;
+  }
+
   async getTokenMetadataFromURI(uri: string, contract: string, tokenId: string) {
     try {
-      if (uri.includes("ipfs://")) {
-        uri = uri.replace("ipfs://", "https://ipfs.io/ipfs/");
-      }
+      uri = this.parseIPFSURI(uri);
 
-      const isDataUri = uri.startsWith("data:application/json;base64,");
-      if (isDataUri) {
+      if (uri.startsWith("data:application/json;base64,")) {
         uri = uri.replace("data:application/json;base64,", "");
-      }
-
-      if (isDataUri) {
         return [JSON.parse(Buffer.from(uri, "base64").toString("utf-8")), null];
+      } else if (uri.startsWith("data:application/json")) {
+        // remove everything before the first comma
+        uri = uri.substring(uri.indexOf(",") + 1);
+        return [JSON.parse(uri), null];
       }
-
-      // if the uri is not a valid url, return null
       if (!uri.startsWith("http")) {
+        // if the uri is not a valid url, return null
         return [null, `Invalid URI: ${uri}`];
       }
 
@@ -434,9 +549,6 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         headers: {
           "Content-Type": "application/json",
         },
-        // timeout: FETCH_TIMEOUT,
-        // TODO: add proxy support to avoid rate limiting
-        // agent:
       });
 
       if (!response.ok) {

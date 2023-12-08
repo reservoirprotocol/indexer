@@ -15,7 +15,7 @@ import { Tokens } from "@/models/tokens";
 import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { metadataIndexProcessJob } from "@/jobs/metadata-index/metadata-process-job";
-import { metadataIndexProcessBySlugJob } from "@/jobs/metadata-index/metadata-process-by-slug-job";
+import { onchainMetadataFetchTokenUriJob } from "@/jobs/metadata-index/onchain-metadata-fetch-token-uri-job";
 
 const QUEUE_NAME = "backfill-update-missing-metadata-queue";
 
@@ -71,7 +71,6 @@ if (config.doBackgroundWork) {
       );
 
       // push queue messages
-      await metadataIndexProcessBySlugJob.addToQueue();
       await metadataIndexProcessJob.addToQueue({ method: "opensea" });
 
       if (_.size(collections) === limit) {
@@ -143,6 +142,12 @@ async function processCollectionTokens(
   // push to tokens refresh queue
   const pendingRefreshTokens = new PendingRefreshTokens(indexingMethod);
   await pendingRefreshTokens.add(unindexedTokens);
+
+  if (indexingMethod === "onchain") {
+    await onchainMetadataFetchTokenUriJob.addToQueue();
+  } else {
+    await metadataIndexProcessJob.addToQueue({ method: indexingMethod });
+  }
 }
 
 async function processCollection(collection: {

@@ -1,5 +1,4 @@
 import { AddressZero } from "@ethersproject/constants";
-import { formatEther } from "@ethersproject/units";
 
 import { idb } from "@/common/db";
 import { redis } from "@/common/redis";
@@ -11,6 +10,7 @@ import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
 import { Sources } from "@/models/sources";
 import { getCollectionMints } from "@/orderbook/mints";
 
+import * as artblocks from "@/orderbook/mints/calldata/detector/artblocks";
 import * as createdotfun from "@/orderbook/mints/calldata/detector/createdotfun";
 import * as decent from "@/orderbook/mints/calldata/detector/decent";
 import * as foundation from "@/orderbook/mints/calldata/detector/foundation";
@@ -21,8 +21,10 @@ import * as seadrop from "@/orderbook/mints/calldata/detector/seadrop";
 import * as soundxyz from "@/orderbook/mints/calldata/detector/soundxyz";
 import * as thirdweb from "@/orderbook/mints/calldata/detector/thirdweb";
 import * as zora from "@/orderbook/mints/calldata/detector/zora";
+import * as titlesxyz from "@/orderbook/mints/calldata/detector/titlesxyz";
 
 export {
+  artblocks,
   decent,
   foundation,
   generic,
@@ -33,6 +35,7 @@ export {
   thirdweb,
   zora,
   createdotfun,
+  titlesxyz,
 };
 
 export const extractByTx = async (txHash: string, skipCache = false) => {
@@ -105,11 +108,13 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
   await mintsCheckJob.addToQueue({ collection }, 10 * 60);
 
   // If there are any open collection mints trigger a refresh with a delay
-  const hasOpenMints = await getCollectionMints(collection, { status: "open" }).then(
-    (mints) => mints.length > 0
-  );
+  const openMints = await getCollectionMints(collection, { status: "open" });
+
+  const hasOpenMints = openMints.length > 0;
+  const forceRefresh = openMints.some((c) => c.details.info?.hasDynamicPrice);
+
   if (hasOpenMints) {
-    await mintsRefreshJob.addToQueue({ collection }, 10 * 60);
+    await mintsRefreshJob.addToQueue({ collection, forceRefresh }, 10 * 60);
   }
 
   // For performance reasons, do at most one attempt per collection per 5 minutes
@@ -140,15 +145,6 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
     return [];
   }
 
-  // Allow at most a few decimals for the unit price
-  const splittedPrice = formatEther(pricePerAmountMinted).split(".");
-  if (splittedPrice.length > 1) {
-    const numDecimals = splittedPrice[1].length;
-    if (numDecimals > 7) {
-      return [];
-    }
-  }
-
   // There must be some calldata
   if (tx.data.length < 10) {
     return [];
@@ -161,6 +157,12 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
     if (source) {
       tx.data = tx.data.slice(0, -8);
     }
+  }
+
+  // Artblocks
+  const artblocksResults = await artblocks.extractByTx(collection, tx);
+  if (artblocksResults.length) {
+    return artblocksResults;
   }
 
   // Decent
@@ -215,6 +217,12 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
   const createdotfunResults = await createdotfun.extractByTx(collection, tx);
   if (createdotfunResults.length) {
     return createdotfunResults;
+  }
+
+  // Titlesxyz
+  const titlesXYZResults = await titlesxyz.extractByTx(collection, tx);
+  if (titlesXYZResults.length) {
+    return titlesXYZResults;
   }
 
   // Generic

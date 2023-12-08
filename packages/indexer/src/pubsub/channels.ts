@@ -14,4 +14,6 @@ export enum AllChainsChannel {
   RateLimitRuleCreated = "rate-limit-rule-created",
   RateLimitRuleUpdated = "rate-limit-rule-updated",
   RateLimitRuleDeleted = "rate-limit-rule-deleted",
+  PauseRabbitConsumerQueue = "pause-rabbit-consumer-queue",
+  ResumeRabbitConsumerQueue = "resume-rabbit-consumer-queue",
 }

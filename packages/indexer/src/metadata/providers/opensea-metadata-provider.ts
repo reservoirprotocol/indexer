@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { config } from "@/config/index";
-import { CollectionMetadata, TokenMetadata, TokenMetadataBySlugResult } from "../types";
+import { CollectionMetadata, TokenMetadata } from "../types";
 import { logger } from "@/common/logger";
 import { Contract } from "ethers";
 import { Interface } from "ethers/lib/utils";
@@ -21,23 +21,13 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
     tokenId: string
   ): Promise<CollectionMetadata> {
     try {
-      if (config.chainId === 1) {
-        const { data, creatorAddress } = await this.getDataWithCreator(contract, tokenId);
-
-        if (!data?.collection) {
-          throw new Error("Missing collection");
-        }
-
-        return this.parseCollection(data, contract, creatorAddress);
-      }
-
-      const { data, creatorAddress } = await this.getDataWithCreatorV2(contract, tokenId);
+      const { data, creatorAddress } = await this.getDataWithCreator(contract, tokenId);
 
       if (!data) {
         throw new Error("Missing collection");
       }
 
-      return this.parseCollectionV2(data, contract, creatorAddress);
+      return this.parseCollection(data, contract, creatorAddress);
     } catch (error) {
       logger.error(
         "opensea-fetcher",
@@ -88,110 +78,42 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
   protected async _getTokensMetadata(
     tokens: { contract: string; tokenId: string }[]
   ): Promise<TokenMetadata[]> {
-    const searchParams = new URLSearchParams();
+    const tokensMetadata: any[] = [];
     for (const { contract, tokenId } of tokens) {
-      searchParams.append("asset_contract_addresses", contract);
-      searchParams.append("token_ids", tokenId);
+      const url = `${
+        !this.isOSTestnet() ? "https://api.opensea.io" : "https://testnets-api.opensea.io"
+      }/api/v2/chain/${getOpenseaNetworkName()}/contract/${contract}/nfts/${tokenId}`;
+
+      const data = await axios
+        .get(!this.isOSTestnet() ? config.openSeaApiUrl || url : url, {
+          headers: !this.isOSTestnet()
+            ? {
+                url,
+                "X-API-KEY": config.openSeaTokenMetadataApiKey.trim(),
+                Accept: "application/json",
+              }
+            : {
+                Accept: "application/json",
+              },
+        })
+        .then((response) => response.data)
+        .catch((error) => {
+          logger.error(
+            "opensea-fetcher",
+            `fetchTokens error. url:${url}, message:${error.message},  status:${
+              error.response?.status
+            }, data:${JSON.stringify(error.response?.data)}, url:${JSON.stringify(
+              error.config?.url
+            )}, headers:${JSON.stringify(error.config?.headers?.url)}`
+          );
+
+          this.handleError(error);
+        });
+
+      tokensMetadata.push(data.nft);
     }
 
-    const url = `${
-      !this.isOSTestnet() ? "https://api.opensea.io" : "https://testnets-api.opensea.io"
-    }/api/v1/assets?${searchParams.toString()}`;
-
-    const data = await axios
-      .get(!this.isOSTestnet() ? config.openSeaApiUrl || url : url, {
-        headers: !this.isOSTestnet()
-          ? {
-              url,
-              "X-API-KEY": config.openSeaTokenMetadataApiKey.trim(),
-              Accept: "application/json",
-            }
-          : {
-              Accept: "application/json",
-            },
-      })
-      .then((response) => response.data)
-      .catch((error) => {
-        logger.error(
-          "opensea-fetcher",
-          `fetchTokens error. url:${url}, message:${error.message},  status:${
-            error.response?.status
-          }, data:${JSON.stringify(error.response?.data)}, url:${JSON.stringify(
-            error.config?.url
-          )}, headers:${JSON.stringify(error.config?.headers?.url)}`
-        );
-
-        this.handleError(error);
-      });
-
-    return data.assets.map(this.parseToken).filter(Boolean);
-  }
-
-  protected async _getTokensMetadataBySlug(
-    slug: string,
-    continuation?: string | null
-  ): Promise<TokenMetadataBySlugResult> {
-    const searchParams = new URLSearchParams();
-    if (continuation) {
-      searchParams.append("cursor", continuation);
-    }
-    if (slug) {
-      searchParams.append("collection_slug", slug);
-    } else {
-      throw new Error("Missing slug");
-    }
-    searchParams.append("limit", "200");
-
-    const url = `${
-      !this.isOSTestnet() ? "https://api.opensea.io" : "https://testnets-api.opensea.io"
-    }/api/v1/assets?${searchParams.toString()}`;
-    const data = await axios
-      .get(!this.isOSTestnet() ? config.openSeaApiUrl || url : url, {
-        headers: !this.isOSTestnet()
-          ? {
-              url,
-              "X-API-KEY": config.openSeaTokenMetadataBySlugApiKey,
-              Accept: "application/json",
-            }
-          : {
-              Accept: "application/json",
-            },
-      })
-      .then((response) => response.data)
-      .catch((error) => this.handleError(error));
-
-    const assets = data.assets.map(this.parseToken).filter(Boolean);
-
-    // Get custom metadata
-    const customAssets = await Promise.all(
-      assets.map(async (asset: any) => {
-        if (hasCustomHandler(asset.contract)) {
-          const result = await customHandleToken({
-            contract: asset.contract,
-            tokenId: asset.tokenId,
-          });
-          return result;
-        }
-        return asset;
-      })
-    );
-
-    // Get extended metadata
-    const extendedMetadata = await Promise.all(
-      customAssets.map(async (asset: any) => {
-        if (hasExtendHandler(asset.contract)) {
-          const result = await extendMetadata(asset);
-          return result;
-        }
-        return asset;
-      })
-    );
-
-    return {
-      metadata: extendedMetadata,
-      continuation: data.next ?? undefined,
-      previous: data.previous ?? undefined,
-    };
+    return tokensMetadata.map(this.parseToken).filter(Boolean);
   }
 
   async _getTokenFlagStatus(
@@ -370,19 +292,19 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
 
   parseToken(metadata: any): TokenMetadata {
     return {
-      contract: metadata.asset_contract.address,
-      tokenId: metadata.token_id,
-      collection: _.toLower(metadata.asset_contract.address),
-      slug: metadata.collection.slug,
+      contract: metadata.contract,
+      tokenId: metadata.identifier,
+      collection: _.toLower(metadata.contract),
+      slug: metadata.collection,
       name: metadata.name,
-      flagged: metadata.supports_wyvern != null ? !metadata.supports_wyvern : false,
+      flagged: metadata.is_disabled,
       // Token descriptions are a waste of space for most collections we deal with
       // so by default we ignore them (this behaviour can be overridden if needed).
       description: metadata.description,
       imageUrl: metadata.image_url,
-      imageOriginalUrl: metadata.image_original_url,
-      animationOriginalUrl: metadata.animation_original_url,
-      metadataOriginalUrl: metadata.token_metadata,
+      imageOriginalUrl: metadata.image_url,
+      animationOriginalUrl: metadata.animation_url,
+      metadataOriginalUrl: metadata.metadata_url,
       mediaUrl: metadata.animation_url,
       attributes: (metadata.traits || []).map((trait: any) => ({
         key: trait.trait_type ?? "property",
@@ -394,66 +316,6 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
   }
 
   parseCollection(metadata: any, contract: string, creator: string): CollectionMetadata {
-    // TODO: Do we really need these here?
-    const communities = {
-      "0xff9c1b15b16263c61d017ee9f65c50e4ae0113d7": "loot",
-      "0x8db687aceb92c66f013e1d614137238cc698fedb": "loot",
-      "0x1dfe7ca09e99d10835bf73044a23b73fc20623df": "loot",
-      "0x521f9c7505005cfa19a8e5786a9c3c9c9f5e6f42": "forgottenrunes",
-      "0xf55b615b479482440135ebf1b907fd4c37ed9420": "forgottenrunes",
-      "0x31158181b4b91a423bfdc758fc3bf8735711f9c5": "forgottenrunes",
-      "0x251b5f14a825c537ff788604ea1b58e49b70726f": "forgottenrunes",
-      "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85": "ens",
-    };
-
-    // Collect the fees
-    const royalties = [];
-    const fees = [];
-
-    for (const key in metadata.collection.fees.seller_fees) {
-      if (Object.prototype.hasOwnProperty.call(metadata.collection.fees.seller_fees, key)) {
-        royalties.push({
-          recipient: key,
-          bps: metadata.collection.fees.seller_fees[key],
-        });
-      }
-    }
-
-    for (const key in metadata.collection.fees.opensea_fees) {
-      if (Object.prototype.hasOwnProperty.call(metadata.collection.fees.opensea_fees, key)) {
-        fees.push({
-          recipient: key,
-          bps: metadata.collection.fees.opensea_fees[key],
-        });
-      }
-    }
-
-    return {
-      id: contract,
-      slug: metadata.collection.slug,
-      name: metadata.collection ? metadata.collection.name : metadata.name,
-      community: communities[contract as keyof typeof communities] ?? null,
-      metadata: metadata.collection ? normalizeMetadata(metadata.collection) : null,
-      openseaRoyalties: royalties,
-      openseaFees: fees,
-      contract,
-      tokenIdRange: null,
-      tokenSetId: `contract:${contract}`,
-      paymentTokens: metadata.collection.payment_tokens
-        ? metadata.collection.payment_tokens.map((token: any) => {
-            return {
-              address: token.address,
-              decimals: token.decimals,
-              name: token.name,
-              symbol: token.symbol,
-            };
-          })
-        : undefined,
-      creator: creator ? _.toLower(creator) : null,
-    };
-  }
-
-  parseCollectionV2(metadata: any, contract: string, creator: string): CollectionMetadata {
     // Collect the fees
     const royalties = [];
     const fees = [];
@@ -468,12 +330,13 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
       if (openSeaFeeRecipients.includes(fee.recipient)) {
         fees.push({
           recipient: fee.recipient,
-          bps: fee.fee * 100,
+          bps: Math.trunc(fee.fee * 100),
         });
       } else {
         royalties.push({
           recipient: fee.recipient,
-          bps: fee.fee * 100,
+          bps: Math.trunc(fee.fee * 100),
+          required: fee.required,
         });
       }
     }
@@ -498,15 +361,6 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
     contract: string,
     tokenId: string
   ): Promise<{ creatorAddress: string; data: any }> {
-    const data = await this.getOSData("asset", contract, tokenId);
-
-    return { data, creatorAddress: data?.creator?.address };
-  }
-
-  async getDataWithCreatorV2(
-    contract: string,
-    tokenId: string
-  ): Promise<{ creatorAddress: string; data: any }> {
     let data;
     let creatorAddress;
 
@@ -526,13 +380,6 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
 
   async getOSDataForCollection(contract: string, tokenId: string, collection: any): Promise<any> {
     return await this.getOSData("collection", contract, tokenId, collection);
-  }
-
-  async getOSDataForEventsOrAsset(contract: string, tokenId: string): Promise<any> {
-    return (
-      (await this.getOSData("events", contract, tokenId)) ||
-      (await this.getOSData("asset", contract, tokenId))
-    );
   }
 
   public async parseTokenMetadata(request: {
@@ -624,14 +471,8 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
     }`;
 
     switch (api) {
-      case "asset":
-        return `${baseUrl}/api/v1/asset/${contract}/${tokenId}`;
-      case "events":
-        return `${baseUrl}/api/v1/events?asset_contract_address=${contract}&token_id=${tokenId}`;
       case "offers":
         return `${baseUrl}/v2/orders/${network}/seaport/offers?asset_contract_address=${contract}&token_ids=${tokenId}`;
-      case "asset_contract":
-        return `${baseUrl}/api/v1/asset_contract/${contract}`;
       case "collection":
         return `${baseUrl}/api/v2/collections/${slug}`;
       case "nft":
@@ -691,18 +532,14 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
           })
         );
 
-        // Try to get the collection only based on the contract.
         if (error.response?.status === 404) {
           if (isNaN(Number(tokenId))) {
             logger.error(
               "opensea-fetcher",
               `fetchCollection retrieve asset contract - Invalid tokenId. contract:${contract}, tokenId:${tokenId}`
             );
-
             throw new Error(`Invalid tokenId.`);
           }
-          return await this.getOSData("asset_contract", contract);
-        } else {
           throw error;
         }
       } else {

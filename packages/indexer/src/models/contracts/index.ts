@@ -5,6 +5,7 @@ import { toBuffer } from "@/common/utils";
 
 import { collectionNewContractDeployedJob } from "@/jobs/collections/collection-contract-deployed";
 import { getContractNameAndSymbol } from "@/jobs/collections/utils";
+import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
 
 export class Contracts {
   public static async updateContractMetadata(contract: string) {
@@ -36,19 +37,22 @@ export class Contracts {
     }
 
     const { symbol, name } = await getContractNameAndSymbol(contract);
+    const contractMetadata = await onchainMetadataProvider._getCollectionMetadata(contract);
 
     await idb.none(
       `
         UPDATE contracts
         SET
           symbol = $/symbol/,
-          name = $/name/
+          name = $/name/,
+          metadata = $/metadata:json/
         WHERE contracts.address = $/contract/
       `,
       {
         contract: toBuffer(contract),
         symbol,
         name,
+        metadata: contractMetadata ? contractMetadata : null,
       }
     );
   }

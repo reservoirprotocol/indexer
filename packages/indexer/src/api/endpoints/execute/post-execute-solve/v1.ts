@@ -32,6 +32,7 @@ export const postExecuteSolveV1Options: RouteOptions = {
         order: Joi.any(),
         tx: Joi.string().pattern(regex.bytes),
         chainId: Joi.number().required(),
+        context: Joi.any(),
       })
     ),
   },
@@ -65,6 +66,7 @@ export const postExecuteSolveV1Options: RouteOptions = {
                   ...payload.order,
                   signature: payload.order.signature ?? query.signature,
                 },
+                context: payload.context,
               })
               .then((response) => response.data);
 

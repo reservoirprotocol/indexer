@@ -28,7 +28,7 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
     expiresIn: 60 * 1000,
     privacy: "public",
   },
-  description: "Top Selling Collections",
+  description: "Top selling collections",
   notes: "Get top selling and minting collections",
   tags: ["api", "x-deprecated"],
   plugins: {
@@ -175,6 +175,10 @@ export const getTopSellingCollectionsV2Options: RouteOptions = {
           limit,
           sortBy,
         });
+
+        if (fillType === "mint") {
+          await redis.set(cacheKey, JSON.stringify(collectionsResult), "EX", 1800);
+        }
 
         logger.info(
           "get-top-selling-collections-v2-cache-miss",

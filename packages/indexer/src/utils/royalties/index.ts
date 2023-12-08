@@ -149,6 +149,8 @@ export const getRoyaltiesByTokenSet = async (
 export const updateRoyaltySpec = async (
   collection: string,
   spec: string,
+  // `[]` -> royalties explicitly set to zero / empty
+  // `undefined` -> royalties not set at all
   royalties?: Royalty[]
 ) => {
   // For safety, skip any zero bps or recipients
@@ -233,14 +235,6 @@ export const refreshDefaultRoyalties = async (collection: string) => {
     defaultRoyalties = royaltiesResult.new_royalties["custom"];
   } else if (royaltiesResult.new_royalties["onchain"]) {
     defaultRoyalties = royaltiesResult.new_royalties["onchain"];
-  } else if (
-    // TODO: Remove (for backwards-compatibility only)
-    Object.keys(royaltiesResult.new_royalties).find((kind) => !["custom", "opensea"].includes(kind))
-  ) {
-    const oldSpec = Object.keys(royaltiesResult.new_royalties).find(
-      (kind) => !["custom", "opensea"].includes(kind)
-    );
-    defaultRoyalties = royaltiesResult.new_royalties[oldSpec!];
   } else if (royaltiesResult.new_royalties["opensea"]) {
     defaultRoyalties = royaltiesResult.new_royalties["opensea"];
   }
@@ -249,7 +243,8 @@ export const refreshDefaultRoyalties = async (collection: string) => {
     `
       UPDATE collections SET
         royalties = $/royalties:json/,
-        royalties_bps = $/royaltiesBps/
+        royalties_bps = $/royaltiesBps/,
+        updated_at = now()
       WHERE collections.id = $/id/
     `,
     {

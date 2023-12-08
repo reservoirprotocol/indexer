@@ -106,6 +106,13 @@ const prettifyError = (msg: string): PrettyErrorDetails => {
         code: 2,
       };
 
+    case matches("Expired API key"):
+      return {
+        message: "Expired OpenSea API key",
+        status: StatusCode.FAILED_DEPENDENCY,
+        code: 2,
+      };
+
     case matches("no available orders"):
     case matches("requested order is inactive and can only be seen by the order creator"):
     case matches("the order_hash you provided does not exist"):

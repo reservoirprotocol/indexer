@@ -6,7 +6,6 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { PgPromiseQuery, idb, pgp, redb, ridb } from "@/common/db";
 import _ from "lodash";
-import { config } from "@/config/index";
 
 export class DailyVolume {
   private static lockKey = "daily-volumes-running";
@@ -305,7 +304,8 @@ export class DailyVolume {
               day1_rank = $/rank/,
               day1_floor_sell_value = $/floor_sell_value/,
               day1_volume_change = $/volume_change/,
-              day1_sales_count = $/sales_count/
+              day1_sales_count = $/sales_count/,
+              updated_at = now()
             WHERE id = $/collection_id/
             `,
           values: values,
@@ -340,7 +340,8 @@ export class DailyVolume {
             day1_rank = NULL,
             day1_floor_sell_value = NULL,
             day1_volume_change = NULL,
-            day1_sales_count = 0
+            day1_sales_count = 0,
+            updated_at = now()
           WHERE id = $/collection_id/
         `,
           values: { collection_id: c.id },
@@ -481,23 +482,13 @@ export class DailyVolume {
       // Step 3: Update the volumes in collections
       const queries: PgPromiseQuery[] = [];
       recentVolumes.forEach((values: any) => {
-        if (config.chainId === 11155111) {
-          logger.info(
-            "dailyVolumes1",
-            JSON.stringify({
-              topic: "debugCollectionUpdates",
-              message: `Update collection. collectionId=${values.collection_id}`,
-              collectionId: values.collection_id,
-            })
-          );
-        }
-
         queries.push({
           query: `
           UPDATE collections
           SET all_time_volume = $/total_new_volume/,
             day7_volume = CASE WHEN day7_volume < $/volume_since_recent/ THEN $/volume_since_recent/ ELSE day7_volume END,
-            day30_volume = CASE WHEN day30_volume < $/volume_since_recent/ THEN $/volume_since_recent/ ELSE day30_volume END
+            day30_volume = CASE WHEN day30_volume < $/volume_since_recent/ THEN $/volume_since_recent/ ELSE day30_volume END,
+            updated_at = now()
           WHERE id = $/collection_id/
         `,
           values: values,
@@ -687,17 +678,6 @@ export class DailyVolume {
     try {
       const queries: { query: string; values: any }[] = [];
       mergedArr.forEach((row: any) => {
-        if (config.chainId === 11155111) {
-          logger.info(
-            "dailyVolumes2",
-            JSON.stringify({
-              topic: "debugCollectionUpdates",
-              message: `Update collection. collectionId=${row.collection_id}, specificCollectionId=${collectionId}`,
-              collectionId: row.collection_id,
-            })
-          );
-        }
-
         // When updating single collection don't update the rank
         queries.push({
           query: `
@@ -839,17 +819,6 @@ export class DailyVolume {
 
     const queries: any = [];
     results.forEach((row: any) => {
-      if (config.chainId === 11155111) {
-        logger.info(
-          "dailyVolumes3",
-          JSON.stringify({
-            topic: "debugCollectionUpdates",
-            message: `Update collection. collectionId=${row.collection_id}`,
-            collectionId: row.collection_id,
-          })
-        );
-      }
-
       queries.push({
         query: `
             UPDATE collections
@@ -936,17 +905,6 @@ export class DailyVolume {
 
     const queries: any = [];
     results.forEach((row: any) => {
-      if (config.chainId === 11155111) {
-        logger.info(
-          "dailyVolumes4",
-          JSON.stringify({
-            topic: "debugCollectionUpdates",
-            message: `Update collection. collectionId=${row.collection_id}`,
-            collectionId: row.collection_id,
-          })
-        );
-      }
-
       queries.push({
         query: `
             UPDATE collections

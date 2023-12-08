@@ -54,7 +54,12 @@ export class AskCreatedEventHandler extends BaseActivityEventHandler {
   }
 
   public static buildBaseQuery() {
-    const orderCriteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
+    const orderCriteriaBuildQuery = Orders.buildCriteriaQuery(
+      "orders",
+      "token_set_id",
+      false,
+      "token_set_schema_hash"
+    );
 
     return `
         SELECT
@@ -85,6 +90,8 @@ export class AskCreatedEventHandler extends BaseActivityEventHandler {
                         tokens.name AS "token_name",
                         tokens.image AS "token_image",
                         tokens.media AS "token_media",
+                        tokens.is_spam AS "token_is_spam",
+                        collections.is_spam AS "collection_is_spam",
                         collections.id AS "collection_id",
                         collections.name AS "collection_name",
                         (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image"
@@ -115,7 +122,7 @@ export class AskCreatedEventHandler extends BaseActivityEventHandler {
     const results = await idb.manyOrNone(
       `
                 ${AskCreatedEventHandler.buildBaseQuery()}
-                WHERE (id) IN ($/eventsFilter:raw/);  
+                WHERE (id) IN ($/eventsFilter:raw/) AND kind != 'element-erc1155';  
                 `,
       { eventsFilter: _.join(eventsFilter, ",") }
     );
@@ -124,16 +131,27 @@ export class AskCreatedEventHandler extends BaseActivityEventHandler {
       try {
         const event = events.find((event) => event.orderId === result.order_id);
 
-        const eventHandler = new AskCreatedEventHandler(
-          result.order_id,
-          event?.txHash,
-          event?.logIndex,
-          event?.batchIndex
-        );
+        if (event) {
+          const eventHandler = new AskCreatedEventHandler(
+            result.order_id,
+            event?.txHash,
+            event?.logIndex,
+            event?.batchIndex
+          );
 
-        const activity = eventHandler.buildDocument(result);
+          const activity = eventHandler.buildDocument(result);
 
-        activities.push(activity);
+          activities.push(activity);
+        } else {
+          logger.warn(
+            "ask-created-event-handler",
+            JSON.stringify({
+              topic: "generate-activities",
+              message: `Invalid order. orderId=${result.order_id}`,
+              result,
+            })
+          );
+        }
       } catch (error) {
         logger.error(
           "ask-created-event-handler",

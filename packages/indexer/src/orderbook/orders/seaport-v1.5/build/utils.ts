@@ -11,7 +11,7 @@ import {
   OrderBuildInfo,
   padSourceToSalt,
 } from "@/orderbook/orders/seaport-base/build/utils";
-import * as erc721c from "@/utils/erc721c";
+import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import * as registry from "@/utils/royalties/registry";
 
@@ -58,13 +58,12 @@ export const getBuildInfo = async (
     options.source = "looksrare.org";
   }
 
-  // Check if is blocked by ERC721c
-  const isBlocked = await erc721c.checkMarketplaceIsFiltered(
-    fromBuffer(collectionResult.contract),
-    [exchange.deriveConduit(conduitKey)]
-  );
+  // Check if the marketplace is blocked
+  const isBlocked = await checkMarketplaceIsFiltered(fromBuffer(collectionResult.contract), [
+    exchange.deriveConduit(conduitKey),
+  ]);
   if (isBlocked) {
-    throw new Error("Blocked by ERC721C security policy");
+    throw new Error("Marketplace is blocked");
   }
 
   // Generate the salt
@@ -176,10 +175,7 @@ export const getBuildInfo = async (
       collectionResult.marketplace_fees?.opensea;
 
     if (collectionResult.marketplace_fees?.opensea == null) {
-      openseaMarketplaceFees = await marketplaceFees.getCollectionOpenseaFees(
-        collection,
-        fromBuffer(collectionResult.contract)
-      );
+      openseaMarketplaceFees = marketplaceFees.getCollectionOpenseaFees();
     }
 
     for (const openseaMarketplaceFee of openseaMarketplaceFees) {

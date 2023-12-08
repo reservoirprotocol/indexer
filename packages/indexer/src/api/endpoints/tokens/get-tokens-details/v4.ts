@@ -205,6 +205,7 @@ export const getTokensDetailsV4Options: RouteOptions = {
           "t"."last_buy_timestamp",
           "t"."last_sell_value",
           "t"."last_sell_timestamp",
+          "t"."image_version",
           ("c".metadata ->> 'imageUrl')::TEXT AS "collection_image",
           (
             SELECT "nb"."owner" FROM "nft_balances" "nb"
@@ -459,7 +460,7 @@ export const getTokensDetailsV4Options: RouteOptions = {
               tokenId,
               name: r.name,
               description: r.description,
-              image: Assets.getLocalAssetsLink(r.image),
+              image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
               media: r.media,
               kind: r.kind,
               isFlagged: Boolean(Number(r.is_flagged)),
@@ -469,7 +470,7 @@ export const getTokensDetailsV4Options: RouteOptions = {
               collection: {
                 id: r.collection_id,
                 name: r.collection_name,
-                image: Assets.getLocalAssetsLink(r.image),
+                image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
                 slug: r.slug,
               },
               lastBuy: {
