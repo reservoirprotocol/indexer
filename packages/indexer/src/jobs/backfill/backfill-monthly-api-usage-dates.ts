@@ -37,7 +37,7 @@ export class BackfillMonthlyApiUsageDatesJob extends AbstractRabbitMqJobHandler 
     const results = await idb.manyOrNone(
       `
           WITH x AS (
-              SELECT id, day
+              SELECT id, month
               FROM monthly_api_usage
               WHERE created_at IS NULL
               ${cursor}
