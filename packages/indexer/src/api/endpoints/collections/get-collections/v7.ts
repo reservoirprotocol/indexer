@@ -467,21 +467,24 @@ export const getCollectionsV7Options: RouteOptions = {
         SELECT
           collections.id,
           collections.slug,
-          collections.name,
-          (collections.metadata ->> 'imageUrl')::TEXT AS "image",
-          (collections.metadata ->> 'bannerImageUrl')::TEXT AS "banner",
-          (collections.metadata ->> 'discordUrl')::TEXT AS "discord_url",
-          (collections.metadata ->> 'description')::TEXT AS "description",
-          (collections.metadata ->> 'externalUrl')::TEXT AS "external_url",
-          (collections.metadata ->> 'twitterUsername')::TEXT AS "twitter_username",
-          (collections.metadata ->> 'twitterUrl')::TEXT AS "twitter_url",
-          (collections.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
+          COALESCE(collections_override.metadata ->> 'name', collections.name)::TEXT AS "name",
+          COALESCE(
+            collections_override.metadata ->> 'creator', 
+            convert_from(collections.creator, 'UTF-8')
+          )::TEXT AS "creator",
+          COALESCE(collections_override.metadata ->> 'imageUrl', collections.metadata ->> 'imageUrl')::TEXT AS "image",
+          COALESCE(collections_override.metadata ->> 'bannerImageUrl', collections.metadata ->> 'bannerImageUrl')::TEXT AS "banner",
+          COALESCE(collections_override.metadata ->> 'discordUrl', collections.metadata ->> 'discordUrl')::TEXT AS "discord_url",
+          COALESCE(collections_override.metadata ->> 'description', collections.metadata ->> 'description')::TEXT AS "description",
+          COALESCE(collections_override.metadata ->> 'externalUrl', collections.metadata ->> 'externalUrl')::TEXT AS "external_url",
+          COALESCE(collections_override.metadata ->> 'twitterUsername', collections.metadata ->> 'twitterUsername')::TEXT AS "twitter_username",
+          COALESCE(collections_override.metadata ->> 'twitterUrl', collections.metadata ->> 'twitterUrl')::TEXT AS "twitter_url",
+          COALESCE(collections_override.metadata ->> 'safelistRequestStatus', collections.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",    
           collections.royalties,
           collections.new_royalties,
           collections.contract,
           collections.token_id_range,
           collections.token_set_id,
-          collections.creator,
           collections.day1_sales_count AS "day_sale_count",
           collections.day1_rank,
           collections.day1_volume,
@@ -519,12 +522,12 @@ export const getCollectionsV7Options: RouteOptions = {
               tokens.image
             FROM tokens
             WHERE tokens.collection_id = collections.id
-            ORDER BY rarity_rank ${query.sortDirection} NULLS ${
-        query.sortDirection === "asc" ? "FIRST" : "LAST"
-      }
+            ORDER BY rarity_rank ${query.sortDirection} NULLS ${query.sortDirection === "asc" ? "FIRST" : "LAST"
+        }
             LIMIT 4
           ) AS sample_images
         FROM collections
+        LEFT JOIN collections_override ON collections.id = collections_override.collection_id
       `;
 
       // Filtering
@@ -715,11 +718,10 @@ export const getCollectionsV7Options: RouteOptions = {
              tokens.name AS floor_sell_token_name,
              tokens.image AS floor_sell_token_image,
              orders.currency AS floor_sell_currency,
-             ${
-               query.normalizeRoyalties
-                 ? "orders.currency_normalized_value AS floor_sell_currency_value"
-                 : "orders.currency_value AS floor_sell_currency_value"
-             }
+             ${query.normalizeRoyalties
+          ? "orders.currency_normalized_value AS floor_sell_currency_value"
+          : "orders.currency_value AS floor_sell_currency_value"
+        }
            FROM orders
            JOIN token_sets_tokens ON token_sets_tokens.token_set_id = orders.token_set_id
            JOIN tokens ON tokens.contract = token_sets_tokens.contract AND tokens.token_id = token_sets_tokens.token_id
@@ -812,13 +814,13 @@ export const getCollectionsV7Options: RouteOptions = {
               creator: r.creator ? fromBuffer(r.creator) : null,
               royalties: r.royalties
                 ? {
-                    // Main recipient, kept for backwards-compatibility only
-                    recipient: r.royalties.length ? r.royalties[0].recipient : null,
-                    breakdown: r.royalties.filter((r: any) => r.bps && r.recipient),
-                    bps: r.royalties
-                      .map((r: any) => r.bps)
-                      .reduce((a: number, b: number) => a + b, 0),
-                  }
+                  // Main recipient, kept for backwards-compatibility only
+                  recipient: r.royalties.length ? r.royalties[0].recipient : null,
+                  breakdown: r.royalties.filter((r: any) => r.bps && r.recipient),
+                  bps: r.royalties
+                    .map((r: any) => r.bps)
+                    .reduce((a: number, b: number) => a + b, 0),
+                }
                 : null,
               allRoyalties: r.new_royalties ?? null,
               floorAsk: {
@@ -826,15 +828,15 @@ export const getCollectionsV7Options: RouteOptions = {
                 sourceDomain: sources.get(r.floor_sell_source_id_int)?.domain,
                 price: r.floor_sell_id
                   ? await getJoiPriceObject(
-                      {
-                        gross: {
-                          amount: r.floor_sell_currency_value ?? r.floor_sell_value,
-                          nativeAmount: r.floor_sell_value,
-                        },
+                    {
+                      gross: {
+                        amount: r.floor_sell_currency_value ?? r.floor_sell_value,
+                        nativeAmount: r.floor_sell_value,
                       },
-                      floorAskCurrency,
-                      query.displayCurrency
-                    )
+                    },
+                    floorAskCurrency,
+                    query.displayCurrency
+                  )
                   : null,
                 maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
                 validFrom: r.floor_sell_valid_from,
@@ -854,23 +856,23 @@ export const getCollectionsV7Options: RouteOptions = {
                 price:
                   r.top_buy_id && r.top_buy_value
                     ? await getJoiPriceObject(
-                        {
-                          net: {
-                            amount: query.normalizeRoyalties
-                              ? r.top_buy_currency_normalized_value ?? r.top_buy_value
-                              : r.top_buy_currency_value ?? r.top_buy_value,
-                            nativeAmount: query.normalizeRoyalties
-                              ? r.top_buy_normalized_value ?? r.top_buy_value
-                              : r.top_buy_value,
-                          },
-                          gross: {
-                            amount: r.top_buy_currency_price ?? r.top_buy_price,
-                            nativeAmount: r.top_buy_price,
-                          },
+                      {
+                        net: {
+                          amount: query.normalizeRoyalties
+                            ? r.top_buy_currency_normalized_value ?? r.top_buy_value
+                            : r.top_buy_currency_value ?? r.top_buy_value,
+                          nativeAmount: query.normalizeRoyalties
+                            ? r.top_buy_normalized_value ?? r.top_buy_value
+                            : r.top_buy_value,
                         },
-                        topBidCurrency,
-                        query.displayCurrency
-                      )
+                        gross: {
+                          amount: r.top_buy_currency_price ?? r.top_buy_price,
+                          nativeAmount: r.top_buy_price,
+                        },
+                      },
+                      topBidCurrency,
+                      query.displayCurrency
+                    )
                     : null,
                 maker: r.top_buy_maker ? fromBuffer(r.top_buy_maker) : null,
                 validFrom: r.top_buy_valid_from,
@@ -911,49 +913,49 @@ export const getCollectionsV7Options: RouteOptions = {
               },
               salesCount: query.includeSalesCount
                 ? {
-                    "1day": `${r.day_sale_count ?? 0}`,
-                    "7day": r.week_sale_count,
-                    "30day": r.month_sale_count,
-                    allTime: r.total_sale_count,
-                  }
+                  "1day": `${r.day_sale_count ?? 0}`,
+                  "7day": r.week_sale_count,
+                  "30day": r.month_sale_count,
+                  allTime: r.total_sale_count,
+                }
                 : undefined,
               collectionBidSupported: Number(r.token_count) <= config.maxTokenSetSize,
               ownerCount: Number(r.owner_count),
               attributes: query.includeAttributes
                 ? _.map(_.sortBy(r.attributes, ["rank", "key"]), (attribute) => ({
-                    key: attribute.key,
-                    kind: attribute.kind,
-                    count: Number(attribute.count),
-                  }))
+                  key: attribute.key,
+                  kind: attribute.kind,
+                  count: Number(attribute.count),
+                }))
                 : undefined,
               contractKind: r.contract_kind,
               mintedTimestamp: r.minted_timestamp,
               mintStages: r.mint_stages
                 ? await Promise.all(
-                    r.mint_stages.map(async (m: any) => ({
-                      stage: m.stage,
-                      kind: m.kind,
-                      tokenId: m.tokenId,
-                      price: m.price
-                        ? await getJoiPriceObject({ gross: { amount: m.price } }, m.currency)
-                        : m.price,
-                      startTime: m.startTime,
-                      endTime: m.endTime,
-                      maxMintsPerWallet: m.maxMintsPerWallet,
-                    }))
-                  )
+                  r.mint_stages.map(async (m: any) => ({
+                    stage: m.stage,
+                    kind: m.kind,
+                    tokenId: m.tokenId,
+                    price: m.price
+                      ? await getJoiPriceObject({ gross: { amount: m.price } }, m.currency)
+                      : m.price,
+                    startTime: m.startTime,
+                    endTime: m.endTime,
+                    maxMintsPerWallet: m.maxMintsPerWallet,
+                  }))
+                )
                 : [],
               securityConfig: query.includeSecurityConfigs
                 ? {
-                    operatorWhitelist: r.operator_whitelist ? r.operator_whitelist : null,
-                    receiverAllowList: r.receiver_allowlist ? r.receiver_allowlist : null,
-                    transferSecurityLevel: r.transfer_security_level
-                      ? r.transfer_security_level
-                      : null,
-                    transferValidator: r.transfer_validator
-                      ? fromBuffer(r.transfer_validator)
-                      : null,
-                  }
+                  operatorWhitelist: r.operator_whitelist ? r.operator_whitelist : null,
+                  receiverAllowList: r.receiver_allowlist ? r.receiver_allowlist : null,
+                  transferSecurityLevel: r.transfer_security_level
+                    ? r.transfer_security_level
+                    : null,
+                  transferValidator: r.transfer_validator
+                    ? fromBuffer(r.transfer_validator)
+                    : null,
+                }
                 : undefined,
             },
             r.metadata_disabled
