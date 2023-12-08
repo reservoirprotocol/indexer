@@ -45,7 +45,7 @@ export class BackfillUsdPricesDatesJob extends AbstractRabbitMqJobHandler {
           )
           
           UPDATE usd_prices
-          SET created_at = to_timestamp(x."timestamp")
+          SET created_at = x."timestamp"
           FROM x
           WHERE usd_prices."timestamp" = x."timestamp"
           AND usd_prices.currency = x.currency
