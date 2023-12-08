@@ -29,7 +29,7 @@ export class BackfillTransactionTracesDatesJob extends AbstractRabbitMqJobHandle
     let cursor = "";
 
     if (hash) {
-      cursor = `AND hash >= $/hash/`;
+      cursor = `AND tt.hash >= $/hash/`;
       values.hash = toBuffer(hash);
     }
 
