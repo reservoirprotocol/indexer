@@ -1876,7 +1876,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 needed
               ),
             });
-          } else {
+          } else if (!payload.skipBalanceCheck) {
             throw Boom.badRequest("Insufficient balance");
           }
         }
