@@ -57,15 +57,27 @@ export const postExecuteMintV1Options: RouteOptions = {
               price: Joi.string().pattern(regex.number).required(),
               details: Joi.object({
                 tx: Joi.object({
-                  to: Joi.string().pattern(regex.address).required(),
+                  to: Joi.string()
+                    .pattern(regex.address)
+                    .required()
+                    .description("Contract where to send the mint transaction"),
                   data: Joi.object({
-                    signature: Joi.string().pattern(regex.bytes).required(),
-                    params: Joi.array().items(
-                      Joi.object({
-                        abiType: Joi.string().required(),
-                        abiValue: Joi.any().required(),
-                      })
-                    ),
+                    signature: Joi.string()
+                      .pattern(regex.bytes)
+                      .required()
+                      .description(
+                        "Signature of the mint function, computed as keccak256. For example: keccak256('mintWithRewards(address,uint256,uint256,bytes,address)'))"
+                      ),
+                    params: Joi.array()
+                      .items(
+                        Joi.object({
+                          abiType: Joi.string().required(),
+                          abiValue: Joi.any().required(),
+                        })
+                      )
+                      .description(
+                        "Parameters to be passed into the mint method, each parameter is made up of a type and a value."
+                      ),
                   }),
                 }),
               }).required(),
