@@ -30,8 +30,8 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
     expiresIn: 60 * 1000,
     privacy: "public",
   },
-  description: "Top Selling Collections",
-  notes: "Get top selling and minting collections",
+  description: "Top Trending Collections",
+  notes: "Get trending selling/minting collections",
   tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
