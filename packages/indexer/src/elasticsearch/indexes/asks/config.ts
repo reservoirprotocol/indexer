@@ -5,6 +5,12 @@ export const CONFIG_DEFAULT = {
   mappings: {
     dynamic: "false",
     properties: {
+      chain: {
+        properties: {
+          id: { type: "long" },
+          name: { type: "keyword" },
+        },
+      },
       id: { type: "keyword" },
       createdAt: { type: "date" },
       indexedAt: { type: "date" },

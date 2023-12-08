@@ -3,7 +3,7 @@
 import { elasticsearch } from "@/common/elasticsearch";
 import { logger } from "@/common/logger";
 
-import { getNetworkName, getNetworkSettings } from "@/config/network";
+import { getNetworkSettings } from "@/config/network";
 
 import * as CONFIG from "@/elasticsearch/indexes/asks/config";
 import { AskDocument } from "@/elasticsearch/indexes/asks/base";
@@ -16,9 +16,9 @@ import {
   Sort,
   SortResults,
 } from "@elastic/elasticsearch/lib/api/types";
-import { acquireLock } from "@/common/redis";
+import { acquireLockCrossChain } from "@/common/redis";
 
-const INDEX_NAME = `${getNetworkName()}.asks`;
+const INDEX_NAME = `asks`;
 
 export const save = async (asks: AskDocument[], upsert = true): Promise<void> => {
   try {
@@ -78,7 +78,7 @@ export const getIndexName = (): string => {
 };
 
 export const initIndex = async (): Promise<void> => {
-  const acquiredLock = await acquireLock("elasticsearch-asks-init-index", 60);
+  const acquiredLock = await acquireLockCrossChain("elasticsearch-asks-init-index", 60);
 
   if (!acquiredLock) {
     logger.info(
