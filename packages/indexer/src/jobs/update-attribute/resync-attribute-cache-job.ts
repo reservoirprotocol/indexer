@@ -30,7 +30,7 @@ export default class ResyncAttributeCacheJob extends AbstractRabbitMqJobHandler 
       logger.info(
         this.queueName,
         JSON.stringify({
-          message: `getSellFloorValueAndOnSaleCount. collectionId=${tokenAttribute.collectionId}, key=${tokenAttribute.key}, value=${tokenAttribute.value}, onSaleCount=${tokenAttribute.onSaleCount}`,
+          message: `getSellFloorValueAndOnSaleCount. collectionId=${tokenAttribute.collectionId}, key=${tokenAttribute.key}, value=${tokenAttribute.value}, onSaleCount=${onSaleCount}`,
           floorSell,
           onSaleCount,
         })
