@@ -61,7 +61,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     {
       contract: string;
       tokenId: string;
-      uri: string;
+      uri: string | null;
       error?: string;
     }[]
   > {
@@ -115,6 +115,18 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     });
 
     encodedTokens = encodedTokens.filter((token) => token !== null);
+    if (encodedTokens.length === 0) {
+      // return array of tokens with error
+      return tokenData.map((token) => {
+        return {
+          contract: token.contract,
+          tokenId: token.tokenId,
+          uri: null,
+          error: "Unsupported token standard",
+        };
+      });
+    }
+
     const [batch, error] = await this.sendBatch(encodedTokens);
 
     if (error) {
@@ -171,6 +183,23 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         }
       })
     );
+
+    // add tokens that are in the batch but not in the response
+    // (this happens when the token doesn't exist)
+    const missingTokens = tokenData.filter(
+      (token) =>
+        !resolvedURIs.find(
+          (uri) => uri.tokenId === token.tokenId && uri.contract === token.contract
+        )
+    );
+    missingTokens.forEach((token) => {
+      resolvedURIs.push({
+        contract: token.contract,
+        tokenId: token.tokenId,
+        uri: null,
+        error: "Token not found",
+      });
+    });
 
     return resolvedURIs;
   }
@@ -315,47 +344,65 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
   }
 
   encodeTokenERC721(token: any) {
-    const iface = new ethers.utils.Interface([
-      {
-        name: "tokenURI",
-        type: "function",
-        stateMutability: "view",
-        inputs: [
-          {
-            type: "uint256",
-            name: "tokenId",
-          },
-        ],
-      },
-    ]);
+    try {
+      const iface = new ethers.utils.Interface([
+        {
+          name: "tokenURI",
+          type: "function",
+          stateMutability: "view",
+          inputs: [
+            {
+              type: "uint256",
+              name: "tokenId",
+            },
+          ],
+        },
+      ]);
 
-    return {
-      id: token.requestId,
-      encodedTokenID: iface.encodeFunctionData("tokenURI", [token.tokenId]),
-      contract: token.contract,
-    };
+      return {
+        id: token.requestId,
+        encodedTokenID: iface.encodeFunctionData("tokenURI", [token.tokenId]),
+        contract: token.contract,
+      };
+    } catch (error) {
+      logger.error(
+        "onchain-fetcher",
+        `encodeTokenERC721 error. contractAddress:${token.contract}, tokenId:${token.tokenId}, error:${error}`
+      );
+
+      return null;
+    }
   }
 
   encodeTokenERC1155(token: any) {
-    const iface = new ethers.utils.Interface([
-      {
-        name: "uri",
-        type: "function",
-        stateMutability: "view",
-        inputs: [
-          {
-            type: "uint256",
-            name: "tokenId",
-          },
-        ],
-      },
-    ]);
+    try {
+      const iface = new ethers.utils.Interface([
+        {
+          name: "uri",
+          type: "function",
+          stateMutability: "view",
+          inputs: [
+            {
+              type: "uint256",
+              name: "tokenId",
+            },
+          ],
+        },
+      ]);
 
-    return {
-      id: token.requestId,
-      encodedTokenID: iface.encodeFunctionData("uri", [token.tokenId]),
-      contract: token.contract,
-    };
+      return {
+        id: token.requestId,
+        encodedTokenID: iface.encodeFunctionData("uri", [token.tokenId]),
+        contract: token.contract,
+      };
+    } catch (error) {
+      logger.error(
+        "onchain-fetcher",
+        `encodeTokenERC1155 error. contractAddress:${token.contract}, tokenId:${token.tokenId}, error:${error}`
+      );
+
+      return null;
+    }
   }
 
   getRPC() {

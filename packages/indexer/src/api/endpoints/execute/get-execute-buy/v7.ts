@@ -1427,9 +1427,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
         );
         const rawAmount = bn(adjustedFeeAmount).toString();
 
-        // To avoid numeric overflow
-        const maxBps = 10000;
-        const bps = bn(feeAmount).mul(10000).div(item.rawQuote);
+        // To avoid numeric overflow and division by zero
+        const maxBps = bn(10000);
+        const bps = bn(item.rawQuote).gt(0) ? bn(feeAmount).mul(10000).div(item.rawQuote) : maxBps;
 
         item.feesOnTop.push({
           recipient: fee.recipient,
@@ -1876,7 +1876,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 needed
               ),
             });
-          } else {
+          } else if (!payload.skipBalanceCheck) {
             throw Boom.badRequest("Insufficient balance");
           }
         }

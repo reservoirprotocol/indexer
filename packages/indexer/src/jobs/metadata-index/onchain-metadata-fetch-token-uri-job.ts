@@ -49,7 +49,7 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
           this.queueName,
           `Error. fetchUriTokenCount=${fetchTokens.length}, tokens=${JSON.stringify(
             fetchTokens
-          )}, error=${e}`
+          )}, error=${JSON.stringify(e)}`
         );
         throw e;
       }
@@ -71,7 +71,7 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
     // Filter out tokens that have no metadata
     results.forEach((result) => {
       if (result.uri) {
-        tokensToProcess.push(result);
+        tokensToProcess.push(result as { contract: string; tokenId: string; uri: string });
       } else {
         logger.warn(
           this.queueName,
