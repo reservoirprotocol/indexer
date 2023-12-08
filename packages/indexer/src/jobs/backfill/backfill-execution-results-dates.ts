@@ -49,7 +49,7 @@ export class BackfillExecutionResultsDatesJob extends AbstractRabbitMqJobHandler
           SET updated_at = x.created_at
           FROM x
           WHERE execution_results."id" = x."id"
-          RETURNING id
+          RETURNING x.id
         `,
       values
     );

@@ -49,7 +49,7 @@ export class BackfillDailyApiUsageDatesJob extends AbstractRabbitMqJobHandler {
           SET created_at = x.day, updated_at = x.day
           FROM x
           WHERE daily_api_usage."id" = x."id"
-          RETURNING id
+          RETURNING x.id
         `,
       values
     );

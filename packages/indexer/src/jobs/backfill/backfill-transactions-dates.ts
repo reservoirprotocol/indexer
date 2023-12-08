@@ -48,7 +48,7 @@ export class BackfillTransactionsDatesJob extends AbstractRabbitMqJobHandler {
           SET created_at = to_timestamp(x."block_timestamp")
           FROM x
           WHERE transactions."hash" = x."hash"
-          RETURNING hash
+          RETURNING x.hash
         `,
       values
     );

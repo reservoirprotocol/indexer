@@ -49,7 +49,7 @@ export class BackfillUsdPricesDatesJob extends AbstractRabbitMqJobHandler {
           FROM x
           WHERE usd_prices."timestamp" = x."timestamp"
           AND usd_prices.currency = x.currency
-          RETURNING currency
+          RETURNING x.currency
         `,
       values
     );

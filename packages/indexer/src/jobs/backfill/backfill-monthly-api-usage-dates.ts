@@ -49,7 +49,7 @@ export class BackfillMonthlyApiUsageDatesJob extends AbstractRabbitMqJobHandler 
           SET created_at = x.month, updated_at = x.month
           FROM x
           WHERE monthly_api_usage."id" = x."id"
-          RETURNING id
+          RETURNING x.id
         `,
       values
     );

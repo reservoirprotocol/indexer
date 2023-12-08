@@ -49,7 +49,7 @@ export class BackfillFtTransferEventsDatesJob extends AbstractRabbitMqJobHandler
           WHERE ft_transfer_events."timestamp" = x."timestamp"
           AND ft_transfer_events.tx_hash = x.tx_hash
           AND ft_transfer_events.log_index = x.log_index
-          RETURNING block
+          RETURNING ft_transfer_events.block
         `,
       values
     );
