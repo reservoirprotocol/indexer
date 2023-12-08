@@ -23,7 +23,7 @@ import { inject } from "@/api/index";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { JoiExecuteFee, JoiPrice, getJoiPriceObject } from "@/common/joi";
-import { baseProvider } from "@/common/provider";
+import { baseProvider, getGasFee } from "@/common/provider";
 import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { ApiKeyManager } from "@/models/api-keys";
@@ -144,9 +144,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
       forceRouter: Joi.boolean().description(
         "If true, all fills will be executed through the router (where possible)"
       ),
-      alternativeCurrencies: Joi.array()
-        .items(Joi.string().lowercase())
-        .description("Alternative currencies to return the quote in."),
       currency: Joi.string().lowercase().description("Currency to be used for purchases."),
       currencyChainId: Joi.number().description("The chain id of the purchase currency"),
       normalizeRoyalties: Joi.boolean().default(false).description("Charge any missing royalties."),
@@ -257,18 +254,19 @@ export const getExecuteBuyV7Options: RouteOptions = {
           quote: Joi.number().unsafe(),
           rawQuote: Joi.string().pattern(regex.number),
           buyInCurrency: Joi.string().lowercase().pattern(regex.address),
+          // buyInCurrencyChainId: Joi.number().optional().allow(null),
           buyInCurrencySymbol: Joi.string().optional().allow(null),
           buyInCurrencyDecimals: Joi.number().optional().allow(null),
           buyInQuote: Joi.number().unsafe(),
           buyInRawQuote: Joi.string().pattern(regex.number),
-          buyIn: Joi.array().items(JoiPrice),
           totalPrice: Joi.number().unsafe(),
           totalRawPrice: Joi.string().pattern(regex.number),
-          gasCost: Joi.string().pattern(regex.number),
           builtInFees: Joi.array()
             .items(JoiExecuteFee)
             .description("Can be marketplace fees or royalties"),
           feesOnTop: Joi.array().items(JoiExecuteFee).description("Can be referral fees."),
+          // TODO: To remove, only kept for backwards-compatibility reasons
+          gasCost: Joi.string().pattern(regex.number),
           fromChainId: Joi.number().description("Chain id buying from"),
         })
       ),
@@ -278,6 +276,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
           maxQuantity: Joi.string().pattern(regex.number).allow(null),
         })
       ),
+      fees: Joi.object({
+        gas: JoiPrice,
+        relayer: JoiPrice,
+      }),
+      // TODO: To remove, only kept for backwards-compatibility reasons
       gasEstimate: Joi.number(),
     }).label(`getExecuteBuy${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
@@ -315,17 +318,17 @@ export const getExecuteBuyV7Options: RouteOptions = {
         quote: number;
         rawQuote: string;
         buyInCurrency?: string;
+        // buyInCurrencyChainId?: number;
         buyInCurrencySymbol?: string;
         buyInCurrencyDecimals?: number;
         buyInQuote?: number;
         buyInRawQuote?: string;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        buyIn?: any[];
         // Total price (with fees on top) = price + feesOnTop
         totalPrice?: number;
         totalRawPrice?: string;
         builtInFees: ExecuteFee[];
         feesOnTop: ExecuteFee[];
+        // TODO: To remove, only kept for backwards-compatibility reasons
         gasCost?: string;
         fromChainId?: number;
       }[] = [];
@@ -1443,9 +1446,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
           .add(rawAmount)
           .toString();
 
-        // item.quote += amount;
-        // item.rawQuote = bn(item.rawQuote).add(rawAmount).toString();
-
         if (!detail.fees) {
           detail.fees = [];
         }
@@ -1562,68 +1562,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
           if (buyInPrices.currencyPrice) {
             const c = await getCurrency(buyInCurrency);
             item.buyInCurrency = c.contract;
+            // item.buyInCurrencyChainId = payload.currencyChainId ?? config.chainId;
             item.buyInCurrencyDecimals = c.decimals;
             item.buyInCurrencySymbol = c.symbol;
             item.buyInQuote = formatPrice(buyInPrices.currencyPrice, c.decimals, true);
             item.buyInRawQuote = buyInPrices.currencyPrice;
           }
-        }
-
-        if (payload.alternativeCurrencies) {
-          if (preview) {
-            throw Boom.badRequest("Cannot use alternative currencies with preview");
-          }
-
-          if (!item.buyIn) {
-            item.buyIn = [];
-          }
-
-          // Add the first path item's currency in the `alternativeCurrencies` list
-          const firstPathItemCurrency = `${path[0].currency}:${config.chainId}`;
-          if (!payload.alternativeCurrencies.includes(firstPathItemCurrency)) {
-            payload.alternativeCurrencies.push(firstPathItemCurrency);
-          }
-
-          await Promise.all(
-            payload.alternativeCurrencies.map(async (c: string) => {
-              try {
-                const [currency, chainId] = c.split(":");
-                if (Number(chainId) === config.chainId) {
-                  item.buyIn!.push(
-                    await getJoiPriceObject(
-                      {
-                        gross: { amount: item.rawQuote },
-                      },
-                      item.currency,
-                      currency
-                    )
-                  );
-                } else {
-                  if (currency !== Sdk.Common.Addresses.Native[Number(chainId)]) {
-                    throw Boom.badRequest("Unsupported alternative currency");
-                  }
-
-                  const { quote } = await getCrossChainQuote(Number(chainId), item);
-                  item.buyIn!.push(
-                    await getJoiPriceObject(
-                      {
-                        gross: { amount: quote },
-                      },
-                      currency
-                    ).then((p) => ({
-                      ...p,
-                      currency: {
-                        ...p.currency,
-                        chainId: Number(chainId),
-                      },
-                    }))
-                  );
-                }
-              } catch {
-                // Skip errors
-              }
-            })
-          );
         }
       }
 
@@ -1737,6 +1681,18 @@ export const getExecuteBuyV7Options: RouteOptions = {
         return {
           path,
           maxQuantities: preview ? maxQuantities : undefined,
+          fees: {
+            gas: getJoiPriceObject(
+              {
+                gross: {
+                  amount: (await getGasFee()).mul(estimateGasFromTxTags(txTags)).toString(),
+                },
+              },
+              // Gas fees are always paid in the native currency of the chain
+              Sdk.Common.Addresses.Native[config.chainId]
+            ),
+          },
+          // TODO: To remove, only kept for backwards-compatibility
           gasEstimate: estimateGasFromTxTags(txTags),
         };
       }
@@ -1771,16 +1727,35 @@ export const getExecuteBuyV7Options: RouteOptions = {
           })
           .then((response) => ({ quote: response.data.price, gasCost: response.data.gasCost }));
 
+        // TODO: To remove, only kept for backwards-compatibility
         item.quote = formatPrice(quote);
         item.rawQuote = quote;
         item.totalPrice = formatPrice(quote);
         item.totalRawPrice = quote;
         item.gasCost = gasCost;
 
+        // Better approach
+        // const c = await getCurrency(Sdk.Common.Addresses.WNative[config.chainId]);
+        // item.buyInCurrency = c.contract;
+        // item.buyInCurrencyChainId = config.chainId;
+        // item.buyInCurrencyDecimals = c.decimals;
+        // item.buyInCurrencySymbol = c.symbol;
+        // item.buyInQuote = formatPrice(quote);
+        // item.buyInRawQuote = quote;
+
         if (payload.onlyPath) {
           return {
             path,
             maxQuantities: preview ? maxQuantities : undefined,
+            fees: {
+              relayer: await getJoiPriceObject(
+                { gross: { amount: gasCost } },
+                Sdk.Common.Addresses.Native[config.chainId],
+                undefined,
+                undefined,
+                payload.currencyChainId
+              ),
+            },
           };
         }
 
@@ -1958,6 +1933,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         const { actualFromChainId, ccConfig, isCollectionRequest, tokenId, quote, gasCost } =
           await getCrossChainQuote(requestedFromChainId, item);
 
+        // TODO: To remove, only kept for backwards-compatibility
         item.totalPrice = formatPrice(quote);
         item.totalRawPrice = quote;
         item.quote = formatPrice(quote);
@@ -1965,12 +1941,41 @@ export const getExecuteBuyV7Options: RouteOptions = {
         item.fromChainId = actualFromChainId;
         item.gasCost = gasCost;
 
+        // Better approach
+        // const c = await getCurrency(Sdk.Common.Addresses.Native[config.chainId]);
+        // item.buyInCurrency = c.contract;
+        // item.buyInCurrencyChainId = payload.currencyChainId;
+        // item.buyInCurrencyDecimals = c.decimals;
+        // item.buyInCurrencySymbol = c.symbol;
+        // item.buyInQuote = formatPrice(quote);
+        // item.buyInRawQuote = quote;
+
         const needsDeposit = bn(ccConfig.availableBalance!).lt(quote);
 
         if (payload.onlyPath) {
           return {
             path,
             maxQuantities: preview ? maxQuantities : undefined,
+            fees: {
+              gas: needsDeposit
+                ? await getJoiPriceObject(
+                    {
+                      gross: {
+                        amount: (await getGasFee()).mul(100000).toString(),
+                      },
+                    },
+                    // Gas fees are always paid in the native currency of the chain
+                    Sdk.Common.Addresses.Native[config.chainId]
+                  )
+                : 0,
+              relayer: await getJoiPriceObject(
+                { gross: { amount: gasCost } },
+                Sdk.Common.Addresses.Native[config.chainId],
+                undefined,
+                undefined,
+                payload.currencyChainId
+              ),
+            },
             gasEstimate: needsDeposit ? 100000 : 0,
           };
         }

@@ -72,3 +72,5 @@ export const arweaveGateway = Arweave.init({
   port: 443,
   protocol: "https",
 });
+
+export const getGasFee = async () => baseProvider.getBlock("pending").then((b) => b.baseFeePerGas!);

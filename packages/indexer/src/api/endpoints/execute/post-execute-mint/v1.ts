@@ -13,7 +13,7 @@ import Joi from "joi";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { JoiExecuteFee, JoiPrice, getJoiPriceObject } from "@/common/joi";
-import { baseProvider } from "@/common/provider";
+import { baseProvider, getGasFee } from "@/common/provider";
 import { bn, formatPrice, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { ApiKeyManager } from "@/models/api-keys";
@@ -90,9 +90,7 @@ export const postExecuteMintV1Options: RouteOptions = {
       onlyPath: Joi.boolean()
         .default(false)
         .description("If true, only the path will be returned."),
-      alternativeCurrencies: Joi.array()
-        .items(Joi.string().lowercase())
-        .description("Alternative currencies to return the quote in."),
+      currency: Joi.string().lowercase().description("Currency to be used for purchases."),
       currencyChainId: Joi.number().description("The chain id of the purchase currency."),
       source: Joi.string()
         .lowercase()
@@ -166,11 +164,17 @@ export const postExecuteMintV1Options: RouteOptions = {
           currencyDecimals: Joi.number().optional().allow(null),
           quote: Joi.number().unsafe(),
           rawQuote: Joi.string().pattern(regex.number),
+          buyInCurrency: Joi.string().lowercase().pattern(regex.address),
+          // buyInCurrencyChainId: Joi.number().optional().allow(null),
+          buyInCurrencySymbol: Joi.string().optional().allow(null),
+          buyInCurrencyDecimals: Joi.number().optional().allow(null),
+          buyInQuote: Joi.number().unsafe(),
+          buyInRawQuote: Joi.string().pattern(regex.number),
           totalPrice: Joi.number().unsafe(),
           totalRawPrice: Joi.string().pattern(regex.number),
-          buyIn: Joi.array().items(JoiPrice),
-          gasCost: Joi.string().pattern(regex.number),
           feesOnTop: Joi.array().items(JoiExecuteFee).description("Can be referral fees."),
+          // TODO: To remove, only kept for backwards-compatibility reasons
+          gasCost: Joi.string().pattern(regex.number),
           fromChainId: Joi.number().description("Chain id buying from"),
         })
       ),
@@ -180,6 +184,11 @@ export const postExecuteMintV1Options: RouteOptions = {
           maxQuantity: Joi.string().pattern(regex.number).allow(null),
         })
       ),
+      fees: Joi.object({
+        gas: JoiPrice,
+        relayer: JoiPrice,
+      }),
+      // TODO: To remove, only kept for backwards-compatibility reasons
       gasEstimate: Joi.number(),
     }).label(`postExecuteMint${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
@@ -333,7 +342,7 @@ export const postExecuteMintV1Options: RouteOptions = {
 
         if (!item.quantity) {
           if (preview) {
-            item.quantity = useCrossChainIntent ? 1 : 30;
+            item.quantity = 30;
           } else {
             item.quantity = 1;
           }
@@ -501,6 +510,11 @@ export const postExecuteMintV1Options: RouteOptions = {
                         ? amountMintable.toString()
                         : null,
                     });
+
+                    // Solver filling is restricted to a single path item for now
+                    if (useCrossChainIntent && path.length >= 1) {
+                      break;
+                    }
                   }
 
                   item.quantity -= quantityToMint;
@@ -617,6 +631,11 @@ export const postExecuteMintV1Options: RouteOptions = {
                       itemIndex,
                       maxQuantity: amountMintable ? amountMintable.toString() : null,
                     });
+
+                    // Solver filling is restricted to a single path item for now
+                    if (useCrossChainIntent && path.length >= 1) {
+                      break;
+                    }
                   }
 
                   item.quantity -= quantityToMint;
@@ -696,9 +715,6 @@ export const postExecuteMintV1Options: RouteOptions = {
         item.totalRawPrice = bn(item.totalRawPrice ?? item.rawQuote)
           .add(rawAmount)
           .toString();
-
-        // item.quote += amount;
-        // item.rawQuote = bn(item.rawQuote).add(rawAmount).toString();
 
         if (!detail.fees) {
           detail.fees = [];
@@ -803,51 +819,6 @@ export const postExecuteMintV1Options: RouteOptions = {
         };
       };
 
-      // Add the quotes in the "buy-in" currency to the path items
-      for (const item of path) {
-        if (payload.alternativeCurrencies) {
-          if (preview) {
-            throw Boom.badRequest("Cannot use alternative currencies with preview");
-          }
-
-          if (!item.buyIn) {
-            item.buyIn = [];
-          }
-
-          // Add the first path item's currency in the `alternativeCurrencies` list
-          const firstPathItemCurrency = `${path[0].currency}:${config.chainId}`;
-          if (!payload.alternativeCurrencies.includes(firstPathItemCurrency)) {
-            payload.alternativeCurrencies.push(firstPathItemCurrency);
-          }
-
-          await Promise.all(
-            payload.alternativeCurrencies.map(async (c: string) => {
-              try {
-                const [currency, chainId] = c.split(":");
-
-                const { quote } = await getCrossChainQuote(Number(chainId), item);
-                item.buyIn!.push(
-                  await getJoiPriceObject(
-                    {
-                      gross: { amount: quote },
-                    },
-                    currency
-                  ).then((p) => ({
-                    ...p,
-                    currency: {
-                      ...p.currency,
-                      chainId: Number(chainId),
-                    },
-                  }))
-                );
-              } catch {
-                // Skip errors
-              }
-            })
-          );
-        }
-      }
-
       type StepType = {
         id: string;
         action: string;
@@ -882,6 +853,18 @@ export const postExecuteMintV1Options: RouteOptions = {
         return {
           path,
           maxQuantities: preview ? maxQuantities : undefined,
+          fees: {
+            gas: getJoiPriceObject(
+              {
+                gross: {
+                  amount: (await getGasFee()).mul(estimateGasFromTxTags(txTags)).toString(),
+                },
+              },
+              // Gas fees are always paid in the native currency of the chain
+              Sdk.Common.Addresses.Native[config.chainId]
+            ),
+          },
+          // TODO: To remove, only kept for backwards-compatibility
           gasEstimate: estimateGasFromTxTags(txTags),
         };
       }
@@ -903,8 +886,22 @@ export const postExecuteMintV1Options: RouteOptions = {
         const { actualFromChainId, ccConfig, isCollectionRequest, tokenId, quote, gasCost } =
           await getCrossChainQuote(requestedFromChainId, item, items[0].custom);
 
+        // TODO: To remove, only kept for backwards-compatibility
+        item.totalPrice = formatPrice(quote);
+        item.totalRawPrice = quote;
+        item.quote = formatPrice(quote);
+        item.rawQuote = quote;
         item.fromChainId = actualFromChainId;
         item.gasCost = gasCost;
+
+        // Better approach
+        // const c = await getCurrency(Sdk.Common.Addresses.Native[config.chainId]);
+        // item.buyInCurrency = c.contract;
+        // item.buyInCurrencyChainId = payload.currencyChainId;
+        // item.buyInCurrencyDecimals = c.decimals;
+        // item.buyInCurrencySymbol = c.symbol;
+        // item.buyInQuote = formatPrice(quote);
+        // item.buyInRawQuote = quote;
 
         const needsDeposit = bn(ccConfig.availableBalance!).lt(quote);
 
@@ -912,6 +909,27 @@ export const postExecuteMintV1Options: RouteOptions = {
           return {
             path,
             maxQuantities: preview ? maxQuantities : undefined,
+            fees: {
+              gas: needsDeposit
+                ? await getJoiPriceObject(
+                    {
+                      gross: {
+                        amount: (await getGasFee()).mul(100000).toString(),
+                      },
+                    },
+                    // Gas fees are always paid in the native currency of the chain
+                    Sdk.Common.Addresses.Native[config.chainId]
+                  )
+                : 0,
+              relayer: await getJoiPriceObject(
+                { gross: { amount: gasCost } },
+                Sdk.Common.Addresses.Native[config.chainId],
+                undefined,
+                undefined,
+                payload.currencyChainId
+              ),
+            },
+            // TODO: To remove, only kept for backwards-compatibility
             gasEstimate: needsDeposit ? 100000 : 0,
           };
         }
