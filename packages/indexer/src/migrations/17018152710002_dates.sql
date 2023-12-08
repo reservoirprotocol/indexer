@@ -6,8 +6,6 @@ ALTER TABLE "ft_balances" ADD COLUMN "updated_at" TIMESTAMPTZ;
 ALTER TABLE "ft_transfer_events" ADD COLUMN "created_at" TIMESTAMPTZ;
 ALTER TABLE "ft_transfer_events" ADD COLUMN "updated_at" TIMESTAMPTZ;
 
-ALTER TABLE "transaction_logs" ADD COLUMN "created_at" TIMESTAMPTZ;
-
 ALTER TABLE "transactions" ADD COLUMN "created_at" TIMESTAMPTZ;
 
 ALTER TABLE "transaction_traces" ADD COLUMN "created_at" TIMESTAMPTZ;
