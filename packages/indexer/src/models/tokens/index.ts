@@ -311,7 +311,7 @@ export class Tokens {
       attributeValue,
     });
 
-    if (result?.onSaleCount) {
+    if (result?.floorSell) {
       const floorSell = {
         id: result.floorSell.id,
         value: result.floorSell.value,
