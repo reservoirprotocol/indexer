@@ -405,9 +405,7 @@ export class RabbitMq {
       const channel = await connection.createChannel();
 
       for (const queue of queuesToDelete) {
-        if (await channel.checkQueue(queue)) {
-          await channel.deleteQueue(queue);
-        }
+        await channel.deleteQueue(queue);
       }
 
       await channel.close();
