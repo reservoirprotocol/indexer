@@ -62,16 +62,26 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
         limit,
       });
 
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "debugAskIndex",
+          message: `Debug generating ask documents.`,
+          query,
+          payload,
+          rawResults,
+        })
+      );
+
       if (rawResults.length) {
         for (const rawResult of rawResults) {
           const eventHandler = new AskCreatedEventHandler(rawResult.order_id);
-
           const askDocument = eventHandler.buildDocument(rawResult);
 
           askEvents.push({
             kind: "index",
             info: { id: eventHandler.getAskId(), document: askDocument },
-          });
+          } as AskEvent);
         }
 
         const lastResult = rawResults[rawResults.length - 1];

@@ -7,6 +7,7 @@ import {
 } from "@/elasticsearch/indexes/asks/base";
 import { config } from "@/config/index";
 import { toBuffer } from "@/common/utils";
+import { logger } from "@/common/logger";
 
 export abstract class BaseAskEventHandler {
   public orderId: string;
@@ -20,6 +21,15 @@ export abstract class BaseAskEventHandler {
   }
 
   public buildDocument(data: any): AskDocument {
+    logger.info(
+      this.queueName,
+      JSON.stringify({
+        topic: "debugAskIndex",
+        message: `buildDocument.`,
+        data,
+      })
+    );
+
     const buildAskDocumentData = {
       id: data.id,
       created_at: new Date(data.order_created_at),
