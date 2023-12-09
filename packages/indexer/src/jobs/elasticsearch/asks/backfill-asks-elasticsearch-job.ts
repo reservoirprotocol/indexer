@@ -48,14 +48,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
       }
 
       const query = `
-            ${AskCreatedEventHandler.buildBaseQuery()}
-              WHERE orders.side = 'sell'
-              ${
-                payload.onlyActive
-                  ? `AND orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`
-                  : ""
-              }
-              AND kind != 'element-erc1155'
+            ${AskCreatedEventHandler.buildBaseQuery(payload.onlyActive)}
               ${continuationFilter}
               ${fromTimestampFilter}
               ORDER BY updated_at, id
