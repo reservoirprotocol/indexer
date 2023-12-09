@@ -30,7 +30,7 @@ export class AskCreatedEventHandler extends BaseAskEventHandler {
     return { id, document };
   }
 
-  public static buildBaseQuery() {
+  public static buildBaseQuery(onlyActive = true) {
     const orderCriteriaSelectQueryPart = Orders.buildCriteriaQuery(
       "orders",
       "token_set_id",
@@ -105,8 +105,11 @@ export class AskCreatedEventHandler extends BaseAskEventHandler {
                     LIMIT 1
                  ) t ON TRUE
             WHERE orders.side = 'sell'
-            AND orders.fillability_status = 'fillable'
-            AND orders.approval_status = 'approved'
+            ${
+              onlyActive
+                ? `AND orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`
+                : ""
+            }
             AND orders.kind != 'element-erc1155'
                  `;
   }
