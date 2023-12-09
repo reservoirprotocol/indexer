@@ -35,14 +35,14 @@ export const postResumeRabbitQueueOptions: RouteOptions = {
       return { message: `${payload.queueName} already running` };
     }
 
-    await redis.publish(
-      Channel.ResumeRabbitConsumerQueue,
-      JSON.stringify({ queueName: payload.queueName })
-    );
-
     if (payload.allChains) {
       await allChainsSyncRedis.publish(
         AllChainsChannel.ResumeRabbitConsumerQueue,
+        JSON.stringify({ queueName: payload.queueName })
+      );
+    } else {
+      await redis.publish(
+        Channel.ResumeRabbitConsumerQueue,
         JSON.stringify({ queueName: payload.queueName })
       );
     }

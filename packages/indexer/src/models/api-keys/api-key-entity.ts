@@ -6,6 +6,7 @@ export enum ApiKeyPermission {
   update_metadata_disabled = "update_metadata_disabled",
   update_spam_status = "update_spam_status",
   entity_data_override = "entity_data_override",
+  invalidate_orders = "invalidate_orders",
 }
 
 // Define the fields we can update

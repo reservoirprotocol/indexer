@@ -47,12 +47,15 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           `Request was throttled. contract=${contract}, tokenId=${tokenId}, uri=${uri}`
         );
 
-        throw e;
+        // if this is the last retry, we don't throw to retry and instead we fallback to simplehash
+        if (Number(this.rabbitMqMessage?.retryCount) < this.maxRetries) {
+          throw e; // throw to retry
+        }
       }
-      // logger.error(
-      //   this.queueName,
-      //   `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, error=${e}, falling back to=${config.fallbackMetadataIndexingMethod}`
-      // );
+      logger.error(
+        this.queueName,
+        `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, error=${e}, falling back to=${config.fallbackMetadataIndexingMethod}`
+      );
     }
 
     if (!config.fallbackMetadataIndexingMethod) {

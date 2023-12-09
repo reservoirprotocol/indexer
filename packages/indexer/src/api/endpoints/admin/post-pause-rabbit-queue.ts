@@ -35,14 +35,14 @@ export const postPauseRabbitQueueOptions: RouteOptions = {
       return { message: `${payload.queueName} already paused` };
     }
 
-    await redis.publish(
-      Channel.PauseRabbitConsumerQueue,
-      JSON.stringify({ queueName: payload.queueName })
-    );
-
     if (payload.allChains) {
       await allChainsSyncRedis.publish(
         AllChainsChannel.PauseRabbitConsumerQueue,
+        JSON.stringify({ queueName: payload.queueName })
+      );
+    } else {
+      await redis.publish(
+        Channel.PauseRabbitConsumerQueue,
         JSON.stringify({ queueName: payload.queueName })
       );
     }

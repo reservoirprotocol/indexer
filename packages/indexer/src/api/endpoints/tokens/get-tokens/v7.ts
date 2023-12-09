@@ -906,12 +906,16 @@ export const getTokensV7Options: RouteOptions = {
         (query as any).tokenNameAsId = query.tokenName;
         query.tokenName = `%${query.tokenName}%`;
 
-        conditions.push(`
-          CASE
-            WHEN t.name IS NULL THEN t.token_id::text = $/tokenNameAsId/
-            ELSE t.name ILIKE $/tokenName/
-          END
-        `);
+        if (isNaN(query.tokenName)) {
+          conditions.push(`t.name ILIKE $/tokenName/`);
+        } else {
+          conditions.push(`
+            CASE
+              WHEN t.name IS NULL THEN t.token_id::text = $/tokenNameAsId/
+              ELSE t.name ILIKE $/tokenName/
+            END
+          `);
+        }
       }
 
       if (query.tokenSetId) {
