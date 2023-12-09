@@ -22,7 +22,7 @@ export abstract class BaseAskEventHandler {
 
   public buildDocument(data: any): AskDocument {
     logger.info(
-      this.queueName,
+      "BaseAskEventHandler",
       JSON.stringify({
         topic: "debugAskIndex",
         message: `buildDocument.`,
