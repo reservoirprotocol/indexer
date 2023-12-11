@@ -21,7 +21,7 @@ import {
 import { config } from "@/config/index";
 import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 import * as erc721c from "@/utils/erc721c";
 import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
 
@@ -696,6 +696,7 @@ export const getCollectionsV7Options: RouteOptions = {
              tokens.token_id AS floor_sell_token_id,
              tokens.name AS floor_sell_token_name,
              tokens.image AS floor_sell_token_image,
+             tokens.image_version AS floor_sell_token_image_version,
              orders.currency AS floor_sell_currency,
              ${
                query.normalizeRoyalties
@@ -859,7 +860,11 @@ export const getCollectionsV7Options: RouteOptions = {
                     : null,
                   tokenId: r.floor_sell_token_id,
                   name: r.floor_sell_token_name,
-                  image: Assets.getLocalAssetsLink(r.floor_sell_token_image),
+                  image: Assets.getResizedImageUrl(
+                    r.floor_sell_token_image,
+                    ImageSize.medium,
+                    r.floor_sell_token_image_version
+                  ),
                 },
               },
               topBid: {

@@ -100,7 +100,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
         GROUP BY "y"."address", "y"."owner"
       )
       ON CONFLICT ("contract", "owner") DO
-      UPDATE SET "amount" = "ft_balances"."amount" + "excluded"."amount"
+      UPDATE SET "amount" = "ft_balances"."amount" + "excluded"."amount", updated_at = now()
     `);
   }
 
@@ -149,7 +149,7 @@ export const removeEvents = async (block: number, blockHash: string) => {
         GROUP BY "y"."address", "y"."owner"
       )
       ON CONFLICT ("contract", "owner") DO
-      UPDATE SET "amount" = "ft_balances"."amount" + "excluded"."amount"
+      UPDATE SET "amount" = "ft_balances"."amount" + "excluded"."amount", updated_at = now()
     `,
     {
       block,

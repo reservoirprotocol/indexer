@@ -14,6 +14,8 @@ import axios from "axios";
 import pLimit from "p-limit";
 import { FailedPublishMessages } from "@/models/failed-publish-messages-list";
 import { randomUUID } from "crypto";
+import fs from "fs";
+import path from "path";
 
 export type RabbitMQMessage = {
   payload: any;
@@ -350,5 +352,67 @@ export class RabbitMq {
 
     await channel.close();
     await connection.close();
+  }
+
+  public static async deleteQueues(folderPath: string, doDelete: boolean): Promise<string[]> {
+    const abstract = await import("@/jobs/abstract-rabbit-mq-job-handler");
+    const jobsIndex = await import("@/jobs/index");
+
+    let queuesToDelete: string[] = [];
+    const files = fs.readdirSync(folderPath);
+
+    for (const file of files) {
+      const filePath = path.join(folderPath, file);
+      const stat = fs.statSync(filePath);
+
+      if (stat.isDirectory()) {
+        // Recursively search subdirectories
+        queuesToDelete = _.concat(queuesToDelete, await RabbitMq.deleteQueues(filePath, false));
+      } else if (filePath.endsWith(".ts") || filePath.endsWith(".js")) {
+        try {
+          const module = await import(filePath);
+          for (const exportedKey in module) {
+            const exportedItem = module[exportedKey];
+
+            if (
+              typeof exportedItem === "object" &&
+              exportedItem instanceof abstract.AbstractRabbitMqJobHandler
+            ) {
+              const job = _.find(
+                jobsIndex.RabbitMqJobsConsumer.getQueues(),
+                (queue) => queue.getQueue() === exportedItem.getQueue()
+              );
+              if (!job) {
+                queuesToDelete.push(exportedItem.getQueue());
+                queuesToDelete.push(exportedItem.getDeadLetterQueue());
+              }
+            }
+          }
+        } catch {
+          // Ignore errors
+        }
+      }
+    }
+
+    // Do the actual delete only on the original function call
+    if (doDelete && !_.isEmpty(queuesToDelete)) {
+      const connection = await amqplib.connect({
+        hostname: config.rabbitHostname,
+        username: config.rabbitUsername,
+        password: config.rabbitPassword,
+        vhost: getNetworkName(),
+      });
+
+      const channel = await connection.createChannel();
+
+      for (const queue of queuesToDelete) {
+        await channel.deleteQueue(queue);
+      }
+
+      await channel.close();
+      await connection.close();
+    }
+
+    return queuesToDelete;
   }
 }

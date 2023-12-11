@@ -321,7 +321,7 @@ export class ApiKeyManager {
   }
 
   public static async update(key: string, fields: ApiKeyUpdateParams) {
-    let updateString = "";
+    let updateString = "updated_at = now(),";
     const replacementValues = {
       key,
     };
