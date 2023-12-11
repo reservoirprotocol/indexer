@@ -3,6 +3,7 @@ import { idb } from "@/common/db";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import _ from "lodash";
+import { config } from "@/config/index";
 
 export type BackfillFtTransferEventsDatesJobCursorInfo = {
   block: number;
@@ -22,7 +23,11 @@ export class BackfillFtTransferEventsDatesJob extends AbstractRabbitMqJobHandler
       limit: number;
       block?: number;
     } = {
-      limit: 500,
+      limit: _.includes([56, 324, 42161], config.chainId)
+        ? config.chainId === 324
+          ? 10
+          : 50
+        : 500,
     };
 
     let cursor = "";
@@ -88,9 +93,9 @@ export const backfillFtTransferEventsDatesJob = new BackfillFtTransferEventsDate
 
 // if (config.chainId !== 1) {
 //   redlock
-//     .acquire(["backfill-ft-transfer-events-dates-lock"], 60 * 60 * 24 * 30 * 1000)
+//     .acquire([`${backfillFtTransferEventsDatesJob.getQueue()}-lock`], 60 * 60 * 24 * 30 * 1000)
 //     .then(async () => {
-//       await backfillUserCollectionsJob.addToQueue().
+//       await backfillFtTransferEventsDatesJob.addToQueue().
 //     })
 //     .catch(() => {
 //       // Skip on any errors

@@ -125,7 +125,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
         .filter((askEvent) => askEvent.kind == "index")
         .flatMap((askEvent) => [
           { index: { _index: AskIndex.getIndexName(), _id: askEvent.info.id } },
-          askEvent.info.id,
+          askEvent.info.document,
         ]);
       const bulkDeleteOps = askEvents
         .filter((askEvent) => askEvent.kind == "delete")
