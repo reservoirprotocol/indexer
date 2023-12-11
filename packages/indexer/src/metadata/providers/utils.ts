@@ -192,6 +192,7 @@ export function limitFieldSize(value: any) {
       "limitFieldSize",
       JSON.stringify({
         size: new TextEncoder().encode(value).length,
+        value: value,
       })
     );
     return new TextEncoder().encode(value).length > config.metadataMaxFieldSizeMB * 1024 * 1024
@@ -200,7 +201,7 @@ export function limitFieldSize(value: any) {
   } else {
     logger.info(
       "limitFieldSize",
-      JSON.stringify({ size: new TextEncoder().encode(JSON.stringify(value)).length })
+      JSON.stringify({ size: new TextEncoder().encode(JSON.stringify(value)).length, value: value })
     );
     return (
       new TextEncoder().encode(JSON.stringify(value)).length >
