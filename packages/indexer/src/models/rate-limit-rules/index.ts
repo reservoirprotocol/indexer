@@ -285,7 +285,7 @@ export class RateLimitRules {
 
   public static async getApiKeyRateLimits(key: string) {
     const apiKey = await ApiKeyManager.getApiKey(key);
-    const tier = apiKey?.tier || 0;
+    const tier = _.max([apiKey?.tier || 0, 0]);
 
     const query = `SELECT DISTINCT ON (route) *
                    FROM rate_limit_rules
