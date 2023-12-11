@@ -62,6 +62,8 @@ export const getOwnersCountV1Options: RouteOptions = {
       (query as any).contract = toBuffer(contract);
       (query as any).tokenId = tokenId;
       tokensFilter = `tokens.contract = $/contract/ AND tokens.token_id = $/tokenId/`;
+    } else {
+      throw new Error("Either contract or token must be provided");
     }
 
     try {
@@ -83,14 +85,14 @@ export const getOwnersCountV1Options: RouteOptions = {
         ORDER BY owners_count DESC, nft_balances.owner
       `;
 
-      const result = await redb
+      const owners_count = await redb
         .manyOrNone(baseQuery, query)
         .then((result) => result[0]?.owners_count ?? 0);
 
-      return { owners_count: await Promise.all(result) };
+      return { owners_count };
     } catch (error) {
       logger.error(`get-owners-count-${version}-handler`, `Handler failure: ${error}`);
-      // throw error;
+      throw error;
     }
   },
 };

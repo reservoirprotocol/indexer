@@ -255,10 +255,13 @@ export const start = async (): Promise<void> => {
                 error.consumedPoints % 50 == 0)
             ) {
               const log = {
-                message: `${rateLimitKey} ${apiKey?.appName || ""} reached allowed rate limit ${rateLimitRule.rule.points
-                  } credits in ${rateLimitRule.rule.duration}s by calling ${error.consumedPoints
-                  } times on route ${request.route.path}${request.info.referrer ? ` from referrer ${request.info.referrer} ` : ""
-                  } x-api-key ${key}`,
+                message: `${rateLimitKey} ${apiKey?.appName || ""} reached allowed rate limit ${
+                  rateLimitRule.rule.points
+                } credits in ${rateLimitRule.rule.duration}s by calling ${
+                  error.consumedPoints
+                } times on route ${request.route.path}${
+                  request.info.referrer ? ` from referrer ${request.info.referrer} ` : ""
+                } x-api-key ${key}`,
                 route: request.route.path,
                 appName: apiKey?.appName || "",
                 key: rateLimitKey,
@@ -268,11 +271,13 @@ export const start = async (): Promise<void> => {
               logger.warn("rate-limiter", JSON.stringify(log));
             }
 
-            const message = `Max ${rateLimitRule.rule.points} credits in ${rateLimitRule.rule.duration
-              }s reached, Detected tier ${tier}, Blocked by rule ID ${rateLimitRule.ruleParams.id}${!_.isEmpty(rateLimitRule.ruleParams.payload)
+            const message = `Max ${rateLimitRule.rule.points} credits in ${
+              rateLimitRule.rule.duration
+            }s reached, Detected tier ${tier}, Blocked by rule ID ${rateLimitRule.ruleParams.id}${
+              !_.isEmpty(rateLimitRule.ruleParams.payload)
                 ? ` Payload ${JSON.stringify(rateLimitRule.ruleParams.payload)}`
                 : ``
-              }. Please register for an API key by creating a free account at https://dashboard.reservoir.tools to increase your rate limit.`;
+            }. Please register for an API key by creating a free account at https://dashboard.reservoir.tools to increase your rate limit.`;
 
             const tooManyRequestsResponse = {
               statusCode: 429,
@@ -369,6 +374,7 @@ export const start = async (): Promise<void> => {
   server.listener.keepAliveTimeout = 61000;
 
   await server.start();
+
   logger.info("process", `Started on port ${config.port}`);
 };
 
