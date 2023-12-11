@@ -92,7 +92,7 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
     throw error;
   }
 
-  parseToken(metadata: any): TokenMetadata {
+  _parseToken(metadata: any): TokenMetadata {
     const {
       image_original_url,
       animation_original_url,

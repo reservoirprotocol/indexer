@@ -1,4 +1,6 @@
+import { logger } from "@/common/logger";
 import { Collection, MapEntry, Metadata } from "../types";
+import { config } from "@/config/index";
 
 export const normalizeLink = (link: string) => {
   if (link && link.startsWith("ipfs://")) {
@@ -180,5 +182,29 @@ export class CollectionNotFoundError extends Error {
     super(message);
 
     Object.setPrototypeOf(this, CollectionNotFoundError.prototype);
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function limitFieldSize(value: any) {
+  if (typeof value === "string") {
+    logger.info(
+      "limitFieldSize",
+      JSON.stringify({
+        size: new TextEncoder().encode(value).length,
+      })
+    );
+    return new TextEncoder().encode(value).length > config.metadataMaxFieldSizeMB * 1024 * 1024
+      ? null
+      : value;
+  } else {
+    logger.info(
+      "limitFieldSize",
+      JSON.stringify({ size: new TextEncoder().encode(JSON.stringify(value)).length })
+    );
+    return (
+      new TextEncoder().encode(JSON.stringify(value)).length >
+      config.metadataMaxFieldSizeMB * 1024 * 1024
+    );
   }
 }
