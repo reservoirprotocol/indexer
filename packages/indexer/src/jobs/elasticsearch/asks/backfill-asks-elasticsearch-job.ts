@@ -134,9 +134,19 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
         }));
 
       if (bulkIndexOps.length) {
-        await elasticsearch.bulk({
+        const response = await elasticsearch.bulk({
           body: bulkIndexOps,
         });
+
+        logger.error(
+          this.queueName,
+          JSON.stringify({
+            topic: "debugAskIndex",
+            message: `Errors in response`,
+            bulkIndexOps,
+            response,
+          })
+        );
       }
 
       if (bulkDeleteOps.length) {
@@ -152,6 +162,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
           message: `Indexed ${bulkIndexOps.length} asks. Deleted ${bulkDeleteOps.length} asks`,
           payload,
           nextCursor,
+          indexName: AskIndex.getIndexName(),
         })
       );
 
