@@ -15,7 +15,7 @@ export const getCollectionTopTradersV1Options: RouteOptions = {
   },
   description: "Top Traders",
   notes: "Get top traders for a particular collection",
-  tags: ["api", "Owners"],
+  tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
       order: 6,
