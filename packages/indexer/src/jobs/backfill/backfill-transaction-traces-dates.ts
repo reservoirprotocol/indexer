@@ -4,6 +4,8 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import _ from "lodash";
 import { fromBuffer, toBuffer } from "@/common/utils";
+import { redlock } from "@/common/redis";
+import { config } from "@/config/index";
 
 export type BackfillTransactionTracesDatesJobCursorInfo = {
   hash: string;
@@ -86,13 +88,13 @@ export class BackfillTransactionTracesDatesJob extends AbstractRabbitMqJobHandle
 
 export const backfillTransactionTracesDatesJob = new BackfillTransactionTracesDatesJob();
 
-// if (config.chainId !== 1) {
-//   redlock
-//     .acquire(["backfill-user-collections-lock-4"], 60 * 60 * 24 * 30 * 1000)
-//     .then(async () => {
-//       await backfillUserCollectionsJob.addToQueue().
-//     })
-//     .catch(() => {
-//       // Skip on any errors
-//     });
-// }
+if (config.chainId) {
+  redlock
+    .acquire(["backfill-transaction-traces-dates-lock-2"], 60 * 60 * 24 * 30 * 1000)
+    .then(async () => {
+      await backfillTransactionTracesDatesJob.addToQueue();
+    })
+    .catch(() => {
+      // Skip on any errors
+    });
+}

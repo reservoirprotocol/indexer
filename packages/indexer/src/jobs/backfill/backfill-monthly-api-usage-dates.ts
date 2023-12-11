@@ -85,7 +85,7 @@ export const backfillMonthlyApiUsageDatesJob = new BackfillMonthlyApiUsageDatesJ
 
 // if (config.chainId !== 1) {
 //   redlock
-//     .acquire(["backfill-user-collections-lock-4"], 60 * 60 * 24 * 30 * 1000)
+//     .acquire(["backfill-monthly-api-usage-dates-lock"], 60 * 60 * 24 * 30 * 1000)
 //     .then(async () => {
 //       await backfillUserCollectionsJob.addToQueue().
 //     })
