@@ -30,6 +30,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
     }
 
     let nextCursor;
+    let query;
 
     const askEvents: AskEvent[] = [];
 
@@ -47,7 +48,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
         fromTimestampFilter = `AND (orders.updated_at) > (to_timestamp($/fromTimestamp/))`;
       }
 
-      const query = `
+      query = `
             ${AskCreatedEventHandler.buildBaseQuery(payload.onlyActive)}
               ${continuationFilter}
               ${fromTimestampFilter}
@@ -75,13 +76,26 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
 
       if (rawResults.length) {
         for (const rawResult of rawResults) {
-          const eventHandler = new AskCreatedEventHandler(rawResult.order_id);
-          const askDocument = eventHandler.buildDocument(rawResult);
+          try {
+            const eventHandler = new AskCreatedEventHandler(rawResult.order_id);
+            const askDocument = eventHandler.buildDocument(rawResult);
 
-          askEvents.push({
-            kind: "index",
-            info: { id: eventHandler.getAskId(), document: askDocument },
-          } as AskEvent);
+            askEvents.push({
+              kind: "index",
+              info: { id: eventHandler.getAskId(), document: askDocument },
+            } as AskEvent);
+          } catch (error) {
+            logger.error(
+              this.queueName,
+              JSON.stringify({
+                topic: "debugAskIndex",
+                message: `Error generating ask document. error=${error}`,
+                error,
+                payload,
+                rawResult,
+              })
+            );
+          }
         }
 
         const lastResult = rawResults[rawResults.length - 1];
@@ -96,9 +110,10 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
         this.queueName,
         JSON.stringify({
           topic: "debugAskIndex",
-          message: `Error generating ask document. error=${error}`,
+          message: `Error generating ask documents. error=${error}`,
           error,
           payload,
+          query,
         })
       );
 
