@@ -16,8 +16,6 @@ import { FailedPublishMessages } from "@/models/failed-publish-messages-list";
 import { randomUUID } from "crypto";
 import fs from "fs";
 import path from "path";
-import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { RabbitMqJobsConsumer } from "@/jobs/index";
 
 export type RabbitMQMessage = {
   payload: any;
@@ -357,6 +355,9 @@ export class RabbitMq {
   }
 
   public static async deleteQueues(folderPath: string, doDelete: boolean): Promise<string[]> {
+    const abstract = await import("@/jobs/abstract-rabbit-mq-job-handler");
+    const jobsIndex = await import("@/jobs/index");
+
     let queuesToDelete: string[] = [];
     const files = fs.readdirSync(folderPath);
 
@@ -375,10 +376,10 @@ export class RabbitMq {
 
             if (
               typeof exportedItem === "object" &&
-              exportedItem instanceof AbstractRabbitMqJobHandler
+              exportedItem instanceof abstract.AbstractRabbitMqJobHandler
             ) {
               const job = _.find(
-                RabbitMqJobsConsumer.getQueues(),
+                jobsIndex.RabbitMqJobsConsumer.getQueues(),
                 (queue) => queue.getQueue() === exportedItem.getQueue()
               );
               if (!job) {

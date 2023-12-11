@@ -868,7 +868,7 @@ export const getCollectionsV7Options: RouteOptions = {
                   name: r.floor_sell_token_name,
                   image: Assets.getResizedImageUrl(
                     r.floor_sell_token_image,
-                    undefined,
+                    ImageSize.medium,
                     r.floor_sell_token_image_version
                   ),
                 },

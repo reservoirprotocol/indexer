@@ -90,7 +90,7 @@ export const backfillTransactionTracesDatesJob = new BackfillTransactionTracesDa
 
 if (config.chainId) {
   redlock
-    .acquire(["backfill-transaction-traces-dates-lock-2"], 60 * 60 * 24 * 30 * 1000)
+    .acquire(["backfill-transaction-traces-dates-lock-3"], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
       await backfillTransactionTracesDatesJob.addToQueue();
     })
