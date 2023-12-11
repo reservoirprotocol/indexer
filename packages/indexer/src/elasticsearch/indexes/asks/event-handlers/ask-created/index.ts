@@ -72,6 +72,7 @@ export class AskCreatedEventHandler extends BaseAskEventHandler {
             JOIN LATERAL (
                     SELECT
                         tokens.token_id,
+                        tokens.contract,
                         tokens.name AS "token_name",
                         tokens.image AS "token_image",
                         tokens.media AS "token_media",
