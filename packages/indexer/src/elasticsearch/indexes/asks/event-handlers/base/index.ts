@@ -6,7 +6,6 @@ import {
   BuildAskDocumentData,
 } from "@/elasticsearch/indexes/asks/base";
 import { config } from "@/config/index";
-import { toBuffer } from "@/common/utils";
 import { logger } from "@/common/logger";
 
 export abstract class BaseAskEventHandler {
@@ -33,7 +32,7 @@ export abstract class BaseAskEventHandler {
     const buildAskDocumentData = {
       id: data.id,
       created_at: new Date(data.order_created_at),
-      contract: toBuffer(data.contract),
+      contract: data.contract,
       token_id: data.token_id,
       token_name: data.token_name,
       token_image: data.token_image,
