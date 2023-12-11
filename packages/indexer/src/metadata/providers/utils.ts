@@ -187,21 +187,26 @@ export class CollectionNotFoundError extends Error {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function limitFieldSize(value: any) {
-  let size = 0;
-  if (typeof value === "string") {
-    size = new TextEncoder().encode(value).length;
-  } else {
-    size = new TextEncoder().encode(JSON.stringify(value)).length;
-  }
+  try {
+    let size = 0;
+    if (typeof value === "string") {
+      size = new TextEncoder().encode(value).length;
+    } else {
+      size = new TextEncoder().encode(JSON.stringify(value)).length;
+    }
 
-  if (size > config.metadataMaxFieldSizeMB * 1024 * 1024) {
-    logger.info(
-      "limitFieldSize",
-      JSON.stringify({
-        size: new TextEncoder().encode(value).length,
-        value: value,
-      })
-    );
+    if (size > config.metadataMaxFieldSizeMB * 1024 * 1024) {
+      logger.info(
+        "limitFieldSize",
+        JSON.stringify({
+          size: new TextEncoder().encode(value).length,
+          value: value,
+        })
+      );
+    }
+    return size > config.metadataMaxFieldSizeMB * 1024 * 1024 ? null : value;
+  } catch (error) {
+    logger.error("limitFieldSize", `Error: ${error}`);
+    return value;
   }
-  return size > config.metadataMaxFieldSizeMB * 1024 * 1024 ? null : value;
 }
