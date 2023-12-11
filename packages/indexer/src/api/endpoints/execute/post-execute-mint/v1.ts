@@ -33,10 +33,10 @@ import { ExecutionsBuffer } from "@/utils/executions";
 const version = "v1";
 
 export const postExecuteMintV1Options: RouteOptions = {
-  description: "Mint tokens",
+  description: "Mint Tokens",
   notes:
     "Use this API to mint tokens. We recommend using the SDK over this API as the SDK will iterate through the steps and return callbacks.",
-  tags: ["api", "Fill Orders (buy & sell)"],
+  tags: ["api", "Trading"],
   timeout: {
     server: 40 * 1000,
   },
