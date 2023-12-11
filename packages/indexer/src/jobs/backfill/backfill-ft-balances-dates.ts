@@ -4,6 +4,7 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import _ from "lodash";
 import { fromBuffer, toBuffer } from "@/common/utils";
+import { config } from "@/config/index";
 
 export type BackfillFtBalancesDatesJobCursorInfo = {
   owner: string;
@@ -25,7 +26,11 @@ export class BackfillFtBalancesDatesJob extends AbstractRabbitMqJobHandler {
       contract?: Buffer;
       owner?: Buffer;
     } = {
-      limit: 500,
+      limit: _.includes([56, 324, 42161], config.chainId)
+        ? config.chainId === 324
+          ? 10
+          : 50
+        : 500,
     };
 
     let cursor = "";
@@ -87,9 +92,9 @@ export const backfillFtBalancesDatesJob = new BackfillFtBalancesDatesJob();
 
 // if (config.chainId !== 1) {
 //   redlock
-//     .acquire(["backfill-ft-balances-dates-lock"], 60 * 60 * 24 * 30 * 1000)
+//     .acquire([`${backfillFtBalancesDatesJob.getQueue()}-lock`], 60 * 60 * 24 * 30 * 1000)
 //     .then(async () => {
-//       await backfillUserCollectionsJob.addToQueue().
+//       await backfillFtBalancesDatesJob.addToQueue().
 //     })
 //     .catch(() => {
 //       // Skip on any errors

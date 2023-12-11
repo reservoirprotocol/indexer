@@ -3,6 +3,7 @@ import { idb } from "@/common/db";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import _ from "lodash";
+import { config } from "@/config/index";
 
 export type BackfillExecutionsDatesJobCursorInfo = {
   id?: number;
@@ -22,7 +23,11 @@ export class BackfillExecutionsDatesJob extends AbstractRabbitMqJobHandler {
       limit: number;
       id?: number;
     } = {
-      limit: 500,
+      limit: _.includes([56, 324, 42161], config.chainId)
+        ? config.chainId === 324
+          ? 10
+          : 50
+        : 500,
     };
 
     let addToQueue = false;
@@ -85,9 +90,9 @@ export const backfillExecutionsDatesJob = new BackfillExecutionsDatesJob();
 
 // if (config.chainId !== 1) {
 //   redlock
-//     .acquire(["backfill-executions-dates-lock"], 60 * 60 * 24 * 30 * 1000)
+//     .acquire([`${backfillExecutionsDatesJob.getQueue()}-lock`], 60 * 60 * 24 * 30 * 1000)
 //     .then(async () => {
-//       await backfillUserCollectionsJob.addToQueue().
+//       await backfillExecutionsDatesJob.addToQueue().
 //     })
 //     .catch(() => {
 //       // Skip on any errors

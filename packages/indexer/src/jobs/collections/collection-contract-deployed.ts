@@ -69,6 +69,7 @@ export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler
 
     const { symbol, name } = await getContractNameAndSymbol(contract);
 
+    const rawMetadata = await onchainMetadataProvider.getContractURI(contract);
     const contractMetadata = await onchainMetadataProvider._getCollectionMetadata(contract);
 
     await Promise.all([
@@ -99,7 +100,7 @@ export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler
           symbol: symbol || null,
           name: name || null,
           deployed_at: payload.blockTimestamp ? new Date(payload.blockTimestamp * 1000) : null,
-          metadata: contractMetadata ? contractMetadata : null,
+          metadata: rawMetadata ? rawMetadata : null,
           deployer: deployer ? toBuffer(deployer) : null,
         }
       ),
@@ -130,7 +131,7 @@ export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler
               contract: toBuffer(contract),
               creator: deployer ? toBuffer(deployer) : null,
               tokenSetId: `contract:${contract}`,
-              metadata: contractMetadata ? contractMetadata : null,
+              metadata: contractMetadata?.metadata ? contractMetadata?.metadata : null,
             }
           )
         : null,
