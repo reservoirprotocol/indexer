@@ -17,6 +17,7 @@ import {
   SortResults,
 } from "@elastic/elasticsearch/lib/api/types";
 import { acquireLockCrossChain } from "@/common/redis";
+import { config } from "@/config/index";
 
 const INDEX_NAME = `asks`;
 
@@ -210,7 +211,16 @@ export const searchTokenAsks = async (params: {
 }): Promise<{ asks: AskDocument[]; continuation: string | null }> => {
   const esQuery = {};
 
-  (esQuery as any).bool = { filter: [], must_not: [] };
+  (esQuery as any).bool = {
+    filter: [
+      {
+        term: {
+          "chain.id": config.chainId,
+        },
+      },
+    ],
+    must_not: [],
+  };
 
   if (params.collections?.length) {
     const collections = params.collections.map((collection) => collection.toLowerCase());
@@ -571,6 +581,11 @@ export const updateAsksTokenData = async (
       must: [
         {
           term: {
+            "chain.id": config.chainId,
+          },
+        },
+        {
+          term: {
             contractAndTokenId: `${contract}:${tokenId}`,
           },
         },
@@ -728,6 +743,11 @@ export const updateAsksCollectionData = async (
   const query = {
     bool: {
       must: [
+        {
+          term: {
+            "chain.id": config.chainId,
+          },
+        },
         {
           term: {
             "collection.id": collectionId,
