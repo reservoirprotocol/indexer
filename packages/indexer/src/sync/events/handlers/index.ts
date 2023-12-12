@@ -168,8 +168,10 @@ export const processEventsBatchV2 = async (batches: EventsBatch[]) => {
 
   const latencies: {
     eventKind: EventKind;
+    eventsCount: number;
     latency: number;
   }[] = [];
+
   await Promise.all(
     flattenedArray.map(async (events) => {
       const startTime = Date.now();
@@ -193,6 +195,7 @@ export const processEventsBatchV2 = async (batches: EventsBatch[]) => {
 
       latencies.push({
         eventKind: events.kind,
+        eventsCount: events.data.length,
         latency: endTime - startTime,
       });
     })

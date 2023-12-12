@@ -654,7 +654,7 @@ export const getUserTokensV7Options: RouteOptions = {
       if (query.sortBy === "acquiredAt") {
         baseQuery += `
         ORDER BY
-          acquired_at ${query.sortDirection}, b.token_id ${query.sortDirection}
+          b.acquired_at ${query.sortDirection}, b.token_id ${query.sortDirection}
         LIMIT $/limit/
       `;
       } else {

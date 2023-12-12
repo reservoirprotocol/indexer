@@ -18,7 +18,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import { WebSocket } from "ws";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import { now } from "lodash";
+import { now } from "@/common/utils";
 import { config } from "@/config/index";
 import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
 import { generateHash } from "@/websockets/opensea/utils";
@@ -39,6 +39,8 @@ import { openseaListingsJob } from "@/jobs/orderbook/opensea-listings-job";
 import { getNetworkSettings, getOpenseaNetworkName } from "@/config/network";
 import { openseaMetadataProvider } from "@/metadata/providers/opensea-metadata-provider";
 import _ from "lodash";
+
+let lastReceivedEventTimestamp: number;
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = getNetworkSettings().isTestnet ? Network.TESTNET : Network.MAINNET;
@@ -72,6 +74,8 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     ],
     async (event) => {
       try {
+        lastReceivedEventTimestamp = now();
+
         if (await isDuplicateEvent(event)) {
           return;
         }
@@ -300,4 +304,8 @@ export const parseProtocolData = (payload: unknown): ProtocolData | undefined =>
   }
 
   return undefined;
+};
+
+export const getLastReceivedEventTimestamp = (): number => {
+  return lastReceivedEventTimestamp;
 };

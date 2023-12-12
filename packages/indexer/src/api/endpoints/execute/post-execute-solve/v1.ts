@@ -30,8 +30,9 @@ export const postExecuteSolveV1Options: RouteOptions = {
       Joi.object({
         kind: Joi.string().valid("cross-chain-intent").required(),
         order: Joi.any(),
+        request: Joi.any(),
         tx: Joi.string().pattern(regex.bytes),
-        chainId: Joi.number().required(),
+        chainId: Joi.number(),
         context: Joi.any(),
       })
     ),
@@ -58,7 +59,25 @@ export const postExecuteSolveV1Options: RouteOptions = {
     try {
       switch (payload.kind) {
         case "cross-chain-intent": {
-          if (payload.order) {
+          if (payload.request) {
+            const response = await axios
+              .post(`${config.crossChainSolverBaseUrl}/intents/trigger`, {
+                request: payload.request,
+                signature: query.signature,
+              })
+              .then((response) => response.data);
+
+            return {
+              status: {
+                endpoint: "/execute/status/v1",
+                method: "POST",
+                body: {
+                  kind: payload.kind,
+                  id: response.requestId,
+                },
+              },
+            };
+          } else if (payload.order) {
             const response = await axios
               .post(`${config.crossChainSolverBaseUrl}/intents/trigger`, {
                 chainId: payload.chainId,

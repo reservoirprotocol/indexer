@@ -711,7 +711,7 @@ export const getNetworkSettings = (): NetworkSettings => {
             {
               contract: "0x456f931298065b1852647de005dd27227146d8b9",
               name: "WVAL",
-              symbol: "$VAL",
+              symbol: "WVAL",
               decimals: 18,
               metadata: {
                 image: "https://i.ibb.co/YRFynrp/wvallogo.png",
