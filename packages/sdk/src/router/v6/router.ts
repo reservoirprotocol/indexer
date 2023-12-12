@@ -81,6 +81,7 @@ type SetupOptions = {
   x2y2ApiKey?: string;
   openseaApiKey?: string;
   cbApiKey?: string;
+  zeroExApiKey?: string;
   orderFetcherBaseUrl?: string;
   orderFetcherMetadata?: object;
 };
@@ -2536,7 +2537,12 @@ export class Router {
 
           // Attach the ZeroEx calldata
           const index = perPoolOrders[order.params.pool].length;
-          const { swapCallData, price } = await order.getQuote(index + 1, 500, this.provider);
+          const { swapCallData, price } = await order.getQuote(
+            index + 1,
+            500,
+            this.provider,
+            this.options?.zeroExApiKey
+          );
           order.params.swapCallData = swapCallData;
           order.params.price = price.toString();
 

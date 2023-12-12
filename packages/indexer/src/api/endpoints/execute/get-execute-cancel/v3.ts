@@ -19,9 +19,9 @@ import { cosigner, generateOffChainCancellationSignatureData } from "@/utils/cos
 const version = "v3";
 
 export const getExecuteCancelV3Options: RouteOptions = {
-  description: "Cancel orders",
+  description: "Cancel Orders",
   notes: "Cancel existing orders on any marketplace",
-  tags: ["api", "Create Orders (list & bid)"],
+  tags: ["api", "Trading"],
   plugins: {
     "hapi-swagger": {
       order: 11,
