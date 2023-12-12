@@ -38,10 +38,10 @@ import { getUSDAndCurrencyPrices } from "@/utils/prices";
 const version = "v7";
 
 export const getExecuteSellV7Options: RouteOptions = {
-  description: "Sell tokens (accept bids)",
+  description: "Sell Tokens",
   notes:
     "Use this API to accept bids. We recommend using the SDK over this API as the SDK will iterate through the steps and return callbacks. Please mark `excludeEOA` as `true` to exclude Blur orders.",
-  tags: ["api", "Fill Orders (buy & sell)"],
+  tags: ["api", "Trading"],
   timeout: {
     server: 40 * 1000,
   },

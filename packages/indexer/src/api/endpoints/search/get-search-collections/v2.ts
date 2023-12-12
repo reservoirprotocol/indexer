@@ -21,7 +21,7 @@ export const getSearchCollectionsV2Options: RouteOptions = {
     privacy: "public",
     expiresIn: 10000,
   },
-  description: "Search collections",
+  description: "Search Collections",
   tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
@@ -32,7 +32,9 @@ export const getSearchCollectionsV2Options: RouteOptions = {
     query: Joi.object({
       name: Joi.string()
         .lowercase()
-        .description("Lightweight search for collections that match a string. Example: `bored`"),
+        .description(
+          "Lightweight search for collections that match a string. Can also search using contract address. Example: `bored` or `0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d`"
+        ),
       community: Joi.string()
         .lowercase()
         .description("Filter to a particular community. Example: `artblocks`"),

@@ -5,6 +5,7 @@ import axios from "axios";
 import Joi from "joi";
 
 import { logger } from "@/common/logger";
+import { regex } from "@/common/utils";
 import { config } from "@/config/index";
 
 const version = "v1";
@@ -28,7 +29,11 @@ export const postExecuteSolveV1Options: RouteOptions = {
       }),
       Joi.object({
         kind: Joi.string().valid("cross-chain-intent").required(),
-        request: Joi.any().required(),
+        order: Joi.any(),
+        request: Joi.any(),
+        tx: Joi.string().pattern(regex.bytes),
+        chainId: Joi.number(),
+        context: Joi.any(),
       })
     ),
   },
@@ -54,23 +59,74 @@ export const postExecuteSolveV1Options: RouteOptions = {
     try {
       switch (payload.kind) {
         case "cross-chain-intent": {
-          const response = await axios
-            .post(`${config.crossChainSolverBaseUrl}/intents/trigger`, {
-              request: payload.request,
-              signature: query.signature,
-            })
-            .then((response) => response.data);
+          if (payload.request) {
+            const response = await axios
+              .post(`${config.crossChainSolverBaseUrl}/intents/trigger`, {
+                request: payload.request,
+                signature: query.signature,
+              })
+              .then((response) => response.data);
 
-          return {
-            status: {
-              endpoint: "/execute/status/v1",
-              method: "POST",
-              body: {
-                kind: payload.kind,
-                id: response.requestId,
+            return {
+              status: {
+                endpoint: "/execute/status/v1",
+                method: "POST",
+                body: {
+                  kind: payload.kind,
+                  id: response.requestId,
+                },
               },
-            },
-          };
+            };
+          } else if (payload.order) {
+            const response = await axios
+              .post(`${config.crossChainSolverBaseUrl}/intents/trigger`, {
+                chainId: payload.chainId,
+                request: {
+                  ...payload.order,
+                  signature: payload.order.signature ?? query.signature,
+                },
+                context: payload.context,
+              })
+              .then((response) => response.data);
+
+            return {
+              status: {
+                endpoint: "/execute/status/v1",
+                method: "POST",
+                body: {
+                  kind: payload.kind,
+                  id: response.hash,
+                },
+              },
+            };
+          } else if (payload.tx) {
+            const response = await axios
+              .post(`${config.crossChainSolverBaseUrl}/intents/trigger`, {
+                chainId: payload.chainId,
+                tx: payload.tx,
+              })
+              .then((response) => response.data)
+              .catch(() => {
+                // Skip errors
+              });
+
+            if (response) {
+              return {
+                status: {
+                  endpoint: "/execute/status/v1",
+                  method: "POST",
+                  body: {
+                    kind: payload.kind,
+                    id: response.hash,
+                  },
+                },
+              };
+            } else {
+              return Boom.conflict("Transaction could not be processed");
+            }
+          } else {
+            throw Boom.badRequest("Must specify one of `order` or `tx`");
+          }
         }
 
         case "seaport-intent": {

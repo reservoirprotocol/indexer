@@ -4,6 +4,7 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import _ from "lodash";
 import { config } from "@/config/index";
+import { redlock } from "@/common/redis";
 
 export type BackfillFtTransferEventsDatesJobCursorInfo = {
   block: number;
@@ -91,13 +92,11 @@ export class BackfillFtTransferEventsDatesJob extends AbstractRabbitMqJobHandler
 
 export const backfillFtTransferEventsDatesJob = new BackfillFtTransferEventsDatesJob();
 
-// if (config.chainId !== 1) {
-//   redlock
-//     .acquire([`${backfillFtTransferEventsDatesJob.getQueue()}-lock`], 60 * 60 * 24 * 30 * 1000)
-//     .then(async () => {
-//       await backfillFtTransferEventsDatesJob.addToQueue().
-//     })
-//     .catch(() => {
-//       // Skip on any errors
-//     });
-// }
+redlock
+  .acquire([`${backfillFtTransferEventsDatesJob.getQueue()}-lock`], 60 * 60 * 24 * 30 * 1000)
+  .then(async () => {
+    await backfillFtTransferEventsDatesJob.addToQueue();
+  })
+  .catch(() => {
+    // Skip on any errors
+  });

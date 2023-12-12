@@ -547,7 +547,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         return [null, `Invalid URI: ${uri}`];
       }
 
-      const response = await fetch(uri, {
+      const response = await fetch(uri.trim(), {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
