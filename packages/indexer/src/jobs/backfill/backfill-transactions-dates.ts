@@ -25,11 +25,7 @@ export class BackfillTransactionsDatesJob extends AbstractRabbitMqJobHandler {
       limit: number;
       hash?: Buffer;
     } = {
-      limit: _.includes([56, 137, 324, 42161], config.chainId)
-        ? config.chainId === 324
-          ? 10
-          : 50
-        : 500,
+      limit: _.includes([56, 137, 324, 42161, 42170, 43114, 80001], config.chainId) ? 20 : 500,
     };
 
     let cursor = "";

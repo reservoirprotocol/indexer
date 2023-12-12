@@ -27,11 +27,7 @@ export class BackfillFtBalancesDatesJob extends AbstractRabbitMqJobHandler {
       contract?: Buffer;
       owner?: Buffer;
     } = {
-      limit: _.includes([56, 324, 42161], config.chainId)
-        ? config.chainId === 324
-          ? 10
-          : 50
-        : 300,
+      limit: _.includes([56, 137, 324, 42161, 42170, 43114, 80001], config.chainId) ? 20 : 300,
     };
 
     let cursor = "";
