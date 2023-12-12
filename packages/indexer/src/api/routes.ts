@@ -1307,12 +1307,6 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
-    path: "/tokens/v8",
-    options: tokensEndpoints.getTokensV8Options,
-  });
-
-  server.route({
-    method: "GET",
     path: "/tokens/bootstrap/v1",
     options: tokensEndpoints.getTokensBootstrapV1Options,
   });
