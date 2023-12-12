@@ -391,18 +391,17 @@ export const searchTokenAsks = async (params: {
 
     const esResult = await elasticsearch.search<AskDocument>(esSearchParams);
 
+    const asks: AskDocument[] = esResult.hits.hits.map((hit) => hit._source!);
+
     logger.info(
       "elasticsearch-asks",
       JSON.stringify({
         topic: "searchTokenAsks",
         message: "Debug result",
-        data: {
-          esSearchParamsJSON: JSON.stringify(esSearchParams),
-        },
+        esSearchParamsJSON: JSON.stringify(esSearchParams),
+        asks,
       })
     );
-
-    const asks: AskDocument[] = esResult.hits.hits.map((hit) => hit._source!);
 
     let continuation = null;
 
