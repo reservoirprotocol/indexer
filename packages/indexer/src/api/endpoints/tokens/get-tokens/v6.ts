@@ -728,6 +728,7 @@ export const getTokensV6Options: RouteOptions = {
           t.media,
           t.collection_id,
           t.image_version,
+          c.image_version AS collection_image_version,
           c.name AS collection_name,
           con.kind,
           con.symbol,
@@ -1455,7 +1456,11 @@ export const getTokensV6Options: RouteOptions = {
               collection: {
                 id: r.collection_id,
                 name: r.collection_name,
-                image: Assets.getLocalAssetsLink(r.collection_image),
+                image: Assets.getResizedImageUrl(
+                  r.collection_image,
+                  ImageSize.small,
+                  r.collection_image_version
+                ),
                 slug: r.slug,
                 symbol: r.symbol,
                 creator: r.creator ? fromBuffer(r.creator) : null,
@@ -1640,6 +1645,10 @@ export const getListedTokensFromES = async (query: any) => {
   let tokens: { contract: string; tokenId: string }[] = [];
 
   if (query.tokens) {
+    if (!_.isArray(query.tokens)) {
+      query.tokens = [query.tokens];
+    }
+
     for (const token of query.tokens) {
       const [contract, tokenId] = token.split(":");
 
@@ -1928,8 +1937,9 @@ export const getListedTokensFromES = async (query: any) => {
             t.last_flag_change,
             t.supply,
             t.remaining_supply,
-            t.metadata_disabled AS t_metadata_disabled,
             extract(epoch from t.updated_at) AS t_updated_at,
+            t.metadata_disabled AS t_metadata_disabled,
+            c.metadata_disabled AS c_metadata_disabled,
             c.slug,
             c.creator,
             c.token_count,
@@ -2140,7 +2150,7 @@ export const getListedTokensFromES = async (query: any) => {
           collection: {
             id: r.collection_id,
             name: r.collection_name,
-            image: Assets.getLocalAssetsLink(r.collection_image),
+            image: Assets.getResizedImageUrl(r.collection_image, ImageSize.small),
             slug: r.slug,
             symbol: r.symbol,
             creator: r.creator ? fromBuffer(r.creator) : null,
