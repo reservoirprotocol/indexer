@@ -81,7 +81,7 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
             logger.error(
               this.queueName,
               `Error. method=${method}, status=${error.response?.status}, error=${JSON.stringify(
-                error.response?.data
+                error
               )}`
             );
 
