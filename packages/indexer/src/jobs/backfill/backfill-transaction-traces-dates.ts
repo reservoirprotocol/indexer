@@ -6,6 +6,7 @@ import _ from "lodash";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { redlock } from "@/common/redis";
 import { config } from "@/config/index";
+import { backfillTokenSupplyJob } from "@/jobs/backfill/backfill-token-supply";
 
 export type BackfillTransactionTracesDatesJobCursorInfo = {
   hash: string;
@@ -25,7 +26,11 @@ export class BackfillTransactionTracesDatesJob extends AbstractRabbitMqJobHandle
       limit: number;
       hash?: Buffer;
     } = {
-      limit: 500,
+      limit: _.includes([56, 324, 42161], config.chainId)
+        ? config.chainId === 324
+          ? 10
+          : 50
+        : 500,
     };
 
     let cursor = "";
@@ -90,7 +95,7 @@ export const backfillTransactionTracesDatesJob = new BackfillTransactionTracesDa
 
 if (config.chainId) {
   redlock
-    .acquire(["backfill-transaction-traces-dates-lock-3"], 60 * 60 * 24 * 30 * 1000)
+    .acquire([`${backfillTokenSupplyJob.getQueue()}-lock-3`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
       await backfillTransactionTracesDatesJob.addToQueue();
     })

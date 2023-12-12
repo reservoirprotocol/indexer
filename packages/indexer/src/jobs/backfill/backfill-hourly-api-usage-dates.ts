@@ -3,6 +3,8 @@ import { idb } from "@/common/db";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import _ from "lodash";
+import { config } from "@/config/index";
+import { redlock } from "@/common/redis";
 
 export type BackfillHourlyApiUsageDatesJobCursorInfo = {
   id?: number;
@@ -22,7 +24,11 @@ export class BackfillHourlyApiUsageDatesJob extends AbstractRabbitMqJobHandler {
       limit: number;
       id?: number;
     } = {
-      limit: 500,
+      limit: _.includes([56, 324, 42161], config.chainId)
+        ? config.chainId === 324
+          ? 10
+          : 50
+        : 500,
     };
 
     let addToQueue = false;
@@ -83,13 +89,11 @@ export class BackfillHourlyApiUsageDatesJob extends AbstractRabbitMqJobHandler {
 
 export const backfillHourlyApiUsageDatesJob = new BackfillHourlyApiUsageDatesJob();
 
-// if (config.chainId !== 1) {
-//   redlock
-//     .acquire(["backfill-hourly-api-usage-dates-lock"], 60 * 60 * 24 * 30 * 1000)
-//     .then(async () => {
-//       await backfillUserCollectionsJob.addToQueue().
-//     })
-//     .catch(() => {
-//       // Skip on any errors
-//     });
-// }
+redlock
+  .acquire([`${backfillHourlyApiUsageDatesJob.getQueue()}-lock`], 60 * 60 * 24 * 30 * 1000)
+  .then(async () => {
+    await backfillHourlyApiUsageDatesJob.addToQueue();
+  })
+  .catch(() => {
+    // Skip on any errors
+  });

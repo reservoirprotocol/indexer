@@ -290,7 +290,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
     throw error;
   }
 
-  parseToken(metadata: any): TokenMetadata {
+  _parseToken(metadata: any): TokenMetadata {
     return {
       contract: metadata.contract,
       tokenId: metadata.identifier,

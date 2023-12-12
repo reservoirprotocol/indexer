@@ -29,7 +29,7 @@ export class RaribleMetadataProvider extends AbstractBaseMetadataProvider {
     throw new Error("Method not implemented.");
   }
 
-  parseToken(asset: any): TokenMetadata {
+  _parseToken(asset: any): TokenMetadata {
     // Image
     let imageUrl = null;
     if (!imageUrl) {

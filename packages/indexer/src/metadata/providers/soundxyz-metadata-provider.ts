@@ -73,7 +73,7 @@ export class SoundxyzMetadataProvider extends AbstractBaseMetadataProvider {
     return `${contract}:soundxyz-${nft.release.id}`;
   }
 
-  parseToken(
+  _parseToken(
     nft: SoundNftQuery["nft"],
     contract: string,
     tokenId: string,
