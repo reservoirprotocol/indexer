@@ -11,6 +11,7 @@ import {
   hasExtendHandler,
   overrideCollectionMetadata,
 } from "../extend";
+import { limitFieldSize } from "./utils";
 
 export abstract class AbstractBaseMetadataProvider {
   abstract method: string;
@@ -101,5 +102,16 @@ export abstract class AbstractBaseMetadataProvider {
   protected abstract parseCollection(...args: any[]): CollectionMetadata;
 
   // eslint-disable-next-line
-  protected abstract parseToken(...args: any[]): TokenMetadata;
+  protected abstract _parseToken(...args: any[]): TokenMetadata;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  parseToken(...args: any[]): TokenMetadata {
+    const parsedMetadata = this._parseToken(...args);
+    Object.keys(parsedMetadata).forEach((key) => {
+      parsedMetadata[key as keyof TokenMetadata] = limitFieldSize(
+        parsedMetadata[key as keyof TokenMetadata]
+      );
+    });
+    return parsedMetadata;
+  }
 }

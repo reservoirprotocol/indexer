@@ -667,7 +667,7 @@ export const getCollectionsV5Options: RouteOptions = {
               name: r.name,
               image:
                 r.image ??
-                (sampleImages.length ? Assets.getLocalAssetsLink(sampleImages[0]) : null),
+                (sampleImages.length ? Assets.getResizedImageUrl(sampleImages[0]) : null),
               banner: r.banner,
               discordUrl: r.discord_url,
               externalUrl: r.external_url,

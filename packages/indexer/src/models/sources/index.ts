@@ -147,7 +147,8 @@ export class Sources {
         )
         ON CONFLICT (id) DO UPDATE SET
           metadata = $/metadata:json/,
-          domain = $/domain/
+          domain = $/domain/,
+          updated_at = now()
       `,
         {
           id,
@@ -195,7 +196,7 @@ export class Sources {
           $/address/,
           $/metadata:json/
         )
-        ON CONFLICT (domain) DO UPDATE SET domain = EXCLUDED.domain
+        ON CONFLICT (domain) DO UPDATE SET domain = EXCLUDED.domain, updated_at = now()
         RETURNING *
       `,
       {

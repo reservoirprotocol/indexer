@@ -262,6 +262,16 @@ export const save = async (
         order.params.signature = undefined;
       }
 
+      if (
+        order.params.zone === Sdk.SeaportBase.Addresses.OkxCancellationZone[config.chainId] &&
+        !isOkx
+      ) {
+        return results.push({
+          id,
+          status: "unsupported-zone",
+        });
+      }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if (isOkx && !(orderParams as any).okxOrderId) {
         return results.push({

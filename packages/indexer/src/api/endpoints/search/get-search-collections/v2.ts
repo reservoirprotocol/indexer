@@ -6,12 +6,13 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { redb } from "@/common/db";
-import { formatEth, fromBuffer, now, regex } from "@/common/utils";
+import { formatEth, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
 import { Assets } from "@/utils/assets";
 import { getUSDAndCurrencyPrices } from "@/utils/prices";
 import { AddressZero } from "@ethersproject/constants";
 import { getJoiCollectionObject, getJoiPriceObject, JoiPrice } from "@/common/joi";
+import { isAddress } from "@ethersproject/address";
 
 const version = "v2";
 
@@ -86,8 +87,13 @@ export const getSearchCollectionsV2Options: RouteOptions = {
     const conditions: string[] = [`token_count > 0`];
 
     if (query.name) {
-      query.name = `%${query.name}%`;
-      conditions.push(`name ILIKE $/name/`);
+      if (isAddress(query.name)) {
+        query.name = toBuffer(query.name);
+        conditions.push(`c.contract = $/name/`);
+      } else {
+        query.name = `%${query.name}%`;
+        conditions.push(`name ILIKE $/name/`);
+      }
     }
 
     if (query.community) {
