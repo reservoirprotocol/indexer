@@ -740,6 +740,8 @@ export const getTokensV8Options: RouteOptions = {
           t.supply,
           t.remaining_supply,
           extract(epoch from t.updated_at) AS t_updated_at,
+          t.metadata_disabled AS t_metadata_disabled,
+          c.metadata_disabled AS c_metadata_disabled,
           c.slug,
           c.creator,
           c.token_count,
