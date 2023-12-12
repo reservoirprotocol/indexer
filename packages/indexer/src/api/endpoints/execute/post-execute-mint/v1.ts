@@ -33,10 +33,10 @@ import { ExecutionsBuffer } from "@/utils/executions";
 const version = "v1";
 
 export const postExecuteMintV1Options: RouteOptions = {
-  description: "Mint tokens",
+  description: "Mint Tokens",
   notes:
     "Use this API to mint tokens. We recommend using the SDK over this API as the SDK will iterate through the steps and return callbacks.",
-  tags: ["api", "Fill Orders (buy & sell)"],
+  tags: ["api", "Trading"],
   timeout: {
     server: 40 * 1000,
   },
@@ -1102,6 +1102,7 @@ export const postExecuteMintV1Options: RouteOptions = {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         openseaApiKey: payload.openseaApiKey,
         cbApiKey: config.cbApiKey,
+        zeroExApiKey: config.zeroExApiKey,
         orderFetcherBaseUrl: config.orderFetcherBaseUrl,
         orderFetcherMetadata: {
           apiKey: await ApiKeyManager.getApiKey(request.headers["x-api-key"]),
