@@ -9,6 +9,7 @@ import { Network, TxData, getRandomBytes } from "@reservoir0x/sdk/dist/utils";
 import axios from "axios";
 import { randomUUID } from "crypto";
 import Joi from "joi";
+import _ from "lodash";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
@@ -202,6 +203,9 @@ export const postExecuteMintV1Options: RouteOptions = {
   handler: async (request: Request) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload = request.payload as any;
+
+    // Needed for cross-chain solving which works off the original request
+    const originalPayload = _.cloneDeep(payload);
 
     try {
       type ExecuteFee = {
@@ -815,6 +819,63 @@ export const postExecuteMintV1Options: RouteOptions = {
         };
       };
 
+      const getCrossChainQuoteV11 = async () => {
+        const ccConfig: {
+          enabled: boolean;
+          solver?: string;
+          balance?: string;
+          maxPrice?: string;
+        } = await axios
+          .get(
+            `${config.crossChainSolverBaseUrl}/config?fromChainId=${
+              originalPayload.currencyChainId
+            }&toChainId=${config.chainId}&user=${originalPayload.taker}&currency=${
+              Sdk.Common.Addresses.Native[originalPayload.currencyChainId]
+            }`
+          )
+          .then((response) => response.data);
+
+        if (!ccConfig.enabled) {
+          throw Boom.badRequest("Cross-chain swap not supported between requested chains");
+        }
+
+        const data = {
+          request: {
+            originChainId: originalPayload.currencyChainId,
+            destinationChainId: config.chainId,
+            data: originalPayload,
+            endpoint: "/execute/mint/v1",
+            salt: Math.floor(Math.random() * 1000000),
+          },
+        };
+
+        const { requestId, fee, quote } = await axios
+          .post(`${config.crossChainSolverBaseUrl}/intents/quote`, data)
+          .then((response) => ({
+            requestId: response.data.requestId,
+            quote: response.data.price,
+            fee: response.data.fee,
+          }))
+          .catch((error) => {
+            throw Boom.badRequest(
+              error.response?.data ? JSON.stringify(error.response.data) : "Error getting quote"
+            );
+          });
+
+        if (ccConfig.maxPrice && bn(quote).gt(ccConfig.maxPrice) && !preview) {
+          throw Boom.badRequest("Price too high to purchase cross-chain");
+        }
+
+        return {
+          quote,
+          fee,
+          solver: ccConfig.solver!,
+          balance: ccConfig.balance!,
+          request: data.request,
+          requestId,
+        };
+      };
+
       // Add the quotes in the "buy-in" currency to the path items
       for (const item of path) {
         if (payload.alternativeCurrencies) {
@@ -837,7 +898,9 @@ export const postExecuteMintV1Options: RouteOptions = {
               try {
                 const [currency, chainId] = c.split(":");
 
-                const { quote } = await getCrossChainQuote(Number(chainId), item);
+                const { quote } = [5, 11155111].includes(config.chainId)
+                  ? await getCrossChainQuoteV11()
+                  : await getCrossChainQuote(Number(chainId), item);
                 item.buyIn!.push(
                   await getJoiPriceObject(
                     {
@@ -900,122 +963,269 @@ export const postExecuteMintV1Options: RouteOptions = {
 
       // Cross-chain intent purchasing MVP
       if (useCrossChainIntent) {
-        if (!config.crossChainSolverBaseUrl) {
-          throw Boom.badRequest("Cross-chain purchasing not supported");
-        }
-
-        if (path.length > 1) {
-          throw Boom.badRequest("Only single item cross-chain purchases are supported");
-        }
-
-        const requestedFromChainId = payload.currencyChainId;
-
-        const item = path[0];
-
-        const { actualFromChainId, ccConfig, isCollectionRequest, tokenId, quote, gasCost } =
-          await getCrossChainQuote(requestedFromChainId, item, items[0].custom);
-
-        item.fromChainId = actualFromChainId;
-        item.gasCost = gasCost;
-
-        const needsDeposit = bn(ccConfig.availableBalance!).lt(quote);
-
-        if (payload.onlyPath) {
-          return {
-            path,
-            maxQuantities: preview ? maxQuantities : undefined,
-            gasEstimate: needsDeposit ? 100000 : 0,
-          };
-        }
-
-        const customSteps: StepType[] = [
-          {
-            id: "sale",
-            action: "Confirm transaction in your wallet",
-            description: "Deposit funds for purchasing cross-chain",
-            kind: "transaction",
-            items: [],
-          },
-          {
-            id: "order-signature",
-            action: "Authorize cross-chain request",
-            description: "A free off-chain signature to create the request",
-            kind: "signature",
-            items: [],
-          },
-        ];
-
-        const order = new Sdk.CrossChain.Order(actualFromChainId, {
-          isCollectionRequest,
-          maker: payload.taker,
-          solver: ccConfig.solver!,
-          token: item.contract,
-          tokenId: tokenId!,
-          amount: String(item.quantity),
-          price: quote,
-          recipient: payload.taker,
-          chainId: config.chainId,
-          deadline: now() + 30 * 60,
-          salt: getRandomBytes(20).toString(),
-        });
-
-        if (needsDeposit) {
-          const exchange = new Sdk.CrossChain.Exchange(actualFromChainId);
-
-          const hasContext = Boolean(items[0].custom) || Boolean(payload.feesOnTop);
-
-          let depositTx: TxData;
-          if (hasContext) {
-            depositTx = exchange.depositTx(
-              payload.taker,
-              ccConfig.solver!,
-              bn(quote).sub(ccConfig.availableBalance!).toString()
-            );
-          } else {
-            depositTx = exchange.depositAndPrevalidateTx(
-              payload.taker,
-              ccConfig.solver!,
-              bn(quote).sub(ccConfig.availableBalance!).toString(),
-              order
-            );
+        if ([5, 11155111].includes(config.chainId)) {
+          if (!config.crossChainSolverBaseUrl) {
+            throw Boom.badRequest("Cross-chain purchasing not supported");
           }
 
-          // Never deposit to mainnet, but bridge-and-deposit to base
-          if (requestedFromChainId === Network.Ethereum) {
-            depositTx = {
-              from: payload.taker,
-              // Base Portal (https://etherscan.io/address/0x49048044d57e1c92a77f79988d21fa8faf74e97e)
-              to: "0x49048044d57e1c92a77f79988d21fa8faf74e97e",
-              data: new Interface([
-                "function depositTransaction(address to, uint256 value, uint64 gasLimit, bool isCreation, bytes data)",
-              ]).encodeFunctionData("depositTransaction", [
-                Sdk.CrossChain.Addresses.Exchange[Network.Base],
-                depositTx.value ?? 0,
-                150000,
-                false,
-                depositTx.data,
-              ]),
-              value: depositTx.value ?? "0",
+          if (path.length > 1) {
+            throw Boom.badRequest("Only single item cross-chain purchases are supported");
+          }
+
+          const item = path[0];
+
+          const data = await getCrossChainQuoteV11();
+
+          item.totalPrice = formatPrice(data.quote);
+          item.totalRawPrice = data.quote;
+          item.quote = formatPrice(data.quote);
+          item.rawQuote = data.quote;
+          item.gasCost = data.fee;
+
+          const needsDeposit = bn(data.balance).lt(data.quote);
+          if (payload.onlyPath) {
+            return {
+              path,
+              maxQuantities: preview ? maxQuantities : undefined,
+              gasEstimate: needsDeposit ? 21000 : 0,
             };
           }
 
-          if (hasContext) {
+          const customSteps: StepType[] = [
+            {
+              id: "sale",
+              action: "Confirm transaction in your wallet",
+              description: "Deposit funds for purchasing cross-chain",
+              kind: "transaction",
+              items: [],
+            },
+            {
+              id: "order-signature",
+              action: "Authorize cross-chain request",
+              description: "A free off-chain signature to create the request",
+              kind: "signature",
+              items: [],
+            },
+          ];
+
+          if (needsDeposit) {
             customSteps[0].items.push({
               status: "incomplete",
               data: {
-                ...depositTx,
-                chainId: requestedFromChainId,
+                from: payload.taker,
+                to: data.solver,
+                data: data.requestId,
+                value: bn(data.quote).sub(data.balance).toString(),
+                chainId: payload.currencyChainId,
               },
               check: {
                 endpoint: "/execute/status/v1",
                 method: "POST",
                 body: {
-                  kind: "cross-chain-transaction",
-                  chainId: requestedFromChainId,
+                  kind: "cross-chain-intent",
+                  id: data.requestId,
                 },
               },
             });
 
+            // Trigger to force the solver to start listening to incoming transactions
+            await axios.post(`${config.crossChainSolverBaseUrl}/intents/trigger`, {
+              request: data.request,
+            });
+          } else {
+            customSteps[1].items.push({
+              status: "incomplete",
+              data: {
+                sign: {
+                  signatureKind: "eip191",
+                  message: data.requestId,
+                },
+                post: {
+                  endpoint: "/execute/solve/v1",
+                  method: "POST",
+                  body: {
+                    kind: "cross-chain-intent",
+                    request: data.request,
+                  },
+                },
+              },
+              check: {
+                endpoint: "/execute/status/v1",
+                method: "POST",
+                body: {
+                  kind: "cross-chain-intent",
+                  id: data.requestId,
+                },
+              },
+            });
+          }
+
+          return {
+            steps: customSteps.filter((s) => s.items.length),
+            path,
+          };
+        } else {
+          if (!config.crossChainSolverBaseUrl) {
+            throw Boom.badRequest("Cross-chain purchasing not supported");
+          }
+
+          if (path.length > 1) {
+            throw Boom.badRequest("Only single item cross-chain purchases are supported");
+          }
+
+          const requestedFromChainId = payload.currencyChainId;
+
+          const item = path[0];
+
+          const { actualFromChainId, ccConfig, isCollectionRequest, tokenId, quote, gasCost } =
+            await getCrossChainQuote(requestedFromChainId, item, items[0].custom);
+
+          item.fromChainId = actualFromChainId;
+          item.gasCost = gasCost;
+
+          const needsDeposit = bn(ccConfig.availableBalance!).lt(quote);
+
+          if (payload.onlyPath) {
+            return {
+              path,
+              maxQuantities: preview ? maxQuantities : undefined,
+              gasEstimate: needsDeposit ? 100000 : 0,
+            };
+          }
+
+          const customSteps: StepType[] = [
+            {
+              id: "sale",
+              action: "Confirm transaction in your wallet",
+              description: "Deposit funds for purchasing cross-chain",
+              kind: "transaction",
+              items: [],
+            },
+            {
+              id: "order-signature",
+              action: "Authorize cross-chain request",
+              description: "A free off-chain signature to create the request",
+              kind: "signature",
+              items: [],
+            },
+          ];
+
+          const order = new Sdk.CrossChain.Order(actualFromChainId, {
+            isCollectionRequest,
+            maker: payload.taker,
+            solver: ccConfig.solver!,
+            token: item.contract,
+            tokenId: tokenId!,
+            amount: String(item.quantity),
+            price: quote,
+            recipient: payload.taker,
+            chainId: config.chainId,
+            deadline: now() + 30 * 60,
+            salt: getRandomBytes(20).toString(),
+          });
+
+          if (needsDeposit) {
+            const exchange = new Sdk.CrossChain.Exchange(actualFromChainId);
+
+            const hasContext = Boolean(items[0].custom) || Boolean(payload.feesOnTop);
+
+            let depositTx: TxData;
+            if (hasContext) {
+              depositTx = exchange.depositTx(
+                payload.taker,
+                ccConfig.solver!,
+                bn(quote).sub(ccConfig.availableBalance!).toString()
+              );
+            } else {
+              depositTx = exchange.depositAndPrevalidateTx(
+                payload.taker,
+                ccConfig.solver!,
+                bn(quote).sub(ccConfig.availableBalance!).toString(),
+                order
+              );
+            }
+
+            // Never deposit to mainnet, but bridge-and-deposit to base
+            if (requestedFromChainId === Network.Ethereum) {
+              depositTx = {
+                from: payload.taker,
+                // Base Portal (https://etherscan.io/address/0x49048044d57e1c92a77f79988d21fa8faf74e97e)
+                to: "0x49048044d57e1c92a77f79988d21fa8faf74e97e",
+                data: new Interface([
+                  "function depositTransaction(address to, uint256 value, uint64 gasLimit, bool isCreation, bytes data)",
+                ]).encodeFunctionData("depositTransaction", [
+                  Sdk.CrossChain.Addresses.Exchange[Network.Base],
+                  depositTx.value ?? 0,
+                  150000,
+                  false,
+                  depositTx.data,
+                ]),
+                value: depositTx.value ?? "0",
+              };
+            }
+
+            if (hasContext) {
+              customSteps[0].items.push({
+                status: "incomplete",
+                data: {
+                  ...depositTx,
+                  chainId: requestedFromChainId,
+                },
+                check: {
+                  endpoint: "/execute/status/v1",
+                  method: "POST",
+                  body: {
+                    kind: "cross-chain-transaction",
+                    chainId: requestedFromChainId,
+                  },
+                },
+              });
+
+              customSteps[1].items.push({
+                status: "incomplete",
+                data: {
+                  sign: order.getSignatureData(),
+                  post: {
+                    endpoint: "/execute/solve/v1",
+                    method: "POST",
+                    body: {
+                      kind: "cross-chain-intent",
+                      order: order.params,
+                      chainId: actualFromChainId,
+                      context: {
+                        customMint: items[0].custom,
+                        feesOnTop: payload.feesOnTop,
+                      },
+                    },
+                  },
+                },
+                check: {
+                  endpoint: "/execute/status/v1",
+                  method: "POST",
+                  body: {
+                    kind: "cross-chain-intent",
+                    id: order.hash(),
+                  },
+                },
+              });
+            } else {
+              customSteps[0].items.push({
+                status: "incomplete",
+                data: {
+                  ...depositTx,
+                  chainId: requestedFromChainId,
+                },
+                check: {
+                  endpoint: "/execute/status/v1",
+                  method: "POST",
+                  body: {
+                    kind: "cross-chain-intent",
+                    id: order.hash(),
+                  },
+                },
+              });
+            }
+          } else {
             customSteps[1].items.push({
               status: "incomplete",
               data: {
@@ -1043,57 +1253,13 @@ export const postExecuteMintV1Options: RouteOptions = {
                 },
               },
             });
-          } else {
-            customSteps[0].items.push({
-              status: "incomplete",
-              data: {
-                ...depositTx,
-                chainId: requestedFromChainId,
-              },
-              check: {
-                endpoint: "/execute/status/v1",
-                method: "POST",
-                body: {
-                  kind: "cross-chain-intent",
-                  id: order.hash(),
-                },
-              },
-            });
           }
-        } else {
-          customSteps[1].items.push({
-            status: "incomplete",
-            data: {
-              sign: order.getSignatureData(),
-              post: {
-                endpoint: "/execute/solve/v1",
-                method: "POST",
-                body: {
-                  kind: "cross-chain-intent",
-                  order: order.params,
-                  chainId: actualFromChainId,
-                  context: {
-                    customMint: items[0].custom,
-                    feesOnTop: payload.feesOnTop,
-                  },
-                },
-              },
-            },
-            check: {
-              endpoint: "/execute/status/v1",
-              method: "POST",
-              body: {
-                kind: "cross-chain-intent",
-                id: order.hash(),
-              },
-            },
-          });
-        }
 
-        return {
-          steps: customSteps.filter((s) => s.items.length),
-          path,
-        };
+          return {
+            steps: customSteps.filter((s) => s.items.length),
+            path,
+          };
+        }
       }
 
       const errors: { orderId: string; message: string }[] = [];

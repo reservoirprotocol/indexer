@@ -529,7 +529,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
   async getTokenMetadataFromURI(uri: string, contract: string, tokenId: string) {
     try {
       if (uri.startsWith("json:")) {
-        uri = uri.replace("json:", "");
+        uri = uri.replace("json:\n", "");
       }
 
       uri = this.parseIPFSURI(uri);
@@ -542,6 +542,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         uri = uri.substring(uri.indexOf(",") + 1);
         return [JSON.parse(uri), null];
       }
+      uri = uri.trim();
       if (!uri.startsWith("http")) {
         // if the uri is not a valid url, return null
         return [null, `Invalid URI: ${uri}`];

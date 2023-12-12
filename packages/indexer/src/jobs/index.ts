@@ -181,14 +181,9 @@ import { tokenReassignedUserCollectionsJob } from "@/jobs/nft-balance-updates/to
 import { backfillTokenSupplyJob } from "@/jobs/backfill/backfill-token-supply";
 import { backfillFtBalancesDatesJob } from "@/jobs/backfill/backfill-ft-balances-dates";
 import { backfillFtTransferEventsDatesJob } from "@/jobs/backfill/backfill-ft-transfer-events-dates";
-import { backfillUsdPricesDatesJob } from "@/jobs/backfill/backfill-usd-prices-dates";
-import { backfillHourlyApiUsageDatesJob } from "@/jobs/backfill/backfill-hourly-api-usage-dates";
-import { backfillDailyApiUsageDatesJob } from "@/jobs/backfill/backfill-daily-api-usage-dates";
-import { backfillMonthlyApiUsageDatesJob } from "@/jobs/backfill/backfill-monthly-api-usage-dates";
 import { backfillExecutionsDatesJob } from "@/jobs/backfill/backfill-executions-dates";
 import { backfillExecutionResultsDatesJob } from "@/jobs/backfill/backfill-execution-results-dates";
 import { backfillOrderEventsDatesJob } from "@/jobs/backfill/backfill-order-events-dates";
-import { backfillSourcesDatesJob } from "@/jobs/backfill/backfill-sources-dates";
 import { backfillTransactionsDatesJob } from "@/jobs/backfill/backfill-transactions-dates";
 import { backfillTransactionTracesDatesJob } from "@/jobs/backfill/backfill-transaction-traces-dates";
 
@@ -354,14 +349,9 @@ export class RabbitMqJobsConsumer {
       backfillTokenSupplyJob,
       backfillFtBalancesDatesJob,
       backfillFtTransferEventsDatesJob,
-      backfillUsdPricesDatesJob,
-      backfillHourlyApiUsageDatesJob,
-      backfillDailyApiUsageDatesJob,
-      backfillMonthlyApiUsageDatesJob,
       backfillExecutionsDatesJob,
       backfillExecutionResultsDatesJob,
       backfillOrderEventsDatesJob,
-      backfillSourcesDatesJob,
       backfillTransactionsDatesJob,
       backfillTransactionTracesDatesJob,
     ];
