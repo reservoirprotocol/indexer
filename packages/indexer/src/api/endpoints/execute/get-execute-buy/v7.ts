@@ -2308,6 +2308,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         openseaApiKey: payload.openseaApiKey,
         cbApiKey: config.cbApiKey,
+        zeroExApiKey: config.zeroExApiKey,
         orderFetcherBaseUrl: config.orderFetcherBaseUrl,
         orderFetcherMetadata: {
           apiKey: await ApiKeyManager.getApiKey(request.headers["x-api-key"]),
