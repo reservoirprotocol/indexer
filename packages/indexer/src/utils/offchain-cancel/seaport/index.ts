@@ -2,6 +2,7 @@ import { verifyTypedData } from "@ethersproject/wallet";
 import * as Sdk from "@reservoir0x/sdk";
 import { MatchParams, OrderComponents } from "@reservoir0x/sdk/dist/seaport-base/types";
 
+import { idb } from "@/common/db";
 import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 import { cosigner, saveOffChainCancellations } from "@/utils/offchain-cancel";
@@ -154,6 +155,14 @@ export const doSignOrder = async (
   matchParams: MatchParams
 ) => {
   if (order.isCosignedOrder()) {
+    const isOffChainCancelled = await idb.oneOrNone(
+      `SELECT 1 FROM off_chain_cancellations WHERE order_id = $/orderId/`,
+      { orderId: order.hash() }
+    );
+    if (isOffChainCancelled) {
+      throw new Error("Order is off-chain cancelled");
+    }
+
     const features = new Features(order.params.zoneHash);
     if (features.checkFlagged()) {
       const requestedReceivedItems = order.getReceivedItems(matchParams);

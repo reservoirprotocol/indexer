@@ -1,6 +1,7 @@
 import { verifyTypedData } from "@ethersproject/wallet";
 import * as Sdk from "@reservoir0x/sdk";
 
+import { idb } from "@/common/db";
 import { config } from "@/config/index";
 import { cosigner, saveOffChainCancellations } from "@/utils/offchain-cancel";
 
@@ -51,6 +52,14 @@ export const doCancel = async ({
 
 export const doSignOrder = async (order: Sdk.PaymentProcessorV2.Order, taker: string) => {
   if (order.isCosignedOrder()) {
+    const isOffChainCancelled = await idb.oneOrNone(
+      `SELECT 1 FROM off_chain_cancellations WHERE order_id = $/orderId/`,
+      { orderId: order.hash() }
+    );
+    if (isOffChainCancelled) {
+      throw new Error("Order is off-chain cancelled");
+    }
+
     await order.cosign(cosigner(), taker);
   }
 };
