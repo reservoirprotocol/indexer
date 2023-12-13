@@ -38,6 +38,11 @@ const JoiPriceCurrency = Joi.object({
   chainId: Joi.number().optional(),
 });
 
+export const JoiLightweightPrice = Joi.object({
+  currency: Joi.string().pattern(regex.address).required(),
+  rawAmount: Joi.string().pattern(regex.number).required(),
+});
+
 export const JoiPrice = Joi.object({
   currency: JoiPriceCurrency,
   amount: JoiPriceAmount.description("Amount with fees & royalties included."),

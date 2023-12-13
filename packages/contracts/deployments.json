@@ -236,33 +236,6 @@
       "2863311531": "0x8755310f937528173e7c5a106131d79a3601c9d9"
     }
   },
-  "ReservoirErc721": {
-    "v1": {
-      "56": "0x7ed2e08cfa0971b7d50503ecc8d9334d6e50fea2",
-      "999": "0x9484a31f51108f095fcd7aa2bb8d22340d20c422",
-      "8453": "0x9484a31f51108f095fcd7aa2bb8d22340d20c422",
-      "42170": "0x7ed2e08cfa0971b7d50503ecc8d9334d6e50fea2",
-      "80001": "0x7ed2e08cfa0971b7d50503ecc8d9334d6e50fea2",
-      "84531": "0x9484a31f51108f095fcd7aa2bb8d22340d20c422",
-      "534353": "0x7ed2e08cfa0971b7d50503ecc8d9334d6e50fea2",
-      "7777777": "0x9484a31f51108f095fcd7aa2bb8d22340d20c422",
-      "11155111": "0x9484a31f51108f095fcd7aa2bb8d22340d20c422",
-      "2863311531": "0x9484a31f51108f095fcd7aa2bb8d22340d20c422"
-    }
-  },
-  "ReservoirErc1155": {
-    "v1": {
-      "56": "0xeba5d3285efc53f8aa764c3b77c4a9d013e98011",
-      "999": "0xfeadb1a327f2963c7210daa6800430aede006501",
-      "8453": "0xfeadb1a327f2963c7210daa6800430aede006501",
-      "42170": "0xeba5d3285efc53f8aa764c3b77c4a9d013e98011",
-      "80001": "0xeba5d3285efc53f8aa764c3b77c4a9d013e98011",
-      "84531": "0xfeadb1a327f2963c7210daa6800430aede006501",
-      "534353": "0xeba5d3285efc53f8aa764c3b77c4a9d013e98011",
-      "7777777": "0xfeadb1a327f2963c7210daa6800430aede006501",
-      "11155111": "0xfeadb1a327f2963c7210daa6800430aede006501"
-    }
-  },
   "NFTXZeroExModule": {
     "v2": {
       "1": "0xcd4ebd768ccbe022274506f5e45d14fd90dc5be7"
@@ -345,7 +318,8 @@
   "SignedZoneController": {
     "v1": {
       "137": "0x4ffa72942ea0651a17822c5eec0e0bf193334ecb",
-      "80001": "0x4ffa72942ea0651a17822c5eec0e0bf193334ecb"
+      "80001": "0x4ffa72942ea0651a17822c5eec0e0bf193334ecb",
+      "11155111": "0x4ffa72942ea0651a17822c5eec0e0bf193334ecb"
     }
   },
   "MintModule": {

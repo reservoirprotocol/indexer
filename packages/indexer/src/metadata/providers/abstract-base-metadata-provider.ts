@@ -110,7 +110,10 @@ export abstract class AbstractBaseMetadataProvider {
     Object.keys(parsedMetadata).forEach((key) => {
       parsedMetadata[key as keyof TokenMetadata] = limitFieldSize(
         parsedMetadata[key as keyof TokenMetadata],
-        key
+        key,
+        parsedMetadata.contract,
+        parsedMetadata.tokenId,
+        this.method
       );
     });
     return parsedMetadata;

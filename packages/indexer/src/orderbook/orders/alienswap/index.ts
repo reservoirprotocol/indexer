@@ -1,6 +1,5 @@
 import { AddressZero, HashZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
-import axios from "axios";
 import _ from "lodash";
 import pLimit from "p-limit";
 
@@ -9,7 +8,7 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { getNetworkName, getNetworkSettings } from "@/config/network";
+import { getNetworkSettings } from "@/config/network";
 import { FeeRecipients } from "@/models/fee-recipients";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
@@ -22,6 +21,7 @@ import {
   orderUpdatesByIdJob,
   OrderUpdatesByIdJobPayload,
 } from "@/jobs/order-updates/order-updates-by-id-job";
+import * as offchainCancel from "@/utils/offchain-cancel";
 
 export type OrderInfo = {
   orderParams: Sdk.SeaportBase.Types.OrderComponents;
@@ -468,14 +468,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           replacedOrderResult.raw_data.zone ===
             Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
         ) {
-          await axios.post(
-            `https://seaport-oracle-${getNetworkName()}.up.railway.app/api/replacements`,
-            {
-              newOrders: [order.params],
-              replacedOrders: [replacedOrderResult.raw_data],
-              orderKind: "alienswap",
-            }
-          );
+          await offchainCancel.seaport.doReplacement({
+            newOrders: [order.params],
+            replacedOrders: [replacedOrderResult.raw_data],
+            orderKind: "alienswap",
+          });
         }
       }
 

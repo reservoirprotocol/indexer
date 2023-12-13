@@ -309,9 +309,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
               amount: token.quantity,
               isFlagged: Boolean(flaggedResult.is_flagged),
             },
-            {
-              taker: payload.taker,
-            }
+            payload.taker
           )
         );
       };

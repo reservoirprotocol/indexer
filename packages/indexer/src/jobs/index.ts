@@ -124,7 +124,6 @@ import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-jo
 import { orderUpdatesDynamicOrderJob } from "@/jobs/order-updates/cron/dynamic-orders-job";
 import { orderUpdatesErc20OrderJob } from "@/jobs/order-updates/cron/erc20-orders-job";
 import { orderUpdatesExpiredOrderJob } from "@/jobs/order-updates/cron/expired-orders-job";
-import { orderUpdatesOracleOrderJob } from "@/jobs/order-updates/cron/oracle-orders-job";
 import { blurBidsBufferJob } from "@/jobs/order-updates/misc/blur-bids-buffer-job";
 import { blurBidsRefreshJob } from "@/jobs/order-updates/misc/blur-bids-refresh-job";
 import { blurListingsRefreshJob } from "@/jobs/order-updates/misc/blur-listings-refresh-job";
@@ -181,11 +180,8 @@ import { tokenReassignedUserCollectionsJob } from "@/jobs/nft-balance-updates/to
 import { backfillTokenSupplyJob } from "@/jobs/backfill/backfill-token-supply";
 import { backfillFtBalancesDatesJob } from "@/jobs/backfill/backfill-ft-balances-dates";
 import { backfillFtTransferEventsDatesJob } from "@/jobs/backfill/backfill-ft-transfer-events-dates";
-import { backfillExecutionsDatesJob } from "@/jobs/backfill/backfill-executions-dates";
-import { backfillExecutionResultsDatesJob } from "@/jobs/backfill/backfill-execution-results-dates";
 import { backfillOrderEventsDatesJob } from "@/jobs/backfill/backfill-order-events-dates";
 import { backfillTransactionsDatesJob } from "@/jobs/backfill/backfill-transactions-dates";
-import { backfillTransactionTracesDatesJob } from "@/jobs/backfill/backfill-transaction-traces-dates";
 
 export const allJobQueues = [
   backfillWrongNftBalances.queue,
@@ -292,7 +288,6 @@ export class RabbitMqJobsConsumer {
       orderUpdatesDynamicOrderJob,
       orderUpdatesErc20OrderJob,
       orderUpdatesExpiredOrderJob,
-      orderUpdatesOracleOrderJob,
       blurBidsBufferJob,
       blurBidsRefreshJob,
       blurListingsRefreshJob,
@@ -349,11 +344,8 @@ export class RabbitMqJobsConsumer {
       backfillTokenSupplyJob,
       backfillFtBalancesDatesJob,
       backfillFtTransferEventsDatesJob,
-      backfillExecutionsDatesJob,
-      backfillExecutionResultsDatesJob,
       backfillOrderEventsDatesJob,
       backfillTransactionsDatesJob,
-      backfillTransactionTracesDatesJob,
     ];
   }
 
@@ -417,6 +409,11 @@ export class RabbitMqJobsConsumer {
     const pausedQueues = await PausedRabbitMqQueues.getPausedQueues();
     if (_.indexOf(pausedQueues, job.getQueue()) !== -1) {
       logger.warn("rabbit-subscribe", `${job.getQueue()} is paused`);
+      return;
+    }
+
+    // If we already subscribed
+    if (RabbitMqJobsConsumer.queueToChannel.get(job.getQueue())) {
       return;
     }
 
@@ -490,14 +487,12 @@ export class RabbitMqJobsConsumer {
    * @param job
    */
   static async unsubscribe(job: AbstractRabbitMqJobHandler) {
-    const channel = RabbitMqJobsConsumer.queueToChannel.get(job.getQueue());
-
-    if (channel) {
+    for (const [key, channel] of RabbitMqJobsConsumer.queueToChannel) {
       await channel.cancel(RabbitMqJobsConsumer.getConsumerTag(job.getQueue()));
-      return true;
+      RabbitMqJobsConsumer.queueToChannel.delete(key);
     }
 
-    return false;
+    return true;
   }
 
   /**

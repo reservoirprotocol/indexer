@@ -9,19 +9,21 @@ export interface IOrder {
   params: Types.OrderComponents;
 
   exchange(): SeaportBaseExchange;
-
-  getInfo(): BaseOrderInfo | undefined;
-
-  getMatchingPrice(timestampOverride?: number): BigNumberish;
-
   hash(): string;
+  getInfo(): BaseOrderInfo | undefined;
+  getMatchingPrice(timestampOverride?: number): BigNumberish;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getSignatureData(): any;
 
+  // For private orders
   isPrivateOrder(): boolean;
   constructPrivateListingCounterOrder(privateSaleRecipient: string): Types.OrderWithCounter;
   getPrivateListingFulfillments(): Types.MatchOrdersFulfillment[];
+
+  // For cosigned orders
+  isCosignedOrder(): boolean;
+  getReceivedItems(matchParams: Types.MatchParams): Types.ReceivedItem[];
 }
 
 export const ORDER_EIP712_TYPES = {
