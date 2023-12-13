@@ -826,6 +826,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/execute/call/v1",
+    options: executeEndpoints.postExecuteCallV1Options,
+  });
+
+  server.route({
+    method: "POST",
     path: "/execute/mint/v1",
     options: executeEndpoints.postExecuteMintV1Options,
   });

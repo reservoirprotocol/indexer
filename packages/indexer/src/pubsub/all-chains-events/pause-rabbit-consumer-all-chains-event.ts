@@ -15,12 +15,6 @@ export class PauseRabbitConsumerAllChainsEvent {
     const parsedMessage = JSON.parse(message);
     const queueName = parsedMessage.queueName;
 
-    // Check if the queue is paused
-    const pausedQueues = await PausedRabbitMqQueues.getPausedQueues();
-    if (_.indexOf(pausedQueues, queueName) !== -1) {
-      return;
-    }
-
     const job = _.find(RabbitMqJobsConsumer.getQueues(), (queue) => queue.getQueue() === queueName);
     if (job) {
       if (await RabbitMqJobsConsumer.unsubscribe(job)) {
