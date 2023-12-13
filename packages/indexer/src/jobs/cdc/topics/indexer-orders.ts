@@ -10,7 +10,7 @@ import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job"
 import { acquireLock } from "@/common/redis";
 import { Tokens } from "@/models/tokens";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
-import { EventKind, processAskEventJob } from "@/jobs/elasticsearch/asks/process-ask-event-job";
+// import { EventKind, processAskEventJob } from "@/jobs/elasticsearch/asks/process-ask-event-job";
 import { formatStatus } from "@/jobs/websocket-events/utils";
 
 export class IndexerOrdersHandler extends KafkaEventHandler {
@@ -57,12 +57,12 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
       );
 
       if (afterStatus === "active") {
-        await processAskEventJob.addToQueue([
-          {
-            kind: EventKind.newSellOrder,
-            data: payload.after,
-          },
-        ]);
+        // await processAskEventJob.addToQueue([
+        //   {
+        //     kind: EventKind.newSellOrder,
+        //     data: payload.after,
+        //   },
+        // ]);
       }
     }
   }
@@ -111,19 +111,19 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
         );
 
         if (afterStatus === "active") {
-          await processAskEventJob.addToQueue([
-            {
-              kind: EventKind.sellOrderUpdated,
-              data: payload.after,
-            },
-          ]);
+          // await processAskEventJob.addToQueue([
+          //   {
+          //     kind: EventKind.sellOrderUpdated,
+          //     data: payload.after,
+          //   },
+          // ]);
         } else if (beforeStatus === "active") {
-          await processAskEventJob.addToQueue([
-            {
-              kind: EventKind.SellOrderInactive,
-              data: payload.after,
-            },
-          ]);
+          // await processAskEventJob.addToQueue([
+          //   {
+          //     kind: EventKind.SellOrderInactive,
+          //     data: payload.after,
+          //   },
+          // ]);
         }
       } catch (error) {
         logger.error(
