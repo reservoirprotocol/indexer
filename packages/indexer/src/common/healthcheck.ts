@@ -41,12 +41,12 @@ export class HealthCheck {
       }
     }
 
-    if (config.doWebsocketWork && config.openSeaApiKey) {
+    if (config.doWebsocketWork && config.openSeaApiKey && !getNetworkSettings().isTestnet) {
       const timestamp = getLastReceivedEventTimestamp();
       const currentTime = now();
 
-      if (timestamp) {
-        logger.info(
+      if (timestamp && Number(timestamp) < currentTime - 60) {
+        logger.error(
           "healthcheck",
           `last opensea websocket received ${timestamp} ${currentTime - Number(timestamp)}s ago`
         );
