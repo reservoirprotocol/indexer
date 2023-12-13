@@ -45,7 +45,7 @@ export const getCollectionsV7Options: RouteOptions = {
       id: Joi.string()
         .lowercase()
         .description(
-          "Filter to a particular collection with collection id. The id is immutable.\n For single contract collections, the id is the contract address e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`\n Artblocks will follow this format with a token range: `0x059edd72cd353df5106d2b9cc5ab83a52287ac3a:{startTokenId}:{endTokenId}`\n Shared contracts will generally follow the format `{contract}:{namespace}-{id}`; The following shared contracts will follow this format:\n OpenSea, Sound, SuperRare, Foundation, Ordinals, & Courtyard"
+          "Filter to a particular collection with collection id. The id is immutable.\n For single contract collections, the id is the contract address e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`\n Artblocks will follow this format with a token range: `{artblocksContractAddress}:{startTokenId}:{endTokenId}`\n Shared contracts will generally follow the format `{contract}:{namespace}-{id}`; The following shared contracts will follow this format:\n OpenSea, Sound, SuperRare, Foundation, Ordinals, & Courtyard"
         ),
       slug: Joi.string().description(
         "Filter to a particular collection slug. We recommend to rely on collection id; slugs are dynamic and can change without warning. Example: `boredapeyachtclub`"
