@@ -143,7 +143,6 @@ import { transferWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/
 import { tokenAttributeWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/token-attribute-websocket-events-trigger-job";
 import { topBidWebSocketEventsTriggerJob } from "@/jobs/websocket-events/top-bid-websocket-events-trigger-job";
 import { collectionWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/collection-websocket-events-trigger-job";
-import { backfillDeleteExpiredBidsElasticsearchJob } from "@/jobs/elasticsearch/activities/backfill/backfill-delete-expired-bids-elasticsearch-job";
 import { transferUpdatesJob } from "@/jobs/transfer-updates/transfer-updates-job";
 import { backfillSaveActivitiesElasticsearchJob } from "@/jobs/elasticsearch/activities/backfill/backfill-save-activities-elasticsearch-job";
 import { pendingExpiredOrdersCheckJob } from "@/jobs/orderbook/cron/pending-expired-orders-check-job";
@@ -152,12 +151,10 @@ import { bidWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/bid-w
 import { tokenWebsocketEventsTriggerJob } from "@/jobs/websocket-events/token-websocket-events-trigger-job";
 import { blockGapCheckJob } from "@/jobs/events-sync/block-gap-check";
 import { traceSyncJob } from "@/jobs/events-sync/trace-sync-job";
-import { backfillTokensTimeToMetadataJob } from "@/jobs/backfill/backfill-tokens-time-to-metadata-job";
 import { permitUpdatesJob } from "@/jobs/permit-updates/permit-updates-job";
 import { expiredPermitsJob } from "@/jobs/permit-updates/cron/expired-permits-job";
 import { topSellingCollectionsJob } from "@/jobs/top-selling-collections-cache/save-top-selling-collections-job";
 import { newCollectionForTokenJob } from "@/jobs/token-updates/new-collection-for-token-job";
-import { backfillTokensWithMissingCollectionJob } from "@/jobs/backfill/backfill-tokens-with-missing-collection-job";
 import { processConsecutiveTransferJob } from "@/jobs/events-sync/process-consecutive-transfer";
 import { processAskEventJob } from "@/jobs/elasticsearch/asks/process-ask-event-job";
 import { processAskEventsJob } from "@/jobs/elasticsearch/asks/process-ask-events-job";
@@ -169,8 +166,6 @@ import { refreshAsksCollectionJob } from "@/jobs/elasticsearch/asks/refresh-asks
 import { refreshActivitiesTokenJob } from "@/jobs/elasticsearch/activities/refresh-activities-token-job";
 import { processCollectionEventJob } from "@/jobs/elasticsearch/collections/process-collection-event-job";
 import { processCollectionEventsJob } from "@/jobs/elasticsearch/collections/process-collection-events-job";
-import { backfillCollectionsElasticsearchJob } from "@/jobs/elasticsearch/collections/backfill-collections-elasticsearch-job";
-import { backfillNftTransferEventsUpdatedAtJob } from "@/jobs/backfill/backfill-nft-transfer-events-updated-at";
 import { onchainMetadataFetchTokenUriJob } from "@/jobs/metadata-index/onchain-metadata-fetch-token-uri-job";
 import { onchainMetadataProcessTokenUriJob } from "@/jobs/metadata-index/onchain-metadata-process-token-uri-job";
 import { updateUserCollectionsJob } from "@/jobs/nft-balance-updates/update-user-collections-job";
@@ -180,7 +175,6 @@ import { backfillTokenSupplyJob } from "@/jobs/backfill/backfill-token-supply";
 import { backfillAttributesFloorAskJob } from "@/jobs/backfill/backfill-attributes-floor-ask";
 import { backfillFtBalancesDatesJob } from "@/jobs/backfill/backfill-ft-balances-dates";
 import { backfillFtTransferEventsDatesJob } from "@/jobs/backfill/backfill-ft-transfer-events-dates";
-import { backfillExecutionsDatesJob } from "@/jobs/backfill/backfill-executions-dates";
 import { backfillOrderEventsDatesJob } from "@/jobs/backfill/backfill-order-events-dates";
 import { backfillTransactionsDatesJob } from "@/jobs/backfill/backfill-transactions-dates";
 
@@ -310,7 +304,6 @@ export class RabbitMqJobsConsumer {
       transferWebsocketEventsTriggerQueueJob,
       tokenAttributeWebsocketEventsTriggerQueueJob,
       topBidWebSocketEventsTriggerJob,
-      backfillDeleteExpiredBidsElasticsearchJob,
       backfillActivitiesElasticsearchJob,
       transferUpdatesJob,
       backfillSaveActivitiesElasticsearchJob,
@@ -319,12 +312,10 @@ export class RabbitMqJobsConsumer {
       bidWebsocketEventsTriggerQueueJob,
       tokenWebsocketEventsTriggerJob,
       blockGapCheckJob,
-      backfillTokensTimeToMetadataJob,
       permitUpdatesJob,
       expiredPermitsJob,
       topSellingCollectionsJob,
       newCollectionForTokenJob,
-      backfillTokensWithMissingCollectionJob,
       processConsecutiveTransferJob,
       processAskEventJob,
       processAskEventsJob,
@@ -336,8 +327,6 @@ export class RabbitMqJobsConsumer {
       refreshActivitiesTokenJob,
       processCollectionEventJob,
       processCollectionEventsJob,
-      backfillCollectionsElasticsearchJob,
-      backfillNftTransferEventsUpdatedAtJob,
       updateUserCollectionsJob,
       resyncUserCollectionsJob,
       backfillUserCollectionsJob,
@@ -345,7 +334,6 @@ export class RabbitMqJobsConsumer {
       backfillAttributesFloorAskJob,
       backfillFtBalancesDatesJob,
       backfillFtTransferEventsDatesJob,
-      backfillExecutionsDatesJob,
       backfillOrderEventsDatesJob,
       backfillTransactionsDatesJob,
     ];

@@ -112,7 +112,8 @@ export abstract class AbstractBaseMetadataProvider {
         parsedMetadata[key as keyof TokenMetadata],
         key,
         parsedMetadata.contract,
-        parsedMetadata.tokenId
+        parsedMetadata.tokenId,
+        this.method
       );
     });
     return parsedMetadata;

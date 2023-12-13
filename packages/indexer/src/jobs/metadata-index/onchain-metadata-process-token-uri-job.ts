@@ -74,9 +74,10 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           throw e; // throw to retry
         }
       }
+
       logger.error(
         this.queueName,
-        `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, error=${e}, falling back to=${config.fallbackMetadataIndexingMethod}`
+        `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, error=${e}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`
       );
     }
 
@@ -87,6 +88,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
       );
       return;
     }
+
     // for whatever reason, we didn't find the metadata, we fallback to simplehash
     const pendingRefreshTokens = new PendingRefreshTokens(config.fallbackMetadataIndexingMethod);
     await pendingRefreshTokens.add([
