@@ -182,10 +182,8 @@ import { backfillAttributesFloorAskJob } from "@/jobs/backfill/backfill-attribut
 import { backfillFtBalancesDatesJob } from "@/jobs/backfill/backfill-ft-balances-dates";
 import { backfillFtTransferEventsDatesJob } from "@/jobs/backfill/backfill-ft-transfer-events-dates";
 import { backfillExecutionsDatesJob } from "@/jobs/backfill/backfill-executions-dates";
-import { backfillExecutionResultsDatesJob } from "@/jobs/backfill/backfill-execution-results-dates";
 import { backfillOrderEventsDatesJob } from "@/jobs/backfill/backfill-order-events-dates";
 import { backfillTransactionsDatesJob } from "@/jobs/backfill/backfill-transactions-dates";
-import { backfillTransactionTracesDatesJob } from "@/jobs/backfill/backfill-transaction-traces-dates";
 
 export const allJobQueues = [
   backfillWrongNftBalances.queue,
@@ -350,10 +348,8 @@ export class RabbitMqJobsConsumer {
       backfillFtBalancesDatesJob,
       backfillFtTransferEventsDatesJob,
       backfillExecutionsDatesJob,
-      backfillExecutionResultsDatesJob,
       backfillOrderEventsDatesJob,
       backfillTransactionsDatesJob,
-      backfillTransactionTracesDatesJob,
     ];
   }
 
