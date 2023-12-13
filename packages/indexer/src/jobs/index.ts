@@ -414,6 +414,11 @@ export class RabbitMqJobsConsumer {
       return;
     }
 
+    // If we already subscribed
+    if (RabbitMqJobsConsumer.queueToChannel.get(job.getQueue())) {
+      return;
+    }
+
     let channel: ChannelWrapper;
     const connectionIndex = _.random(0, RabbitMqJobsConsumer.maxConsumerConnectionsCount - 1);
     const sharedChannel = RabbitMqJobsConsumer.sharedChannels.get(
@@ -484,8 +489,9 @@ export class RabbitMqJobsConsumer {
    * @param job
    */
   static async unsubscribe(job: AbstractRabbitMqJobHandler) {
-    for (const [, channel] of RabbitMqJobsConsumer.queueToChannel) {
+    for (const [key, channel] of RabbitMqJobsConsumer.queueToChannel) {
       await channel.cancel(RabbitMqJobsConsumer.getConsumerTag(job.getQueue()));
+      RabbitMqJobsConsumer.queueToChannel.delete(key);
     }
 
     return true;

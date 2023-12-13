@@ -16,8 +16,9 @@ export class ResumeRabbitConsumerAllChainsEvent {
     const queueName = parsedMessage.queueName;
 
     const job = _.find(RabbitMqJobsConsumer.getQueues(), (queue) => queue.getQueue() === queueName);
+    await PausedRabbitMqQueues.delete(queueName);
 
-    if ((await PausedRabbitMqQueues.delete(queueName)) && job) {
+    if (job) {
       await RabbitMqJobsConsumer.subscribe(job);
 
       logger.info(
