@@ -484,14 +484,11 @@ export class RabbitMqJobsConsumer {
    * @param job
    */
   static async unsubscribe(job: AbstractRabbitMqJobHandler) {
-    const channel = RabbitMqJobsConsumer.queueToChannel.get(job.getQueue());
-
-    if (channel) {
+    for (const [, channel] of RabbitMqJobsConsumer.queueToChannel) {
       await channel.cancel(RabbitMqJobsConsumer.getConsumerTag(job.getQueue()));
-      return true;
     }
 
-    return false;
+    return true;
   }
 
   /**
