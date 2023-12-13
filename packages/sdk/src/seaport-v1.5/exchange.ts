@@ -5,14 +5,12 @@ import { AddressZero, HashZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
 import { _TypedDataEncoder } from "@ethersproject/hash";
 import { keccak256 } from "@ethersproject/keccak256";
-import axios from "axios";
 import { MerkleTree } from "merkletreejs";
 
 import * as Addresses from "./addresses";
 import * as BaseAddresses from "../seaport-base/addresses";
 import { ORDER_EIP712_TYPES, IOrder } from "../seaport-base/order";
 import * as Types from "../seaport-base/types";
-import { bn } from "../utils";
 
 import ExchangeAbi from "./abis/Exchange.json";
 import { SeaportBaseExchange } from "../seaport-base/exchange";
@@ -146,67 +144,25 @@ export class Exchange extends SeaportBaseExchange {
   // --- Get extra data ---
 
   public requiresExtraData(order: IOrder): boolean {
-    if (
-      [
-        BaseAddresses.ReservoirCancellationZone[this.chainId],
-        BaseAddresses.OkxCancellationZone[this.chainId],
-      ].includes(order.params.zone)
-    ) {
+    if (order.params.extraData) {
       return true;
     }
+
+    if (order.params.zone === BaseAddresses.ReservoirCancellationZone[this.chainId]) {
+      return true;
+    }
+
     return false;
   }
 
-  // matchParams should always pass for seaport-v1.4
   public async getExtraData(order: IOrder, matchParams?: Types.MatchParams): Promise<string> {
-    switch (order.params.zone) {
-      // TODO: Move this logic to the indexer, outside of the router
-      case BaseAddresses.ReservoirCancellationZone[this.chainId]: {
-        return axios
-          .post(
-            `https://seaport-oracle-${
-              this.chainId === 1
-                ? "mainnet"
-                : this.chainId === 5
-                ? "goerli"
-                : this.chainId === 137
-                ? "polygon"
-                : "mumbai"
-            }.up.railway.app/api/signatures`,
-            {
-              orders: [
-                {
-                  chainId: this.chainId,
-                  orderParameters: order.params,
-                  fulfiller: AddressZero,
-                  marketplaceContract: this.contract.address,
-                  substandardRequests: [
-                    {
-                      requestedReceivedItems: order.params.consideration.map((c) => ({
-                        ...c,
-                        // All criteria items should have been resolved
-                        itemType: c.itemType > 3 ? c.itemType - 2 : c.itemType,
-                        // Adjust the amount to the quantity filled (won't work for dutch auctions)
-                        amount: bn(matchParams!.amount ?? 1)
-                          .mul(c.endAmount)
-                          .div(order.getInfo()!.amount)
-                          .toString(),
-                        identifier:
-                          c.itemType > 3
-                            ? matchParams!.criteriaResolvers![0].identifier
-                            : c.identifierOrCriteria,
-                      })),
-                    },
-                  ],
-                },
-              ],
-            }
-          )
-          .then((response) => response.data.orders[0].extraDataComponent);
-      }
-
-      default:
-        return matchParams?.extraData ?? "0x";
+    if (
+      order.params.extraData ||
+      order.params.zone === BaseAddresses.ReservoirCancellationZone[this.chainId]
+    ) {
+      return order.params.extraData ?? "0x";
     }
+
+    return matchParams?.extraData ?? "0x";
   }
 }

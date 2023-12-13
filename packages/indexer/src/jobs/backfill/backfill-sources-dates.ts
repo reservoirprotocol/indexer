@@ -4,7 +4,6 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import _ from "lodash";
 import { config } from "@/config/index";
-import { redlock } from "@/common/redis";
 
 export type BackfillSourcesDatesJobCursorInfo = {
   id?: number;
@@ -89,11 +88,11 @@ export class BackfillSourcesDatesJob extends AbstractRabbitMqJobHandler {
 
 export const backfillSourcesDatesJob = new BackfillSourcesDatesJob();
 
-redlock
-  .acquire([`${backfillSourcesDatesJob.getQueue()}-lock`], 60 * 60 * 24 * 30 * 1000)
-  .then(async () => {
-    await backfillSourcesDatesJob.addToQueue();
-  })
-  .catch(() => {
-    // Skip on any errors
-  });
+// redlock
+//   .acquire([`${backfillSourcesDatesJob.getQueue()}-lock`], 60 * 60 * 24 * 30 * 1000)
+//   .then(async () => {
+//     await backfillSourcesDatesJob.addToQueue();
+//   })
+//   .catch(() => {
+//     // Skip on any errors
+//   });

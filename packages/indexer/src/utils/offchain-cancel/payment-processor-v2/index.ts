@@ -1,11 +1,8 @@
-import { Wallet } from "@ethersproject/wallet";
 import { verifyTypedData } from "@ethersproject/wallet";
+import * as Sdk from "@reservoir0x/sdk";
 
-import { idb, pgp } from "@/common/db";
 import { config } from "@/config/index";
-import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
-
-export const cosigner = () => new Wallet(config.cosignerPrivateKey);
+import { cosigner, saveOffChainCancellations } from "@/utils/offchain-cancel";
 
 // Reuse the cancellation format of `seaport` orders
 export const generateOffChainCancellationSignatureData = (orderIds: string[]) => {
@@ -34,27 +31,26 @@ export const verifyOffChainCancellationSignature = (
   return recoveredSigner.toLowerCase() === signer.toLowerCase();
 };
 
-export const saveOffChainCancellations = async (orderIds: string[]) => {
-  const columns = new pgp.helpers.ColumnSet(
-    ["order_id", { name: "timestamp", mod: ":raw", init: () => "now()" }],
-    {
-      table: "off_chain_cancellations",
-    }
-  );
-  await idb.none(
-    pgp.helpers.insert(
-      orderIds.map((orderId) => ({ orderId })),
-      columns
-    ) + " ON CONFLICT DO NOTHING"
-  );
+export const doCancel = async ({
+  orderIds,
+  signature,
+  maker,
+}: {
+  orderIds: string[];
+  signature: string;
+  maker: string;
+}) => {
+  const success = verifyOffChainCancellationSignature(orderIds, signature, maker);
+  if (!success) {
+    throw new Error("Cancellation failed");
+  }
 
-  await orderUpdatesByIdJob.addToQueue(
-    orderIds.map((orderId: string) => ({
-      context: `cancel-${orderId}`,
-      id: orderId,
-      trigger: {
-        kind: "cancel",
-      },
-    }))
-  );
+  // Save cancellations
+  await saveOffChainCancellations(orderIds);
+};
+
+export const doSignOrder = async (order: Sdk.PaymentProcessorV2.Order, taker: string) => {
+  if (order.isCosignedOrder()) {
+    await order.cosign(cosigner(), taker);
+  }
 };

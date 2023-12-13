@@ -186,7 +186,7 @@ export class CollectionNotFoundError extends Error {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function limitFieldSize(value: any) {
+export function limitFieldSize(value: any, key: string) {
   try {
     let size = 0;
     if (typeof value === "string") {
@@ -197,9 +197,10 @@ export function limitFieldSize(value: any) {
 
     if (size > 0.001 * 1024 * 1024) {
       logger.info(
-        "limitFieldSize",
+        "limitFieldSize-2",
         JSON.stringify({
           size: new TextEncoder().encode(value).length,
+          key: key,
           value: value,
         })
       );
@@ -210,6 +211,7 @@ export function limitFieldSize(value: any) {
         "limitFieldSize",
         JSON.stringify({
           size: new TextEncoder().encode(value).length,
+          key: key,
           value: value,
         })
       );
