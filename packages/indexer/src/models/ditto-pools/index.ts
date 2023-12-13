@@ -32,11 +32,30 @@ export const saveDittoPool = async (dittoPool: DittoPool) =>
     }
   );
 
+export const getDittoPools = async (): Promise<DittoPool[]> => {
+  const results = await idb.manyOrNone(
+    `
+      SELECT
+        ditto_pools.address,
+        ditto_pools.template,
+        ditto_pools.lp_nft,
+        ditto_pools.permitter
+      FROM ditto_pools
+    `
+  );
+
+  return results.map((result) => ({
+    address: fromBuffer(result.address),
+    template: fromBuffer(result.template),
+    lpNft: fromBuffer(result.lpNft),
+    permitter: fromBuffer(result.permitter),
+  }));
+};
+
 export const getDittoPool = async (address: string): Promise<DittoPool | undefined> => {
   const result = await idb.oneOrNone(
     `
       SELECT
-        ditto_pools.address,
         ditto_pools.template,
         ditto_pools.lp_nft,
         ditto_pools.permitter

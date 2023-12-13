@@ -16,6 +16,7 @@ import { getNetworkSettings } from "@/config/network";
 import { FeeRecipients } from "@/models/fee-recipients";
 import { addPendingData } from "@/jobs/arweave-relay";
 import { Collections } from "@/models/collections";
+import { getDittoPools } from "@/models/ditto-pools";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { topBidsCache } from "@/models/top-bids-caching";
@@ -222,6 +223,8 @@ export const save = async (
         Sdk.SeaportBase.Addresses.OpenSeaProtectedOffersZone[config.chainId] ===
           order.params.zone && info.side === "buy";
 
+      let zoneIsDittoPool = false;
+
       // Check: order has a known zone
       if (order.params.orderType > 1) {
         if (
@@ -240,11 +243,24 @@ export const save = async (
           // Protected offers zone
           !isProtectedOffer
         ) {
-          return results.push({
-            id,
-            status: "unsupported-zone",
-          });
+          // Check if the zone is a ditto pool
+          const dittoPools = await getDittoPools();
+          if (!dittoPools.some((p) => p.address === order.params.zone)) {
+            return results.push({
+              id,
+              status: "unsupported-zone",
+            });
+          } else {
+            zoneIsDittoPool = true;
+          }
         }
+      }
+
+      if (order.params.extraData && !zoneIsDittoPool) {
+        return results.push({
+          id,
+          status: "unsupported-extra-data",
+        });
       }
 
       // Check: order is valid
