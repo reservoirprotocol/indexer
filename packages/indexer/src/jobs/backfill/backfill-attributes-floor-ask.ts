@@ -73,7 +73,7 @@ export class BackfillAttributesFloorAskJob extends AbstractRabbitMqJobHandler {
     }
   ) {
     if (processResult.addToQueue) {
-      await this.addToQueue(5);
+      await this.addToQueue(5000);
     }
   }
 
