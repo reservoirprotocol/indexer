@@ -1,5 +1,6 @@
 import { TypedDataSigner } from "@ethersproject/abstract-signer";
 import { BytesLike, splitSignature } from "@ethersproject/bytes";
+import { AddressZero } from "@ethersproject/constants";
 import { _TypedDataEncoder } from "@ethersproject/hash";
 import { pack } from "@ethersproject/solidity";
 
@@ -110,7 +111,7 @@ const encodeExtraData = async (
 export const cosignOrder = async (
   order: IOrder,
   cosigner: TypedDataSigner,
-  taker: string,
+  _taker: string,
   matchParams: MatchParams
 ) => {
   const orderHash = order.hash();
@@ -120,7 +121,7 @@ export const cosignOrder = async (
   const [extraDataComponent, requiredReceivedItemsHash] = await encodeExtraData(
     order.chainId,
     cosigner,
-    taker,
+    AddressZero,
     expiration,
     orderHash,
     consideration
