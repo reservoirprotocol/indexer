@@ -160,7 +160,7 @@ export const getUserTopBidsV4Options: RouteOptions = {
             collection: Joi.object({
               id: Joi.string().allow(null),
               name: Joi.string().allow("", null),
-              imageUrl: Joi.string().allow(null),
+              imageUrl: Joi.string().allow("", null),
               floorAskPrice: JoiPrice.allow(null).description(
                 "Native currency to chain unless displayCurrency is passed."
               ),
