@@ -38,11 +38,6 @@ const JoiPriceCurrency = Joi.object({
   chainId: Joi.number().optional(),
 });
 
-export const JoiLightweightPrice = Joi.object({
-  currency: Joi.string().pattern(regex.address).required(),
-  rawAmount: Joi.string().pattern(regex.number).required(),
-});
-
 export const JoiPrice = Joi.object({
   currency: JoiPriceCurrency,
   amount: JoiPriceAmount.description("Amount with fees & royalties included."),
@@ -126,7 +121,8 @@ export const getJoiPriceObject = async (
   },
   currencyAddress: string,
   displayCurrency?: string,
-  totalFeeBps?: number
+  totalFeeBps?: number,
+  currencyChainId?: number
 ) => {
   let currency: Currency;
   if (displayCurrency && displayCurrency !== currencyAddress) {
@@ -177,6 +173,7 @@ export const getJoiPriceObject = async (
       name: currency.name,
       symbol: currency.symbol,
       decimals: currency.decimals,
+      chainId: currencyChainId,
     },
     amount: await getJoiAmountObject(
       currency,

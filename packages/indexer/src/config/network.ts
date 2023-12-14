@@ -441,6 +441,15 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
+            "0xffd822149fa6749176c7a1424e71a417f26189c8",
+            {
+              contract: "0xffd822149fa6749176c7a1424e71a417f26189c8",
+              name: "Nothing Token",
+              symbol: "THING",
+              decimals: 18,
+            },
+          ],
+          [
             "0xed5464bd5c477b7f71739ce1d741b43e932b97b0",
             {
               contract: "0xed5464bd5c477b7f71739ce1d741b43e932b97b0",
@@ -725,6 +734,9 @@ export const getNetworkSettings = (): NetworkSettings => {
               name: "p_TAVA",
               symbol: "TAVA",
               decimals: 18,
+              metadata: {
+                image: "https://i.ibb.co/r6s8vym/altava1644570315501.png",
+              },
             },
           ],
           [

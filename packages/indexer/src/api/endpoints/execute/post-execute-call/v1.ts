@@ -5,9 +5,8 @@ import axios from "axios";
 import { randomUUID } from "crypto";
 import Joi from "joi";
 
-import { JoiLightweightPrice } from "@/common/joi";
+import { JoiPrice, getJoiPriceObject } from "@/common/joi";
 import { logger } from "@/common/logger";
-import { getGasFee } from "@/common/provider";
 import { bn, regex } from "@/common/utils";
 import { config } from "@/config/index";
 import { ApiKeyManager } from "@/models/api-keys";
@@ -65,8 +64,8 @@ export const postExecuteCallV1Options: RouteOptions = {
         })
       ),
       fees: Joi.object({
-        gas: JoiLightweightPrice,
-        relayer: JoiLightweightPrice,
+        gas: JoiPrice,
+        relayer: JoiPrice,
       }),
     }).label(`postExecuteCall${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
@@ -222,16 +221,13 @@ export const postExecuteCallV1Options: RouteOptions = {
       return {
         steps,
         fees: {
-          gas: needsDeposit
-            ? {
-                currency: Sdk.Common.Addresses.Native[originChainId],
-                rawAmount: await getGasFee().then((fee) => fee.mul(22000).toString()),
-              }
-            : undefined,
-          relayer: {
-            currency: Sdk.Common.Addresses.Native[originChainId],
-            rawAmount: fee,
-          },
+          relayer: await getJoiPriceObject(
+            { gross: { amount: fee } },
+            Sdk.Common.Addresses.Native[originChainId],
+            undefined,
+            undefined,
+            payload.currencyChainId
+          ),
         },
       };
     } catch (error) {
