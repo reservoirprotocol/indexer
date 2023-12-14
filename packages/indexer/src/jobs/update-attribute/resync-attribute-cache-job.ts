@@ -1,7 +1,6 @@
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { Attributes } from "@/models/attributes";
 import { Tokens } from "@/models/tokens";
-import { logger } from "@/common/logger";
 
 export type ResyncAttributeCacheJobPayload = {
   contract: string;
@@ -25,15 +24,6 @@ export default class ResyncAttributeCacheJob extends AbstractRabbitMqJobHandler 
         tokenAttribute.collectionId,
         tokenAttribute.key,
         tokenAttribute.value
-      );
-
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `getSellFloorValueAndOnSaleCount. collectionId=${tokenAttribute.collectionId}, key=${tokenAttribute.key}, value=${tokenAttribute.value}, onSaleCount=${onSaleCount}`,
-          floorSell,
-          onSaleCount,
-        })
       );
 
       await Attributes.update(tokenAttribute.attributeId, {
