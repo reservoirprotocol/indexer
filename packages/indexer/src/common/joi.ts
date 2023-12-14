@@ -121,7 +121,8 @@ export const getJoiPriceObject = async (
   },
   currencyAddress: string,
   displayCurrency?: string,
-  totalFeeBps?: number
+  totalFeeBps?: number,
+  currencyChainId?: number
 ) => {
   let currency: Currency;
   if (displayCurrency && displayCurrency !== currencyAddress) {
@@ -172,6 +173,7 @@ export const getJoiPriceObject = async (
       name: currency.name,
       symbol: currency.symbol,
       decimals: currency.decimals,
+      chainId: currencyChainId,
     },
     amount: await getJoiAmountObject(
       currency,

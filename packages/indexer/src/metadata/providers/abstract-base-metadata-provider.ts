@@ -109,7 +109,11 @@ export abstract class AbstractBaseMetadataProvider {
     const parsedMetadata = this._parseToken(...args);
     Object.keys(parsedMetadata).forEach((key) => {
       parsedMetadata[key as keyof TokenMetadata] = limitFieldSize(
-        parsedMetadata[key as keyof TokenMetadata]
+        parsedMetadata[key as keyof TokenMetadata],
+        key,
+        parsedMetadata.contract,
+        parsedMetadata.tokenId,
+        this.method
       );
     });
     return parsedMetadata;

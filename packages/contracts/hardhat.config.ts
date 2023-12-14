@@ -29,7 +29,7 @@ const getNetworkConfig = (chainId?: number) => {
         url = "https://optimism.llamarpc.com";
         break;
       case 56:
-        url = "https://bsc.meowrpc.com";
+        url = "https://bsc.drpc.org";
         break;
       case 137:
         url = "https://polygon.llamarpc.com";

@@ -231,6 +231,7 @@ export class SingleTokenBuilder extends BaseBuilder {
         conduitKey: params.conduitKey!,
         counter: s(params.counter),
         signature: params.signature,
+        extraData: params.extraData,
       });
     } else {
       if (params.taker && params.taker !== AddressZero) {
@@ -283,6 +284,7 @@ export class SingleTokenBuilder extends BaseBuilder {
         conduitKey: params.conduitKey!,
         counter: s(params.counter),
         signature: params.signature,
+        extraData: params.extraData,
       });
     }
   }

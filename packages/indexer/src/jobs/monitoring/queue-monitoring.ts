@@ -35,6 +35,22 @@ if (config.doBackgroundWork) {
             })
           );
 
+          if (config.fallbackMetadataIndexingMethod) {
+            const pendingRefreshTokens = new PendingRefreshTokens(
+              config.fallbackMetadataIndexingMethod
+            );
+            const pendingRefreshTokensCount = await pendingRefreshTokens.length();
+
+            logger.info(
+              "pending-refresh-tokens-metric",
+              JSON.stringify({
+                topic: "queue-monitoring",
+                metadataIndexingMethod: config.fallbackMetadataIndexingMethod,
+                pendingRefreshTokensCount,
+              })
+            );
+          }
+
           const pendingActivitiesQueue = new PendingActivitiesQueue();
           const pendingActivitiesQueueCount = await pendingActivitiesQueue.count();
 

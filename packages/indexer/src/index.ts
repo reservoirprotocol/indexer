@@ -24,7 +24,11 @@ if (Number(process.env.LOCAL_TESTING)) {
         logger.info("rabbit-timing", `rabbit assertion done in ${_.now() - start}ms`);
 
         // Clean any not in use queues
-        await RabbitMq.deleteQueues(`${__dirname}/jobs`, true);
+        try {
+          await RabbitMq.deleteQueues(`${__dirname}/jobs`, true);
+        } catch (error) {
+          logger.error("rabbit-delete-queue", `Error deleting queue ${error}`);
+        }
 
         await redis.set(config.imageTag, "DONE", "EX", 60 * 60 * 24); // Update the lock ttl
         import("./setup");

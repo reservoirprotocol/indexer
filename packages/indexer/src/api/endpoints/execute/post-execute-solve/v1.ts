@@ -29,12 +29,11 @@ export const postExecuteSolveV1Options: RouteOptions = {
       }),
       Joi.object({
         kind: Joi.string().valid("cross-chain-intent").required(),
-        order: Joi.any(),
         request: Joi.any(),
         tx: Joi.string().pattern(regex.bytes),
-        chainId: Joi.number(),
-        context: Joi.any(),
       })
+        .or("request", "tx")
+        .oxor("request", "tx")
     ),
   },
   response: {
@@ -77,32 +76,9 @@ export const postExecuteSolveV1Options: RouteOptions = {
                 },
               },
             };
-          } else if (payload.order) {
+          } else {
             const response = await axios
               .post(`${config.crossChainSolverBaseUrl}/intents/trigger`, {
-                chainId: payload.chainId,
-                request: {
-                  ...payload.order,
-                  signature: payload.order.signature ?? query.signature,
-                },
-                context: payload.context,
-              })
-              .then((response) => response.data);
-
-            return {
-              status: {
-                endpoint: "/execute/status/v1",
-                method: "POST",
-                body: {
-                  kind: payload.kind,
-                  id: response.hash,
-                },
-              },
-            };
-          } else if (payload.tx) {
-            const response = await axios
-              .post(`${config.crossChainSolverBaseUrl}/intents/trigger`, {
-                chainId: payload.chainId,
                 tx: payload.tx,
               })
               .then((response) => response.data)
@@ -117,15 +93,13 @@ export const postExecuteSolveV1Options: RouteOptions = {
                   method: "POST",
                   body: {
                     kind: payload.kind,
-                    id: response.hash,
+                    id: response.requestId,
                   },
                 },
               };
             } else {
               return Boom.conflict("Transaction could not be processed");
             }
-          } else {
-            throw Boom.badRequest("Must specify one of `order` or `tx`");
           }
         }
 
