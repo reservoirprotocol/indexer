@@ -5,6 +5,8 @@ import { RabbitMQMessage } from "@/common/rabbit-mq";
 
 import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
 import { fromBuffer } from "@/common/utils";
+import { logger } from "@/common/logger";
+import { acquireLock } from "@/common/redis";
 
 export class BackfillAttributesFloorAskJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-attributes-floor-ask-queue";
@@ -34,16 +36,32 @@ export class BackfillAttributesFloorAskJob extends AbstractRabbitMqJobHandler {
       }
     );
 
+    logger.info(this.queueName, `Backfill start. resultsCount=${results.length}`);
+
     for (const result of results) {
-      await resyncAttributeCacheJob.addToQueue(
-        { contract: fromBuffer(result.contract), tokenId: result.token_id },
-        0
+      const contract = fromBuffer(result.contract);
+      const tokenId = result.token_id;
+
+      const lockAcquired = await acquireLock(
+        `${this.queueName}-token-lock:${contract}:${tokenId}`,
+        60
+      );
+
+      if (lockAcquired) {
+        await resyncAttributeCacheJob.addToQueue({ contract, tokenId }, 0);
+      }
+
+      logger.info(
+        this.queueName,
+        `resyncAttributeCacheJob. contract=${contract}, tokenId=${tokenId}, lockAcquired=${lockAcquired}`
       );
     }
 
-    // if (results.rowCount === limit) {
-    //   return { addToQueue: true };
-    // }
+    if (results.length === limit) {
+      return { addToQueue: true };
+    }
+
+    logger.info(this.queueName, `Backfill done!`);
 
     return { addToQueue: false };
   }
@@ -55,7 +73,7 @@ export class BackfillAttributesFloorAskJob extends AbstractRabbitMqJobHandler {
     }
   ) {
     if (processResult.addToQueue) {
-      await this.addToQueue();
+      await this.addToQueue(5);
     }
   }
 
