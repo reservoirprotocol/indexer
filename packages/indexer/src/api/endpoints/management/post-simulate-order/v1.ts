@@ -60,6 +60,8 @@ export const postSimulateOrderV1Options: RouteOptions = {
         Network.Polygon,
         Network.Arbitrum,
         Network.Optimism,
+        Network.Base,
+        Network.Zora,
       ].includes(config.chainId)
     ) {
       return { message: "Simulation not supported" };

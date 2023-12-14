@@ -107,7 +107,6 @@ export type EventKind =
   | "titlesxyz"
   | "artblocks"
   | "erc721c-v2"
-  | "titlesxyz"
   | "ditto";
 
 // Event sub-kind in each of the above protocol/standard

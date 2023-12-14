@@ -38,8 +38,8 @@ import { idb } from "@/common/db";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
-import { cosigner } from "@/utils/cosign";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
+import * as offchainCancel from "@/utils/offchain-cancel";
 import * as paymentProcessorV2Utils from "@/utils/payment-processor-v2";
 import * as registry from "@/utils/royalties/registry";
 
@@ -227,9 +227,7 @@ export const generateListingDetailsV6 = async (
     amount?: number;
     isFlagged?: boolean;
   },
-  options?: {
-    taker?: string;
-  }
+  taker: string
 ): Promise<ListingDetails> => {
   const common = {
     orderId: order.id,
@@ -312,10 +310,20 @@ export const generateListingDetailsV6 = async (
     }
 
     case "seaport-v1.4": {
+      const sdkOrder = new Sdk.SeaportV14.Order(config.chainId, order.rawData);
+      await offchainCancel.seaport.doSignOrder(
+        sdkOrder,
+        taker,
+        sdkOrder.buildMatching({
+          tokenId: common.tokenId,
+          amount: common.amount ?? 1,
+        })
+      );
+
       return {
         kind: "seaport-v1.4",
         ...common,
-        order: new Sdk.SeaportV14.Order(config.chainId, order.rawData),
+        order: sdkOrder,
       };
     }
 
@@ -324,10 +332,20 @@ export const generateListingDetailsV6 = async (
         // Make sure on-chain orders have a "defined" signature
         order.rawData.signature = order.rawData.signature ?? "0x";
 
+        const sdkOrder = new Sdk.SeaportV15.Order(config.chainId, order.rawData);
+        await offchainCancel.seaport.doSignOrder(
+          sdkOrder,
+          taker,
+          sdkOrder.buildMatching({
+            tokenId: common.tokenId,
+            amount: common.amount ?? 1,
+          })
+        );
+
         return {
           kind: "seaport-v1.5",
           ...common,
-          order: new Sdk.SeaportV15.Order(config.chainId, order.rawData),
+          order: sdkOrder,
         };
       } else {
         if (order.rawData.okxOrderId) {
@@ -354,10 +372,20 @@ export const generateListingDetailsV6 = async (
     }
 
     case "alienswap": {
+      const sdkOrder = new Sdk.Alienswap.Order(config.chainId, order.rawData);
+      await offchainCancel.seaport.doSignOrder(
+        sdkOrder,
+        taker,
+        sdkOrder.buildMatching({
+          tokenId: common.tokenId,
+          amount: common.amount ?? 1,
+        })
+      );
+
       return {
         kind: "alienswap",
         ...common,
-        order: new Sdk.Alienswap.Order(config.chainId, order.rawData),
+        order: sdkOrder,
       };
     }
 
@@ -458,19 +486,16 @@ export const generateListingDetailsV6 = async (
     }
 
     case "payment-processor-v2": {
-      const rawOrder = new Sdk.PaymentProcessorV2.Order(config.chainId, order.rawData);
-      if (rawOrder.isCosignedOrder() && options?.taker) {
-        await rawOrder.cosign(cosigner(), options.taker);
-      }
+      const sdkOrder = new Sdk.PaymentProcessorV2.Order(config.chainId, order.rawData);
+      await offchainCancel.paymentProcessorV2.doSignOrder(sdkOrder, taker);
 
       const extraArgs: any = {};
-
       const settings = await paymentProcessorV2Utils.getCollectionPaymentSettings(
-        rawOrder.params.tokenAddress
+        sdkOrder.params.tokenAddress
       );
       if (settings?.blockTradesFromUntrustedChannels) {
         const trustedChannels = await paymentProcessorV2Utils.getAllTrustedChannels(
-          rawOrder.params.tokenAddress
+          sdkOrder.params.tokenAddress
         );
         if (trustedChannels.length) {
           extraArgs.trustedChannel = trustedChannels[0].channel;
@@ -481,7 +506,7 @@ export const generateListingDetailsV6 = async (
         kind: "payment-processor-v2",
         ...common,
         extraArgs,
-        order: rawOrder,
+        order: sdkOrder,
       };
     }
 
@@ -510,9 +535,9 @@ export const generateBidDetailsV6 = async (
     amount?: number;
     owner?: string;
   },
+  taker: string,
   options?: {
     permit?: Permit;
-    taker?: string;
   }
 ): Promise<BidDetails> => {
   const common = {
@@ -588,6 +613,15 @@ export const generateBidDetailsV6 = async (
         extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
       }
 
+      await offchainCancel.seaport.doSignOrder(
+        sdkOrder,
+        taker,
+        sdkOrder.buildMatching({
+          tokenId: common.tokenId,
+          amount: common.amount ?? 1,
+        })
+      );
+
       return {
         kind: "seaport-v1.4",
         ...common,
@@ -625,6 +659,15 @@ export const generateBidDetailsV6 = async (
           );
           extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
         }
+
+        await offchainCancel.seaport.doSignOrder(
+          sdkOrder,
+          taker,
+          sdkOrder.buildMatching({
+            tokenId: common.tokenId,
+            amount: common.amount ?? 1,
+          })
+        );
 
         return {
           kind: "seaport-v1.5",
@@ -670,6 +713,16 @@ export const generateBidDetailsV6 = async (
         );
         extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
       }
+
+      await offchainCancel.seaport.doSignOrder(
+        sdkOrder,
+        taker,
+        sdkOrder.buildMatching({
+          tokenId: common.tokenId,
+          amount: common.amount ?? 1,
+        })
+      );
+
       return {
         kind: "alienswap",
         ...common,
@@ -848,9 +901,7 @@ export const generateBidDetailsV6 = async (
 
     case "payment-processor-v2": {
       const sdkOrder = new Sdk.PaymentProcessorV2.Order(config.chainId, order.rawData);
-      if (sdkOrder.isCosignedOrder() && options?.taker) {
-        await sdkOrder.cosign(cosigner(), options.taker);
-      }
+      await offchainCancel.paymentProcessorV2.doSignOrder(sdkOrder, taker);
 
       const extraArgs: any = {};
 

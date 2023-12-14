@@ -15,7 +15,7 @@ export const postResyncUserCollectionBalance: RouteOptions = {
     }).options({ allowUnknown: true }),
     payload: Joi.object({
       user: Joi.string().lowercase().required(),
-      collection: Joi.string().lowercase().required(),
+      collection: Joi.string().lowercase(),
     }),
   },
   handler: async (request: Request) => {
@@ -35,7 +35,9 @@ export const postResyncUserCollectionBalance: RouteOptions = {
       ]);
 
       return {
-        message: `Triggered balance resync for user ${payload.user} in collection ${payload.collection}`,
+        message: `Triggered balance resync for user ${payload.user}${
+          payload.collection ? ` in collection ${payload.collection}` : ""
+        }`,
       };
     } catch (error) {
       logger.error("post-resync-user-collection-balance", `Handler failure: ${error}`);

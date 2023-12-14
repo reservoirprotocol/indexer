@@ -217,9 +217,7 @@ export const getExecuteBuyV5Options: RouteOptions = {
               tokenId: token.tokenId,
               amount: token.quantity,
             },
-            {
-              taker: payload.taker,
-            }
+            payload.taker
           )
         );
       };

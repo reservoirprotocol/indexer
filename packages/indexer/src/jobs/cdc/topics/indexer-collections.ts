@@ -11,7 +11,7 @@ import {
 } from "@/jobs/websocket-events/websocket-event-router";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { refreshAsksCollectionJob } from "@/jobs/elasticsearch/asks/refresh-asks-collection-job";
+// import { refreshAsksCollectionJob } from "@/jobs/elasticsearch/asks/refresh-asks-collection-job";
 import { refreshActivitiesCollectionMetadataJob } from "@/jobs/elasticsearch/activities/refresh-activities-collection-metadata-job";
 import {
   EventKind,
@@ -61,7 +61,7 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
     });
 
     try {
-      const collectionKey = `collection-cache:v2:${payload.after.id}`;
+      const collectionKey = `collection-cache:v4:${payload.after.id}`;
 
       const cachedCollection = await redis.get(collectionKey);
 
@@ -126,7 +126,7 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
 
       // Update the elasticsearch asks index
       if (payload.after.floor_sell_id && spamStatusChanged) {
-        await refreshAsksCollectionJob.addToQueue(payload.after.id);
+        // await refreshAsksCollectionJob.addToQueue(payload.after.id);
       }
 
       // Update the elasticsearch collections index

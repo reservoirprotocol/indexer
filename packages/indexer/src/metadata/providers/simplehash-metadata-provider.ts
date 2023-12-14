@@ -116,7 +116,7 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
       // so by default we ignore them (this behaviour can be overridden if needed).
       description: metadata.description,
       originalMetadata: original_metadata,
-      imageUrl: metadata.previews?.image_medium_url ?? metadata.image_url,
+      imageUrl: metadata.image_url,
       imageOriginalUrl: image_original_url,
       animationOriginalUrl: animation_original_url,
       metadataOriginalUrl: metadata_original_url,

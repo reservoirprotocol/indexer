@@ -1649,6 +1649,10 @@ export const getListedTokensFromES = async (query: any) => {
   let tokens: { contract: string; tokenId: string }[] = [];
 
   if (query.tokens) {
+    if (!_.isArray(query.tokens)) {
+      query.tokens = [query.tokens];
+    }
+
     for (const token of query.tokens) {
       const [contract, tokenId] = token.split(":");
 

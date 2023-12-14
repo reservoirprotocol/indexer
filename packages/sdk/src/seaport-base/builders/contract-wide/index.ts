@@ -163,6 +163,7 @@ export class ContractWideBuilder extends BaseBuilder {
         conduitKey: params.conduitKey!,
         counter: s(params.counter),
         signature: params.signature,
+        extraData: params.extraData,
       });
     } else {
       throw new Error("Unsupported order side");

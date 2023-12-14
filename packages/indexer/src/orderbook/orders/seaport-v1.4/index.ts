@@ -2,7 +2,6 @@ import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import { OrderKind } from "@reservoir0x/sdk/dist/seaport-base/types";
-import axios from "axios";
 import _ from "lodash";
 import pLimit from "p-limit";
 
@@ -13,7 +12,7 @@ import { acquireLock, redis } from "@/common/redis";
 import tracer from "@/common/tracer";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { getNetworkName, getNetworkSettings } from "@/config/network";
+import { getNetworkSettings } from "@/config/network";
 import { Collections } from "@/models/collections";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
@@ -21,6 +20,7 @@ import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/u
 import { offChainCheck } from "@/orderbook/orders/seaport-base/check";
 import * as tokenSet from "@/orderbook/token-sets";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
+import * as offchainCancel from "@/utils/offchain-cancel";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
 import { isOpen } from "@/utils/seaport-conduits";
@@ -724,14 +724,11 @@ export const save = async (
           replacedOrderResult.raw_data.zone ===
             Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
         ) {
-          await axios.post(
-            `https://seaport-oracle-${getNetworkName()}.up.railway.app/api/replacements`,
-            {
-              newOrders: [order.params],
-              replacedOrders: [replacedOrderResult.raw_data],
-              orderKind: "seaport-v1.4",
-            }
-          );
+          await offchainCancel.seaport.doReplacement({
+            newOrders: [order.params],
+            replacedOrders: [replacedOrderResult.raw_data],
+            orderKind: "seaport-v1.4",
+          });
         }
       }
 

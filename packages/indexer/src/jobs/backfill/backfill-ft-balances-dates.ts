@@ -5,6 +5,7 @@ import { RabbitMQMessage } from "@/common/rabbit-mq";
 import _ from "lodash";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { redlock } from "@/common/redis";
 
 export type BackfillFtBalancesDatesJobCursorInfo = {
   owner: string;
@@ -26,11 +27,7 @@ export class BackfillFtBalancesDatesJob extends AbstractRabbitMqJobHandler {
       contract?: Buffer;
       owner?: Buffer;
     } = {
-      limit: _.includes([56, 324, 42161], config.chainId)
-        ? config.chainId === 324
-          ? 10
-          : 50
-        : 500,
+      limit: _.includes([56, 137, 324, 42161, 42170, 43114, 80001], config.chainId) ? 20 : 300,
     };
 
     let cursor = "";
@@ -90,13 +87,11 @@ export class BackfillFtBalancesDatesJob extends AbstractRabbitMqJobHandler {
 
 export const backfillFtBalancesDatesJob = new BackfillFtBalancesDatesJob();
 
-// if (config.chainId !== 1) {
-//   redlock
-//     .acquire([`${backfillFtBalancesDatesJob.getQueue()}-lock`], 60 * 60 * 24 * 30 * 1000)
-//     .then(async () => {
-//       await backfillFtBalancesDatesJob.addToQueue().
-//     })
-//     .catch(() => {
-//       // Skip on any errors
-//     });
-// }
+redlock
+  .acquire([`${backfillFtBalancesDatesJob.getQueue()}-lock`], 60 * 60 * 24 * 30 * 1000)
+  .then(async () => {
+    await backfillFtBalancesDatesJob.addToQueue();
+  })
+  .catch(() => {
+    // Skip on any errors
+  });

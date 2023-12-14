@@ -441,6 +441,15 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
+            "0xffd822149fa6749176c7a1424e71a417f26189c8",
+            {
+              contract: "0xffd822149fa6749176c7a1424e71a417f26189c8",
+              name: "Nothing Token",
+              symbol: "THING",
+              decimals: 18,
+            },
+          ],
+          [
             "0xed5464bd5c477b7f71739ce1d741b43e932b97b0",
             {
               contract: "0xed5464bd5c477b7f71739ce1d741b43e932b97b0",
@@ -725,6 +734,9 @@ export const getNetworkSettings = (): NetworkSettings => {
               name: "p_TAVA",
               symbol: "TAVA",
               decimals: 18,
+              metadata: {
+                image: "https://i.ibb.co/r6s8vym/altava1644570315501.png",
+              },
             },
           ],
           [
@@ -832,7 +844,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
         headBlockDelay: 10,
-        metadataMintDelay: 0,
         washTradingExcludedContracts: [
           // Prohibition Contracts - ArtBlocks Engine
           "0x47a91457a3a1f700097199fd63c039c4784384ab",
@@ -1327,7 +1338,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
-        metadataMintDelay: 0,
         coingecko: {
           networkId: "linea",
         },
