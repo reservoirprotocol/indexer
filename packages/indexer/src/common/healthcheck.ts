@@ -46,7 +46,15 @@ export class HealthCheck {
       const currentTime = now();
 
       if (timestamp && Number(timestamp) < currentTime - 60) {
-        logger.error(
+        if (Number(timestamp) < currentTime - 300) {
+          logger.error(
+            "healthcheck",
+            `last opensea websocket received ${timestamp} ${currentTime - Number(timestamp)}s ago`
+          );
+          // return false;
+        }
+
+        logger.info(
           "healthcheck",
           `last opensea websocket received ${timestamp} ${currentTime - Number(timestamp)}s ago`
         );

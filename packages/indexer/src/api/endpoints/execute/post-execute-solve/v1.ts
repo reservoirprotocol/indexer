@@ -5,6 +5,7 @@ import axios from "axios";
 import Joi from "joi";
 
 import { logger } from "@/common/logger";
+import { regex } from "@/common/utils";
 import { config } from "@/config/index";
 
 const version = "v1";
@@ -29,7 +30,10 @@ export const postExecuteSolveV1Options: RouteOptions = {
       Joi.object({
         kind: Joi.string().valid("cross-chain-intent").required(),
         request: Joi.any(),
+        tx: Joi.string().pattern(regex.bytes),
       })
+        .or("request", "tx")
+        .oxor("request", "tx")
     ),
   },
   response: {
@@ -54,23 +58,49 @@ export const postExecuteSolveV1Options: RouteOptions = {
     try {
       switch (payload.kind) {
         case "cross-chain-intent": {
-          const response = await axios
-            .post(`${config.crossChainSolverBaseUrl}/intents/trigger`, {
-              request: payload.request,
-              signature: query.signature,
-            })
-            .then((response) => response.data);
+          if (payload.request) {
+            const response = await axios
+              .post(`${config.crossChainSolverBaseUrl}/intents/trigger`, {
+                request: payload.request,
+                signature: query.signature,
+              })
+              .then((response) => response.data);
 
-          return {
-            status: {
-              endpoint: "/execute/status/v1",
-              method: "POST",
-              body: {
-                kind: payload.kind,
-                id: response.requestId,
+            return {
+              status: {
+                endpoint: "/execute/status/v1",
+                method: "POST",
+                body: {
+                  kind: payload.kind,
+                  id: response.requestId,
+                },
               },
-            },
-          };
+            };
+          } else {
+            const response = await axios
+              .post(`${config.crossChainSolverBaseUrl}/intents/trigger`, {
+                tx: payload.tx,
+              })
+              .then((response) => response.data)
+              .catch(() => {
+                // Skip errors
+              });
+
+            if (response) {
+              return {
+                status: {
+                  endpoint: "/execute/status/v1",
+                  method: "POST",
+                  body: {
+                    kind: payload.kind,
+                    id: response.requestId,
+                  },
+                },
+              };
+            } else {
+              return Boom.conflict("Transaction could not be processed");
+            }
+          }
         }
 
         case "seaport-intent": {

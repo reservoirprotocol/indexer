@@ -32,14 +32,16 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
     const pendingAskEventsQueue = new PendingAskEventsQueue();
 
     if (kind === EventKind.SellOrderInactive) {
+      const id = new AskCreatedEventHandler(data.id).getAskId();
+
       try {
-        await pendingAskEventsQueue.add([{ info: { id: data.id }, kind: "delete" }]);
+        await pendingAskEventsQueue.add([{ info: { id }, kind: "delete" }]);
       } catch (error) {
         logger.error(
           this.queueName,
           JSON.stringify({
             topic: "debugAskIndex",
-            message: `SellOrderInactive error. id=${data.id}, error=${error}`,
+            message: `SellOrderInactive error. id=${id}, error=${error}`,
             data,
             error,
           })

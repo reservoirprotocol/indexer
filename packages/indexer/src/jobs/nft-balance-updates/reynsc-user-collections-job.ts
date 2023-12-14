@@ -79,7 +79,7 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
         }
 
         // Check if the user was already synced for this collection
-        const lock = `${this.queueName}:${user}:${result.collection_id}`;
+        const lock = `resync-collections:${user}:${result.collection_id}`;
 
         if (await acquireLock(lock, 60 * 60)) {
           // Trigger resync for the user in the collection

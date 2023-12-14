@@ -6,7 +6,7 @@ import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
-// import { refreshAsksTokenJob } from "@/jobs/elasticsearch/asks/refresh-asks-token-job";
+import { refreshAsksTokenJob } from "@/jobs/elasticsearch/asks/refresh-asks-token-job";
 import { logger } from "@/common/logger";
 import { refreshActivitiesTokenJob } from "@/jobs/elasticsearch/activities/refresh-activities-token-job";
 import _ from "lodash";
@@ -110,7 +110,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         const rarityRankChanged = payload.before.rarity_rank !== payload.after.rarity_rank;
 
         if (flagStatusChanged || rarityRankChanged || spamStatusChanged) {
-          // await refreshAsksTokenJob.addToQueue(payload.after.contract, payload.after.token_id);
+          await refreshAsksTokenJob.addToQueue(payload.after.contract, payload.after.token_id);
         }
       }
 
