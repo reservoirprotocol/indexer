@@ -7,7 +7,7 @@ import Joi from "joi";
 import _ from "lodash";
 import * as Boom from "@hapi/boom";
 
-import { redb } from "@/common/db";
+import { edb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import {
   getJoiPriceObject,
@@ -1229,7 +1229,10 @@ export const getTokensV6Options: RouteOptions = {
         `;
       }
 
-      const rawResult = await redb.manyOrNone(baseQuery, query);
+      const rawResult =
+        config.chainId === 137
+          ? await edb.manyOrNone(baseQuery, query)
+          : await redb.manyOrNone(baseQuery, query);
 
       /** Depending on how we sorted, we use that sorting key to determine the next page of results
           Possible formats:

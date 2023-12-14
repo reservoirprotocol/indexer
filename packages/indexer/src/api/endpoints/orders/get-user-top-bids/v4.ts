@@ -7,7 +7,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import _ from "lodash";
 import Joi from "joi";
 
-import { redbAlt } from "@/common/db";
+import { edb, redbAlt } from "@/common/db";
 import { logger } from "@/common/logger";
 import {
   getJoiPriceObject,
@@ -328,7 +328,10 @@ export const getUserTopBidsV4Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
 
-      const bids = await redbAlt.manyOrNone(baseQuery, query);
+      const bids =
+        config.chainId === 137
+          ? await edb.manyOrNone(baseQuery, query)
+          : await redbAlt.manyOrNone(baseQuery, query);
       let totalTokensWithBids = 0;
       let totalAmount = BigNumber.from(0);
 
