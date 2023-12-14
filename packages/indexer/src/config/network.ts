@@ -223,7 +223,7 @@ export const getNetworkSettings = (): NetworkSettings => {
           numberOfShards: 2,
         },
         asks: {
-          numberOfShards: 1,
+          numberOfShards: 2,
         },
         collections: {
           numberOfShards: 2,
