@@ -36,7 +36,7 @@ import { Collections } from "@/models/collections";
 import * as AsksIndex from "@/elasticsearch/indexes/asks";
 import { OrderComponents } from "@reservoir0x/sdk/dist/seaport-base/types";
 import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
-import { hasExtendHandler } from "@/metadata/extend";
+import { hasExtendCollectionHandler } from "@/metadata/extend";
 
 const version = "v6";
 
@@ -818,7 +818,7 @@ export const getTokensV6Options: RouteOptions = {
         (query as any).collectionContract = toBuffer(query.collection.split(":")[0]);
         conditions.push(`t.contract = $/collectionContract/`);
 
-        if (query.collection.includes(":") || hasExtendHandler(query.collection)) {
+        if (query.collection.includes(":") || hasExtendCollectionHandler(query.collection)) {
           conditions.push(`t.collection_id = $/collection/`);
         }
       }
