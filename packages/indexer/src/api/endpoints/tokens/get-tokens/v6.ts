@@ -7,7 +7,7 @@ import Joi from "joi";
 import _ from "lodash";
 import * as Boom from "@hapi/boom";
 
-import { redb } from "@/common/db";
+import { edb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import {
   getJoiPriceObject,
@@ -36,6 +36,7 @@ import { Collections } from "@/models/collections";
 import * as AsksIndex from "@/elasticsearch/indexes/asks";
 import { OrderComponents } from "@reservoir0x/sdk/dist/seaport-base/types";
 import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
+import { hasExtendCollectionHandler } from "@/metadata/extend";
 
 const version = "v6";
 
@@ -816,7 +817,7 @@ export const getTokensV6Options: RouteOptions = {
         (query as any).collectionContract = toBuffer(query.collection.split(":")[0]);
         conditions.push(`t.contract = $/collectionContract/`);
 
-        if (query.collection.includes(":")) {
+        if (query.collection.includes(":") || hasExtendCollectionHandler(query.collection)) {
           conditions.push(`t.collection_id = $/collection/`);
         }
       }
@@ -1227,7 +1228,10 @@ export const getTokensV6Options: RouteOptions = {
         `;
       }
 
-      const rawResult = await redb.manyOrNone(baseQuery, query);
+      const rawResult =
+        config.chainId === 137
+          ? await edb.manyOrNone(baseQuery, query)
+          : await redb.manyOrNone(baseQuery, query);
 
       /** Depending on how we sorted, we use that sorting key to determine the next page of results
           Possible formats:
