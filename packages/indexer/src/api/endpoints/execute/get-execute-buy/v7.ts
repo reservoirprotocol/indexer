@@ -1471,21 +1471,25 @@ export const getExecuteBuyV7Options: RouteOptions = {
       const getCrossChainQuote = async () => {
         const ccConfig: {
           enabled: boolean;
-          solver?: string;
-          balance?: string;
-          maxPrice?: string;
+          user?: {
+            balance: string;
+          };
+          solver?: {
+            address: string;
+            maxCost: string;
+          };
         } = await axios
           .get(
-            `${config.crossChainSolverBaseUrl}/config?fromChainId=${
+            `${config.crossChainSolverBaseUrl}/config?originChainId=${
               originalPayload.currencyChainId
-            }&toChainId=${config.chainId}&user=${originalPayload.taker}&currency=${
+            }&destinationChainId=${config.chainId}&user=${originalPayload.taker}&currency=${
               Sdk.Common.Addresses.Native[originalPayload.currencyChainId]
             }`
           )
           .then((response) => response.data);
 
         if (!ccConfig.enabled) {
-          throw Boom.badRequest("Cross-chain swap not supported between requested chains");
+          throw Boom.badRequest("Cross-chain request not supported between requested chains");
         }
 
         const data = {
@@ -1498,11 +1502,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
           },
         };
 
-        const { requestId, fee, quote } = await axios
+        const { requestId, price, fee } = await axios
           .post(`${config.crossChainSolverBaseUrl}/intents/quote`, data)
           .then((response) => ({
             requestId: response.data.requestId,
-            quote: response.data.price,
+            price: response.data.price,
             fee: response.data.fee,
           }))
           .catch((error) => {
@@ -1511,17 +1515,21 @@ export const getExecuteBuyV7Options: RouteOptions = {
             );
           });
 
-        if (ccConfig.maxPrice && bn(quote).gt(ccConfig.maxPrice) && !preview) {
-          throw Boom.badRequest("Price too high to purchase cross-chain");
+        if (
+          ccConfig.solver?.maxCost &&
+          bn(price).add(fee).gt(ccConfig.solver.maxCost) &&
+          !preview
+        ) {
+          throw Boom.badRequest("Cost too high");
         }
 
         return {
-          quote,
-          fee,
-          solver: ccConfig.solver!,
-          balance: ccConfig.balance!,
-          request: data.request,
           requestId,
+          request: data.request,
+          price,
+          fee,
+          user: ccConfig.user!,
+          solver: ccConfig.solver!,
         };
       };
 
@@ -1582,11 +1590,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
                     throw Boom.badRequest("Unsupported alternative currency");
                   }
 
-                  const { quote } = await getCrossChainQuote();
+                  const { price, fee } = await getCrossChainQuote();
                   item.buyIn!.push(
                     await getJoiPriceObject(
                       {
-                        gross: { amount: quote },
+                        gross: { amount: bn(price).add(fee).toString() },
                       },
                       currency
                     ).then((p) => ({
@@ -1892,14 +1900,15 @@ export const getExecuteBuyV7Options: RouteOptions = {
         const item = path[0];
 
         const data = await getCrossChainQuote();
+        const cost = bn(data.price).add(data.fee);
 
-        item.totalPrice = formatPrice(data.quote);
-        item.totalRawPrice = data.quote;
-        item.quote = formatPrice(data.quote);
-        item.rawQuote = data.quote;
-        item.gasCost = data.fee;
+        item.totalPrice = formatPrice(cost);
+        item.totalRawPrice = cost.toString();
+        item.quote = formatPrice(cost);
+        item.rawQuote = cost.toString();
+        item.gasCost = data.fee.toString();
 
-        const needsDeposit = bn(data.balance).lt(data.quote);
+        const needsDeposit = bn(data.user.balance).lt(cost);
         if (payload.onlyPath) {
           return {
             path,
@@ -1930,9 +1939,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
             status: "incomplete",
             data: {
               from: payload.taker,
-              to: data.solver,
+              to: data.solver.address,
               data: data.requestId,
-              value: bn(data.quote).sub(data.balance).toString(),
+              value: bn(cost).sub(data.user.balance).toString(),
               chainId: payload.currencyChainId,
             },
             check: {

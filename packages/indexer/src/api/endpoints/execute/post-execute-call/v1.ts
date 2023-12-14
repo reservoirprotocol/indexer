@@ -1,4 +1,3 @@
-import { formatEther } from "@ethersproject/units";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -89,12 +88,16 @@ export const postExecuteCallV1Options: RouteOptions = {
 
       const ccConfig: {
         enabled: boolean;
-        solver?: string;
-        balance?: string;
-        maxPrice?: string;
+        user?: {
+          balance: string;
+        };
+        solver?: {
+          address: string;
+          maxCost: string;
+        };
       } = await axios
         .get(
-          `${config.crossChainSolverBaseUrl}/config?fromChainId=${originChainId}&toChainId=${config.chainId}&user=${user}&currency=${Sdk.Common.Addresses.Native[originChainId]}`
+          `${config.crossChainSolverBaseUrl}/config?originChainId=${originChainId}&destinationChainId=${config.chainId}&user=${user}&currency=${Sdk.Common.Addresses.Native[originChainId]}`
         )
         .then((response) => response.data);
 
@@ -112,11 +115,11 @@ export const postExecuteCallV1Options: RouteOptions = {
         },
       };
 
-      const { requestId, fee, quote } = await axios
+      const { requestId, price, fee } = await axios
         .post(`${config.crossChainSolverBaseUrl}/intents/quote`, data)
         .then((response) => ({
           requestId: response.data.requestId,
-          quote: response.data.price,
+          price: response.data.price,
           fee: response.data.fee,
         }))
         .catch((error) => {
@@ -125,12 +128,8 @@ export const postExecuteCallV1Options: RouteOptions = {
           );
         });
 
-      if (ccConfig.maxPrice && bn(quote).gt(ccConfig.maxPrice)) {
-        throw Boom.badRequest(
-          `Price too high (solver executions are capped to a maximum spending of ${formatEther(
-            ccConfig.maxPrice
-          )} ETH)`
-        );
+      if (ccConfig.solver?.maxCost && bn(price).add(fee).gt(ccConfig.solver.maxCost)) {
+        throw Boom.badRequest("Cost too high");
       }
 
       type StepType = {
@@ -166,16 +165,16 @@ export const postExecuteCallV1Options: RouteOptions = {
         },
       ];
 
-      const balance = ccConfig.balance!;
-      const needsDeposit = bn(balance).lt(quote);
+      const cost = bn(price).add(fee);
+      const needsDeposit = bn(ccConfig.user!.balance).lt(cost);
       if (needsDeposit) {
         steps[0].items.push({
           status: "incomplete",
           data: {
             from: payload.taker,
-            to: ccConfig.solver,
+            to: ccConfig.solver!.address,
             data: requestId,
-            value: bn(quote).sub(balance).toString(),
+            value: bn(cost).sub(ccConfig.user!.balance).toString(),
             chainId: originChainId,
           },
           check: {
