@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { logger } from "@/common/logger";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
@@ -83,7 +81,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           message: `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, error=${e}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
           contract,
           tokenId,
-          responseStatus: (e as any).response?.status,
+          error: `${e}`,
         })
       );
     }

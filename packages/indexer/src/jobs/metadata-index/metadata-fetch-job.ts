@@ -47,16 +47,6 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
-    if (payload.data.method === "opensea") {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `Opensea refresh.`,
-          payload,
-        })
-      );
-    }
-
     const { kind, data } = payload;
     const prioritized = !_.isUndefined(this.rabbitMqMessage?.prioritized);
     const limit = 1000;
