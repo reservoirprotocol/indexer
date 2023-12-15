@@ -170,7 +170,5 @@ export const config = {
   rabbitDisableQueuesConsuming: Boolean(Number(process.env.RABBIT_DISABLE_QUEUES_CONSUMING)),
   forceEnableRabbitJobsConsumer: Boolean(Number(process.env.FORCE_ENABLE_RABBIT_JOBS_CONSUMER)),
 
-  debugApiKeys: process.env.DEBUG_API_KEYS
-    ? (JSON.parse(process.env.DEBUG_API_KEYS) as string[])
-    : [],
+  debugApiKeys: process.env.DEBUG_API_KEYS ? String(process.env.DEBUG_API_KEYS).split(",") : [],
 };
