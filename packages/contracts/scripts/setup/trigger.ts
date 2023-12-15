@@ -10,7 +10,9 @@ import { ethers } from "hardhat";
 
 import { DeploymentHelper } from "./deployment-helper";
 
-export const DEPLOYER = "0xf3d63166F0Ca56C3c1A3508FcE03Ff0Cf3Fb691e";
+// export const DEPLOYER = "0xf3d63166F0Ca56C3c1A3508FcE03Ff0Cf3Fb691e";
+// cao address for zkfair-testnet
+export const DEPLOYER = "0xc41a6Ce1E045f9b0c9629b4c08518aee9D259aF2";
 const DEPLOYMENTS_FILE = "deployments.json";
 
 export const readDeployment = async (
@@ -245,12 +247,12 @@ export const trigger = {
     MidaswapModule: async (chainId: number) =>
       [1, 5].includes(chainId)
         ? dv("MidaswapModule", "v2", [
-            DEPLOYER,
-            Sdk.RouterV6.Addresses.Router[chainId],
-            Sdk.Midaswap.Addresses.PairFactory[chainId],
-            Sdk.Midaswap.Addresses.Router[chainId],
-            Sdk.Common.Addresses.WNative[chainId],
-          ])
+          DEPLOYER,
+          Sdk.RouterV6.Addresses.Router[chainId],
+          Sdk.Midaswap.Addresses.PairFactory[chainId],
+          Sdk.Midaswap.Addresses.Router[chainId],
+          Sdk.Common.Addresses.WNative[chainId],
+        ])
         : undefined,
     CaviarV1Module: async (chainId: number) =>
       [1, 5].includes(chainId)
