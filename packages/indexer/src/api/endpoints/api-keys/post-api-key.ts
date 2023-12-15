@@ -54,7 +54,7 @@ export const postApiKey: RouteOptions = {
       const manager = new ApiKeyManager();
 
       const key = await manager.create({
-        app_name: payload.appName,
+        appName: payload.appName,
         website: payload.website,
         email: payload.email,
         tier: 1,
