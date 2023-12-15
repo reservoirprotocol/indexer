@@ -46,6 +46,7 @@ export const postCollectionsOverrideV1Options: RouteOptions = {
       twitterUrl: Joi.string().allow(null).optional(),
       discordUrl: Joi.string().allow(null).optional(),
       externalUrl: Joi.string().allow(null).optional(),
+      bannerImageUrl: Joi.string().allow(null).optional(),
       royalties: Joi.array()
         .items(
           Joi.object({
@@ -103,6 +104,7 @@ export const postCollectionsOverrideV1Options: RouteOptions = {
           twitterUrl: payload.twitterUrl,
           discordUrl: payload.discordUrl,
           externalUrl: payload.externalUrl,
+          bannerImageUrl: payload.bannerImageUrl,
         },
         payload.royalties
       );

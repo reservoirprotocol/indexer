@@ -7,6 +7,7 @@ export type CollectionsOverrideMetadata = {
   twitterUrl?: string | null;
   discordUrl?: string | null;
   externalUrl?: string | null;
+  bannerImageUrl?: string | null;
 };
 
 export type CollectionsOverrideRoyalties = {
@@ -42,22 +43,22 @@ export class CollectionsOverrideEntity {
     this.collectionId = params.collection_id;
     this.override = params.metadata
       ? _.omitBy(
-          {
-            name: params.metadata?.name,
-            metadata: _.omitBy(
-              {
-                description: params.metadata?.description,
-                imageUrl: params.metadata?.imageUrl,
-                twitterUrl: params.metadata?.twitterUrl,
-                discordUrl: params.metadata?.discordUrl,
-                externalUrl: params.metadata?.externalUrl,
-              },
-              _.isUndefined
-            ),
-            royalties: params.royalties ? params.royalties : undefined,
-          },
-          _.isUndefined
-        )
+        {
+          name: params.metadata?.name,
+          metadata: _.omitBy(
+            {
+              description: params.metadata?.description,
+              imageUrl: params.metadata?.imageUrl,
+              twitterUrl: params.metadata?.twitterUrl,
+              discordUrl: params.metadata?.discordUrl,
+              externalUrl: params.metadata?.externalUrl,
+            },
+            _.isUndefined
+          ),
+          royalties: params.royalties ? params.royalties : undefined,
+        },
+        _.isUndefined
+      )
       : {};
     this.createdAt = params.created_at;
     this.updatedAt = params.updated_at;
