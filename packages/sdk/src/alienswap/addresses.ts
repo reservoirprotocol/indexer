@@ -1,5 +1,6 @@
 import { ChainIdToAddress, Network } from "../utils";
 
+// alienswap 交易所地址，得到 conduit controller后创建
 export const Exchange: ChainIdToAddress = {
   [Network.Ethereum]: "0x83746de31fc8de985ffe46c1c20ea6d7d8f4ed3a",
   [Network.EthereumGoerli]: "0x83746de31fc8de985ffe46c1c20ea6d7d8f4ed3a",
@@ -11,8 +12,10 @@ export const Exchange: ChainIdToAddress = {
   [Network.Base]: "0x878dd5e0c3dedfebff67046bb218fb03c26e3e47",
   [Network.EthereumSepolia]: "0x33c551effdf1dbde4ffeaa133b2757819bd1353d",
   [Network.X1Testnet]: "0x5119384015e153a299f381f773832dd63a88f411",
+  [Network.ZkFairTestnet]: "0x8c7Be07991311e509b55db91A37F9817bC758996",
 };
 
+// conduit key, 创建conduit时指定
 export const AlienswapConduitKey: ChainIdToAddress = {
   [Network.Ethereum]: "0xb9f312a053a074bc69bbae4caa423d74b1301cc6000000000000000000000000",
   [Network.EthereumGoerli]: "0xb9f312a053a074bc69bbae4caa423d74b1301cc6000000000000000000000000",
@@ -24,4 +27,5 @@ export const AlienswapConduitKey: ChainIdToAddress = {
   [Network.Base]: "0xffa0cb9f057d077d85655be8823961c4fd4cb56a000000000000000000000000",
   [Network.EthereumSepolia]: "0x7e727520b29773e7f23a8665649197aaf064cef1000000000000000000000000",
   [Network.X1Testnet]: "0xe8c0b0df50215e70269fb55eabd568088e0ad50c000000000000000000000000",
+  [Network.ZkFairTestnet]: "0xc41a6ce1e045f9b0c9629b4c08518aee9d259af2000000000000000000000000",
 };

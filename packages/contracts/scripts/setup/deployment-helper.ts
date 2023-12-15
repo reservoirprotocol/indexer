@@ -33,7 +33,8 @@ export class DeploymentHelper {
 
     // Default: https://github.com/lifinance/create3-factory
     // let create3FactoryAddress = "0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1";
-    let create3FactoryAddress = "0x22fCE8142557cF918248DCC232E583340E7A42BC";
+    // 自己部署的zkfair-testnet
+    let create3FactoryAddress = "0x2bfcE1e2bfc5C68603b75DA48fCec834Ed00Da6D";
     const code = await ethers.provider.getCode(create3FactoryAddress);
     if (!code || code === "0x") {
       create3FactoryAddress = Sdk.Common.Addresses.Create3Factory[chainId];
