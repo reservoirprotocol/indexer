@@ -78,14 +78,16 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         ].includes(settings.paymentSettings) &&
         order.params.paymentMethod !== Sdk.Common.Addresses.Native[config.chainId]
       ) {
-        const paymentMethodWhitelist = settings.whitelistedPaymentMethods.includes(
-          order.params.paymentMethod
-        );
-        if (!paymentMethodWhitelist) {
-          return results.push({
-            id,
-            status: "payment-token-not-approved",
-          });
+        if (settings.whitelistedPaymentMethods) {
+          const paymentMethodWhitelist = settings.whitelistedPaymentMethods.includes(
+            order.params.paymentMethod
+          );
+          if (!paymentMethodWhitelist) {
+            return results.push({
+              id,
+              status: "payment-token-not-approved",
+            });
+          }
         }
       } else if (
         settings?.paymentSettings === paymentProcessorV2.PaymentSettings.PricingConstraints
