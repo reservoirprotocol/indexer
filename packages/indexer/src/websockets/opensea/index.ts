@@ -150,19 +150,33 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 
         const [, contract, tokenId] = event.payload.item.nft_id.split("/");
 
-        const collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
+        if (config.chainId === 1) {
+          const collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
 
-        await metadataIndexFetchJob.addToQueue([
-          {
-            kind: "single-token",
-            data: {
-              method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
-              contract,
-              tokenId,
-              collection: collection?.id || contract,
+          await metadataIndexFetchJob.addToQueue([
+            {
+              kind: "single-token",
+              data: {
+                method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
+                contract,
+                tokenId,
+                collection: collection?.id || contract,
+              },
             },
-          },
-        ]);
+          ]);
+        } else {
+          await metadataIndexFetchJob.addToQueue([
+            {
+              kind: "single-token",
+              data: {
+                method: config.metadataIndexingMethod,
+                contract,
+                tokenId,
+                collection: contract,
+              },
+            },
+          ]);
+        }
 
         logger.info(
           "opensea-websocket-item-metadata-update-event",
@@ -171,7 +185,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
             event,
             contract,
             tokenId,
-            collection,
           })
         );
       } catch (error) {
