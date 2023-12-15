@@ -856,6 +856,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/execute/solve/quote/v1",
+    options: executeEndpoints.postExecuteSolveQuoteV1Options,
+  });
+
+  server.route({
+    method: "POST",
     path: "/execute/status/v1",
     options: executeEndpoints.postExecuteStatusV1Options,
   });

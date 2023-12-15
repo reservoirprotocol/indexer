@@ -16,6 +16,7 @@ export * from "@/api/endpoints/execute/post-execute-mint/v1";
 export * from "@/api/endpoints/execute/post-execute-results/v1";
 export * from "@/api/endpoints/execute/post-execute-solve/v1";
 export * from "@/api/endpoints/execute/post-execute-solve-capacity/v1";
+export * from "@/api/endpoints/execute/post-execute-solve-quote/v1";
 export * from "@/api/endpoints/execute/post-execute-status/v1";
 export * from "@/api/endpoints/execute/post-execute-transfer/v1";
 export * from "@/api/endpoints/execute/post-permit-signature/v1";
