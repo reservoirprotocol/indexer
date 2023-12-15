@@ -20,7 +20,7 @@ export const config = {
 
   // When running in liquidity-only mode, all metadata processes are disabled
   liquidityOnly: Boolean(Number(process.env.LIQUIDITY_ONLY)),
-  metadataIndexingMethod: String(process.env.METADATA_INDEXING_METHOD || "opensea"),
+  metadataIndexingMethod: String(process.env.METADATA_INDEXING_METHOD || "onchain"),
   metadataMaxFieldSizeMB: Number(process.env.METADATA_MAX_FIELD_SIZE_MB || 1),
   fallbackMetadataIndexingMethod: process.env.FALLBACK_METADATA_INDEXING_METHOD || undefined,
   metadataIndexingMethodCollection: String(

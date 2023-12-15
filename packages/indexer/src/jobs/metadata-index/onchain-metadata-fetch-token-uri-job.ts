@@ -98,10 +98,6 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
           method: config.fallbackMetadataIndexingMethod,
         });
       } else {
-        logger.info(
-          this.queueName,
-          `No fallbackMetadataIndexingMethod set. fallbackTokenCount=${fallbackTokens.length}`
-        );
         return;
       }
     }

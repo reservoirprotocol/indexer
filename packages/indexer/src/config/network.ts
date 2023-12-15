@@ -191,7 +191,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     lastBlockLatency: 5,
     headBlockDelay: 0,
     backfillBlockBatchSize: 16,
-    metadataMintDelay: 30,
+    metadataMintDelay: 5,
     enableMetadataAutoRefresh: false,
     washTradingExcludedContracts: [],
     washTradingWhitelistedAddresses: [],
