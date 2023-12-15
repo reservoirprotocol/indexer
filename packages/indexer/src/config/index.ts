@@ -169,4 +169,8 @@ export const config = {
   assertRabbitVhost: Boolean(Number(process.env.ASSERT_RABBIT_VHOST)),
   rabbitDisableQueuesConsuming: Boolean(Number(process.env.RABBIT_DISABLE_QUEUES_CONSUMING)),
   forceEnableRabbitJobsConsumer: Boolean(Number(process.env.FORCE_ENABLE_RABBIT_JOBS_CONSUMER)),
+
+  debugApiKeys: process.env.DEBUG_API_KEYS
+    ? (JSON.parse(process.env.DEBUG_API_KEYS) as string[])
+    : [],
 };

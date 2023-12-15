@@ -164,7 +164,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
   handler: async (request: Request) => {
     const query = request.query as any;
     const apiKey = await ApiKeyManager.getApiKey(request.headers["x-api-key"]);
-    const debug = apiKey?.key === "31710f42-814e-520b-a919-27e263d0c957";
+    const debug = apiKey?.key ? config.debugApiKeys.includes(apiKey.key) : false;
 
     if (debug) {
       logger.info(
@@ -172,6 +172,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
         JSON.stringify({
           message: `Debug apiKey.`,
           query,
+          apiKey,
         })
       );
     }
