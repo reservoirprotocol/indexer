@@ -189,9 +189,12 @@ export async function getCollectionsMetadata(collectionsResult: any[]) {
     const baseQuery = `
     SELECT
       collections.id,
-      collections.name,
+      COALESCE(collections_override.metadata ->> 'name', collections.name)::TEXT AS "name",
       collections.contract,
-      collections.creator,
+      COALESCE(
+        collections_override.metadata ->> 'creator', 
+        convert_from(collections.creator, 'UTF-8')
+      )::TEXT AS "creator",
       collections.token_count,
       collections.owner_count,
       collections.metadata_disabled,
@@ -204,10 +207,10 @@ export async function getCollectionsMetadata(collectionsResult: any[]) {
       collections.day30_volume,
       collections.all_time_volume,
       json_build_object(
-        'imageUrl', (collections.metadata ->> 'imageUrl')::TEXT,
-        'bannerImageUrl', (collections.metadata ->> 'bannerImageUrl')::TEXT,
-        'description', (collections.metadata ->> 'description')::TEXT,
-        'openseaVerificationStatus', (collections.metadata ->> 'safelistRequestStatus')::TEXT
+        'imageUrl', COALESCE(collections_override.metadata ->> 'imageUrl', collections.metadata ->> 'imageUrl')::TEXT,
+        'bannerImageUrl', COALESCE(collections_override.metadata ->> 'bannerImageUrl', collections.metadata ->> 'bannerImageUrl')::TEXT,
+        'description', COALESCE(collections_override.metadata ->> 'description', collections.metadata ->> 'description')::TEXT,
+        'safelistRequestStatus', COALESCE(collections_override.metadata ->> 'safelistRequestStatus', collections.metadata ->> 'safelistRequestStatus')::TEXT
       ) AS metadata,
       collections.non_flagged_floor_sell_id,
       collections.non_flagged_floor_sell_value,
@@ -260,6 +263,7 @@ export async function getCollectionsMetadata(collectionsResult: any[]) {
       FROM orders
       WHERE orders.id = collections.floor_sell_id
     ) y ON TRUE
+    LEFT JOIN collections_override ON collections.id = collections_override.collection_id
     WHERE collections.id IN (${collectionIdList})
   `;
 
@@ -337,14 +341,14 @@ async function formatCollections(
           sourceDomain: sources.get(floorAskSource)?.domain,
           price: floorAskId
             ? await getJoiPriceObject(
-                {
-                  gross: {
-                    amount: floorAskCurrencyValue ?? floorAskValue,
-                    nativeAmount: floorAskValue || 0,
-                  },
+              {
+                gross: {
+                  amount: floorAskCurrencyValue ?? floorAskValue,
+                  nativeAmount: floorAskValue || 0,
                 },
-                floorAskCurrency
-              )
+              },
+              floorAskCurrency
+            )
             : null,
         };
       }
