@@ -10,7 +10,7 @@ import {
   getJoiTokenObject,
 } from "@/common/joi";
 import { fromBuffer, toBuffer } from "@/common/utils";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 import * as Sdk from "@reservoir0x/sdk";
 import { Sources } from "@/models/sources";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
@@ -138,7 +138,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
             name: data.after.name,
             isSpam: Number(data.after.is_spam) > 0,
             description: data.after.description,
-            image: Assets.getLocalAssetsLink(data.after.image),
+            image: Assets.getResizedImageUrl(data.after.image),
             media: data.after.media,
             kind: r?.kind,
             isFlagged: Boolean(Number(data.after.is_flagged)),
@@ -161,7 +161,9 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
               {
                 id: data.after.collection_id,
                 name: r?.collection_name,
-                image: r?.collection_image ? Assets.getLocalAssetsLink(r.collection_image) : null,
+                image: r?.collection_image
+                  ? Assets.getResizedImageUrl(r.collection_image, ImageSize.small)
+                  : null,
                 slug: r?.slug,
                 metadataDisabled: Boolean(Number(r?.collection_metadata_disabled)),
               },
@@ -433,7 +435,9 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
               {
                 id: r.collection_id,
                 name: r.collection_name,
-                image: r?.collection_image ? Assets.getLocalAssetsLink(r.collection_image) : null,
+                image: r?.collection_image
+                  ? Assets.getResizedImageUrl(r.collection_image, ImageSize.small)
+                  : null,
                 slug: r.slug,
                 metadataDisabled: Boolean(Number(r.collection_metadata_disabled)),
               },

@@ -557,7 +557,7 @@ export const getUserTokensV7Options: RouteOptions = {
                t.rarity_score, t.t_is_spam, t.image_version, ${selectLastSale}
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value, top_bid_source_id_int,
                o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price,
-               c.name as collection_name, con.kind, con.symbol, c.metadata, c.royalties, (c.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
+               c.name as collection_name, con.kind, con.symbol, c.metadata, c.royalties, (c.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status", c.image_version AS "collection_image_version",
                c.royalties_bps, ot.kind AS floor_sell_kind, c.slug, c.is_spam AS c_is_spam, c.metadata_disabled AS c_metadata_disabled, t_metadata_disabled, ot.value as floor_sell_value, ot.currency_value as floor_sell_currency_value, ot.currency_price, ot.currency as floor_sell_currency, ot.maker as floor_sell_maker,
                 date_part('epoch', lower(ot.valid_between)) AS "floor_sell_valid_from",
                 coalesce(nullif(date_part('epoch', upper(ot.valid_between)), 'Infinity'), 0) AS "floor_sell_valid_to",
@@ -749,7 +749,11 @@ export const getUserTokensV7Options: RouteOptions = {
                 name: r.collection_name,
                 slug: r.slug,
                 symbol: r.symbol,
-                imageUrl: r.metadata?.imageUrl,
+                imageUrl: Assets.getResizedImageUrl(
+                  r.image,
+                  ImageSize.small,
+                  r.collection_image_version
+                ),
                 isSpam: Number(r.c_is_spam) > 0,
                 metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
                 openseaVerificationStatus: r.opensea_verification_status,

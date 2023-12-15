@@ -70,6 +70,15 @@ export class IndexerTokensHandler extends KafkaEventHandler {
           ].includes(value)
         )
       ) {
+        logger.info(
+          "kafka-event-handler",
+          JSON.stringify({
+            message: `Debug changed.`,
+            payload,
+            changed,
+          })
+        );
+
         await redis.set(
           `token-cache:${payload.after.contract}:${payload.after.token_id}`,
           JSON.stringify({

@@ -15,7 +15,7 @@ import {
   splitContinuation,
   toBuffer,
 } from "@/common/utils";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 import { getJoiTokenObject } from "@/common/joi";
 
 const version = "v4";
@@ -169,6 +169,7 @@ export const getTokensV4Options: RouteOptions = {
           "t"."collection_id",
           "t"."metadata_disabled" as "t_metadata_disabled",
           "c"."metadata_disabled" as "c_metadata_disabled",
+          "c"."image_version" as "collection_image_version",
           "c"."name" as "collection_name",
           "t"."floor_sell_source_id_int",
           ("c".metadata ->> 'imageUrl')::TEXT AS "collection_image",
@@ -427,7 +428,11 @@ export const getTokensV4Options: RouteOptions = {
             collection: {
               id: r.collection_id,
               name: r.collection_name,
-              image: Assets.getLocalAssetsLink(r.collection_image),
+              image: Assets.getResizedImageUrl(
+                r.collection_image,
+                ImageSize.small,
+                r.collection_image_version
+              ),
               slug: r.slug,
             },
             source: r.floor_sell_value

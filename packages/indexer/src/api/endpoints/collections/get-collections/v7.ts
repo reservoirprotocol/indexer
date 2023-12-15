@@ -452,6 +452,7 @@ export const getCollectionsV7Options: RouteOptions = {
           collections.slug,
           collections.name,
           (collections.metadata ->> 'imageUrl')::TEXT AS "image",
+          collections.image_version AS "image_version",
           (collections.metadata ->> 'bannerImageUrl')::TEXT AS "banner",
           (collections.metadata ->> 'discordUrl')::TEXT AS "discord_url",
           (collections.metadata ->> 'description')::TEXT AS "description",
@@ -762,6 +763,13 @@ export const getCollectionsV7Options: RouteOptions = {
             (image) => !_.isNull(image) && _.startsWith(image, "http")
           );
 
+          let imageUrl = r.image;
+          if (imageUrl) {
+            imageUrl = Assets.getResizedImageUrl(imageUrl, ImageSize.small, r.image_version);
+          } else if (sampleImages.length) {
+            imageUrl = Assets.getResizedImageUrl(sampleImages[0], ImageSize.small, r.image_version);
+          }
+
           let securityConfig = undefined;
           if (query.includeSecurityConfigs) {
             const contract = fromBuffer(r.contract);
@@ -805,10 +813,8 @@ export const getCollectionsV7Options: RouteOptions = {
               contractDeployedAt: r.contract_deployed_at
                 ? new Date(r.contract_deployed_at * 1000).toISOString()
                 : null,
-              image:
-                r.image ??
-                (sampleImages.length ? Assets.getLocalAssetsLink(sampleImages[0]) : null),
-              banner: r.banner,
+              image: imageUrl ?? null,
+              banner: Assets.getResizedImageUrl(r.banner),
               twitterUrl: r.twitter_url,
               discordUrl: r.discord_url,
               externalUrl: r.external_url,
@@ -817,7 +823,7 @@ export const getCollectionsV7Options: RouteOptions = {
               description: r.description,
               metadataDisabled: Boolean(Number(r.metadata_disabled)),
               isSpam: Number(r.is_spam) > 0,
-              sampleImages: Assets.getLocalAssetsLink(sampleImages) ?? [],
+              sampleImages: Assets.getResizedImageURLs(sampleImages) ?? [],
               tokenCount: String(r.token_count),
               onSaleCount: String(r.on_sale_count),
               primaryContract: fromBuffer(r.contract),

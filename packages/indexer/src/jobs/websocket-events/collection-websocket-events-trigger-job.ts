@@ -2,7 +2,7 @@ import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
 import { formatEth, toBuffer } from "@/common/utils";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { idb } from "@/common/db";
 import { redis } from "@/common/redis";
@@ -15,6 +15,7 @@ interface CollectionInfo {
   name: string;
   is_spam: number;
   metadata: string;
+  image_version: number;
   royalties: string;
   contract: string;
   token_set_id: string;
@@ -220,7 +221,9 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           name: !metadataDisabled ? r.name : r.contract,
           isSpam: Number(r.is_spam) > 0,
           metadata: {
-            imageUrl: !metadataDisabled ? Assets.getLocalAssetsLink(metadata?.imageUrl) : null,
+            imageUrl: !metadataDisabled
+              ? Assets.getResizedImageUrl(metadata?.imageUrl, ImageSize.small, r?.image_version)
+              : null,
             bannerImageUrl: !metadataDisabled ? metadata?.bannerImageUrl : null,
             discordUrl: !metadataDisabled ? metadata?.discordUrl : null,
             externalUrl: !metadataDisabled ? metadata?.externalUrl : null,

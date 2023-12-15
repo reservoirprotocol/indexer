@@ -1,6 +1,6 @@
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
-import { syncTraces } from "@/events-sync/syncEventsV2";
+import { syncTraces } from "@/events-sync/index";
 
 export type TraceSyncJobPayload = {
   block: number;
