@@ -135,14 +135,19 @@ export class Tokens {
     })) as TokenAttributes[];
   }
 
-  public static async getTokenAttributesKeyCount(collection: string, key: string) {
+  public static async getTokenAttributesKeyCount(
+    collection: string,
+    key: string,
+    readReplica = false
+  ) {
     const query = `SELECT count(DISTINCT value) AS count
                    FROM token_attributes
                    WHERE collection_id = $/collection/
                    and key = $/key/
                    GROUP BY key`;
 
-    return await redb.oneOrNone(query, {
+    const dbInstance = readReplica ? redb : idb;
+    return await dbInstance.oneOrNone(query, {
       collection,
       key,
     });

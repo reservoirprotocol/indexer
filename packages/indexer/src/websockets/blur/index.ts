@@ -61,6 +61,15 @@ if (config.chainId === 1 && config.doWebsocketWork && config.blurWsUrl && config
       await orderbookOrdersJob.addToQueue(orderInfos as any);
 
       await blurListingsRefreshJob.addToQueue(collection);
+
+      logger.info(
+        COMPONENT,
+        JSON.stringify({
+          parsedMessage,
+          orderInfos,
+          now: new Date().toISOString(),
+        })
+      );
     } catch (error) {
       logger.error(COMPONENT, `Error handling listing: ${error} (message = ${message})`);
     }
