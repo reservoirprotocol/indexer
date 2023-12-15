@@ -94,7 +94,7 @@ export const getAutocompleteCollectionsV1Options: RouteOptions = {
         id: collection.id,
         name: collection.name,
         contract: collection.contract,
-        image: Assets.getResizedImageURLs(collection.image),
+        image: Assets.getLocalAssetsLink(collection.image),
         tokenCount: String(collection.tokenCount),
         allTimeVolume: collection.allTimeVolume ? formatEth(collection.allTimeVolume) : null,
         floorAskPrice: collection.floorSell?.value ? formatEth(collection.floorSell.value) : null,

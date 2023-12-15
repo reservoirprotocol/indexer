@@ -72,26 +72,6 @@ export async function getContractNameAndSymbol(contractAddress: string) {
   }
 }
 
-export async function getContractOwner(contractAddress: string) {
-  const contract = new ethers.Contract(
-    contractAddress,
-    ["function owner() view returns (address)"],
-    baseProvider
-  );
-
-  try {
-    const owner = await contract.owner();
-    return owner;
-  } catch (error) {
-    logger.error(
-      "onchain-fetcher",
-      `getContractOwner error. contractAddress:${contractAddress}, error:${error}`
-    );
-
-    return null;
-  }
-}
-
 export async function getContractDeployer(contractAddress: string) {
   const contract = new ethers.Contract(
     contractAddress,

@@ -30,7 +30,6 @@ export default class RefreshActivitiesCollectionMetadataJob extends AbstractRabb
       name: collection?.name || null,
       image: collection?.metadata?.imageUrl || null,
       isSpam: Number(collection?.isSpam),
-      imageVersion: collection?.imageVersion || null,
     };
 
     if (!_.isEmpty(collectionUpdateData)) {

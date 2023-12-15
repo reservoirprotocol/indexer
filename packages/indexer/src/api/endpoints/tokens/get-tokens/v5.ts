@@ -27,7 +27,7 @@ import {
 } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
-import { Assets, ImageSize } from "@/utils/assets";
+import { Assets } from "@/utils/assets";
 import { CollectionSets } from "@/models/collection-sets";
 
 const version = "v5";
@@ -539,7 +539,6 @@ export const getTokensV5Options: RouteOptions = {
           t.last_flag_change,
           t.metadata_disabled AS t_metadata_disabled,
           c.metadata_disabled AS c_metadata_disabled,
-          c.image_version as collection_image_version,
           c.slug,
           t.last_buy_value,
           t.last_buy_timestamp,
@@ -1071,11 +1070,7 @@ export const getTokensV5Options: RouteOptions = {
               collection: {
                 id: r.collection_id,
                 name: r.collection_name,
-                image: Assets.getResizedImageUrl(
-                  r.collection_image,
-                  ImageSize.small,
-                  r.collection_image_version
-                ),
+                image: Assets.getLocalAssetsLink(r.collection_image),
                 slug: r.slug,
               },
               lastBuy: {

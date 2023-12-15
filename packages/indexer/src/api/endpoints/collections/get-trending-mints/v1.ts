@@ -8,7 +8,7 @@ import Joi from "joi";
 
 import { redis } from "@/common/redis";
 
-const REDIS_EXPIRATION_MINTS = 1800; // 30 minutes
+const REDIS_EXPIRATION_MINTS = 120; // Assuming an hour, adjust as needed.
 
 import { getTrendingMints } from "@/elasticsearch/indexes/activities";
 
@@ -113,7 +113,6 @@ export const getTrendingMintsV1Options: RouteOptions = {
           sixHourCount: Joi.number().allow(null),
           oneHourCount: Joi.number().allow(null),
           mintType: Joi.string().allow("free", "paid", "", null),
-          mintStandard: Joi.string().allow("", null),
           mintStatus: Joi.string().allow("", null),
           mintStages: Joi.array().items(
             Joi.object({
@@ -165,7 +164,7 @@ export const getTrendingMintsV1Options: RouteOptions = {
         limit,
       });
 
-      if (trendingMints.length === 0) {
+      if (trendingMints.length < 0) {
         const response = h.response({ mints: [] });
         return response;
       }
@@ -239,24 +238,11 @@ async function getMintingCollections(type: "paid" | "free" | "any"): Promise<Min
   const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const baseQuery = `
-  SELECT 
-    mints.collection_id, 
-    start_time, 
-    end_time, 
-    created_at, 
-    updated_at, 
-    max_supply, 
-    max_mints_per_wallet, 
-    price, 
-    standard
+SELECT 
+    collection_id, start_time, end_time, created_at, updated_at, max_supply, max_mints_per_wallet, price
 FROM 
-    collection_mints mints 
-LEFT JOIN 
-    collection_mint_standards 
-ON 
-    collection_mint_standards.collection_id = mints.collection_id
-${whereClause} 
-LIMIT 50000;
+    collection_mints
+${whereClause} LIMIT 50000;
   `;
 
   const result = await redb.manyOrNone<Mint>(baseQuery);
@@ -322,7 +308,7 @@ async function formatCollections(
         image:
           metadata?.metadata?.imageUrl ??
           (metadata?.sample_images?.length
-            ? Assets.getResizedImageURLs(metadata.sample_images[0])
+            ? Assets.getLocalAssetsLink(metadata.sample_images[0])
             : null),
         banner: metadata?.metadata ? metadata.metadata?.bannerImageUrl : null,
         name: metadata ? metadata?.name : "",
@@ -347,14 +333,13 @@ async function formatCollections(
         ownerCount: Number(metadata.owner_count || 0),
         sampleImages:
           metadata?.sample_images && metadata?.sample_images?.length > 0
-            ? Assets.getResizedImageURLs(metadata?.sample_images)
+            ? Assets.getLocalAssetsLink(metadata?.sample_images)
             : [],
         mintType: Number(mintData?.price) > 0 ? "paid" : "free",
         mintPrice: mintData?.price,
         maxSupply: Number.isSafeInteger(Number(mintData?.max_supply))
           ? Number(mintData?.max_supply)
           : null,
-        mintStandard: mintData?.standard || "unknown",
         createdAt: mintData?.created_at && new Date(mintData?.created_at).toISOString(),
         startDate: mintData?.start_time && new Date(mintData?.start_time).toISOString(),
         endDate: mintData?.end_time && new Date(mintData?.end_time).toISOString(),

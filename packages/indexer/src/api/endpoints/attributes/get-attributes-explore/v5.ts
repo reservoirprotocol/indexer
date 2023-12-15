@@ -264,7 +264,7 @@ export const getAttributesExploreV5Options: RouteOptions = {
         value: r.value,
         tokenCount: Number(r.token_count),
         onSaleCount: Number(r.on_sale_count),
-        sampleImages: Assets.getResizedImageURLs(r.sample_images) || [],
+        sampleImages: Assets.getLocalAssetsLink(r.sample_images) || [],
         floorAskPrices:
           Number(r.token_count) <= 10000 // We only calculate attribute floor up to 10k tokens
             ? query.maxFloorAskPrices > 1

@@ -569,12 +569,6 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
-    method: "GET",
-    path: "/users/{user}/collections/v4",
-    options: collectionsEndpoints.getUserCollectionsV4Options,
-  });
-
-  server.route({
     method: "POST",
     path: "/collections/refresh/v1",
     options: collectionsEndpoints.postCollectionsRefreshV1Options,
@@ -1327,12 +1321,6 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/tokens/v7",
     options: tokensEndpoints.getTokensV7Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/tokens/v8",
-    options: tokensEndpoints.getTokensV8Options,
   });
 
   server.route({

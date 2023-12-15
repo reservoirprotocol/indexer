@@ -92,6 +92,7 @@ import { eventsSyncFtTransfersWriteBufferJob } from "@/jobs/events-sync/write-bu
 import { eventsSyncNftTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
 import { eventsSyncProcessBackfillJob } from "@/jobs/events-sync/process/events-sync-process-backfill";
 import { openseaBidsQueueJob } from "@/jobs/orderbook/opensea-bids-queue-job";
+import { processResyncRequestJob } from "@/jobs/events-sync/process-resync-request-queue-job";
 import { eventsSyncBackfillJob } from "@/jobs/events-sync/events-sync-backfill-job";
 import { blockCheckJob } from "@/jobs/events-sync/block-check-queue-job";
 import { collectionNormalizedJob } from "@/jobs/collection-updates/collection-normalized-floor-queue-job";
@@ -168,6 +169,7 @@ import { onchainMetadataProcessTokenUriJob } from "@/jobs/metadata-index/onchain
 import { updateUserCollectionsJob } from "@/jobs/nft-balance-updates/update-user-collections-job";
 import { resyncUserCollectionsJob } from "@/jobs/nft-balance-updates/reynsc-user-collections-job";
 import { backfillUserCollectionsJob } from "@/jobs/backfill/backfill-user-collections";
+import { tokenReassignedUserCollectionsJob } from "@/jobs/nft-balance-updates/token-reassigned-user-collections-job";
 import { backfillFtBalancesDatesJob } from "@/jobs/backfill/backfill-ft-balances-dates";
 import { backfillFtTransferEventsDatesJob } from "@/jobs/backfill/backfill-ft-transfer-events-dates";
 import { backfillOrderEventsDatesJob } from "@/jobs/backfill/backfill-order-events-dates";
@@ -175,7 +177,6 @@ import { backfillTransactionsDatesJob } from "@/jobs/backfill/backfill-transacti
 import { backfillTokenSupplyJob } from "@/jobs/backfill/backfill-token-supply";
 import { backfillActiveUserCollectionsJob } from "@/jobs/backfill/backfill-active-user-collections";
 import { backfillAttributesFloorAskJob } from "@/jobs/backfill/backfill-attributes-floor-ask";
-import { syncApiKeysJob } from "@/jobs/api-keys/sync-api-keys-job";
 
 export const allJobQueues = [
   backfillWrongNftBalances.queue,
@@ -251,6 +252,7 @@ export class RabbitMqJobsConsumer {
       eventsSyncNftTransfersWriteBufferJob,
       eventsSyncProcessBackfillJob,
       openseaBidsQueueJob,
+      processResyncRequestJob,
       eventsSyncBackfillJob,
       blockCheckJob,
       collectionNormalizedJob,
@@ -328,8 +330,7 @@ export class RabbitMqJobsConsumer {
       updateUserCollectionsJob,
       resyncUserCollectionsJob,
       backfillUserCollectionsJob,
-      backfillTokenSupplyJob,
-      backfillAttributesFloorAskJob,
+      tokenReassignedUserCollectionsJob,
       backfillFtBalancesDatesJob,
       backfillFtTransferEventsDatesJob,
       backfillOrderEventsDatesJob,
@@ -337,7 +338,6 @@ export class RabbitMqJobsConsumer {
       backfillTokenSupplyJob,
       backfillActiveUserCollectionsJob,
       backfillAttributesFloorAskJob,
-      syncApiKeysJob,
     ];
   }
 

@@ -21,7 +21,7 @@ import {
 
 import { getJoiCollectionObject, getJoiPriceObject, JoiPrice } from "@/common/joi";
 import { Sources } from "@/models/sources";
-import { Assets, ImageSize } from "@/utils/assets";
+import { Assets } from "@/utils/assets";
 
 const version = "v1";
 
@@ -224,7 +224,6 @@ export async function getCollectionsMetadata(
         'description', (collections.metadata ->> 'description')::TEXT,
         'openseaVerificationStatus', (collections.metadata ->> 'safelistRequestStatus')::TEXT
       ) AS metadata,
-      collections.image_version,
       collections.non_flagged_floor_sell_id,
       collections.non_flagged_floor_sell_value,
       collections.non_flagged_floor_sell_maker,
@@ -445,15 +444,11 @@ async function formatCollections(
 
       return {
         ...response,
-        image: Assets.getResizedImageUrl(
-          metadata?.metadata?.imageUrl,
-          ImageSize.small,
-          metadata.image_version
-        ),
         sampleImages:
           metadata?.sample_images && metadata?.sample_images?.length > 0
-            ? Assets.getResizedImageURLs(metadata?.sample_images, undefined, metadata.image_version)
+            ? Assets.getLocalAssetsLink(metadata?.sample_images)
             : [],
+        image: metadata?.metadata?.imageUrl,
         isSpam: Number(metadata.is_spam) > 0,
         openseaVerificationStatus: metadata?.metadata?.openseaVerificationStatus || null,
         name: metadata?.name || "",

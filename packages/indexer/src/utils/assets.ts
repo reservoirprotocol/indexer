@@ -14,11 +14,7 @@ export enum ImageSize {
 }
 
 export class Assets {
-  public static getResizedImageURLs(
-    assets: string | string[],
-    size?: number,
-    image_version?: number
-  ) {
+  public static getLocalAssetsLink(assets: string | string[]) {
     if (_.isEmpty(assets) || assets == "") {
       return undefined;
     }
@@ -27,13 +23,13 @@ export class Assets {
       if (config.enableImageResizing) {
         if (_.isArray(assets)) {
           return assets.map((asset) => {
-            return this.getResizedImageUrl(asset, size, image_version);
+            return this.signImage(asset);
           });
         }
-        return this.getResizedImageUrl(assets, size, image_version);
+        return this.signImage(assets);
       }
     } catch (error) {
-      // logger.error("getResizedImageURLs", `Error: ${error}`);
+      // logger.error("getLocalAssetsLink", `Error: ${error}`);
       return [];
     }
 

@@ -103,8 +103,7 @@ export class FillEventCreatedEventHandler extends BaseActivityEventHandler {
                         collections.is_spam AS "collection_is_spam",
                         collections.id AS "collection_id",
                         collections.name AS "collection_name",
-                        (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image",
-                        collections.image_version AS "collection_image_version"
+                        (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image"
                     FROM tokens
                     JOIN collections on collections.id = tokens.collection_id
                     WHERE fill_events_2.contract = tokens.contract

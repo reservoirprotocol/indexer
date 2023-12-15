@@ -335,7 +335,7 @@ export const getStatsV1Options: RouteOptions = {
           ? {
               tokenCount: Number(r.token_count),
               onSaleCount: Number(r.on_sale_count),
-              sampleImages: Assets.getResizedImageURLs(r.sample_images) || [],
+              sampleImages: Assets.getLocalAssetsLink(r.sample_images) || [],
               market: {
                 floorAsk: {
                   id: r.floor_sell_id,

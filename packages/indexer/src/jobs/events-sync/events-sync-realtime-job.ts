@@ -1,7 +1,7 @@
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { config } from "@/config/index";
 import { logger } from "@/common/logger";
-import { checkForOrphanedBlock, syncEvents } from "@/events-sync/index";
+import { checkForOrphanedBlock, syncEvents } from "@/events-sync/syncEventsV2";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import { traceSyncJob } from "./trace-sync-job";
 import { redis } from "@/common/redis";
@@ -31,13 +31,7 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
       }
 
       const skipLogsCheck = Number(this.rabbitMqMessage?.retryCount) === this.maxRetries;
-      await syncEvents(
-        {
-          fromBlock: block,
-          toBlock: block,
-        },
-        skipLogsCheck
-      );
+      await syncEvents(block, skipLogsCheck);
       await traceSyncJob.addToQueue({ block: block });
       //eslint-disable-next-line
     } catch (error: any) {

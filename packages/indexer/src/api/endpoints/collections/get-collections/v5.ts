@@ -21,7 +21,7 @@ import {
 import { config } from "@/config/index";
 import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
-import { Assets, ImageSize } from "@/utils/assets";
+import { Assets } from "@/utils/assets";
 
 const version = "v5";
 
@@ -423,7 +423,6 @@ export const getCollectionsV5Options: RouteOptions = {
           collections.slug,
           collections.name,
           (collections.metadata ->> 'imageUrl')::TEXT AS "image",
-          collections.image_version AS "image_version",
           (collections.metadata ->> 'bannerImageUrl')::TEXT AS "banner",
           (collections.metadata ->> 'discordUrl')::TEXT AS "discord_url",
           (collections.metadata ->> 'description')::TEXT AS "description",
@@ -620,7 +619,6 @@ export const getCollectionsV5Options: RouteOptions = {
              tokens.token_id AS floor_sell_token_id,
              tokens.name AS floor_sell_token_name,
              tokens.image AS floor_sell_token_image,
-             tokens.image_version AS floor_sell_token_image_version,
              orders.currency AS floor_sell_currency,
              ${
                query.normalizeRoyalties
@@ -661,13 +659,6 @@ export const getCollectionsV5Options: RouteOptions = {
             (image) => !_.isNull(image) && _.startsWith(image, "http")
           );
 
-          let imageUrl = r.image;
-          if (imageUrl) {
-            imageUrl = Assets.getResizedImageUrl(imageUrl, ImageSize.small, r.image_version);
-          } else if (sampleImages.length) {
-            imageUrl = Assets.getResizedImageUrl(sampleImages[0], ImageSize.small, r.image_version);
-          }
-
           return getJoiCollectionObject(
             {
               id: r.id,
@@ -677,13 +668,13 @@ export const getCollectionsV5Options: RouteOptions = {
               image:
                 r.image ??
                 (sampleImages.length ? Assets.getResizedImageUrl(sampleImages[0]) : null),
-              banner: Assets.getResizedImageUrl(r.banner),
+              banner: r.banner,
               discordUrl: r.discord_url,
               externalUrl: r.external_url,
               twitterUsername: r.twitter_username,
               openseaVerificationStatus: r.opensea_verification_status,
               description: r.description,
-              sampleImages: Assets.getResizedImageURLs(sampleImages) ?? [],
+              sampleImages: Assets.getLocalAssetsLink(sampleImages) ?? [],
               tokenCount: String(r.token_count),
               onSaleCount: String(r.on_sale_count),
               primaryContract: fromBuffer(r.contract),
@@ -729,11 +720,7 @@ export const getCollectionsV5Options: RouteOptions = {
                     : null,
                   tokenId: r.floor_sell_token_id,
                   name: r.floor_sell_token_name,
-                  image: Assets.getResizedImageUrl(
-                    r.floor_sell_token_image,
-                    undefined,
-                    r.floor_sell_token_image_version
-                  ),
+                  image: Assets.getLocalAssetsLink(r.floor_sell_token_image),
                 },
               },
               topBid: query.includeTopBid

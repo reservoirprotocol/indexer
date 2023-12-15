@@ -8,7 +8,7 @@ import { logger } from "@/common/logger";
 import { redb } from "@/common/db";
 import { formatEth, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
-import { Assets, ImageSize } from "@/utils/assets";
+import { Assets } from "@/utils/assets";
 import { getUSDAndCurrencyPrices } from "@/utils/prices";
 import { AddressZero } from "@ethersproject/constants";
 import { getJoiCollectionObject, getJoiPriceObject, JoiPrice } from "@/common/joi";
@@ -123,8 +123,7 @@ export const getSearchCollectionsV2Options: RouteOptions = {
             SELECT c.id, c.name, c.contract, (c.metadata ->> 'imageUrl')::TEXT AS image, c.all_time_volume, c.floor_sell_value,
                    c.slug, (c.metadata ->> 'safelistRequestStatus')::TEXT AS opensea_verification_status,
                    o.currency AS floor_sell_currency, c.is_spam, c.metadata_disabled,
-                   o.currency_price AS floor_sell_currency_price,
-                   c.image_version
+                   o.currency_price AS floor_sell_currency_price
             FROM collections c
             LEFT JOIN orders o ON o.id = c.floor_sell_id
             ${whereClause}
@@ -159,11 +158,7 @@ export const getSearchCollectionsV2Options: RouteOptions = {
               name: collection.name,
               slug: collection.slug,
               contract: fromBuffer(collection.contract),
-              image: Assets.getResizedImageUrl(
-                collection.image,
-                ImageSize.small,
-                collection.image_version
-              ),
+              image: Assets.getLocalAssetsLink(collection.image),
               isSpam: Number(collection.is_spam) > 0,
               metadataDisabled: Boolean(Number(collection.metadata_disabled)),
               allTimeVolume: allTimeVolume ? formatEth(allTimeVolume) : null,

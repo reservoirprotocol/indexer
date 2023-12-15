@@ -16,7 +16,7 @@ import {
   toBuffer,
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
-import { Assets, ImageSize } from "@/utils/assets";
+import { Assets } from "@/utils/assets";
 import { JoiAttributeKeyValueObject, getJoiTokenObject } from "@/common/joi";
 import * as Boom from "@hapi/boom";
 
@@ -154,7 +154,6 @@ export const getTokensDetailsV3Options: RouteOptions = {
           "c"."name" as "collection_name",
           "con"."kind",
           ("c".metadata ->> 'imageUrl')::TEXT AS "collection_image",
-          "c"."image_version" as "collection_image_version",
           "c"."slug",
           "t"."last_buy_value",
           "t"."last_buy_timestamp",
@@ -414,11 +413,7 @@ export const getTokensDetailsV3Options: RouteOptions = {
               collection: {
                 id: r.collection_id,
                 name: r.collection_name,
-                image: Assets.getResizedImageUrl(
-                  r.collection_image,
-                  ImageSize.small,
-                  r.collection_image_version
-                ),
+                image: Assets.getLocalAssetsLink(r.collection_image),
                 slug: r.slug,
               },
               lastBuy: {

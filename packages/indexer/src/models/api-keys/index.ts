@@ -3,14 +3,10 @@
 import _ from "lodash";
 import { Request } from "@hapi/hapi";
 
-import { idb, pgp, redb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { allChainsSyncRedis, redis } from "@/common/redis";
-import {
-  ApiKeyEntity,
-  ApiKeyPermission,
-  ApiKeyUpdateParams,
-} from "@/models/api-keys/api-key-entity";
+import { ApiKeyEntity, ApiKeyUpdateParams } from "@/models/api-keys/api-key-entity";
 import getUuidByString from "uuid-by-string";
 import { AllChainsChannel, Channel } from "@/pubsub/channels";
 import axios from "axios";
@@ -20,19 +16,13 @@ import { Boom } from "@hapi/boom";
 import tracer from "@/common/tracer";
 import flat from "flat";
 import { regex } from "@/common/utils";
-import { syncApiKeysJob } from "@/jobs/api-keys/sync-api-keys-job";
 
 export type ApiKeyRecord = {
-  appName: string;
+  app_name: string;
   website: string;
   email: string;
   tier: number;
   key?: string;
-  active?: boolean;
-  permissions?: Partial<Record<ApiKeyPermission, unknown>>;
-  ips?: string[];
-  origins?: string[];
-  revShareBps?: number | null;
 };
 
 export type NewApiKeyResponse = {
@@ -55,40 +45,33 @@ export class ApiKeyManager {
       values.key = getUuidByString(`${values.key}${values.email}${values.website}`);
     }
 
-    values.active = true;
-
     let created;
-
-    const columns = new pgp.helpers.ColumnSet(
-      Object.entries(values).map(([key, value]) =>
-        _.isObject(value) ? { name: _.snakeCase(key), mod: ":json" } : _.snakeCase(key)
-      ),
-      {
-        table: "api_keys",
-      }
-    );
 
     // Create the record in the database
     try {
       created = await idb.oneOrNone(
-        `${pgp.helpers.insert(
-          _.mapKeys(values, (value, key) => _.snakeCase(key)),
-          columns
-        )} ON CONFLICT DO NOTHING RETURNING 1`
+        "INSERT INTO api_keys (${this:name}) VALUES (${this:csv}) ON CONFLICT DO NOTHING RETURNING 1",
+        values
       );
     } catch (e) {
       logger.error("api-key", `Unable to create a new apikeys record: ${e}`);
       return false;
     }
 
+    // Cache the key on redis for faster lookup
+    try {
+      const redisKey = `apikey:${values.key}`;
+      await redis.hset(redisKey, new Map(Object.entries(values)));
+    } catch (e) {
+      logger.error("api-key", `Unable to set the redis hash: ${e}`);
+      // Let's continue here, even if we can't write to redis, we should be able to check the values against the db
+    }
+
     // Sync to other chains only if created on mainnet
     if (created && config.chainId === 1) {
       await ApiKeyManager.notifyApiKeyCreated(values);
-      await allChainsSyncRedis.publish(AllChainsChannel.ApiKeyCreated, JSON.stringify({ values }));
 
-      // Trigger delayed jobs to make sure all chains have the new api key
-      await syncApiKeysJob.addToQueue({ apiKey: values.key }, 30 * 1000);
-      await syncApiKeysJob.addToQueue({ apiKey: values.key }, 60 * 1000);
+      await allChainsSyncRedis.publish(AllChainsChannel.ApiKeyCreated, JSON.stringify({ values }));
     }
 
     return {
@@ -423,7 +406,7 @@ export class ApiKeyManager {
               type: "section",
               text: {
                 type: "plain_text",
-                text: `AppName: ${values.appName}`,
+                text: `AppName: ${values.app_name}`,
               },
             },
             {

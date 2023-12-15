@@ -18,7 +18,7 @@ import {
 } from "@/common/joi";
 import { Sources } from "@/models/sources";
 import _ from "lodash";
-import { Assets, ImageSize } from "@/utils/assets";
+import { Assets } from "@/utils/assets";
 
 const version = "v5";
 
@@ -339,7 +339,6 @@ export const getUserTokensV5Options: RouteOptions = {
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
                c.name as collection_name, c.metadata, c.floor_sell_value AS "collection_floor_sell_value",
                c.metadata_disabled AS "c_metadata_disabled", t_metadata_disabled,
-               c.image_version AS "collection_image_version",
                (
                     CASE WHEN t.floor_sell_value IS NOT NULL
                     THEN 1
@@ -394,11 +393,7 @@ export const getUserTokensV5Options: RouteOptions = {
               collection: {
                 id: r.collection_id,
                 name: r.collection_name,
-                imageUrl: Assets.getResizedImageUrl(
-                  r.image,
-                  ImageSize.small,
-                  r.collection_image_version
-                ),
+                imageUrl: r.metadata?.imageUrl,
                 floorAskPrice: r.collection_floor_sell_value
                   ? formatEth(r.collection_floor_sell_value)
                   : null,

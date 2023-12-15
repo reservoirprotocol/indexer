@@ -730,7 +730,6 @@ export const getTokensV6Options: RouteOptions = {
           t.media,
           t.collection_id,
           t.image_version,
-          c.image_version AS collection_image_version,
           c.name AS collection_name,
           con.kind,
           con.symbol,
@@ -1082,10 +1081,6 @@ export const getTokensV6Options: RouteOptions = {
             : "t.floor_sell_value";
 
         conditions.push(`${sortColumn} is null`);
-      }
-
-      if (query.sortBy === "floorAskPrice" && query.sortDirection === "desc") {
-        conditions.push(`t.floor_sell_value is not null`);
       }
 
       if (conditions.length) {
@@ -1473,11 +1468,7 @@ export const getTokensV6Options: RouteOptions = {
               collection: {
                 id: r.collection_id,
                 name: r.collection_name,
-                image: Assets.getResizedImageUrl(
-                  r.collection_image,
-                  ImageSize.small,
-                  r.collection_image_version
-                ),
+                image: Assets.getLocalAssetsLink(r.collection_image),
                 slug: r.slug,
                 symbol: r.symbol,
                 creator: r.creator ? fromBuffer(r.creator) : null,
@@ -1954,9 +1945,8 @@ export const getListedTokensFromES = async (query: any) => {
             t.last_flag_change,
             t.supply,
             t.remaining_supply,
-            extract(epoch from t.updated_at) AS t_updated_at,
             t.metadata_disabled AS t_metadata_disabled,
-            c.metadata_disabled AS c_metadata_disabled,
+            extract(epoch from t.updated_at) AS t_updated_at,
             c.slug,
             c.creator,
             c.token_count,
@@ -2167,7 +2157,7 @@ export const getListedTokensFromES = async (query: any) => {
           collection: {
             id: r.collection_id,
             name: r.collection_name,
-            image: Assets.getResizedImageUrl(r.collection_image, ImageSize.small),
+            image: Assets.getLocalAssetsLink(r.collection_image),
             slug: r.slug,
             symbol: r.symbol,
             creator: r.creator ? fromBuffer(r.creator) : null,

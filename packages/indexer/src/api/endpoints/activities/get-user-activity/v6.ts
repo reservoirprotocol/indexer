@@ -464,11 +464,7 @@ export const getUserActivityV6Options: RouteOptions = {
               collectionName: query.includeMetadata ? activity.collection?.name : undefined,
               collectionImage:
                 query.includeMetadata && activity.collection?.image != null
-                  ? Assets.getResizedImageUrl(
-                      activity.collection?.image,
-                      undefined,
-                      activity.collection?.imageVersion
-                    )
+                  ? activity.collection?.image
                   : undefined,
               isSpam: activity.collection?.isSpam,
             },

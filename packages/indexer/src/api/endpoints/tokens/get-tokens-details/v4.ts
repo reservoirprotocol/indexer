@@ -197,7 +197,6 @@ export const getTokensDetailsV4Options: RouteOptions = {
           "t"."metadata_disabled" as "t_metadata_disabled",
           "c"."metadata_disabled" as "c_metadata_disabled",
           "c"."name" as "collection_name",
-          "c"."image_version" as "collection_image_version",
           "con"."kind",
           "t"."is_flagged",
           "t"."last_flag_update",
@@ -471,7 +470,7 @@ export const getTokensDetailsV4Options: RouteOptions = {
               collection: {
                 id: r.collection_id,
                 name: r.collection_name,
-                image: Assets.getResizedImageUrl(r.image, undefined, r.collection_image_version),
+                image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
                 slug: r.slug,
               },
               lastBuy: {

@@ -7,7 +7,6 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
 import { getJoiCollectionObject } from "@/common/joi";
-import { Assets, ImageSize } from "@/utils/assets";
 
 const version = "v3";
 
@@ -113,7 +112,6 @@ export const getCollectionsV3Options: RouteOptions = {
           collections.slug,
           collections.name,
           (collections.metadata ->> 'imageUrl')::TEXT AS "image",
-          collections.image_version AS "image_version",
           (collections.metadata ->> 'bannerImageUrl')::TEXT AS "banner",
           (collections.metadata ->> 'discordUrl')::TEXT AS "discord_url",
           (collections.metadata ->> 'description')::TEXT AS "description",
@@ -222,12 +220,8 @@ export const getCollectionsV3Options: RouteOptions = {
               id: r.id,
               slug: r.slug,
               name: r.name,
-              image:
-                Assets.getResizedImageUrl(r.image, ImageSize.small, r.image_version) ||
-                (r.sample_images?.length
-                  ? Assets.getResizedImageUrl(r.sample_images[0], ImageSize.small, r.image_version)
-                  : null),
-              banner: Assets.getResizedImageUrl(r.banner),
+              image: r.image || (r.sample_images?.length ? r.sample_images[0] : null),
+              banner: r.banner,
               discordUrl: r.discord_url,
               externalUrl: r.external_url,
               twitterUsername: r.twitter_username,

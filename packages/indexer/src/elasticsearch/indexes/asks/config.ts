@@ -33,7 +33,6 @@ export const CONFIG_DEFAULT = {
           name: { type: "keyword" },
           image: { type: "keyword" },
           isSpam: { type: "boolean" },
-          imageVersion: { type: "date", format: "epoch_second" },
         },
       },
       order: {

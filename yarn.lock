@@ -3178,10 +3178,10 @@
   dependencies:
     ethers "^6.0.2"
 
-"@opensea/stream-js@^0.1.3":
-  version "0.1.3"
-  resolved "https://registry.yarnpkg.com/@opensea/stream-js/-/stream-js-0.1.3.tgz#a0f2702ca4b411ffbc6cb3d188f13bab8b829f78"
-  integrity sha512-JygrVLinq2j0UOCLjdSskRE5wBcCCj4EQwrKgeKfO2I1k+XUpEqE9j0TfG38u1AbCU3y59J6LqpKBa1hxvTYhw==
+"@opensea/stream-js@^0.1.1":
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/@opensea/stream-js/-/stream-js-0.1.1.tgz#fa3ed9068990398771f86137ae571b3e4d12e893"
+  integrity sha512-On9QfN9dzgegFteeHwGLvt+CzxgH7QLquCKVU9T3i4/zufx3Um5ACjZISVPzVXiQ4YabHUL76SJPdFq6eguyhA==
   dependencies:
     phoenix "^1.6.15"
 

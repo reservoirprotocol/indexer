@@ -5,9 +5,9 @@ import { getEventData } from "@/events-sync/data";
 import { processEventsBatch } from "@/events-sync/handlers";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import { PartialFillEvent } from "@/events-sync/handlers/royalties";
+import { extractEventsBatches } from "@/events-sync/index";
 import * as utils from "@/events-sync/utils";
 import * as es from "@/events-sync/storage";
-import { extractEventsBatches } from "@/events-sync/index";
 
 export const getEventParams = (log: Log, timestamp: number) => {
   const address = log.address.toLowerCase() as string;
@@ -59,7 +59,7 @@ export const getEnhancedEventsFromTx = async (txHash: string) => {
 
 export async function extractOnChainData(enhancedEvents: EnhancedEvent[], skipProcessing = true) {
   const allOnChainData: OnChainData[] = [];
-  const eventBatches = await extractEventsBatches(enhancedEvents);
+  const eventBatches = await extractEventsBatches(enhancedEvents, false);
   for (const batch of eventBatches) {
     const onChainData = await processEventsBatch(batch, skipProcessing);
     allOnChainData.push(onChainData);
