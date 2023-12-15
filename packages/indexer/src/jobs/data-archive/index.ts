@@ -5,7 +5,8 @@ import { redlock } from "@/common/redis";
 import { processArchiveDataJob } from "@/jobs/data-archive/process-archive-data-job";
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork) {
+// TODO: Remove this check when we proper backup strategy
+if (false) {
   // Schedule cron to archive bid events table
   cron.schedule(
     "*/10 * * * *",
