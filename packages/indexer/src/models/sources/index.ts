@@ -422,9 +422,9 @@ export class Sources {
     } else if (config.chainId == 195) {
       if (sourceEntity.metadata.tokenUrlX1Testnet && contract && tokenId) {
         sourceEntity.metadata.url = _.replace(
-            sourceEntity.metadata.tokenUrlX1Testnet,
-            "${contract}",
-            contract
+          sourceEntity.metadata.tokenUrlX1Testnet,
+          "${contract}",
+          contract
         );
 
         return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);

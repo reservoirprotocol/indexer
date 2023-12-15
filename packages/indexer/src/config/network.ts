@@ -699,7 +699,8 @@ export const getNetworkSettings = (): NetworkSettings => {
         isTestnet: true,
         enableWebSocket: true,
         realtimeSyncMaxBlockLag: 32,
-        realtimeSyncFrequencySeconds: 5,
+        // realtimeSyncFrequencySeconds: 5,
+        realtimeSyncFrequencySeconds: 2,
         lastBlockLatency: 5,
         headBlockDelay: 10,
         coingecko: {
@@ -709,7 +710,7 @@ export const getNetworkSettings = (): NetworkSettings => {
           // Insert the native currency
           await Promise.all([
             idb.none(
-                `
+              `
                 INSERT INTO currencies (
                   contract,
                   name,
