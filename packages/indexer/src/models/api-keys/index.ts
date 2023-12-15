@@ -114,6 +114,7 @@ export class ApiKeyManager {
         permissions: {
           update_metadata_disabled: true,
           entity_data_override: true,
+          override_collection_refresh_cool_down: true,
         },
         ips: [],
         origins: [],
