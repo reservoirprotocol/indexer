@@ -137,67 +137,55 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     }
   );
 
-  if (getOpenseaNetworkName()) {
-    client.onItemMetadataUpdated("*", async (event) => {
-      try {
-        if (getOpenseaNetworkName() != event.payload.item.chain.name) {
-          return;
-        }
-
-        if (await isDuplicateEvent(event)) {
-          return;
-        }
-
-        const [, contract, tokenId] = event.payload.item.nft_id.split("/");
-
-        if (config.chainId === 1) {
-          const collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
-
-          await metadataIndexFetchJob.addToQueue([
-            {
-              kind: "single-token",
-              data: {
-                method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
-                contract,
-                tokenId,
-                collection: collection?.id || contract,
-              },
-            },
-          ]);
-        } else {
-          await metadataIndexFetchJob.addToQueue([
-            {
-              kind: "single-token",
-              data: {
-                method: config.metadataIndexingMethod,
-                contract,
-                tokenId,
-                collection: contract,
-              },
-            },
-          ]);
-        }
-
-        logger.info(
-          "opensea-websocket-item-metadata-update-event",
-          JSON.stringify({
-            message: `Processed event. network=${network}, contract=${contract}, tokenId=${tokenId}`,
-            event,
-            contract,
-            tokenId,
-          })
-        );
-      } catch (error) {
-        logger.error(
-          "opensea-websocket-item-metadata-update-event",
-          JSON.stringify({
-            message: `Error. network=${network}, event=${JSON.stringify(event)}, error=${error}`,
-            error,
-          })
-        );
+  client.onItemMetadataUpdated("*", async (event) => {
+    try {
+      if (getOpenseaNetworkName() != event.payload.item.chain.name) {
+        return;
       }
-    });
-  }
+
+      if (await isDuplicateEvent(event)) {
+        return;
+      }
+
+      const [, contract, tokenId] = event.payload.item.nft_id.split("/");
+
+      if (config.chainId === 1) {
+        const collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
+
+        await metadataIndexFetchJob.addToQueue([
+          {
+            kind: "single-token",
+            data: {
+              method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
+              contract,
+              tokenId,
+              collection: collection?.id || contract,
+            },
+          },
+        ]);
+      } else {
+        await metadataIndexFetchJob.addToQueue([
+          {
+            kind: "single-token",
+            data: {
+              method: config.metadataIndexingMethod,
+              contract,
+              tokenId,
+              collection: contract,
+            },
+          },
+        ]);
+      }
+    } catch (error) {
+      logger.error(
+        "opensea-websocket-item-metadata-update-event",
+        JSON.stringify({
+          message: `Error. network=${network}, event=${JSON.stringify(event)}, error=${error}`,
+          error,
+        })
+      );
+    }
+  });
 }
 
 export const getEventHash = (event: BaseStreamMessage<unknown>): string => {
