@@ -2,6 +2,7 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { Tokens } from "@/models/tokens";
 import { AttributeKeys } from "@/models/attribute-keys";
 import { logger } from "@/common/logger";
+import { config } from "@/config/index";
 
 export type ResyncAttributeKeyCountsJobPayload = {
   collection: string;
@@ -18,7 +19,11 @@ export default class ResyncAttributeKeyCountsJob extends AbstractRabbitMqJobHand
   protected async process(payload: ResyncAttributeKeyCountsJobPayload) {
     const { collection, key } = payload;
 
-    const attributeKeyCount = await Tokens.getTokenAttributesKeyCount(collection, key);
+    const attributeKeyCount = await Tokens.getTokenAttributesKeyCount(
+      collection,
+      key,
+      config.chainId !== 137
+    );
 
     // If there are no more token for the given key delete it
     if (!attributeKeyCount) {

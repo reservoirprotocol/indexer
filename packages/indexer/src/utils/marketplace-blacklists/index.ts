@@ -164,6 +164,7 @@ const updateMarketplaceBlacklist = async (contract: string) => {
     {
       by: "operator",
       data: {
+        origin: "marketplace-blacklist",
         contract,
         blacklistedOperators: blacklist,
         status: "inactive",
