@@ -59,17 +59,7 @@ if (config.chainId === 1 && config.doWebsocketWork && config.blurWsUrl && config
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await orderbookOrdersJob.addToQueue(orderInfos as any);
-
       await blurListingsRefreshJob.addToQueue(collection);
-
-      logger.info(
-        COMPONENT,
-        JSON.stringify({
-          parsedMessage,
-          orderInfos,
-          now: new Date().toISOString(),
-        })
-      );
     } catch (error) {
       logger.error(COMPONENT, `Error handling listing: ${error} (message = ${message})`);
     }
