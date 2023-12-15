@@ -4,12 +4,10 @@
 
 import "@/jobs/arweave-relay";
 import "@/jobs/backfill";
-import "@/jobs/cache-check";
 import "@/jobs/collections-refresh";
 import "@/jobs/daily-volumes";
 import "@/jobs/data-archive";
 import "@/jobs/events-sync";
-import "@/jobs/oracle";
 import "@/jobs/metrics";
 import "@/jobs/opensea-orders";
 import "@/jobs/monitoring";

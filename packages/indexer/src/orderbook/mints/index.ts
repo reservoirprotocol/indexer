@@ -3,7 +3,6 @@ import { BigNumber } from "@ethersproject/bignumber";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, fromBuffer, now, toBuffer } from "@/common/utils";
-import { config } from "@/config/index";
 import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
 import { MintTxSchema, CustomInfo } from "@/orderbook/mints/calldata";
 import { getAmountMinted, getCurrentSupply } from "@/orderbook/mints/calldata/helpers";
@@ -115,22 +114,7 @@ export const getCollectionMints = async (
   );
 };
 
-export const simulateAndUpsertCollectionMint = async (collectionMint: CollectionMint) => {
-  // Very weird case when the collection generates 1000s of simulations
-  const skip =
-    config.chainId === 1 &&
-    collectionMint.collection === "0x0c8b135a721b017f983f76bb32f53d37f8510a5b";
-  if (skip) {
-    return true;
-  }
-
-  const simulationResult = await simulateCollectionMint(collectionMint);
-  if (simulationResult) {
-    collectionMint.status = "open";
-  } else {
-    collectionMint.status = "closed";
-  }
-
+export const upsertCollectionMint = async (collectionMint: CollectionMint) => {
   const isOpen = collectionMint.status === "open";
 
   const existingCollectionMint = await getCollectionMints(collectionMint.collection, {
@@ -357,6 +341,13 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
   }
 
   return false;
+};
+
+export const simulateAndUpsertCollectionMint = async (collectionMint: CollectionMint) => {
+  const simulationResult = await simulateCollectionMint(collectionMint);
+  collectionMint.status = simulationResult ? "open" : "closed";
+
+  return upsertCollectionMint(collectionMint);
 };
 
 export const getAmountMintableByWallet = async (
