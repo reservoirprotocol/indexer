@@ -17,6 +17,7 @@ export * from "@/api/endpoints/admin/post-resync-floor-events";
 export * from "@/api/endpoints/admin/post-resync-nft-balances";
 export * from "@/api/endpoints/admin/post-resync-sale-royalties";
 export * from "@/api/endpoints/admin/post-resync-source";
+export * from "@/api/endpoints/admin/post-revalidate-mint";
 export * from "@/api/endpoints/admin/post-revalidate-order";
 export * from "@/api/endpoints/admin/post-routers";
 export * from "@/api/endpoints/admin/post-set-community";
