@@ -78,7 +78,7 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
             SELECT 
               tokens.image
             FROM tokens
-            WHERE tokens.collection_id = $/collectionId/ -- Ensure this matches the collection ID condition
+            WHERE tokens.collection_id = $/collectionId/ 
             ORDER BY rarity_rank DESC NULLS LAST 
             LIMIT 4 
           )
