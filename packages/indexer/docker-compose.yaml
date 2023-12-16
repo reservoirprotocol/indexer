@@ -21,7 +21,9 @@ services:
       - 6379:6379
 
   rabbitmq:
-    image: ipelegi/rabbitmq:latest
+    # image: ipelegi/rabbitmq:latest
+    # 依赖延迟插件（https://www.cnblogs.com/zengdingding/p/16641869.html）
+    image: rabbitmq:management
     container_name: 'rabbitmq'
     environment:
       - RABBITMQ_DEFAULT_USER=guest
