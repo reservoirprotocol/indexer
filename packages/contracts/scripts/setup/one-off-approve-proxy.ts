@@ -21,10 +21,11 @@ const main = async () => {
   // 输出日志
   // Version v1 of contract AlienswapModule deployed on chain 43851 at address 0xca13fe9a66a084c005f9b03755b0db1392bcc332
 
-  // 部署 ApprovalProxy
+  // 部署 ApprovalProxy 这步可以和 alienswap-module 合约生成一起执行
   const proxy = await trigger.Router.ApprovalProxy(chainId)
+  console.log(`output proxy: ${proxy}`)
   // 输出日志
-  // Version v1 of contract ReservoirApprovalProxy deployed on chain 195 at address 0x6072b1def04135d572ee645437ac0be6f3e0b980
+  // Version v1 of contract ReservoirApprovalProxy deployed on chain 43851 at address 0x513e28f4098480c4656534d01e0a95934dc60a4d
 };
 
 main()
