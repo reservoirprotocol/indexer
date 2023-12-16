@@ -3,6 +3,7 @@ version: "3"
 tasks:
   build: yarn build
   start: yarn start
+  fmt: yarn format
 
   # brew install redis
   brewredislog: tail -f /opt/homebrew/var/log/redis.log
