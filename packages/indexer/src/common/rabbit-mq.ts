@@ -69,11 +69,13 @@ export class RabbitMq {
         heartbeatIntervalInSeconds: 0,
       }
     );
+    logger.info("rabbit-connetion", `conneted to ${config.rabbitHostname} username: ${config.rabbitUsername}`)
 
     for (let index = 0; index < RabbitMq.maxPublisherChannelsCount; ++index) {
       const channel = this.rabbitMqPublisherConnection.createChannel();
       await channel.waitForConnect();
       RabbitMq.rabbitMqPublisherChannels[index] = channel;
+      // logger.info("rabbit-channel", `built rabbit channel-${index}`)
 
       channel.once("error", (error) => {
         logger.error("rabbit-channel", `Publisher channel error ${error}`);
@@ -83,6 +85,7 @@ export class RabbitMq {
         logger.warn("rabbit-channel", `Rabbit publisher channel ${index} closed`);
       });
     }
+    logger.info("rabbit-connetion", `build channels ok`)
 
     RabbitMq.rabbitMqPublisherConnection.once("error", (error) => {
       logger.error("rabbit-connection", `Publisher connection error ${error}`);
@@ -260,12 +263,14 @@ export class RabbitMq {
     const abstract = await import("@/jobs/abstract-rabbit-mq-job-handler");
     const jobsIndex = await import("@/jobs/index");
 
+    logger.info("rabbit-assertion", "begin build assert connetion built with host: ${config.rabbitHostname} user: ${config.rabbitUsername}")
     const connection = await amqplib.connect({
       hostname: config.rabbitHostname,
       username: config.rabbitUsername,
       password: config.rabbitPassword,
       vhost: getNetworkName(),
     });
+    logger.info("rabbit-assertion", "rabbit assert connetion built with host: ${config.rabbitHostname} user: ${config.rabbitUsername}")
 
     const channel = await connection.createChannel();
 
