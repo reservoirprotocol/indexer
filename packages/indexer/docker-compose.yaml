@@ -14,7 +14,8 @@ services:
 
   redis:
     image: redis:6.2.2
-    command: sh -c "redis-server --requirepass password"
+    # command: sh -c "redis-server --requirepass password"
+    command: sh -c "redis-server"
     networks:
       - local
     ports:
