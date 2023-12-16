@@ -1083,6 +1083,10 @@ export const getTokensV6Options: RouteOptions = {
         conditions.push(`${sortColumn} is null`);
       }
 
+      if (query.sortBy === "floorAskPrice" && query.sortDirection === "desc") {
+        conditions.push(`t.floor_sell_value is not null`);
+      }
+
       if (conditions.length) {
         baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
       }
