@@ -6,3 +6,7 @@ tasks:
   # start all service in this monorepo
   start: yarn start
   fmt: yarn format
+
+  ## stupid tips
+  # quick commit informal contents
+  # npx husky uninstall

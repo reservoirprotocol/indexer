@@ -148,9 +148,8 @@ export const getServiceName = () => {
 };
 
 export const getSubDomain = () => {
-  return `${config.chainId === 1 ? "api" : `api-${getNetworkName()}`}${
-    config.environment === "dev" ? ".dev" : ""
-  }`;
+  return `${config.chainId === 1 ? "api" : `api-${getNetworkName()}`}${config.environment === "dev" ? ".dev" : ""
+    }`;
 };
 
 type NetworkSettings = {
@@ -826,7 +825,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         // enableWebSocket: true,
         enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
-        realtimeSyncFrequencySeconds: 3,
+        realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
         headBlockDelay: 10,
         // coingecko: {

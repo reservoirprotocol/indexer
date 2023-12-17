@@ -16,7 +16,7 @@ tasks:
   up:
     cmds:
       - docker-compose up -d
-      - task mk-fair-db
+      - sleep 10 && task mk-fair-db
 
   setup:
     desc: base setup with root user
