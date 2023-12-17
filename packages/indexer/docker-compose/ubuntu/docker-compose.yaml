@@ -3,6 +3,7 @@ version: "3"
 services:
   postgres:
     image: postgres:13.2
+    container_name: 'pg13'
     command: postgres -N 2000
     environment:
       - POSTGRES_USER=postgres
@@ -16,6 +17,7 @@ services:
 
   redis:
     image: redis:6.2.2
+    container_name: 'indexer-redis'
     # command: sh -c "redis-server --requirepass password"
     command: sh -c "redis-server"
     networks:
