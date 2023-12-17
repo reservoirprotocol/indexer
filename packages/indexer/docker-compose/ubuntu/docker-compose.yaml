@@ -34,7 +34,8 @@ services:
     # indexer官方库配的这个 可在mac-m1架构上运行
     # image: ipelegi/rabbitmq:latest
     # ubuntu定制版本（保持和现有生产版本保持一致，可在ubuntu服务器上运行） https://hub.docker.com/repository/docker/cao7113/rabbitmq/general
-    image: cao7113/rabbitmq:management
+    # image: cao7113/rabbitmq:management
+    image: cao7113/rabbitmq:3.12.6-with-delayed-msg
     # rabbitmq 官方镜像，不含延迟消息插件，需要手工安装
     # image: rabbitmq:3.12.10
     # image: rabbitmq:3.12.10-management
