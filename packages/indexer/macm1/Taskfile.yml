@@ -5,7 +5,6 @@ tasks:
   build: yarn build
   start: yarn start
   fmt: yarn format
-  mig: yarn migrate up
 
   # brew install redis
   brewredislog: tail -f /opt/homebrew/var/log/redis.log
