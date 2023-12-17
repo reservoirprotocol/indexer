@@ -4,6 +4,7 @@ services:
   postgres:
     image: postgres:13.2
     container_name: 'pg13'
+    restart: always
     command: postgres -N 2000
     environment:
       - POSTGRES_USER=postgres
@@ -18,6 +19,7 @@ services:
   redis:
     image: redis:6.2.2
     container_name: 'indexer-redis'
+    restart: always
     # command: sh -c "redis-server --requirepass password"
     command: sh -c "redis-server"
     networks:
@@ -37,6 +39,7 @@ services:
     # image: rabbitmq:3.12.10
     # image: rabbitmq:3.12.10-management
     container_name: 'rabbitmq'
+    restart: always
     environment:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
@@ -51,6 +54,7 @@ services:
   # elasticsearch:
   #   container_name: 'elasticsearch'
   #   image: docker.elastic.co/elasticsearch/elasticsearch:8.7.0
+  #   restart: always
   #   environment:
   #     - xpack.security.enabled=false
   #     - 'discovery.type=single-node'

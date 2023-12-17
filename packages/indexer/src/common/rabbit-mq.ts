@@ -94,6 +94,22 @@ export class RabbitMq {
     RabbitMq.rabbitMqPublisherConnection.once("close", (error) => {
       logger.warn("rabbit-connection", `Publisher connection error ${error}`);
     });
+
+    // RabbitMq.rabbitMqPublisherConnection.once("connectFailed", (error) => {
+    //   logger.error("rabbit-connection", `Publisher connection error ${error}`);
+    // });
+
+    // RabbitMq.rabbitMqPublisherConnection.once("connect", (error) => {
+    //   logger.error("rabbit-connection", `Publisher connection error ${error}`);
+    // });
+
+    // RabbitMq.rabbitMqPublisherConnection.once("blocked", (error) => {
+    //   logger.error("rabbit-connection", `Publisher connection error ${error}`);
+    // });
+
+    // RabbitMq.rabbitMqPublisherConnection.once("disconnect", (error) => {
+    //   logger.error("rabbit-connection", `Publisher connection error ${error}`);
+    // });
   }
 
   public static async send(queueName: string, content: RabbitMQMessage, delay = 0, priority = 0) {
@@ -261,18 +277,21 @@ export class RabbitMq {
 
   public static async assertQueuesAndExchanges() {
     const abstract = await import("@/jobs/abstract-rabbit-mq-job-handler");
+    logger.info("rabbit-assertion", `before import @/jobs/index with host: ${config.rabbitHostname} user: ${config.rabbitUsername}`)
     const jobsIndex = await import("@/jobs/index");
 
-    logger.info("rabbit-assertion", "begin build assert connetion built with host: ${config.rabbitHostname} user: ${config.rabbitUsername}")
+    logger.info("rabbit-assertion", `begin building assert connetion with host: ${config.rabbitHostname} user: ${config.rabbitUsername}`)
     const connection = await amqplib.connect({
       hostname: config.rabbitHostname,
       username: config.rabbitUsername,
       password: config.rabbitPassword,
       vhost: getNetworkName(),
     });
-    logger.info("rabbit-assertion", "rabbit assert connetion built with host: ${config.rabbitHostname} user: ${config.rabbitUsername}")
+    logger.info("rabbit-assertion", `rabbit assert connetion complete with host: ${config.rabbitHostname} user: ${config.rabbitUsername}`)
 
     const channel = await connection.createChannel();
+
+    logger.info("rabbit-assertion", `rabbit createChannel complete with host: ${config.rabbitHostname} user: ${config.rabbitUsername}`)
 
     // Assert the exchange for delayed messages
     await channel.assertExchange(RabbitMq.delayedExchangeName, "x-delayed-message", {
