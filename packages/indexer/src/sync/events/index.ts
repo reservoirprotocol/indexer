@@ -137,10 +137,6 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
           data: kindToEvents.get("sudoswap-v2") ?? [],
         },
         {
-          kind: "midaswap",
-          data: kindToEvents.get("midaswap") ?? [],
-        },
-        {
           kind: "caviar-v1",
           data: kindToEvents.get("caviar-v1") ?? [],
         },
@@ -232,10 +228,6 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
         {
           kind: "blend",
           data: kindToEvents.get("blend") ?? [],
-        },
-        {
-          kind: "collectionxyz",
-          data: kindToEvents.get("collectionxyz") ?? [],
         },
         {
           kind: "payment-processor",
