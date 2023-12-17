@@ -1386,7 +1386,7 @@ export const getTokensV6Options: RouteOptions = {
               metadata: Object.values(metadata).every((el) => el === undefined)
                 ? undefined
                 : metadata,
-              media: r.media,
+              media: r.media ?? metadata.mediaOriginal ?? undefined,
               kind: r.kind,
               isFlagged: Boolean(Number(r.is_flagged)),
               isSpam: Number(r.t_is_spam) > 0 || Number(r.c_is_spam) > 0,
