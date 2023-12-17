@@ -366,9 +366,21 @@ export const generateCollectionMintTxData = async (
     );
   }
 
-  // If the price is not available on the main `CollectionMint`, get it from the allowlist
+  // If the price is not available on the main `CollectionMint`
+
+  // First, try get it from the allowlist
   if (!price && allowlistData) {
     price = allowlistData.actual_price ?? 0;
+  }
+
+  // Then, try to get it from the `pricePerQuantity` data
+  if (!price && collectionMint.pricePerQuantity) {
+    const matchingEntry = collectionMint.pricePerQuantity.find((e) => e.quantity === quantity);
+    if (!matchingEntry) {
+      throw new Error("Requested quantity is not mintable");
+    }
+
+    price = matchingEntry.price;
   }
 
   return {
