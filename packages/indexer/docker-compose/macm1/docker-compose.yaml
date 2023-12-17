@@ -9,6 +9,8 @@ services:
       - POSTGRES_PASSWORD=password
     networks:
       - local
+    volumes:
+      - ./indexer-data/pg/:/var/lib/postgresql/data/
     ports:
       - 15432:5432
 
@@ -18,6 +20,8 @@ services:
     command: sh -c "redis-server"
     networks:
       - local
+    volumes:
+      - ./indexer-data/redis:/data
     ports:
       - 16379:6379
 
@@ -37,7 +41,8 @@ services:
     ports:
       - 5672:5672
       - 15672:15672
-    # todo 数据持续化到主机，防止数据丢失！！！
+    volumes:
+      - ./indexer-data/rabbit:/var/lib/rabbitmq
     networks:
       - local
 

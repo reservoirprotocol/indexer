@@ -9,15 +9,6 @@ tasks:
 
   # brew install redis
   brewredislog: tail -f /opt/homebrew/var/log/redis.log
-  pg-fair: docker-compose exec -it postgres psql -U postgres zkfair_testnet
-  pg-x1: docker-compose exec -it postgres psql -U postgres x1testnet
-  pg: docker-compose exec -it postgres psql -U postgres
-  mk-fair-db: docker-compose exec -it postgres psql -U postgres -c "create database zkfair_testnet"
-
-  rabbitlog: docker-compose logs -f rabbitmq
-  rabbit: docker-compose exec rabbitmq bash
-
-  redis: docker-compose exec redis redis-cli
 
   # guest/guest
   open-rabbit: open http://localhost:15672/#/
