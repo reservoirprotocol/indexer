@@ -113,7 +113,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
       tokensMetadata.push(data.nft);
     }
 
-    return tokensMetadata.map(this.parseToken).filter(Boolean);
+    return tokensMetadata.map(super.parseToken).filter(Boolean);
   }
 
   async _getTokenFlagStatus(

@@ -323,6 +323,8 @@
   },
   "SignedZoneController": {
     "v1": {
+      "1": "0xe1066481cc3b038badd0c68dfa5c8f163c3ff192",
+      "5": "0xea021843f8a15f3157db716cbed4f13e4f5474d1",
       "137": "0x4ffa72942ea0651a17822c5eec0e0bf193334ecb",
       "80001": "0x4ffa72942ea0651a17822c5eec0e0bf193334ecb",
       "11155111": "0x4ffa72942ea0651a17822c5eec0e0bf193334ecb"

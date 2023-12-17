@@ -191,7 +191,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     lastBlockLatency: 5,
     headBlockDelay: 0,
     backfillBlockBatchSize: 16,
-    metadataMintDelay: 120,
+    metadataMintDelay: 5,
     enableMetadataAutoRefresh: false,
     washTradingExcludedContracts: [],
     washTradingWhitelistedAddresses: [],
@@ -238,7 +238,6 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 1:
       return {
         ...defaultNetworkSettings,
-        metadataMintDelay: 900,
         realtimeSyncFrequencySeconds: 5,
         enableMetadataAutoRefresh: true,
         washTradingExcludedContracts: [
@@ -663,7 +662,6 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 137: {
       return {
         ...defaultNetworkSettings,
-        metadataMintDelay: 180,
         enableWebSocket: true,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 30,

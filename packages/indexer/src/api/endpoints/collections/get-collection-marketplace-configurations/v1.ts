@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -12,12 +10,12 @@ import { config } from "@/config/index";
 import { getNetworkSettings, getSubDomain } from "@/config/network";
 import { OrderKind } from "@/orderbook/orders";
 import { getOrUpdateBlurRoyalties } from "@/utils/blur";
+import { getCurrency } from "@/utils/currencies";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import * as registry from "@/utils/royalties/registry";
 import * as paymentProcessor from "@/utils/payment-processor";
 import * as paymentProcessorV2 from "@/utils/payment-processor-v2";
-import { getCurrency } from "@/utils/currencies";
 
 type PaymentToken = {
   address: string;
@@ -139,7 +137,10 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
     }),
   },
   handler: async (request: Request) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const params = request.params as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const query = request.query as any;
 
     try {
       const collectionResult = await redb.oneOrNone(
@@ -171,10 +172,10 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
       }
 
       let defaultRoyalties = (collectionResult.royalties ?? []) as Royalty[];
-      if (params.tokenId) {
+      if (query.tokenId) {
         defaultRoyalties = await registry.getRegistryRoyalties(
           fromBuffer(collectionResult.contract),
-          params.tokenId
+          query.tokenId
         );
       }
 
@@ -321,6 +322,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
             ? {
                 minBps: Math.min(
                   maxOpenseaRoyaltiesBps,
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   openseaRoyalties.some((r) => (r as any).required) ? maxOpenseaRoyaltiesBps : 50
                 ),
                 maxBps: maxOpenseaRoyaltiesBps,
