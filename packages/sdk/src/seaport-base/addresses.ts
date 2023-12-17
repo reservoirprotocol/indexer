@@ -58,6 +58,7 @@ export const ConduitController: ChainIdToAddress = {
 };
 
 // https://github.com/ProjectOpenSea/seaport/blob/0a8e82ce7262b5ce0e67fa98a2131fd4c47c84e9/contracts/conduit/ConduitController.sol#L493
+// https://github.com/cao7113/AlienSwap_seaport/blob/dev-fair-test/scripts/get-conduit-controller-codehash.ts
 export const ConduitControllerCodeHash: ChainIdToAddress = {
   [Network.Ethereum]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.EthereumGoerli]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
@@ -78,7 +79,7 @@ export const ConduitControllerCodeHash: ChainIdToAddress = {
   [Network.Base]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.Linea]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.X1Testnet]: "0xfde822a5f8cca372c4a13e06a9a2baea0f8a45e42347603e34607fab3aacea4c",
-  [Network.ZkFairTestnet]: "xxx-todo",
+  [Network.ZkFairTestnet]: "0xfde822a5f8cca372c4a13e06a9a2baea0f8a45e42347603e34607fab3aacea4c",
 };
 
 export const OperatorFilterRegistry: ChainIdToAddress = {
