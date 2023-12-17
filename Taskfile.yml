@@ -1,7 +1,8 @@
 # https://taskfile.dev
 version: "3"
 tasks:
-  # refer package.json
+  i: yarn install
   build: yarn build
+  # start all service in this monorepo
   start: yarn start
   fmt: yarn format
