@@ -47,7 +47,7 @@ export const getDittoPools = async (): Promise<DittoPool[]> => {
   return results.map((result) => ({
     address: fromBuffer(result.address),
     template: fromBuffer(result.template),
-    lpNft: fromBuffer(result.lpNft),
+    lpNft: fromBuffer(result.lp_nft),
     permitter: fromBuffer(result.permitter),
   }));
 };
@@ -72,7 +72,7 @@ export const getDittoPool = async (address: string): Promise<DittoPool | undefin
   return {
     address,
     template: fromBuffer(result.template),
-    lpNft: fromBuffer(result.lpNft),
+    lpNft: fromBuffer(result.lp_nft),
     permitter: fromBuffer(result.permitter),
   };
 };
