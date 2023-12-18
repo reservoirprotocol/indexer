@@ -20,7 +20,7 @@ export abstract class BaseAskEventHandler {
 
   public buildDocument(data: any): AskDocument {
     const buildAskDocumentData = {
-      id: data.id,
+      id: this.getAskId(),
       created_at: new Date(data.order_created_at),
       contract: data.contract,
       token_id: data.token_id,
@@ -35,7 +35,7 @@ export abstract class BaseAskEventHandler {
       collection_name: data.collection_name,
       collection_image: data.collection_image,
       collection_is_spam: Number(data.collection_is_spam),
-      order_id: data.id,
+      order_id: data.order_id,
       order_source_id_int: Number(data.order_source_id_int),
       order_criteria: data.order_criteria,
       order_quantity_filled: data.order_quantity_filled,

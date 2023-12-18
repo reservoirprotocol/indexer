@@ -388,6 +388,30 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
+            "0xaef06250d07cb6389d730d0eec7d90a1549be812",
+            {
+              contract: "0xaef06250d07cb6389d730d0eec7d90a1549be812",
+              name: "RugLabz",
+              symbol: "RLBZ",
+              decimals: 18,
+              metadata: {
+                image: "https://i.ibb.co/XYVTLZf/Untitled.png",
+              },
+            },
+          ],
+          [
+            "0x8962f7352eb3326c15d4820f9fad214b9327714a",
+            {
+              contract: "0x8962f7352eb3326c15d4820f9fad214b9327714a",
+              name: "RugLabsR",
+              symbol: "RUGZ",
+              decimals: 18,
+              metadata: {
+                image: "https://i.ibb.co/QrGfv1z/Untitled-1.png",
+              },
+            },
+          ],
+          [
             "0x4c7c1ec97279a6f3323eab9ab317202dee7ad922",
             {
               contract: "0x4c7c1ec97279a6f3323eab9ab317202dee7ad922",
@@ -693,6 +717,57 @@ export const getNetworkSettings = (): NetworkSettings => {
               name: "RCAX",
               symbol: "RCAX",
               decimals: 18,
+              metadata: {
+                image: "https://rcax.io/images/coins/rcax/icon.png",
+              },
+            },
+          ],
+          [
+            "0xc6268a296c810024aa3aa2f5cc2c255bf995aa44",
+            {
+              contract: "0xc6268a296c810024aa3aa2f5cc2c255bf995aa44",
+              name: "r/Poopheadavatars Poops",
+              symbol: "POOP",
+              decimals: 18,
+              metadata: {
+                image: "https://rcax.io/images/coins/poop/icon.png",
+              },
+            },
+          ],
+          [
+            "0xf297c728ce19e9f61f76c4cf958c32e03e024c4b",
+            {
+              contract: "0xf297c728ce19e9f61f76c4cf958c32e03e024c4b",
+              name: "r/FiestaDog Bones",
+              symbol: "BONE",
+              decimals: 18,
+              metadata: {
+                image: "https://rcax.io/images/coins/bone/icon.png",
+              },
+            },
+          ],
+          [
+            "0x43ff18fa32e10873fd9519261004a85ae2c7a65d",
+            {
+              contract: "0x43ff18fa32e10873fd9519261004a85ae2c7a65d",
+              name: "r/PlungerPlanet Plunger Token",
+              symbol: "PLUNGER",
+              decimals: 18,
+              metadata: {
+                image: "https://rcax.io/images/coins/plunger/icon.png",
+              },
+            },
+          ],
+          [
+            "0x7ea837454e3c425e01a8432234140755fc2add1c",
+            {
+              contract: "0x7ea837454e3c425e01a8432234140755fc2add1c",
+              name: "r/PlungerPlanet Tacon Token",
+              symbol: "TACO",
+              decimals: 18,
+              metadata: {
+                image: "https://rcax.io/images/coins/taco/icon.png",
+              },
             },
           ],
           [

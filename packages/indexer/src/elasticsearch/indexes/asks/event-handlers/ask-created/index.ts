@@ -12,22 +12,25 @@ import {
 } from "@/elasticsearch/indexes/asks/event-handlers/base";
 
 export class AskCreatedEventHandler extends BaseAskEventHandler {
-  async generateAsk(): Promise<AskDocumentInfo> {
-    const data = await idb.oneOrNone(
-      `
+  async generateAsk(): Promise<AskDocumentInfo | null> {
+    const query = `
           ${AskCreatedEventHandler.buildBaseQuery()}
           AND id = $/orderId/
           LIMIT 1;
-        `,
-      {
-        orderId: this.orderId,
-      }
-    );
+        `;
 
-    const id = this.getAskId();
-    const document = this.buildDocument(data);
+    const data = await idb.oneOrNone(query, {
+      orderId: this.orderId,
+    });
 
-    return { id, document };
+    if (data) {
+      const id = this.getAskId();
+      const document = this.buildDocument(data);
+
+      return { id, document };
+    }
+
+    return null;
   }
 
   public static buildBaseQuery(onlyActive = true) {
