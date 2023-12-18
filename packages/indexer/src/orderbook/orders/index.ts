@@ -222,7 +222,9 @@ export const generateListingDetailsV6 = async (
     isFlagged?: boolean;
   },
   taker: string,
-  forceTrustedForwarder?: string
+  options?: {
+    ppV2TrustedChannel?: string;
+  }
 ): Promise<ListingDetails> => {
   const common = {
     orderId: order.id,
@@ -481,9 +483,8 @@ export const generateListingDetailsV6 = async (
         }
       }
 
-      // Force
-      if (forceTrustedForwarder) {
-        extraArgs.trustedChannel = forceTrustedForwarder;
+      if (options?.ppV2TrustedChannel) {
+        extraArgs.trustedChannel = options.ppV2TrustedChannel;
       }
 
       return {
@@ -522,7 +523,7 @@ export const generateBidDetailsV6 = async (
   taker: string,
   options?: {
     permit?: Permit;
-    forceTrustedForwarder?: string;
+    ppV2TrustedChannel?: string;
   }
 ): Promise<BidDetails> => {
   const common = {
@@ -882,9 +883,8 @@ export const generateBidDetailsV6 = async (
         }
       }
 
-      // Force
-      if (options?.forceTrustedForwarder) {
-        extraArgs.trustedChannel = options?.forceTrustedForwarder;
+      if (options?.ppV2TrustedChannel) {
+        extraArgs.trustedChannel = options?.ppV2TrustedChannel;
       }
 
       return {

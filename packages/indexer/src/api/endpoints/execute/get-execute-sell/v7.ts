@@ -428,7 +428,10 @@ export const getExecuteSellV7Options: RouteOptions = {
               owner: token.owner,
             },
             payload.taker,
-            { permit, forceTrustedForwarder: payload.forceTrustedForwarder }
+            {
+              permit,
+              ppV2TrustedChannel: payload.forceTrustedForwarder,
+            }
           )
         );
       };

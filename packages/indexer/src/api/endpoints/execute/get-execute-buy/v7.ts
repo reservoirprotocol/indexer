@@ -507,7 +507,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 isFlagged: Boolean(flaggedResult.is_flagged),
               },
               payload.taker,
-              payload.forceTrustedForwarder
+              {
+                ppV2TrustedChannel: payload.forceTrustedForwarder,
+              }
             )
           );
         }
@@ -1875,7 +1877,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           throw Boom.badRequest("Only native currency is supported for cross-chain purchasing");
         }
 
-        if (path.length > 1 && !payload.partial) {
+        if (path.length > 1) {
           throw Boom.badRequest("Only single item cross-chain purchases are supported");
         }
 
