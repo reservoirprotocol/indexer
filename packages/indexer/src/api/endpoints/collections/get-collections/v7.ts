@@ -468,10 +468,8 @@ export const getCollectionsV7Options: RouteOptions = {
           collections.id,
           collections.slug,
           COALESCE(collections_override.metadata ->> 'name', collections.name)::TEXT AS "name",
-          COALESCE(
-            collections_override.metadata ->> 'creator', 
-            convert_from(collections.creator, 'UTF-8')
-          )::TEXT AS "creator",
+          collections.creator,
+          collections_override.metadata ->> 'creator' AS "creator_override",
           COALESCE(collections_override.metadata ->> 'imageUrl', collections.metadata ->> 'imageUrl')::TEXT AS "image",
           COALESCE(collections_override.metadata ->> 'bannerImageUrl', collections.metadata ->> 'bannerImageUrl')::TEXT AS "banner",
           COALESCE(collections_override.metadata ->> 'discordUrl', collections.metadata ->> 'discordUrl')::TEXT AS "discord_url",
@@ -811,7 +809,7 @@ export const getCollectionsV7Options: RouteOptions = {
               onSaleCount: String(r.on_sale_count),
               primaryContract: fromBuffer(r.contract),
               tokenSetId: r.token_set_id,
-              creator: r.creator ? fromBuffer(r.creator) : null,
+              creator: r.creator_override ?? r.creator ? fromBuffer(r.creator) : null,
               royalties: r.royalties
                 ? {
                   // Main recipient, kept for backwards-compatibility only
