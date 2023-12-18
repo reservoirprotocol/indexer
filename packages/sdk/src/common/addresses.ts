@@ -28,6 +28,7 @@ export const Native: ChainIdToAddress = {
   [Network.Scroll]: AddressZero,
   [Network.ImmutableZkevmTestnet]: AddressZero,
   [Network.Beam]: AddressZero,
+  [Network.BeamTestnet]: AddressZero,
 };
 
 // Wrapped native currency
@@ -55,7 +56,8 @@ export const WNative: ChainIdToAddress = {
   [Network.Ancient8Testnet]: "0x4200000000000000000000000000000000000006",
   [Network.Scroll]: "0x5300000000000000000000000000000000000004",
   [Network.ImmutableZkevmTestnet]: "0xaf7cf5d4af0bfaa85d384d42b8d410762ccbce69",
-  [Network.Beam]: "0xd51bfa777609213a653a2cd067c9a0132a2d316a"
+  [Network.Beam]: "0xd51bfa777609213a653a2cd067c9a0132a2d316a",
+  [Network.BeamTestnet]: "0xf65b6f9c94187276c7d91f4f74134751d248bfea"
 };
 
 export const Usdc: ChainIdToAddressList = {

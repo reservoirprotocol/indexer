@@ -1530,6 +1530,43 @@ export const getNetworkSettings = (): NetworkSettings => {
         },
       };
     }
+
+    case 13337: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: true,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        headBlockDelay: 10,
+        isTestnet: true,
+        coingecko: {
+          networkId: "beam-2",
+        },
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Test Beam',
+                  'TBEAM',
+                  18,
+                  '{"coingeckoCurrencyId": "beam-2", "image": "https://assets.coingecko.com/coins/images/32417/standard/chain-logo.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
     // Default
     default:
       return {
