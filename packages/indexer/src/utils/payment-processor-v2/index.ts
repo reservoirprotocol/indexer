@@ -57,7 +57,7 @@ export const getCollectionPaymentSettings = async (
   contract: string,
   refresh?: boolean
 ): Promise<CollectionPaymentSettings | undefined> => {
-  const cacheKey = `payment-processor-v2-payment-settings-by-contract:v2:${contract}`;
+  const cacheKey = `payment-processor-v2-payment-settings-by-contract:${contract}`;
 
   let result = await redis
     .get(cacheKey)

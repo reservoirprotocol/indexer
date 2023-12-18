@@ -26,7 +26,7 @@ export * as paymentProcessorV2 from "@/orderbook/orders/payment-processor-v2";
 
 // Imports
 
-import { HashZero } from "@ethersproject/constants";
+import { HashZero, AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { Permit } from "@reservoir0x/sdk/dist/router/v6/permit";
 import { BidDetails, ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
@@ -924,5 +924,17 @@ export const checkBlacklistAndFallback = async (
     if (blocked) {
       params.orderKind = "payment-processor";
     }
+  }
+};
+
+export const isOrderNativeOffChainCancellable = (rawData?: any) => {
+  // Seaport
+  if (rawData?.zone) {
+    return rawData.zone === Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId];
+  }
+
+  // Payment Processor
+  if (rawData?.cosigner) {
+    return rawData.cosigner !== AddressZero;
   }
 };

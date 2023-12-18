@@ -14,9 +14,6 @@ import { updateBlurRoyalties } from "@/utils/blur";
 import * as erc721c from "@/utils/erc721c";
 import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
-import * as paymentProcessor from "@/utils/payment-processor";
-import * as paymentProcessorV2 from "@/utils/payment-processor-v2";
-
 import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 import * as royalties from "@/utils/royalties";
 
@@ -301,12 +298,6 @@ export class Collections {
 
     // Refresh ERC721C config
     await erc721c.refreshConfig(collection.contract);
-
-    // Refresh Payment Processor
-    await Promise.all([
-      paymentProcessor.getConfigByContract(collection.contract, true),
-      paymentProcessorV2.getCollectionPaymentSettings(collection.contract, true),
-    ]);
   }
 
   public static async update(collectionId: string, fields: CollectionsEntityUpdateParams) {
