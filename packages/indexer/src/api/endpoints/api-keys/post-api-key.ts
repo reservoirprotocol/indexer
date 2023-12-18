@@ -32,6 +32,7 @@ export const postApiKey: RouteOptions = {
           "An e-mail address where you can be reached, in case of issues, to avoid service disruption"
         ),
       website: Joi.string().required().description("The website of your project"),
+      tier: Joi.number().optional(),
     }),
   },
   response: {
@@ -54,10 +55,10 @@ export const postApiKey: RouteOptions = {
       const manager = new ApiKeyManager();
 
       const key = await manager.create({
-        app_name: payload.appName,
+        appName: payload.appName,
         website: payload.website,
         email: payload.email,
-        tier: 1,
+        tier: payload.tier ?? 1,
       });
 
       if (!key) {

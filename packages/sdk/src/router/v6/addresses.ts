@@ -106,11 +106,6 @@ export const MintModule: ChainIdToAddress = {
   [Network.Scroll]: "0xe3de16f7ed5a124686cc27571898e394959e8b39",
 };
 
-export const CollectionXyzModule: ChainIdToAddress = {
-  [Network.Ethereum]: "0x22097b493ea4c202d5b85cc9faf6d116830aa8a3",
-  [Network.EthereumGoerli]: "0x22097b493ea4c202d5b85cc9faf6d116830aa8a3",
-};
-
 export const DittoModule: ChainIdToAddress = {
   [Network.EthereumGoerli]: "0x1090afe10281912678a05d89fabd5fbe77d7f97f",
   [Network.EthereumSepolia]: "0x2da6ebbdb78b6df0802c4d32afa6d8277c479552",
@@ -242,10 +237,6 @@ export const RaribleModule: ChainIdToAddress = {
 
 export const SuperRareModule: ChainIdToAddress = {
   [Network.Ethereum]: "0x512a6a1a74f1f08aac8155605b9da8ace46b3d9c",
-};
-
-export const MidaswapModule: ChainIdToAddress = {
-  [Network.EthereumGoerli]: "0xfe1aaded2702e7976ac6c2e7dca7708a04232396",
 };
 
 export const CryptoPunksModule: ChainIdToAddress = {

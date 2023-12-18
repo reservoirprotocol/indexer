@@ -41,13 +41,22 @@ export type CollectionMint = {
   standard: CollectionMintStandard;
   details: CollectionMintDetails;
   currency: string;
+  // At most one of `price` and `pricePerQuantity` should be set
+  // - `price`: every quantity that is minted has the same price (also, any quantity is mintable)
+  // - `pricePerQuantity`: different quantities have different prices (also, only specific quantites are mintable)
   price?: string;
+  pricePerQuantity?: PricePerQuantity[];
   tokenId?: string;
   maxMintsPerWallet?: string;
   maxSupply?: string;
   startTime?: number;
   endTime?: number;
   allowlistId?: string;
+};
+
+export type PricePerQuantity = {
+  price: string;
+  quantity: number;
 };
 
 export const getCollectionMints = async (
@@ -104,6 +113,7 @@ export const getCollectionMints = async (
         details: r.details,
         currency: fromBuffer(r.currency),
         price: r.price ?? undefined,
+        pricePerQuantity: r.price_per_quantity ?? undefined,
         tokenId: r.token_id ?? undefined,
         maxMintsPerWallet: r.max_mints_per_wallet ?? undefined,
         maxSupply: r.max_supply ?? undefined,
@@ -177,6 +187,28 @@ export const upsertCollectionMint = async (collectionMint: CollectionMint) => {
     if (collectionMint.allowlistId !== existingCollectionMint.allowlistId) {
       updatedFields.push(" allowlist_id = $/allowlistId/");
       updatedParams.allowlistId = collectionMint.allowlistId;
+    }
+
+    if (collectionMint.pricePerQuantity) {
+      if (!existingCollectionMint.pricePerQuantity) {
+        updatedFields.push(" price_per_quantity = $/pricePerQuantity/");
+        updatedParams.pricePerQuantity = collectionMint.pricePerQuantity;
+      } else {
+        const unknownEntries = collectionMint.pricePerQuantity.filter(
+          (current) =>
+            !existingCollectionMint.pricePerQuantity?.find(
+              (old) => old.quantity === current.quantity
+            )
+        );
+
+        if (unknownEntries.length) {
+          updatedFields.push(" price_per_quantity = $/pricePerQuantity/");
+          updatedParams.pricePerQuantity = [
+            ...existingCollectionMint.pricePerQuantity,
+            ...unknownEntries,
+          ];
+        }
+      }
     }
 
     if (updatedFields.length) {

@@ -125,24 +125,8 @@ export type GenericOrderInfo =
       ingestDelay?: number;
     }
   | {
-      kind: "collectionxyz";
-      info: orders.collectionxyz.OrderInfo;
-      relayToArweave?: boolean;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
       kind: "sudoswap-v2";
       info: orders.sudoswapV2.OrderInfo;
-      relayToArweave?: boolean;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
-      kind: "midaswap";
-      info: orders.midaswap.OrderInfo;
       relayToArweave?: boolean;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
@@ -213,11 +197,6 @@ export const processOrder = async (job: AbstractRabbitMqJobHandler, payload: Gen
         break;
       }
 
-      case "midaswap": {
-        result = await orders.midaswap.save([info]);
-        break;
-      }
-
       case "zeroex-v4": {
         result = await orders.zeroExV4.save([info]);
         break;
@@ -255,11 +234,6 @@ export const processOrder = async (job: AbstractRabbitMqJobHandler, payload: Gen
 
       case "looks-rare-v2": {
         result = await orders.looksRareV2.save([info]);
-        break;
-      }
-
-      case "collectionxyz": {
-        result = await orders.collectionxyz.save([info]);
         break;
       }
 

@@ -1117,7 +1117,7 @@ export const getTokensV6Options: RouteOptions = {
               query.nativeSource || query.excludeEOA
                 ? `${union ? "" : "s."}floor_sell_value`
                 : query.normalizeRoyalties
-                ? `${union ? "" : "t."}normalized_floor_sell_value`
+                ? `${union ? "floor_sell_value" : "t.normalized_floor_sell_value"}`
                 : `${union ? "" : "t."}floor_sell_value`;
 
             return ` ORDER BY ${sortColumn} ${sortDirection} NULLS ${
@@ -1154,7 +1154,7 @@ export const getTokensV6Options: RouteOptions = {
 
           // For shared contracts, filter by both contract and collection
           if (sharedContract) {
-            (query as any)[`collectionContract${i}`] = unionValues[i].split(":")[0];
+            (query as any)[`collectionContract${i}`] = toBuffer(unionValues[i].split(":")[0]);
           }
 
           unionQueries.push(
@@ -1381,14 +1381,7 @@ export const getTokensV6Options: RouteOptions = {
                 },
               };
             } else if (
-              [
-                "sudoswap",
-                "sudoswap-v2",
-                "nftx",
-                "collectionxyz",
-                "caviar-v1",
-                "midaswap",
-              ].includes(r.floor_sell_order_kind)
+              ["sudoswap", "sudoswap-v2", "nftx", "caviar-v1"].includes(r.floor_sell_order_kind)
             ) {
               // Pool orders
               dynamicPricing = {
@@ -2088,11 +2081,7 @@ export const getListedTokensFromES = async (query: any) => {
               },
             },
           };
-        } else if (
-          ["sudoswap", "sudoswap-v2", "nftx", "collectionxyz", "caviar-v1", "midaswap"].includes(
-            ask.order.kind
-          )
-        ) {
+        } else if (["sudoswap", "sudoswap-v2", "nftx", "caviar-v1"].includes(ask.order.kind)) {
           // Pool orders
           dynamicPricing = {
             kind: "pool",

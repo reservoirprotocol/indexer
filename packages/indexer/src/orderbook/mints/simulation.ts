@@ -6,7 +6,7 @@ import { idb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
 import { bn, fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { CollectionMint } from "@/orderbook/mints";
+import { CollectionMint, PricePerQuantity } from "@/orderbook/mints";
 import { generateCollectionMintTxData } from "@/orderbook/mints/calldata";
 
 import { EventData } from "@/events-sync/data";
@@ -19,6 +19,13 @@ export const simulateCollectionMint = async (
   // then we'll try to detect `maxMintsPerWallet` by simulating with various quantites
   detectMaxMintsPerWallet = true
 ) => {
+  // Cache and unset `pricePerQuantity` since having it set on the
+  // collection mint is just a hacky way to pass it through all of
+  // the mint related methods. If this field is actually needed it
+  // it will be set via the `simulateViaPricePerQuantity` method.
+  const pricePerQuantity = collectionMint.pricePerQuantity;
+  collectionMint.pricePerQuantity = undefined;
+
   // TODO: Add support for simulating non-public mints
   if (collectionMint.kind !== "public") {
     return collectionMint.status === "open";
@@ -57,6 +64,40 @@ export const simulateCollectionMint = async (
       simulateMintTxData(contract, contractKind, quantity, txData)
     );
 
+  const simulateViaPricePerQuantity = async (
+    collectionMint: CollectionMint,
+    pricePerQuantity: PricePerQuantity[]
+  ) => {
+    const validPricePerQuantityEntries = [];
+    for (const { price, quantity } of pricePerQuantity) {
+      // Create a temporary collection mint with the current price per quantity
+      const tmpCollectionMint = {
+        ...collectionMint,
+        price,
+      };
+
+      // Simulate
+      const result = await generateCollectionMintTxData(tmpCollectionMint, minter, quantity).then(
+        ({ txData }) => simulateMintTxData(contract, contractKind, quantity, txData)
+      );
+
+      // If the simulation was successful then the current price per quantity is valid
+      if (result) {
+        validPricePerQuantityEntries.push({ price, quantity });
+      }
+    }
+
+    // Need at least one valid price per quantity entry
+    if (validPricePerQuantityEntries.length) {
+      // Unset `price` and set `pricePerQuantity`
+      collectionMint.price = undefined;
+      collectionMint.pricePerQuantity = validPricePerQuantityEntries;
+      return true;
+    }
+
+    return false;
+  };
+
   if (detectMaxMintsPerWallet && collectionMint.maxMintsPerWallet === undefined) {
     const quantitiesToTry = [1, 2, 5, 10, 11];
     const results = await Promise.all(quantitiesToTry.map((q) => simulate(q)));
@@ -68,6 +109,11 @@ export const simulateCollectionMint = async (
       // Find first quantity that failed, and take the one before it as the maximum
       const firstFailedIndex = results.findIndex((r) => !r);
       if (firstFailedIndex === 0) {
+        // Try any price per quantity entries
+        if (pricePerQuantity?.length) {
+          return simulateViaPricePerQuantity(collectionMint, pricePerQuantity);
+        }
+
         return false;
       } else {
         collectionMint.maxMintsPerWallet = quantitiesToTry[firstFailedIndex - 1].toString();

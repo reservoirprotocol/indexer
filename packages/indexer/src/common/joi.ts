@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { BigNumberish } from "@ethersproject/bignumber";
-import { MaxUint256 } from "@ethersproject/constants";
 import { parseEther } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk";
 import crypto from "crypto";
@@ -14,6 +13,7 @@ import { FeeRecipients } from "@/models/fee-recipients";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { OrderKind } from "@/orderbook/orders";
+import { isOrderNativeOffChainCancellable } from "@/orderbook/orders/utils";
 import { Currency, getCurrency } from "@/utils/currencies";
 import {
   getUSDAndCurrencyPrices,
@@ -414,34 +414,23 @@ export const getJoiDynamicPricingObject = async (
         ),
       },
     };
-  } else if (
-    kind === "collectionxyz" ||
-    kind === "nftx" ||
-    kind === "caviar-v1" ||
-    kind === "midaswap"
-  ) {
+  } else if (kind === "nftx" || kind === "caviar-v1") {
     // Pool orders
     return {
       kind: "pool",
       data: {
-        pool: (rawData as Sdk.Midaswap.Types.OrderParams).pool,
+        pool: (rawData as Sdk.Nftx.Types.OrderParams).pool,
         prices: await Promise.all(
-          (rawData as Sdk.Midaswap.Types.OrderParams).extra.prices
-            .filter((price) =>
-              bn(price).lte(
-                bn((rawData as Sdk.Midaswap.Types.OrderParams).extra.floorPrice || MaxUint256)
-              )
-            )
-            .map((price) =>
-              getJoiPriceObject(
-                {
-                  gross: {
-                    amount: bn(price).add(totalMissingRoyalties).toString(),
-                  },
+          (rawData as Sdk.Nftx.Types.OrderParams).extra.prices.map((price) =>
+            getJoiPriceObject(
+              {
+                gross: {
+                  amount: bn(price).add(totalMissingRoyalties).toString(),
                 },
-                floorAskCurrency
-              )
+              },
+              floorAskCurrency
             )
+          )
         ),
       },
     };
@@ -487,7 +476,6 @@ export const getJoiOrderDepthObject = async (
     }
 
     case "caviar-v1":
-    case "collectionxyz":
     case "nftx": {
       const order = rawData as Sdk.Nftx.Types.OrderParams;
       return Promise.all(
@@ -591,8 +579,7 @@ export const getJoiOrderObject = async (order: {
   rawData:
     | Sdk.SeaportBase.Types.OrderComponents
     | Sdk.Sudoswap.OrderParams
-    | Sdk.Nftx.Types.OrderParams
-    | Sdk.Midaswap.Types.OrderParams;
+    | Sdk.Nftx.Types.OrderParams;
   normalizeRoyalties: boolean;
   missingRoyalties: any;
   includeDynamicPricing?: boolean;
@@ -699,8 +686,7 @@ export const getJoiOrderObject = async (order: {
     originatedAt: order.originatedAt ? new Date(order.originatedAt).toISOString() : null,
     rawData: order.includeRawData ? order.rawData : undefined,
     isNativeOffChainCancellable: order.includeRawData
-      ? (order.rawData as any)?.zone ===
-        Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
+      ? isOrderNativeOffChainCancellable(order.rawData)
       : undefined,
     depth: order.includeDepth
       ? await getJoiOrderDepthObject(

@@ -940,6 +940,7 @@ export const postExecuteMintV1Options: RouteOptions = {
               to: data.solver.address,
               data: data.requestId,
               value: bn(cost).sub(data.user.balance).toString(),
+              gasLimit: 22000,
               chainId: payload.currencyChainId,
             },
             check: {

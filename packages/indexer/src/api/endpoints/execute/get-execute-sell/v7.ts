@@ -139,6 +139,13 @@ export const getExecuteSellV7Options: RouteOptions = {
         .description(
           "If true, filling will be forced to use the common 'approval + transfer' method instead of the approval-less 'on-received hook' method"
         ),
+      forceTrustedForwarder: Joi.string()
+        .lowercase()
+        .pattern(regex.address)
+        .description(
+          "If passed, all fills will be executed through the trusted trusted forwarder (where possible)"
+        )
+        .optional(),
       maxFeePerGas: Joi.string()
         .pattern(regex.number)
         .description(
@@ -292,11 +299,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
       ) => {
         // Handle dynamically-priced orders
-        if (
-          ["blur", "sudoswap", "sudoswap-v2", "collectionxyz", "nftx", "caviar-v1"].includes(
-            order.kind
-          )
-        ) {
+        if (["blur", "sudoswap", "sudoswap-v2", "nftx", "caviar-v1"].includes(order.kind)) {
           // TODO: Handle the case when the next best-priced order in the database
           // has a better price than the current dynamically-priced order (because
           // of a quantity > 1 being filled on this current order).
@@ -425,7 +428,10 @@ export const getExecuteSellV7Options: RouteOptions = {
               owner: token.owner,
             },
             payload.taker,
-            { permit }
+            {
+              permit,
+              ppV2TrustedChannel: payload.forceTrustedForwarder,
+            }
           )
         );
       };
