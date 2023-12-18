@@ -247,7 +247,7 @@ export const getAndIncrementUserNonce = async (
     )
     .then((r) => r?.nonce ?? "0");
 
-  const shiftedMarketplaceId = bn(marketplace.padEnd(66, "0")).shl(224);
+  const shiftedMarketplaceId = bn("0x" + marketplace.slice(-8).padEnd(64, "0"));
   nextNonce = shiftedMarketplaceId.add(nextNonce).toString();
 
   // At most 20 attempts
@@ -255,7 +255,7 @@ export const getAndIncrementUserNonce = async (
   for (let i = 0; i < 20; i++) {
     const isCancelled = await isNonceCancelled("payment-processor-v2", user, nextNonce);
     if (isCancelled) {
-      nextNonce++;
+      nextNonce = bn(nextNonce).add(1);
     } else {
       foundValidNonce = true;
       break;
@@ -283,7 +283,7 @@ export const getAndIncrementUserNonce = async (
     {
       user: toBuffer(user),
       marketplace: toBuffer(marketplace),
-      nonce: bn(nextNonce).add(1).toString(),
+      nonce: nextNonce.add(1).toString(),
     }
   );
 

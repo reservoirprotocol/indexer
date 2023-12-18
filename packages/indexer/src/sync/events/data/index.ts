@@ -50,6 +50,7 @@ import * as createdotfun from "@/events-sync/data/createdotfun";
 import * as erc721cV2 from "@/events-sync/data/erc721c-v2";
 import * as titlesxyz from "@/events-sync/data/titlesxyz";
 import * as artblocks from "@/events-sync/data/artblocks";
+import * as ditto from "@/events-sync/data/ditto";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -549,6 +550,7 @@ const allEventData = [
   erc721cV2.removedAccountFromList,
   erc721cV2.removedCodeHashFromList,
   erc721cV2.appliedListToCollection,
+  ditto.dittoPoolInitialized,
 ];
 
 export const getEventData = (events?: string[]) => {
