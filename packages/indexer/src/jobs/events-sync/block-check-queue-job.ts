@@ -21,7 +21,7 @@ export class BlockCheckJob extends AbstractRabbitMqJobHandler {
   // concurrency = 1;
   // job-todo
   maxRetries = [43851].includes(config.chainId) ? 2 : 10;
-  concurrency = [43851].includes(config.chainId) ? 2 : 1;
+  concurrency = [43851].includes(config.chainId) ? 1 : 1;
 
   lazyMode = true;
   timeout = 60000;
