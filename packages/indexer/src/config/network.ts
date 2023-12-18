@@ -461,9 +461,9 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
-            "0x2bff8ddbc1F13F6F976a8f4d7feE677272fB6e0e",
+            "0x2bff8ddbc1f13f6f976a8f4d7fee677272fb6e0e",
             {
-              contract: "0x2bff8ddbc1F13F6F976a8f4d7feE677272fB6e0e",
+              contract: "0x2bff8ddbc1f13f6f976a8f4d7fee677272fb6e0e",
               name: "$AURA",
               symbol: "$AURA",
               decimals: 18,
