@@ -1644,7 +1644,7 @@ export const getTokensV7Options: RouteOptions = {
   },
 };
 
-export const getListedTokensFromES = async (query: any) => {
+const getListedTokensFromES = async (query: any) => {
   let collections: any[] = [];
 
   if (query.collection && !_.isArray(query.collection)) {
@@ -2172,7 +2172,7 @@ export const getListedTokensFromES = async (query: any) => {
           collection: {
             id: r.collection_id,
             name: r.collection_name,
-            image: Assets.getLocalAssetsLink(r.collection_image),
+            image: Assets.getResizedImageURLs(r.collection_image),
             slug: r.slug,
             symbol: r.symbol,
             creator: r.creator ? fromBuffer(r.creator) : null,
