@@ -13,16 +13,26 @@ import {
 
 export class AskCreatedEventHandler extends BaseAskEventHandler {
   async generateAsk(): Promise<AskDocumentInfo> {
-    const data = await idb.oneOrNone(
-      `
+    const query = `
           ${AskCreatedEventHandler.buildBaseQuery()}
           AND id = $/orderId/
           LIMIT 1;
-        `,
-      {
-        orderId: this.orderId,
-      }
-    );
+        `;
+
+    const data = await idb.oneOrNone(query, {
+      orderId: this.orderId,
+    });
+
+    if (data == null) {
+      logger.error(
+        "AskCreatedEventHandler",
+        JSON.stringify({
+          topic: "debugAskIndex",
+          message: `No order. id=${this.orderId}`,
+          query,
+        })
+      );
+    }
 
     const id = this.getAskId();
     const document = this.buildDocument(data);
@@ -108,7 +118,7 @@ export class AskCreatedEventHandler extends BaseAskEventHandler {
             WHERE orders.side = 'sell'
             ${
               onlyActive
-                ? `AND orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`
+                ? `AND orders.fillability_statu s = 'fillable' AND orders.approval_status = 'approved'`
                 : ""
             }
             AND orders.kind != 'element-erc1155'
