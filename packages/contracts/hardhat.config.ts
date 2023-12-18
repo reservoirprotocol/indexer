@@ -171,7 +171,7 @@ const config: HardhatUserConfig = {
         network: "zkfairTestnet",
         chainId: 43851,
         urls: {
-          apiURL: "todo-api",
+          apiURL: "https://testnet-scan.zkfair.io/api",
           browserURL: "https://testnet-scan.zkfair.io",
         },
       },

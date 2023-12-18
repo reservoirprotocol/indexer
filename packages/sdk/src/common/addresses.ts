@@ -51,8 +51,8 @@ export const WNative: ChainIdToAddress = {
   [Network.Zksync]: "0x5aea5775959fbc2557cc8789bc1bf90a239d9a91",
   [Network.PolygonZkevm]: "0x4f9a0e7fd2bf6067db6994cf12e4495df938e6e9",
   [Network.X1Testnet]: "0xf8e8506fe73b0a8efb929f6edfb7059d6d2f95f2",
-  // todo-confirm usdc-native-wrapped currency，下面这个是自己找脚本部署的
-  [Network.ZkFairTestnet]: "0x9e1f1AB94BC3F2A4D1966F8F7c36c69dB651d45F",
+  // usdc-native-wrapped currency，下面这个是自己找脚本部署的
+  [Network.ZkFairTestnet]: "0x9e1f1ab94bc3f2a4d1966f8f7c36c69db651d45f",
 };
 
 export const Usdc: ChainIdToAddress = {

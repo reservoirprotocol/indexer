@@ -3,10 +3,15 @@ version: "3"
 tasks:
   i: yarn install
   build: yarn build
-  # start all service in this monorepo
+  # start all service in this monorepo project
+  # 启动项目，主要是packages/indexer 的jobs和api服务
   start: yarn start
   fmt: yarn format
 
-  ## stupid tips
+  # pm2 start as root user indexer root dir # --no-daemon
+  pm2-start-fair-test: pm2 start asdf --name "indexer-zkfair-testnet" --interpreter bash -- exec yarn start
+  # pm2 delete indexer-zkfair-testnet
+
+  ## STUPID TIPS
   # quick commit informal contents
   # npx husky uninstall
