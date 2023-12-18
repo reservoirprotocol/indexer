@@ -7,7 +7,7 @@ import { fromBuffer, regex, formatEth } from "@/common/utils";
 import { redb } from "@/common/db";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
-import { getStartTime } from "@/models/top-selling-collections/top-selling-collections";
+import { getStartTime, Period } from "@/models/top-selling-collections/top-selling-collections";
 import { chunk, flatMap } from "lodash";
 import { redis } from "@/common/redis";
 
@@ -44,7 +44,6 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
         .valid("5m", "10m", "30m", "1h", "6h", "1d", "24h", "7d", "30d")
         .default("1d")
         .description("Time window to aggregate."),
-
       limit: Joi.number()
         .integer()
         .min(1)
@@ -66,10 +65,6 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
         .description(
           "If true, return the non flagged floor ask. Supported only when `normalizeRoyalties` is false."
         ),
-      floorAskPercentChange: Joi.string()
-        .valid("none", "10m", "1h", "6h", "1d", "7d", "30d")
-        .default("none")
-        .description("Time window to calculate the percent change in floor ask for."),
     }),
   },
   response: {
@@ -138,7 +133,8 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
     },
   },
   handler: async (request: Request, h) => {
-    const { normalizeRoyalties, useNonFlaggedFloorAsk, floorAskPercentChange } = request.query;
+    const { period, normalizeRoyalties, useNonFlaggedFloorAsk } = request.query;
+    const floorAskPercentChange = period === "24h" ? "1d" : period;
 
     try {
       const collectionsResult = await getCollectionsResult(request);
@@ -155,7 +151,7 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
           collectionsMetadata,
           normalizeRoyalties,
           useNonFlaggedFloorAsk,
-          floorAskPercentChange
+          true
         );
       }
 
@@ -170,7 +166,7 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
 
 export async function getCollectionsMetadata(
   collectionsResult: any[],
-  floorAskPercentChange?: string
+  floorAskPercentChange?: Period
 ) {
   const collectionIds = collectionsResult.map((collection: any) => collection.id);
   const collectionsToFetch = collectionIds.map((id: string) => `collection-cache:v4:${id}`);
@@ -312,32 +308,8 @@ export async function getCollectionsMetadata(
     }
   }
 
-  if (floorAskPercentChange && floorAskPercentChange !== "none") {
-    const endDate = new Date();
-    switch (floorAskPercentChange) {
-      case "10m":
-        endDate.setMinutes(endDate.getMinutes() - 10);
-        break;
-      case "1h":
-        endDate.setHours(endDate.getHours() - 1);
-        break;
-      case "6h":
-        endDate.setHours(endDate.getHours() - 6);
-        break;
-      case "1d":
-        endDate.setDate(endDate.getDate() - 1);
-        break;
-      case "7d":
-        endDate.setDate(endDate.getDate() - 7);
-        break;
-      case "30d":
-        endDate.setDate(endDate.getDate() - 30);
-        break;
-      default:
-        endDate.setDate(endDate.getDate() - 1);
-    }
-
-    const endTimestamp = Math.floor(endDate.getTime() / 1000);
+  if (floorAskPercentChange) {
+    const endTimestamp = getStartTime(floorAskPercentChange);
 
     const fullCollectionIdList = collectionIds.map((id: string) => `'${id}'`).join(", ");
 
@@ -391,7 +363,7 @@ async function formatCollections(
   collectionsMetadata: Record<string, any>,
   normalizeRoyalties: boolean,
   useNonFlaggedFloorAsk: boolean,
-  floorAskPercentChangeParam: string
+  floorAskPercentChangeEnabled: boolean
 ) {
   const sources = await Sources.getInstance();
 
@@ -433,7 +405,7 @@ async function formatCollections(
         };
       }
 
-      if (floorAskPercentChangeParam && floorAskPercentChangeParam !== "none") {
+      if (floorAskPercentChangeEnabled) {
         floorAskPercentChange =
           Number(metadata.previous_floor_sell_currency_value) &&
           Number(metadata.floor_sell_currency_value)

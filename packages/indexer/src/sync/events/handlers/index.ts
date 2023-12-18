@@ -52,6 +52,7 @@ import * as paymentProcessorV2 from "@/events-sync/handlers/payment-processor-v2
 import * as erc721cV2 from "@/events-sync/handlers/erc721c-v2";
 import * as titlesxyz from "@/events-sync/handlers/titlesxyz";
 import * as artblocks from "@/events-sync/handlers/artblocks";
+import * as ditto from "@/events-sync/handlers/ditto";
 
 // A list of events having the same high-level kind
 export type EventsByKind = {
@@ -101,6 +102,7 @@ export const eventKindToHandler = new Map<
   ["treasure", (e, d) => treasure.handleEvents(e, d)],
   ["looks-rare-v2", (e, d) => looksRareV2.handleEvents(e, d)],
   ["sudoswap-v2", (e, d) => sudoswapV2.handleEvents(e, d)],
+  ["ditto", (e) => ditto.handleEvents(e)],
   ["blend", (e, d) => blend.handleEvents(e, d)],
   ["caviar-v1", (e, d) => caviarV1.handleEvents(e, d)],
   ["payment-processor", (e, d) => paymentProcessor.handleEvents(e, d)],
