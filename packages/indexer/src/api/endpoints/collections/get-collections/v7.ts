@@ -480,7 +480,7 @@ export const getCollectionsV7Options: RouteOptions = {
           COALESCE(collections_override.metadata ->> 'twitterUsername', collections.metadata ->> 'twitterUsername')::TEXT AS "twitter_username",
           COALESCE(collections_override.metadata ->> 'twitterUrl', collections.metadata ->> 'twitterUrl')::TEXT AS "twitter_url",
           COALESCE(collections_override.metadata ->> 'safelistRequestStatus', collections.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",    
-          collections.royalties,
+          COALESCE(collections_override.royalties, collections.royalties)::JSONB AS "royalties",
           collections.new_royalties,
           collections.contract,
           collections.token_id_range,
