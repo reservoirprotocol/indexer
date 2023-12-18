@@ -118,7 +118,7 @@ export class AskCreatedEventHandler extends BaseAskEventHandler {
             WHERE orders.side = 'sell'
             ${
               onlyActive
-                ? `AND orders.fillability_statu s = 'fillable' AND orders.approval_status = 'approved'`
+                ? `AND orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`
                 : ""
             }
             AND orders.kind != 'element-erc1155'
