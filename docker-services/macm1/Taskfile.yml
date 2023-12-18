@@ -12,3 +12,8 @@ tasks:
   rabbit: docker-compose exec rabbitmq bash
 
   redis: docker-compose exec redis redis-cli
+
+  up:
+    cmds:
+      - docker-compose up -d
+      - sleep 10 && task mk-fair-db
