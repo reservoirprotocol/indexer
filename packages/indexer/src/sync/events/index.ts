@@ -448,9 +448,9 @@ export const syncEvents = async (
   let enhancedEvents = logs
     .map((log) => {
       try {
-        // const baseEventParams = parseEvent(log, blockData.timestamp);
         const block = blockData.find((b) => b.hash === log.blockHash);
         if (!block) {
+          logger.error("sync-events-v2", `Failed to handle events: ${log.blockHash} not found`);
           throw new Error(`Block ${log.blockHash} not found with RPC provider`);
         }
         const baseEventParams = parseEvent(log, block.timestamp);
@@ -501,6 +501,8 @@ export const syncEvents = async (
         eventCount: enhancedEvents.length,
         getLogsTime,
         processLogs: endProcessLogs - startProcessLogs,
+        events: enhancedEvents.length,
+        eventsBatches: eventsBatches.length,
       },
 
       blocks: {
