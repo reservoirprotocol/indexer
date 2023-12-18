@@ -171,4 +171,6 @@ export const config = {
   forceEnableRabbitJobsConsumer: Boolean(Number(process.env.FORCE_ENABLE_RABBIT_JOBS_CONSUMER)),
 
   debugApiKeys: process.env.DEBUG_API_KEYS ? String(process.env.DEBUG_API_KEYS).split(",") : [],
+
+  coinGeckoWsApiKey: process.env.COINGECKO_API_KEY,
 };
