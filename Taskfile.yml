@@ -6,6 +6,7 @@ tasks:
   # start all service in this monorepo project
   # 启动项目，主要是packages/indexer 的jobs和api服务
   start: yarn start
+  run: yarn start
   fmt: yarn format
 
   # pm2 start as root user indexer root dir # --no-daemon

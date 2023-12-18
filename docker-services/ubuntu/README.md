@@ -1,3 +1,3 @@
 # Docker Runtime Environment
 
-保持可在 ubuntu 机器上运行
+可在 Ubuntu 服务器上运行
