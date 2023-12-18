@@ -255,7 +255,7 @@ export const getAndIncrementUserNonce = async (
   for (let i = 0; i < 20; i++) {
     const isCancelled = await isNonceCancelled("payment-processor-v2", user, nextNonce);
     if (isCancelled) {
-      nextNonce = bn(nextNonce).add(1);
+      nextNonce = bn(nextNonce).add(1).toString();
     } else {
       foundValidNonce = true;
       break;
@@ -283,7 +283,7 @@ export const getAndIncrementUserNonce = async (
     {
       user: toBuffer(user),
       marketplace: toBuffer(marketplace),
-      nonce: nextNonce.add(1).toString(),
+      nonce: bn(nextNonce).add(1).sub(shiftedMarketplaceId).toString(),
     }
   );
 

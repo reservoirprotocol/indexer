@@ -138,6 +138,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/resync-api-key",
+    options: adminEndpoints.postResyncApiKey,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/resync-user-balance",
     options: adminEndpoints.postResyncUserCollectionBalance,
   });
