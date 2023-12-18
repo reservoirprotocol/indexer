@@ -84,6 +84,9 @@ export const getNetworkName = () => {
     case 4337:
       return "beam";
 
+    case 13337:
+      return "beam-testnet";
+
     default:
       return "unknown";
   }
