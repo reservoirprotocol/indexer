@@ -28,7 +28,7 @@ import {
 import { config } from "@/config/index";
 import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
-import { isOrderNativeOffChainCancellable } from "@/orderbook/orders";
+import { isOrderNativeOffChainCancellable } from "@/orderbook/orders/utils";
 import { Assets, ImageSize } from "@/utils/assets";
 
 const version = "v7";
