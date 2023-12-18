@@ -16,14 +16,15 @@ export class TraceSyncJob extends AbstractRabbitMqJobHandler {
 
   consumerTimeout = 10 * 60 * 1000;
   // zkfair
-  backoff = [43851].includes(config.chainId) ? {
-    type: "exponential",
-    delay: 2000,
-  } as BackoffStrategy :
-    {
-      type: "fixed",
-      delay: 1000,
-    } as BackoffStrategy;
+  backoff = [43851].includes(config.chainId)
+    ? ({
+        type: "exponential",
+        delay: 2000,
+      } as BackoffStrategy)
+    : ({
+        type: "fixed",
+        delay: 1000,
+      } as BackoffStrategy);
 
   protected async process(payload: TraceSyncJobPayload) {
     const { block } = payload;

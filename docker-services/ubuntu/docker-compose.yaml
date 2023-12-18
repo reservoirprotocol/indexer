@@ -52,17 +52,17 @@ services:
     networks:
       - local
 
-  # elasticsearch:
-  #   container_name: 'elasticsearch'
-  #   image: docker.elastic.co/elasticsearch/elasticsearch:8.7.0
-  #   restart: always
-  #   environment:
-  #     - xpack.security.enabled=false
-  #     - 'discovery.type=single-node'
-  #   networks:
-  #     - local
-  #   ports:
-  #     - 19200:9200
+  elasticsearch:
+    container_name: 'elasticsearch'
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.7.0
+    restart: always
+    environment:
+      - xpack.security.enabled=false
+      - 'discovery.type=single-node'
+    networks:
+      - local
+    ports:
+      - 19200:9200
 
 networks:
   local:

@@ -28,7 +28,10 @@ if (process.env.LOCAL_TESTING == "1") {
         await redis.set(config.imageTag, "DONE", "EX", 60 * 60 * 24); // Update the lock ttl
         import("./setup");
       } else {
-        logger.info("trace", `polling rabbit-queues-ready without race-lock with chain-id: ${config.chainId}`);
+        logger.info(
+          "trace",
+          `polling rabbit-queues-ready without race-lock with chain-id: ${config.chainId}`
+        );
         // Check every 1s if the rabbit queues assertion completed
         const intervalId = setInterval(async () => {
           if ((await redis.get(config.imageTag)) === "DONE") {

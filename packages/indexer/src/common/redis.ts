@@ -9,8 +9,6 @@ import { config } from "@/config/index";
 // TODO: Research using a connection pool rather than
 // creating a new connection every time, as we do now.
 
-console.log(`connecting redis: ${config.redisUrl}`);
-
 // Main redis
 export const redis = new Redis(config.redisUrl, {
   maxRetriesPerRequest: null,
