@@ -192,7 +192,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         .description(
           "Choose a specific swapping provider when buying in a different currency (defaults to `uniswap`)"
         ),
-      executionMethod: Joi.string().valid("seaport-intent"),
+      executionMethod: Joi.string().valid("seaport-intent", "intent"),
       referrer: Joi.string()
         .pattern(regex.address)
         .optional()
@@ -555,7 +555,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
       const useSeaportIntent = payload.executionMethod === "seaport-intent";
       const useCrossChainIntent =
-        payload.currencyChainId !== undefined && payload.currencyChainId !== config.chainId;
+        payload.executionMethod === "intent" ||
+        (payload.currencyChainId !== undefined && payload.currencyChainId !== config.chainId);
 
       let lastError: string | undefined;
       for (let i = 0; i < items.length; i++) {
@@ -1874,7 +1875,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           throw Boom.badRequest("Only native currency is supported for cross-chain purchasing");
         }
 
-        if (path.length > 1) {
+        if (path.length > 1 && !payload.partial) {
           throw Boom.badRequest("Only single item cross-chain purchases are supported");
         }
 
