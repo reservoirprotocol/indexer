@@ -32,7 +32,6 @@ export interface SyncBlockOptions {
         address: string;
       };
 }
-
 export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBatch[] => {
   const txHashToEvents = new Map<string, EnhancedEvent[]>();
 
@@ -63,235 +62,229 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
         batchIndex = event.baseEventParams.batchIndex;
       }
 
-      const eventsByKind: EventsByKind[] = [
-        {
-          kind: "erc20",
-          data: kindToEvents.get("erc20") ?? [],
-        },
-        {
-          kind: "erc721",
-          data: kindToEvents.get("erc721") ?? [],
-        },
-        {
-          kind: "erc1155",
-          data: kindToEvents.get("erc1155") ?? [],
-        },
-        {
-          kind: "blur",
-          data: kindToEvents.get("blur") ?? [],
-        },
-        {
-          kind: "cryptopunks",
-          data: kindToEvents.get("cryptopunks") ?? [],
-        },
-        {
-          kind: "decentraland",
-          data: kindToEvents.get("decentraland") ?? [],
-        },
-        {
-          kind: "element",
-          data: kindToEvents.get("element") ?? [],
-        },
-        {
-          kind: "foundation",
-          data: kindToEvents.get("foundation") ?? [],
-        },
-        {
-          kind: "looks-rare",
-          data: kindToEvents.has("looks-rare")
-            ? [
-                ...kindToEvents.get("looks-rare")!,
-                // To properly validate bids, we need some additional events
-                ...events.filter((e) => e.subKind === "erc20-transfer"),
-              ]
-            : [],
-        },
-        {
-          kind: "nftx",
-          data: kindToEvents.get("nftx") ?? [],
-        },
-        {
-          kind: "nouns",
-          data: kindToEvents.get("nouns") ?? [],
-        },
-        {
-          kind: "quixotic",
-          data: kindToEvents.get("quixotic") ?? [],
-        },
-        {
-          kind: "seaport",
-          data: kindToEvents.has("seaport")
-            ? [
-                ...kindToEvents.get("seaport")!,
-                // To properly validate bids, we need some additional events
-                ...events.filter((e) => e.subKind === "erc20-transfer"),
-              ]
-            : [],
-        },
-        {
-          kind: "sudoswap",
-          data: kindToEvents.get("sudoswap") ?? [],
-        },
-        {
-          kind: "sudoswap-v2",
-          data: kindToEvents.get("sudoswap-v2") ?? [],
-        },
-        {
-          kind: "caviar-v1",
-          data: kindToEvents.get("caviar-v1") ?? [],
-        },
-        {
-          kind: "wyvern",
-          data: kindToEvents.has("wyvern")
-            ? [
-                ...events.filter((e) => e.subKind === "erc721-transfer"),
-                ...kindToEvents.get("wyvern")!,
-                // To properly validate bids, we need some additional events
-                ...events.filter((e) => e.subKind === "erc20-transfer"),
-              ]
-            : [],
-        },
-        {
-          kind: "x2y2",
-          data: kindToEvents.has("x2y2")
-            ? [
-                ...kindToEvents.get("x2y2")!,
-                // To properly validate bids, we need some additional events
-                ...events.filter((e) => e.subKind === "erc20-transfer"),
-              ]
-            : [],
-        },
-        {
-          kind: "zeroex-v4",
-          data: kindToEvents.has("zeroex-v4")
-            ? [
-                ...kindToEvents.get("zeroex-v4")!,
-                // To properly validate bids, we need some additional events
-                ...events.filter((e) => e.subKind === "erc20-transfer"),
-              ]
-            : [],
-        },
-        {
-          kind: "zora",
-          data: kindToEvents.get("zora") ?? [],
-        },
-        {
-          kind: "rarible",
-          data: kindToEvents.has("rarible")
-            ? [
-                ...kindToEvents.get("rarible")!,
-                // To properly validate bids, we need some additional events
-                ...events.filter((e) => e.subKind === "erc20-transfer"),
-              ]
-            : [],
-        },
-        {
-          kind: "manifold",
-          data: kindToEvents.get("manifold") ?? [],
-        },
-        {
-          kind: "tofu",
-          data: kindToEvents.get("tofu") ?? [],
-        },
-        {
-          kind: "bend-dao",
-          data: kindToEvents.get("bend-dao") ?? [],
-        },
-        {
-          kind: "nft-trader",
-          data: kindToEvents.get("nft-trader") ?? [],
-        },
-        {
-          kind: "okex",
-          data: kindToEvents.get("okex") ?? [],
-        },
-        {
-          kind: "superrare",
-          data: kindToEvents.get("superrare") ?? [],
-        },
-        {
-          kind: "zeroex-v2",
-          data: kindToEvents.get("zeroex-v2") ?? [],
-        },
-        {
-          kind: "zeroex-v3",
-          data: kindToEvents.get("zeroex-v3") ?? [],
-        },
-        {
-          kind: "treasure",
-          data: kindToEvents.get("treasure") ?? [],
-        },
-        {
-          kind: "looks-rare-v2",
-          data: kindToEvents.get("looks-rare-v2") ?? [],
-        },
-        {
-          kind: "blend",
-          data: kindToEvents.get("blend") ?? [],
-        },
-        {
-          kind: "payment-processor",
-          data: kindToEvents.get("payment-processor") ?? [],
-        },
-        {
-          kind: "thirdweb",
-          data: kindToEvents.get("thirdweb") ?? [],
-        },
-        {
-          kind: "seadrop",
-          data: kindToEvents.get("seadrop") ?? [],
-        },
-        {
-          kind: "blur-v2",
-          data: kindToEvents.get("blur-v2") ?? [],
-        },
-        {
-          kind: "erc721c",
-          data: kindToEvents.get("erc721c") ?? [],
-        },
-        {
-          kind: "joepeg",
-          data: kindToEvents.get("joepeg") ?? [],
-        },
-        {
-          kind: "metadata-update",
-          data: kindToEvents.get("metadata-update") ?? [],
-        },
-        {
-          kind: "soundxyz",
-          data: kindToEvents.get("soundxyz") ?? [],
-        },
-        {
-          kind: "createdotfun",
-          data: kindToEvents.get("createdotfun") ?? [],
-        },
-        {
-          kind: "payment-processor-v2",
-          data: kindToEvents.get("payment-processor-v2") ?? [],
-        },
-        {
-          kind: "erc721c-v2",
-          data: kindToEvents.get("erc721c-v2") ?? [],
-        },
-        {
-          kind: "titlesxyz",
-          data: kindToEvents.get("titlesxyz") ?? [],
-        },
-        {
-          kind: "artblocks",
-          data: kindToEvents.get("artblocks") ?? [],
-        },
-        {
-          kind: "ditto",
-          data: kindToEvents.get("ditto") ?? [],
-        },
-      ];
-
-      txHashToEventsBatch.set(txHash, {
-        id: getUuidByString(`${txHash}:${logIndex}:${batchIndex}:${blockHash}`),
-        events: eventsByKind,
-      });
+      kindToEvents.get(event.kind)!.push(event);
     }
+
+    const eventsByKind: EventsByKind[] = [
+      {
+        kind: "erc20",
+        data: kindToEvents.get("erc20") ?? [],
+      },
+      {
+        kind: "erc721",
+        data: kindToEvents.get("erc721") ?? [],
+      },
+      {
+        kind: "erc1155",
+        data: kindToEvents.get("erc1155") ?? [],
+      },
+      {
+        kind: "blur",
+        data: kindToEvents.get("blur") ?? [],
+      },
+      {
+        kind: "cryptopunks",
+        data: kindToEvents.get("cryptopunks") ?? [],
+      },
+      {
+        kind: "decentraland",
+        data: kindToEvents.get("decentraland") ?? [],
+      },
+      {
+        kind: "element",
+        data: kindToEvents.get("element") ?? [],
+      },
+      {
+        kind: "foundation",
+        data: kindToEvents.get("foundation") ?? [],
+      },
+      {
+        kind: "looks-rare",
+        data: kindToEvents.has("looks-rare")
+          ? [
+              ...kindToEvents.get("looks-rare")!,
+              // To properly validate bids, we need some additional events
+              ...events.filter((e) => e.subKind === "erc20-transfer"),
+            ]
+          : [],
+      },
+      {
+        kind: "nftx",
+        data: kindToEvents.get("nftx") ?? [],
+      },
+      {
+        kind: "nouns",
+        data: kindToEvents.get("nouns") ?? [],
+      },
+      {
+        kind: "quixotic",
+        data: kindToEvents.get("quixotic") ?? [],
+      },
+      {
+        kind: "seaport",
+        data: kindToEvents.has("seaport")
+          ? [
+              ...kindToEvents.get("seaport")!,
+              // To properly validate bids, we need some additional events
+              ...events.filter((e) => e.subKind === "erc20-transfer"),
+            ]
+          : [],
+      },
+      {
+        kind: "sudoswap",
+        data: kindToEvents.get("sudoswap") ?? [],
+      },
+      {
+        kind: "sudoswap-v2",
+        data: kindToEvents.get("sudoswap-v2") ?? [],
+      },
+      {
+        kind: "wyvern",
+        data: kindToEvents.has("wyvern")
+          ? [
+              ...events.filter((e) => e.subKind === "erc721-transfer"),
+              ...kindToEvents.get("wyvern")!,
+              // To properly validate bids, we need some additional events
+              ...events.filter((e) => e.subKind === "erc20-transfer"),
+            ]
+          : [],
+      },
+      {
+        kind: "x2y2",
+        data: kindToEvents.has("x2y2")
+          ? [
+              ...kindToEvents.get("x2y2")!,
+              // To properly validate bids, we need some additional events
+              ...events.filter((e) => e.subKind === "erc20-transfer"),
+            ]
+          : [],
+      },
+      {
+        kind: "zeroex-v4",
+        data: kindToEvents.has("zeroex-v4")
+          ? [
+              ...kindToEvents.get("zeroex-v4")!,
+              // To properly validate bids, we need some additional events
+              ...events.filter((e) => e.subKind === "erc20-transfer"),
+            ]
+          : [],
+      },
+      {
+        kind: "zora",
+        data: kindToEvents.get("zora") ?? [],
+      },
+      {
+        kind: "rarible",
+        data: kindToEvents.has("rarible")
+          ? [
+              ...kindToEvents.get("rarible")!,
+              // To properly validate bids, we need some additional events
+              ...events.filter((e) => e.subKind === "erc20-transfer"),
+            ]
+          : [],
+      },
+      {
+        kind: "manifold",
+        data: kindToEvents.get("manifold") ?? [],
+      },
+      {
+        kind: "tofu",
+        data: kindToEvents.get("tofu") ?? [],
+      },
+      {
+        kind: "bend-dao",
+        data: kindToEvents.get("bend-dao") ?? [],
+      },
+      {
+        kind: "nft-trader",
+        data: kindToEvents.get("nft-trader") ?? [],
+      },
+      {
+        kind: "okex",
+        data: kindToEvents.get("okex") ?? [],
+      },
+      {
+        kind: "superrare",
+        data: kindToEvents.get("superrare") ?? [],
+      },
+      {
+        kind: "zeroex-v2",
+        data: kindToEvents.get("zeroex-v2") ?? [],
+      },
+      {
+        kind: "zeroex-v3",
+        data: kindToEvents.get("zeroex-v3") ?? [],
+      },
+      {
+        kind: "treasure",
+        data: kindToEvents.get("treasure") ?? [],
+      },
+      {
+        kind: "looks-rare-v2",
+        data: kindToEvents.get("looks-rare-v2") ?? [],
+      },
+      {
+        kind: "blend",
+        data: kindToEvents.get("blend") ?? [],
+      },
+      {
+        kind: "payment-processor",
+        data: kindToEvents.get("payment-processor") ?? [],
+      },
+      {
+        kind: "thirdweb",
+        data: kindToEvents.get("thirdweb") ?? [],
+      },
+      {
+        kind: "seadrop",
+        data: kindToEvents.get("seadrop") ?? [],
+      },
+      {
+        kind: "blur-v2",
+        data: kindToEvents.get("blur-v2") ?? [],
+      },
+      {
+        kind: "caviar-v1",
+        data: kindToEvents.get("caviar-v1") ?? [],
+      },
+      {
+        kind: "erc721c",
+        data: kindToEvents.get("erc721c") ?? [],
+      },
+      {
+        kind: "soundxyz",
+        data: kindToEvents.get("soundxyz") ?? [],
+      },
+      {
+        kind: "createdotfun",
+        data: kindToEvents.get("createdotfun") ?? [],
+      },
+      {
+        kind: "payment-processor-v2",
+        data: kindToEvents.get("payment-processor-v2") ?? [],
+      },
+      {
+        kind: "erc721c-v2",
+        data: kindToEvents.get("erc721c-v2") ?? [],
+      },
+      {
+        kind: "titlesxyz",
+        data: kindToEvents.get("titlesxyz") ?? [],
+      },
+      {
+        kind: "artblocks",
+        data: kindToEvents.get("artblocks") ?? [],
+      },
+      {
+        kind: "ditto",
+        data: kindToEvents.get("ditto") ?? [],
+      },
+    ];
+
+    txHashToEventsBatch.set(txHash, {
+      id: getUuidByString(`${txHash}:${logIndex}:${batchIndex}:${blockHash}`),
+      events: eventsByKind,
+    });
   });
 
   return [...txHashToEventsBatch.values()];
