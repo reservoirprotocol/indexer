@@ -170,6 +170,7 @@ export const refreshOperatorWhitelist = async (transferValidator: string, id: st
         erc721c_configs.contract
       FROM erc721c_configs
       WHERE erc721c_configs.transfer_validator = $/transferValidator/
+        AND erc721c_configs.operator_whitelist_id = $/id/
       LIMIT 1000
     `,
     {
@@ -182,6 +183,7 @@ export const refreshOperatorWhitelist = async (transferValidator: string, id: st
     relevantContracts.map((c) => ({
       by: "operator",
       data: {
+        origin: "erc721c",
         contract: fromBuffer(c.contract),
         whitelistedOperators: whitelist,
         status: "inactive",

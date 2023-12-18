@@ -28,6 +28,7 @@ import { redis } from "@/common/redis";
 import { Sources } from "@/models/sources";
 import { MetadataStatus } from "@/models/metadata-status";
 import { Assets } from "@/utils/assets";
+import { ApiKeyManager } from "@/models/api-keys";
 
 const version = "v6";
 
@@ -162,6 +163,19 @@ export const getCollectionActivityV6Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+    const apiKey = await ApiKeyManager.getApiKey(request.headers["x-api-key"]);
+    const debug = apiKey?.key ? config.debugApiKeys.includes(apiKey.key) : false;
+
+    if (debug) {
+      logger.info(
+        `get-collection-activity-${version}-handler`,
+        JSON.stringify({
+          message: `Debug apiKey.`,
+          query,
+          apiKey,
+        })
+      );
+    }
 
     if (query.types && !_.isArray(query.types)) {
       query.types = [query.types];
@@ -218,16 +232,19 @@ export const getCollectionActivityV6Options: RouteOptions = {
         contracts.push(fromBuffer(tokensResult[0].contract));
       }
 
-      const { activities, continuation } = await ActivitiesIndex.search({
-        types: query.types,
-        contracts,
-        tokens,
-        excludeSpam: query.excludeSpam,
-        collections: query.collection,
-        sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
-        limit: query.limit,
-        continuation: query.continuation,
-      });
+      const { activities, continuation } = await ActivitiesIndex.search(
+        {
+          types: query.types,
+          contracts,
+          tokens,
+          excludeSpam: query.excludeSpam,
+          collections: query.collection,
+          sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
+          limit: query.limit,
+          continuation: query.continuation,
+        },
+        debug
+      );
 
       let tokensMetadata: any[] = [];
       let disabledCollectionMetadata: any = {};

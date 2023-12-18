@@ -5,7 +5,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 import _ from "lodash";
 
-import { redb } from "@/common/db";
+import { edb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { JoiOrder, getJoiOrderObject } from "@/common/joi";
 import {
@@ -20,6 +20,7 @@ import { ContractSets } from "@/models/contract-sets";
 import { Sources } from "@/models/sources";
 import { TokenSets } from "@/models/token-sets";
 import { Orders } from "@/utils/orders";
+import { config } from "@/config/index";
 
 const version = "v4";
 
@@ -519,7 +520,10 @@ export const getOrdersAsksV4Options: RouteOptions = {
         debugTimings.push({ beforeQuery: Date.now() - debugStart });
       }
 
-      const rawResult = await redb.manyOrNone(baseQuery, query);
+      const rawResult =
+        config.chainId === 137
+          ? await edb.manyOrNone(baseQuery, query)
+          : await redb.manyOrNone(baseQuery, query);
 
       if (debugLog) {
         debugTimings.push({ afterQuery: Date.now() - debugStart });

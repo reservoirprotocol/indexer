@@ -309,6 +309,14 @@ export const getCollectionsV7Options: RouteOptions = {
               tokenId: Joi.string().pattern(regex.number).allow(null),
               kind: Joi.string().required(),
               price: JoiPrice.allow(null),
+              pricePerQuantity: Joi.array()
+                .items(
+                  Joi.object({
+                    price: JoiPrice.required(),
+                    quantity: Joi.number(),
+                  })
+                )
+                .allow(null),
               startTime: Joi.number().allow(null),
               endTime: Joi.number().allow(null),
               maxMints: Joi.number().unsafe().allow(null),
@@ -378,6 +386,7 @@ export const getCollectionsV7Options: RouteOptions = {
                   'kind', collection_mints.kind,
                   'currency', concat('0x', encode(collection_mints.currency, 'hex')),
                   'price', collection_mints.price::TEXT,
+                  'pricePerQuantity', collection_mints.price_per_quantity,
                   'startTime', floor(extract(epoch from collection_mints.start_time)),
                   'endTime', floor(extract(epoch from collection_mints.end_time)),
                   'maxMints', collection_mints.max_supply,
@@ -956,6 +965,19 @@ export const getCollectionsV7Options: RouteOptions = {
                       price: m.price
                         ? await getJoiPriceObject({ gross: { amount: m.price } }, m.currency)
                         : m.price,
+                      pricePerQuantity: m.pricePerQuantity
+                        ? await Promise.all(
+                            m.price_per_quantity.map(
+                              async ({ price, quantity }: { price: string; quantity: number }) => ({
+                                price: await getJoiPriceObject(
+                                  { gross: { amount: price } },
+                                  m.currency
+                                ),
+                                quantity,
+                              })
+                            )
+                          )
+                        : m.pricePerQuantity,
                       startTime: m.startTime,
                       endTime: m.endTime,
                       maxMints: m.maxMints,

@@ -1020,9 +1020,7 @@ export const getTokensV5Options: RouteOptions = {
                 },
               };
             } else if (
-              ["sudoswap", "sudoswap-v2", "nftx", "collectionxyz", "caviar-v1"].includes(
-                r.floor_sell_order_kind
-              )
+              ["sudoswap", "sudoswap-v2", "nftx", "caviar-v1"].includes(r.floor_sell_order_kind)
             ) {
               // Pool orders
               dynamicPricing = {

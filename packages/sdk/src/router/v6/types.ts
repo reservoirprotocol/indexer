@@ -118,10 +118,6 @@ export type GenericOrder =
       order: Sdk.Sudoswap.Order;
     }
   | {
-      kind: "collectionxyz";
-      order: Sdk.CollectionXyz.Order;
-    }
-  | {
       kind: "ditto";
       order: Sdk.Ditto.Order;
     }
@@ -164,10 +160,6 @@ export type GenericOrder =
   | {
       kind: "sudoswap-v2";
       order: Sdk.SudoswapV2.Order;
-    }
-  | {
-      kind: "midaswap";
-      order: Sdk.Midaswap.Order;
     }
   | {
       kind: "caviar-v1";

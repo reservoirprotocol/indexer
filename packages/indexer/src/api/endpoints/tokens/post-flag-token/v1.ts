@@ -10,8 +10,6 @@ import { Tokens } from "@/models/tokens";
 import { ApiKeyManager } from "@/models/api-keys";
 
 import { TokensEntityUpdateParams } from "@/models/tokens/tokens-entity";
-import { Collections } from "@/models/collections";
-import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 
 const version = "v1";
@@ -61,24 +59,6 @@ export const postFlagTokenV1Options: RouteOptions = {
     try {
       // If current flag status is different trigger a job to verify the new status
       if (token.isFlagged != payload.flag) {
-        const collection = await Collections.getByContractAndTokenId(contract, tokenId);
-
-        await metadataIndexFetchJob.addToQueue(
-          [
-            {
-              kind: "single-token",
-              data: {
-                method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
-                contract,
-                tokenId,
-                collection: token.collectionId,
-              },
-              context: "post-flag-token-v1",
-            },
-          ],
-          true
-        );
-
         await PendingFlagStatusSyncTokens.add(
           [
             {

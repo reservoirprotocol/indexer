@@ -31,14 +31,11 @@ import { handleEvent as handleOrderRevalidate } from "@/websockets/opensea/handl
 import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handlers/trait_offer";
 
 import { openseaBidsQueueJob } from "@/jobs/orderbook/opensea-bids-queue-job";
-import {
-  MetadataIndexWriteJobPayload,
-  metadataIndexWriteJob,
-} from "@/jobs/metadata-index/metadata-write-job";
 import { openseaListingsJob } from "@/jobs/orderbook/opensea-listings-job";
 import { getNetworkSettings, getOpenseaNetworkName } from "@/config/network";
-import { openseaMetadataProvider } from "@/metadata/providers/opensea-metadata-provider";
 import _ from "lodash";
+import { Collections } from "@/models/collections";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 
 let lastReceivedEventTimestamp: number;
 
@@ -140,52 +137,55 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     }
   );
 
-  if (config.metadataIndexingMethod === "opensea") {
-    client.onItemMetadataUpdated("*", async (event) => {
-      try {
-        if (getOpenseaNetworkName() != event.payload.item.chain.name) {
-          return;
-        }
-
-        if (await isDuplicateEvent(event)) {
-          return;
-        }
-
-        const [, contract, tokenId] = event.payload.item.nft_id.split("/");
-
-        const metadata = {
-          asset_contract: {
-            address: contract,
-          },
-          collection: {
-            slug: event.payload.collection.slug,
-          },
-          token_id: tokenId,
-          name: event.payload.item.metadata.name ?? undefined,
-          description: event.payload.item.metadata.description ?? undefined,
-          image_url: event.payload.item.metadata.image_url ?? undefined,
-          animation_url: event.payload.item.metadata.animation_url ?? undefined,
-          traits: event.payload.item.metadata.traits,
-        };
-
-        const parsedMetadata = await openseaMetadataProvider.parseTokenMetadata(metadata);
-
-        if (parsedMetadata) {
-          (parsedMetadata as MetadataIndexWriteJobPayload).isFromWebhook = true;
-          (parsedMetadata as MetadataIndexWriteJobPayload).metadataMethod = "opensea";
-          await metadataIndexWriteJob.addToQueue([parsedMetadata]);
-        }
-      } catch (error) {
-        logger.error(
-          "opensea-websocket-item-metadata-update-event",
-          JSON.stringify({
-            message: `Error. network=${network}, event=${JSON.stringify(event)}, error=${error}`,
-            error,
-          })
-        );
+  client.onItemMetadataUpdated("*", async (event) => {
+    try {
+      if (getOpenseaNetworkName() != event.payload.item.chain.name) {
+        return;
       }
-    });
-  }
+
+      if (await isDuplicateEvent(event)) {
+        return;
+      }
+
+      const [, contract, tokenId] = event.payload.item.nft_id.split("/");
+
+      if (config.chainId === 1) {
+        const collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
+
+        await metadataIndexFetchJob.addToQueue([
+          {
+            kind: "single-token",
+            data: {
+              method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
+              contract,
+              tokenId,
+              collection: collection?.id || contract,
+            },
+          },
+        ]);
+      } else {
+        await metadataIndexFetchJob.addToQueue([
+          {
+            kind: "single-token",
+            data: {
+              method: config.metadataIndexingMethod,
+              contract,
+              tokenId,
+              collection: contract,
+            },
+          },
+        ]);
+      }
+    } catch (error) {
+      logger.error(
+        "opensea-websocket-item-metadata-update-event",
+        JSON.stringify({
+          message: `Error. network=${network}, event=${JSON.stringify(event)}, error=${error}`,
+          error,
+        })
+      );
+    }
+  });
 }
 
 export const getEventHash = (event: BaseStreamMessage<unknown>): string => {

@@ -18,15 +18,9 @@ export const postExecuteSolveCapacityV1Options: RouteOptions = {
     },
   },
   validate: {
-    payload: Joi.alternatives(
-      Joi.object({
-        kind: Joi.string().valid("seaport-intent").required(),
-      }),
-      Joi.object({
-        kind: Joi.string().valid("cross-chain-intent").required(),
-        fromChainId: Joi.number().required(),
-      })
-    ),
+    payload: Joi.object({
+      kind: Joi.string().valid("seaport-intent", "cross-chain-intent").required(),
+    }),
   },
   response: {
     schema: Joi.object({
@@ -59,7 +53,7 @@ export const postExecuteSolveCapacityV1Options: RouteOptions = {
           const response: { enabled: boolean; maxPricePerItem: string; maxItems: number } =
             await axios
               .get(
-                `${config.crossChainSolverBaseUrl}/config?fromChainId=${payload.fromChainId}&toChainId=${config.chainId}`
+                `${config.crossChainSolverBaseUrl}/config?originChainId=${config.chainId}&destinationChainId=${config.chainId}`
               )
               .then((response) => response.data);
 

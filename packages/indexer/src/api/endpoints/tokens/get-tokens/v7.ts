@@ -35,6 +35,7 @@ import { CollectionSets } from "@/models/collection-sets";
 import { Collections } from "@/models/collections";
 import { getListedTokensFromES } from "@/api/endpoints/tokens";
 import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
+import { hasExtendCollectionHandler } from "@/metadata/extend";
 
 const version = "v7";
 
@@ -813,7 +814,7 @@ export const getTokensV7Options: RouteOptions = {
         (query as any).collectionContract = toBuffer(query.collection.split(":")[0]);
         conditions.push(`t.contract = $/collectionContract/`);
 
-        if (query.collection.includes(":")) {
+        if (query.collection.includes(":") || hasExtendCollectionHandler(query.collection)) {
           conditions.push(`t.collection_id = $/collection/`);
         }
       }
@@ -1109,7 +1110,7 @@ export const getTokensV7Options: RouteOptions = {
               query.nativeSource || query.excludeEOA
                 ? `${union ? "" : "s."}floor_sell_value`
                 : query.normalizeRoyalties
-                ? `${union ? "" : "t."}normalized_floor_sell_value`
+                ? `${union ? "floor_sell_value" : "t.normalized_floor_sell_value"}`
                 : `${union ? "" : "t."}floor_sell_value`;
 
             return ` ORDER BY ${sortColumn} ${sortDirection} NULLS ${
@@ -1146,7 +1147,7 @@ export const getTokensV7Options: RouteOptions = {
 
           // For shared contracts, filter by both contract and collection
           if (sharedContract) {
-            (query as any)[`collectionContract${i}`] = unionValues[i].split(":")[0];
+            (query as any)[`collectionContract${i}`] = toBuffer(unionValues[i].split(":")[0]);
           }
 
           unionQueries.push(
@@ -1370,14 +1371,7 @@ export const getTokensV7Options: RouteOptions = {
                 },
               };
             } else if (
-              [
-                "sudoswap",
-                "sudoswap-v2",
-                "nftx",
-                "collectionxyz",
-                "caviar-v1",
-                "midaswap",
-              ].includes(r.floor_sell_order_kind)
+              ["sudoswap", "sudoswap-v2", "nftx", "caviar-v1"].includes(r.floor_sell_order_kind)
             ) {
               // Pool orders
               dynamicPricing = {

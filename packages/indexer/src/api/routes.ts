@@ -138,6 +138,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/resync-api-key",
+    options: adminEndpoints.postResyncApiKey,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/resync-user-balance",
     options: adminEndpoints.postResyncUserCollectionBalance,
   });
@@ -278,6 +284,12 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/admin/update-image-version",
     options: adminEndpoints.postUpdateImageVersionOptions,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/admin/revalidate-mint",
+    options: adminEndpoints.postRevalidateMintOptions,
   });
 
   server.route({
@@ -892,6 +904,12 @@ export const setupRoutes = (server: Server) => {
   });
 
   // Management
+
+  server.route({
+    method: "POST",
+    path: "/management/mints/simulate/v1",
+    options: managementEndpoints.postSimulateMintV1Options,
+  });
 
   server.route({
     method: "POST",

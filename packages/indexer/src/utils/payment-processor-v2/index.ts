@@ -7,8 +7,9 @@ import * as Sdk from "@reservoir0x/sdk";
 import { idb, ridb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
 import { redis } from "@/common/redis";
-import { fromBuffer, toBuffer } from "@/common/utils";
+import { fromBuffer, toBuffer, bn } from "@/common/utils";
 import { config } from "@/config/index";
+import { isNonceCancelled } from "@/orderbook/orders/common/helpers";
 import { Royalty, updateRoyaltySpec } from "@/utils/royalties";
 
 export enum PaymentSettings {
@@ -45,7 +46,9 @@ export const getDefaultPaymentMethods = async (): Promise<string[]> => {
       baseProvider
     );
 
-    result = exchange.getDefaultPaymentMethods().then((c: Result) => c.map((d) => d.toLowerCase()));
+    result = await exchange
+      .getDefaultPaymentMethods()
+      .then((c: Result) => c.map((d) => d.toLowerCase()));
     await redis.set(cacheKey, JSON.stringify(result), "EX", 7 * 24 * 3600);
   }
 
@@ -224,4 +227,67 @@ export const getWhitelistedPaymentMethods = async (id: number) => {
   );
 
   return results.map((c) => fromBuffer(c.payment_method));
+};
+
+export const getAndIncrementUserNonce = async (
+  user: string,
+  marketplace: string
+): Promise<string | undefined> => {
+  let nextNonce = await idb
+    .oneOrNone(
+      `
+        SELECT
+          payment_processor_v2_user_nonces.nonce
+        FROM payment_processor_v2_user_nonces
+        WHERE payment_processor_v2_user_nonces.user = $/user/
+          AND payment_processor_v2_user_nonces.marketplace = $/marketplace/
+      `,
+      {
+        user: toBuffer(user),
+        marketplace: toBuffer(marketplace),
+      }
+    )
+    .then((r) => r?.nonce ?? "0");
+
+  const shiftedMarketplaceId = bn("0x" + marketplace.slice(-8).padEnd(64, "0"));
+  nextNonce = shiftedMarketplaceId.add(nextNonce).toString();
+
+  // At most 20 attempts
+  let foundValidNonce = false;
+  for (let i = 0; i < 20; i++) {
+    const isCancelled = await isNonceCancelled("payment-processor-v2", user, nextNonce);
+    if (isCancelled) {
+      nextNonce = bn(nextNonce).add(1).toString();
+    } else {
+      foundValidNonce = true;
+      break;
+    }
+  }
+
+  if (!foundValidNonce) {
+    return undefined;
+  }
+
+  await idb.none(
+    `
+      INSERT INTO payment_processor_v2_user_nonces (
+        "user",
+        marketplace,
+        nonce
+      ) VALUES (
+        $/user/,
+        $/marketplace/,
+        $/nonce/
+      ) ON CONFLICT ("user", marketplace) DO UPDATE SET
+        nonce = $/nonce/,
+        updated_at = now()
+    `,
+    {
+      user: toBuffer(user),
+      marketplace: toBuffer(marketplace),
+      nonce: bn(nextNonce).add(1).sub(shiftedMarketplaceId).toString(),
+    }
+  );
+
+  return nextNonce;
 };

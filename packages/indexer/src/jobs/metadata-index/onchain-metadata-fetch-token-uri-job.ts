@@ -78,11 +78,11 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
           `No uri found. contract=${result.contract}, tokenId=${result.tokenId}, error=${result.error}, fallback=${config.fallbackMetadataIndexingMethod}`
         );
 
-        fallbackTokens.push({
-          collection: result.contract,
-          contract: result.contract,
-          tokenId: result.tokenId,
-        });
+        // fallbackTokens.push({
+        //   collection: result.contract,
+        //   contract: result.contract,
+        //   tokenId: result.tokenId,
+        // });
       }
     });
 
@@ -98,10 +98,6 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
           method: config.fallbackMetadataIndexingMethod,
         });
       } else {
-        logger.info(
-          this.queueName,
-          `No fallbackMetadataIndexingMethod set. fallbackTokenCount=${fallbackTokens.length}`
-        );
         return;
       }
     }

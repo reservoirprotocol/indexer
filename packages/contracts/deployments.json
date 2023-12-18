@@ -247,12 +247,6 @@
       "1": "0xcd4ebd768ccbe022274506f5e45d14fd90dc5be7"
     }
   },
-  "CollectionXyzModule": {
-    "v2": {
-      "1": "0x22097b493ea4c202d5b85cc9faf6d116830aa8a3",
-      "5": "0x22097b493ea4c202d5b85cc9faf6d116830aa8a3"
-    }
-  },
   "SudoswapV2Module": {
     "v1": {
       "1": "0xf99c9d248fa856b18ce661992b306d4117608909",
@@ -323,6 +317,8 @@
   },
   "SignedZoneController": {
     "v1": {
+      "1": "0xe1066481cc3b038badd0c68dfa5c8f163c3ff192",
+      "5": "0xea021843f8a15f3157db716cbed4f13e4f5474d1",
       "137": "0x4ffa72942ea0651a17822c5eec0e0bf193334ecb",
       "80001": "0x4ffa72942ea0651a17822c5eec0e0bf193334ecb",
       "11155111": "0x4ffa72942ea0651a17822c5eec0e0bf193334ecb"
@@ -344,14 +340,6 @@
       "7777777": "0xe3de16f7ed5a124686cc27571898e394959e8b39",
       "11155111": "0x849ef788b40af342e2883c3112dd636f03a4203e",
       "2863311531": "0xe3de16f7ed5a124686cc27571898e394959e8b39"
-    }
-  },
-  "MidaswapModule": {
-    "v1": {
-      "5": "0x7de357d56eeb46a925e06483217df1b46a859e0e"
-    },
-    "v2": {
-      "5": "0xfe1aaded2702e7976ac6c2e7dca7708a04232396"
     }
   }
 }
