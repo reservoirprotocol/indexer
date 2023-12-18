@@ -1115,7 +1115,7 @@ export const getTokensV7Options: RouteOptions = {
               query.nativeSource || query.excludeEOA
                 ? `${union ? "" : "s."}floor_sell_value`
                 : query.normalizeRoyalties
-                ? `${union ? "" : "t."}normalized_floor_sell_value`
+                ? `${union ? "floor_sell_value" : "t.normalized_floor_sell_value"}`
                 : `${union ? "" : "t."}floor_sell_value`;
 
             return ` ORDER BY ${sortColumn} ${sortDirection} NULLS ${
@@ -1152,7 +1152,7 @@ export const getTokensV7Options: RouteOptions = {
 
           // For shared contracts, filter by both contract and collection
           if (sharedContract) {
-            (query as any)[`collectionContract${i}`] = unionValues[i].split(":")[0];
+            (query as any)[`collectionContract${i}`] = toBuffer(unionValues[i].split(":")[0]);
           }
 
           unionQueries.push(
