@@ -12,9 +12,8 @@ import { config } from "@/config/index";
 import { FeeRecipients } from "@/models/fee-recipients";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
-import { OrderKind } from "@/orderbook/orders";
+import { OrderKind, isOrderNativeOffChainCancellable } from "@/orderbook/orders";
 import { Currency, getCurrency } from "@/utils/currencies";
-import { isOrderNativeOffChainCancellable } from "@/orderbook/orders";
 import {
   getUSDAndCurrencyPrices,
   getUSDAndNativePrices,
