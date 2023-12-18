@@ -46,7 +46,9 @@ export const getDefaultPaymentMethods = async (): Promise<string[]> => {
       baseProvider
     );
 
-    result = exchange.getDefaultPaymentMethods().then((c: Result) => c.map((d) => d.toLowerCase()));
+    result = await exchange
+      .getDefaultPaymentMethods()
+      .then((c: Result) => c.map((d) => d.toLowerCase()));
     await redis.set(cacheKey, JSON.stringify(result), "EX", 7 * 24 * 3600);
   }
 
@@ -57,7 +59,7 @@ export const getCollectionPaymentSettings = async (
   contract: string,
   refresh?: boolean
 ): Promise<CollectionPaymentSettings | undefined> => {
-  const cacheKey = `payment-processor-v2-payment-settings-by-contract:v2:${contract}`;
+  const cacheKey = `payment-processor-v2-payment-settings-by-contract:${contract}`;
 
   let result = await redis
     .get(cacheKey)
