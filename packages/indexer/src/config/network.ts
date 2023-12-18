@@ -388,6 +388,32 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
+            "0xaef06250d07cb6389d730d0eec7d90a1549be812",
+            {
+              contract: "0xaef06250d07cb6389d730d0eec7d90a1549be812",
+              name: "RugLabz",
+              symbol: "RLBZ",
+              decimals: 18,
+              metadata: {
+                image:
+                  "https://i.ibb.co/XYVTLZf/Untitled.png",
+              },
+            },
+          ],
+          [
+            "0x8962f7352eb3326c15d4820f9fad214b9327714a",
+            {
+              contract: "0x8962f7352eb3326c15d4820f9fad214b9327714a",
+              name: "RugLabsR",
+              symbol: "RUGZ",
+              decimals: 18,
+              metadata: {
+                image:
+                  "https://i.ibb.co/QrGfv1z/Untitled-1.png",
+              },
+            },
+          ],
+          [
             "0x4c7c1ec97279a6f3323eab9ab317202dee7ad922",
             {
               contract: "0x4c7c1ec97279a6f3323eab9ab317202dee7ad922",
