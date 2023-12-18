@@ -39,6 +39,9 @@ export const getNetworkName = () => {
     case 5001:
       return "mantle-testnet";
 
+    case 43851:
+      return "zkfair-testnet";
+
     case 59140:
       return "linea-testnet";
 
@@ -137,9 +140,8 @@ export const getServiceName = () => {
 };
 
 export const getSubDomain = () => {
-  return `${config.chainId === 1 ? "api" : `api-${getNetworkName()}`}${
-    config.environment === "dev" ? ".dev" : ""
-  }`;
+  return `${config.chainId === 1 ? "api" : `api-${getNetworkName()}`}${config.environment === "dev" ? ".dev" : ""
+    }`;
 };
 
 type NetworkSettings = {
@@ -960,6 +962,42 @@ export const getNetworkSettings = (): NetworkSettings => {
                   '{"coingeckoCurrencyId": "bitdao", "image": "https://assets.coingecko.com/coins/images/17627/large/rI_YptK8.png"}'
                 ) ON CONFLICT DO NOTHING
               `
+            ),
+          ]);
+        },
+      };
+    }
+
+    case 43851: {
+      return {
+        ...defaultNetworkSettings,
+        isTestnet: true,
+        // enableWebSocket: true,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        headBlockDelay: 10,
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            //
+            idb.none(
+              `
+                    INSERT INTO currencies (
+                      contract,
+                      name,
+                      symbol,
+                      decimals,
+                      metadata
+                    ) VALUES (
+                      '\\x0000000000000000000000000000000000000000',
+                      'USDC',
+                      'USDC',
+                      18,
+                      '{"coingeckoCurrencyId": "usd-coin", "image": "https://assets.coingecko.com/coins/images/6319/standard/usdc.png"}'
+                    ) ON CONFLICT DO NOTHING
+                  `
             ),
           ]);
         },

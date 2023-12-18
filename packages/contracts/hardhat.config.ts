@@ -71,6 +71,9 @@ const getNetworkConfig = (chainId?: number) => {
       case 5001:
         url = "https://rpc.testnet.mantle.xyz";
         break;
+      case 43851:
+        url = "https://testnet-rpc.zkfair.io";
+        break;
       case 59140:
         url = "https://rpc.goerli.linea.build/";
         break;
@@ -164,6 +167,7 @@ const config: HardhatUserConfig = {
     goerli: getNetworkConfig(5),
     zoraTestnet: getNetworkConfig(999),
     mantleTestnet: getNetworkConfig(5001),
+    zkfairTestnet: getNetworkConfig(43851),
     lineaTestnet: getNetworkConfig(59140),
     mumbai: getNetworkConfig(80001),
     baseGoerli: getNetworkConfig(84531),
@@ -279,6 +283,14 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://explorer.testnet.mantle.xyz/api",
           browserURL: "https://explorer.testnet.mantle.xyz",
+        },
+      },
+      {
+        network: "zkfairTestnet",
+        chainId: 43851,
+        urls: {
+          apiURL: "https://testnet-scan.zkfair.io/api",
+          browserURL: "https://testnet-scan.zkfair.io",
         },
       },
       {

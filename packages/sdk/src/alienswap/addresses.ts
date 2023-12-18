@@ -13,6 +13,7 @@ export const Exchange: ChainIdToAddress = {
   [Network.Arbitrum]: "0xb52fdd8f3821cc60ba4583a822f03317de544bc2",
   [Network.Optimism]: "0xb52fdd8f3821cc60ba4583a822f03317de544bc2",
   [Network.Scroll]: "0xb52fdd8f3821cc60ba4583a822f03317de544bc2",
+  [Network.ZkFairTestnet]: "0x8c7be07991311e509b55db91a37f9817bc758996",
 };
 
 export const AlienswapConduitKey: ChainIdToAddress = {
@@ -28,4 +29,5 @@ export const AlienswapConduitKey: ChainIdToAddress = {
   [Network.Arbitrum]: "0xffa0cb9f057d077d85655be8823961c4fd4cb56a000000000000000000000000",
   [Network.Optimism]: "0xffa0cb9f057d077d85655be8823961c4fd4cb56a000000000000000000000000",
   [Network.Scroll]: "0xffa0cb9f057d077d85655be8823961c4fd4cb56a000000000000000000000000",
+  [Network.ZkFairTestnet]: "0xc41a6ce1e045f9b0c9629b4c08518aee9d259af2000000000000000000000000",
 };
