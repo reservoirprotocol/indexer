@@ -39,7 +39,12 @@ const getUpstreamUSDPrice = async (
       const month = date.getMonth() + 1;
       const year = date.getFullYear();
 
-      const url = `https://api.coingecko.com/api/v3/coins/${coingeckoCurrencyId}/history?date=${day}-${month}-${year}`;
+      let url = `https://api.coingecko.com/api/v3/coins/${coingeckoCurrencyId}/history?date=${day}-${month}-${year}`;
+
+      if (config.coinGeckoWsApiKey) {
+        url = `https://pro-api.coingecko.com/api/v3/coins/${coingeckoCurrencyId}/history?date=${day}-${month}-${year}&x_cg_pro_api_key=${config.coinGeckoWsApiKey}}`;
+      }
+
       logger.info("prices", `Fetching price from Coingecko: ${url}`);
 
       const result: {

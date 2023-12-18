@@ -169,4 +169,6 @@ export const config = {
   assertRabbitVhost: Boolean(Number(process.env.ASSERT_RABBIT_VHOST)),
   rabbitDisableQueuesConsuming: Boolean(Number(process.env.RABBIT_DISABLE_QUEUES_CONSUMING)),
   forceEnableRabbitJobsConsumer: Boolean(Number(process.env.FORCE_ENABLE_RABBIT_JOBS_CONSUMER)),
+
+  coinGeckoWsApiKey: process.env.COINGECKO_API_KEY,
 };
