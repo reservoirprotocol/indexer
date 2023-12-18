@@ -12,7 +12,7 @@ import {
 } from "@/elasticsearch/indexes/asks/event-handlers/base";
 
 export class AskCreatedEventHandler extends BaseAskEventHandler {
-  async generateAsk(): Promise<AskDocumentInfo> {
+  async generateAsk(): Promise<AskDocumentInfo | null> {
     const query = `
           ${AskCreatedEventHandler.buildBaseQuery()}
           AND id = $/orderId/
@@ -23,21 +23,14 @@ export class AskCreatedEventHandler extends BaseAskEventHandler {
       orderId: this.orderId,
     });
 
-    if (data == null) {
-      logger.error(
-        "AskCreatedEventHandler",
-        JSON.stringify({
-          topic: "debugAskIndex",
-          message: `No order. id=${this.orderId}`,
-          query,
-        })
-      );
+    if (data) {
+      const id = this.getAskId();
+      const document = this.buildDocument(data);
+
+      return { id, document };
     }
 
-    const id = this.getAskId();
-    const document = this.buildDocument(data);
-
-    return { id, document };
+    return null;
   }
 
   public static buildBaseQuery(onlyActive = true) {
