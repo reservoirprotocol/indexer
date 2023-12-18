@@ -139,6 +139,13 @@ export const getExecuteSellV7Options: RouteOptions = {
         .description(
           "If true, filling will be forced to use the common 'approval + transfer' method instead of the approval-less 'on-received hook' method"
         ),
+      forceTrustedForwarder: Joi.string()
+        .lowercase()
+        .pattern(regex.address)
+        .description(
+          "If passed, all fills will be executed through the trusted trusted forwarder (where possible)"
+        )
+        .optional(),
       maxFeePerGas: Joi.string()
         .pattern(regex.number)
         .description(
@@ -421,7 +428,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               owner: token.owner,
             },
             payload.taker,
-            { permit }
+            { permit, forceTrustedForwarder: payload.forceTrustedForwarder }
           )
         );
       };

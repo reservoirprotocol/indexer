@@ -142,6 +142,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
       forceRouter: Joi.boolean().description(
         "If true, all fills will be executed through the router (where possible)"
       ),
+      forceTrustedForwarder: Joi.string()
+        .lowercase()
+        .pattern(regex.address)
+        .description(
+          "If passed, all fills will be executed through the trusted trusted forwarder (where possible)"
+        )
+        .optional(),
       currency: Joi.string().lowercase().description("Currency to be used for purchases."),
       currencyChainId: Joi.number().description("The chain id of the purchase currency"),
       normalizeRoyalties: Joi.boolean().default(false).description("Charge any missing royalties."),
@@ -499,7 +506,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 amount: token.quantity,
                 isFlagged: Boolean(flaggedResult.is_flagged),
               },
-              payload.taker
+              payload.taker,
+              payload.forceTrustedForwarder
             )
           );
         }
