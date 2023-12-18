@@ -219,7 +219,7 @@ export const getAttributesExploreV3Options: RouteOptions = {
         value: r.value,
         tokenCount: Number(r.token_count),
         onSaleCount: Number(r.on_sale_count),
-        sampleImages: Assets.getLocalAssetsLink(r.sample_images) || [],
+        sampleImages: Assets.getResizedImageURLs(r.sample_images) || [],
         floorAskPrices:
           query.maxFloorAskPrices > 1
             ? (r.floor_sell_values || []).map(formatEth)

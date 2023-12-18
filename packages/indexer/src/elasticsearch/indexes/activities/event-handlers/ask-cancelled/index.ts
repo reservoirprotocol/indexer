@@ -66,7 +66,8 @@ export class AskCancelledEventHandler extends AskCreatedEventHandler {
                         collections.is_spam AS "collection_is_spam",
                         collections.id AS "collection_id",
                         collections.name AS "collection_name",
-                        (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image"
+                        (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image",
+                        collections.image_version AS "collection_image_version"
                     FROM tokens
                     JOIN collections on collections.id = tokens.collection_id
                     WHERE decode(substring(split_part(orders.token_set_id, ':', 2) from 3), 'hex') = tokens.contract
