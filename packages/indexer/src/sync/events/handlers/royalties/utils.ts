@@ -1,13 +1,17 @@
-import { Log } from "@ethersproject/abstract-provider";
+import { Log, Filter } from "@ethersproject/abstract-provider";
 
 import { concat } from "@/common/utils";
 import { getEventData } from "@/events-sync/data";
-import { processEventsBatch } from "@/events-sync/handlers";
+import { EventsBatch, processEventsBatch } from "@/events-sync/handlers";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import { PartialFillEvent } from "@/events-sync/handlers/royalties";
+import { extractEventsBatches } from "@/events-sync/index";
+import { parseEvent } from "@/events-sync/parser";
 import * as utils from "@/events-sync/utils";
 import * as es from "@/events-sync/storage";
-import { extractEventsBatches } from "@/events-sync/index";
+import * as syncEvents from "@/events-sync/index";
+import * as syncEventsUtils from "@/events-sync/utils";
+import { baseProvider } from "@/common/provider";
 
 export const getEventParams = (log: Log, timestamp: number) => {
   const address = log.address.toLowerCase() as string;
@@ -117,3 +121,54 @@ export async function parseTranscation(txHash: string) {
     allOnChainData,
   };
 }
+
+export const parseBlock = async (block: number) => {
+  const blockData = await syncEventsUtils.fetchBlock(block);
+  const eventFilter: Filter = {
+    topics: [[...new Set(getEventData().map(({ topic }) => topic))]],
+    fromBlock: block,
+    toBlock: block,
+  };
+
+  const availableEventData = getEventData();
+
+  // Get the logs from the RPC
+  const logs = await baseProvider.getLogs(eventFilter);
+
+  let enhancedEvents = logs
+    .map((log) => {
+      const baseEventParams = parseEvent(log, blockData.timestamp);
+      return availableEventData
+        .filter(
+          ({ addresses, numTopics, topic }) =>
+            log.topics[0] === topic &&
+            log.topics.length === numTopics &&
+            (addresses ? addresses[log.address.toLowerCase()] : true)
+        )
+        .map((eventData) => ({
+          kind: eventData.kind,
+          subKind: eventData.subKind,
+          baseEventParams,
+          log,
+        }));
+    })
+    .flat();
+
+  enhancedEvents = enhancedEvents.filter((e) => e) as EnhancedEvent[];
+
+  const eventsBatches = syncEvents.extractEventsBatches(enhancedEvents as EnhancedEvent[]);
+
+  const allOnChainData: {
+    batch: EventsBatch;
+    onChainData: OnChainData;
+  }[] = [];
+  for (const batch of eventsBatches) {
+    const onChainData = await processEventsBatch(batch, true);
+    allOnChainData.push({
+      batch,
+      onChainData,
+    });
+  }
+
+  return allOnChainData;
+};
