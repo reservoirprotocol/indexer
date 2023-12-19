@@ -1,5 +1,4 @@
 import { BulkJobOptions } from "bullmq";
-import { randomUUID } from "crypto";
 import Redis from "ioredis";
 import _ from "lodash";
 import Redlock from "redlock";
@@ -91,8 +90,7 @@ export const acquireLockCrossChain = async (name: string, expirationInSeconds = 
 };
 
 export const extendLock = async (name: string, expirationInSeconds: number) => {
-  const id = randomUUID();
-  const extended = await redis.set(name, id, "EX", expirationInSeconds, "XX");
+  const extended = await redis.set(name, "lock", "EX", expirationInSeconds, "XX");
   return extended === "OK";
 };
 
