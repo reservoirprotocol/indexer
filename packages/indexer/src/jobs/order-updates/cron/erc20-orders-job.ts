@@ -139,7 +139,10 @@ export default class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandle
       );
 
       if (erc20Orders.length >= limit) {
-        await this.addToQueue(erc20Orders[erc20Orders.length - 1].id, 1000);
+        await this.addToQueue(
+          erc20Orders[erc20Orders.length - 1].id,
+          config.chainId === 137 ? 5000 : 1000
+        );
       }
     } catch (error) {
       logger.error(`dynamic-orders-update`, `Failed to handle dynamic orders: ${error}`);

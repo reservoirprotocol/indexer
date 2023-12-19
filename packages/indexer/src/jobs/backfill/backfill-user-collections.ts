@@ -31,7 +31,7 @@ export class BackfillUserCollectionsJob extends AbstractRabbitMqJobHandler {
       owner?: Buffer;
       acquiredAt?: string;
     } = {
-      limit: 200,
+      limit: 400,
       AddressZero: toBuffer(AddressZero),
       deadAddress: toBuffer("0x000000000000000000000000000000000000dead"),
     };

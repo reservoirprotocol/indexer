@@ -44,10 +44,10 @@ export const getTokensV6Options: RouteOptions = {
   description: "Tokens",
   notes:
     "Get a list of tokens with full metadata. This is useful for showing a single token page, or scenarios that require more metadata.",
-  tags: ["api", "Tokens"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 9,
+      deprecated: true,
     },
   },
   validate: {
@@ -730,6 +730,7 @@ export const getTokensV6Options: RouteOptions = {
           t.media,
           t.collection_id,
           t.image_version,
+          c.image_version AS collection_image_version,
           c.name AS collection_name,
           con.kind,
           con.symbol,
@@ -1117,7 +1118,7 @@ export const getTokensV6Options: RouteOptions = {
               query.nativeSource || query.excludeEOA
                 ? `${union ? "" : "s."}floor_sell_value`
                 : query.normalizeRoyalties
-                ? `${union ? "" : "t."}normalized_floor_sell_value`
+                ? `${union ? "floor_sell_value" : "t.normalized_floor_sell_value"}`
                 : `${union ? "" : "t."}floor_sell_value`;
 
             return ` ORDER BY ${sortColumn} ${sortDirection} NULLS ${
@@ -1154,7 +1155,7 @@ export const getTokensV6Options: RouteOptions = {
 
           // For shared contracts, filter by both contract and collection
           if (sharedContract) {
-            (query as any)[`collectionContract${i}`] = unionValues[i].split(":")[0];
+            (query as any)[`collectionContract${i}`] = toBuffer(unionValues[i].split(":")[0]);
           }
 
           unionQueries.push(
@@ -1465,7 +1466,11 @@ export const getTokensV6Options: RouteOptions = {
               collection: {
                 id: r.collection_id,
                 name: r.collection_name,
-                image: Assets.getLocalAssetsLink(r.collection_image),
+                image: Assets.getResizedImageUrl(
+                  r.collection_image,
+                  ImageSize.small,
+                  r.collection_image_version
+                ),
                 slug: r.slug,
                 symbol: r.symbol,
                 creator: r.creator ? fromBuffer(r.creator) : null,
@@ -2150,7 +2155,7 @@ export const getListedTokensFromES = async (query: any) => {
           collection: {
             id: r.collection_id,
             name: r.collection_name,
-            image: Assets.getLocalAssetsLink(r.collection_image),
+            image: Assets.getResizedImageUrl(r.collection_image, ImageSize.small),
             slug: r.slug,
             symbol: r.symbol,
             creator: r.creator ? fromBuffer(r.creator) : null,

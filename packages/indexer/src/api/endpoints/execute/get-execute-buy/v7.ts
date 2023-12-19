@@ -192,7 +192,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         .description(
           "Choose a specific swapping provider when buying in a different currency (defaults to `uniswap`)"
         ),
-      executionMethod: Joi.string().valid("seaport-intent"),
+      executionMethod: Joi.string().valid("seaport-intent", "intent"),
       referrer: Joi.string()
         .pattern(regex.address)
         .optional()
@@ -227,14 +227,15 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 tip: Joi.string(),
                 orderIds: Joi.array().items(Joi.string()),
                 data: Joi.object(),
-                gasEstimate: Joi.number().description(
-                  "Approximation of gas used (only applies to `transaction` items)"
-                ),
                 check: Joi.object({
                   endpoint: Joi.string().required(),
                   method: Joi.string().valid("POST").required(),
                   body: Joi.any(),
                 }).description("The details of the endpoint for checking the status of the step"),
+                // TODO: To remove, only kept for backwards-compatibility
+                gasEstimate: Joi.number().description(
+                  "Approximation of gas used (only applies to `transaction` items)"
+                ),
               })
             )
             .required(),
@@ -507,7 +508,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 isFlagged: Boolean(flaggedResult.is_flagged),
               },
               payload.taker,
-              payload.forceTrustedForwarder
+              {
+                ppV2TrustedChannel: payload.forceTrustedForwarder,
+              }
             )
           );
         }
@@ -555,7 +558,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
       const useSeaportIntent = payload.executionMethod === "seaport-intent";
       const useCrossChainIntent =
-        payload.currencyChainId !== undefined && payload.currencyChainId !== config.chainId;
+        payload.executionMethod === "intent" ||
+        (payload.currencyChainId !== undefined && payload.currencyChainId !== config.chainId);
 
       let lastError: string | undefined;
       for (let i = 0; i < items.length; i++) {
@@ -1482,7 +1486,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           };
           solver?: {
             address: string;
-            maxCost: string;
+            capacityPerRequest: string;
           };
         } = await axios
           .get(
@@ -1508,12 +1512,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
           },
         };
 
-        const { requestId, price, fee } = await axios
+        const { requestId, price, relayerFee, depositGasFee } = await axios
           .post(`${config.crossChainSolverBaseUrl}/intents/quote`, data)
           .then((response) => ({
             requestId: response.data.requestId,
             price: response.data.price,
-            fee: response.data.fee,
+            relayerFee: response.data.relayerFee,
+            depositGasFee: response.data.depositGasFee,
           }))
           .catch((error) => {
             throw Boom.badRequest(
@@ -1522,18 +1527,19 @@ export const getExecuteBuyV7Options: RouteOptions = {
           });
 
         if (
-          ccConfig.solver?.maxCost &&
-          bn(price).add(fee).gt(ccConfig.solver.maxCost) &&
+          ccConfig.solver?.capacityPerRequest &&
+          bn(price).add(relayerFee).gt(ccConfig.solver.capacityPerRequest) &&
           !preview
         ) {
-          throw Boom.badRequest("Cost too high");
+          throw Boom.badRequest("Insufficient capacity");
         }
 
         return {
           requestId,
           request: data.request,
           price,
-          fee,
+          relayerFee,
+          depositGasFee,
           user: ccConfig.user!,
           solver: ccConfig.solver!,
         };
@@ -1574,12 +1580,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
           tip?: string;
           orderIds?: string[];
           data?: object;
-          gasEstimate?: number;
           check?: {
             endpoint: string;
             method: "POST";
             body: object;
           };
+          // TODO: To remove, only kept for backwards-compatibility reasons
+          gasEstimate?: number;
         }[];
       };
 
@@ -1629,21 +1636,22 @@ export const getExecuteBuyV7Options: RouteOptions = {
         },
       ];
 
+      const fees = {
+        gas: await getJoiPriceObject(
+          {
+            gross: {
+              amount: (await getGasFee()).mul(estimateGasFromTxTags(txTags)).toString(),
+            },
+          },
+          // Gas fees are always paid in the native currency of the chain
+          Sdk.Common.Addresses.Native[config.chainId]
+        ),
+      };
       if (payload.onlyPath && !useSeaportIntent && !useCrossChainIntent) {
         return {
           path,
           maxQuantities: preview ? maxQuantities : undefined,
-          fees: {
-            gas: await getJoiPriceObject(
-              {
-                gross: {
-                  amount: (await getGasFee()).mul(estimateGasFromTxTags(txTags)).toString(),
-                },
-              },
-              // Gas fees are always paid in the native currency of the chain
-              Sdk.Common.Addresses.Native[config.chainId]
-            ),
-          },
+          fees,
           // TODO: To remove, only kept for backwards-compatibility
           gasEstimate: estimateGasFromTxTags(txTags),
         };
@@ -1695,19 +1703,20 @@ export const getExecuteBuyV7Options: RouteOptions = {
         // item.buyInQuote = formatPrice(quote);
         // item.buyInRawQuote = quote;
 
+        const fees = {
+          relayer: await getJoiPriceObject(
+            { gross: { amount: gasCost } },
+            Sdk.Common.Addresses.Native[config.chainId],
+            undefined,
+            undefined,
+            config.chainId
+          ),
+        };
         if (payload.onlyPath) {
           return {
             path,
             maxQuantities: preview ? maxQuantities : undefined,
-            fees: {
-              relayer: await getJoiPriceObject(
-                { gross: { amount: gasCost } },
-                Sdk.Common.Addresses.Native[config.chainId],
-                undefined,
-                undefined,
-                config.chainId
-              ),
-            },
+            fees,
           };
         }
 
@@ -1861,6 +1870,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         return {
           steps: customSteps,
           path,
+          fees,
         };
       }
 
@@ -1881,14 +1891,14 @@ export const getExecuteBuyV7Options: RouteOptions = {
         const item = path[0];
 
         const data = await getCrossChainQuote();
-        const cost = bn(data.price).add(data.fee);
+        const cost = bn(data.price).add(data.relayerFee);
 
         // TODO: To remove, only kept for backwards-compatibility reasons
         item.totalPrice = formatPrice(cost);
         item.totalRawPrice = cost.toString();
         item.quote = formatPrice(cost);
         item.rawQuote = cost.toString();
-        item.gasCost = data.fee.toString();
+        item.gasCost = data.relayerFee.toString();
 
         // Better approach
         // const c = await getCurrency(Sdk.Common.Addresses.Native[config.chainId]);
@@ -1900,19 +1910,28 @@ export const getExecuteBuyV7Options: RouteOptions = {
         // item.buyInRawQuote = quote;
 
         const needsDeposit = bn(data.user.balance).lt(cost);
+        const fees = {
+          gas: needsDeposit
+            ? await getJoiPriceObject(
+                { gross: { amount: data.depositGasFee } },
+                Sdk.Common.Addresses.Native[config.chainId]
+              )
+            : undefined,
+          relayer: await getJoiPriceObject(
+            { gross: { amount: data.relayerFee } },
+            Sdk.Common.Addresses.Native[config.chainId],
+            undefined,
+            undefined,
+            payload.currencyChainId
+          ),
+        };
+
         if (payload.onlyPath) {
           return {
             path,
             maxQuantities: preview ? maxQuantities : undefined,
-            fees: {
-              relayer: await getJoiPriceObject(
-                { gross: { amount: data.fee } },
-                Sdk.Common.Addresses.Native[config.chainId],
-                undefined,
-                undefined,
-                payload.currencyChainId
-              ),
-            },
+            fees,
+            // TODO: To remove, only kept for backwards-compatibility reasons
             gasEstimate: needsDeposit ? 21000 : 0,
           };
         }
@@ -2000,6 +2019,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         return {
           steps: customSteps.filter((s) => s.items.length),
           path,
+          fees,
         };
       }
 
@@ -2469,6 +2489,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               kind: "transaction",
             },
           },
+          // TODO: To remove, only kept for backwards-compatibility
           gasEstimate: txTags ? estimateGasFromTxTags(txTags) : undefined,
         });
       }
@@ -2556,6 +2577,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         steps: blurAuth ? [steps[0], ...steps.slice(1).filter((s) => s.items.length)] : steps,
         errors,
         path,
+        fees,
       };
     } catch (error) {
       const key = request.headers["x-api-key"];

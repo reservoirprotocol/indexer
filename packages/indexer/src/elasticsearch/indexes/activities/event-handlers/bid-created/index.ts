@@ -96,7 +96,8 @@ export class BidCreatedEventHandler extends BaseActivityEventHandler {
                         collections.is_spam AS "collection_is_spam",
                         collections.id AS "collection_id",
                         collections.name AS "collection_name",
-                        (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image"
+                        (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image",
+                        collections.image_version AS "collection_image_version"
                     FROM token_sets_tokens
                     JOIN tokens ON tokens.contract = token_sets_tokens.contract AND tokens.token_id = token_sets_tokens.token_id 
                     JOIN collections ON collections.id = tokens.collection_id

@@ -352,7 +352,16 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
       contract,
       tokenIdRange: null,
       tokenSetId: `contract:${contract}`,
-      paymentTokens: undefined,
+      paymentTokens: metadata.payment_tokens
+        ? metadata.payment_tokens.map((token: any) => {
+            return {
+              address: token.address,
+              decimals: token.decimals,
+              name: token.name,
+              symbol: token.symbol,
+            };
+          })
+        : undefined,
       creator: creator ? _.toLower(creator) : null,
     };
   }

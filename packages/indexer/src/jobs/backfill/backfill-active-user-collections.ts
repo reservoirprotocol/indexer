@@ -29,7 +29,7 @@ export class BackfillActiveUserCollectionsJob extends AbstractRabbitMqJobHandler
       owner?: Buffer;
       acquiredAt?: string;
     } = {
-      limit: 400,
+      limit: 100,
       AddressZero: toBuffer(AddressZero),
       deadAddress: toBuffer("0x000000000000000000000000000000000000dead"),
     };
@@ -52,18 +52,22 @@ export class BackfillActiveUserCollectionsJob extends AbstractRabbitMqJobHandler
     const results = await idb.manyOrNone(query, values);
 
     if (results) {
+      const jobs = [];
+
       for (const result of results) {
         // Check if the user was already synced
         const lock = `backfill-active-users-supply:${fromBuffer(result.owner)}`;
 
         if (await acquireLock(lock, 60 * 60 * 24)) {
-          // Trigger resync for the user
-          await resyncUserCollectionsJob.addToQueue([
-            {
-              user: fromBuffer(result.owner),
-            },
-          ]);
+          jobs.push({
+            user: fromBuffer(result.owner),
+          });
         }
+      }
+
+      if (!_.isEmpty(jobs)) {
+        // Trigger resync for the user
+        await resyncUserCollectionsJob.addToQueue(jobs);
       }
     }
 

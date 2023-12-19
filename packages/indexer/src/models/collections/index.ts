@@ -213,13 +213,16 @@ export class Collections {
         metadata = $/metadata:json/,
         name = $/name/,
         slug = $/slug/,
+        payment_tokens = $/paymentTokens/,
         creator = $/creator/,
         is_spam = CASE WHEN (is_spam IS NULL OR is_spam = 0) THEN $/isSpamContract/ ELSE is_spam END,
-        updated_at = now()
+        updated_at = now(),
+        image_version = CASE WHEN (metadata IS DISTINCT FROM $/metadata:json/) THEN now() ELSE image_version END
       WHERE id = $/id/
       AND (metadata IS DISTINCT FROM $/metadata:json/ 
             OR name IS DISTINCT FROM $/name/ 
             OR slug IS DISTINCT FROM $/slug/
+            OR payment_tokens IS DISTINCT FROM $/paymentTokens/
             OR creator IS DISTINCT FROM $/creator/
             OR ((is_spam IS NULL OR is_spam = 0) AND $/isSpamContract/ = 1)
             )
@@ -239,6 +242,7 @@ export class Collections {
       metadata: collection.metadata || {},
       name: collection.name,
       slug: collection.slug,
+      paymentTokens: collection.paymentTokens ? { opensea: collection.paymentTokens } : {},
       creator: collection.creator ? toBuffer(collection.creator) : null,
       isSpamContract: Number(isSpamContract),
     };

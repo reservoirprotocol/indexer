@@ -7,7 +7,7 @@ import { BaseEventParams } from "@/events-sync/parser";
 import { eventsSyncNftTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
 import { AddressZero } from "@ethersproject/constants";
 import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
-import { ZeroAddressBalance } from "@/models/zero-address-balance";
+import { DeferUpdateAddressBalance } from "@/models/defer-update-address-balance";
 
 export type Event = {
   kind: ContractKind;
@@ -140,9 +140,12 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
         { table: "nft_transfer_events" }
       );
 
-      const isFromZeroAddress = fromBuffer(event.from) === AddressZero;
+      const deferAddresses = [AddressZero, "0x2791bca1f2de4661ed88a30c99a7a9449aa84174"];
       const isErc1155 = _.includes(erc1155Contracts, fromBuffer(event.address));
-      const deferUpdate = [137, 80001].includes(config.chainId) && isFromZeroAddress && isErc1155;
+      const deferUpdate =
+        [137, 80001].includes(config.chainId) &&
+        _.includes(deferAddresses, fromBuffer(event.from)) &&
+        isErc1155;
 
       // Atomically insert the transfer events and update balances
       nftTransferQueries.push(`
@@ -193,7 +196,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
             FROM "x"
             ORDER BY "address" ASC, "token_id" ASC, "owner" ASC
           ) "y"
-          ${deferUpdate ? `WHERE y.owner != ${pgp.as.buffer(() => toBuffer(AddressZero))}` : ""}
+          ${deferUpdate ? `WHERE y.owner != ${pgp.as.buffer(() => event.from)}` : ""}
           GROUP BY "y"."address", "y"."token_id", "y"."owner"
         )
         ON CONFLICT ("contract", "token_id", "owner") DO
@@ -206,7 +209,8 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
       const result = await insertQueries(nftTransferQueries, backfill);
 
       if (!_.isEmpty(result) && deferUpdate) {
-        await ZeroAddressBalance.add(
+        await DeferUpdateAddressBalance.add(
+          fromBuffer(event.from),
           fromBuffer(event.address),
           event.token_id,
           -Number(event.amount)

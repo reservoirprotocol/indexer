@@ -5,7 +5,6 @@ import { Collections } from "@/models/collections";
 import _ from "lodash";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
-import { acquireLock } from "@/common/redis";
 
 export type ResyncUserCollectionsJobPayload = {
   user: string;
@@ -19,7 +18,7 @@ export type ResyncUserCollectionsJobPayload = {
 export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler {
   queueName = "resync-user-collections";
   maxRetries = 15;
-  concurrency = 15;
+  concurrency = 5;
   lazyMode = true;
   backoff = {
     type: "exponential",
@@ -63,6 +62,8 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
              FROM tokens
              WHERE nft_balances.contract = tokens.contract
              AND nft_balances.token_id = tokens.token_id
+             AND tokens.collection_id IS NOT NULL
+             AND NOT EXISTS (SELECT FROM user_collections uc WHERE owner = $/owner/ AND uc.collection_id = tokens.collection_id)
           ) t ON TRUE
         WHERE owner = $/owner/
         ${cursorFilter}
@@ -72,37 +73,36 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
       `;
 
       const results = await redb.manyOrNone(query, values);
+      const jobs = [];
 
-      for (const result of results) {
-        if (_.isNull(result.collection_id)) {
-          continue;
+      if (results) {
+        for (const result of results) {
+          if (_.isNull(result.collection_id)) {
+            continue;
+          }
+
+          jobs.push({
+            user,
+            collectionId: result.collection_id,
+          });
         }
 
-        // Check if the user was already synced for this collection
-        const lock = `resync-collections:${user}:${result.collection_id}`;
+        if (!_.isEmpty(jobs)) {
+          await this.addToQueue(jobs);
+        }
 
-        if (await acquireLock(lock, 60 * 60)) {
-          // Trigger resync for the user in the collection
+        // If there are potentially more collections for this user
+        if (results.length === values.limit) {
           await this.addToQueue([
             {
               user,
-              collectionId: result.collection_id,
+              cursor: {
+                contract: fromBuffer(_.last(results).contract),
+                tokenId: _.last(results).token_id,
+              },
             },
           ]);
         }
-      }
-
-      // If there are potentially more collections for this user
-      if (results.length === values.limit) {
-        await this.addToQueue([
-          {
-            user,
-            cursor: {
-              contract: fromBuffer(_.last(results).contract),
-              tokenId: _.last(results).token_id,
-            },
-          },
-        ]);
       }
     } else if (collectionId.match(regex.address)) {
       // If a non shared contract
