@@ -14,14 +14,14 @@ import { bn, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { OrderKind } from "@/orderbook/orders";
 import * as b from "@/utils/auth/blur";
-import { cosigner, generateOffChainCancellationSignatureData } from "@/utils/cosign";
+import * as offchainCancel from "@/utils/offchain-cancel";
 
 const version = "v3";
 
 export const getExecuteCancelV3Options: RouteOptions = {
-  description: "Cancel orders",
+  description: "Cancel Orders",
   notes: "Cancel existing orders on any marketplace",
-  tags: ["api", "Create Orders (list & bid)"],
+  tags: ["api", "Trading"],
   plugins: {
     "hapi-swagger": {
       order: 11,
@@ -361,7 +361,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
       const allArePPV2OffChainCancellable = orderResults.every(
         (o) =>
           o.kind === "payment-processor-v2" &&
-          o.raw_data.cosigner === cosigner().address.toLowerCase()
+          o.raw_data.cosigner === offchainCancel.cosigner().address.toLowerCase()
       );
 
       let offChainCancellableKind: OrderKind | undefined;
@@ -388,7 +388,9 @@ export const getExecuteCancelV3Options: RouteOptions = {
                 {
                   status: "incomplete",
                   data: {
-                    sign: generateOffChainCancellationSignatureData(orderIds),
+                    sign: offchainCancel.paymentProcessorV2.generateOffChainCancellationSignatureData(
+                      orderIds
+                    ),
                     post: {
                       endpoint: "/execute/cancel-signature/v1",
                       method: "POST",
@@ -415,20 +417,9 @@ export const getExecuteCancelV3Options: RouteOptions = {
                 {
                   status: "incomplete",
                   data: {
-                    sign: {
-                      signatureKind: "eip712",
-                      domain: {
-                        name: "SignedZone",
-                        version: "1.0.0",
-                        chainId: config.chainId,
-                        verifyingContract: cancellationZone,
-                      },
-                      types: { OrderHashes: [{ name: "orderHashes", type: "bytes32[]" }] },
-                      value: {
-                        orderHashes: orderResults.map((o) => o.id),
-                      },
-                      primaryType: "OrderHashes",
-                    },
+                    sign: offchainCancel.seaport.generateOffChainCancellationSignatureData(
+                      orderResults.map((o) => o.id)
+                    ),
                     post: {
                       endpoint: "/execute/cancel-signature/v1",
                       method: "POST",

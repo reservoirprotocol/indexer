@@ -22,13 +22,15 @@ export const extend = async (metadata: TokenMetadata) => {
 
   return {
     ...metadata,
-    attributes: [
-      ...metadata.attributes,
-      {
-        key: "Series",
-        value: series.trim(),
-        kind: "string",
-      },
-    ],
+    attributes: series
+      ? [
+          ...metadata.attributes,
+          {
+            key: "Series",
+            value: series.trim(),
+            kind: "string",
+          },
+        ]
+      : metadata.attributes,
   };
 };

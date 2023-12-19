@@ -120,7 +120,7 @@ export const regex = {
   address: /^0x[a-fA-F0-9]{40}$/,
   collectionId: /^0x[a-fA-F0-9]{40}(?::\d+:\d+)?$/,
   bytes32: /^0x[a-fA-F0-9]{64}$/,
-  bytes: /^0x[a-fA-F0-9]+$/,
+  bytes: /^0x[a-fA-F0-9]*$/,
   token: /^0x[a-fA-F0-9]{40}:[0-9]+$/,
   fee: /^0x[a-fA-F0-9]{40}:[0-9]+$/,
   number: /^[0-9]+$/,

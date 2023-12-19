@@ -81,7 +81,7 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
             logger.error(
               this.queueName,
               `Error. method=${method}, status=${error.response?.status}, error=${JSON.stringify(
-                error.response?.data
+                error
               )}`
             );
 
@@ -97,10 +97,20 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
 
     const metadata = results.flat(1);
 
-    logger.info(
-      this.queueName,
-      `Debug. method=${method}, refreshTokensCount=${refreshTokens.length}, metadataCount=${metadata.length}, rateLimitExpiredIn=${rateLimitExpiredIn}`
-    );
+    if (metadata.length < refreshTokens.length) {
+      const missingMetadata = refreshTokens.filter(
+        (obj1) =>
+          !metadata.some((obj2) => obj1.contract === obj2.contract && obj1.tokenId === obj2.tokenId)
+      );
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          message: `Debug. method=${method}, refreshTokensCount=${refreshTokens.length}, metadataCount=${metadata.length}, rateLimitExpiredIn=${rateLimitExpiredIn}`,
+          missingMetadata,
+        })
+      );
+    }
 
     await metadataIndexWriteJob.addToQueue(
       metadata.map((m) => ({

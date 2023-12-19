@@ -10,7 +10,7 @@ import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job"
 import { acquireLock } from "@/common/redis";
 import { Tokens } from "@/models/tokens";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
-import { EventKind, processAskEventJob } from "@/jobs/asks/process-ask-event-job";
+import { EventKind, processAskEventJob } from "@/jobs/elasticsearch/asks/process-ask-event-job";
 import { formatStatus } from "@/jobs/websocket-events/utils";
 
 export class IndexerOrdersHandler extends KafkaEventHandler {

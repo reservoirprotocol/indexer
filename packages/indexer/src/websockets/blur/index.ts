@@ -9,60 +9,24 @@ import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
 
 const COMPONENT = "blur-websocket";
 
-// Bids
-if (config.doWebsocketWork && config.blurWsUrl && config.blurWsApiKey && config.chainId === 1) {
-  const clientBids = io(config.blurWsUrl, {
+if (config.chainId === 1 && config.doWebsocketWork && config.blurWsUrl && config.blurWsApiKey) {
+  const client = io(config.blurWsUrl, {
     transports: ["websocket"],
     auth: {
       "api-key": config.blurWsApiKey,
     },
   });
 
-  clientBids.on("connect", () => {
-    logger.info(COMPONENT, `Connected to Blur bids via websocket (${config.blurWsUrl})`);
+  client.on("connect", () => {
+    logger.info(COMPONENT, `Connected to Blur via websocket (${config.blurWsUrl})`);
   });
 
-  clientBids.on("connect_error", (error) => {
-    logger.error(COMPONENT, `Error from Blur bids websocket: ${error}`);
+  client.on("connect_error", (error) => {
+    logger.error(COMPONENT, `Error from Blur websocket: ${error}`);
   });
 
-  clientBids.on("CollectionBidsPrice", async (message: string) => {
-    try {
-      const parsedMessage: {
-        contractAddress: string;
-        updates: Sdk.Blur.Types.BlurBidPricePoint[];
-      } = JSON.parse(message);
-
-      const collection = parsedMessage.contractAddress.toLowerCase();
-      const pricePoints = parsedMessage.updates;
-      await blurBidsBufferJob.addToQueue(collection, pricePoints);
-    } catch (error) {
-      logger.error(COMPONENT, `Error handling bid: ${error} (message = ${message})`);
-    }
-  });
-}
-
-// Listings
-if (config.doWebsocketWork && config.blurWsListingsUrl && config.chainId === 1) {
-  const clientListings = io(config.blurWsListingsUrl, {
-    transports: ["websocket"],
-  });
-
-  clientListings.on("connect", () => {
-    logger.info(
-      COMPONENT,
-      `Connected to Blur listings via websocket (${config.blurWsListingsUrl})`
-    );
-  });
-
-  clientListings.on("connect_error", (error) => {
-    logger.error(
-      COMPONENT,
-      `Error from Blur listings websocket (${config.blurWsListingsUrl}): ${error}`
-    );
-  });
-
-  clientListings.on("newTopsOfBooks", async (message: string) => {
+  // Listings
+  client.on("newTopsOfBooks", async (message: string) => {
     try {
       const parsedMessage: {
         contractAddress: string;
@@ -95,10 +59,25 @@ if (config.doWebsocketWork && config.blurWsListingsUrl && config.chainId === 1) 
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await orderbookOrdersJob.addToQueue(orderInfos as any);
-
       await blurListingsRefreshJob.addToQueue(collection);
     } catch (error) {
       logger.error(COMPONENT, `Error handling listing: ${error} (message = ${message})`);
+    }
+  });
+
+  // Collection bids
+  client.on("CollectionBidsPrice", async (message: string) => {
+    try {
+      const parsedMessage: {
+        contractAddress: string;
+        updates: Sdk.Blur.Types.BlurBidPricePoint[];
+      } = JSON.parse(message);
+
+      const collection = parsedMessage.contractAddress.toLowerCase();
+      const pricePoints = parsedMessage.updates;
+      await blurBidsBufferJob.addToQueue(collection, pricePoints);
+    } catch (error) {
+      logger.error(COMPONENT, `Error handling bid: ${error} (message = ${message})`);
     }
   });
 }

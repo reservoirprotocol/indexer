@@ -309,9 +309,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
               amount: token.quantity,
               isFlagged: Boolean(flaggedResult.is_flagged),
             },
-            {
-              taker: payload.taker,
-            }
+            payload.taker
           )
         );
       };
@@ -801,6 +799,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
       const router = new Sdk.RouterV6.Router(config.chainId, baseProvider, {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         cbApiKey: config.cbApiKey,
+        zeroExApiKey: config.zeroExApiKey,
         orderFetcherBaseUrl: config.orderFetcherBaseUrl,
         orderFetcherMetadata: {
           apiKey: await ApiKeyManager.getApiKey(request.headers["x-api-key"]),

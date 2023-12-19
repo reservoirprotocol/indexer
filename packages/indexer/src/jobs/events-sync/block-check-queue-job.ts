@@ -32,9 +32,14 @@ export default class BlockCheckJob extends AbstractRabbitMqJobHandler {
       // Generic method for handling an orphan block
       const handleOrphanBlock = async (block: { number: number; hash: string }) => {
         // Resync the detected orphaned block
-        await eventsSyncBackfillJob.addToQueue(block.number, block.number, {
-          prioritized: true,
-        });
+        await eventsSyncBackfillJob.addToQueue(
+          block.number,
+          block.number,
+          {},
+          {
+            prioritized: 1,
+          }
+        );
         await unsyncEvents(block.number, block.hash);
 
         // Delete the orphaned block from the `blocks` table

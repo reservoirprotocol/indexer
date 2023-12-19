@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { config } from "@/config/index";
-import { CollectionMetadata, TokenMetadata, TokenMetadataBySlugResult } from "../types";
+import { CollectionMetadata, TokenMetadata } from "../types";
 import { logger } from "@/common/logger";
 import { Contract } from "ethers";
 import { Interface } from "ethers/lib/utils";
@@ -71,11 +71,7 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
       .then((response) => response.data)
       .catch((error) => this.handleError(error));
 
-    return data.nfts.map(this.parseToken).filter(Boolean);
-  }
-
-  async _getTokensMetadataBySlug(): Promise<TokenMetadataBySlugResult> {
-    throw new Error("Method not implemented.");
+    return data.nfts.map((nft: any) => this.parseToken(nft)).filter(Boolean);
   }
 
   handleError(error: any) {
@@ -96,7 +92,7 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
     throw error;
   }
 
-  parseToken(metadata: any): TokenMetadata {
+  _parseToken(metadata: any): TokenMetadata {
     const {
       image_original_url,
       animation_original_url,
@@ -120,7 +116,7 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
       // so by default we ignore them (this behaviour can be overridden if needed).
       description: metadata.description,
       originalMetadata: original_metadata,
-      imageUrl: metadata.previews?.image_medium_url ?? metadata.image_url,
+      imageUrl: metadata.image_url,
       imageOriginalUrl: image_original_url,
       animationOriginalUrl: animation_original_url,
       metadataOriginalUrl: metadata_original_url,

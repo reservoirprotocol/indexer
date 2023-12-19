@@ -29,6 +29,7 @@ export interface BaseBuildParams {
   startTime?: number;
   endTime?: number;
   signature?: string;
+  extraData?: string;
 }
 
 export interface BaseOrderInfo {

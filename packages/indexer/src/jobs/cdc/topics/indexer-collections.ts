@@ -11,8 +11,8 @@ import {
 } from "@/jobs/websocket-events/websocket-event-router";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { refreshAsksCollectionJob } from "@/jobs/asks/refresh-asks-collection-job";
-import { refreshActivitiesCollectionMetadataJob } from "@/jobs/activities/refresh-activities-collection-metadata-job";
+import { refreshAsksCollectionJob } from "@/jobs/elasticsearch/asks/refresh-asks-collection-job";
+import { refreshActivitiesCollectionMetadataJob } from "@/jobs/elasticsearch/activities/refresh-activities-collection-metadata-job";
 import {
   EventKind,
   processCollectionEventJob,
@@ -61,7 +61,7 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
     });
 
     try {
-      const collectionKey = `collection-cache:v2:${payload.after.id}`;
+      const collectionKey = `collection-cache:v4:${payload.after.id}`;
 
       const cachedCollection = await redis.get(collectionKey);
 
@@ -109,6 +109,15 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
 
       // Update the elasticsearch activities index
       if (spamStatusChanged) {
+        logger.info(
+          "cdc-indexer-collections",
+          JSON.stringify({
+            topic: "debugActivitiesErrors",
+            message: `spamStatusChanged. collectionId=${payload.after.id}, before=${payload.before.is_spam}, after=${payload.after.is_spam}`,
+            collectionId: payload.after.id,
+          })
+        );
+
         await refreshActivitiesCollectionMetadataJob.addToQueue({
           collectionId: payload.after.id,
           context: "spamStatusChanged",

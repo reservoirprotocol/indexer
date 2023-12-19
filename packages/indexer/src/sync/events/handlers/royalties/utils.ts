@@ -1,13 +1,17 @@
-import { Log } from "@ethersproject/abstract-provider";
+import { Filter, Log } from "@ethersproject/abstract-provider";
 
+import { baseProvider } from "@/common/provider";
 import { concat } from "@/common/utils";
 import { getEventData } from "@/events-sync/data";
-import { processEventsBatch } from "@/events-sync/handlers";
+import { EventsBatch, processEventsBatch } from "@/events-sync/handlers";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import { PartialFillEvent } from "@/events-sync/handlers/royalties";
 import { extractEventsBatches } from "@/events-sync/index";
+import { parseEvent } from "@/events-sync/parser";
 import * as utils from "@/events-sync/utils";
 import * as es from "@/events-sync/storage";
+import * as syncEvents from "@/events-sync/index";
+import * as syncEventsUtils from "@/events-sync/utils";
 
 export const getEventParams = (log: Log, timestamp: number) => {
   const address = log.address.toLowerCase() as string;
@@ -59,7 +63,7 @@ export const getEnhancedEventsFromTx = async (txHash: string) => {
 
 export async function extractOnChainData(enhancedEvents: EnhancedEvent[], skipProcessing = true) {
   const allOnChainData: OnChainData[] = [];
-  const eventBatches = await extractEventsBatches(enhancedEvents, false);
+  const eventBatches = await extractEventsBatches(enhancedEvents);
   for (const batch of eventBatches) {
     const onChainData = await processEventsBatch(batch, skipProcessing);
     allOnChainData.push(onChainData);
@@ -109,11 +113,62 @@ export async function getFillEventsFromTxOnChain(txHash: string) {
   };
 }
 
-export async function parseTranscation(txHash: string) {
+export const parseTransaction = async (txHash: string) => {
   const events = await getEnhancedEventsFromTx(txHash);
   const allOnChainData = await extractOnChainData(events);
   return {
     events,
     allOnChainData,
   };
-}
+};
+
+export const parseBlock = async (block: number) => {
+  const blockData = await syncEventsUtils.fetchBlock(block);
+  const eventFilter: Filter = {
+    topics: [[...new Set(getEventData().map(({ topic }) => topic))]],
+    fromBlock: block,
+    toBlock: block,
+  };
+
+  const availableEventData = getEventData();
+
+  // Get the logs from the RPC
+  const logs = await baseProvider.getLogs(eventFilter);
+
+  let enhancedEvents = logs
+    .map((log) => {
+      const baseEventParams = parseEvent(log, blockData.timestamp);
+      return availableEventData
+        .filter(
+          ({ addresses, numTopics, topic }) =>
+            log.topics[0] === topic &&
+            log.topics.length === numTopics &&
+            (addresses ? addresses[log.address.toLowerCase()] : true)
+        )
+        .map((eventData) => ({
+          kind: eventData.kind,
+          subKind: eventData.subKind,
+          baseEventParams,
+          log,
+        }));
+    })
+    .flat();
+
+  enhancedEvents = enhancedEvents.filter((e) => e) as EnhancedEvent[];
+
+  const eventsBatches = syncEvents.extractEventsBatches(enhancedEvents as EnhancedEvent[]);
+
+  const allOnChainData: {
+    batch: EventsBatch;
+    onChainData: OnChainData;
+  }[] = [];
+  for (const batch of eventsBatches) {
+    const onChainData = await processEventsBatch(batch, true);
+    allOnChainData.push({
+      batch,
+      onChainData,
+    });
+  }
+
+  return allOnChainData;
+};

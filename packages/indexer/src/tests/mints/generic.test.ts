@@ -170,4 +170,23 @@ describe("Mints - Generic", () => {
     }
     expect(collectionMints.length).not.toBe(0);
   });
+
+  it("detects unique amount of mints", async () => {
+    if (config.chainId != 8453) {
+      return;
+    }
+
+    const txHash = "0x40980d643c7f8f20caf15bd44eaccc6a4c5113c949dec96e9c7092f9018bc244";
+    const transaction = await utils.fetchTransaction(txHash);
+    const results = await extractByTx(
+      "0x0d39445faf8e7f7cc240f4e12ae3a7867eea2a67",
+      transaction,
+      parseEther("0.000099").div(10),
+      BigNumber.from(10)
+    );
+
+    expect(results.length).not.toBe(0);
+    const simulation = await simulateCollectionMint(results[0]);
+    expect(simulation).toBe(true);
+  });
 });

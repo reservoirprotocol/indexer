@@ -22,7 +22,7 @@ import {
 import { getNetworkName, getNetworkSettings } from "@/config/network";
 import _ from "lodash";
 import { buildContinuation, splitContinuation } from "@/common/utils";
-import { backfillActivitiesElasticsearchJob } from "@/jobs/activities/backfill/backfill-activities-elasticsearch-job";
+import { backfillActivitiesElasticsearchJob } from "@/jobs/elasticsearch/activities/backfill/backfill-activities-elasticsearch-job";
 
 import * as CONFIG from "@/elasticsearch/indexes/activities/config";
 import { ElasticMintResult } from "@/api/endpoints/collections/get-trending-mints/interfaces";
@@ -181,6 +181,83 @@ export const getChainStatsFromActivity = async () => {
       },
     };
   }, {});
+};
+
+type Trader = {
+  count: number;
+  address: string;
+  volume: number;
+};
+
+export const getTopTraders = async (params: {
+  startTime: number;
+  limit: number;
+  collection: string;
+}): Promise<Trader> => {
+  const { startTime, limit, collection } = params;
+
+  const salesQuery: Record<string, any> = {
+    bool: {
+      filter: [
+        {
+          term: {
+            type: "sale",
+          },
+        },
+        {
+          term: {
+            "collection.id": collection,
+          },
+        },
+        {
+          range: {
+            timestamp: {
+              gte: startTime,
+              format: "epoch_second",
+            },
+          },
+        },
+      ],
+    },
+  };
+
+  const collectionAggregation = {
+    collections: {
+      terms: {
+        field: "toAddress",
+        size: limit,
+      },
+      aggs: {
+        total_sales: {
+          value_count: {
+            field: "id",
+          },
+        },
+        total_volume: {
+          sum: {
+            field: "pricing.priceDecimal",
+          },
+        },
+      },
+    },
+  };
+
+  const esResult = (await elasticsearch.search({
+    index: INDEX_NAME,
+    size: 0,
+    body: {
+      query: salesQuery,
+      aggs: collectionAggregation,
+    },
+  })) as any;
+
+  return esResult?.aggregations?.collections?.buckets?.map((bucket: any) => {
+    return {
+      volume: bucket?.total_volume?.value,
+      count: bucket?.total_sales.value,
+      address: bucket.key,
+    };
+  });
 };
 
 export enum TopSellingFillOptions {
@@ -1222,12 +1299,13 @@ export const updateActivitiesMissingCollection = async (
           {
             script: {
               source:
-                "ctx._source.collection = [:]; ctx._source.collection.id = params.collection_id; ctx._source.collection.name = params.collection_name; ctx._source.collection.image = params.collection_image; ctx._source.collection.isSpam = params.collection_is_spam;",
+                "ctx._source.collection = [:]; ctx._source.collection.id = params.collection_id; ctx._source.collection.name = params.collection_name; ctx._source.collection.image = params.collection_image; ctx._source.collection.isSpam = params.collection_is_spam; ctx._source.collection.imageVersion = params.collection_image_version;",
               params: {
                 collection_id: collection.id,
                 collection_name: collection.name,
                 collection_image: collection.metadata?.imageUrl,
                 collection_is_spam: Number(collection.isSpam) > 0,
+                collection_image_version: collection.imageVersion,
               },
             },
           },
@@ -1375,12 +1453,13 @@ export const updateActivitiesCollection = async (
           {
             script: {
               source:
-                "ctx._source.collection = [:]; ctx._source.collection.id = params.collection_id; ctx._source.collection.name = params.collection_name; ctx._source.collection.image = params.collection_image; ctx._source.collection.isSpam = params.collection_is_spam;",
+                "ctx._source.collection = [:]; ctx._source.collection.id = params.collection_id; ctx._source.collection.name = params.collection_name; ctx._source.collection.image = params.collection_image; ctx._source.collection.isSpam = params.collection_is_spam; ctx._source.collection.imageVersion = params.collection_image_version;",
               params: {
                 collection_id: newCollection.id,
                 collection_name: newCollection.name,
                 collection_image: newCollection.metadata?.imageUrl,
                 collection_is_spam: Number(newCollection.isSpam) > 0,
+                collection_image_version: newCollection.imageVersion,
               },
             },
           },
@@ -1411,22 +1490,20 @@ export const updateActivitiesCollection = async (
       } else {
         keepGoing = pendingUpdateDocuments.length === 1000;
 
-        // logger.info(
-        //   "elasticsearch-activities",
-        //   JSON.stringify({
-        //     topic: "updateActivitiesCollection",
-        //     message: `Success`,
-        //     data: {
-        //       contract,
-        //       tokenId,
-        //       newCollection,
-        //       oldCollectionId,
-        //     },
-        //     bulkParams,
-        //     response,
-        //     keepGoing,
-        //   })
-        // );
+        logger.info(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "debugActivitiesErrors",
+            message: `updateActivitiesCollection - bulkSuccess`,
+            contract,
+            tokenId,
+            newCollection,
+            oldCollectionId,
+            keepGoing,
+            pendingUpdateDocumentsCount: pendingUpdateDocuments.length,
+            queryJson: JSON.stringify(query),
+          })
+        );
       }
     }
   } catch (error) {
@@ -1844,6 +1921,7 @@ export type ActivitiesCollectionUpdateData = {
   name: string | null;
   image: string | null;
   isSpam: number;
+  imageVersion: number | null;
 };
 
 export const updateActivitiesCollectionData = async (
@@ -1923,6 +2001,27 @@ export const updateActivitiesCollectionData = async (
             ],
           },
     },
+    {
+      bool: collectionData.imageVersion
+        ? {
+            must_not: [
+              {
+                term: {
+                  "collection.imageVersion": collectionData.imageVersion,
+                },
+              },
+            ],
+          }
+        : {
+            must: [
+              {
+                exists: {
+                  field: "collection.imageVersion",
+                },
+              },
+            ],
+          },
+    },
   ];
 
   const query = {
@@ -1967,11 +2066,12 @@ export const updateActivitiesCollectionData = async (
           {
             script: {
               source:
-                "if (params.collection_name == null) { ctx._source.collection.remove('name') } else { ctx._source.collection.name = params.collection_name } if (params.collection_image == null) { ctx._source.collection.remove('image') } else { ctx._source.collection.image = params.collection_image } ctx._source.collection.isSpam = params.is_spam",
+                "if (params.collection_name == null) { ctx._source.collection.remove('name') } else { ctx._source.collection.name = params.collection_name } if (params.collection_image == null) { ctx._source.collection.remove('image') } else { ctx._source.collection.image = params.collection_image } ctx._source.collection.isSpam = params.is_spam; if (params.image_version != null) { ctx._source.collection.imageVersion = params.image_version }",
               params: {
                 collection_name: collectionData.name ?? null,
                 collection_image: collectionData.image ?? null,
                 is_spam: collectionData.isSpam > 0,
+                image_version: collectionData.imageVersion ?? null,
               },
             },
           },
@@ -2004,23 +2104,18 @@ export const updateActivitiesCollectionData = async (
       } else {
         keepGoing = pendingUpdateDocuments.length === batchSize;
 
-        // logger.info(
-        //     "elasticsearch-activities",
-        //     JSON.stringify({
-        //       topic: "updateActivitiesCollectionData",
-        //       message: `Success. collectionId=${collectionId}, collectionData=${JSON.stringify(
-        //           collectionData
-        //       )}`,
-        //       data: {
-        //         collectionId,
-        //         collectionData,
-        //       },
-        //       bulkParams: JSON.stringify(bulkParams),
-        //       response,
-        //       keepGoing,
-        //       queryJson: JSON.stringify(query),
-        //     })
-        // );
+        logger.info(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "debugActivitiesErrors",
+            message: `updateActivitiesCollectionData - bulkSuccess. collectionId=${collectionId}`,
+            collectionId,
+            collectionData,
+            pendingUpdateDocumentsCount: pendingUpdateDocuments.length,
+            keepGoing,
+            queryJson: JSON.stringify(query),
+          })
+        );
       }
     }
   } catch (error) {

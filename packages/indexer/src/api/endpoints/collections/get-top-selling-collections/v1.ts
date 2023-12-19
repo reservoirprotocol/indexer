@@ -106,12 +106,13 @@ export const getTopSellingCollectionsV1Options: RouteOptions = {
 
     try {
       const oneDayAgo = Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000);
+      const cacheKey = `top-selling-collections:v2:1d:${fillType}:sales`;
+
       let cachedResults = null;
       let collectionsResult = [];
 
       // if approx 24 hours ago, use cache
       if (Math.abs(startTime - oneDayAgo) <= 1000) {
-        const cacheKey = `top-selling-collections:v2:1d:${fillType}:sales`;
         cachedResults = await redis.get(cacheKey);
       }
 
@@ -150,6 +151,10 @@ export const getTopSellingCollectionsV1Options: RouteOptions = {
           limit,
           includeRecentSales,
         });
+
+        if (fillType === "mint") {
+          await redis.set(cacheKey, JSON.stringify(collectionsResult), "EX", 1800);
+        }
       }
 
       const collections = await Promise.all(

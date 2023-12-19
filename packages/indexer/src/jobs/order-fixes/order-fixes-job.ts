@@ -1,12 +1,8 @@
-import { Interface } from "@ethersproject/abi";
-import { BigNumber } from "@ethersproject/bignumber";
 import { HashZero } from "@ethersproject/constants";
-import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { baseProvider } from "@/common/provider";
 import { redis } from "@/common/redis";
 import { now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
@@ -24,6 +20,8 @@ import * as zeroExV4Check from "@/orderbook/orders/zeroex-v4/check";
 import * as seaportCheck from "@/orderbook/orders/seaport-base/check";
 import * as nftxCheck from "@/orderbook/orders/nftx/check";
 import * as raribleCheck from "@/orderbook/orders/rarible/check";
+import * as paymentProcessorCheck from "@/orderbook/orders/payment-processor/check";
+import * as paymentProcessorV2Check from "@/orderbook/orders/payment-processor-v2/check";
 
 export type OrderFixesJobPayload =
   | {
@@ -187,6 +185,8 @@ export default class OrderFixesJob extends AbstractRabbitMqJobHandler {
                     checkFilledOrCancelled: true,
                     quantityRemaining: result.quantity_remaining,
                     singleTokenERC721ApprovalCheck: true,
+                    permitId: result.raw_data.permitId,
+                    permitIndex: result.raw_data.permitIndex,
                   });
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 } catch (error: any) {
@@ -218,6 +218,8 @@ export default class OrderFixesJob extends AbstractRabbitMqJobHandler {
                     checkFilledOrCancelled: true,
                     quantityRemaining: result.quantity_remaining,
                     singleTokenERC721ApprovalCheck: true,
+                    permitId: result.raw_data.permitId,
+                    permitIndex: result.raw_data.permitIndex,
                   });
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 } catch (error: any) {
@@ -249,6 +251,8 @@ export default class OrderFixesJob extends AbstractRabbitMqJobHandler {
                     checkFilledOrCancelled: true,
                     quantityRemaining: result.quantity_remaining,
                     singleTokenERC721ApprovalCheck: true,
+                    permitId: result.raw_data.permitId,
+                    permitIndex: result.raw_data.permitIndex,
                   });
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 } catch (error: any) {
@@ -439,42 +443,66 @@ export default class OrderFixesJob extends AbstractRabbitMqJobHandler {
                 break;
               }
 
-              case "collectionxyz": {
+              case "rarible": {
+                const order = new Sdk.Rarible.Order(config.chainId, result.raw_data);
                 try {
-                  if (result.side === "sell") {
-                    const [, , tokenId] = result.token_set_id.split(":");
-
-                    // It's not sufficient to check ownership - the pool must recognize ownership of the token
-                    const poolContract = new Contract(
-                      result.raw_data.pool,
-                      new Interface([`function getAllHeldIds() view returns (uint256[])`]),
-                      baseProvider
-                    );
-
-                    let isLegit = false;
-
-                    const legitIds = await poolContract.getAllHeldIds();
-                    legitIds.forEach((legitId: BigNumber) => {
-                      if (legitId.toString() === tokenId) {
-                        isLegit = true;
-                      }
-                    });
-
-                    if (!isLegit) {
-                      fillabilityStatus = "no-balance";
-                    }
+                  await raribleCheck.offChainCheck(order, {
+                    onChainApprovalRecheck: true,
+                    checkFilledOrCancelled: true,
+                  });
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                } catch (error: any) {
+                  if (error.message === "cancelled") {
+                    fillabilityStatus = "cancelled";
+                  } else if (error.message === "filled") {
+                    fillabilityStatus = "filled";
+                  } else if (error.message === "no-balance") {
+                    fillabilityStatus = "no-balance";
+                  } else if (error.message === "no-approval") {
+                    approvalStatus = "no-approval";
+                  } else if (error.message === "no-balance-no-approval") {
+                    fillabilityStatus = "no-balance";
+                    approvalStatus = "no-approval";
+                  } else {
+                    return;
                   }
-                } catch {
-                  return;
                 }
 
                 break;
               }
 
-              case "rarible": {
-                const order = new Sdk.Rarible.Order(config.chainId, result.raw_data);
+              case "payment-processor": {
+                const order = new Sdk.PaymentProcessor.Order(config.chainId, result.raw_data);
                 try {
-                  await raribleCheck.offChainCheck(order, {
+                  await paymentProcessorCheck.offChainCheck(order, {
+                    onChainApprovalRecheck: true,
+                    checkFilledOrCancelled: true,
+                  });
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                } catch (error: any) {
+                  if (error.message === "cancelled") {
+                    fillabilityStatus = "cancelled";
+                  } else if (error.message === "filled") {
+                    fillabilityStatus = "filled";
+                  } else if (error.message === "no-balance") {
+                    fillabilityStatus = "no-balance";
+                  } else if (error.message === "no-approval") {
+                    approvalStatus = "no-approval";
+                  } else if (error.message === "no-balance-no-approval") {
+                    fillabilityStatus = "no-balance";
+                    approvalStatus = "no-approval";
+                  } else {
+                    return;
+                  }
+                }
+
+                break;
+              }
+
+              case "payment-processor-v2": {
+                const order = new Sdk.PaymentProcessorV2.Order(config.chainId, result.raw_data);
+                try {
+                  await paymentProcessorV2Check.offChainCheck(order, {
                     onChainApprovalRecheck: true,
                     checkFilledOrCancelled: true,
                   });

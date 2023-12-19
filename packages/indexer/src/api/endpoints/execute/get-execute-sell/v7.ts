@@ -38,10 +38,10 @@ import { getUSDAndCurrencyPrices } from "@/utils/prices";
 const version = "v7";
 
 export const getExecuteSellV7Options: RouteOptions = {
-  description: "Sell tokens (accept bids)",
+  description: "Sell Tokens",
   notes:
     "Use this API to accept bids. We recommend using the SDK over this API as the SDK will iterate through the steps and return callbacks. Please mark `excludeEOA` as `true` to exclude Blur orders.",
-  tags: ["api", "Fill Orders (buy & sell)"],
+  tags: ["api", "Trading"],
   timeout: {
     server: 40 * 1000,
   },
@@ -139,6 +139,13 @@ export const getExecuteSellV7Options: RouteOptions = {
         .description(
           "If true, filling will be forced to use the common 'approval + transfer' method instead of the approval-less 'on-received hook' method"
         ),
+      forceTrustedForwarder: Joi.string()
+        .lowercase()
+        .pattern(regex.address)
+        .description(
+          "If passed, all fills will be executed through the trusted trusted forwarder (where possible)"
+        )
+        .optional(),
       maxFeePerGas: Joi.string()
         .pattern(regex.number)
         .description(
@@ -292,11 +299,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
       ) => {
         // Handle dynamically-priced orders
-        if (
-          ["blur", "sudoswap", "sudoswap-v2", "collectionxyz", "nftx", "caviar-v1"].includes(
-            order.kind
-          )
-        ) {
+        if (["blur", "sudoswap", "sudoswap-v2", "nftx", "caviar-v1"].includes(order.kind)) {
           // TODO: Handle the case when the next best-priced order in the database
           // has a better price than the current dynamically-priced order (because
           // of a quantity > 1 being filled on this current order).
@@ -424,9 +427,10 @@ export const getExecuteSellV7Options: RouteOptions = {
               amount: token.quantity,
               owner: token.owner,
             },
+            payload.taker,
             {
               permit,
-              taker: payload.taker,
+              ppV2TrustedChannel: payload.forceTrustedForwarder,
             }
           )
         );
@@ -1177,6 +1181,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         openseaApiKey: payload.openseaApiKey,
         cbApiKey: config.cbApiKey,
+        zeroExApiKey: config.zeroExApiKey,
         orderFetcherBaseUrl: config.orderFetcherBaseUrl,
         orderFetcherMetadata: {
           apiKey: await ApiKeyManager.getApiKey(request.headers["x-api-key"]),

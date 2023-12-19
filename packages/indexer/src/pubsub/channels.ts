@@ -11,7 +11,9 @@ export enum Channel {
 export enum AllChainsChannel {
   ApiKeyCreated = "api-key-created-all-chains",
   ApiKeyUpdated = "api-key-updated-all-chains",
-  RateLimitRuleCreated = "rate-limit-rule-created",
-  RateLimitRuleUpdated = "rate-limit-rule-updated",
-  RateLimitRuleDeleted = "rate-limit-rule-deleted",
+  RateLimitRuleCreated = "rate-limit-rule-created-all-chains",
+  RateLimitRuleUpdated = "rate-limit-rule-updated-all-chains",
+  RateLimitRuleDeleted = "rate-limit-rule-deleted-all-chains",
+  PauseRabbitConsumerQueue = "pause-rabbit-consumer-queue-all-chains",
+  ResumeRabbitConsumerQueue = "resume-rabbit-consumer-queue-all-chains",
 }

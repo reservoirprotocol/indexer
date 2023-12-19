@@ -4,7 +4,7 @@ import { BigNumberish } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
 import { Protocol } from "@uniswap/router-sdk";
 import { Currency, CurrencyAmount, Ether, Percent, Token, TradeType } from "@uniswap/sdk-core";
-import { AlphaRouter, SwapType } from "@uniswap/smart-order-router";
+import { AlphaRouter, SwapRoute, SwapType } from "@uniswap/smart-order-router";
 
 import { isETH } from "../utils";
 import { WNative } from "../../../common/addresses";
@@ -46,35 +46,42 @@ export const generateSwapExecutions = async (
     provider: provider as any,
   });
 
-  // Uniswap's core SDK doesn't support MATIC -> WMATIC conversion
+  // Uniswap's core SDK doesn't support Native -> WNative conversions on some chains
+  // TODO: Updating to the latest version of the core SDK could fix it
   // https://github.com/Uniswap/sdk-core/issues/39
 
   let fromToken = await getToken(chainId, provider, fromTokenAddress);
-  if (chainId === Network.Polygon && isETH(chainId, fromTokenAddress)) {
-    fromToken = await getToken(chainId, provider, WNative[chainId]);
-  }
-
   let toToken = await getToken(chainId, provider, toTokenAddress);
-  if (chainId === Network.Polygon && isETH(chainId, toTokenAddress)) {
-    toToken = await getToken(chainId, provider, WNative[chainId]);
+  if ([Network.Polygon, Network.Mumbai, Network.EthereumSepolia].includes(chainId)) {
+    if (isETH(chainId, fromTokenAddress)) {
+      fromToken = await getToken(chainId, provider, WNative[chainId]);
+    }
+    if (isETH(chainId, toTokenAddress)) {
+      toToken = await getToken(chainId, provider, WNative[chainId]);
+    }
   }
 
-  const route = await router.route(
-    CurrencyAmount.fromRawAmount(toToken, toTokenAmount.toString()),
-    fromToken,
-    TradeType.EXACT_OUTPUT,
-    {
-      type: SwapType.SWAP_ROUTER_02,
-      recipient: options.module.address,
-      slippageTolerance: new Percent(5, 100),
-      deadline: Math.floor(Date.now() / 1000 + 1800),
-    },
-    {
-      protocols: [Protocol.V3],
-      maxSwapsPerPath: 1,
-      maxSplits: 1,
-    }
-  );
+  let route: SwapRoute | null = null;
+  try {
+    route = await router.route(
+      CurrencyAmount.fromRawAmount(toToken, toTokenAmount.toString()),
+      fromToken,
+      TradeType.EXACT_OUTPUT,
+      {
+        type: SwapType.SWAP_ROUTER_02,
+        recipient: options.module.address,
+        slippageTolerance: new Percent(5, 100),
+        deadline: Math.floor(Date.now() / 1000 + 1800),
+      },
+      {
+        protocols: [Protocol.V3],
+        maxSwapsPerPath: 1,
+        maxSplits: 1,
+      }
+    );
+  } catch {
+    // Skip errors
+  }
 
   if (!route) {
     throw new Error("Could not generate route");

@@ -216,14 +216,19 @@ export const getAttributesExploreV5Options: RouteOptions = {
             `;
 
       if (query.continuation) {
-        const contArr = splitContinuation(query.continuation, /^[0-9]+_[^_]+_[^_]+$/);
+        const contArr = splitContinuation(query.continuation, /^([0-9]+|null)_[^_]+_[^_]+$/);
         if (contArr.length !== 3) {
           throw Boom.badRequest("Invalid continuation string used");
         }
-        conditions.push(
-          `COALESCE(CAST(floor_sell_value AS numeric), CAST(0 AS numeric)) <= CAST($/contFloorSellValue/ AS numeric)`
-        );
-        conditions.push(`(key, value) < ($/contKey/, $/contValue/)`);
+        if (contArr[0] != "null") {
+          conditions.push(
+            `COALESCE(CAST(floor_sell_value AS numeric), CAST(0 AS numeric)) <= CAST($/contFloorSellValue/ AS numeric)
+            OR floor_sell_value IS NULL`
+          );
+        } else {
+          conditions.push(`floor_sell_value IS NULL`);
+        }
+        conditions.push(`(key, value) > ($/contKey/, $/contValue/)`);
         (query as any).contFloorSellValue = contArr[0];
         (query as any).contKey = contArr[1];
         (query as any).contValue = contArr[2];
@@ -259,7 +264,7 @@ export const getAttributesExploreV5Options: RouteOptions = {
         value: r.value,
         tokenCount: Number(r.token_count),
         onSaleCount: Number(r.on_sale_count),
-        sampleImages: Assets.getLocalAssetsLink(r.sample_images) || [],
+        sampleImages: Assets.getResizedImageURLs(r.sample_images) || [],
         floorAskPrices:
           Number(r.token_count) <= 10000 // We only calculate attribute floor up to 10k tokens
             ? query.maxFloorAskPrices > 1

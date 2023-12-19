@@ -1,17 +1,19 @@
-import { Result, defaultAbiCoder } from "@ethersproject/abi";
+import { Interface, Result, defaultAbiCoder } from "@ethersproject/abi";
 import { Log } from "@ethersproject/abstract-provider";
 import { HashZero } from "@ethersproject/constants";
+import { Contract } from "@ethersproject/contracts";
 import { searchForCall } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
 
+import { baseProvider } from "@/common/provider";
 import { config } from "@/config/index";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import { getERC20Transfer } from "@/events-sync/handlers/utils/erc20";
 import * as utils from "@/events-sync/utils";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
-import { getUSDAndNativePrices } from "@/utils/prices";
 import * as paymentProcessorV2Utils from "@/utils/payment-processor-v2";
+import { getUSDAndNativePrices } from "@/utils/prices";
 
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // For keeping track of all individual trades per transaction
@@ -525,6 +527,66 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         // Refresh
         await paymentProcessorV2Utils.getCollectionPaymentSettings(tokenAddress, true);
+
+        // Update backfilled royalties
+        const royaltyBackfillReceiver = parsedLog.args["royaltyBackfillReceiver"].toLowerCase();
+        const royaltyBackfillNumerator = parsedLog.args["royaltyBackfillNumerator"];
+        await paymentProcessorV2Utils.saveBackfilledRoyalties(tokenAddress, [
+          {
+            recipient: royaltyBackfillReceiver,
+            bps: royaltyBackfillNumerator,
+          },
+        ]);
+
+        break;
+      }
+
+      case "payment-processor-v2-trusted-channel-removed-for-collection":
+      case "payment-processor-v2-trusted-channel-added-for-collection": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const tokenAddress = parsedLog.args["tokenAddress"].toLowerCase();
+        const channel = parsedLog.args["channel"].toLowerCase();
+
+        const removed = subKind.includes("removed");
+        if (removed) {
+          await paymentProcessorV2Utils.removeTrustedChannel(tokenAddress, channel);
+        } else {
+          try {
+            const channelContract = new Contract(
+              channel,
+              new Interface(["function signer(address token) view returns (address)"]),
+              baseProvider
+            );
+            const signer = await channelContract.callStatic.signer();
+
+            await paymentProcessorV2Utils.addTrustedChannel(tokenAddress, channel, signer);
+          } catch {
+            // Skip errors
+          }
+        }
+
+        break;
+      }
+
+      case "payment-processor-v2-payment-method-added-to-whitelist":
+      case "payment-processor-v2-payment-method-removed-from-whitelist": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const paymentMethodWhitelistId = parsedLog.args["paymentMethodWhitelistId"];
+        const paymentMethod = parsedLog.args["paymentMethod"].toLowerCase();
+
+        const removed = subKind.includes("removed");
+
+        if (removed) {
+          await paymentProcessorV2Utils.removePaymentMethodFromWhitelist(
+            paymentMethodWhitelistId,
+            paymentMethod
+          );
+        } else {
+          await paymentProcessorV2Utils.addPaymentMethodToWhitelist(
+            paymentMethodWhitelistId,
+            paymentMethod
+          );
+        }
 
         break;
       }

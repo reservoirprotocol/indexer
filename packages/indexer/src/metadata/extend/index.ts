@@ -187,6 +187,8 @@ extendCollection["1,0x942bc2d3e7a589fe5bd4a5c6ef9727dfd82f5c8a"] = artblocksEngi
 extendCollection["1,0x32d4be5ee74376e08038d652d4dc26e62c67f436"] = artblocksEngine;
 extendCollection["1,0xea698596b6009a622c3ed00dd5a8b5d1cae4fc36"] = artblocksEngine;
 extendCollection["1,0x8cdbd7010bd197848e95c1fd7f6e870aac9b0d3c"] = artblocksEngine;
+extendCollection["1,0xaf40b66072fe00cacf5a25cd1b7f1688cde20f2f"] = artblocksEngine;
+extendCollection["1,0x294fed5f1d3d30cfa6fe86a937dc3141eec8bc6d"] = artblocksEngine;
 extendCollection["5,0xe480a895de49b49e37a8f0a8bd7e07fc9844cdb9"] = artblocksEngine;
 extendCollection["42161,0x47a91457a3a1f700097199fd63c039c4784384ab"] = artblocksEngine;
 
@@ -301,6 +303,8 @@ extend["1,0x942bc2d3e7a589fe5bd4a5c6ef9727dfd82f5c8a"] = artblocksEngine;
 extend["1,0x32d4be5ee74376e08038d652d4dc26e62c67f436"] = artblocksEngine;
 extend["1,0xea698596b6009a622c3ed00dd5a8b5d1cae4fc36"] = artblocksEngine;
 extend["1,0x8cdbd7010bd197848e95c1fd7f6e870aac9b0d3c"] = artblocksEngine;
+extend["1,0xaf40b66072fe00cacf5a25cd1b7f1688cde20f2f"] = artblocksEngine;
+extend["1,0x294fed5f1d3d30cfa6fe86a937dc3141eec8bc6d"] = artblocksEngine;
 extend["5,0xe480a895de49b49e37a8f0a8bd7e07fc9844cdb9"] = artblocksEngine;
 extend["42161,0x47a91457a3a1f700097199fd63c039c4784384ab"] = artblocksEngine;
 

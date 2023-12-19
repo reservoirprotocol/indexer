@@ -7,7 +7,7 @@ import { redlock } from "@/common/redis";
 import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
 import { PendingActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-activities-queue";
 import { PendingActivityEventsQueue } from "@/elasticsearch/indexes/activities/pending-activity-events-queue";
-import { EventKind } from "@/jobs/activities/process-activity-event-job";
+import { EventKind } from "@/jobs/elasticsearch/activities/process-activity-event-job";
 import { PendingExpiredBidActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-expired-bid-activities-queue";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 import { PendingFlagStatusSyncContracts } from "@/models/pending-flag-status-sync-contracts";
@@ -34,6 +34,22 @@ if (config.doBackgroundWork) {
               pendingRefreshTokensCount,
             })
           );
+
+          if (config.fallbackMetadataIndexingMethod) {
+            const pendingRefreshTokens = new PendingRefreshTokens(
+              config.fallbackMetadataIndexingMethod
+            );
+            const pendingRefreshTokensCount = await pendingRefreshTokens.length();
+
+            logger.info(
+              "pending-refresh-tokens-metric",
+              JSON.stringify({
+                topic: "queue-monitoring",
+                metadataIndexingMethod: config.fallbackMetadataIndexingMethod,
+                pendingRefreshTokensCount,
+              })
+            );
+          }
 
           const pendingActivitiesQueue = new PendingActivitiesQueue();
           const pendingActivitiesQueueCount = await pendingActivitiesQueue.count();

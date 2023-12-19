@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -12,11 +10,12 @@ import { config } from "@/config/index";
 import { getNetworkSettings, getSubDomain } from "@/config/network";
 import { OrderKind } from "@/orderbook/orders";
 import { getOrUpdateBlurRoyalties } from "@/utils/blur";
-import { checkMarketplaceIsFiltered } from "@/utils/erc721c";
+import { getCurrency } from "@/utils/currencies";
+import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import * as registry from "@/utils/royalties/registry";
 import * as paymentProcessor from "@/utils/payment-processor";
-import { getCurrency } from "@/utils/currencies";
+import * as paymentProcessorV2 from "@/utils/payment-processor-v2";
 
 type PaymentToken = {
   address: string;
@@ -138,7 +137,10 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
     }),
   },
   handler: async (request: Request) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const params = request.params as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const query = request.query as any;
 
     try {
       const collectionResult = await redb.oneOrNone(
@@ -170,10 +172,10 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
       }
 
       let defaultRoyalties = (collectionResult.royalties ?? []) as Royalty[];
-      if (params.tokenId) {
+      if (query.tokenId) {
         defaultRoyalties = await registry.getRegistryRoyalties(
           fromBuffer(collectionResult.contract),
-          params.tokenId
+          query.tokenId
         );
       }
 
@@ -318,7 +320,11 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
           },
           royalties: maxOpenseaRoyaltiesBps
             ? {
-                minBps: Math.min(maxOpenseaRoyaltiesBps, 50),
+                minBps: Math.min(
+                  maxOpenseaRoyaltiesBps,
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  openseaRoyalties.some((r) => (r as any).required) ? maxOpenseaRoyaltiesBps : 50
+                ),
                 maxBps: maxOpenseaRoyaltiesBps,
               }
             : undefined,
@@ -474,11 +480,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
 
               exchange.enabled = !exchangeBlocked;
 
-              if (
-                exchange.enabled &&
-                (exchange.orderKind === "payment-processor" ||
-                  exchange.orderKind === "payment-processor-v2")
-              ) {
+              if (exchange.enabled && exchange.orderKind === "payment-processor") {
                 const ppConfig = await paymentProcessor.getConfigByContract(params.collection);
                 if (ppConfig && ppConfig.securityPolicy.enforcePricingConstraints) {
                   exchange.maxPriceRaw = ppConfig?.pricingBounds?.ceilingPrice;
@@ -495,6 +497,41 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
                     ];
                   }
                 }
+              } else if (exchange.enabled && exchange.orderKind === "payment-processor-v2") {
+                const settings = await paymentProcessorV2.getCollectionPaymentSettings(
+                  params.collection
+                );
+
+                let paymentTokens = [Sdk.Common.Addresses.Native[config.chainId]];
+                if (
+                  settings &&
+                  [
+                    paymentProcessorV2.PaymentSettings.DefaultPaymentMethodWhitelist,
+                    paymentProcessorV2.PaymentSettings.CustomPaymentMethodWhitelist,
+                  ].includes(settings.paymentSettings)
+                ) {
+                  paymentTokens = settings.whitelistedPaymentMethods;
+                } else if (
+                  settings?.paymentSettings ===
+                  paymentProcessorV2.PaymentSettings.PricingConstraints
+                ) {
+                  paymentTokens = [settings.constrainedPricingPaymentMethod];
+                }
+
+                exchange.supportedBidCurrencies = paymentTokens.filter(
+                  (p) => p !== Sdk.Common.Addresses.Native[config.chainId]
+                );
+                exchange.paymentTokens = await Promise.all(
+                  paymentTokens.map(async (token) => {
+                    const paymentToken = await getCurrency(token);
+                    return {
+                      address: token,
+                      symbol: paymentToken.symbol,
+                      name: paymentToken.name,
+                      decimals: paymentToken.decimals,
+                    };
+                  })
+                );
               }
             }
           })

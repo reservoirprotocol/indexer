@@ -21,6 +21,7 @@ import { ApiKeyManager } from "@/models/api-keys";
 import { RateLimitRules } from "@/models/rate-limit-rules";
 import { BlockedRouteError } from "@/models/rate-limit-rules/errors";
 import { countApiUsageJob } from "@/jobs/metrics/count-api-usage-job";
+import { generateOpenApiSpec } from "./endpoints/admin";
 
 let server: Hapi.Server;
 
@@ -220,8 +221,7 @@ export const start = async (): Promise<void> => {
           return reply.continue;
         }
 
-        const rateLimitKey =
-          _.isUndefined(key) || _.isEmpty(key) || _.isNull(apiKey) ? remoteAddress : key; // If no api key or the api key is invalid use IP
+        const rateLimitKey = _.isEmpty(key) ? remoteAddress : key; // If no api key or the api key is invalid use IP
 
         try {
           if (key && tier) {
@@ -271,13 +271,11 @@ export const start = async (): Promise<void> => {
               logger.warn("rate-limiter", JSON.stringify(log));
             }
 
-            const message = `Max ${rateLimitRule.rule.points} credits in ${
+            const message = rateLimitRule.ruleParams.getRateLimitMessage(
+              key,
+              rateLimitRule.rule.points,
               rateLimitRule.rule.duration
-            }s reached, Detected tier ${tier}, Blocked by rule ID ${rateLimitRule.ruleParams.id}${
-              !_.isEmpty(rateLimitRule.ruleParams.payload)
-                ? ` Payload ${JSON.stringify(rateLimitRule.ruleParams.payload)}`
-                : ``
-            }. Please register for an API key by creating a free account at https://dashboard.reservoir.tools to increase your rate limit.`;
+            );
 
             const tooManyRequestsResponse = {
               statusCode: 429,
@@ -372,7 +370,7 @@ export const start = async (): Promise<void> => {
   setupRoutes(server);
 
   server.listener.keepAliveTimeout = 61000;
-
+  await generateOpenApiSpec();
   await server.start();
   logger.info("process", `Started on port ${config.port}`);
 };

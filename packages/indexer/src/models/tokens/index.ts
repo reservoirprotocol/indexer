@@ -135,14 +135,19 @@ export class Tokens {
     })) as TokenAttributes[];
   }
 
-  public static async getTokenAttributesKeyCount(collection: string, key: string) {
+  public static async getTokenAttributesKeyCount(
+    collection: string,
+    key: string,
+    readReplica = false
+  ) {
     const query = `SELECT count(DISTINCT value) AS count
                    FROM token_attributes
                    WHERE collection_id = $/collection/
                    and key = $/key/
                    GROUP BY key`;
 
-    return await redb.oneOrNone(query, {
+    const dbInstance = readReplica ? redb : idb;
+    return await dbInstance.oneOrNone(query, {
       collection,
       key,
     });
@@ -260,13 +265,50 @@ export class Tokens {
     attributeKey: string,
     attributeValue: string
   ) {
-    const query = `SELECT COUNT(*) AS "onSaleCount", MIN(floor_sell_value) AS "floorSellValue"
-                   FROM token_attributes
-                   JOIN tokens ON token_attributes.contract = tokens.contract AND token_attributes.token_id = tokens.token_id
-                   WHERE token_attributes.collection_id = $/collection/
-                   AND key = $/attributeKey/
-                   AND value = $/attributeValue/
-                   AND floor_sell_value IS NOT NULL`;
+    const query = `WITH x AS (
+      SELECT 
+        COUNT(*) AS "onSaleCount" 
+      FROM 
+        token_attributes 
+        JOIN tokens ON token_attributes.contract = tokens.contract 
+        AND token_attributes.token_id = tokens.token_id 
+      WHERE 
+        token_attributes.collection_id = $/collection/
+        AND key = $/attributeKey/ 
+        AND value = $/attributeValue/
+        AND floor_sell_value IS NOT NULL
+    ) 
+    SELECT 
+      x."onSaleCount", 
+      CASE WHEN x."onSaleCount" = 0 THEN NULL ELSE (
+        SELECT 
+          json_build_object(
+            'id', floor_sell_id,
+            'value', floor_sell_value, 
+            'currency', floor_sell_currency, 
+            'currencyValue', floor_sell_currency_value, 
+            'maker', floor_sell_maker,
+            'validFrom', floor_sell_valid_from,
+            'validTo', floor_sell_valid_to,
+            'sourceIdInt', floor_sell_source_id_int
+          ) 
+        FROM 
+          token_attributes 
+          JOIN tokens ON token_attributes.contract = tokens.contract 
+          AND token_attributes.token_id = tokens.token_id 
+        WHERE 
+          token_attributes.collection_id = $/collection/
+          AND key = $/attributeKey/
+          AND value = $/attributeValue/
+          AND floor_sell_value IS NOT NULL 
+        ORDER BY 
+          floor_sell_value 
+        LIMIT 
+          1
+      ) END AS "floorSell" 
+    FROM 
+      x
+    `;
 
     const result = await redb.oneOrNone(query, {
       collection,
@@ -274,11 +316,22 @@ export class Tokens {
       attributeValue,
     });
 
-    if (result) {
-      return { floorSellValue: result.floorSellValue, onSaleCount: result.onSaleCount };
+    if (result?.floorSell) {
+      const floorSell = {
+        id: result.floorSell.id,
+        value: result.floorSell.value,
+        currency: result.floorSell.currency ? toBuffer(result.floorSell.currency) : null,
+        currencyValue: result.floorSell.currencyValue,
+        maker: result.floorSell.maker ? toBuffer(result.floorSell.maker) : null,
+        validFrom: result.floorSell.validFrom,
+        validTo: result.floorSell.validTo,
+        sourceIdInt: result.floorSell.sourceIdInt,
+      };
+
+      return { floorSell, onSaleCount: result.onSaleCount };
     }
 
-    return { floorSellValue: null, onSaleCount: 0 };
+    return { floorSell: null, onSaleCount: 0 };
   }
 
   public static async recalculateTokenFloorSell(contract: string, tokenId: string) {

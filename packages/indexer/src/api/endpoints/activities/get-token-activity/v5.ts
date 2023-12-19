@@ -359,6 +359,15 @@ export const getTokenActivityV5Options: RouteOptions = {
           );
         }
 
+        let collectionImageUrl = null;
+        if (query.includeMetadata && activity.collection?.image) {
+          collectionImageUrl = Assets.getResizedImageUrl(
+            activity.collection?.image,
+            undefined,
+            activity.collection?.imageVersion
+          );
+        }
+
         return getJoiActivityObject(
           {
             type: activity.type,
@@ -394,10 +403,7 @@ export const getTokenActivityV5Options: RouteOptions = {
               collectionId: activity.collection?.id,
               isSpam: activity.collection?.isSpam,
               collectionName: query.includeMetadata ? activity.collection?.name : undefined,
-              collectionImage:
-                query.includeMetadata && activity.collection?.image != null
-                  ? activity.collection?.image
-                  : undefined,
+              collectionImage: collectionImageUrl,
             },
             txHash: activity.event?.txHash,
             logIndex: activity.event?.logIndex,
@@ -405,7 +411,7 @@ export const getTokenActivityV5Options: RouteOptions = {
             fillSource: fillSource ? getJoiSourceObject(fillSource, false) : undefined,
             order,
           },
-          tokenMetadata.metadata_disabled,
+          tokenMetadata?.metadata_disabled,
           disabledCollectionMetadata
         );
       });

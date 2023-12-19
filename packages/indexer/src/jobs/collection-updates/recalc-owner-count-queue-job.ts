@@ -3,6 +3,7 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 import { Collections } from "@/models/collections";
 import { acquireLock, getLockExpiration } from "@/common/redis";
 import { config } from "@/config/index";
+import { Tokens } from "@/models/tokens";
 
 export type RecalcOwnerCountQueueJobPayload =
   | {
@@ -39,7 +40,7 @@ export default class RecalcOwnerCountQueueJob extends AbstractRabbitMqJobHandler
     if (kind === "contactAndTokenId") {
       const { contract, tokenId } = data;
 
-      collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
+      collection = await Tokens.getCollection(contract, tokenId);
     } else {
       collection = await Collections.getById(data.collectionId);
     }

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { CollectionMetadata, TokenMetadata, TokenMetadataBySlugResult } from "../types";
+import { CollectionMetadata, TokenMetadata } from "../types";
 import { logger } from "@/common/logger";
 
 import _ from "lodash";
@@ -55,10 +55,6 @@ export class SoundxyzMetadataProvider extends AbstractBaseMetadataProvider {
     return data.filter(Boolean) as TokenMetadata[];
   }
 
-  async _getTokensMetadataBySlug(): Promise<TokenMetadataBySlugResult> {
-    throw new Error("Method not implemented.");
-  }
-
   async getCollectionId(contract: string, tokenId: string) {
     // If this is not a shared contract collection -> contract
     if (
@@ -77,7 +73,7 @@ export class SoundxyzMetadataProvider extends AbstractBaseMetadataProvider {
     return `${contract}:soundxyz-${nft.release.id}`;
   }
 
-  parseToken(
+  _parseToken(
     nft: SoundNftQuery["nft"],
     contract: string,
     tokenId: string,

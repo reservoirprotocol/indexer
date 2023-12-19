@@ -11,7 +11,7 @@ import {
   getCollectionMints,
   simulateAndUpsertCollectionMint,
 } from "@/orderbook/mints";
-import { getStatus, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
+import { getStatus, toSafeNumber, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
 
 const STANDARD = "createdotfun";
 
@@ -48,8 +48,6 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
 
     const configuration = await module.configuration(collection);
     const price = bn(configuration.price).add(protocolFee).toString();
-    const maxSupply = configuration.maxSupply.toString();
-    const maxPerWallet = configuration.maxPerWallet.toString();
 
     results.push({
       collection,
@@ -87,8 +85,8 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
       },
       currency: Sdk.Common.Addresses.Native[config.chainId],
       price,
-      maxMintsPerWallet: maxPerWallet === "0" ? undefined : maxPerWallet,
-      maxSupply: maxSupply === "0" ? undefined : maxSupply,
+      maxMintsPerWallet: toSafeNumber(configuration.maxPerWallet),
+      maxSupply: toSafeNumber(configuration.maxSupply),
       startTime: toSafeTimestamp(configuration.mintStart),
       endTime: toSafeTimestamp(configuration.mintEnd),
     });

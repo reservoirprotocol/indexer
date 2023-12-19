@@ -1,21 +1,19 @@
-import { StaticJsonRpcProvider } from "@ethersproject/providers";
+import { StaticJsonRpcProvider, WebSocketProvider } from "@ethersproject/providers";
 import Arweave from "arweave";
+import getUuidByString from "uuid-by-string";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-import getUuidByString from "uuid-by-string";
-import { WebSocketProvider } from "@ethersproject/providers";
 
 // Use a static provider to avoid redundant `eth_chainId` calls
 export const baseProvider = new StaticJsonRpcProvider(
   {
     url: config.baseNetworkHttpUrl,
-    headers:
-      config.chainId === 324
-        ? {}
-        : {
-            "x-session-hash": getUuidByString(`${config.baseNetworkHttpUrl}${config.chainId}`),
-          },
+    headers: [1, 324].includes(config.chainId)
+      ? {}
+      : {
+          "x-session-hash": getUuidByString(`${config.baseNetworkHttpUrl}${config.chainId}`),
+        },
   },
   config.chainId
 );
@@ -72,3 +70,5 @@ export const arweaveGateway = Arweave.init({
   port: 443,
   protocol: "https",
 });
+
+export const getGasFee = async () => baseProvider.getBlock("pending").then((b) => b.baseFeePerGas!);

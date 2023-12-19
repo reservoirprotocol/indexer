@@ -7,7 +7,7 @@ import Joi from "joi";
 import _ from "lodash";
 import * as Boom from "@hapi/boom";
 
-import { redb } from "@/common/db";
+import { edb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import {
   getJoiPriceObject,
@@ -35,6 +35,8 @@ import { CollectionSets } from "@/models/collection-sets";
 import { Collections } from "@/models/collections";
 import * as AsksIndex from "@/elasticsearch/indexes/asks";
 import { OrderComponents } from "@reservoir0x/sdk/dist/seaport-base/types";
+import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
+import { hasExtendCollectionHandler } from "@/metadata/extend";
 
 const version = "v6";
 
@@ -42,7 +44,7 @@ export const getTokensV6Options: RouteOptions = {
   description: "Tokens",
   notes:
     "Get a list of tokens with full metadata. This is useful for showing a single token page, or scenarios that require more metadata.",
-  tags: ["api", "Tokens"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 9,
@@ -728,6 +730,7 @@ export const getTokensV6Options: RouteOptions = {
           t.media,
           t.collection_id,
           t.image_version,
+          c.image_version AS collection_image_version,
           c.name AS collection_name,
           con.kind,
           con.symbol,
@@ -812,7 +815,12 @@ export const getTokensV6Options: RouteOptions = {
       // Filters
       const conditions: string[] = [];
       if (query.collection) {
-        conditions.push(`t.collection_id = $/collection/`);
+        (query as any).collectionContract = toBuffer(query.collection.split(":")[0]);
+        conditions.push(`t.contract = $/collectionContract/`);
+
+        if (query.collection.includes(":") || hasExtendCollectionHandler(query.collection)) {
+          conditions.push(`t.collection_id = $/collection/`);
+        }
       }
 
       if (_.indexOf([0, 1], query.flagStatus) !== -1) {
@@ -904,12 +912,16 @@ export const getTokensV6Options: RouteOptions = {
         (query as any).tokenNameAsId = query.tokenName;
         query.tokenName = `%${query.tokenName}%`;
 
-        conditions.push(`
-          CASE
-            WHEN t.name IS NULL THEN t.token_id::text = $/tokenNameAsId/
-            ELSE t.name ILIKE $/tokenName/
-          END
-        `);
+        if (isNaN(query.tokenName)) {
+          conditions.push(`t.name ILIKE $/tokenName/`);
+        } else {
+          conditions.push(`
+            CASE
+              WHEN t.name IS NULL THEN t.token_id::text = $/tokenNameAsId/
+              ELSE t.name ILIKE $/tokenName/
+            END
+          `);
+        }
       }
 
       if (query.tokenSetId) {
@@ -969,9 +981,16 @@ export const getTokensV6Options: RouteOptions = {
               }
               query.sortDirection = query.sortDirection || "asc"; // Default sorting for rarity is ASC
               const sign = query.sortDirection == "desc" ? "<" : ">";
-              conditions.push(
-                `(t.rarity_rank, t.contract, t.token_id) ${sign} ($/contRarity/, $/contContract/, $/contTokenId/)`
-              );
+              if (contArr[0] !== "null") {
+                conditions.push(
+                  `(t.rarity_rank, t.contract, t.token_id) ${sign} ($/contRarity/, $/contContract/, $/contTokenId/)
+                  OR t.rarity_rank IS null`
+                );
+              } else {
+                conditions.push(
+                  `(t.rarity_rank IS null AND (t.contract, t.token_id) ${sign} ($/contContract/, $/contTokenId/))`
+                );
+              }
               (query as any).contRarity = contArr[0];
               (query as any).contContract = toBuffer(contArr[1]);
               (query as any).contTokenId = contArr[2];
@@ -1065,6 +1084,10 @@ export const getTokensV6Options: RouteOptions = {
         conditions.push(`${sortColumn} is null`);
       }
 
+      if (query.sortBy === "floorAskPrice" && query.sortDirection === "desc") {
+        conditions.push(`t.floor_sell_value is not null`);
+      }
+
       if (conditions.length) {
         baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
       }
@@ -1072,25 +1095,22 @@ export const getTokensV6Options: RouteOptions = {
       // Sorting
 
       const getSort = function (sortBy: string, union: boolean) {
+        const sortDirection = query.sortDirection || "asc";
         switch (sortBy) {
           case "rarity": {
-            return ` ORDER BY ${union ? "" : "t."}rarity_rank ${
-              query.sortDirection || "ASC"
-            } NULLS LAST, t_contract ${query.sortDirection || "ASC"}, t_token_id ${
-              query.sortDirection || "ASC"
+            return ` ORDER BY ${union ? "" : "t."}rarity_rank ${sortDirection} NULLS ${
+              sortDirection === "asc" ? "FIRST" : "LAST"
+            }, t_contract ${sortDirection === "asc" ? "desc" : "asc"}, t_token_id ${
+              sortDirection === "asc" ? "desc" : "asc"
             }`;
           }
           case "tokenId": {
-            return ` ORDER BY t_contract ${query.sortDirection || "ASC"}, t_token_id ${
-              query.sortDirection || "ASC"
-            }`;
+            return ` ORDER BY t_contract ${sortDirection}, t_token_id ${sortDirection}`;
           }
           case "updatedAt": {
-            return ` ORDER BY ${union ? "t_" : "t."}updated_at ${
-              query.sortDirection || "ASC"
-            }, t_contract ${query.sortDirection || "ASC"}, t_token_id ${
-              query.sortDirection || "ASC"
-            }`;
+            return ` ORDER BY ${
+              union ? "t_" : "t."
+            }updated_at ${sortDirection}, t_contract ${sortDirection}, t_token_id ${sortDirection}`;
           }
           case "floorAskPrice":
           default: {
@@ -1098,12 +1118,12 @@ export const getTokensV6Options: RouteOptions = {
               query.nativeSource || query.excludeEOA
                 ? `${union ? "" : "s."}floor_sell_value`
                 : query.normalizeRoyalties
-                ? `${union ? "" : "t."}normalized_floor_sell_value`
+                ? `${union ? "floor_sell_value" : "t.normalized_floor_sell_value"}`
                 : `${union ? "" : "t."}floor_sell_value`;
 
-            return ` ORDER BY ${sortColumn} ${query.sortDirection || "ASC"} NULLS LAST, ${
-              contractSort ? `t_contract ${query.sortDirection || "ASC"}, ` : ""
-            }t_token_id ${query.sortDirection || "ASC"}`;
+            return ` ORDER BY ${sortColumn} ${sortDirection} NULLS ${
+              sortDirection === "asc" ? "LAST" : "FIRST"
+            }, ${contractSort ? `t_contract ${sortDirection}, ` : ""}t_token_id ${sortDirection}`;
           }
         }
       };
@@ -1114,7 +1134,7 @@ export const getTokensV6Options: RouteOptions = {
         query.attributes ||
         query.tokenSetId ||
         query.rarity ||
-        query.tokens ||
+        (query.tokens && query.tokens.length > 1) ||
         (query.sortBy === "updatedAt" &&
           !(query.collectionsSetId || query.community || query.contract))
       ) {
@@ -1127,13 +1147,22 @@ export const getTokensV6Options: RouteOptions = {
         const unionValues = query.contract ? query.contract : collections;
 
         for (const i in unionValues) {
-          const unionType = query.contract ? "contract" : "collection_id";
+          const sharedContract = !query.contract && unionValues[i].includes(":");
+          const unionType = query.contract || !sharedContract ? "contract" : "collection_id";
           const unionFilter = `${unionType}${i}`;
-          (query as any)[unionFilter] = unionValues[i];
+          (query as any)[unionFilter] =
+            !query.contract && !sharedContract ? toBuffer(unionValues[i]) : unionValues[i];
+
+          // For shared contracts, filter by both contract and collection
+          if (sharedContract) {
+            (query as any)[`collectionContract${i}`] = toBuffer(unionValues[i].split(":")[0]);
+          }
+
           unionQueries.push(
             `(
               ${baseQuery}
               ${conditions.length ? `AND ` : `WHERE `} t.${unionType} = $/${unionFilter}/
+              ${sharedContract ? `AND t.contract = $/collectionContract${i}/` : ""}
               ${unionValues.length > 1 ? `${getSort(query.sortBy, false)} LIMIT $/limit/` : ""}
             )`
           );
@@ -1204,7 +1233,10 @@ export const getTokensV6Options: RouteOptions = {
         `;
       }
 
-      const rawResult = await redb.manyOrNone(baseQuery, query);
+      const rawResult =
+        config.chainId === 137
+          ? await edb.manyOrNone(baseQuery, query)
+          : await redb.manyOrNone(baseQuery, query);
 
       /** Depending on how we sorted, we use that sorting key to determine the next page of results
           Possible formats:
@@ -1350,14 +1382,7 @@ export const getTokensV6Options: RouteOptions = {
                 },
               };
             } else if (
-              [
-                "sudoswap",
-                "sudoswap-v2",
-                "nftx",
-                "collectionxyz",
-                "caviar-v1",
-                "midaswap",
-              ].includes(r.floor_sell_order_kind)
+              ["sudoswap", "sudoswap-v2", "nftx", "caviar-v1"].includes(r.floor_sell_order_kind)
             ) {
               // Pool orders
               dynamicPricing = {
@@ -1400,6 +1425,14 @@ export const getTokensV6Options: RouteOptions = {
           metadata.mediaOriginal = r.metadata.animation_original_url;
         }
 
+        if (!r.image && r.metadata?.image_original_url) {
+          r.image = onchainMetadataProvider.parseIPFSURI(r.metadata.image_original_url);
+        }
+
+        if (!r.media && r.metadata?.animation_original_url) {
+          r.media = onchainMetadataProvider.parseIPFSURI(r.metadata.animation_original_url);
+        }
+
         return {
           token: getJoiTokenObject(
             {
@@ -1408,7 +1441,7 @@ export const getTokensV6Options: RouteOptions = {
               tokenId,
               name: r.name,
               description: r.description,
-              image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
+              image: Assets.getResizedImageUrl(r.image, ImageSize.medium, r.image_version),
               imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small, r.image_version),
               imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large, r.image_version),
               metadata: Object.values(metadata).every((el) => el === undefined)
@@ -1433,7 +1466,11 @@ export const getTokensV6Options: RouteOptions = {
               collection: {
                 id: r.collection_id,
                 name: r.collection_name,
-                image: Assets.getLocalAssetsLink(r.collection_image),
+                image: Assets.getResizedImageUrl(
+                  r.collection_image,
+                  ImageSize.small,
+                  r.collection_image_version
+                ),
                 slug: r.slug,
                 symbol: r.symbol,
                 creator: r.creator ? fromBuffer(r.creator) : null,
@@ -1618,6 +1655,10 @@ export const getListedTokensFromES = async (query: any) => {
   let tokens: { contract: string; tokenId: string }[] = [];
 
   if (query.tokens) {
+    if (!_.isArray(query.tokens)) {
+      query.tokens = [query.tokens];
+    }
+
     for (const token of query.tokens) {
       const [contract, tokenId] = token.split(":");
 
@@ -2045,11 +2086,7 @@ export const getListedTokensFromES = async (query: any) => {
               },
             },
           };
-        } else if (
-          ["sudoswap", "sudoswap-v2", "nftx", "collectionxyz", "caviar-v1", "midaswap"].includes(
-            ask.order.kind
-          )
-        ) {
+        } else if (["sudoswap", "sudoswap-v2", "nftx", "caviar-v1"].includes(ask.order.kind)) {
           // Pool orders
           dynamicPricing = {
             kind: "pool",
@@ -2099,7 +2136,7 @@ export const getListedTokensFromES = async (query: any) => {
           tokenId,
           name: r.name,
           description: r.description,
-          image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
+          image: Assets.getResizedImageUrl(r.image, ImageSize.medium, r.image_version),
           imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small, r.image_version),
           imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large, r.image_version),
           metadata: Object.values(metadata).every((el) => el === undefined) ? undefined : metadata,
@@ -2118,7 +2155,7 @@ export const getListedTokensFromES = async (query: any) => {
           collection: {
             id: r.collection_id,
             name: r.collection_name,
-            image: Assets.getLocalAssetsLink(r.collection_image),
+            image: Assets.getResizedImageUrl(r.collection_image, ImageSize.small),
             slug: r.slug,
             symbol: r.symbol,
             creator: r.creator ? fromBuffer(r.creator) : null,

@@ -5,6 +5,12 @@ export const CONFIG_DEFAULT = {
   mappings: {
     dynamic: "false",
     properties: {
+      chain: {
+        properties: {
+          id: { type: "long" },
+          name: { type: "keyword" },
+        },
+      },
       id: { type: "keyword" },
       createdAt: { type: "date" },
       indexedAt: { type: "date" },
@@ -27,6 +33,7 @@ export const CONFIG_DEFAULT = {
           name: { type: "keyword" },
           image: { type: "keyword" },
           isSpam: { type: "boolean" },
+          imageVersion: { type: "date", format: "epoch_second" },
         },
       },
       order: {

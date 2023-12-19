@@ -20,8 +20,9 @@ export const config = {
 
   // When running in liquidity-only mode, all metadata processes are disabled
   liquidityOnly: Boolean(Number(process.env.LIQUIDITY_ONLY)),
-  metadataIndexingMethod: String(process.env.METADATA_INDEXING_METHOD || "opensea"),
-  fallbackMetadataIndexingMethod: String(process.env.FALLBACK_METADATA_INDEXING_METHOD),
+  metadataIndexingMethod: String(process.env.METADATA_INDEXING_METHOD || "onchain"),
+  metadataMaxFieldSizeMB: Number(process.env.METADATA_MAX_FIELD_SIZE_MB || 1),
+  fallbackMetadataIndexingMethod: process.env.FALLBACK_METADATA_INDEXING_METHOD || undefined,
   metadataIndexingMethodCollection: String(
     process.env.METADATA_INDEXING_METHOD_COLLECTION ||
       process.env.METADATA_INDEXING_METHOD ||
@@ -130,6 +131,7 @@ export const config = {
   privateImageResizingSigningKey: String(process.env.PRIVATE_IMAGE_RESIZING_SIGNING_KEY),
   imageResizingBaseUrl: String(process.env.IMAGE_RESIZING_BASE_URL),
 
+  zeroExApiKey: process.env.ZEROEX_API_KEY,
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
   cbApiKey: String(process.env.CB_API_KEY),
   orderFetcherApiKey: String(process.env.ORDER_FETCHER_API_KEY),
@@ -167,4 +169,8 @@ export const config = {
   assertRabbitVhost: Boolean(Number(process.env.ASSERT_RABBIT_VHOST)),
   rabbitDisableQueuesConsuming: Boolean(Number(process.env.RABBIT_DISABLE_QUEUES_CONSUMING)),
   forceEnableRabbitJobsConsumer: Boolean(Number(process.env.FORCE_ENABLE_RABBIT_JOBS_CONSUMER)),
+
+  debugApiKeys: process.env.DEBUG_API_KEYS ? String(process.env.DEBUG_API_KEYS).split(",") : [],
+
+  coinGeckoWsApiKey: process.env.COINGECKO_API_KEY,
 };

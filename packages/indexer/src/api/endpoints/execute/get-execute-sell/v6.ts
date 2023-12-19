@@ -389,9 +389,7 @@ export const getExecuteSellV6Options: RouteOptions = {
           amount: payload.quantity,
           owner,
         },
-        {
-          taker: payload.taker,
-        }
+        payload.taker
       );
 
       if (
@@ -588,6 +586,7 @@ export const getExecuteSellV6Options: RouteOptions = {
       const router = new Sdk.RouterV6.Router(config.chainId, baseProvider, {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         cbApiKey: config.cbApiKey,
+        zeroExApiKey: config.zeroExApiKey,
         orderFetcherBaseUrl: config.orderFetcherBaseUrl,
         orderFetcherMetadata: {
           apiKey: await ApiKeyManager.getApiKey(request.headers["x-api-key"]),

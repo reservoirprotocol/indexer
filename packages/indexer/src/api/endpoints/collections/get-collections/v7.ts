@@ -21,7 +21,9 @@ import {
 import { config } from "@/config/index";
 import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
+import * as erc721c from "@/utils/erc721c";
+import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
 
 const version = "v7";
 
@@ -43,10 +45,10 @@ export const getCollectionsV7Options: RouteOptions = {
       id: Joi.string()
         .lowercase()
         .description(
-          "Filter to a particular collection with collection id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Filter to a particular collection with collection id. The id is immutable.\n For single contract collections, the id is the contract address e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`\n Artblocks will follow this format with a token range: `{artblocksContractAddress}:{startTokenId}:{endTokenId}`\n Shared contracts will generally follow the format `{contract}:{namespace}-{id}`; The following shared contracts will follow this format:\n OpenSea, Sound, SuperRare, Foundation, Ordinals, & Courtyard"
         ),
       slug: Joi.string().description(
-        "Filter to a particular collection slug. Example: `boredapeyachtclub`"
+        "Filter to a particular collection slug. We recommend to rely on collection id; slugs are dynamic and can change without warning. Example: `boredapeyachtclub`"
       ),
       collectionsSetId: Joi.string()
         .lowercase()
@@ -102,7 +104,7 @@ export const getCollectionsV7Options: RouteOptions = {
       includeSecurityConfigs: Joi.boolean()
         .default(false)
         .description(
-          "If true, security configuration data (e.g. ERC721C configuration) will be included in the response."
+          "If true, security configuration data (e.g. ERC721C or Operator Filter Registry configuration) will be included in the response."
         ),
       normalizeRoyalties: Joi.boolean()
         .default(false)
@@ -307,13 +309,25 @@ export const getCollectionsV7Options: RouteOptions = {
               tokenId: Joi.string().pattern(regex.number).allow(null),
               kind: Joi.string().required(),
               price: JoiPrice.allow(null),
+              pricePerQuantity: Joi.array()
+                .items(
+                  Joi.object({
+                    price: JoiPrice.required(),
+                    quantity: Joi.number(),
+                  })
+                )
+                .allow(null),
               startTime: Joi.number().allow(null),
               endTime: Joi.number().allow(null),
+              maxMints: Joi.number().unsafe().allow(null),
               maxMintsPerWallet: Joi.number().unsafe().allow(null),
             })
           ),
           securityConfig: Joi.object({
             operatorWhitelist: Joi.array()
+              .items(Joi.string().lowercase().pattern(regex.address))
+              .allow(null),
+            operatorBlacklist: Joi.array()
               .items(Joi.string().lowercase().pattern(regex.address))
               .allow(null),
             receiverAllowList: Joi.array()
@@ -372,8 +386,10 @@ export const getCollectionsV7Options: RouteOptions = {
                   'kind', collection_mints.kind,
                   'currency', concat('0x', encode(collection_mints.currency, 'hex')),
                   'price', collection_mints.price::TEXT,
+                  'pricePerQuantity', collection_mints.price_per_quantity,
                   'startTime', floor(extract(epoch from collection_mints.start_time)),
                   'endTime', floor(extract(epoch from collection_mints.end_time)),
+                  'maxMints', collection_mints.max_supply,
                   'maxMintsPerWallet', collection_mints.max_mints_per_wallet
                 )
               ) AS mint_stages
@@ -406,30 +422,6 @@ export const getCollectionsV7Options: RouteOptions = {
             FROM daily_volumes dv
             WHERE dv.collection_id = x.id
           ) s ON TRUE
-        `;
-      }
-
-      // Include security configurations
-      let securityConfigSelectQuery = "";
-      let securityConfigJoinQuery = "";
-      if (query.includeSecurityConfigs) {
-        securityConfigSelectQuery = ", t.*";
-        securityConfigJoinQuery = `
-          LEFT JOIN LATERAL (
-            SELECT
-              erc721c_configs.transfer_security_level,
-              erc721c_configs.transfer_validator,
-              erc721c_operator_whitelists.whitelist as operator_whitelist,
-              erc721c_permitted_contract_receiver_allowlists.allowlist as receiver_allowlist
-            FROM erc721c_configs
-            LEFT JOIN erc721c_operator_whitelists
-              ON erc721c_configs.transfer_validator = erc721c_operator_whitelists.transfer_validator
-              AND erc721c_configs.operator_whitelist_id = erc721c_operator_whitelists.id
-            LEFT JOIN erc721c_permitted_contract_receiver_allowlists
-              ON erc721c_configs.transfer_validator = erc721c_permitted_contract_receiver_allowlists.transfer_validator
-              AND erc721c_configs.permitted_contract_receiver_allowlist_id = erc721c_permitted_contract_receiver_allowlists.id
-            WHERE erc721c_configs.contract = x.contract
-          ) t ON TRUE
         `;
       }
 
@@ -469,6 +461,7 @@ export const getCollectionsV7Options: RouteOptions = {
           collections.slug,
           collections.name,
           (collections.metadata ->> 'imageUrl')::TEXT AS "image",
+          collections.image_version AS "image_version",
           (collections.metadata ->> 'bannerImageUrl')::TEXT AS "banner",
           (collections.metadata ->> 'discordUrl')::TEXT AS "discord_url",
           (collections.metadata ->> 'description')::TEXT AS "description",
@@ -706,7 +699,6 @@ export const getCollectionsV7Options: RouteOptions = {
           ${attributesSelectQuery}
           ${saleCountSelectQuery}
           ${mintStagesSelectQuery}
-          ${securityConfigSelectQuery}
         FROM x
         LEFT JOIN LATERAL (
            SELECT
@@ -714,6 +706,7 @@ export const getCollectionsV7Options: RouteOptions = {
              tokens.token_id AS floor_sell_token_id,
              tokens.name AS floor_sell_token_name,
              tokens.image AS floor_sell_token_image,
+             tokens.image_version AS floor_sell_token_image_version,
              orders.currency AS floor_sell_currency,
              ${
                query.normalizeRoyalties
@@ -754,7 +747,6 @@ export const getCollectionsV7Options: RouteOptions = {
         ${attributesJoinQuery}
         ${saleCountJoinQuery}
         ${mintStagesJoinQuery}
-        ${securityConfigJoinQuery}
       `;
 
       // Any further joins might not preserve sorting
@@ -780,6 +772,44 @@ export const getCollectionsV7Options: RouteOptions = {
             (image) => !_.isNull(image) && _.startsWith(image, "http")
           );
 
+          let imageUrl = r.image;
+          if (imageUrl) {
+            imageUrl = Assets.getResizedImageUrl(imageUrl, ImageSize.small, r.image_version);
+          } else if (sampleImages.length) {
+            imageUrl = Assets.getResizedImageUrl(sampleImages[0], ImageSize.small, r.image_version);
+          }
+
+          let securityConfig = undefined;
+          if (query.includeSecurityConfigs) {
+            const contract = fromBuffer(r.contract);
+
+            const [v1, v2, ofr] = await Promise.all([
+              erc721c.v1.getConfigFromDb(contract),
+              erc721c.v2.getConfigFromDb(contract),
+              marketplaceBlacklist.getMarketplaceBlacklistFromDb(contract),
+            ]);
+
+            if (v1) {
+              securityConfig = {
+                operatorWhitelist: v1.operatorWhitelist,
+                receiverAllowList: v1.permittedContractReceiverAllowlist,
+                transferSecurityLevel: v1.transferSecurityLevel,
+                transferValidator: r.transferValidator,
+              };
+            } else if (v2) {
+              securityConfig = {
+                operatorWhitelist: v2.whitelist.accounts,
+                operatorBlacklist: v2.blacklist.accounts,
+                transferSecurityLevel: v2.transferSecurityLevel,
+                transferValidator: v2.transferValidator,
+              };
+            } else {
+              securityConfig = {
+                operatorBlacklist: ofr.blacklist,
+              };
+            }
+          }
+
           return getJoiCollectionObject(
             {
               chainId: config.chainId,
@@ -792,10 +822,8 @@ export const getCollectionsV7Options: RouteOptions = {
               contractDeployedAt: r.contract_deployed_at
                 ? new Date(r.contract_deployed_at * 1000).toISOString()
                 : null,
-              image:
-                r.image ??
-                (sampleImages.length ? Assets.getLocalAssetsLink(sampleImages[0]) : null),
-              banner: r.banner,
+              image: imageUrl ?? null,
+              banner: Assets.getResizedImageUrl(r.banner),
               twitterUrl: r.twitter_url,
               discordUrl: r.discord_url,
               externalUrl: r.external_url,
@@ -804,7 +832,7 @@ export const getCollectionsV7Options: RouteOptions = {
               description: r.description,
               metadataDisabled: Boolean(Number(r.metadata_disabled)),
               isSpam: Number(r.is_spam) > 0,
-              sampleImages: Assets.getLocalAssetsLink(sampleImages) ?? [],
+              sampleImages: Assets.getResizedImageURLs(sampleImages) ?? [],
               tokenCount: String(r.token_count),
               onSaleCount: String(r.on_sale_count),
               primaryContract: fromBuffer(r.contract),
@@ -814,7 +842,9 @@ export const getCollectionsV7Options: RouteOptions = {
                 ? {
                     // Main recipient, kept for backwards-compatibility only
                     recipient: r.royalties.length ? r.royalties[0].recipient : null,
-                    breakdown: r.royalties.filter((r: any) => r.bps && r.recipient),
+                    breakdown: r.royalties
+                      .filter((r: any) => r.bps && r.recipient)
+                      .map((r: any) => ({ bps: r.bps, recipient: r.recipient })),
                     bps: r.royalties
                       .map((r: any) => r.bps)
                       .reduce((a: number, b: number) => a + b, 0),
@@ -845,7 +875,11 @@ export const getCollectionsV7Options: RouteOptions = {
                     : null,
                   tokenId: r.floor_sell_token_id,
                   name: r.floor_sell_token_name,
-                  image: Assets.getLocalAssetsLink(r.floor_sell_token_image),
+                  image: Assets.getResizedImageUrl(
+                    r.floor_sell_token_image,
+                    ImageSize.medium,
+                    r.floor_sell_token_image_version
+                  ),
                 },
               },
               topBid: {
@@ -937,24 +971,27 @@ export const getCollectionsV7Options: RouteOptions = {
                       price: m.price
                         ? await getJoiPriceObject({ gross: { amount: m.price } }, m.currency)
                         : m.price,
+                      pricePerQuantity: m.pricePerQuantity
+                        ? await Promise.all(
+                            m.price_per_quantity.map(
+                              async ({ price, quantity }: { price: string; quantity: number }) => ({
+                                price: await getJoiPriceObject(
+                                  { gross: { amount: price } },
+                                  m.currency
+                                ),
+                                quantity,
+                              })
+                            )
+                          )
+                        : m.pricePerQuantity,
                       startTime: m.startTime,
                       endTime: m.endTime,
+                      maxMints: m.maxMints,
                       maxMintsPerWallet: m.maxMintsPerWallet,
                     }))
                   )
                 : [],
-              securityConfig: query.includeSecurityConfigs
-                ? {
-                    operatorWhitelist: r.operator_whitelist ? r.operator_whitelist : null,
-                    receiverAllowList: r.receiver_allowlist ? r.receiver_allowlist : null,
-                    transferSecurityLevel: r.transfer_security_level
-                      ? r.transfer_security_level
-                      : null,
-                    transferValidator: r.transfer_validator
-                      ? fromBuffer(r.transfer_validator)
-                      : null,
-                  }
-                : undefined,
+              securityConfig,
             },
             r.metadata_disabled
           );

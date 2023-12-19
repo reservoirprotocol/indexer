@@ -5,7 +5,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 import _ from "lodash";
 
-import { redb } from "@/common/db";
+import { edb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { JoiOrder, getJoiOrderObject } from "@/common/joi";
 import {
@@ -20,6 +20,7 @@ import { ContractSets } from "@/models/contract-sets";
 import { Sources } from "@/models/sources";
 import { TokenSets } from "@/models/token-sets";
 import { Orders } from "@/utils/orders";
+import { config } from "@/config/index";
 
 const version = "v5";
 
@@ -59,7 +60,7 @@ export const getOrdersAsksV5Options: RouteOptions = {
       collectionsSetId: Joi.string()
         .lowercase()
         .description(
-          "Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
+          "Filter to a particular collection set. Requires `maker` to be passed. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
         ),
       contractsSetId: Joi.string().lowercase().description("Filter to a particular contracts set."),
       contracts: Joi.alternatives()
@@ -544,7 +545,10 @@ export const getOrdersAsksV5Options: RouteOptions = {
       // Pagination
       baseQuery += ` LIMIT $/limit/`;
 
-      const rawResult = await redb.manyOrNone(baseQuery, query);
+      const rawResult =
+        config.chainId === 137
+          ? await edb.manyOrNone(baseQuery, query)
+          : await redb.manyOrNone(baseQuery, query);
 
       let continuation = null;
       if (rawResult.length === query.limit) {

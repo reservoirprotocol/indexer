@@ -1,11 +1,11 @@
 import { logger } from "@/common/logger";
+import { config } from "@/config/index";
+
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
 import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
 import { RequestWasThrottledError } from "@/metadata/providers/utils";
-import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
-import { metadataIndexProcessJob } from "@/jobs/metadata-index/metadata-process-job";
-import { config } from "@/config/index";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 
 export type OnchainMetadataProcessTokenUriJobPayload = {
   contract: string;
@@ -31,9 +31,36 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
         { contract, tokenId, uri },
       ]);
 
-      if (metadata) {
+      if (metadata.length) {
+        if (metadata[0].imageUrl?.startsWith("data:")) {
+          if (config.fallbackMetadataIndexingMethod) {
+            logger.info(
+              this.queueName,
+              `Fallback1. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`
+            );
+
+            await metadataIndexFetchJob.addToQueue(
+              [
+                {
+                  kind: "single-token",
+                  data: {
+                    method: config.fallbackMetadataIndexingMethod,
+                    contract,
+                    tokenId,
+                    collection: contract,
+                  },
+                },
+              ],
+              true,
+              5
+            );
+            return;
+          } else {
+            metadata[0].imageUrl = null;
+          }
+        }
+
         await metadataIndexWriteJob.addToQueue(metadata);
-        return;
       } else {
         logger.warn(
           this.queueName,
@@ -47,34 +74,48 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           `Request was throttled. contract=${contract}, tokenId=${tokenId}, uri=${uri}`
         );
 
-        // Add to queue again with a delay from the error if its a rate limit
-        await this.addToQueue(payload, e.delay);
-        return;
+        // if this is the last retry, we don't throw to retry, and instead we fall back to simplehash
+        if (Number(this.rabbitMqMessage?.retryCount) < this.maxRetries) {
+          throw e; // throw to retry
+        }
       }
-      logger.error(
+
+      logger.warn(
         this.queueName,
-        `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, error=${e}, falling back to=${config.fallbackMetadataIndexingMethod}`
+        JSON.stringify({
+          message: `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, error=${e}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+          contract,
+          tokenId,
+          error: `${e}`,
+        })
       );
     }
 
     if (!config.fallbackMetadataIndexingMethod) {
-      logger.error(
-        this.queueName,
-        `No fallbackMetadataIndexingMethod set. contract=${contract}, tokenId=${tokenId}, uri=${uri}`
-      );
       return;
     }
-    // for whatever reason, we didn't find the metadata, we fallback to simplehash
-    const pendingRefreshTokens = new PendingRefreshTokens(config.fallbackMetadataIndexingMethod);
-    await pendingRefreshTokens.add([
-      {
-        collection: contract,
-        contract,
-        tokenId,
-      },
-    ]);
 
-    await metadataIndexProcessJob.addToQueue({ method: config.fallbackMetadataIndexingMethod });
+    logger.info(
+      this.queueName,
+      `Fallback2. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`
+    );
+
+    // for whatever reason, we didn't find the metadata, we fall back to simplehash
+    await metadataIndexFetchJob.addToQueue(
+      [
+        {
+          kind: "single-token",
+          data: {
+            method: config.fallbackMetadataIndexingMethod,
+            contract,
+            tokenId,
+            collection: contract,
+          },
+        },
+      ],
+      true,
+      5
+    );
   }
 
   public async addToQueue(params: OnchainMetadataProcessTokenUriJobPayload, delay = 0) {

@@ -6,12 +6,13 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { redb } from "@/common/db";
-import { formatEth, fromBuffer, now, regex } from "@/common/utils";
+import { formatEth, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 import { getUSDAndCurrencyPrices } from "@/utils/prices";
 import { AddressZero } from "@ethersproject/constants";
 import { getJoiCollectionObject, getJoiPriceObject, JoiPrice } from "@/common/joi";
+import { isAddress } from "@ethersproject/address";
 
 const version = "v2";
 
@@ -20,7 +21,7 @@ export const getSearchCollectionsV2Options: RouteOptions = {
     privacy: "public",
     expiresIn: 10000,
   },
-  description: "Search collections",
+  description: "Search Collections",
   tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
@@ -31,7 +32,9 @@ export const getSearchCollectionsV2Options: RouteOptions = {
     query: Joi.object({
       name: Joi.string()
         .lowercase()
-        .description("Lightweight search for collections that match a string. Example: `bored`"),
+        .description(
+          "Lightweight search for collections that match a string. Can also search using contract address. Example: `bored` or `0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d`"
+        ),
       community: Joi.string()
         .lowercase()
         .description("Filter to a particular community. Example: `artblocks`"),
@@ -86,8 +89,13 @@ export const getSearchCollectionsV2Options: RouteOptions = {
     const conditions: string[] = [`token_count > 0`];
 
     if (query.name) {
-      query.name = `%${query.name}%`;
-      conditions.push(`name ILIKE $/name/`);
+      if (isAddress(query.name)) {
+        query.name = toBuffer(query.name);
+        conditions.push(`c.contract = $/name/`);
+      } else {
+        query.name = `%${query.name}%`;
+        conditions.push(`name ILIKE $/name/`);
+      }
     }
 
     if (query.community) {
@@ -115,7 +123,8 @@ export const getSearchCollectionsV2Options: RouteOptions = {
             SELECT c.id, c.name, c.contract, (c.metadata ->> 'imageUrl')::TEXT AS image, c.all_time_volume, c.floor_sell_value,
                    c.slug, (c.metadata ->> 'safelistRequestStatus')::TEXT AS opensea_verification_status,
                    o.currency AS floor_sell_currency, c.is_spam, c.metadata_disabled,
-                   o.currency_price AS floor_sell_currency_price
+                   o.currency_price AS floor_sell_currency_price,
+                   c.image_version
             FROM collections c
             LEFT JOIN orders o ON o.id = c.floor_sell_id
             ${whereClause}
@@ -150,7 +159,11 @@ export const getSearchCollectionsV2Options: RouteOptions = {
               name: collection.name,
               slug: collection.slug,
               contract: fromBuffer(collection.contract),
-              image: Assets.getLocalAssetsLink(collection.image),
+              image: Assets.getResizedImageUrl(
+                collection.image,
+                ImageSize.small,
+                collection.image_version
+              ),
               isSpam: Number(collection.is_spam) > 0,
               metadataDisabled: Boolean(Number(collection.metadata_disabled)),
               allTimeVolume: allTimeVolume ? formatEth(allTimeVolume) : null,

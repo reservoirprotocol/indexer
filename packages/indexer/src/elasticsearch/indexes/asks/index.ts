@@ -3,7 +3,7 @@
 import { elasticsearch } from "@/common/elasticsearch";
 import { logger } from "@/common/logger";
 
-import { getNetworkName, getNetworkSettings } from "@/config/network";
+import { getNetworkSettings } from "@/config/network";
 
 import * as CONFIG from "@/elasticsearch/indexes/asks/config";
 import { AskDocument } from "@/elasticsearch/indexes/asks/base";
@@ -16,9 +16,10 @@ import {
   Sort,
   SortResults,
 } from "@elastic/elasticsearch/lib/api/types";
-import { acquireLock } from "@/common/redis";
+import { acquireLockCrossChain } from "@/common/redis";
+import { config } from "@/config/index";
 
-const INDEX_NAME = `${getNetworkName()}.asks`;
+const INDEX_NAME = `asks`;
 
 export const save = async (asks: AskDocument[], upsert = true): Promise<void> => {
   try {
@@ -78,7 +79,7 @@ export const getIndexName = (): string => {
 };
 
 export const initIndex = async (): Promise<void> => {
-  const acquiredLock = await acquireLock("elasticsearch-asks-init-index", 60);
+  const acquiredLock = await acquireLockCrossChain("elasticsearch-asks-init-index", 60);
 
   if (!acquiredLock) {
     logger.info(
@@ -210,7 +211,16 @@ export const searchTokenAsks = async (params: {
 }): Promise<{ asks: AskDocument[]; continuation: string | null }> => {
   const esQuery = {};
 
-  (esQuery as any).bool = { filter: [], must_not: [] };
+  (esQuery as any).bool = {
+    filter: [
+      {
+        term: {
+          "chain.id": config.chainId,
+        },
+      },
+    ],
+    must_not: [],
+  };
 
   if (params.collections?.length) {
     const collections = params.collections.map((collection) => collection.toLowerCase());
@@ -381,18 +391,17 @@ export const searchTokenAsks = async (params: {
 
     const esResult = await elasticsearch.search<AskDocument>(esSearchParams);
 
+    const asks: AskDocument[] = esResult.hits.hits.map((hit) => hit._source!);
+
     logger.info(
       "elasticsearch-asks",
       JSON.stringify({
         topic: "searchTokenAsks",
         message: "Debug result",
-        data: {
-          esSearchParamsJSON: JSON.stringify(esSearchParams),
-        },
+        esSearchParamsJSON: JSON.stringify(esSearchParams),
+        asks,
       })
     );
-
-    const asks: AskDocument[] = esResult.hits.hits.map((hit) => hit._source!);
 
     let continuation = null;
 
@@ -571,6 +580,11 @@ export const updateAsksTokenData = async (
       must: [
         {
           term: {
+            "chain.id": config.chainId,
+          },
+        },
+        {
+          term: {
             contractAndTokenId: `${contract}:${tokenId}`,
           },
         },
@@ -597,7 +611,7 @@ export const updateAsksTokenData = async (
     );
 
     const pendingUpdateDocuments: { id: string; index: string }[] = esResult.hits.hits.map(
-      (hit) => ({ id: hit._source!.id, index: hit._index })
+      (hit) => ({ id: hit._id, index: hit._index })
     );
 
     if (pendingUpdateDocuments.length) {
@@ -730,6 +744,11 @@ export const updateAsksCollectionData = async (
       must: [
         {
           term: {
+            "chain.id": config.chainId,
+          },
+        },
+        {
+          term: {
             "collection.id": collectionId,
           },
         },
@@ -756,7 +775,7 @@ export const updateAsksCollectionData = async (
     );
 
     const pendingUpdateDocuments: { id: string; index: string }[] = esResult.hits.hits.map(
-      (hit) => ({ id: hit._source!.id, index: hit._index })
+      (hit) => ({ id: hit._id, index: hit._index })
     );
 
     if (pendingUpdateDocuments.length) {

@@ -12,7 +12,7 @@ CREATE TABLE "user_collections" (
 
 ALTER TABLE "user_collections"
   ADD CONSTRAINT "user_collections_pk"
-  PRIMARY KEY ("owner", "collection_id");
+  PRIMARY KEY ("collection_id", "owner");
 
 CREATE INDEX "user_collections_owner_collection_id_index"
   ON "user_collections" ("owner", "collection_id")

@@ -19,6 +19,7 @@ export type OrderRevalidationsJobPayload =
   | {
       by: "operator";
       data: {
+        origin: string;
         contract: string;
         blacklistedOperators?: string[];
         whitelistedOperators?: string[];
@@ -144,17 +145,7 @@ export default class OrderRevalidationsJob extends AbstractRabbitMqJobHandler {
               }
             );
 
-            logger.info(
-              this.queueName,
-              `Results: ${JSON.stringify({
-                contract,
-                results,
-                data,
-                blacklistedOperators,
-                whitelistedOperators,
-                createdAtContinutation,
-              })}`
-            );
+            logger.info(this.queueName, JSON.stringify({ results, data }));
 
             // Recheck the orders
             await orderUpdatesByIdJob.addToQueue(

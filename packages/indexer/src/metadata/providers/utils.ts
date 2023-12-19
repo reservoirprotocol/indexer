@@ -1,4 +1,6 @@
+import { logger } from "@/common/logger";
 import { Collection, MapEntry, Metadata } from "../types";
+import { config } from "@/config/index";
 
 export const normalizeLink = (link: string) => {
   if (link && link.startsWith("ipfs://")) {
@@ -180,5 +182,55 @@ export class CollectionNotFoundError extends Error {
     super(message);
 
     Object.setPrototypeOf(this, CollectionNotFoundError.prototype);
+  }
+}
+
+export function limitFieldSize(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  value: any,
+  key: string,
+  contract: string,
+  tokenId: string,
+  method: string
+) {
+  try {
+    let size = 0;
+    if (typeof value === "string") {
+      size = new TextEncoder().encode(value).length;
+    } else {
+      size = new TextEncoder().encode(JSON.stringify(value)).length;
+    }
+
+    if (size > 0.001 * 1024 * 1024) {
+      logger.info(
+        "limitFieldSize-2",
+        JSON.stringify({
+          size: new TextEncoder().encode(value).length,
+          key: key,
+          contract: contract,
+          tokenId: tokenId,
+          method: method,
+          value: value,
+        })
+      );
+    }
+
+    if (size > config.metadataMaxFieldSizeMB * 1024 * 1024) {
+      logger.info(
+        "limitFieldSize",
+        JSON.stringify({
+          size: new TextEncoder().encode(value).length,
+          key: key,
+          contract: contract,
+          tokenId: tokenId,
+          method: method,
+          value: value,
+        })
+      );
+    }
+    return size > config.metadataMaxFieldSizeMB * 1024 * 1024 ? null : value;
+  } catch (error) {
+    logger.error("limitFieldSize", `Error: ${error}`);
+    return value;
   }
 }

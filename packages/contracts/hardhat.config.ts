@@ -29,7 +29,7 @@ const getNetworkConfig = (chainId?: number) => {
         url = "https://optimism.llamarpc.com";
         break;
       case 56:
-        url = "https://bsc.meowrpc.com";
+        url = "https://bsc.drpc.org";
         break;
       case 137:
         url = "https://polygon.llamarpc.com";
@@ -55,11 +55,11 @@ const getNetworkConfig = (chainId?: number) => {
       case 59144:
         url = "https://rpc.linea.build";
         break;
-      case 7777777:
-        url = "https://rpc.zora.co";
-        break;
       case 534352:
         url = "https://rpc.ankr.com/scroll";
+        break;
+      case 7777777:
+        url = "https://rpc.zora.co";
         break;
       // Testnets
       case 5:
@@ -88,9 +88,6 @@ const getNetworkConfig = (chainId?: number) => {
         break;
       case 2863311531:
         url = "https://rpc-testnet.ancient8.gg/";
-        break;
-      case 13472:
-        url = "https://rpc.testnet.immutable.com/";
         break;
       default:
         throw new Error("Unsupported chain id");
@@ -161,8 +158,8 @@ const config: HardhatUserConfig = {
     arbitrumNova: getNetworkConfig(42170),
     avalanche: getNetworkConfig(43114),
     linea: getNetworkConfig(59144),
-    zora: getNetworkConfig(7777777),
     scroll: getNetworkConfig(534352),
+    zora: getNetworkConfig(7777777),
     // Testnets
     goerli: getNetworkConfig(5),
     zoraTestnet: getNetworkConfig(999),
@@ -173,11 +170,109 @@ const config: HardhatUserConfig = {
     scrollAlpha: getNetworkConfig(534353),
     sepolia: getNetworkConfig(11155111),
     ancient8Testnet: getNetworkConfig(2863311531),
-    immutableZkevmTestnet: getNetworkConfig(13472),
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
+    apiKey: {
+      // Mainnets
+      mainnet: process.env.ETHERSCAN_API_KEY_ETHEREUM ?? "",
+      optimisticEthereum: process.env.ETHERSCAN_API_KEY_OPTIMISM ?? "",
+      bsc: process.env.ETHERSCAN_API_KEY_BSC ?? "",
+      polygon: process.env.ETHERSCAN_API_KEY_POLYGON ?? "",
+      zkSync: "0x",
+      polygonZkevm: process.env.ETHERSCAN_API_KEY_POLYGON_ZKEVM ?? "",
+      base: process.env.ETHERSCAN_API_KEY_BASE ?? "",
+      arbitrumOne: process.env.ETHERSCAN_API_KEY_ARBITRUM ?? "",
+      arbitrumNova: process.env.ETHERSCAN_API_KEY_ARBITRUM_NOVA ?? "",
+      avalanche: "0x",
+      linea: process.env.ETHERSCAN_API_KEY_LINEA ?? "",
+      scroll: process.env.ETHERSCAN_API_KEY_SCROLL ?? "",
+      zora: "0x",
+      // Testnets
+      goerli: process.env.ETHERSCAN_API_KEY_GOERLI ?? "",
+      zoraTestnet: "0x",
+      mantleTestnet: "0x",
+      lineaTestnet: process.env.ETHERSCAN_API_KEY_LINEA_TESTNET ?? "",
+      polygonMumbai: process.env.ETHERSCAN_API_KEY_MUMBAI ?? "",
+      baseGoerli: process.env.ETHERSCAN_API_KEY_BASE_GOERLI ?? "",
+      scrollAlpha: process.env.ETHERSCAN_API_KEY_SCROLL_ALPHA ?? "",
+      sepolia: process.env.ETHERSCAN_API_KEY_SEPOLIA ?? "",
+      ancient8Testnet: "0x",
+    },
     customChains: [
+      // Mainnets
+      {
+        network: "zkSync",
+        chainId: 324,
+        urls: {
+          apiURL: "https://block-explorer-api.mainnet.zksync.io/api",
+          browserURL: "https://explorer.zksync.io",
+        },
+      },
+      {
+        network: "polygonZkevm",
+        chainId: 1101,
+        urls: {
+          apiURL: "https://api-zkevm.polygonscan.com/api",
+          browserURL: "https://zkevm.polygonscan.com",
+        },
+      },
+      {
+        network: "base",
+        chainId: 8453,
+        urls: {
+          apiURL: "https://api.basescan.org/api",
+          browserURL: "https://basescan.org",
+        },
+      },
+      {
+        network: "arbitrumNova",
+        chainId: 42170,
+        urls: {
+          apiURL: "https://api-nova.arbiscan.io/api",
+          browserURL: "https://nova.arbiscan.io",
+        },
+      },
+      {
+        network: "avalanche",
+        chainId: 43114,
+        urls: {
+          apiURL: "https://api.routescan.io/v2/network/mainnet/evm/43114/etherscan",
+          browserURL: "https://avalanche.routescan.io",
+        },
+      },
+      {
+        network: "linea",
+        chainId: 59144,
+        urls: {
+          apiURL: "https://api.lineascan.build/api",
+          browserURL: "https://lineascan.build",
+        },
+      },
+      {
+        network: "scroll",
+        chainId: 534352,
+        urls: {
+          apiURL: "https://api.scrollscan.com/api",
+          browserURL: "https://scrollscan.com",
+        },
+      },
+      {
+        network: "zora",
+        chainId: 7777777,
+        urls: {
+          apiURL: "https://explorer.zora.energy/api",
+          browserURL: "https://explorer.zora.energy",
+        },
+      },
+      // Testnets
+      {
+        network: "zoraTestnet",
+        chainId: 999,
+        urls: {
+          apiURL: "https://testnet.explorer.zora.energy/api",
+          browserURL: "https://testnet.explorer.zora.energy",
+        },
+      },
       {
         network: "mantleTestnet",
         chainId: 5001,
@@ -190,16 +285,32 @@ const config: HardhatUserConfig = {
         network: "lineaTestnet",
         chainId: 59140,
         urls: {
-          apiURL: "https://explorer.goerli.linea.build/api",
-          browserURL: "https://explorer.goerli.linea.build",
+          apiURL: "https://api-testnet.lineascan.build/api",
+          browserURL: "https://testnet.lineascan.build",
+        },
+      },
+      {
+        network: "mumbai",
+        chainId: 80001,
+        urls: {
+          apiURL: "https://api-mumbai.polygonscan.com/api",
+          browserURL: "https://mumbai.polygonscan.com",
+        },
+      },
+      {
+        network: "baseGoerli",
+        chainId: 84531,
+        urls: {
+          apiURL: "https://api-goerli.basescan.org/api",
+          browserURL: "https://goerli.basescan.org",
         },
       },
       {
         network: "scrollAlpha",
         chainId: 534353,
         urls: {
-          apiURL: "https://blockscout.scroll.io/api",
-          browserURL: "https://blockscout.scroll.io/",
+          apiURL: "https://api-sepolia.scrollscan.com/api",
+          browserURL: "https://sepolia.scrollscan.com",
         },
       },
       {
@@ -208,14 +319,6 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://testnet.a8scan.io/api",
           browserURL: "https://testnet.a8scan.io/",
-        },
-      },
-      {
-        network: "zoraTestnet",
-        chainId: 999,
-        urls: {
-          apiURL: "https://testnet.explorer.zora.energy/api",
-          browserURL: "https://testnet.explorer.zora.energy/",
         },
       },
     ],

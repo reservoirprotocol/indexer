@@ -3,7 +3,6 @@ import { BigNumber } from "@ethersproject/bignumber";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, fromBuffer, now, toBuffer } from "@/common/utils";
-import { config } from "@/config/index";
 import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
 import { MintTxSchema, CustomInfo } from "@/orderbook/mints/calldata";
 import { getAmountMinted, getCurrentSupply } from "@/orderbook/mints/calldata/helpers";
@@ -23,7 +22,9 @@ export type CollectionMintStandard =
   | "lanyard"
   | "mintdotfun"
   | "soundxyz"
-  | "createdotfun";
+  | "createdotfun"
+  | "titlesxyz"
+  | "artblocks";
 
 export type CollectionMintDetails = {
   tx: MintTxSchema;
@@ -40,13 +41,22 @@ export type CollectionMint = {
   standard: CollectionMintStandard;
   details: CollectionMintDetails;
   currency: string;
+  // At most one of `price` and `pricePerQuantity` should be set
+  // - `price`: every quantity that is minted has the same price (also, any quantity is mintable)
+  // - `pricePerQuantity`: different quantities have different prices (also, only specific quantites are mintable)
   price?: string;
+  pricePerQuantity?: PricePerQuantity[];
   tokenId?: string;
   maxMintsPerWallet?: string;
   maxSupply?: string;
   startTime?: number;
   endTime?: number;
   allowlistId?: string;
+};
+
+export type PricePerQuantity = {
+  price: string;
+  quantity: number;
 };
 
 export const getCollectionMints = async (
@@ -103,6 +113,7 @@ export const getCollectionMints = async (
         details: r.details,
         currency: fromBuffer(r.currency),
         price: r.price ?? undefined,
+        pricePerQuantity: r.price_per_quantity ?? undefined,
         tokenId: r.token_id ?? undefined,
         maxMintsPerWallet: r.max_mints_per_wallet ?? undefined,
         maxSupply: r.max_supply ?? undefined,
@@ -113,22 +124,7 @@ export const getCollectionMints = async (
   );
 };
 
-export const simulateAndUpsertCollectionMint = async (collectionMint: CollectionMint) => {
-  // Very weird case when the collection generates 1000s of simulations
-  const skip =
-    config.chainId === 1 &&
-    collectionMint.collection === "0x0c8b135a721b017f983f76bb32f53d37f8510a5b";
-  if (skip) {
-    return true;
-  }
-
-  const simulationResult = await simulateCollectionMint(collectionMint);
-  if (simulationResult) {
-    collectionMint.status = "open";
-  } else {
-    collectionMint.status = "closed";
-  }
-
+export const upsertCollectionMint = async (collectionMint: CollectionMint) => {
   const isOpen = collectionMint.status === "open";
 
   const existingCollectionMint = await getCollectionMints(collectionMint.collection, {
@@ -191,6 +187,28 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
     if (collectionMint.allowlistId !== existingCollectionMint.allowlistId) {
       updatedFields.push(" allowlist_id = $/allowlistId/");
       updatedParams.allowlistId = collectionMint.allowlistId;
+    }
+
+    if (collectionMint.pricePerQuantity) {
+      if (!existingCollectionMint.pricePerQuantity) {
+        updatedFields.push(" price_per_quantity = $/pricePerQuantity/");
+        updatedParams.pricePerQuantity = collectionMint.pricePerQuantity;
+      } else {
+        const unknownEntries = collectionMint.pricePerQuantity.filter(
+          (current) =>
+            !existingCollectionMint.pricePerQuantity?.find(
+              (old) => old.quantity === current.quantity
+            )
+        );
+
+        if (unknownEntries.length) {
+          updatedFields.push(" price_per_quantity = $/pricePerQuantity/");
+          updatedParams.pricePerQuantity = [
+            ...existingCollectionMint.pricePerQuantity,
+            ...unknownEntries,
+          ];
+        }
+      }
     }
 
     if (updatedFields.length) {
@@ -355,6 +373,13 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
   }
 
   return false;
+};
+
+export const simulateAndUpsertCollectionMint = async (collectionMint: CollectionMint) => {
+  const simulationResult = await simulateCollectionMint(collectionMint);
+  collectionMint.status = simulationResult ? "open" : "closed";
+
+  return upsertCollectionMint(collectionMint);
 };
 
 export const getAmountMintableByWallet = async (

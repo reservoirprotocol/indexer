@@ -100,14 +100,10 @@ export const MintModule: ChainIdToAddress = {
   [Network.BaseGoerli]: "0xe3de16f7ed5a124686cc27571898e394959e8b39",
   [Network.Zora]: "0xe3de16f7ed5a124686cc27571898e394959e8b39",
   [Network.Avalanche]: "0x849ef788b40af342e2883c3112dd636f03a4203e",
+  [Network.Polygon]: "0x849ef788b40af342e2883c3112dd636f03a4203e",
   [Network.PolygonZkevm]: "0x849ef788b40af342e2883c3112dd636f03a4203e",
   [Network.Ancient8Testnet]: "0xe3de16f7ed5a124686cc27571898e394959e8b39",
   [Network.Scroll]: "0xe3de16f7ed5a124686cc27571898e394959e8b39",
-};
-
-export const CollectionXyzModule: ChainIdToAddress = {
-  [Network.Ethereum]: "0x22097b493ea4c202d5b85cc9faf6d116830aa8a3",
-  [Network.EthereumGoerli]: "0x22097b493ea4c202d5b85cc9faf6d116830aa8a3",
 };
 
 export const DittoModule: ChainIdToAddress = {
@@ -217,6 +213,13 @@ export const ZoraModule: ChainIdToAddress = {
 
 export const ElementModule: ChainIdToAddress = {
   [Network.Ethereum]: "0x5d92ac3936b6a02a684b214d2ecbc2e75fd9e0b4",
+  [Network.Polygon]: "0x5d92ac3936b6a02a684b214d2ecbc2e75fd9e0b4",
+  [Network.Bsc]: "0x5d92ac3936b6a02a684b214d2ecbc2e75fd9e0b4",
+  [Network.Avalanche]: "0x5d92ac3936b6a02a684b214d2ecbc2e75fd9e0b4",
+  [Network.Arbitrum]: "0x5d92ac3936b6a02a684b214d2ecbc2e75fd9e0b4",
+  [Network.Linea]: "0x5587785c61a284d51df41dbff4d5d42b05058613",
+  [Network.Base]: "0x5d92ac3936b6a02a684b214d2ecbc2e75fd9e0b4",
+  [Network.Zksync]: "0x83eb1219e74a4f87742b7a8ecf0f81a5200efaa7",
 };
 
 export const NFTXModule: ChainIdToAddress = {
@@ -234,10 +237,6 @@ export const RaribleModule: ChainIdToAddress = {
 
 export const SuperRareModule: ChainIdToAddress = {
   [Network.Ethereum]: "0x512a6a1a74f1f08aac8155605b9da8ace46b3d9c",
-};
-
-export const MidaswapModule: ChainIdToAddress = {
-  [Network.EthereumGoerli]: "0xfe1aaded2702e7976ac6c2e7dca7708a04232396",
 };
 
 export const CryptoPunksModule: ChainIdToAddress = {

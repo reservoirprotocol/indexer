@@ -5,9 +5,9 @@ import { RabbitMQMessage } from "@/common/rabbit-mq";
 import _ from "lodash";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { AddressZero } from "@ethersproject/constants";
-import { acquireLock, redis, redlock } from "@/common/redis";
+import { acquireLock } from "@/common/redis";
 import { resyncUserCollectionsJob } from "@/jobs/nft-balance-updates/reynsc-user-collections-job";
-import { config } from "@/config/index";
+// import { config } from "@/config/index";
 
 export type BackfillUserCollectionsJobCursorInfo = {
   owner: string;
@@ -74,10 +74,12 @@ export class BackfillUserCollectionsJob extends AbstractRabbitMqJobHandler {
 
         if (await acquireLock(lock, 60 * 60 * 6)) {
           // Trigger resync for the user in the collection
-          await resyncUserCollectionsJob.addToQueue({
-            user: fromBuffer(result.owner),
-            collectionId: result.collection_id,
-          });
+          await resyncUserCollectionsJob.addToQueue([
+            {
+              user: fromBuffer(result.owner),
+              collectionId: result.collection_id,
+            },
+          ]);
         }
       }
     }
@@ -114,13 +116,13 @@ export class BackfillUserCollectionsJob extends AbstractRabbitMqJobHandler {
 
 export const backfillUserCollectionsJob = new BackfillUserCollectionsJob();
 
-if (config.chainId !== 1) {
-  redlock
-    .acquire(["backfill-user-collections-lock-4"], 60 * 60 * 24 * 30 * 1000)
-    .then(async () => {
-      await redis.expire("sync-user-collections", 10);
-    })
-    .catch(() => {
-      // Skip on any errors
-    });
-}
+// if (config.chainId !== 1) {
+//   redlock
+//     .acquire(["backfill-user-collections-lock-4"], 60 * 60 * 24 * 30 * 1000)
+//     .then(async () => {
+//       await backfillUserCollectionsJob.addToQueue().
+//     })
+//     .catch(() => {
+//       // Skip on any errors
+//     });
+// }

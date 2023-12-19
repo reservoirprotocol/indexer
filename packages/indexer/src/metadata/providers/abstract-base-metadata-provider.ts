@@ -4,13 +4,14 @@ import {
   hasCustomCollectionHandler,
   hasCustomHandler,
 } from "../custom";
-import { CollectionMetadata, TokenMetadata, TokenMetadataBySlugResult } from "../types";
+import { CollectionMetadata, TokenMetadata } from "../types";
 import {
   extendCollectionMetadata,
   extendMetadata,
   hasExtendHandler,
   overrideCollectionMetadata,
 } from "../extend";
+import { limitFieldSize } from "./utils";
 
 export abstract class AbstractBaseMetadataProvider {
   abstract method: string;
@@ -85,13 +86,6 @@ export abstract class AbstractBaseMetadataProvider {
     return extendedMetadata;
   }
 
-  async getTokensMetadataBySlug(
-    slug: string,
-    continuation: string
-  ): Promise<TokenMetadataBySlugResult> {
-    return this._getTokensMetadataBySlug(slug, continuation);
-  }
-
   // Internal methods for subclasses
   protected abstract _getCollectionMetadata(
     contract: string,
@@ -102,16 +96,26 @@ export abstract class AbstractBaseMetadataProvider {
     tokens: { contract: string; tokenId: string }[]
   ): Promise<TokenMetadata[]>;
 
-  protected abstract _getTokensMetadataBySlug(
-    slug: string,
-    continuation?: string
-  ): Promise<TokenMetadataBySlugResult>;
-
   // Parsers
 
   // eslint-disable-next-line
   protected abstract parseCollection(...args: any[]): CollectionMetadata;
 
   // eslint-disable-next-line
-  protected abstract parseToken(...args: any[]): TokenMetadata;
+  protected abstract _parseToken(...args: any[]): TokenMetadata;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  parseToken(...args: any[]): TokenMetadata {
+    const parsedMetadata = this._parseToken(...args);
+    Object.keys(parsedMetadata).forEach((key) => {
+      parsedMetadata[key as keyof TokenMetadata] = limitFieldSize(
+        parsedMetadata[key as keyof TokenMetadata],
+        key,
+        parsedMetadata.contract,
+        parsedMetadata.tokenId,
+        this.method
+      );
+    });
+    return parsedMetadata;
+  }
 }

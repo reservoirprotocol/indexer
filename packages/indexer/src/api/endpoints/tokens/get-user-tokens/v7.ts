@@ -1,21 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Request, RouteOptions } from "@hapi/hapi";
+import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
+import _ from "lodash";
 
 import { redb } from "@/common/db";
-import { logger } from "@/common/logger";
-import {
-  buildContinuation,
-  formatEth,
-  fromBuffer,
-  regex,
-  splitContinuation,
-  toBuffer,
-} from "@/common/utils";
-import { CollectionSets } from "@/models/collection-sets";
-import * as Sdk from "@reservoir0x/sdk";
-import { config } from "@/config/index";
 import {
   getJoiPriceObject,
   getJoiSaleObject,
@@ -26,9 +16,20 @@ import {
   JoiSale,
   JoiSource,
 } from "@/common/joi";
+import { logger } from "@/common/logger";
+import {
+  buildContinuation,
+  formatEth,
+  fromBuffer,
+  regex,
+  splitContinuation,
+  toBuffer,
+} from "@/common/utils";
+import { config } from "@/config/index";
+import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
-import _ from "lodash";
 import { Assets, ImageSize } from "@/utils/assets";
+import { isOrderNativeOffChainCancellable } from "@/utils/offchain-cancel";
 
 const version = "v7";
 
@@ -552,13 +553,18 @@ export const getUserTokensV7Options: RouteOptions = {
     try {
       let baseQuery = `
         SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at, b.last_token_appraisal_value,
-               t.name, t.image, t.metadata AS token_metadata, t.media, t.rarity_rank, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
-               t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to, t.floor_sell_source_id_int, t.supply, t.remaining_supply, t.description,
+               t.name, t.image, t.metadata AS token_metadata, t.media, t.rarity_rank, t.collection_id,
+               t.supply, t.remaining_supply, t.description,
                t.rarity_score, t.t_is_spam, t.image_version, ${selectLastSale}
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value, top_bid_source_id_int,
                o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price,
                c.name as collection_name, con.kind, con.symbol, c.metadata, c.royalties, (c.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
                c.royalties_bps, ot.kind AS floor_sell_kind, c.slug, c.is_spam AS c_is_spam, c.metadata_disabled AS c_metadata_disabled, t_metadata_disabled,
+               c.image_version AS "collection_image_version",
+               ot.value as floor_sell_value, ot.currency_value as floor_sell_currency_value, ot.currency_price, ot.currency as floor_sell_currency, ot.maker as floor_sell_maker,
+                date_part('epoch', lower(ot.valid_between)) AS "floor_sell_valid_from",
+                coalesce(nullif(date_part('epoch', upper(ot.valid_between)), 'Infinity'), 0) AS "floor_sell_valid_to",
+               ot.source_id_int as floor_sell_source_id_int, ot.id as floor_sell_id,
                ${query.includeRawData ? "ot.raw_data AS floor_sell_raw_data," : ""}
                ${
                  query.useNonFlaggedFloorAsk
@@ -566,7 +572,7 @@ export const getUserTokensV7Options: RouteOptions = {
                    : "c.non_flagged_floor_sell_value"
                } AS "collection_floor_sell_value",
                (
-                    CASE WHEN t.floor_sell_value IS NOT NULL
+                    CASE WHEN ot.value IS NOT NULL
                     THEN 1
                     ELSE 0
                     END
@@ -593,8 +599,27 @@ export const getUserTokensV7Options: RouteOptions = {
             query.excludeSpam ? `AND (c.is_spam IS NULL OR c.is_spam <= 0)` : ""
           }
           LEFT JOIN orders o ON o.id = c.floor_sell_id
-          LEFT JOIN orders ot ON ot.id = t.floor_sell_id
           JOIN contracts con ON b.contract = con.address
+          LEFT JOIN orders ot ON ot.id = CASE WHEN con.kind = 'erc1155' THEN (
+            SELECT 
+              id 
+            FROM 
+              orders 
+              JOIN token_sets_tokens ON orders.token_set_id = token_sets_tokens.token_set_id 
+            WHERE 
+              con.kind = 'erc1155' 
+              AND token_sets_tokens.contract = b.contract 
+              AND token_sets_tokens.token_id = b.token_id 
+              AND orders.side = 'sell' 
+              AND orders.fillability_status = 'fillable' 
+              AND orders.approval_status = 'approved' 
+              AND orders.maker = $/user/ 
+            ORDER BY 
+              orders.value ASC 
+            LIMIT 
+              1
+          ) ELSE t.floor_sell_id END
+
       `;
 
       const conditions: string[] = [];
@@ -632,7 +657,7 @@ export const getUserTokensV7Options: RouteOptions = {
       if (query.sortBy === "acquiredAt") {
         baseQuery += `
         ORDER BY
-          acquired_at ${query.sortDirection}, b.token_id ${query.sortDirection}
+          b.acquired_at ${query.sortDirection}, b.token_id ${query.sortDirection}
         LIMIT $/limit/
       `;
       } else {
@@ -697,7 +722,7 @@ export const getUserTokensV7Options: RouteOptions = {
               tokenId: tokenId,
               kind: r.kind,
               name: r.name,
-              image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
+              image: Assets.getResizedImageUrl(r.image, ImageSize.medium, r.image_version),
               imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small, r.image_version),
               imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large, r.image_version),
               metadata: r.token_metadata?.image_original_url
@@ -727,7 +752,11 @@ export const getUserTokensV7Options: RouteOptions = {
                 name: r.collection_name,
                 slug: r.slug,
                 symbol: r.symbol,
-                imageUrl: r.metadata?.imageUrl,
+                imageUrl: Assets.getResizedImageUrl(
+                  r.image,
+                  ImageSize.small,
+                  r.collection_image_version
+                ),
                 isSpam: Number(r.c_is_spam) > 0,
                 metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
                 openseaVerificationStatus: r.opensea_verification_status,
@@ -746,7 +775,9 @@ export const getUserTokensV7Options: RouteOptions = {
                     )
                   : null,
                 royaltiesBps: r.royalties_bps ?? 0,
-                royalties: r.royalties,
+                royalties: r.royalties
+                  ? r.royalties.map((r: any) => ({ bps: r.bps, recipient: r.recipient }))
+                  : null,
               },
               lastSale:
                 query.includeLastSale && r.last_sale_currency
@@ -840,8 +871,7 @@ export const getUserTokensV7Options: RouteOptions = {
               source: getJoiSourceObject(floorSellSource),
               rawData: query.includeRawData ? r.floor_sell_raw_data : undefined,
               isNativeOffChainCancellable: query.includeRawData
-                ? r.floor_sell_raw_data?.zone ===
-                  Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
+                ? isOrderNativeOffChainCancellable(r.floor_sell_raw_data)
                 : undefined,
             },
             acquiredAt: acquiredTime,

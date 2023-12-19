@@ -3,6 +3,11 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "_permit2",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
         "name": "_owner",
         "type": "address"
       },
@@ -13,12 +18,27 @@
       },
       {
         "internalType": "uint32",
-        "name": "_challengePeriod",
+        "name": "_challengePeriodDelay",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "_challengePeriodDuration",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "_transferPeriodDuration",
         "type": "uint32"
       }
     ],
     "stateMutability": "nonpayable",
     "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "IncorrectCurrency",
+    "type": "error"
   },
   {
     "inputs": [],
@@ -37,6 +57,21 @@
   },
   {
     "inputs": [],
+    "name": "SolverAlreadyInWhitelist",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "SolverNotInWhitelist",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "TransferCannotBeAccepted",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "Unauthorized",
     "type": "error"
   },
@@ -47,22 +82,17 @@
   },
   {
     "inputs": [],
-    "name": "WithdrawIsEnded",
+    "name": "WithdrawAmountTooLarge",
     "type": "error"
   },
   {
     "inputs": [],
-    "name": "WithdrawIsNotEnded",
+    "name": "WithdrawCannotBeDisputed",
     "type": "error"
   },
   {
     "inputs": [],
-    "name": "WithdrawIsNotStarted",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "WithdrawIsNotUnknown",
+    "name": "WithdrawCannotBeFinalized",
     "type": "error"
   },
   {
@@ -71,11 +101,24 @@
       {
         "indexed": false,
         "internalType": "uint32",
-        "name": "newChallengePeriod",
+        "name": "newChallengePeriodDelay",
         "type": "uint32"
       }
     ],
-    "name": "ChallengePeriodUpdated",
+    "name": "ChallengePeriodDelayUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint32",
+        "name": "newChallengePeriodDuration",
+        "type": "uint32"
+      }
+    ],
+    "name": "ChallengePeriodDurationUpdated",
     "type": "event"
   },
   {
@@ -85,12 +128,6 @@
         "indexed": false,
         "internalType": "address",
         "name": "user",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "solver",
         "type": "address"
       },
       {
@@ -166,9 +203,104 @@
     "inputs": [
       {
         "indexed": false,
-        "internalType": "bytes32",
-        "name": "withdrawHash",
-        "type": "bytes32"
+        "internalType": "address",
+        "name": "solver",
+        "type": "address"
+      }
+    ],
+    "name": "SolverAddedToWhitelist",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "solver",
+        "type": "address"
+      }
+    ],
+    "name": "SolverRemovedFromWhitelist",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      }
+    ],
+    "name": "TransferAccepted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint32",
+        "name": "newTransferPeriodDuration",
+        "type": "uint32"
+      }
+    ],
+    "name": "TransferPeriodDurationUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "recipient",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "currency",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "fee",
+        "type": "uint256"
+      }
+    ],
+    "name": "TransferStarted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
       }
     ],
     "name": "WithdrawDisputed",
@@ -179,36 +311,12 @@
     "inputs": [
       {
         "indexed": false,
-        "internalType": "bytes32",
-        "name": "withdrawHash",
-        "type": "bytes32"
-      },
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "solver",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "currency",
-        "type": "address"
-      },
-      {
-        "indexed": false,
         "internalType": "uint256",
-        "name": "amount",
+        "name": "id",
         "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes32",
-        "name": "root",
-        "type": "bytes32"
       }
     ],
-    "name": "WithdrawEnded",
+    "name": "WithdrawFinalized",
     "type": "event"
   },
   {
@@ -216,14 +324,14 @@
     "inputs": [
       {
         "indexed": false,
-        "internalType": "bytes32",
-        "name": "withdrawHash",
-        "type": "bytes32"
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
       },
       {
         "indexed": false,
         "internalType": "address",
-        "name": "solver",
+        "name": "user",
         "type": "address"
       },
       {
@@ -237,28 +345,74 @@
         "internalType": "uint256",
         "name": "amount",
         "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes32",
-        "name": "root",
-        "type": "bytes32"
       }
     ],
     "name": "WithdrawStarted",
     "type": "event"
   },
   {
-    "inputs": [],
-    "name": "WITHDRAW_TYPEHASH",
-    "outputs": [
+    "inputs": [
       {
-        "internalType": "bytes32",
-        "name": "",
-        "type": "bytes32"
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+              },
+              {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct IPermit2.TokenPermissions",
+            "name": "permitted",
+            "type": "tuple"
+          },
+          {
+            "internalType": "uint256",
+            "name": "nonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "deadline",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct IPermit2.PermitTransferFrom",
+        "name": "permit",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "permitSignature",
+        "type": "bytes"
       }
     ],
-    "stateMutability": "view",
+    "name": "acceptERC20Transfer",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      }
+    ],
+    "name": "acceptNativeTransfer",
+    "outputs": [],
+    "stateMutability": "payable",
     "type": "function"
   },
   {
@@ -275,8 +429,34 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "solver",
+        "type": "address"
+      }
+    ],
+    "name": "addSolverToWhitelist",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
-    "name": "challengePeriod",
+    "name": "challengePeriodDelay",
+    "outputs": [
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "challengePeriodDuration",
     "outputs": [
       {
         "internalType": "uint32",
@@ -291,55 +471,63 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "user",
         "type": "address"
       },
       {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "name": "currencyToSolverBalances",
-    "outputs": [
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+              },
+              {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct IPermit2.TokenPermissions",
+            "name": "permitted",
+            "type": "tuple"
+          },
+          {
+            "internalType": "uint256",
+            "name": "nonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "deadline",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct IPermit2.PermitTransferFrom",
+        "name": "permit",
+        "type": "tuple"
+      },
       {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
+        "internalType": "bytes",
+        "name": "permitSignature",
+        "type": "bytes"
       }
     ],
-    "stateMutability": "view",
+    "name": "depositERC20",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [
       {
         "internalType": "address",
-        "name": "depositor",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "solver",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "currency",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address",
-        "name": "recipient",
+        "name": "user",
         "type": "address"
       }
     ],
-    "name": "deposit",
+    "name": "depositNative",
     "outputs": [],
     "stateMutability": "payable",
     "type": "function"
@@ -347,9 +535,9 @@
   {
     "inputs": [
       {
-        "internalType": "bytes32",
-        "name": "withdrawHash",
-        "type": "bytes32"
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
       }
     ],
     "name": "disputeWithdraw",
@@ -373,22 +561,12 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "currency",
-        "type": "address"
-      },
-      {
         "internalType": "uint256",
-        "name": "amount",
+        "name": "id",
         "type": "uint256"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "root",
-        "type": "bytes32"
       }
     ],
-    "name": "endWithdraw",
+    "name": "finalizeWithdraw",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -423,6 +601,24 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "solver",
+        "type": "address"
+      }
+    ],
+    "name": "removeSolverFromWhitelist",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "recipient",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
         "name": "currency",
         "type": "address"
       },
@@ -432,12 +628,136 @@
         "type": "uint256"
       },
       {
-        "internalType": "bytes32",
-        "name": "root",
-        "type": "bytes32"
+        "internalType": "uint256",
+        "name": "fee",
+        "type": "uint256"
+      }
+    ],
+    "name": "startTransfer",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "currency",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
       }
     ],
     "name": "startWithdraw",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "totalDeposits",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "transferPeriodDuration",
+    "outputs": [
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "transferStates",
+    "outputs": [
+      {
+        "internalType": "enum CrossChainEscrow.TransferStatus",
+        "name": "status",
+        "type": "uint8"
+      },
+      {
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "recipient",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "currency",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "fee",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint32",
+        "name": "endTime",
+        "type": "uint32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint32",
+        "name": "newChallengePeriodDelay",
+        "type": "uint32"
+      }
+    ],
+    "name": "updateChallengePeriodDelay",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -446,11 +766,11 @@
     "inputs": [
       {
         "internalType": "uint32",
-        "name": "newChallengePeriod",
+        "name": "newChallengePeriodDuration",
         "type": "uint32"
       }
     ],
-    "name": "updateChallengePeriod",
+    "name": "updateChallengePeriodDuration",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -484,6 +804,19 @@
   {
     "inputs": [
       {
+        "internalType": "uint32",
+        "name": "newTransferPeriodDuration",
+        "type": "uint32"
+      }
+    ],
+    "name": "updateTransferPeriodDuration",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "address",
         "name": "",
         "type": "address"
@@ -503,9 +836,28 @@
   {
     "inputs": [
       {
-        "internalType": "bytes32",
+        "internalType": "address",
         "name": "",
-        "type": "bytes32"
+        "type": "address"
+      }
+    ],
+    "name": "whitelistedSolvers",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "name": "withdrawStates",
@@ -514,6 +866,26 @@
         "internalType": "enum CrossChainEscrow.WithdrawStatus",
         "name": "status",
         "type": "uint8"
+      },
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "currency",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint32",
+        "name": "startTime",
+        "type": "uint32"
       },
       {
         "internalType": "uint32",

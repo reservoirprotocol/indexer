@@ -63,7 +63,6 @@ export const extractByCollection = async (collection: string): Promise<Collectio
         currency: Sdk.Common.Addresses.Native[config.chainId],
         price: "0",
         maxMintsPerWallet: "1",
-        maxSupply: undefined,
       });
     }
   } catch {

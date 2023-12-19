@@ -1,17 +1,13 @@
 import { _TypedDataEncoder } from "@ethersproject/hash";
 import { verifyTypedData } from "@ethersproject/wallet";
 
-import * as Addresses from "./addresses";
 import * as Types from "./types";
 import { lc, n, s } from "../../../utils";
 
 export class Order {
-  public chainId: number;
   public params: Types.Request;
 
-  constructor(chainId: number, params: Types.Request) {
-    this.chainId = chainId;
-
+  constructor(params: Types.Request) {
     try {
       this.params = normalize(params);
     } catch {
@@ -26,7 +22,7 @@ export class Order {
   public getSignatureData() {
     return {
       signatureKind: "eip712",
-      domain: EIP712_DOMAIN(this.chainId),
+      domain: EIP712_DOMAIN(),
       types: EIP712_TYPES,
       value: this.params,
       primaryType: _TypedDataEncoder.getPrimaryType(EIP712_TYPES),
@@ -35,7 +31,7 @@ export class Order {
 
   public checkSignature() {
     const signer = verifyTypedData(
-      EIP712_DOMAIN(this.chainId),
+      EIP712_DOMAIN(),
       EIP712_TYPES,
       this.params,
       this.params.signature!
@@ -47,10 +43,8 @@ export class Order {
   }
 }
 
-const EIP712_DOMAIN = (chainId: number) => ({
+const EIP712_DOMAIN = () => ({
   name: "SingleInputModule",
-  version: "1",
-  verifyingContract: Addresses.Module[chainId],
 });
 
 const EIP712_TYPES = {

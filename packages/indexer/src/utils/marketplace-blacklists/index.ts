@@ -37,7 +37,7 @@ export const checkMarketplaceIsFiltered = async (
     const cacheKey = `marketplace-blacklist:${contract}`;
     result = await redis.get(cacheKey).then((r) => (r ? (JSON.parse(r) as string[]) : null));
     if (!result) {
-      result = await getMarketplaceBlacklistFromDB(contract);
+      result = await getMarketplaceBlacklistFromDb(contract).then((r) => r.blacklist);
       await redis.set(cacheKey, JSON.stringify(result), "EX", 24 * 3600);
     }
   }
@@ -47,9 +47,14 @@ export const checkMarketplaceIsFiltered = async (
     return customCheck;
   }
 
-  const erc721cCheck = await erc721c.checkMarketplaceIsFiltered(contract, operators);
+  const erc721cCheck = await erc721c.v1.checkMarketplaceIsFiltered(contract, operators);
   if (erc721cCheck) {
     return erc721cCheck;
+  }
+
+  const erc721cV2Check = await erc721c.v2.checkMarketplaceIsFiltered(contract, operators);
+  if (erc721cV2Check) {
+    return erc721cV2Check;
   }
 
   return operators.some((c) => result!.includes(c));
@@ -125,7 +130,9 @@ const getMarketplaceBlacklist = async (contract: string): Promise<string[]> => {
   return Array.from(new Set(allOperatorsList));
 };
 
-const getMarketplaceBlacklistFromDB = async (contract: string): Promise<string[]> => {
+export const getMarketplaceBlacklistFromDb = async (
+  contract: string
+): Promise<{ blacklist: string[] }> => {
   const result = await redb.oneOrNone(
     `
       SELECT
@@ -135,7 +142,7 @@ const getMarketplaceBlacklistFromDB = async (contract: string): Promise<string[]
     `,
     { contract: toBuffer(contract) }
   );
-  return result?.filtered_operators || [];
+  return { blacklist: result?.filtered_operators || [] };
 };
 
 const updateMarketplaceBlacklist = async (contract: string) => {
@@ -157,6 +164,7 @@ const updateMarketplaceBlacklist = async (contract: string) => {
     {
       by: "operator",
       data: {
+        origin: "marketplace-blacklist",
         contract,
         blacklistedOperators: blacklist,
         status: "inactive",

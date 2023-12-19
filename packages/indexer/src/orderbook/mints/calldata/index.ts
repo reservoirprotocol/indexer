@@ -48,6 +48,10 @@ export type AbiParam =
   | {
       kind: "custom";
       abiType: string;
+    }
+  | {
+      kind: "tuple";
+      params: AbiParam[];
     };
 
 export type MintTxSchema = {
@@ -64,7 +68,8 @@ type BaseCustomInfo = {
 
 export type CustomInfo =
   | (BaseCustomInfo & mints.manifold.Info)
-  | (BaseCustomInfo & mints.soundxyz.Info);
+  | (BaseCustomInfo & mints.soundxyz.Info)
+  | (BaseCustomInfo & mints.artblocks.Info);
 
 export type PartialCollectionMint = Pick<
   CollectionMint,
@@ -123,196 +128,217 @@ export const generateCollectionMintTxData = async (
       : undefined;
   let allowlistItemIndex = 0;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const abiData: { abiType: string; abiValue: any }[] = [];
-
   const tx = collectionMint.details.tx;
-  for (const p of tx.data.params) {
-    switch (p.kind) {
-      case "contract": {
-        abiData.push({
-          abiType: p.abiType,
-          abiValue: collectionMint.contract,
-        });
 
-        break;
-      }
+  const encodeParams = async (params: AbiParam[]) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const abiData: { abiType: string; abiValue: any }[] = [];
 
-      case "quantity": {
-        abiData.push({
-          abiType: p.abiType,
-          abiValue: quantity,
-        });
+    for (const p of params) {
+      switch (p.kind) {
+        case "contract": {
+          abiData.push({
+            abiType: p.abiType,
+            abiValue: collectionMint.contract,
+          });
 
-        break;
-      }
+          break;
+        }
 
-      case "recipient": {
-        abiData.push({
-          abiType: p.abiType,
-          abiValue: minter,
-        });
+        case "quantity": {
+          abiData.push({
+            abiType: p.abiType,
+            abiValue: quantity,
+          });
 
-        break;
-      }
+          break;
+        }
 
-      case "comment": {
-        abiData.push({
-          abiType: p.abiType,
-          abiValue: options?.comment ?? "",
-        });
+        case "recipient": {
+          abiData.push({
+            abiType: p.abiType,
+            abiValue: minter,
+          });
 
-        break;
-      }
+          break;
+        }
 
-      case "referrer": {
-        abiData.push({
-          abiType: p.abiType,
-          abiValue: options?.referrer ?? DEFAULT_REFERRER,
-        });
+        case "comment": {
+          abiData.push({
+            abiType: p.abiType,
+            abiValue: options?.comment ?? "",
+          });
 
-        break;
-      }
+          break;
+        }
 
-      case "allowlist": {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let abiValue: any;
+        case "referrer": {
+          abiData.push({
+            abiType: p.abiType,
+            abiValue: options?.referrer ?? DEFAULT_REFERRER,
+          });
 
-        switch (collectionMint.standard) {
-          case "decent": {
-            if (allowlistItemIndex === 0) {
-              abiValue = allowlistData.max_mints;
-            } else if (allowlistItemIndex === 1) {
-              abiValue = allowlistData.price;
-            } else {
-              abiValue = await mints.decent.generateProofValue(collectionMint, minter);
-            }
+          break;
+        }
 
-            break;
-          }
+        case "allowlist": {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          let abiValue: any;
 
-          case "manifold": {
-            if (allowlistItemIndex === 0) {
-              abiValue = [(await mints.manifold.generateProofValue(collectionMint, minter)).value];
-            } else {
-              abiValue = [
-                (await mints.manifold.generateProofValue(collectionMint, minter)).merkleProof,
-              ];
-            }
-
-            break;
-          }
-
-          case "thirdweb": {
-            if (allowlistItemIndex === 0) {
-              abiValue = allowlistData.price ?? collectionMint.price;
-            } else {
-              abiValue = await mints.thirdweb.generateProofValue(collectionMint, minter);
-            }
-
-            break;
-          }
-
-          case "zora": {
-            if (collectionMint.tokenId) {
-              // ERC1155
-              const proofData = await mints.zora.generateProofValue(collectionMint, minter);
-              abiValue = defaultAbiCoder.encode(
-                ["address", "uint256", "uint256", "bytes32[]"],
-                [minter, proofData.maxCanMint, proofData.price, proofData.proof]
-              );
-            } else {
-              // ERC721
+          switch (collectionMint.standard) {
+            case "decent": {
               if (allowlistItemIndex === 0) {
                 abiValue = allowlistData.max_mints;
               } else if (allowlistItemIndex === 1) {
                 abiValue = allowlistData.price;
               } else {
-                abiValue = (await mints.zora.generateProofValue(collectionMint, minter)).proof;
+                abiValue = await mints.decent.generateProofValue(collectionMint, minter);
               }
+
+              break;
             }
 
-            break;
-          }
+            case "manifold": {
+              if (allowlistItemIndex === 0) {
+                abiValue = [
+                  (await mints.manifold.generateProofValue(collectionMint, minter)).value,
+                ];
+              } else {
+                abiValue = [
+                  (await mints.manifold.generateProofValue(collectionMint, minter)).merkleProof,
+                ];
+              }
 
-          case "foundation": {
-            if (allowlistItemIndex === 0) {
-              abiValue = await mints.foundation.generateProofValue(collectionMint, minter);
+              break;
             }
 
-            break;
+            case "thirdweb": {
+              if (allowlistItemIndex === 0) {
+                abiValue = allowlistData.price ?? collectionMint.price ?? 0;
+              } else {
+                abiValue = await mints.thirdweb.generateProofValue(collectionMint, minter);
+              }
+
+              break;
+            }
+
+            case "zora": {
+              if (collectionMint.tokenId) {
+                // ERC1155
+                const proofData = await mints.zora.generateProofValue(collectionMint, minter);
+                abiValue = defaultAbiCoder.encode(
+                  ["address", "uint256", "uint256", "bytes32[]"],
+                  [minter, proofData.maxCanMint, proofData.price, proofData.proof]
+                );
+              } else {
+                // ERC721
+                if (allowlistItemIndex === 0) {
+                  abiValue = allowlistData.max_mints;
+                } else if (allowlistItemIndex === 1) {
+                  abiValue = allowlistData.price;
+                } else {
+                  abiValue = (await mints.zora.generateProofValue(collectionMint, minter)).proof;
+                }
+              }
+
+              break;
+            }
+
+            case "foundation": {
+              if (allowlistItemIndex === 0) {
+                abiValue = await mints.foundation.generateProofValue(collectionMint, minter);
+              }
+
+              break;
+            }
+
+            case "mintdotfun": {
+              if (allowlistItemIndex === 0) {
+                abiValue = await mints.mintdotfun.generateProofValue(
+                  collectionMint,
+                  minter,
+                  options?.referrer ?? DEFAULT_REFERRER
+                );
+              }
+              break;
+            }
+
+            case "soundxyz": {
+              if (allowlistItemIndex === 0) {
+                abiValue = await mints.soundxyz.generateProofValue(collectionMint, minter);
+              }
+              break;
+            }
+
+            default: {
+              throw new Error("Allowlist fields not supported");
+            }
           }
 
-          case "mintdotfun": {
-            if (allowlistItemIndex === 0) {
-              abiValue = await mints.mintdotfun.generateProofValue(
-                collectionMint,
-                minter,
-                options?.referrer ?? DEFAULT_REFERRER
+          // We use the relative index of the `allowlist` parameter to determine the current value
+          allowlistItemIndex++;
+
+          abiData.push({
+            abiType: p.abiType,
+            abiValue,
+          });
+
+          break;
+        }
+
+        case "custom": {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          let abiValue: any;
+
+          switch (collectionMint.standard) {
+            case "zora": {
+              abiValue = defaultAbiCoder.encode(
+                ["bytes32"],
+                ["0x" + minter.slice(2).padStart(64, "0")]
               );
+              break;
             }
-            break;
+
+            default: {
+              throw new Error("Custom fields not supported");
+            }
           }
 
-          case "soundxyz": {
-            if (allowlistItemIndex === 0) {
-              abiValue = await mints.soundxyz.generateProofValue(collectionMint, minter);
-            }
-            break;
-          }
+          abiData.push({
+            abiType: p.abiType,
+            abiValue: abiValue,
+          });
 
-          default: {
-            throw new Error("Allowlist fields not supported");
-          }
+          break;
         }
 
-        // We use the relative index of the `allowlist` parameter to determine the current value
-        allowlistItemIndex++;
+        case "tuple": {
+          const subAbiData = await encodeParams(p.params);
 
-        abiData.push({
-          abiType: p.abiType,
-          abiValue,
-        });
+          const abiType = "(" + subAbiData.map((c) => `${c.abiType}`).join(",") + ")";
+          abiData.push({
+            abiType: abiType,
+            abiValue: subAbiData.map((c) => c.abiValue),
+          });
 
-        break;
-      }
-
-      case "custom": {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let abiValue: any;
-
-        switch (collectionMint.standard) {
-          case "zora": {
-            abiValue = defaultAbiCoder.encode(
-              ["bytes32"],
-              ["0x" + minter.slice(2).padStart(64, "0")]
-            );
-            break;
-          }
-
-          default: {
-            throw new Error("Custom fields not supported");
-          }
+          break;
         }
 
-        abiData.push({
-          abiType: p.abiType,
-          abiValue: abiValue,
-        });
+        default: {
+          abiData.push({
+            abiType: p.abiType,
+            abiValue: p.abiValue,
+          });
 
-        break;
-      }
-
-      default: {
-        abiData.push({
-          abiType: p.abiType,
-          abiValue: p.abiValue,
-        });
-
-        break;
+          break;
+        }
       }
     }
-  }
+
+    return abiData;
+  };
+
+  const abiData = await encodeParams(tx.data.params);
 
   const data =
     tx.data.signature +
@@ -329,9 +355,32 @@ export const generateCollectionMintTxData = async (
       : "");
 
   let price = collectionMint.price;
+
+  // Compute the price just-in-time
+  if (
+    collectionMint.standard === "artblocks" &&
+    (collectionMint.details.info as mints.artblocks.Info).daConfig
+  ) {
+    price = await mints.artblocks.getPrice(
+      (collectionMint.details.info as mints.artblocks.Info).daConfig!
+    );
+  }
+
+  // If the price is not available on the main `CollectionMint`
+
+  // First, try get it from the allowlist
   if (!price && allowlistData) {
-    // If the price is not available on the main `CollectionMint`, get it from the allowlist
-    price = allowlistData.actual_price!;
+    price = allowlistData.actual_price ?? 0;
+  }
+
+  // Then, try to get it from the `pricePerQuantity` data
+  if (!price && collectionMint.pricePerQuantity) {
+    const matchingEntry = collectionMint.pricePerQuantity.find((e) => e.quantity === quantity);
+    if (!matchingEntry) {
+      throw new Error("Requested quantity is not mintable");
+    }
+
+    price = matchingEntry.price;
   }
 
   return {
@@ -359,28 +408,58 @@ export const refreshMintsForCollection = async (collection: string) => {
   );
   if (standardResult) {
     switch (standardResult.standard) {
+      case "artblocks":
+        await mints.artblocks.refreshByCollection(collection);
+        break;
+
       case "createdotfun":
-        return mints.createdotfun.refreshByCollection(collection);
+        await mints.createdotfun.refreshByCollection(collection);
+        break;
+
       case "decent":
-        return mints.decent.refreshByCollection(collection);
+        await mints.decent.refreshByCollection(collection);
+        break;
+
       case "foundation":
-        return mints.foundation.refreshByCollection(collection);
+        await mints.foundation.refreshByCollection(collection);
+        break;
+
       case "manifold":
-        return mints.manifold.refreshByCollection(collection);
+        await mints.manifold.refreshByCollection(collection);
+        break;
+
       case "mintdotfun":
-        return mints.mintdotfun.refreshByCollection(collection);
+        await mints.mintdotfun.refreshByCollection(collection);
+        break;
+
       case "seadrop-v1.0":
-        return mints.seadrop.refreshByCollection(collection);
+        await mints.seadrop.refreshByCollection(collection);
+        break;
+
       case "soundxyz":
-        return mints.soundxyz.refreshByCollection(collection);
+        await mints.soundxyz.refreshByCollection(collection);
+        break;
+
       case "thirdweb":
-        return mints.thirdweb.refreshByCollection(collection);
+        await mints.thirdweb.refreshByCollection(collection);
+        break;
+
+      case "titlesxyz":
+        await mints.titlesxyz.refreshByCollection(collection);
+        break;
+
       case "unknown":
-        return mints.generic.refreshByCollection(collection);
+        await mints.generic.refreshByCollection(collection);
+        break;
+
       case "zora":
-        return mints.zora.refreshByCollection(collection);
+        await mints.zora.refreshByCollection(collection);
+        break;
     }
-  } else {
+  }
+
+  // To be able to switch from `unknown` to a known standard on collection refresh
+  if (!standardResult || standardResult.standard === "unknown") {
     const lastMintsResult = await idb.manyOrNone(
       `
         SELECT

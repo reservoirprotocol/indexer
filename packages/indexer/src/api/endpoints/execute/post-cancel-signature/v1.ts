@@ -10,9 +10,8 @@ import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { getNetworkName } from "@/config/network";
 import * as b from "@/utils/auth/blur";
-import { saveOffChainCancellations, verifyOffChainCancellationSignature } from "@/utils/cosign";
+import * as offchainCancel from "@/utils/offchain-cancel";
 
 const version = "v1";
 
@@ -127,14 +126,11 @@ export const postCancelSignatureV1Options: RouteOptions = {
           }
 
           try {
-            await axios.post(
-              `https://seaport-oracle-${getNetworkName()}.up.railway.app/api/cancellations`,
-              {
-                signature,
-                orders: ordersResult.map((o) => o.raw_data),
-                orderKind,
-              }
-            );
+            await offchainCancel.seaport.doCancel({
+              signature,
+              orders: ordersResult.map((o) => o.raw_data),
+              orderKind,
+            });
 
             return { message: "Success" };
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -167,14 +163,15 @@ export const postCancelSignatureV1Options: RouteOptions = {
             throw Boom.badRequest("Some or all of the orders have a different maker");
           }
 
-          const success = verifyOffChainCancellationSignature(orderIds, signature, maker);
-          if (!success) {
+          try {
+            await offchainCancel.paymentProcessorV2.doCancel({
+              orderIds,
+              signature,
+              maker,
+            });
+          } catch {
             throw Boom.badRequest("Cancellation failed");
           }
-
-          // Save cancellations
-          await saveOffChainCancellations(orderIds);
-
           return { message: "Success" };
         }
       }

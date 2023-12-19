@@ -2,7 +2,7 @@
 
 import _ from "lodash";
 import { redis } from "@/common/redis";
-import { EventKind } from "@/jobs/activities/process-activity-event-job";
+import { EventKind } from "@/jobs/elasticsearch/activities/process-activity-event-job";
 import {
   NftTransferEventInfo,
   OrderEventInfo,

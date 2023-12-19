@@ -1,12 +1,18 @@
-import { idb, ridb } from "@/common/db";
+import { idb, redb, ridb } from "@/common/db";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { regex, toBuffer } from "@/common/utils";
+import { fromBuffer, regex, toBuffer } from "@/common/utils";
 import { Collections } from "@/models/collections";
 import _ from "lodash";
+import { config } from "@/config/index";
+import { getNetworkSettings } from "@/config/network";
 
 export type ResyncUserCollectionsJobPayload = {
   user: string;
-  collectionId: string;
+  collectionId?: string;
+  cursor?: {
+    contract: string;
+    tokenId: string;
+  };
 };
 
 export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler {
@@ -20,12 +26,85 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
   } as BackoffStrategy;
 
   protected async process(payload: ResyncUserCollectionsJobPayload) {
-    const { user, collectionId } = payload;
+    const { user, collectionId, cursor } = payload;
     let contract = "";
     let newBalanceResults;
     let isSpam;
 
-    if (collectionId.match(regex.address)) {
+    if (config.chainId === 137 && collectionId === "0xcf2576238640a3a232fa6046d549dfb753a805f4") {
+      return;
+    }
+
+    if (_.isUndefined(collectionId)) {
+      const values: {
+        owner: Buffer;
+        limit: number;
+        contract?: Buffer;
+        tokenId?: string;
+      } = {
+        owner: toBuffer(user),
+        limit: 1000,
+      };
+
+      let cursorFilter = "";
+      if (cursor) {
+        cursorFilter = `AND (contract, token_id) > ($/contract/, $/tokenId/)`;
+        values.contract = toBuffer(cursor.contract);
+        values.tokenId = cursor.tokenId;
+      }
+
+      // If collectionId is empty we resync all user's collections
+      const query = `
+        SELECT contract, token_id, t.collection_id
+        FROM nft_balances
+          JOIN LATERAL (
+             SELECT collection_id
+             FROM tokens
+             WHERE nft_balances.contract = tokens.contract
+             AND nft_balances.token_id = tokens.token_id
+             AND tokens.collection_id IS NOT NULL
+             AND NOT EXISTS (SELECT FROM user_collections uc WHERE owner = $/owner/ AND uc.collection_id = tokens.collection_id)
+          ) t ON TRUE
+        WHERE owner = $/owner/
+        ${cursorFilter}
+        AND amount > 0
+        ORDER BY contract, token_id
+        LIMIT $/limit/
+      `;
+
+      const results = await redb.manyOrNone(query, values);
+      const jobs = [];
+
+      if (results) {
+        for (const result of results) {
+          if (_.isNull(result.collection_id)) {
+            continue;
+          }
+
+          jobs.push({
+            user,
+            collectionId: result.collection_id,
+          });
+        }
+
+        if (!_.isEmpty(jobs)) {
+          await this.addToQueue(jobs);
+        }
+
+        // If there are potentially more collections for this user
+        if (results.length === values.limit) {
+          await this.addToQueue([
+            {
+              user,
+              cursor: {
+                contract: fromBuffer(_.last(results).contract),
+                tokenId: _.last(results).token_id,
+              },
+            },
+          ]);
+        }
+      }
+    } else if (collectionId.match(regex.address)) {
       // If a non shared contract
       contract = collectionId;
 
@@ -89,7 +168,7 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
     }
 
     if (newBalanceResults) {
-      if (_.isUndefined(isSpam)) {
+      if (_.isUndefined(isSpam) && !_.isUndefined(collectionId)) {
         const collection = await Collections.getById(collectionId);
 
         if (collection) {
@@ -102,7 +181,7 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
             INSERT INTO user_collections (owner, collection_id, contract, token_count, is_spam)
             VALUES ($/owner/, $/collection/, $/contract/, $/amount/, $/isSpam/)
             ON CONFLICT (owner, collection_id)
-            DO UPDATE SET token_count = $/amount/, updated_at = now();
+            DO UPDATE SET token_count = $/amount/, is_spam = $/isSpam/, updated_at = now();
           `,
         {
           owner: toBuffer(user),
@@ -115,8 +194,16 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
     }
   }
 
-  public async addToQueue(payload: ResyncUserCollectionsJobPayload, delay = 0) {
-    await this.send({ payload, jobId: `${payload.user}:${payload.collectionId}` }, delay);
+  public async addToQueue(payload: ResyncUserCollectionsJobPayload[], delay = 0) {
+    const filteredPayload = payload.filter(
+      (p) => !_.includes(getNetworkSettings().burnAddresses, p.user)
+    );
+
+    if (!_.isEmpty(filteredPayload)) {
+      await this.sendBatch(
+        filteredPayload.map((p) => ({ payload: p, jobId: `${p.user}:${p.collectionId}`, delay }))
+      );
+    }
   }
 }
 
