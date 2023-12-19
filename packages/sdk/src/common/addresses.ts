@@ -26,6 +26,7 @@ export const Native: ChainIdToAddress = {
   [Network.PolygonZkevm]: AddressZero,
   [Network.X1Testnet]: AddressZero,
   [Network.ZkFairTestnet]: AddressZero,
+  [Network.ZkFair]: AddressZero,
 };
 
 // Wrapped native currency
@@ -53,6 +54,8 @@ export const WNative: ChainIdToAddress = {
   [Network.X1Testnet]: "0xf8e8506fe73b0a8efb929f6edfb7059d6d2f95f2",
   // usdc-native-wrapped currency，下面这个是自己找脚本部署的
   [Network.ZkFairTestnet]: "0x9e1f1ab94bc3f2a4d1966f8f7c36c69db651d45f",
+  // todo-config
+  [Network.ZkFair]: "xxx",
 };
 
 export const Usdc: ChainIdToAddress = {
@@ -66,7 +69,6 @@ export const Usdc: ChainIdToAddress = {
   [Network.Avalanche]: "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",
   [Network.Zksync]: "0x3355df6d4c9c3035724fd0e3914de96a5a83aaf4",
   [Network.Base]: "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
-  // todo zkfair testnet???
 };
 
 export const Dai: ChainIdToAddress = {
