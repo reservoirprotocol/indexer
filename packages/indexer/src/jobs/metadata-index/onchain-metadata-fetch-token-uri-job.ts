@@ -32,7 +32,12 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
       return;
     }
 
-    let results;
+    let results: {
+      contract: string;
+      tokenId: string;
+      uri: string | null;
+      error?: string;
+    }[] = [];
 
     try {
       results = await onchainMetadataProvider._getTokensMetadataUri(fetchTokens);
