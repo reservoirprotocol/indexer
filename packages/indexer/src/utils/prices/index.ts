@@ -43,10 +43,6 @@ const getUpstreamUSDPrice = async (
 
       url = `https://api.coingecko.com/api/v3/coins/${coingeckoCurrencyId}/history?date=${day}-${month}-${year}`;
 
-      if (config.coinGeckoWsApiKey) {
-        url = `https://pro-api.coingecko.com/api/v3/coins/${coingeckoCurrencyId}/history?date=${day}-${month}-${year}&x_cg_pro_api_key=${config.coinGeckoWsApiKey}`;
-      }
-
       logger.info("prices", `Fetching price from Coingecko: ${url}`);
 
       const result: {
@@ -57,7 +53,31 @@ const getUpstreamUSDPrice = async (
         .get(url, {
           timeout: 10 * 1000,
         })
-        .then((response) => response.data);
+        .then((response) => response.data)
+        .catch((error) => {
+          if (error.response?.status === 429) {
+            logger.warn(
+              "prices",
+              JSON.stringify({
+                message: `Rate limited during fetch upstream USD price for ${currencyAddress} and timestamp ${timestamp}: ${error}`,
+                error,
+                url,
+              })
+            );
+
+            url = `https://pro-api.coingecko.com/api/v3/coins/${coingeckoCurrencyId}/history?date=${day}-${month}-${year}&x_cg_pro_api_key=${config.coinGeckoWsApiKey}`;
+
+            logger.info("prices", `Fetching price from Coingecko fallbck: ${url}`);
+
+            return axios
+              .get(url, {
+                timeout: 10 * 1000,
+              })
+              .then((response) => response.data);
+          }
+
+          throw error;
+        });
 
       const usdPrice = result?.market_data?.current_price?.["usd"];
       if (usdPrice) {
