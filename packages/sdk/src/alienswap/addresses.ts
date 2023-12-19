@@ -13,8 +13,7 @@ export const Exchange: ChainIdToAddress = {
   [Network.EthereumSepolia]: "0x33c551effdf1dbde4ffeaa133b2757819bd1353d",
   [Network.X1Testnet]: "0x5119384015e153a299f381f773832dd63a88f411",
   [Network.ZkFairTestnet]: "0x8c7be07991311e509b55db91a37f9817bc758996",
-  // todo-config
-  [Network.ZkFair]: "xxx",
+  [Network.ZkFair]: "todo-config",
 };
 
 // conduit key, 创建conduit时指定
@@ -30,6 +29,5 @@ export const AlienswapConduitKey: ChainIdToAddress = {
   [Network.EthereumSepolia]: "0x7e727520b29773e7f23a8665649197aaf064cef1000000000000000000000000",
   [Network.X1Testnet]: "0xe8c0b0df50215e70269fb55eabd568088e0ad50c000000000000000000000000",
   [Network.ZkFairTestnet]: "0xc41a6ce1e045f9b0c9629b4c08518aee9d259af2000000000000000000000000",
-  // todo-config
-  [Network.ZkFair]: "xxx",
+  [Network.ZkFair]: "todo-config",
 };

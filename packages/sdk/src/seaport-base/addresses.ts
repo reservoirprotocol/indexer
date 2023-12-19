@@ -32,7 +32,7 @@ export const ReservoirConduitKey: ChainIdToAddress = {
   [Network.Avalanche]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.X1Testnet]: "0xe8c0b0df50215e70269fb55eabd568088e0ad50c000000000000000000000000",
   [Network.ZkFairTestnet]: "0xc41a6ce1e045f9b0c9629b4c08518aee9d259af2000000000000000000000000",
-  [Network.ZkFair]: "todo",
+  [Network.ZkFair]: "todo-config",
 };
 
 export const ConduitController: ChainIdToAddress = {
