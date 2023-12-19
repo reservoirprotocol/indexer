@@ -25,6 +25,8 @@ const getUpstreamUSDPrice = async (
   currencyAddress: string,
   timestamp: number
 ): Promise<Price | undefined> => {
+  let url;
+
   try {
     currencyAddress = currencyAddress.toLowerCase();
 
@@ -33,8 +35,6 @@ const getUpstreamUSDPrice = async (
 
     const currency = await getCurrency(currencyAddress);
     const coingeckoCurrencyId = currency?.metadata?.coingeckoCurrencyId;
-
-    let url;
 
     if (coingeckoCurrencyId) {
       const day = date.getDate();
