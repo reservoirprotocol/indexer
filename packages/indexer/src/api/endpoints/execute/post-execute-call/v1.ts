@@ -128,10 +128,7 @@ export const postExecuteCallV1Options: RouteOptions = {
           );
         });
 
-      if (
-        ccConfig.solver?.capacityPerRequest &&
-        bn(price).add(relayerFee).gt(ccConfig.solver.capacityPerRequest)
-      ) {
+      if (ccConfig.solver?.capacityPerRequest && bn(price).gt(ccConfig.solver.capacityPerRequest)) {
         throw Boom.badRequest("Insufficient capacity");
       }
 

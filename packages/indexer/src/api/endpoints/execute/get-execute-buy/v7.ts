@@ -1528,7 +1528,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
         if (
           ccConfig.solver?.capacityPerRequest &&
-          bn(price).add(relayerFee).gt(ccConfig.solver.capacityPerRequest) &&
+          bn(price).gt(ccConfig.solver.capacityPerRequest) &&
           !preview
         ) {
           throw Boom.badRequest("Insufficient capacity");
