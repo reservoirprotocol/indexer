@@ -484,6 +484,19 @@ export const getNetworkSettings = (): NetworkSettings => {
               },
             },
           ],
+          [
+            "0x2bff8ddbc1f13f6f976a8f4d7fee677272fb6e0e",
+            {
+              contract: "0x2bff8ddbc1f13f6f976a8f4d7fee677272fb6e0e",
+              name: "$AURA",
+              symbol: "$AURA",
+              decimals: 18,
+              metadata: {
+                image:
+                  "https://ipfs.io/ipfs/QmQwUUJMBAPmr6ANAvJavC6bKCXFDZJkyd6zzgZxGJddeQ/AURA%20Coin%20Front.png",
+              },
+            },
+          ],
         ]),
         coingecko: {
           networkId: "ethereum",

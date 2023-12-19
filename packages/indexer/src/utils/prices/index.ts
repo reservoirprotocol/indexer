@@ -34,15 +34,17 @@ const getUpstreamUSDPrice = async (
     const currency = await getCurrency(currencyAddress);
     const coingeckoCurrencyId = currency?.metadata?.coingeckoCurrencyId;
 
+    let url;
+
     if (coingeckoCurrencyId) {
       const day = date.getDate();
       const month = date.getMonth() + 1;
       const year = date.getFullYear();
 
-      let url = `https://api.coingecko.com/api/v3/coins/${coingeckoCurrencyId}/history?date=${day}-${month}-${year}`;
+      url = `https://api.coingecko.com/api/v3/coins/${coingeckoCurrencyId}/history?date=${day}-${month}-${year}`;
 
       if (config.coinGeckoWsApiKey) {
-        url = `https://pro-api.coingecko.com/api/v3/coins/${coingeckoCurrencyId}/history?date=${day}-${month}-${year}&x_cg_pro_api_key=${config.coinGeckoWsApiKey}}`;
+        url = `https://pro-api.coingecko.com/api/v3/coins/${coingeckoCurrencyId}/history?date=${day}-${month}-${year}&x_cg_pro_api_key=${config.coinGeckoWsApiKey}`;
       }
 
       logger.info("prices", `Fetching price from Coingecko: ${url}`);
@@ -133,7 +135,11 @@ const getUpstreamUSDPrice = async (
   } catch (error) {
     logger.error(
       "prices",
-      `Failed to fetch upstream USD price for ${currencyAddress} and timestamp ${timestamp}: ${error}`
+      JSON.stringify({
+        message: `Failed to fetch upstream USD price for ${currencyAddress} and timestamp ${timestamp}: ${error}`,
+        error,
+        url,
+      })
     );
   }
 
