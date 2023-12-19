@@ -9,7 +9,7 @@ import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import _ from "lodash";
 import { isAfter } from "date-fns";
-import { processResyncRequestJob } from "@/jobs/events-sync/process-resync-request-queue-job";
+import { eventsSyncBackfillJob } from "@/jobs/events-sync/events-sync-backfill-job";
 
 const QUEUE_NAME = "backfill-reorg-blocks";
 
@@ -48,10 +48,14 @@ if (config.doBackgroundWork) {
         );
 
         for (const { block } of results) {
-          await processResyncRequestJob.addToQueue(block - 10, block + 10, {
-            backfill: true,
-            blocksPerBatch: 5,
-          });
+          await eventsSyncBackfillJob.addToQueue(
+            block,
+            block + 10,
+            {},
+            {
+              prioritized: 1,
+            }
+          );
         }
 
         if (results.length == limit) {

@@ -142,14 +142,15 @@ export const postExecuteMintV1Options: RouteOptions = {
                 tip: Joi.string(),
                 orderIds: Joi.array().items(Joi.string()),
                 data: Joi.object(),
-                gasEstimate: Joi.number().description(
-                  "Approximation of gas used (only applies to `transaction` items)"
-                ),
                 check: Joi.object({
                   endpoint: Joi.string().required(),
                   method: Joi.string().valid("POST").required(),
                   body: Joi.any(),
                 }).description("The details of the endpoint for checking the status of the step"),
+                // TODO: To remove, only kept for backwards-compatibility
+                gasEstimate: Joi.number().description(
+                  "Approximation of gas used (only applies to `transaction` items)"
+                ),
               })
             )
             .required(),
@@ -240,6 +241,7 @@ export const postExecuteMintV1Options: RouteOptions = {
         totalPrice?: number;
         totalRawPrice?: string;
         feesOnTop: ExecuteFee[];
+        // TODO: To remove, only kept for backwards-compatibility
         gasCost?: string;
         fromChainId?: number;
       }[] = [];
@@ -757,7 +759,7 @@ export const postExecuteMintV1Options: RouteOptions = {
           };
           solver?: {
             address: string;
-            maxCost: string;
+            capacityPerRequest: string;
           };
         } = await axios
           .get(
@@ -783,12 +785,13 @@ export const postExecuteMintV1Options: RouteOptions = {
           },
         };
 
-        const { requestId, price, fee } = await axios
+        const { requestId, price, relayerFee, depositGasFee } = await axios
           .post(`${config.crossChainSolverBaseUrl}/intents/quote`, data)
           .then((response) => ({
             requestId: response.data.requestId,
             price: response.data.price,
-            fee: response.data.fee,
+            relayerFee: response.data.relayerFee,
+            depositGasFee: response.data.depositGasFee,
           }))
           .catch((error) => {
             throw Boom.badRequest(
@@ -797,18 +800,19 @@ export const postExecuteMintV1Options: RouteOptions = {
           });
 
         if (
-          ccConfig.solver?.maxCost &&
-          bn(price).add(fee).gt(ccConfig.solver.maxCost) &&
+          ccConfig.solver?.capacityPerRequest &&
+          bn(price).add(relayerFee).gt(ccConfig.solver.capacityPerRequest) &&
           !preview
         ) {
-          throw Boom.badRequest("Cost too high");
+          throw Boom.badRequest("Insufficient capacity");
         }
 
         return {
           requestId,
           request: data.request,
           price,
-          fee,
+          relayerFee,
+          depositGasFee,
           user: ccConfig.user!,
           solver: ccConfig.solver!,
         };
@@ -824,12 +828,13 @@ export const postExecuteMintV1Options: RouteOptions = {
           tip?: string;
           orderIds?: string[];
           data?: object;
-          gasEstimate?: number;
           check?: {
             endpoint: string;
             method: "POST";
             body: object;
           };
+          // TODO: To remove, only kept for backwards-compatibility reasons
+          gasEstimate?: number;
         }[];
       };
 
@@ -844,21 +849,22 @@ export const postExecuteMintV1Options: RouteOptions = {
         },
       ];
 
+      const fees = {
+        gas: await getJoiPriceObject(
+          {
+            gross: {
+              amount: (await getGasFee()).mul(estimateGasFromTxTags(txTags)).toString(),
+            },
+          },
+          // Gas fees are always paid in the native currency of the chain
+          Sdk.Common.Addresses.Native[config.chainId]
+        ),
+      };
       if (payload.onlyPath && !useCrossChainIntent) {
         return {
           path,
           maxQuantities: preview ? maxQuantities : undefined,
-          fees: {
-            gas: await getJoiPriceObject(
-              {
-                gross: {
-                  amount: (await getGasFee()).mul(estimateGasFromTxTags(txTags)).toString(),
-                },
-              },
-              // Gas fees are always paid in the native currency of the chain
-              Sdk.Common.Addresses.Native[config.chainId]
-            ),
-          },
+          fees,
           // TODO: To remove, only kept for backwards-compatibility
           gasEstimate: estimateGasFromTxTags(txTags),
         };
@@ -877,7 +883,7 @@ export const postExecuteMintV1Options: RouteOptions = {
         const item = path[0];
 
         const data = await getCrossChainQuote();
-        const cost = bn(data.price).add(data.fee);
+        const cost = bn(data.price).add(data.relayerFee);
 
         // TODO: To remove, only kept for backwards-compatibility
         item.totalPrice = formatPrice(cost);
@@ -885,7 +891,7 @@ export const postExecuteMintV1Options: RouteOptions = {
         item.quote = formatPrice(cost);
         item.rawQuote = cost.toString();
         item.fromChainId = payload.currencyChainId;
-        item.gasCost = data.fee.toString();
+        item.gasCost = data.relayerFee.toString();
 
         // Better approach
         // const c = await getCurrency(Sdk.Common.Addresses.Native[config.chainId]);
@@ -897,19 +903,27 @@ export const postExecuteMintV1Options: RouteOptions = {
         // item.buyInRawQuote = quote;
 
         const needsDeposit = bn(data.user.balance).lt(cost);
+        const fees = {
+          gas: needsDeposit
+            ? await getJoiPriceObject(
+                { gross: { amount: data.depositGasFee } },
+                Sdk.Common.Addresses.Native[config.chainId]
+              )
+            : undefined,
+          relayer: await getJoiPriceObject(
+            { gross: { amount: data.relayerFee } },
+            Sdk.Common.Addresses.Native[config.chainId],
+            undefined,
+            undefined,
+            payload.currencyChainId
+          ),
+        };
+
         if (payload.onlyPath) {
           return {
             path,
             maxQuantities: preview ? maxQuantities : undefined,
-            fees: {
-              relayer: await getJoiPriceObject(
-                { gross: { amount: data.fee } },
-                Sdk.Common.Addresses.Native[config.chainId],
-                undefined,
-                undefined,
-                payload.currencyChainId
-              ),
-            },
+            fees,
             // TODO: To remove, only kept for backwards-compatibility
             gasEstimate: needsDeposit ? 21000 : 0,
           };
@@ -988,6 +1002,7 @@ export const postExecuteMintV1Options: RouteOptions = {
         return {
           steps: customSteps.filter((s) => s.items.length),
           path,
+          fees,
         };
       }
 
@@ -1089,6 +1104,7 @@ export const postExecuteMintV1Options: RouteOptions = {
               kind: "transaction",
             },
           },
+          // TODO: To remove, only kept for backwards-compatibility
           gasEstimate: txTags ? estimateGasFromTxTags(txTags) : undefined,
         });
       }
@@ -1121,6 +1137,7 @@ export const postExecuteMintV1Options: RouteOptions = {
         steps,
         errors,
         path,
+        fees,
       };
     } catch (error) {
       const key = request.headers["x-api-key"];
