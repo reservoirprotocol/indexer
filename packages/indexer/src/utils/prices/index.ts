@@ -25,7 +25,7 @@ const getUpstreamUSDPrice = async (
   currencyAddress: string,
   timestamp: number
 ): Promise<Price | undefined> => {
-  let url;
+  let url: string;
 
   try {
     currencyAddress = currencyAddress.toLowerCase();
@@ -55,7 +55,7 @@ const getUpstreamUSDPrice = async (
         })
         .then((response) => response.data)
         .catch((error) => {
-          if (error.response?.status === 429) {
+          if (config.coinGeckoWsApiKey && error.response?.status === 429) {
             logger.warn(
               "prices",
               JSON.stringify({
