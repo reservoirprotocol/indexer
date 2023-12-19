@@ -19,7 +19,7 @@ export class BlockCheckJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-block-check";
   // maxRetries = 10;
   // concurrency = 1;
-  // job-todo
+  // todo-job
   maxRetries = [43851].includes(config.chainId) ? 2 : 10;
   concurrency = [43851].includes(config.chainId) ? 1 : 1;
 
