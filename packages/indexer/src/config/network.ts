@@ -706,7 +706,10 @@ export const getNetworkSettings = (): NetworkSettings => {
         headBlockDelay: 0,
         backfillBlockBatchSize: 32,
         reorgCheckFrequency: [30],
-
+        mintAddresses: [
+          ...defaultNetworkSettings.mintAddresses,
+          "0x2791bca1f2de4661ed88a30c99a7a9449aa84174",
+        ],
         trendingExcludedContracts: [
           "0x198d38c5f21eab36731d0576560440f70cbd9418", // Yieldnodes
         ],

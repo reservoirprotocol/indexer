@@ -18,7 +18,7 @@ export type ResyncUserCollectionsJobPayload = {
 export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler {
   queueName = "resync-user-collections";
   maxRetries = 15;
-  concurrency = 5;
+  concurrency = 15;
   lazyMode = true;
   backoff = {
     type: "exponential",

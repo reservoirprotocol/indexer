@@ -8,6 +8,7 @@ import { eventsSyncNftTransfersWriteBufferJob } from "@/jobs/events-sync/write-b
 import { AddressZero } from "@ethersproject/constants";
 import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
 import { DeferUpdateAddressBalance } from "@/models/defer-update-address-balance";
+import { getNetworkSettings } from "@/config/network";
 
 export type Event = {
   kind: ContractKind;
@@ -140,11 +141,10 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
         { table: "nft_transfer_events" }
       );
 
-      const deferAddresses = [AddressZero, "0x2791bca1f2de4661ed88a30c99a7a9449aa84174"];
       const isErc1155 = _.includes(erc1155Contracts, fromBuffer(event.address));
       const deferUpdate =
         [137, 80001].includes(config.chainId) &&
-        _.includes(deferAddresses, fromBuffer(event.from)) &&
+        _.includes(getNetworkSettings().mintAddresses, fromBuffer(event.from)) &&
         isErc1155;
 
       // Atomically insert the transfer events and update balances
