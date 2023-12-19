@@ -5,9 +5,9 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
 import { logger } from "@/common/logger";
-import { regex } from "@/common/utils";
 import { config } from "@/config/index";
-import { processResyncRequestJob } from "@/jobs/events-sync/process-resync-request-queue-job";
+import { eventsSyncBackfillJob } from "@/jobs/events-sync/events-sync-backfill-job";
+import { regex } from "@/common/utils";
 
 export const postSyncEventsOptions: RouteOptions = {
   description: "Trigger syncing of events.",
@@ -33,9 +33,6 @@ export const postSyncEventsOptions: RouteOptions = {
       ),
       fromBlock: Joi.number().integer().positive().required(),
       toBlock: Joi.number().integer().positive().required(),
-      blocksPerBatch: Joi.number().integer().positive(),
-      skipNonFillWrites: Joi.boolean().default(false),
-      backfill: Joi.boolean().default(true),
     }),
   },
   handler: async (request: Request) => {
@@ -49,14 +46,8 @@ export const postSyncEventsOptions: RouteOptions = {
       const syncDetails = payload.syncDetails;
       const fromBlock = payload.fromBlock;
       const toBlock = payload.toBlock;
-      const blocksPerBatch = payload.blocksPerBatch;
-      const backfill = payload.backfill;
 
-      await processResyncRequestJob.addToQueue(fromBlock, toBlock, {
-        backfill,
-        syncDetails,
-        blocksPerBatch,
-      });
+      await eventsSyncBackfillJob.addToQueue(fromBlock, toBlock, syncDetails);
 
       return { message: "Request accepted" };
     } catch (error) {

@@ -92,7 +92,7 @@ export const postExecuteCallV1Options: RouteOptions = {
         };
         solver?: {
           address: string;
-          maxCost: string;
+          capacityPerRequest: string;
         };
       } = await axios
         .get(
@@ -114,12 +114,13 @@ export const postExecuteCallV1Options: RouteOptions = {
         },
       };
 
-      const { requestId, price, fee } = await axios
+      const { requestId, price, relayerFee, depositGasFee } = await axios
         .post(`${config.crossChainSolverBaseUrl}/intents/quote`, data)
         .then((response) => ({
           requestId: response.data.requestId,
           price: response.data.price,
-          fee: response.data.fee,
+          relayerFee: response.data.relayerFee,
+          depositGasFee: response.data.depositGasFee,
         }))
         .catch((error) => {
           throw Boom.badRequest(
@@ -127,8 +128,11 @@ export const postExecuteCallV1Options: RouteOptions = {
           );
         });
 
-      if (ccConfig.solver?.maxCost && bn(price).add(fee).gt(ccConfig.solver.maxCost)) {
-        throw Boom.badRequest("Cost too high");
+      if (
+        ccConfig.solver?.capacityPerRequest &&
+        bn(price).add(relayerFee).gt(ccConfig.solver.capacityPerRequest)
+      ) {
+        throw Boom.badRequest("Insufficient capacity");
       }
 
       type StepType = {
@@ -164,7 +168,7 @@ export const postExecuteCallV1Options: RouteOptions = {
         },
       ];
 
-      const cost = bn(price).add(fee);
+      const cost = bn(price).add(relayerFee);
       const needsDeposit = bn(ccConfig.user!.balance).lt(cost);
       if (needsDeposit) {
         steps[0].items.push({
@@ -222,8 +226,14 @@ export const postExecuteCallV1Options: RouteOptions = {
       return {
         steps,
         fees: {
+          gas: needsDeposit
+            ? await getJoiPriceObject(
+                { gross: { amount: depositGasFee } },
+                Sdk.Common.Addresses.Native[config.chainId]
+              )
+            : undefined,
           relayer: await getJoiPriceObject(
-            { gross: { amount: fee } },
+            { gross: { amount: relayerFee } },
             Sdk.Common.Addresses.Native[originChainId],
             undefined,
             undefined,

@@ -216,7 +216,8 @@ export class Collections {
         payment_tokens = $/paymentTokens/,
         creator = $/creator/,
         is_spam = CASE WHEN (is_spam IS NULL OR is_spam = 0) THEN $/isSpamContract/ ELSE is_spam END,
-        updated_at = now()
+        updated_at = now(),
+        image_version = CASE WHEN (metadata IS DISTINCT FROM $/metadata:json/) THEN now() ELSE image_version END
       WHERE id = $/id/
       AND (metadata IS DISTINCT FROM $/metadata:json/ 
             OR name IS DISTINCT FROM $/name/ 

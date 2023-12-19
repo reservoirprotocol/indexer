@@ -732,6 +732,7 @@ export const getTokensV7Options: RouteOptions = {
           t.media,
           t.collection_id,
           t.image_version,
+          c.image_version AS collection_image_version,
           c.name AS collection_name,
           con.kind,
           con.symbol,
@@ -1467,7 +1468,11 @@ export const getTokensV7Options: RouteOptions = {
               collection: {
                 id: r.collection_id,
                 name: r.collection_name,
-                image: Assets.getLocalAssetsLink(r.collection_image),
+                image: Assets.getResizedImageUrl(
+                  r.collection_image,
+                  ImageSize.small,
+                  r.collection_image_version
+                ),
                 slug: r.slug,
                 symbol: r.symbol,
                 creator: r.creator ? fromBuffer(r.creator) : null,
@@ -2167,7 +2172,7 @@ export const getListedTokensFromES = async (query: any) => {
           collection: {
             id: r.collection_id,
             name: r.collection_name,
-            image: Assets.getLocalAssetsLink(r.collection_image),
+            image: Assets.getResizedImageUrl(r.collection_image, ImageSize.small),
             slug: r.slug,
             symbol: r.symbol,
             creator: r.creator ? fromBuffer(r.creator) : null,

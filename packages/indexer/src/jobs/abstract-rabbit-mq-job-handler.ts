@@ -42,6 +42,7 @@ export abstract class AbstractRabbitMqJobHandler {
   protected timeout = 0; // Job timeout in ms
   protected consumerTimeout = 0; // Rabbitmq timeout in ms default to 1800000ms (30 min) increase only if the job needs to run more than that, this value shouldn't be smaller than `timeout` (expect 0)
   protected disableConsuming = config.rabbitDisableQueuesConsuming;
+  protected disableErrorLogs = false; // Will disable any error logs resulted from retry unless max retries reached and msg goes to dead letter
 
   public async consume(channel: ChannelWrapper, consumeMessage: ConsumeMessage): Promise<void> {
     try {
@@ -138,14 +139,16 @@ export abstract class AbstractRabbitMqJobHandler {
       }
 
       // Log the error
-      logger.error(
-        this.queueName,
-        `Error handling event: ${JSON.stringify(
-          error
-        )}, queueName=${queueName}, payload=${JSON.stringify(this.rabbitMqMessage)}, retryCount=${
-          this.rabbitMqMessage.retryCount
-        }`
-      );
+      if (!this.disableErrorLogs || queueName === this.getDeadLetterQueue()) {
+        logger.error(
+          this.queueName,
+          `Error handling event: ${JSON.stringify(
+            error
+          )}, queueName=${queueName}, payload=${JSON.stringify(this.rabbitMqMessage)}, retryCount=${
+            this.rabbitMqMessage.retryCount
+          }`
+        );
+      }
 
       try {
         channel.ack(consumeMessage); // Ack the message with rabbit

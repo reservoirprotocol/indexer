@@ -1,9 +1,7 @@
-import { AddressZero, HashZero } from "@ethersproject/constants";
-import * as Sdk from "@reservoir0x/sdk";
+import { HashZero } from "@ethersproject/constants";
 import crypto from "crypto";
 import stringify from "json-stable-stringify";
 
-import { config } from "@/config/index";
 import { OrderKind } from "@/orderbook/orders";
 import { TokenSetSchema } from "@/orderbook/token-sets/utils";
 
@@ -65,16 +63,3 @@ export const generateSchemaHash = (schema?: object) =>
   schema
     ? "0x" + crypto.createHash("sha256").update(stringify(schema)).digest("hex")
     : defaultSchemaHash;
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const isOrderNativeOffChainCancellable = (rawData?: any) => {
-  // Seaport
-  if (rawData?.zone) {
-    return rawData.zone === Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId];
-  }
-
-  // Payment Processor
-  if (rawData?.cosigner) {
-    return rawData.cosigner !== AddressZero;
-  }
-};

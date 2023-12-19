@@ -1,5 +1,4 @@
 import { BulkJobOptions } from "bullmq";
-import { randomUUID } from "crypto";
 import Redis from "ioredis";
 import _ from "lodash";
 import Redlock from "redlock";
@@ -67,34 +66,31 @@ export type BullMQBulkJob = {
 };
 
 export const acquireLock = async (name: string, expirationInSeconds = 0) => {
-  const id = randomUUID();
   let acquired;
 
   if (expirationInSeconds) {
-    acquired = await redis.set(name, id, "EX", expirationInSeconds, "NX");
+    acquired = await redis.set(name, "lock", "EX", expirationInSeconds, "NX");
   } else {
-    acquired = await redis.set(name, id, "NX");
+    acquired = await redis.set(name, "lock", "NX");
   }
 
   return acquired === "OK";
 };
 
 export const acquireLockCrossChain = async (name: string, expirationInSeconds = 0) => {
-  const id = randomUUID();
   let acquired;
 
   if (expirationInSeconds) {
-    acquired = await allChainsSyncRedis.set(name, id, "EX", expirationInSeconds, "NX");
+    acquired = await allChainsSyncRedis.set(name, "lock", "EX", expirationInSeconds, "NX");
   } else {
-    acquired = await allChainsSyncRedis.set(name, id, "NX");
+    acquired = await allChainsSyncRedis.set(name, "lock", "NX");
   }
 
   return acquired === "OK";
 };
 
 export const extendLock = async (name: string, expirationInSeconds: number) => {
-  const id = randomUUID();
-  const extended = await redis.set(name, id, "EX", expirationInSeconds, "XX");
+  const extended = await redis.set(name, "lock", "EX", expirationInSeconds, "XX");
   return extended === "OK";
 };
 

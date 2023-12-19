@@ -8,6 +8,7 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { Assets, ImageSize } from "@/utils/assets";
 
 const version = "v2";
 
@@ -159,6 +160,7 @@ export const getCollectionV2Options: RouteOptions = {
           "c"."day7_floor_sell_value",
           "c"."day30_floor_sell_value",               
           "c"."token_count",
+          "c"."image_version",
           (
             SELECT COUNT(*) FROM "tokens" "t"
             WHERE "t"."collection_id" = "c"."id"
@@ -199,6 +201,7 @@ export const getCollectionV2Options: RouteOptions = {
             "t"."token_id" AS "floor_sell_token_id",
             "t"."name" AS "floor_sell_token_name",
             "t"."image" AS "floor_sell_token_image",
+            "t"."image_version" AS "floor_sell_token_image_version",
             "t"."floor_sell_id",
             "t"."floor_sell_value",
             "t"."floor_sell_maker",
@@ -258,7 +261,18 @@ export const getCollectionV2Options: RouteOptions = {
               metadata: {
                 ...r.metadata,
                 imageUrl:
-                  r.metadata?.imageUrl || (r.sample_images?.length ? r.sample_images[0] : null),
+                  Assets.getResizedImageUrl(
+                    r.metadata?.imageUrl,
+                    ImageSize.small,
+                    r.image_version
+                  ) ||
+                  (r.sample_images?.length
+                    ? Assets.getResizedImageUrl(
+                        r.sample_images[0],
+                        ImageSize.small,
+                        r.image_version
+                      )
+                    : null),
               },
               sampleImages: r.sample_images || [],
               tokenCount: String(r.token_count),
@@ -284,7 +298,11 @@ export const getCollectionV2Options: RouteOptions = {
                     : null,
                   tokenId: r.floor_sell_token_id,
                   name: r.floor_sell_token_name,
-                  image: r.floor_sell_token_image,
+                  image: Assets.getResizedImageUrl(
+                    r.floor_sell_token_image,
+                    undefined,
+                    r.floor_sell_token_image_version
+                  ),
                 },
               },
               topBid: {

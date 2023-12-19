@@ -6,7 +6,7 @@ import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
-import { checkForMissingBlocks } from "@/events-sync/syncEventsV2";
+import { checkForMissingBlocks } from "@/events-sync/index";
 import { now } from "@/common/utils";
 
 // For syncing events we have two separate job queues. One is for

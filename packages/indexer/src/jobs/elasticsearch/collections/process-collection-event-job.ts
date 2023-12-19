@@ -50,6 +50,7 @@ export class ProcessCollectionEventJob extends AbstractRabbitMqJobHandler {
               (collections.metadata ->> 'twitterUsername')::TEXT AS "twitter_username",
               (collections.metadata ->> 'twitterUrl')::TEXT AS "twitter_url",
               (collections.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
+              collections.image_version,
               collections.contract,
               collections.creator,
               collections.all_time_volume,
@@ -89,6 +90,7 @@ export class ProcessCollectionEventJob extends AbstractRabbitMqJobHandler {
           floor_sell_currency: rawResult.floor_sell_currency,
           floor_sell_currency_price: rawResult.floor_sell_currency_price,
           opensea_verification_status: rawResult.opensea_verification_status,
+          image_version: rawResult.image_version,
         });
       }
     } catch (error) {

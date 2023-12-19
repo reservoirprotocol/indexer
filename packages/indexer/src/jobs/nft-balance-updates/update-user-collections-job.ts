@@ -26,6 +26,7 @@ export default class UpdateUserCollectionsJob extends AbstractRabbitMqJobHandler
     type: "exponential",
     delay: 5000,
   } as BackoffStrategy;
+  disableErrorLogs = true;
 
   protected async process(payload: UpdateUserCollectionsJobPayload) {
     const { fromAddress, toAddress, contract, tokenId, amount } = payload;

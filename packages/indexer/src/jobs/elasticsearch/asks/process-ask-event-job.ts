@@ -1,11 +1,8 @@
-import { logger } from "@/common/logger";
-
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
 import { PendingAskEventsQueue } from "@/elasticsearch/indexes/asks/pending-ask-events-queue";
 import { config } from "@/config/index";
 import { AskCreatedEventHandler } from "@/elasticsearch/indexes/asks/event-handlers/ask-created";
-import { AskDocumentInfo } from "@/elasticsearch/indexes/asks/event-handlers/base";
 
 export enum EventKind {
   newSellOrder = "newSellOrder",
@@ -34,37 +31,9 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
     if (kind === EventKind.SellOrderInactive) {
       const id = new AskCreatedEventHandler(data.id).getAskId();
 
-      try {
-        await pendingAskEventsQueue.add([{ info: { id }, kind: "delete" }]);
-      } catch (error) {
-        logger.error(
-          this.queueName,
-          JSON.stringify({
-            topic: "debugAskIndex",
-            message: `SellOrderInactive error. id=${id}, error=${error}`,
-            data,
-            error,
-          })
-        );
-      }
+      await pendingAskEventsQueue.add([{ info: { id }, kind: "delete" }]);
     } else {
-      let askDocumentInfo: AskDocumentInfo;
-
-      try {
-        askDocumentInfo = await new AskCreatedEventHandler(data.id).generateAsk();
-      } catch (error) {
-        logger.error(
-          this.queueName,
-          JSON.stringify({
-            topic: "debugAskIndex",
-            message: `Error generating ask document. kind=${kind}, id=${data.id}, error=${error}`,
-            error,
-            data,
-          })
-        );
-
-        throw error;
-      }
+      const askDocumentInfo = await new AskCreatedEventHandler(data.id).generateAsk();
 
       if (askDocumentInfo) {
         await pendingAskEventsQueue.add([{ info: askDocumentInfo, kind: "index" }]);

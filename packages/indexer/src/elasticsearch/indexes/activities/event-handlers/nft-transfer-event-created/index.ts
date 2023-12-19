@@ -89,7 +89,8 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
                         collections.is_spam AS "collection_is_spam",
                         collections.id AS "collection_id",
                         collections.name AS "collection_name",
-                        (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image"
+                        (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image",
+                        collections.image_version AS "collection_image_version"
                     FROM tokens
                     JOIN collections on collections.id = tokens.collection_id
                     WHERE nft_transfer_events.address = tokens.contract

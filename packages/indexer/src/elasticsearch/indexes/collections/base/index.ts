@@ -16,6 +16,7 @@ export interface CollectionDocument extends BaseDocument {
   tokenCount: number;
   metadataDisabled: boolean;
   isSpam: boolean;
+  imageVersion: number;
   allTimeVolume?: string;
   allTimeVolumeDecimal?: number;
   floorSell?: {
@@ -34,6 +35,7 @@ export interface BuildCollectionDocumentData extends BuildDocumentData {
   name: string;
   slug: string;
   image: string;
+  image_version: number;
   created_at: Date;
   community: string;
   token_count: number;
@@ -66,6 +68,7 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
       tokenCount: Number(data.token_count),
       metadataDisabled: Number(data.metadata_disabled) > 0,
       isSpam: Number(data.is_spam) > 0,
+      imageVersion: data.image_version,
       allTimeVolume: data.all_time_volume,
       allTimeVolumeDecimal: formatEth(data.all_time_volume),
       floorSell: data.floor_sell_id
