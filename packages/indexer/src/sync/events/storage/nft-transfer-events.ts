@@ -3,11 +3,13 @@ import _ from "lodash";
 import { idb, pgp } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { BaseEventParams } from "@/events-sync/parser";
 import { eventsSyncNftTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
 import { AddressZero } from "@ethersproject/constants";
 import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
+import { getRouters } from "@/utils/routers";
 import { DeferUpdateAddressBalance } from "@/models/defer-update-address-balance";
+import { getNetworkSettings } from "@/config/network";
+import { BaseEventParams } from "../parser";
 
 export type Event = {
   kind: ContractKind;
@@ -33,6 +35,7 @@ type DbEvent = {
   to: Buffer;
   token_id: string;
   amount: string;
+  kind: "transfer" | "airdrop" | "mint" | "burn" | "sale" | null;
 };
 
 type erc721Token = {
@@ -55,6 +58,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
   // Keep track of all unique contracts and tokens
   const uniqueContracts = new Map<string, string>();
   const uniqueTokens = new Set<string>();
+  const ns = getNetworkSettings();
 
   const transferValues: DbEvent[] = [];
 
@@ -69,7 +73,21 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
 
   for (const event of events) {
     const contractId = event.baseEventParams.address.toString();
-
+    // If its a mint, and the recipient did NOT initiate the transaction, then its an airdrop
+    const routers = await getRouters();
+    let kind: DbEvent["kind"] = null;
+    if (
+      ns.mintAddresses.includes(event.from) &&
+      event.baseEventParams.from !== event.to &&
+      event.baseEventParams?.to &&
+      !routers.has(event.baseEventParams?.to)
+    ) {
+      kind = "airdrop";
+    } else if (ns.mintAddresses.includes(event.from)) {
+      kind = "mint";
+    } else if (ns.burnAddresses.includes(event.to)) {
+      kind = "burn";
+    }
     transferValues.push({
       address: toBuffer(event.baseEventParams.address),
       block: event.baseEventParams.block,
@@ -83,6 +101,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
       to: toBuffer(event.to),
       token_id: event.tokenId,
       amount: event.amount,
+      kind: kind,
     });
 
     if (!uniqueContracts.has(contractId)) {
@@ -136,15 +155,15 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
           "to",
           "token_id",
           "amount",
+          "kind",
         ],
         { table: "nft_transfer_events" }
       );
 
-      const deferAddresses = [AddressZero, "0x2791bca1f2de4661ed88a30c99a7a9449aa84174"];
       const isErc1155 = _.includes(erc1155Contracts, fromBuffer(event.address));
       const deferUpdate =
         [137, 80001].includes(config.chainId) &&
-        _.includes(deferAddresses, fromBuffer(event.from)) &&
+        _.includes(getNetworkSettings().mintAddresses, fromBuffer(event.from)) &&
         isErc1155;
 
       // Atomically insert the transfer events and update balances
@@ -162,7 +181,8 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
             "from",
             "to",
             "token_id",
-            "amount"
+            "amount",
+            "kind"
           ) VALUES ${pgp.helpers.values(event, columns)}
           ON CONFLICT DO NOTHING
           RETURNING
@@ -178,21 +198,24 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
           "token_id",
           "owner",
           "amount",
-          "acquired_at"
+          "acquired_at",
+          "is_airdropped"
         ) (
           SELECT
             "y"."address",
             "y"."token_id",
             "y"."owner",
             SUM("y"."amount_delta"),
-            MIN("y"."timestamp")
+            MIN("y"."timestamp"),
+            "y"."is_airdropped"
           FROM (
             SELECT
               "address",
               "token_id",
               unnest("owners") AS "owner",
               unnest("amount_deltas") AS "amount_delta",
-              unnest("timestamps") AS "timestamp"
+              unnest("timestamps") AS "timestamp",
+              "kind" = 'airdrop' AS "is_airdropped"
             FROM "x"
             ORDER BY "address" ASC, "token_id" ASC, "owner" ASC
           ) "y"

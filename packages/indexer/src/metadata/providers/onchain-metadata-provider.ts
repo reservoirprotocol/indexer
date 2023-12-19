@@ -263,10 +263,6 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       });
     }
 
-    if (!metadata?.name) {
-      metadata.name = metadata.tokenId;
-    }
-
     const attributes =
       typeof metadata.attributes === "string"
         ? JSON.parse(metadata.attributes)
