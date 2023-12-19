@@ -35,7 +35,7 @@ export interface BuildCollectionDocumentData extends BuildDocumentData {
   name: string;
   slug: string;
   image: string;
-  image_version: number;
+  image_version?: number;
   created_at: Date;
   community: string;
   token_count: number;

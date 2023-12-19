@@ -80,7 +80,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
         }
       }
 
-      logger.error(
+      logger.warn(
         this.queueName,
         JSON.stringify({
           message: `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, error=${e}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
