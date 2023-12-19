@@ -35,7 +35,7 @@ type DbEvent = {
   to: Buffer;
   token_id: string;
   amount: string;
-  kind: "transfer" | "airdrop" | "mint" | "burn" | "sale" | null;
+  kind: "airdrop" | "mint" | "burn" | null;
 };
 
 type erc721Token = {
@@ -80,7 +80,8 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
       ns.mintAddresses.includes(event.from) &&
       event.baseEventParams.from !== event.to &&
       event.baseEventParams?.to &&
-      !routers.has(event.baseEventParams?.to)
+      !routers.has(event.baseEventParams?.to) &&
+      event.baseEventParams?.from !== event.baseEventParams?.to
     ) {
       kind = "airdrop";
     } else if (ns.mintAddresses.includes(event.from)) {
@@ -188,6 +189,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
           RETURNING
             "address",
             "token_id",
+            "kind",
             true AS "new_transfer",
             ARRAY["from", "to"] AS "owners",
             ARRAY[-"amount", "amount"] AS "amount_deltas",
