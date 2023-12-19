@@ -757,7 +757,7 @@ export const postExecuteMintV1Options: RouteOptions = {
           };
           solver?: {
             address: string;
-            maxCost: string;
+            capacityPerRequest: string;
           };
         } = await axios
           .get(
@@ -783,12 +783,13 @@ export const postExecuteMintV1Options: RouteOptions = {
           },
         };
 
-        const { requestId, price, fee } = await axios
+        const { requestId, price, relayerFee, depositGasFee } = await axios
           .post(`${config.crossChainSolverBaseUrl}/intents/quote`, data)
           .then((response) => ({
             requestId: response.data.requestId,
             price: response.data.price,
-            fee: response.data.fee,
+            relayerFee: response.data.relayerFee,
+            depositGasFee: response.data.depositGasFee,
           }))
           .catch((error) => {
             throw Boom.badRequest(
@@ -797,18 +798,19 @@ export const postExecuteMintV1Options: RouteOptions = {
           });
 
         if (
-          ccConfig.solver?.maxCost &&
-          bn(price).add(fee).gt(ccConfig.solver.maxCost) &&
+          ccConfig.solver?.capacityPerRequest &&
+          bn(price).add(relayerFee).gt(ccConfig.solver.capacityPerRequest) &&
           !preview
         ) {
-          throw Boom.badRequest("Cost too high");
+          throw Boom.badRequest("Insufficient capacity");
         }
 
         return {
           requestId,
           request: data.request,
           price,
-          fee,
+          relayerFee,
+          depositGasFee,
           user: ccConfig.user!,
           solver: ccConfig.solver!,
         };
@@ -877,7 +879,7 @@ export const postExecuteMintV1Options: RouteOptions = {
         const item = path[0];
 
         const data = await getCrossChainQuote();
-        const cost = bn(data.price).add(data.fee);
+        const cost = bn(data.price).add(data.relayerFee);
 
         // TODO: To remove, only kept for backwards-compatibility
         item.totalPrice = formatPrice(cost);
@@ -885,7 +887,7 @@ export const postExecuteMintV1Options: RouteOptions = {
         item.quote = formatPrice(cost);
         item.rawQuote = cost.toString();
         item.fromChainId = payload.currencyChainId;
-        item.gasCost = data.fee.toString();
+        item.gasCost = data.relayerFee.toString();
 
         // Better approach
         // const c = await getCurrency(Sdk.Common.Addresses.Native[config.chainId]);
@@ -902,8 +904,14 @@ export const postExecuteMintV1Options: RouteOptions = {
             path,
             maxQuantities: preview ? maxQuantities : undefined,
             fees: {
+              gas: needsDeposit
+                ? await getJoiPriceObject(
+                    { gross: { amount: data.depositGasFee } },
+                    Sdk.Common.Addresses.Native[config.chainId]
+                  )
+                : undefined,
               relayer: await getJoiPriceObject(
-                { gross: { amount: data.fee } },
+                { gross: { amount: data.relayerFee } },
                 Sdk.Common.Addresses.Native[config.chainId],
                 undefined,
                 undefined,
