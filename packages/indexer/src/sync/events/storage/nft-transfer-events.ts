@@ -219,10 +219,10 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
               unnest("timestamps") AS "timestamp",
               "kind" = 'airdrop' AS "is_airdropped"
             FROM "x"
-            ORDER BY "address" ASC, "token_id" ASC, "owner" ASC
+            ORDER BY "address" ASC, "token_id" ASC, "owner" ASC, "kind" ASC
           ) "y"
           ${deferUpdate ? `WHERE y.owner != ${pgp.as.buffer(() => event.from)}` : ""}
-          GROUP BY "y"."address", "y"."token_id", "y"."owner"
+          GROUP BY "y"."address", "y"."token_id", "y"."owner", "y"."is_airdropped"
         )
         ON CONFLICT ("contract", "token_id", "owner") DO
         UPDATE SET 
