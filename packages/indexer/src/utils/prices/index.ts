@@ -25,8 +25,6 @@ const getUpstreamUSDPrice = async (
   currencyAddress: string,
   timestamp: number
 ): Promise<Price | undefined> => {
-  let url: string;
-
   try {
     currencyAddress = currencyAddress.toLowerCase();
 
@@ -41,7 +39,7 @@ const getUpstreamUSDPrice = async (
       const month = date.getMonth() + 1;
       const year = date.getFullYear();
 
-      url = `https://api.coingecko.com/api/v3/coins/${coingeckoCurrencyId}/history?date=${day}-${month}-${year}`;
+      const url = `https://api.coingecko.com/api/v3/coins/${coingeckoCurrencyId}/history?date=${day}-${month}-${year}`;
 
       logger.info("prices", `Fetching price from Coingecko: ${url}`);
 
@@ -61,11 +59,10 @@ const getUpstreamUSDPrice = async (
               JSON.stringify({
                 message: `Rate limited during fetch upstream USD price for ${currencyAddress} and timestamp ${timestamp}: ${error}`,
                 error,
-                url,
               })
             );
 
-            url = `https://pro-api.coingecko.com/api/v3/coins/${coingeckoCurrencyId}/history?date=${day}-${month}-${year}&x_cg_pro_api_key=${config.coinGeckoWsApiKey}`;
+            const url = `https://pro-api.coingecko.com/api/v3/coins/${coingeckoCurrencyId}/history?date=${day}-${month}-${year}&x_cg_pro_api_key=${config.coinGeckoWsApiKey}`;
 
             logger.info("prices", `Fetching price from Coingecko fallbck: ${url}`);
 
@@ -158,7 +155,6 @@ const getUpstreamUSDPrice = async (
       JSON.stringify({
         message: `Failed to fetch upstream USD price for ${currencyAddress} and timestamp ${timestamp}: ${error}`,
         error,
-        url,
       })
     );
   }
