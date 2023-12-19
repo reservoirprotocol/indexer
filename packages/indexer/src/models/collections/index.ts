@@ -14,6 +14,9 @@ import { updateBlurRoyalties } from "@/utils/blur";
 import * as erc721c from "@/utils/erc721c";
 import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
+import * as paymentProcessor from "@/utils/payment-processor";
+import * as paymentProcessorV2 from "@/utils/payment-processor-v2";
+
 import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 import * as royalties from "@/utils/royalties";
 
@@ -210,13 +213,16 @@ export class Collections {
         metadata = $/metadata:json/,
         name = $/name/,
         slug = $/slug/,
+        payment_tokens = $/paymentTokens/,
         creator = $/creator/,
         is_spam = CASE WHEN (is_spam IS NULL OR is_spam = 0) THEN $/isSpamContract/ ELSE is_spam END,
-        updated_at = now()
+        updated_at = now(),
+        image_version = CASE WHEN (metadata IS DISTINCT FROM $/metadata:json/) THEN now() ELSE image_version END
       WHERE id = $/id/
       AND (metadata IS DISTINCT FROM $/metadata:json/ 
             OR name IS DISTINCT FROM $/name/ 
             OR slug IS DISTINCT FROM $/slug/
+            OR payment_tokens IS DISTINCT FROM $/paymentTokens/
             OR creator IS DISTINCT FROM $/creator/
             OR ((is_spam IS NULL OR is_spam = 0) AND $/isSpamContract/ = 1)
             )
@@ -236,6 +242,7 @@ export class Collections {
       metadata: collection.metadata || {},
       name: collection.name,
       slug: collection.slug,
+      paymentTokens: collection.paymentTokens ? { opensea: collection.paymentTokens } : {},
       creator: collection.creator ? toBuffer(collection.creator) : null,
       isSpamContract: Number(isSpamContract),
     };
@@ -295,6 +302,12 @@ export class Collections {
 
     // Refresh ERC721C config
     await erc721c.refreshConfig(collection.contract);
+
+    // Refresh Payment Processor
+    await Promise.all([
+      paymentProcessor.getConfigByContract(collection.contract, true),
+      paymentProcessorV2.getCollectionPaymentSettings(collection.contract, true),
+    ]);
   }
 
   public static async update(collectionId: string, fields: CollectionsEntityUpdateParams) {

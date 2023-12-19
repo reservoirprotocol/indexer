@@ -27,7 +27,8 @@ import { redb } from "@/common/db";
 import { redis } from "@/common/redis";
 import { Sources } from "@/models/sources";
 import { MetadataStatus } from "@/models/metadata-status";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
+import { ApiKeyManager } from "@/models/api-keys";
 
 const version = "v6";
 
@@ -162,6 +163,19 @@ export const getCollectionActivityV6Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+    const apiKey = await ApiKeyManager.getApiKey(request.headers["x-api-key"]);
+    const debug = apiKey?.key ? config.debugApiKeys.includes(apiKey.key) : false;
+
+    if (debug) {
+      logger.info(
+        `get-collection-activity-${version}-handler`,
+        JSON.stringify({
+          message: `Debug apiKey.`,
+          query,
+          apiKey,
+        })
+      );
+    }
 
     if (query.types && !_.isArray(query.types)) {
       query.types = [query.types];
@@ -218,16 +232,19 @@ export const getCollectionActivityV6Options: RouteOptions = {
         contracts.push(fromBuffer(tokensResult[0].contract));
       }
 
-      const { activities, continuation } = await ActivitiesIndex.search({
-        types: query.types,
-        contracts,
-        tokens,
-        excludeSpam: query.excludeSpam,
-        collections: query.collection,
-        sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
-        limit: query.limit,
-        continuation: query.continuation,
-      });
+      const { activities, continuation } = await ActivitiesIndex.search(
+        {
+          types: query.types,
+          contracts,
+          tokens,
+          excludeSpam: query.excludeSpam,
+          collections: query.collection,
+          sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
+          limit: query.limit,
+          continuation: query.continuation,
+        },
+        debug
+      );
 
       let tokensMetadata: any[] = [];
       let disabledCollectionMetadata: any = {};
@@ -428,6 +445,15 @@ export const getCollectionActivityV6Options: RouteOptions = {
           );
         }
 
+        let collectionImageUrl = null;
+        if (query.includeMetadata && activity.collection?.image) {
+          collectionImageUrl = Assets.getResizedImageUrl(
+            activity.collection?.image,
+            ImageSize.small,
+            activity.collection?.imageVersion
+          );
+        }
+
         return getJoiActivityObject(
           {
             type: activity.type,
@@ -461,10 +487,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
               collectionId: activity.collection?.id,
               isSpam: activity.collection?.isSpam,
               collectionName: query.includeMetadata ? activity.collection?.name : undefined,
-              collectionImage:
-                query.includeMetadata && activity.collection?.image != null
-                  ? activity.collection?.image
-                  : undefined,
+              collectionImage: collectionImageUrl,
             },
             txHash: activity.event?.txHash,
             logIndex: activity.event?.logIndex,

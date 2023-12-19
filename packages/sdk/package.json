@@ -12,9 +12,7 @@
   },
   "dependencies": {
     "@uniswap/smart-order-router": "^3.0.4",
-    "decimal.js": "^10.4.3",
     "ethers": "^5.7.2",
-    "fummpel": "^0.0.4",
     "merkletreejs": "^0.3.9"
   },
   "devDependencies": {

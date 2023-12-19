@@ -1,9 +1,10 @@
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { Tokens } from "@/models/tokens";
 import { Attributes } from "@/models/attributes";
-import { redb } from "@/common/db";
+import { edb, redb } from "@/common/db";
 import { orderRevalidationsJob } from "@/jobs/order-fixes/order-revalidations-job";
 import { logger } from "@/common/logger";
+import { config } from "@/config/index";
 
 export type ResyncAttributeValueCountsJobPayload = {
   collection: string;
@@ -30,8 +31,7 @@ export default class ResyncAttributeValueCountsJob extends AbstractRabbitMqJobHa
 
         try {
           // Invalidate any active orders that are associated with this attribute.
-          const orders = await redb.manyOrNone(
-            `
+          const query = `
               SELECT 
                 orders.id 
               FROM 
@@ -42,11 +42,16 @@ export default class ResyncAttributeValueCountsJob extends AbstractRabbitMqJobHa
                 AND orders.fillability_status = 'fillable' 
                 AND orders.approval_status = 'approved' 
                 AND token_sets.attribute_id = $/attributeId/
-        `,
-            {
-              attributeId: attribute.id,
-            }
-          );
+          `;
+
+          const values = {
+            attributeId: attribute.id,
+          };
+
+          const orders =
+            config.chainId === 137
+              ? await edb.manyOrNone(query, values)
+              : await redb.manyOrNone(query, values);
 
           if (orders.length) {
             logger.info(

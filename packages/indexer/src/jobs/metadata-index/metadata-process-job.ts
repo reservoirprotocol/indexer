@@ -97,6 +97,21 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
 
     const metadata = results.flat(1);
 
+    if (metadata.length < refreshTokens.length) {
+      const missingMetadata = refreshTokens.filter(
+        (obj1) =>
+          !metadata.some((obj2) => obj1.contract === obj2.contract && obj1.tokenId === obj2.tokenId)
+      );
+
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          message: `Debug. method=${method}, refreshTokensCount=${refreshTokens.length}, metadataCount=${metadata.length}, rateLimitExpiredIn=${rateLimitExpiredIn}`,
+          missingMetadata,
+        })
+      );
+    }
+
     await metadataIndexWriteJob.addToQueue(
       metadata.map((m) => ({
         ...m,

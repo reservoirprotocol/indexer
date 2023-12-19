@@ -174,6 +174,7 @@ export const postExecuteCallV1Options: RouteOptions = {
             to: ccConfig.solver!.address,
             data: requestId,
             value: bn(cost).sub(ccConfig.user!.balance).toString(),
+            gasLimit: 22000,
             chainId: originChainId,
           },
           check: {

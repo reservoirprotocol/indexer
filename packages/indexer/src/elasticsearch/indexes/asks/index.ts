@@ -611,7 +611,7 @@ export const updateAsksTokenData = async (
     );
 
     const pendingUpdateDocuments: { id: string; index: string }[] = esResult.hits.hits.map(
-      (hit) => ({ id: hit._source!.id, index: hit._index })
+      (hit) => ({ id: hit._id, index: hit._index })
     );
 
     if (pendingUpdateDocuments.length) {
@@ -775,7 +775,7 @@ export const updateAsksCollectionData = async (
     );
 
     const pendingUpdateDocuments: { id: string; index: string }[] = esResult.hits.hits.map(
-      (hit) => ({ id: hit._source!.id, index: hit._index })
+      (hit) => ({ id: hit._id, index: hit._index })
     );
 
     if (pendingUpdateDocuments.length) {

@@ -5,6 +5,7 @@ export type CollectionsEntityUpdateParams = {
   slug?: string;
   name?: string;
   metadata?: string;
+  imageVersion?: number;
   royalties?: string;
   community?: string;
   contract?: string;
@@ -49,6 +50,7 @@ export type CollectionsEntityParams = {
   slug: string;
   name: string;
   metadata: CollectionsMetadata;
+  imageVersion: number;
   royalties: CollectionsRoyalties[];
   community: string;
   contract: Buffer;
@@ -80,6 +82,7 @@ export class CollectionsEntity {
   slug: string;
   name: string;
   metadata: CollectionsMetadata;
+  imageVersion: number;
   royalties: CollectionsRoyalties[];
   community: string;
   contract: string;
@@ -110,6 +113,7 @@ export class CollectionsEntity {
     this.slug = params.slug;
     this.name = params.name;
     this.metadata = params.metadata;
+    this.imageVersion = params.imageVersion;
     this.royalties = params.royalties ? params.royalties : [];
     this.community = params.community;
     this.contract = fromBuffer(params.contract);

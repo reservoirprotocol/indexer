@@ -116,11 +116,6 @@ export default class OpenseaBidsQueueJob extends AbstractRabbitMqJobHandler {
           result = await orders.looksRareV2.save([info]);
           break;
         }
-
-        case "collectionxyz": {
-          result = await orders.collectionxyz.save([info]);
-          break;
-        }
       }
     } catch (error) {
       logger.error(this.queueName, `Failed to process order ${JSON.stringify(payload)}: ${error}`);

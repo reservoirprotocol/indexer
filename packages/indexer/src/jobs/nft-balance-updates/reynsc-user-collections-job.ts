@@ -5,7 +5,6 @@ import { Collections } from "@/models/collections";
 import _ from "lodash";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
-import { acquireLock } from "@/common/redis";
 
 export type ResyncUserCollectionsJobPayload = {
   user: string;
@@ -19,7 +18,7 @@ export type ResyncUserCollectionsJobPayload = {
 export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler {
   queueName = "resync-user-collections";
   maxRetries = 15;
-  concurrency = 15;
+  concurrency = 5;
   lazyMode = true;
   backoff = {
     type: "exponential",
@@ -72,24 +71,21 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
       `;
 
       const results = await redb.manyOrNone(query, values);
+      const jobs = [];
 
       for (const result of results) {
         if (_.isNull(result.collection_id)) {
           continue;
         }
 
-        // Check if the user was already synced for this collection
-        const lock = `resync-collections:${user}:${result.collection_id}`;
+        jobs.push({
+          user,
+          collectionId: result.collection_id,
+        });
+      }
 
-        if (await acquireLock(lock, 60 * 60)) {
-          // Trigger resync for the user in the collection
-          await this.addToQueue([
-            {
-              user,
-              collectionId: result.collection_id,
-            },
-          ]);
-        }
+      if (!_.isEmpty(jobs)) {
+        await this.addToQueue(jobs);
       }
 
       // If there are potentially more collections for this user

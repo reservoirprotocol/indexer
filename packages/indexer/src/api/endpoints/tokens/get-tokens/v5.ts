@@ -27,7 +27,7 @@ import {
 } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 import { CollectionSets } from "@/models/collection-sets";
 
 const version = "v5";
@@ -539,6 +539,7 @@ export const getTokensV5Options: RouteOptions = {
           t.last_flag_change,
           t.metadata_disabled AS t_metadata_disabled,
           c.metadata_disabled AS c_metadata_disabled,
+          c.image_version as collection_image_version,
           c.slug,
           t.last_buy_value,
           t.last_buy_timestamp,
@@ -1020,9 +1021,7 @@ export const getTokensV5Options: RouteOptions = {
                 },
               };
             } else if (
-              ["sudoswap", "sudoswap-v2", "nftx", "collectionxyz", "caviar-v1"].includes(
-                r.floor_sell_order_kind
-              )
+              ["sudoswap", "sudoswap-v2", "nftx", "caviar-v1"].includes(r.floor_sell_order_kind)
             ) {
               // Pool orders
               dynamicPricing = {
@@ -1070,7 +1069,11 @@ export const getTokensV5Options: RouteOptions = {
               collection: {
                 id: r.collection_id,
                 name: r.collection_name,
-                image: Assets.getLocalAssetsLink(r.collection_image),
+                image: Assets.getResizedImageUrl(
+                  r.collection_image,
+                  ImageSize.small,
+                  r.collection_image_version
+                ),
                 slug: r.slug,
               },
               lastBuy: {
