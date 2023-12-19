@@ -52,6 +52,8 @@ export const getEnhancedEventsFromTx = async (txHash: string) => {
       enhancedEvents.push({
         kind: eventData.kind,
         subKind: eventData.subKind,
+        // eslint-disable-next-line
+        // @ts-ignore
         baseEventParams: getEventParams(log, tx.blockTimestamp),
         log,
       });
@@ -137,7 +139,11 @@ export const parseBlock = async (block: number) => {
 
   let enhancedEvents = logs
     .map((log) => {
-      const baseEventParams = parseEvent(log, blockData.timestamp);
+      const tx = blockData.transactions.find((t) => t.hash === log.transactionHash);
+      if (!tx) {
+        return;
+      }
+      const baseEventParams = parseEvent(log, blockData.timestamp, 1, tx);
       return availableEventData
         .filter(
           ({ addresses, numTopics, topic }) =>

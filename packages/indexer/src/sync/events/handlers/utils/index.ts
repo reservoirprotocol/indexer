@@ -38,7 +38,7 @@ import {
   permitUpdatesJob,
   PermitUpdatesJobPayload,
 } from "@/jobs/permit-updates/permit-updates-job";
-import { BaseEventParams } from "@/events-sync/parserV2";
+import { BaseEventParams } from "@/events-sync/parser";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
