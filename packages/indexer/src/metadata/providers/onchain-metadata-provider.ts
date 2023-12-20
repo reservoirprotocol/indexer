@@ -279,8 +279,8 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       // Token descriptions are a waste of space for most collections we deal with
       // so by default we ignore them (this behaviour can be overridden if needed).
       description: metadata.description || null,
-      imageUrl: normalizeLink(metadata?.image) || null,
-      imageOriginalUrl: metadata?.image || null,
+      imageUrl: normalizeLink(metadata?.image) || normalizeLink(metadata?.image_url) || null,
+      imageOriginalUrl: metadata?.image || metadata?.image_url || null,
       animationOriginalUrl: metadata?.animation_url || null,
       mediaUrl: normalizeLink(metadata?.animation_url) || null,
       metadataOriginalUrl: this.parseIPFSURI(metadata.uri),

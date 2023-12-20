@@ -141,7 +141,7 @@ export default class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandle
       if (erc20Orders.length >= limit) {
         await this.addToQueue(
           erc20Orders[erc20Orders.length - 1].id,
-          config.chainId === 137 ? 5000 : 1000
+          config.chainId === 137 ? 30000 : 1000
         );
       }
     } catch (error) {
