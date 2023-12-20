@@ -56,6 +56,7 @@ export class BackfillCollectionsElasticsearchJob extends AbstractRabbitMqJobHand
               collections.id,
               collections.slug,
               collections.name,
+              collections.community,
               (collections.metadata ->> 'imageUrl')::TEXT AS "image",
               (collections.metadata ->> 'bannerImageUrl')::TEXT AS "banner",
               (collections.metadata ->> 'discordUrl')::TEXT AS "discord_url",

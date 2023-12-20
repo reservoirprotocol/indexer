@@ -19,6 +19,7 @@ export const CONFIG_DEFAULT = {
       token: {
         properties: {
           id: { type: "keyword" },
+          idV2: { type: "double" },
           name: { type: "keyword" },
           image: { type: "keyword" },
           attributes: { type: "flattened" },

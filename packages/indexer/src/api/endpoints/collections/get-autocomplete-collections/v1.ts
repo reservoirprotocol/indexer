@@ -86,6 +86,7 @@ export const getAutocompleteCollectionsV1Options: RouteOptions = {
       chains: query.chains,
       prefix: query.prefix,
       communities: query.community ? [query.community] : undefined,
+      limit: query.limit,
     });
 
     const result = _.map(collections, async (collection) => {

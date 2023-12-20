@@ -163,6 +163,7 @@ import { refreshAsksCollectionJob } from "@/jobs/elasticsearch/asks/refresh-asks
 import { refreshActivitiesTokenJob } from "@/jobs/elasticsearch/activities/refresh-activities-token-job";
 import { processCollectionEventJob } from "@/jobs/elasticsearch/collections/process-collection-event-job";
 import { processCollectionEventsJob } from "@/jobs/elasticsearch/collections/process-collection-events-job";
+import { backfillCollectionsElasticsearchJob } from "@/jobs/elasticsearch/collections/backfill-collections-elasticsearch-job";
 import { onchainMetadataFetchTokenUriJob } from "@/jobs/metadata-index/onchain-metadata-fetch-token-uri-job";
 import { onchainMetadataProcessTokenUriJob } from "@/jobs/metadata-index/onchain-metadata-process-token-uri-job";
 import { updateUserCollectionsJob } from "@/jobs/nft-balance-updates/update-user-collections-job";
@@ -325,6 +326,7 @@ export class RabbitMqJobsConsumer {
       refreshActivitiesTokenJob,
       processCollectionEventJob,
       processCollectionEventsJob,
+      backfillCollectionsElasticsearchJob,
       updateUserCollectionsJob,
       resyncUserCollectionsJob,
       backfillUserCollectionsJob,

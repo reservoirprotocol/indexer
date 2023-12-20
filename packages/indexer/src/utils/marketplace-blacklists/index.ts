@@ -69,19 +69,26 @@ export const isBlockedByCustomLogic = async (contract: string, operators: string
       "function getWhitelistedOperators() view returns (address[])",
     ]);
     const nft = new Contract(contract, iface, baseProvider);
+
     let result = false;
 
     // `registry()`
     try {
+      // TODO: Handle blacklists
+
       const registry = new Contract(
         await nft.registry(),
         new Interface([
+          "function isAllowlistDisabled() external view returns (bool)",
           "function isAllowedOperator(address operator) external view returns (bool)",
         ]),
         baseProvider
       );
-      const allowed = await Promise.all(operators.map((c) => registry.isAllowedOperator(c)));
-      result = allowed.some((c) => !c);
+      const isAllowlistDisabled = await registry.isAllowlistDisabled();
+      if (!isAllowlistDisabled) {
+        const allowed = await Promise.all(operators.map((c) => registry.isAllowedOperator(c)));
+        result = allowed.some((c) => !c);
+      }
     } catch {
       // Skip errors
     }
