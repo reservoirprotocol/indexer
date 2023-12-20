@@ -6,6 +6,7 @@ import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job"
 import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
 import { RequestWasThrottledError } from "@/metadata/providers/utils";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { metadataImageUploadJob } from "./metadata-image-upload-job";
 
 export type OnchainMetadataProcessTokenUriJobPayload = {
   contract: string;
@@ -33,31 +34,12 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
 
       if (metadata.length) {
         if (metadata[0].imageUrl?.startsWith("data:")) {
-          if (config.fallbackMetadataIndexingMethod) {
-            logger.info(
-              this.queueName,
-              `Fallback1. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`
-            );
-
-            await metadataIndexFetchJob.addToQueue(
-              [
-                {
-                  kind: "single-token",
-                  data: {
-                    method: config.fallbackMetadataIndexingMethod,
-                    contract,
-                    tokenId,
-                    collection: contract,
-                  },
-                },
-              ],
-              true,
-              5
-            );
-            return;
-          } else {
-            metadata[0].imageUrl = null;
-          }
+          await metadataImageUploadJob.addToQueue({
+            contract,
+            tokenId,
+            imageURI: metadata[0].imageUrl,
+          });
+          metadata[0].imageUrl = null;
         }
 
         await metadataIndexWriteJob.addToQueue(metadata);
