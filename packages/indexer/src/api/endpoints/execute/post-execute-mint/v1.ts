@@ -346,6 +346,8 @@ export const postExecuteMintV1Options: RouteOptions = {
       const useCrossChainIntent =
         payload.currencyChainId !== undefined && payload.currencyChainId !== config.chainId;
 
+      let allMintsHaveExplicitRecipient = true;
+
       let lastError: string | undefined;
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
@@ -387,7 +389,7 @@ export const postExecuteMintV1Options: RouteOptions = {
           if (collectionData) {
             const collectionMint = normalizePartialCollectionMint(rawMint);
 
-            const { txData, price } = await generateCollectionMintTxData(
+            const { txData, price, hasExplicitRecipient } = await generateCollectionMintTxData(
               collectionMint,
               payload.taker,
               item.quantity,
@@ -396,6 +398,7 @@ export const postExecuteMintV1Options: RouteOptions = {
                 referrer: payload.referrer,
               }
             );
+            allMintsHaveExplicitRecipient = allMintsHaveExplicitRecipient && hasExplicitRecipient;
 
             const orderId = `mint:${collectionMint.collection}`;
             mintDetails.push({
@@ -475,15 +478,13 @@ export const postExecuteMintV1Options: RouteOptions = {
 
               if (quantityToMint > 0) {
                 try {
-                  const { txData, price } = await generateCollectionMintTxData(
-                    mint,
-                    payload.taker,
-                    quantityToMint,
-                    {
+                  const { txData, price, hasExplicitRecipient } =
+                    await generateCollectionMintTxData(mint, payload.taker, quantityToMint, {
                       comment: payload.comment,
                       referrer: payload.referrer,
-                    }
-                  );
+                    });
+                  allMintsHaveExplicitRecipient =
+                    allMintsHaveExplicitRecipient && hasExplicitRecipient;
 
                   const orderId = `mint:${item.collection}`;
                   mintDetails.push({
@@ -599,15 +600,13 @@ export const postExecuteMintV1Options: RouteOptions = {
 
               if (quantityToMint > 0) {
                 try {
-                  const { txData, price } = await generateCollectionMintTxData(
-                    mint,
-                    payload.taker,
-                    quantityToMint,
-                    {
+                  const { txData, price, hasExplicitRecipient } =
+                    await generateCollectionMintTxData(mint, payload.taker, quantityToMint, {
                       comment: payload.comment,
                       referrer: payload.referrer,
-                    }
-                  );
+                    });
+                  allMintsHaveExplicitRecipient =
+                    allMintsHaveExplicitRecipient && hasExplicitRecipient;
 
                   const orderId = `mint:${collectionData.id}`;
                   mintDetails.push({
@@ -1025,6 +1024,7 @@ export const postExecuteMintV1Options: RouteOptions = {
         source: payload.source,
         partial: payload.partial,
         relayer: payload.relayer,
+        allMintsHaveExplicitRecipient,
       });
 
       // Minting via a smart contract proxy is complicated.

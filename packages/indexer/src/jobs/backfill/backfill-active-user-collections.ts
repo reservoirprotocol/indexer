@@ -10,6 +10,7 @@ import { resyncUserCollectionsJob } from "@/jobs/nft-balance-updates/reynsc-user
 
 export type BackfillActiveUserCollectionsJobCursorInfo = {
   lastUpdatedAt: string;
+  limit?: number;
 };
 
 export class BackfillActiveUserCollectionsJob extends AbstractRabbitMqJobHandler {
@@ -21,7 +22,7 @@ export class BackfillActiveUserCollectionsJob extends AbstractRabbitMqJobHandler
   singleActiveConsumer = true;
 
   protected async process(payload: BackfillActiveUserCollectionsJobCursorInfo) {
-    const { lastUpdatedAt } = payload;
+    const { lastUpdatedAt, limit } = payload;
     const values: {
       limit: number;
       AddressZero: Buffer;
@@ -29,14 +30,14 @@ export class BackfillActiveUserCollectionsJob extends AbstractRabbitMqJobHandler
       owner?: Buffer;
       acquiredAt?: string;
     } = {
-      limit: 100,
+      limit: limit ?? 1000,
       AddressZero: toBuffer(AddressZero),
       deadAddress: toBuffer("0x000000000000000000000000000000000000dead"),
     };
 
     let updatedAtFilter = "";
     if (lastUpdatedAt) {
-      updatedAtFilter = `AND updated_at >= '${lastUpdatedAt}'`;
+      updatedAtFilter = `AND updated_at > '${lastUpdatedAt}'`;
     }
 
     const query = `
@@ -77,7 +78,13 @@ export class BackfillActiveUserCollectionsJob extends AbstractRabbitMqJobHandler
 
       return {
         addToQueue: true,
-        cursor: { lastUpdatedAt: lastItem.updated_at.toISOString() },
+        cursor: {
+          lastUpdatedAt: lastItem.updated_at.toISOString(),
+          limit:
+            lastItem.updated_at.toISOString() === lastUpdatedAt
+              ? _.min([(values.limit += 1000), 10000])
+              : undefined,
+        },
       };
     }
 

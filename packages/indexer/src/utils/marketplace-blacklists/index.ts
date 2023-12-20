@@ -42,7 +42,7 @@ export const checkMarketplaceIsFiltered = async (
     }
   }
 
-  const customCheck = await isBlockedByCustomLogic(contract, operators);
+  const customCheck = await isBlockedByCustomLogic(contract, operators, refresh);
   if (customCheck) {
     return customCheck;
   }
@@ -60,28 +60,39 @@ export const checkMarketplaceIsFiltered = async (
   return operators.some((c) => result!.includes(c));
 };
 
-export const isBlockedByCustomLogic = async (contract: string, operators: string[]) => {
+export const isBlockedByCustomLogic = async (
+  contract: string,
+  operators: string[],
+  refresh?: boolean
+) => {
   const cacheKey = `marketplace-blacklist-custom-logic:${contract}:${JSON.stringify(operators)}`;
-  const cache = await redis.get(cacheKey);
-  if (!cache) {
+  let cache = await redis.get(cacheKey);
+  if (refresh || !cache) {
     const iface = new Interface([
       "function registry() view returns (address)",
       "function getWhitelistedOperators() view returns (address[])",
     ]);
     const nft = new Contract(contract, iface, baseProvider);
+
     let result = false;
 
     // `registry()`
     try {
+      // TODO: Handle blacklists
+
       const registry = new Contract(
         await nft.registry(),
         new Interface([
+          "function isAllowlistDisabled() external view returns (bool)",
           "function isAllowedOperator(address operator) external view returns (bool)",
         ]),
         baseProvider
       );
-      const allowed = await Promise.all(operators.map((c) => registry.isAllowedOperator(c)));
-      result = allowed.some((c) => !c);
+      const isAllowlistDisabled = await registry.isAllowlistDisabled();
+      if (!isAllowlistDisabled) {
+        const allowed = await Promise.all(operators.map((c) => registry.isAllowedOperator(c)));
+        result = allowed.some((c) => !c);
+      }
     } catch {
       // Skip errors
     }
@@ -94,6 +105,7 @@ export const isBlockedByCustomLogic = async (contract: string, operators: string
 
     // Negative case
     await redis.set(cacheKey, "0", "EX", 24 * 3600);
+    cache = "0";
   }
 
   return Boolean(Number(cache));

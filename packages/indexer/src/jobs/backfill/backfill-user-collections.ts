@@ -53,8 +53,6 @@ export class BackfillUserCollectionsJob extends AbstractRabbitMqJobHandler {
            FROM tokens
            WHERE nb.contract = tokens.contract
            AND nb.token_id = tokens.token_id
-           AND tokens.collection_id IS NOT NULL
-           AND NOT EXISTS (SELECT FROM user_collections uc WHERE owner = nb.owner AND uc.collection_id = tokens.collection_id)
         ) t ON TRUE
         WHERE nb.owner NOT IN ($/AddressZero/, $/deadAddress/)
         AND amount > 0
