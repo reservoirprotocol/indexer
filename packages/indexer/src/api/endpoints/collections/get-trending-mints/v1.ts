@@ -165,7 +165,7 @@ export const getTrendingMintsV1Options: RouteOptions = {
         limit,
       });
 
-      if (trendingMints.length === 0) {
+      if (trendingMints.length < 1) {
         const response = h.response({ mints: [] });
         return response;
       }
