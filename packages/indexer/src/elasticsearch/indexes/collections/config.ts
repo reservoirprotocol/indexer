@@ -28,6 +28,7 @@ export const CONFIG_DEFAULT = {
       indexedAt: { type: "date" },
       allTimeVolume: { type: "double" },
       allTimeVolumeDecimal: { type: "double" },
+      allTimeVolumeUsd: { type: "double" },
       floorSell: {
         properties: {
           id: { type: "keyword" },

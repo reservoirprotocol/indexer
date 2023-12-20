@@ -14,7 +14,7 @@ import { ApiKeyManager } from "@/models/api-keys";
 const version = "v1";
 
 export const postExecuteCallV1Options: RouteOptions = {
-  description: "Make arbitrary same-chain and cross-chain calls via s voler",
+  description: "Make arbitrary same-chain and cross-chain calls via solver",
   tags: ["api", "Misc"],
   plugins: {
     "hapi-swagger": {
@@ -171,7 +171,7 @@ export const postExecuteCallV1Options: RouteOptions = {
         steps[0].items.push({
           status: "incomplete",
           data: {
-            from: payload.taker,
+            from: user,
             to: ccConfig.solver!.address,
             data: requestId,
             value: bn(cost).sub(ccConfig.user!.balance).toString(),
@@ -234,7 +234,7 @@ export const postExecuteCallV1Options: RouteOptions = {
             Sdk.Common.Addresses.Native[originChainId],
             undefined,
             undefined,
-            payload.currencyChainId
+            originChainId
           ),
         },
       };

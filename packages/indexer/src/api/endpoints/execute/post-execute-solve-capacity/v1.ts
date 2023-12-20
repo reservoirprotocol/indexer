@@ -19,15 +19,25 @@ export const postExecuteSolveCapacityV1Options: RouteOptions = {
     },
   },
   validate: {
-    payload: Joi.object({
-      kind: Joi.string().valid("seaport-intent", "cross-chain-intent").required(),
-    }),
+    payload: Joi.alternatives(
+      Joi.object({
+        kind: Joi.string().valid("seaport-intent").required(),
+      }),
+      Joi.object({
+        kind: Joi.string().valid("cross-chain-intent").required(),
+        user: Joi.string().pattern(regex.address),
+      })
+    ),
   },
   response: {
     schema: Joi.object({
       capacityPerRequest: Joi.string().pattern(regex.number).required(),
       totalCapacity: Joi.string().pattern(regex.number).required(),
-      // Deprecated
+      userBalance: Joi.object({
+        currentChain: Joi.string().pattern(regex.number).required(),
+        allChains: Joi.string().pattern(regex.number).required(),
+      }),
+      // TODO: To remove, only kept for backwards-compatibility reasons
       maxItems: Joi.number().required(),
       maxPricePerItem: Joi.string().pattern(regex.number).required(),
     }).label(`postExecuteSolveCapacity${version.toUpperCase()}Response`),
@@ -56,10 +66,15 @@ export const postExecuteSolveCapacityV1Options: RouteOptions = {
 
           const response: {
             enabled: boolean;
+            user?: { balance: string; allChainsBalance: string };
             solver?: { balance: string; capacityPerRequest: string };
           } = await axios
             .get(
-              `${config.crossChainSolverBaseUrl}/config?originChainId=${config.chainId}&destinationChainId=${config.chainId}&user=${AddressZero}&currency=${AddressZero}`
+              `${config.crossChainSolverBaseUrl}/config?originChainId=${
+                config.chainId
+              }&destinationChainId=${config.chainId}&user=${
+                payload.user ?? AddressZero
+              }&currency=${AddressZero}`
             )
             .then((response) => response.data);
 
@@ -70,6 +85,13 @@ export const postExecuteSolveCapacityV1Options: RouteOptions = {
           return {
             capacityPerRequest: response.solver!.capacityPerRequest,
             totalCapacity: response.solver!.balance,
+            userBalance: payload.user
+              ? {
+                  currentChain: response.user!.balance,
+                  allChains: response.user!.allChainsBalance,
+                }
+              : undefined,
+            // TODO: To remove, only kept for backwards-compatibility reasons
             maxItems: 1,
             maxPricePerItem: response.solver!.capacityPerRequest,
           };
@@ -98,6 +120,7 @@ export const postExecuteSolveCapacityV1Options: RouteOptions = {
           return {
             capacityPerRequest: response.solver!.capacityPerRequest,
             totalCapacity: response.solver!.balance,
+            // TODO: To remove, only kept for backwards-compatibility reasons
             maxItems: 1,
             maxPricePerItem: response.solver!.capacityPerRequest,
           };
