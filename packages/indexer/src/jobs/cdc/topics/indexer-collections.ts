@@ -72,26 +72,37 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
     });
 
     try {
-      const collectionKey = `collection-cache:v4:${payload.after.id}`;
+      logger.info("top-selling-collections", `updating ${payload.after.id}`);
+      const collectionKey = `collection-cache:v5:${payload.after.id}`;
 
       const cachedCollection = await redis.get(collectionKey);
 
       if (cachedCollection !== null) {
         // If the collection exists, fetch the on_sale_count
         const collectionMetadataQuery = `
-          SELECT
-            count_query.on_sale_count,
-            orders.currency AS floor_sell_currency,
-            orders.currency_normalized_value AS normalized_floor_sell_currency_value,
-            orders.currency_value AS floor_sell_currency_value
-          FROM (
-            SELECT
-              COUNT(*) AS on_sale_count
-              FROM tokens
-              WHERE tokens.collection_id = $/collectionId/
-              AND tokens.floor_sell_value IS NOT NULL
-          ) AS count_query 
-          LEFT JOIN orders ON orders.id = $/askOrderId/;
+        SELECT
+        count_query.on_sale_count,
+        orders.currency AS floor_sell_currency,
+        orders.currency_normalized_value AS normalized_floor_sell_currency_value,
+        orders.currency_value AS floor_sell_currency_value,
+        (
+          ARRAY( 
+            SELECT 
+              tokens.image
+            FROM tokens
+            WHERE tokens.collection_id = $/collectionId/ 
+            ORDER BY rarity_rank DESC NULLS LAST 
+            LIMIT 4 
+          )
+        ) AS sample_images
+      FROM (
+        SELECT
+          COUNT(*) AS on_sale_count
+          FROM tokens
+          WHERE tokens.collection_id = $/collectionId/
+          AND tokens.floor_sell_value IS NOT NULL
+      ) AS count_query 
+      LEFT JOIN orders ON orders.id = $/askOrderId/;
         `;
 
         const result = await redb.one(collectionMetadataQuery, {
@@ -107,7 +118,10 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
           floor_sell_currency: result.floor_sell_currency
             ? fromBuffer(result.floor_sell_currency)
             : Sdk.Common.Addresses.Native[config.chainId],
-          metadata: JSON.parse(metadata),
+          metadata: {
+            ...JSON.parse(metadata),
+            sample_images: result?.sample_images || [],
+          },
           on_sale_count: result.on_sale_count,
           normalized_floor_sell_currency_value: result.normalized_floor_sell_currency_value,
           floor_sell_currency_value: result.floor_sell_currency_value,

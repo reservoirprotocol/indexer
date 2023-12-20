@@ -85,6 +85,7 @@ export const config = {
   alchemyApiKey: String(process.env.ALCHEMY_API_KEY),
   looksRareApiKey: String(process.env.LOOKSRARE_API_KEY),
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
+  openSeaNftApiKey: String(process.env.OPENSEA_NFT_API_KEY),
   openSeaApiUrl: String(process.env.OPENSEA_API_URL || ""),
 
   // Cosigner
