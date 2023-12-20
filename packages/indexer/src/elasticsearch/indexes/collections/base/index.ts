@@ -69,7 +69,7 @@ export class CollectionDocumentBuilder {
 
       allTimeVolumeUsd = formatUsd(prices.usdPrice!);
     } catch (error) {
-      logger.error(
+      logger.warn(
         "cdc-indexer-collections",
         JSON.stringify({
           topic: "debugActivitiesErrors",
