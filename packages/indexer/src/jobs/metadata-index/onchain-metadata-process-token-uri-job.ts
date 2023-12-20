@@ -25,6 +25,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
 
   protected async process(payload: OnchainMetadataProcessTokenUriJobPayload) {
     const { contract, tokenId, uri } = payload;
+    let fallbackAllowed = true;
 
     try {
       const metadata = await onchainMetadataProvider.getTokensMetadata([
@@ -36,7 +37,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           if (config.fallbackMetadataIndexingMethod) {
             logger.info(
               this.queueName,
-              `Fallback1. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`
+              `Fallback - Image Encoding. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`
             );
 
             await metadataIndexFetchJob.addToQueue(
@@ -80,6 +81,8 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
         }
       }
 
+      fallbackAllowed = !["404"].includes(`${e}`);
+
       logger.warn(
         this.queueName,
         JSON.stringify({
@@ -91,13 +94,13 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
       );
     }
 
-    if (!config.fallbackMetadataIndexingMethod) {
+    if (!fallbackAllowed || !config.fallbackMetadataIndexingMethod) {
       return;
     }
 
     logger.info(
       this.queueName,
-      `Fallback2. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`
+      `Fallback - Get Metadata Error. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`
     );
 
     // for whatever reason, we didn't find the metadata, we fall back to simplehash

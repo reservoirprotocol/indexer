@@ -245,7 +245,7 @@ export const autocomplete = async (params: {
       query: esQuery,
       sort: [
         {
-          allTimeVolumeDecimal: {
+          allTimeVolumeUsd: {
             order: "desc",
           },
         },

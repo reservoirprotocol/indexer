@@ -7,6 +7,7 @@ import { getNetworkName } from "@/config/network";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
 import { BuildDocumentData, BaseDocument } from "@/elasticsearch/indexes/base";
+import { logger } from "@/common/logger";
 
 export interface CollectionDocument extends BaseDocument {
   id: string;
@@ -63,6 +64,18 @@ export class CollectionDocumentBuilder {
       }
     );
 
+    if (!prices.usdPrice) {
+      logger.info(
+        "cdc-indexer-collections",
+        JSON.stringify({
+          topic: "debugActivitiesErrors",
+          message: `No usd value. collectionId=${data.id}, allTimeVolume=${
+            data.all_time_volume
+          }, currencyAddress=${Sdk.Common.Addresses.Native[config.chainId]}`,
+        })
+      );
+    }
+
     const document = {
       chain: {
         id: config.chainId,
@@ -82,7 +95,7 @@ export class CollectionDocumentBuilder {
       imageVersion: data.image_version,
       allTimeVolume: data.all_time_volume,
       allTimeVolumeDecimal: formatEth(data.all_time_volume),
-      allTimeVolumeUsd: formatUsd(prices.usdPrice!),
+      allTimeVolumeUsd: prices.usdPrice ? formatUsd(prices.usdPrice) : 0,
       floorSell: data.floor_sell_id
         ? {
             id: data.floor_sell_id,
