@@ -109,14 +109,14 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
             : Sdk.Common.Addresses.Native[config.chainId],
           metadata: {
             ...JSON.parse(metadata),
-            sample_images: result?.sample_images || [],
           },
+          sample_images: result?.sample_images || [],
           on_sale_count: result.on_sale_count,
           normalized_floor_sell_currency_value: result.normalized_floor_sell_currency_value,
           floor_sell_currency_value: result.floor_sell_currency_value,
         };
 
-        await redis.set(collectionKey, JSON.stringify(updatedPayload), "XX");
+        await redis.set(collectionKey, JSON.stringify(updatedPayload), "KEEPTTL");
       }
 
       const spamStatusChanged = payload.before.is_spam !== payload.after.is_spam;

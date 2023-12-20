@@ -11,7 +11,7 @@ import { getStartTime, Period } from "@/models/top-selling-collections/top-selli
 import { chunk, flatMap } from "lodash";
 import { redis } from "@/common/redis";
 
-const REDIS_EXPIRATION = 60 * 60 * 24; // 24 hours
+const REDIS_EXPIRATION = 60 * 60 * 48; // 48 hours
 const REDIS_BATCH_SIZE = 100;
 
 import {
