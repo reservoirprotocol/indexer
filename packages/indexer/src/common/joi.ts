@@ -1008,7 +1008,7 @@ export const getJoiSourceObject = (source: SourcesEntity | undefined, full = tru
 
 // --- Collections ---
 
-export const getJoiCollectionObject = (
+export const xgetJoiCollectionObject = (
   collection: any,
   metadataDisabled: boolean,
   contract?: string

@@ -41,10 +41,13 @@ export const getAutocompleteCollectionsV1Options: RouteOptions = {
       community: Joi.string()
         .lowercase()
         .description("Filter to a particular community. Example: `artblocks`"),
+      excludeSpam: Joi.boolean()
+        .default(false)
+        .description("If true, will filter any collections marked as spam."),
       limit: Joi.number()
         .integer()
         .min(1)
-        .max(1000)
+        .max(100)
         .default(20)
         .description("Amount of items returned in response."),
     }),
@@ -86,6 +89,7 @@ export const getAutocompleteCollectionsV1Options: RouteOptions = {
       chains: query.chains,
       prefix: query.prefix,
       communities: query.community ? [query.community] : undefined,
+      excludeSpam: query.excludeSpam,
       limit: query.limit,
     });
 
