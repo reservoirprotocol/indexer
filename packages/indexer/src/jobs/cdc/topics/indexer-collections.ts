@@ -61,6 +61,7 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
     });
 
     try {
+      logger.info("top-selling-collections", `updating ${payload.after.id}`);
       const collectionKey = `collection-cache:v5:${payload.after.id}`;
 
       const cachedCollection = await redis.get(collectionKey);
