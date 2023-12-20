@@ -238,6 +238,8 @@ export class Router {
       forceDirectFilling?: boolean;
       // Wallet used for relaying the fill transaction
       relayer?: string;
+      // Whether all mints have an explicit recipient
+      allMintsHaveExplicitRecipient?: boolean;
     }
   ): Promise<FillMintsResult> {
     const txs: FillMintsResult["txs"][0][] = [];
@@ -248,7 +250,11 @@ export class Router {
     if (
       !Addresses.MintModule[this.chainId] ||
       options?.forceDirectFilling ||
-      (details.length === 1 && !details[0].fees?.length && !details[0].comment && !options?.relayer)
+      // Single mints with no fees, no comment and no `relayer` field (only if the mint doesn't have an explicit recipient)
+      (details.length === 1 &&
+        !details[0].fees?.length &&
+        !details[0].comment &&
+        (options?.allMintsHaveExplicitRecipient ? true : !options?.relayer))
     ) {
       // Under some conditions, we simply return that transaction data back to the caller
 

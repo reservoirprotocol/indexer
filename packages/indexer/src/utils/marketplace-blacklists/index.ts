@@ -42,7 +42,7 @@ export const checkMarketplaceIsFiltered = async (
     }
   }
 
-  const customCheck = await isBlockedByCustomLogic(contract, operators);
+  const customCheck = await isBlockedByCustomLogic(contract, operators, refresh);
   if (customCheck) {
     return customCheck;
   }
@@ -60,10 +60,14 @@ export const checkMarketplaceIsFiltered = async (
   return operators.some((c) => result!.includes(c));
 };
 
-export const isBlockedByCustomLogic = async (contract: string, operators: string[]) => {
+export const isBlockedByCustomLogic = async (
+  contract: string,
+  operators: string[],
+  refresh?: boolean
+) => {
   const cacheKey = `marketplace-blacklist-custom-logic:${contract}:${JSON.stringify(operators)}`;
-  const cache = await redis.get(cacheKey);
-  if (!cache) {
+  let cache = await redis.get(cacheKey);
+  if (refresh || !cache) {
     const iface = new Interface([
       "function registry() view returns (address)",
       "function getWhitelistedOperators() view returns (address[])",
@@ -101,6 +105,7 @@ export const isBlockedByCustomLogic = async (contract: string, operators: string
 
     // Negative case
     await redis.set(cacheKey, "0", "EX", 24 * 3600);
+    cache = "0";
   }
 
   return Boolean(Number(cache));
