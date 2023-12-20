@@ -4,7 +4,7 @@ export type CollectionsEntityUpdateParams = {
   id?: string;
   slug?: string;
   name?: string;
-  metadata?: string;
+  metadata?: string | CollectionsMetadata;
   imageVersion?: number;
   royalties?: string;
   community?: string;

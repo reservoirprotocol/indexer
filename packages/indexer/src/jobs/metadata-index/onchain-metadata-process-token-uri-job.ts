@@ -39,8 +39,18 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
             contract,
             tokenId,
             imageURI: metadata[0].imageUrl,
+            kind: "token-image",
           });
           metadata[0].imageUrl = null;
+        }
+        if (metadata[0].mediaUrl?.startsWith("data:")) {
+          await metadataImageUploadJob.addToQueue({
+            contract,
+            tokenId,
+            imageURI: metadata[0].mediaUrl,
+            kind: "token-media",
+          });
+          metadata[0].mediaUrl = null;
         }
         await metadataIndexWriteJob.addToQueue(metadata);
       } else {

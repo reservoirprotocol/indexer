@@ -25,9 +25,11 @@ export type TokensEntityUpdateParams = {
   isFlagged?: number;
   lastFlagUpdate?: string;
   lastFlagChange?: string;
+  media?: string;
   supply?: number;
   remainingSupply?: number;
   isSpam?: number;
+  token_uri?: string;
 };
 
 // Define the fields need to instantiate the entity

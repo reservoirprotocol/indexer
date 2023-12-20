@@ -9,6 +9,7 @@ import {
   CollectionsEntity,
   CollectionsEntityParams,
   CollectionsEntityUpdateParams,
+  CollectionsMetadata,
 } from "@/models/collections/collections-entity";
 import { updateBlurRoyalties } from "@/utils/blur";
 import * as erc721c from "@/utils/erc721c";
@@ -318,6 +319,34 @@ export class Collections {
 
     _.forEach(fields, (value, fieldName) => {
       updateString += `${_.snakeCase(fieldName)} = $/${fieldName}/,`;
+      (replacementValues as any)[fieldName] = value;
+    });
+
+    updateString = _.trimEnd(updateString, ",");
+
+    const query = `
+      UPDATE collections
+        SET updated_at = now(), ${updateString}
+      WHERE id = $/collectionId/
+    `;
+
+    return await idb.none(query, replacementValues);
+  }
+
+  public static async updateCollectionMetadata(
+    collectionId: string,
+    metadataUpdateFields: CollectionsMetadata
+  ) {
+    // update the fields within the metadata object with the new values, this should work like the above update function
+    // but for nested objects
+
+    let updateString = "";
+    const replacementValues = {
+      collectionId,
+    };
+
+    _.forEach(metadataUpdateFields, (value, fieldName) => {
+      updateString += `metadata->>'${fieldName}' = $/${fieldName}/,`;
       (replacementValues as any)[fieldName] = value;
     });
 

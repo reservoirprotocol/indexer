@@ -4,11 +4,13 @@ import { Buffer } from "buffer";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { Tokens } from "@/models/tokens";
+import { Collections } from "@/models/collections";
 
 export type MetadataImageUploadJobPayload = {
   tokenId: string;
   contract: string;
   imageURI: string;
+  kind: "token-image" | "token-media" | "token-uri" | "collection-image" | "collection-banner";
 };
 
 export default class MetadataImageUploadJob extends AbstractRabbitMqJobHandler {
@@ -41,11 +43,35 @@ export default class MetadataImageUploadJob extends AbstractRabbitMqJobHandler {
         throw new Error(`Failed to upload to Cloudflare: ${uploadResult.errors}`);
       }
 
-      const originalImage = uploadResult.result.variants[2];
+      const originalUrl = uploadResult.result.variants[2];
 
-      await Tokens.update(contract, tokenId, {
-        image: originalImage,
-      });
+      switch (payload.kind) {
+        case "token-image":
+          await Tokens.update(contract, tokenId, {
+            image: originalUrl,
+          });
+          break;
+        case "token-media":
+          await Tokens.update(contract, tokenId, {
+            media: originalUrl,
+          });
+          break;
+        case "token-uri":
+          await Tokens.update(contract, tokenId, {
+            token_uri: originalUrl,
+          });
+          break;
+        case "collection-image":
+          await Collections.updateCollectionMetadata(contract, {
+            imageUrl: originalUrl,
+          });
+          break;
+        case "collection-banner":
+          await Collections.updateCollectionMetadata(contract, {
+            bannerImageUrl: originalUrl,
+          });
+          break;
+      }
     } catch (error) {
       logger.error(this.queueName, `Error. imageURI=${imageURI}, error=${error}`);
       throw error; // Rethrow the error to handle retry logic

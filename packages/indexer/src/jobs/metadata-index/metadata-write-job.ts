@@ -105,15 +105,15 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
           name = $/name/,
           token_uri = $/tokenURI/,
           description = $/description/,
-          image = $/image/,
+          image = CASE WHEN $/image/ IS NOT NULL THEN $/image/ ELSE image END,
           metadata = $/metadata:json/,
-          media = $/media/,
+          media = CASE WHEN $/media/ IS NOT NULL THEN $/media/ ELSE media END,
           updated_at = CASE 
                 WHEN (SELECT is_updated FROM updated_check) THEN now()
                 ELSE updated_at
           END,
           image_version = CASE 
-                WHEN (SELECT is_updated FROM updated_check) THEN now()
+                WHEN (SELECT is_updated FROM updated_check) AND $/image/ IS NOT NULL THEN now()
                 ELSE image_version
           END,
           collection_id = collection_id,
