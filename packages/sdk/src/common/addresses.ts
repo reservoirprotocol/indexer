@@ -54,7 +54,8 @@ export const WNative: ChainIdToAddress = {
   [Network.X1Testnet]: "0xf8e8506fe73b0a8efb929f6edfb7059d6d2f95f2",
   // usdc-native-wrapped currency，下面这个是自己找脚本部署的
   [Network.ZkFairTestnet]: "0x9e1f1ab94bc3f2a4d1966f8f7c36c69db651d45f",
-  [Network.ZkFair]: "todo-config",
+  // ZkFair官方 https://docs.zkfair.io/users/user-guide/zkfair-contracts#additional-useful-contracts
+  [Network.ZkFair]: "0xd33db7ec50a98164cc865dfaa64666906d79319c",
 };
 
 export const Usdc: ChainIdToAddress = {

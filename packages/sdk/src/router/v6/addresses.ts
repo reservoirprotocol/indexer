@@ -49,7 +49,7 @@ export const ApprovalProxy: ChainIdToAddress = {
   [Network.Linea]: "0x224ecb4eae96d31372d1090c3b0233c8310dbbab",
   [Network.Avalanche]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
   [Network.ZkFairTestnet]: "0x513e28f4098480c4656534d01e0a95934dc60a4d",
-  [Network.ZkFair]: "todo-config",
+  [Network.ZkFair]: "0x20b1b734db11726acf4cba328063c2e7e6f57509",
 };
 
 // Permit proxy
