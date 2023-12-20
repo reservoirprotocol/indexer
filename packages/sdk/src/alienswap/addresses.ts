@@ -13,7 +13,7 @@ export const Exchange: ChainIdToAddress = {
   [Network.EthereumSepolia]: "0x33c551effdf1dbde4ffeaa133b2757819bd1353d",
   [Network.X1Testnet]: "0x5119384015e153a299f381f773832dd63a88f411",
   [Network.ZkFairTestnet]: "0x8c7be07991311e509b55db91a37f9817bc758996",
-  [Network.ZkFair]: "todo-config",
+  [Network.ZkFair]: "0x9ea919393024b92f7e8856864580ad61c8af9821",
 };
 
 // conduit key, 创建conduit时指定

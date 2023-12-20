@@ -11,7 +11,7 @@ tasks:
 
   # pm2 start as root user indexer root dir # --no-daemon
   pm2-start-fair-test: pm2 start asdf --name "indexer-zkfair-testnet" --interpreter bash -- exec yarn start
-  # pm2 delete indexer-zkfair-testnet
+  pm2-start-fair-test: pm2 start asdf --name "indexer-zkfair-mainnet" --interpreter bash -- exec yarn start
 
   ## STUPID TIPS
   # quick commit informal contents

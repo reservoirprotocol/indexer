@@ -122,6 +122,7 @@ export const Create3Factory: ChainIdToAddress = {
   [Network.Zora]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
   [Network.Base]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
   [Network.Linea]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
+  [Network.ZkFair]: "0xa2032a04ddf3841cefb384158eacc5a03abc74ae",
 };
 
 export const GelatoRelay1BalanceERC2771: ChainIdToAddress = {
