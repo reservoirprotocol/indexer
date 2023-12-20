@@ -78,7 +78,7 @@ export const getNetworkName = () => {
     case 534352:
       return "scroll";
 
-    case 13472:
+    case 13473:
       return "immutable-zkevm-testnet";
 
     case 4337:
@@ -1459,7 +1459,7 @@ export const getNetworkSettings = (): NetworkSettings => {
       };
     }
     // Immutable zkEVM Testnet
-    case 13472: {
+    case 13473: {
       return {
         ...defaultNetworkSettings,
         enableWebSocket: true,

@@ -148,7 +148,7 @@ export enum Network {
   EthereumSepolia = 11155111,
   Zksync = 324,
   Ancient8Testnet = 2863311531,
-  ImmutableZkevmTestnet = 13472,
+  ImmutableZkevmTestnet = 13473,
   Beam = 4337,
   BeamTestnet = 13337,
 }

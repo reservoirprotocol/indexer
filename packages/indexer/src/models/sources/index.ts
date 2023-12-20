@@ -552,7 +552,7 @@ export class Sources {
 
         return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
       }
-    } else if (config.chainId == 13472) {
+    } else if (config.chainId == 13473) {
       if (sourceEntity.metadata.tokenUrlImmutableZkevmTestnet && contract && tokenId) {
         sourceEntity.metadata.url = _.replace(
           sourceEntity.metadata.tokenUrlImmutableZkevmTestnet,
