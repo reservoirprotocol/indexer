@@ -138,7 +138,7 @@ export class AskDocumentBuilder extends DocumentBuilder {
       contract: fromBuffer(data.contract),
       token: {
         id: data.token_id,
-        // idV2: Number(data.token_id),
+        idV2: Number(data.token_id),
         name: data.token_name,
         image: data.token_image,
         attributes: data.token_attributes,
