@@ -35,17 +35,6 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
       eventKind: WebsocketEventKind.CollectionEvent,
     });
 
-    if (config.chainId === 11155111) {
-      logger.info(
-        "IndexerCollectionsHandler",
-        JSON.stringify({
-          topic: "debugCollectionsIndex",
-          message: `handleInsert. id=${payload.after.id}`,
-          payloadAfter: payload.after,
-        })
-      );
-    }
-
     // Update the elasticsearch collections index
     await processCollectionEventJob.addToQueue([
       {
@@ -152,17 +141,6 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
       // Update the elasticsearch asks index
       if (payload.after.floor_sell_id && spamStatusChanged) {
         await refreshAsksCollectionJob.addToQueue(payload.after.id);
-      }
-
-      if (config.chainId === 11155111) {
-        logger.info(
-          "IndexerCollectionsHandler",
-          JSON.stringify({
-            topic: "debugCollectionsIndex",
-            message: `handleUpdate. id=${payload.after.id}`,
-            payloadAfter: payload.after,
-          })
-        );
       }
 
       // Update the elasticsearch collections index
