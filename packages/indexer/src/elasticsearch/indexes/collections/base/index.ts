@@ -55,23 +55,28 @@ export interface BuildCollectionDocumentData extends BuildDocumentData {
 
 export class CollectionDocumentBuilder {
   public async buildDocument(data: BuildCollectionDocumentData): Promise<CollectionDocument> {
-    const prices = await getUSDAndNativePrices(
-      Sdk.Common.Addresses.Native[config.chainId],
-      data.all_time_volume,
-      now(),
-      {
-        onlyUSD: true,
-      }
-    );
+    let allTimeVolumeUsd = 0;
 
-    if (!prices.usdPrice) {
-      logger.info(
+    try {
+      const prices = await getUSDAndNativePrices(
+        Sdk.Common.Addresses.Native[config.chainId],
+        data.all_time_volume,
+        now(),
+        {
+          onlyUSD: true,
+        }
+      );
+
+      allTimeVolumeUsd = formatUsd(prices.usdPrice!);
+    } catch (error) {
+      logger.error(
         "cdc-indexer-collections",
         JSON.stringify({
           topic: "debugActivitiesErrors",
           message: `No usd value. collectionId=${data.id}, allTimeVolume=${
             data.all_time_volume
           }, currencyAddress=${Sdk.Common.Addresses.Native[config.chainId]}`,
+          error,
         })
       );
     }
@@ -95,7 +100,7 @@ export class CollectionDocumentBuilder {
       imageVersion: data.image_version,
       allTimeVolume: data.all_time_volume,
       allTimeVolumeDecimal: formatEth(data.all_time_volume),
-      allTimeVolumeUsd: prices.usdPrice ? formatUsd(prices.usdPrice) : 0,
+      allTimeVolumeUsd: allTimeVolumeUsd,
       floorSell: data.floor_sell_id
         ? {
             id: data.floor_sell_id,
