@@ -31,9 +31,9 @@ import { Sources } from "@/models/sources";
 import { Assets, ImageSize } from "@/utils/assets";
 import { isOrderNativeOffChainCancellable } from "@/utils/offchain-cancel";
 
-const version = "v7";
+const version = "v8";
 
-export const getUserTokensV7Options: RouteOptions = {
+export const getUserTokensV8Options: RouteOptions = {
   cache: {
     privacy: "public",
     expiresIn: 60000,
@@ -41,7 +41,7 @@ export const getUserTokensV7Options: RouteOptions = {
   description: "User Tokens",
   notes:
     "Get tokens held by a user, along with ownership information such as associated orders and date acquired.",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Tokens"],
   plugins: {
     "hapi-swagger": {
       order: 9,
@@ -214,7 +214,7 @@ export const getUserTokensV7Options: RouteOptions = {
                   value: JoiAttributeValue.description("Case sensitive."),
                   tokenCount: Joi.number(),
                   onSaleCount: Joi.number(),
-                  floorAskPrice: Joi.number().unsafe().allow(null).description("Can be null."),
+                  floorAskPrice: JoiPrice.allow(null).description("Can be null if no active asks."),
                   topBidValue: Joi.number().unsafe().allow(null).description("Can be null."),
                   createdAt: Joi.string(),
                 })
@@ -536,7 +536,9 @@ export const getUserTokensV7Options: RouteOptions = {
                     'createdAt', ta.created_at,
                     'tokenCount', attributes.token_count,
                     'onSaleCount', attributes.on_sale_count,
-                    'floorAskPrice', attributes.floor_sell_value::TEXT,
+                    'floorAskValue', attributes.floor_sell_value::TEXT,
+                    'floorAskCurrency', attributes.floor_sell_currency,
+                    'floorAskCurrencyValue', attributes.floor_sell_currency_value::TEXT,
                     'topBidValue', attributes.top_buy_value::TEXT
                   )
                 )
@@ -827,20 +829,35 @@ export const getUserTokensV7Options: RouteOptions = {
                 : null,
               attributes: query.includeAttributes
                 ? r.attributes
-                  ? _.map(r.attributes, (attribute) => ({
-                      key: attribute.key,
-                      kind: attribute.kind,
-                      value: attribute.value,
-                      tokenCount: attribute.tokenCount,
-                      onSaleCount: attribute.onSaleCount,
-                      floorAskPrice: attribute.floorAskPrice
-                        ? formatEth(attribute.floorAskPrice)
-                        : attribute.floorAskPrice,
-                      topBidValue: attribute.topBidValue
-                        ? formatEth(attribute.topBidValue)
-                        : attribute.topBidValue,
-                      createdAt: new Date(attribute.createdAt).toISOString(),
-                    }))
+                  ? await Promise.all(
+                      _.map(r.attributes, async (attribute) => ({
+                        key: attribute.key,
+                        kind: attribute.kind,
+                        value: attribute.value,
+                        tokenCount: attribute.tokenCount,
+                        onSaleCount: attribute.onSaleCount,
+                        floorAskPrice: attribute.floorAskValue
+                          ? await getJoiPriceObject(
+                              {
+                                gross: {
+                                  amount: String(
+                                    attribute.floorAskCurrencyValue ?? attribute.floorAskValue
+                                  ),
+                                  nativeAmount: String(attribute.floorAskValue),
+                                },
+                              },
+                              attribute.floorAskCurrency
+                                ? _.replace(attribute.floorAskCurrency, "\\x", "0x")
+                                : Sdk.Common.Addresses.Native[config.chainId],
+                              query.displayCurrency
+                            )
+                          : null,
+                        topBidValue: attribute.topBidValue
+                          ? formatEth(attribute.topBidValue)
+                          : attribute.topBidValue,
+                        createdAt: new Date(attribute.createdAt).toISOString(),
+                      }))
+                    )
                   : []
                 : undefined,
             },

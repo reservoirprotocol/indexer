@@ -56,6 +56,7 @@ export class BackfillCollectionsElasticsearchJob extends AbstractRabbitMqJobHand
               collections.id,
               collections.slug,
               collections.name,
+              collections.community,
               (collections.metadata ->> 'imageUrl')::TEXT AS "image",
               (collections.metadata ->> 'bannerImageUrl')::TEXT AS "banner",
               (collections.metadata ->> 'discordUrl')::TEXT AS "discord_url",
@@ -93,10 +94,12 @@ export class BackfillCollectionsElasticsearchJob extends AbstractRabbitMqJobHand
       );
 
       if (rawResults.length) {
+        const builder = new CollectionDocumentBuilder();
+
         for (const rawResult of rawResults) {
           const documentId = `${config.chainId}:${rawResult.id}`;
 
-          const document = new CollectionDocumentBuilder().buildDocument({
+          const document = await builder.buildDocument({
             id: rawResult.id,
             created_at: new Date(rawResult.created_at),
             contract: rawResult.contract,

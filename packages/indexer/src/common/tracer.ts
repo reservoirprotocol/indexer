@@ -35,6 +35,10 @@ if (process.env.DATADOG_AGENT_URL) {
   tracer.use("elasticsearch", {
     enabled: true,
   });
+
+  tracer.use("fetch", {
+    enabled: false,
+  });
 }
 
 export default tracer;

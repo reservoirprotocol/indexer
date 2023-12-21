@@ -247,7 +247,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
   // parsers
   _parseToken(metadata: any): TokenMetadata {
     // add handling for metadata.properties, convert to attributes
-    if (metadata?.properties) {
+    if (metadata?.properties && !metadata?.attributes) {
       metadata.attributes = Object.keys(metadata.properties).map((key) => {
         if (typeof metadata.properties[key] === "object") {
           return {
@@ -279,8 +279,8 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       // Token descriptions are a waste of space for most collections we deal with
       // so by default we ignore them (this behaviour can be overridden if needed).
       description: metadata.description || null,
-      imageUrl: normalizeLink(metadata?.image) || null,
-      imageOriginalUrl: metadata?.image || null,
+      imageUrl: normalizeLink(metadata?.image) || normalizeLink(metadata?.image_url) || null,
+      imageOriginalUrl: metadata?.image || metadata?.image_url || null,
       animationOriginalUrl: metadata?.animation_url || null,
       mediaUrl: normalizeLink(metadata?.animation_url) || null,
       metadataOriginalUrl: this.parseIPFSURI(metadata.uri),

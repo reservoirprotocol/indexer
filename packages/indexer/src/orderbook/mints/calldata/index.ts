@@ -69,7 +69,8 @@ type BaseCustomInfo = {
 export type CustomInfo =
   | (BaseCustomInfo & mints.manifold.Info)
   | (BaseCustomInfo & mints.soundxyz.Info)
-  | (BaseCustomInfo & mints.artblocks.Info);
+  | (BaseCustomInfo & mints.artblocks.Info)
+  | (BaseCustomInfo & mints.zora.Info);
 
 export type PartialCollectionMint = Pick<
   CollectionMint,
@@ -100,7 +101,14 @@ export const generateCollectionMintTxData = async (
     comment?: string;
     referrer?: string;
   }
-): Promise<{ txData: TxData; price: string }> => {
+): Promise<{
+  txData: TxData;
+  price: string;
+  // Whether the mint method has an explicit `recipient` field
+  // (in which case we can mint directly rather than going via
+  // the router contract when minting via the `relayer` option)
+  hasExplicitRecipient: boolean;
+}> => {
   // For `allowlist` mints
   const allowlistData =
     collectionMint.kind === "allowlist"
@@ -130,6 +138,7 @@ export const generateCollectionMintTxData = async (
 
   const tx = collectionMint.details.tx;
 
+  let hasExplicitRecipient = false;
   const encodeParams = async (params: AbiParam[]) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const abiData: { abiType: string; abiValue: any }[] = [];
@@ -159,6 +168,7 @@ export const generateCollectionMintTxData = async (
             abiType: p.abiType,
             abiValue: minter,
           });
+          hasExplicitRecipient = true;
 
           break;
         }
@@ -308,6 +318,7 @@ export const generateCollectionMintTxData = async (
             abiType: p.abiType,
             abiValue: abiValue,
           });
+          hasExplicitRecipient = true;
 
           break;
         }
@@ -391,6 +402,7 @@ export const generateCollectionMintTxData = async (
       value: bn(price!).mul(quantity).toHexString(),
     },
     price: price!,
+    hasExplicitRecipient,
   };
 };
 

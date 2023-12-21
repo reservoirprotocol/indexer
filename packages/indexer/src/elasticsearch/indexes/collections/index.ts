@@ -188,7 +188,7 @@ export const autocomplete = async (params: {
   prefix: string;
   chains?: number[];
   communities?: string[];
-  isSpam?: boolean;
+  excludeSpam?: boolean;
   limit?: number;
 }): Promise<{ collections: CollectionDocument[] }> => {
   const esQuery = {
@@ -209,6 +209,10 @@ export const autocomplete = async (params: {
     },
   };
 
+  (esQuery as any).bool.filter.push({
+    term: { metadataDisabled: false },
+  });
+
   if (isAddress(params.prefix)) {
     (esQuery as any).bool.must.multi_match.fields.push("contract");
   }
@@ -218,14 +222,6 @@ export const autocomplete = async (params: {
 
     (esQuery as any).bool.filter.push({
       terms: { "chain.id": chains },
-    });
-
-    (esQuery as any).bool.filter.push({
-      term: { metadataDisabled: false },
-    });
-
-    (esQuery as any).bool.filter.push({
-      term: { isSpam: false },
     });
   }
 
@@ -237,13 +233,19 @@ export const autocomplete = async (params: {
     });
   }
 
+  if (params.excludeSpam) {
+    (esQuery as any).bool.filter.push({
+      term: { isSpam: false },
+    });
+  }
+
   try {
     const esSearchParams = {
       index: INDEX_NAME,
       query: esQuery,
       sort: [
         {
-          allTimeVolumeDecimal: {
+          allTimeVolumeUsd: {
             order: "desc",
           },
         },

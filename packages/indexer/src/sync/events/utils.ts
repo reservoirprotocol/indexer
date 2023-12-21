@@ -24,6 +24,7 @@ import { TransactionTrace } from "@/models/transaction-traces";
 import { CallTrace } from "@georgeroman/evm-tx-simulator/dist/types";
 import { collectionNewContractDeployedJob } from "@/jobs/collections/collection-contract-deployed";
 import { config } from "@/config/index";
+import { redis } from "@/common/redis";
 
 const chainsWithoutCallTracer = [324];
 
@@ -35,43 +36,42 @@ export type ContractAddress = {
   bytecode: string;
 };
 
-export const fetchTransaction = async (txHash: string) =>
-  getTransaction(txHash).catch(async () => {
-    // TODO: This should happen very rarely since all transactions
-    // should be readily available. The only case when data misses
-    // is when a block reorg happens and the replacing block takes
-    // in transactions that were missing in the previous block. In
-    // this case we don't refetch the new block's transactions but
-    // assume it cannot include new transactions. But that's not a
-    // a good assumption so we should force re-fetch the new block
-    // together with its transactions when a reorg happens.
+export const fetchTransaction = async (txHash: string) => {
+  const redisTx = await redis.get(`tx:${txHash}`);
+  if (redisTx) {
+    return JSON.parse(redisTx);
+  }
 
-    let tx = await baseProvider.getTransaction(txHash);
-    if (!tx) {
-      tx = await baseProvider.getTransaction(txHash);
-    }
+  // get from database
+  const dbTx = await getTransaction(txHash);
+  if (dbTx) {
+    return dbTx;
+  }
 
-    // Also fetch all transactions within the block
-    const blockTimestamp = (await fetchBlock(tx.blockNumber!)).timestamp;
+  // get from provider
+  let tx = await baseProvider.getTransaction(txHash);
+  if (!tx) {
+    return undefined;
+  }
 
-    // TODO: Fetch gas fields via `eth_getTransactionReceipt`
-    // Sometimes `effectiveGasPrice` can be null
-    // const txReceipt = await baseProvider.getTransactionReceipt(txHash);
-    // const gasPrice = txReceipt.effectiveGasPrice || tx.gasPrice || 0;
+  if (!tx.timestamp) {
+    const block = await baseProvider.getBlock(tx.blockNumber!);
+    tx = {
+      ...tx,
+      timestamp: block.timestamp,
+    };
+  }
 
-    return saveTransaction({
-      hash: tx.hash.toLowerCase(),
-      from: tx.from.toLowerCase(),
-      to: (tx.to || AddressZero).toLowerCase(),
-      value: tx.value.toString(),
-      data: tx.data.toLowerCase(),
-      blockNumber: tx.blockNumber!,
-      blockTimestamp,
-      // gasUsed: txReceipt.gasUsed.toString(),
-      // gasPrice: gasPrice.toString(),
-      // gasFee: txReceipt.gasUsed.mul(gasPrice).toString(),
-    });
+  return saveTransaction({
+    hash: tx.hash.toLowerCase(),
+    from: tx.from.toLowerCase(),
+    to: (tx.to || AddressZero).toLowerCase(),
+    value: tx.value.toString(),
+    data: tx.data.toLowerCase(),
+    blockNumber: tx.blockNumber!,
+    blockTimestamp: tx.timestamp!,
   });
+};
 
 export const fetchTransactionTraces = async (txHashes: string[], provider?: JsonRpcProvider) => {
   // Some traces might already exist
@@ -235,6 +235,52 @@ export const fetchBlock = async (blockNumber: number) => {
 };
 
 export const saveBlockTransactions = async (block: BlockWithTransactions) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const transactions = block.transactions.map((tx: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawTx = tx.raw as any;
+
+    let value;
+    // if its from redis, its a bigNumber object like  "value": {
+    // "type": "BigNumber",
+    // "hex": "0x06f05b59d3b20000"
+    // },
+
+    if (tx.value && tx.value?.type && tx.value?.type === "BigNumber") {
+      value = Number(tx.value.hex).toString();
+    } else {
+      value = tx.value.toString();
+    }
+
+    let gasPrice;
+    if (tx.gasPrice && tx.gasPrice?.type && tx.gasPrice?.type === "BigNumber") {
+      gasPrice = Number(tx.gasPrice.hex).toString();
+    } else {
+      gasPrice = tx.gasPrice?.toString();
+    }
+
+    const gasUsed = rawTx?.gas ? bn(rawTx.gas).toString() : undefined;
+    const gasFee = gasPrice && gasUsed ? bn(gasPrice).mul(gasUsed).toString() : undefined;
+
+    return {
+      hash: tx.hash.toLowerCase(),
+      from: tx.from.toLowerCase(),
+      to: (tx.to || AddressZero).toLowerCase(),
+      value: value,
+      data: tx.data.toLowerCase(),
+      blockNumber: block.number,
+      blockTimestamp: block.timestamp,
+      gasPrice,
+      gasUsed,
+      gasFee,
+    };
+  });
+
+  // Save all transactions within the block
+  await saveTransactionsV2(transactions);
+};
+
+export const saveBlockTransactionsRedis = async (block: BlockWithTransactions) => {
   // Create transactions array to store
   const transactions = block.transactions.map((tx) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -258,8 +304,16 @@ export const saveBlockTransactions = async (block: BlockWithTransactions) => {
     };
   });
 
-  // Save all transactions within the block
-  await saveTransactionsV2(transactions);
+  // Save all transactions within the block to redis
+  await Promise.all(
+    transactions.map(async (tx) => {
+      // This gets deletes once it gets flushed to the database
+      await redis.set(`tx:${tx.hash}`, JSON.stringify(tx), "EX", 60 * 60);
+    })
+  );
+
+  // Save the block data to redis
+  await redis.set(`block:${block.number}`, JSON.stringify(block), "EX", 60 * 60);
 };
 
 export const _getTransactionTraces = async (Txs: { hash: string }[], block: number) => {

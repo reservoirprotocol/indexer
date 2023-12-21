@@ -26,6 +26,10 @@ import { Assets } from "@/utils/assets";
 const version = "v1";
 
 export const getTrendingMintsV1Options: RouteOptions = {
+  cache: {
+    expiresIn: 60 * 1000,
+    privacy: "public",
+  },
   description: "Top Trending Mints",
   notes: "Get top trending mints",
   tags: ["api", "Collections"],
@@ -165,7 +169,7 @@ export const getTrendingMintsV1Options: RouteOptions = {
         limit,
       });
 
-      if (trendingMints.length === 0) {
+      if (trendingMints.length < 1) {
         const response = h.response({ mints: [] });
         return response;
       }
@@ -364,7 +368,7 @@ async function formatCollections(
         mintVolume: r.volume,
         openseaVerificationStatus: metadata?.metadata?.openseaVerificationStatus || null,
         mintStages:
-          mintData.mint_stages.length > 0
+          mintData?.mint_stages?.length > 0
             ? await Promise.all(
                 mintData.mint_stages.map(async (m: Mint["mint_stages"][0]) => {
                   return {

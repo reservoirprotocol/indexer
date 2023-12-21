@@ -171,7 +171,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
         throw Boom.badRequest(`Collection ${params.collection} not found`);
       }
 
-      let defaultRoyalties = (collectionResult.royalties ?? []) as Royalty[];
+      let defaultRoyalties = collectionResult.royalties as Royalty[] | null;
       if (query.tokenId) {
         defaultRoyalties = await registry.getRegistryRoyalties(
           fromBuffer(collectionResult.contract),
@@ -240,17 +240,18 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
 
       // Handle Reservoir
       {
-        const royalties = defaultRoyalties;
         marketplaces.push({
           name: "Reservoir",
           imageUrl: `https://${getSubDomain()}.reservoir.tools/redirect/sources/reservoir/logo/v2`,
           fee: {
             bps: 0,
           },
-          royalties: {
-            minBps: 0,
-            maxBps: royalties.map((r) => r.bps).reduce((a, b) => a + b, 0),
-          },
+          royalties: defaultRoyalties
+            ? {
+                minBps: 0,
+                maxBps: defaultRoyalties.map((r) => r.bps).reduce((a, b) => a + b, 0),
+              }
+            : undefined,
           orderbook: "reservoir",
           exchanges: {
             seaport: {

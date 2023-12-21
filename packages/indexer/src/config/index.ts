@@ -85,6 +85,7 @@ export const config = {
   alchemyApiKey: String(process.env.ALCHEMY_API_KEY),
   looksRareApiKey: String(process.env.LOOKSRARE_API_KEY),
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
+  openSeaNftApiKey: String(process.env.OPENSEA_NFT_API_KEY),
   openSeaApiUrl: String(process.env.OPENSEA_API_URL || ""),
 
   // Cosigner
@@ -173,4 +174,6 @@ export const config = {
   debugApiKeys: process.env.DEBUG_API_KEYS ? String(process.env.DEBUG_API_KEYS).split(",") : [],
 
   coinGeckoWsApiKey: process.env.COINGECKO_API_KEY,
+
+  spamNames: process.env.SPAM_NAMES ? String(process.env.SPAM_NAMES).split(",") : [],
 };

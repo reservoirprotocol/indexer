@@ -87,8 +87,11 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
   const collectionsResult = await idb.manyOrNone(
     `
       SELECT
+        contracts.kind,
         tokens.collection_id
       FROM tokens
+      JOIN contracts
+        ON tokens.contract = contracts.address
       WHERE tokens.contract = $/contract/
         AND tokens.token_id IN ($/tokenIds:list/)
     `,
@@ -119,17 +122,32 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
 
   // For performance reasons, do at most one attempt per collection per 5 minutes
   if (!skipCache) {
-    const mintDetailsLockKey = `mint-details:${collection}`;
-    const mintDetailsLock = await redis.get(mintDetailsLockKey);
-    if (mintDetailsLock) {
-      return [];
+    const kind = collectionsResult[0].kind;
+    if (kind === "erc1155") {
+      // For ERC1155, we use a lock per collection + token (since mints are usually per token)
+      // For safety, restrict to first 10 tokens
+      for (const tokenId of tokenIds.slice(0, 10)) {
+        const mintDetailsLockKey = `mint-details:${collection}:${tokenId}`;
+        const mintDetailsLock = await redis.get(mintDetailsLockKey);
+        if (mintDetailsLock) {
+          return [];
+        }
+        await redis.set(mintDetailsLockKey, "locked", "EX", 5 * 60);
+      }
+    } else {
+      // For ERC721, we use a lock per collection only (since mints are per collection)
+      const mintDetailsLockKey = `mint-details:${collection}`;
+      const mintDetailsLock = await redis.get(mintDetailsLockKey);
+      if (mintDetailsLock) {
+        return [];
+      }
+      await redis.set(mintDetailsLockKey, "locked", "EX", 5 * 60);
     }
-    await redis.set(mintDetailsLockKey, "locked", "EX", 5 * 60);
   }
 
-  // Make sure every mint in the transaction goes to the transaction sender
+  // Make sure every transfer in the transaction is a mint
   const tx = await fetchTransaction(txHash);
-  if (!transfers.every((t) => t.from === AddressZero && t.to === tx.from)) {
+  if (!transfers.every((t) => t.from === AddressZero)) {
     return [];
   }
 
