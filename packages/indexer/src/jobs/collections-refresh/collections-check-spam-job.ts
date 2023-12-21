@@ -174,7 +174,7 @@ export default class CollectionCheckSpamJob extends AbstractRabbitMqJobHandler {
     return idb.none(
       `
       UPDATE collections
-      SET is_spam = newSpamStatus, updated_at = now()
+      SET is_spam = $/newSpamStatus/, updated_at = now()
       WHERE id = $/collectionId/
       AND (is_spam IS NULL OR is_spam = ${newSpamStatus > 0 ? "0" : "1"})
     `,
