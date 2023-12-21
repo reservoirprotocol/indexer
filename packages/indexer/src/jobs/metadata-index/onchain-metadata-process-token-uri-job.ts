@@ -33,6 +33,12 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
       ]);
 
       if (metadata.length) {
+        logger.info(
+          this.queueName,
+          `Found metadata. contract=${contract}, tokenId=${tokenId}, uri=${uri}, metadata=${JSON.stringify(
+            metadata
+          )}`
+        );
         if (metadata[0].imageUrl?.startsWith("data:")) {
           if (config.fallbackMetadataIndexingMethod) {
             logger.info(
