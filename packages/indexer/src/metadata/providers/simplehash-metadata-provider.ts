@@ -105,7 +105,7 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
     let imageUrl = metadata.image_url;
     if (
       metadata.extra_metadata.image_details.format === "GIF" &&
-      metadata.extra_metadata.image_details.bytes > 1000000
+      metadata.extra_metadata.image_details.bytes > 125000
     ) {
       imageUrl = metadata.previews.image_medium_url;
       logger.info(
