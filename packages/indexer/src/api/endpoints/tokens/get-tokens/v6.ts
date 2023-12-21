@@ -47,7 +47,7 @@ export const getTokensV6Options: RouteOptions = {
   tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 9,
+      deprecated: true,
     },
   },
   validate: {
@@ -1947,8 +1947,9 @@ export const getListedTokensFromES = async (query: any) => {
             t.last_flag_change,
             t.supply,
             t.remaining_supply,
-            t.metadata_disabled AS t_metadata_disabled,
             extract(epoch from t.updated_at) AS t_updated_at,
+            t.metadata_disabled AS t_metadata_disabled,
+            c.metadata_disabled AS c_metadata_disabled,
             c.slug,
             c.creator,
             c.token_count,

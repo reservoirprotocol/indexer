@@ -1,6 +1,5 @@
-import { Filter, Log } from "@ethersproject/abstract-provider";
+import { Log, Filter } from "@ethersproject/abstract-provider";
 
-import { baseProvider } from "@/common/provider";
 import { concat } from "@/common/utils";
 import { getEventData } from "@/events-sync/data";
 import { EventsBatch, processEventsBatch } from "@/events-sync/handlers";
@@ -12,6 +11,7 @@ import * as utils from "@/events-sync/utils";
 import * as es from "@/events-sync/storage";
 import * as syncEvents from "@/events-sync/index";
 import * as syncEventsUtils from "@/events-sync/utils";
+import { baseProvider } from "@/common/provider";
 
 export const getEventParams = (log: Log, timestamp: number) => {
   const address = log.address.toLowerCase() as string;
@@ -52,6 +52,8 @@ export const getEnhancedEventsFromTx = async (txHash: string) => {
       enhancedEvents.push({
         kind: eventData.kind,
         subKind: eventData.subKind,
+        // eslint-disable-next-line
+        // @ts-ignore
         baseEventParams: getEventParams(log, tx.blockTimestamp),
         log,
       });
@@ -113,14 +115,14 @@ export async function getFillEventsFromTxOnChain(txHash: string) {
   };
 }
 
-export const parseTransaction = async (txHash: string) => {
+export async function parseTranscation(txHash: string) {
   const events = await getEnhancedEventsFromTx(txHash);
   const allOnChainData = await extractOnChainData(events);
   return {
     events,
     allOnChainData,
   };
-};
+}
 
 export const parseBlock = async (block: number) => {
   const blockData = await syncEventsUtils.fetchBlock(block);
@@ -137,7 +139,11 @@ export const parseBlock = async (block: number) => {
 
   let enhancedEvents = logs
     .map((log) => {
-      const baseEventParams = parseEvent(log, blockData.timestamp);
+      const tx = blockData.transactions.find((t) => t.hash === log.transactionHash);
+      if (!tx) {
+        return;
+      }
+      const baseEventParams = parseEvent(log, blockData.timestamp, 1, tx);
       return availableEventData
         .filter(
           ({ addresses, numTopics, topic }) =>

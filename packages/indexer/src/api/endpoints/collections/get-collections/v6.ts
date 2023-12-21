@@ -676,7 +676,9 @@ export const getCollectionsV6Options: RouteOptions = {
               slug: r.slug,
               createdAt: new Date(r.created_at).toISOString(),
               name: r.name,
-              image: imageUrl ?? null,
+              image:
+                r.image ??
+                (sampleImages.length ? Assets.getResizedImageUrl(sampleImages[0]) : null),
               banner: Assets.getResizedImageUrl(r.banner),
               discordUrl: r.discord_url,
               externalUrl: r.external_url,

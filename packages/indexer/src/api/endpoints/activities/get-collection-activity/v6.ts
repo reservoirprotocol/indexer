@@ -27,7 +27,7 @@ import { redb } from "@/common/db";
 import { redis } from "@/common/redis";
 import { Sources } from "@/models/sources";
 import { MetadataStatus } from "@/models/metadata-status";
-import { Assets, ImageSize } from "@/utils/assets";
+import { Assets } from "@/utils/assets";
 import { ApiKeyManager } from "@/models/api-keys";
 
 const version = "v6";
@@ -445,15 +445,6 @@ export const getCollectionActivityV6Options: RouteOptions = {
           );
         }
 
-        let collectionImageUrl = null;
-        if (query.includeMetadata && activity.collection?.image) {
-          collectionImageUrl = Assets.getResizedImageUrl(
-            activity.collection?.image,
-            ImageSize.small,
-            activity.collection?.imageVersion
-          );
-        }
-
         return getJoiActivityObject(
           {
             type: activity.type,
@@ -487,7 +478,10 @@ export const getCollectionActivityV6Options: RouteOptions = {
               collectionId: activity.collection?.id,
               isSpam: activity.collection?.isSpam,
               collectionName: query.includeMetadata ? activity.collection?.name : undefined,
-              collectionImage: collectionImageUrl,
+              collectionImage:
+                query.includeMetadata && activity.collection?.image != null
+                  ? activity.collection?.image
+                  : undefined,
             },
             txHash: activity.event?.txHash,
             logIndex: activity.event?.logIndex,

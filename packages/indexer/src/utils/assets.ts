@@ -33,7 +33,7 @@ export class Assets {
         return this.getResizedImageUrl(assets, size, image_version);
       }
     } catch (error) {
-      // logger.error("getLocalAssetsLink", `Error: ${error}`);
+      // logger.error("getResizedImageURLs", `Error: ${error}`);
       return [];
     }
 

@@ -1,8 +1,11 @@
+import { CollectionMintStandard } from "@/orderbook/mints";
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export interface Mint {
   collection_id: string;
   kind: string;
   status: string;
+  standard: CollectionMintStandard;
   mint_stages: {
     stage: string;
     tokenId: number;

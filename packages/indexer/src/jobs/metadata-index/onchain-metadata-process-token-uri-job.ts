@@ -62,6 +62,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
         }
 
         await metadataIndexWriteJob.addToQueue(metadata);
+        return;
       } else {
         logger.warn(
           this.queueName,
@@ -89,6 +90,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           message: `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, error=${e}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
           contract,
           tokenId,
+          fallbackAllowed,
           error: `${e}`,
         })
       );
