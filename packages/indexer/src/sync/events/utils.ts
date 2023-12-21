@@ -236,11 +236,31 @@ export const fetchBlock = async (blockNumber: number) => {
 
 export const saveBlockTransactions = async (block: BlockWithTransactions) => {
   // Create transactions array to store
-  const transactions = block.transactions.map((tx) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const transactions = block.transactions.map((tx: any) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rawTx = tx.raw as any;
 
-    const gasPrice = tx.gasPrice?.toString();
+    let value;
+    // if its from redis, its a bigNumber object like  "value": {
+    // "type": "BigNumber",
+    // "hex": "0x06f05b59d3b20000"
+    // },
+
+    if (tx.value && tx.value?.type && tx.value?.type === "BigNumber") {
+      value = Number(tx.value.hex).toString();
+    } else {
+      value = tx.value.toString();
+    }
+
+    let gasPrice;
+    if (tx.gasPrice && tx.gasPrice?.type && tx.gasPrice?.type === "BigNumber") {
+      gasPrice = tx.gasPrice?.hex;
+    } else {
+      gasPrice = tx.gasPrice?.toString();
+    }
+
+    // const gasPrice = tx.gasPrice?.toString();
     const gasUsed = rawTx?.gas ? bn(rawTx.gas).toString() : undefined;
     const gasFee = gasPrice && gasUsed ? bn(gasPrice).mul(gasUsed).toString() : undefined;
 
@@ -248,7 +268,7 @@ export const saveBlockTransactions = async (block: BlockWithTransactions) => {
       hash: tx.hash.toLowerCase(),
       from: tx.from.toLowerCase(),
       to: (tx.to || AddressZero).toLowerCase(),
-      value: tx.value.toString(),
+      value: value,
       data: tx.data.toLowerCase(),
       blockNumber: block.number,
       blockTimestamp: block.timestamp,
