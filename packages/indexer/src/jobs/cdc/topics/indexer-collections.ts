@@ -17,6 +17,7 @@ import {
   EventKind,
   processCollectionEventJob,
 } from "@/jobs/elasticsearch/collections/process-collection-event-job";
+import { collectionCheckSpamJob } from "@/jobs/collections-refresh/collections-check-spam-job";
 
 export class IndexerCollectionsHandler extends KafkaEventHandler {
   topicName = "indexer.public.collections";
@@ -117,6 +118,24 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
         };
 
         await redis.set(collectionKey, JSON.stringify(updatedPayload), "XX", "KEEPTTL");
+      }
+
+      // If name changed
+      const nameChanged = payload.before.name !== payload.after.name;
+
+      // If the collection url changed
+      const urlChanged =
+        payload.before?.metadata?.externalUrl !== payload.after?.metadata?.externalUrl;
+
+      // If the collections was marked as verified
+      const verificationChanged =
+        payload.before?.metadata?.safelistRequestStatus !==
+          payload.after?.metadata?.safelistRequestStatus &&
+        payload.after?.metadata?.safelistRequestStatus === "verified";
+
+      // If the name/url changed check for spam
+      if (nameChanged || urlChanged || verificationChanged) {
+        await collectionCheckSpamJob.addToQueue({ collectionId: payload.after.id });
       }
 
       const spamStatusChanged = payload.before.is_spam !== payload.after.is_spam;
