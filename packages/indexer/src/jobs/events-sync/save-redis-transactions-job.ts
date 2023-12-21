@@ -1,6 +1,5 @@
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
-import { RabbitMQMessage } from "@/common/rabbit-mq";
 import { redis } from "@/common/redis";
 import * as syncEventsUtils from "@/events-sync/utils";
 import { Transaction } from "ethers";
@@ -25,8 +24,7 @@ export class SaveRedisTransactionsJob extends AbstractRabbitMqJobHandler {
 
     if (!block) {
       logger.info(this.queueName, `Block ${payload.block} not found in redis`);
-
-      return { addToQueue: true, delay: 1000 };
+      return;
     }
 
     // save block data
@@ -37,16 +35,6 @@ export class SaveRedisTransactionsJob extends AbstractRabbitMqJobHandler {
     await Promise.all(
       JSON.parse(block).transactions.map((tx: Transaction) => redis.del(`tx:${tx.hash}`))
     );
-  }
-
-  public async onCompleted(
-    message: RabbitMQMessage,
-    processResult: { addToQueue?: boolean; delay?: number }
-  ) {
-    if (processResult?.addToQueue) {
-      logger.info(this.queueName, `Retry block ${message.payload.block}`);
-      await this.addToQueue(message.payload, processResult.delay);
-    }
   }
 
   public async addToQueue(params: SaveRedisTransactionsJobPayload, delay = 0) {

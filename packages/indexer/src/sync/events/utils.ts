@@ -290,12 +290,12 @@ export const saveBlockTransactionsRedis = async (block: BlockWithTransactions) =
   await Promise.all(
     transactions.map(async (tx) => {
       // This gets deletes once it gets flushed to the database
-      await redis.set(`tx:${tx.hash}`, JSON.stringify(tx));
+      await redis.set(`tx:${tx.hash}`, JSON.stringify(tx), "EX", 60 * 60);
     })
   );
 
   // Save the block data to redis
-  await redis.set(`block:${block.number}`, JSON.stringify(block));
+  await redis.set(`block:${block.number}`, JSON.stringify(block), "EX", 60 * 60);
 };
 
 export const _getTransactionTraces = async (Txs: { hash: string }[], block: number) => {
