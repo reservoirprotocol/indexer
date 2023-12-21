@@ -148,6 +148,7 @@ import { bidWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/bid-w
 import { tokenWebsocketEventsTriggerJob } from "@/jobs/websocket-events/token-websocket-events-trigger-job";
 import { blockGapCheckJob } from "@/jobs/events-sync/block-gap-check";
 import { traceSyncJob } from "@/jobs/events-sync/trace-sync-job";
+import { saveRedisTransactionsJob } from "@/jobs/events-sync/save-redis-transactions-job";
 import { permitUpdatesJob } from "@/jobs/permit-updates/permit-updates-job";
 import { expiredPermitsJob } from "@/jobs/permit-updates/cron/expired-permits-job";
 import { topSellingCollectionsJob } from "@/jobs/top-selling-collections-cache/save-top-selling-collections-job";
@@ -294,6 +295,7 @@ export class RabbitMqJobsConsumer {
       orderbookPostOrderExternalOpenseaJob,
       eventsSyncRealtimeJob,
       traceSyncJob,
+      saveRedisTransactionsJob,
       openseaOrdersProcessJob,
       openseaOrdersFetchJob,
       saveBidEventsJob,
