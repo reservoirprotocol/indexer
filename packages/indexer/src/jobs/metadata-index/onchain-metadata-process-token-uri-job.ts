@@ -61,6 +61,36 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           }
         }
 
+        // if the imageMimeType/mediaMimeType is gif, we fallback to simplehash
+        if (
+          metadata[0].imageMimeType === "image/gif" ||
+          metadata[0].mediaMimeType === "image/gif"
+        ) {
+          if (config.fallbackMetadataIndexingMethod) {
+            logger.info(
+              this.queueName,
+              `Fallback - GIF. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`
+            );
+
+            await metadataIndexFetchJob.addToQueue(
+              [
+                {
+                  kind: "single-token",
+                  data: {
+                    method: config.fallbackMetadataIndexingMethod,
+                    contract,
+                    tokenId,
+                    collection: contract,
+                  },
+                },
+              ],
+              true,
+              5
+            );
+            return;
+          }
+        }
+
         await metadataIndexWriteJob.addToQueue(metadata);
         return;
       } else {

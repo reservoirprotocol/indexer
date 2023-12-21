@@ -12,6 +12,8 @@ import {
   overrideCollectionMetadata,
 } from "../extend";
 import { limitFieldSize } from "./utils";
+import fetch from "node-fetch";
+import { logger } from "ethers";
 
 export abstract class AbstractBaseMetadataProvider {
   abstract method: string;
@@ -83,7 +85,40 @@ export abstract class AbstractBaseMetadataProvider {
       })
     );
 
+    // get mimetype for each image/media/metadata url
+    await Promise.all(
+      extendedMetadata.map(async (metadata) => {
+        if (metadata.imageUrl) {
+          metadata.imageMimeType = await this._getImageMimeType(metadata.imageUrl);
+          logger.info(
+            this.method,
+            `Image MimeType. contract=${metadata.contract}, tokenId=${metadata.tokenId}, imageMimeType=${metadata.imageMimeType}`
+          );
+        }
+        if (metadata.mediaUrl) {
+          metadata.mediaMimeType = await this._getImageMimeType(metadata.mediaUrl);
+          logger.info(
+            this.method,
+            `Media MimeType. contract=${metadata.contract}, tokenId=${metadata.tokenId}, mediaMimeType=${metadata.mediaMimeType}`
+          );
+        }
+      })
+    );
+
     return extendedMetadata;
+  }
+
+  async _getImageMimeType(url: string): Promise<string> {
+    // use fetch
+    return fetch(url, {
+      method: "HEAD",
+    })
+      .then((res) => {
+        return res.headers.get("content-type") || "";
+      })
+      .catch(() => {
+        return "";
+      });
   }
 
   // Internal methods for subclasses
