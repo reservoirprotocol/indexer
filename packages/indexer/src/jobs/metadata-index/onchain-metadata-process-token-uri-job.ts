@@ -66,6 +66,10 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           metadata[0].imageMimeType === "image/gif" ||
           metadata[0].mediaMimeType === "image/gif"
         ) {
+          logger.info(
+            this.queueName,
+            `found Fallback - GIF. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`
+          );
           if (config.fallbackMetadataIndexingMethod) {
             logger.info(
               this.queueName,

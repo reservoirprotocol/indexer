@@ -13,7 +13,7 @@ import {
 } from "../extend";
 import { limitFieldSize } from "./utils";
 import fetch from "node-fetch";
-import { logger } from "ethers";
+import { logger } from "@/common/logger";
 
 export abstract class AbstractBaseMetadataProvider {
   abstract method: string;
