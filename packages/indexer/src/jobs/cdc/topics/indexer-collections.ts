@@ -62,7 +62,7 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
 
     try {
       logger.info("top-selling-collections", `updating ${payload.after.id}`);
-      const collectionKey = `collection-cache:v5:${payload.after.id}`;
+      const collectionKey = `collection-cache:v6:${payload.after.id}`;
 
       const cachedCollection = await redis.get(collectionKey);
 
@@ -116,7 +116,7 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
           floor_sell_currency_value: result.floor_sell_currency_value,
         };
 
-        await redis.set(collectionKey, JSON.stringify(updatedPayload), "KEEPTTL");
+        await redis.set(collectionKey, JSON.stringify(updatedPayload), "XX", "KEEPTTL");
       }
 
       const spamStatusChanged = payload.before.is_spam !== payload.after.is_spam;
