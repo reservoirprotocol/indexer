@@ -102,6 +102,18 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
       ...original_metadata
     } = metadata.extra_metadata;
 
+    let imageUrl = metadata.image_url;
+    if (
+      metadata.extra_metadata.image_details.format === "GIF" &&
+      metadata.extra_metadata.image_details.bytes > 1000000
+    ) {
+      imageUrl = metadata.previews.image_medium_url;
+      logger.info(
+        this.method,
+        `Detected GIF over 1MB. contract=${metadata.contract_address}, tokenId=${metadata.token_id}, imageUrl=${imageUrl}`
+      );
+    }
+
     return {
       contract: _.toLower(metadata.contract_address),
       tokenId: metadata.token_id,
@@ -116,7 +128,7 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
       // so by default we ignore them (this behaviour can be overridden if needed).
       description: metadata.description,
       originalMetadata: original_metadata,
-      imageUrl: metadata.image_url,
+      imageUrl: imageUrl,
       imageOriginalUrl: image_original_url,
       animationOriginalUrl: animation_original_url,
       metadataOriginalUrl: metadata_original_url,
