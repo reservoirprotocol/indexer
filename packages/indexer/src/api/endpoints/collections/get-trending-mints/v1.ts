@@ -158,6 +158,11 @@ export const getTrendingMintsV1Options: RouteOptions = {
     try {
       const mintingCollections = await getMintingCollections(type);
 
+      logger.info(
+        `get-trending-mints-${version}-handler`,
+        `Minting collections: ${mintingCollections.length}`
+      );
+
       if (mintingCollections.length < 1) {
         const response = h.response({ mints: [] });
         return response;
@@ -168,6 +173,11 @@ export const getTrendingMintsV1Options: RouteOptions = {
         period,
         limit,
       });
+
+      logger.info(
+        `get-trending-mints-${version}-handler`,
+        `Trending mints: ${trendingMints.length}`
+      );
 
       if (trendingMints.length < 1) {
         const response = h.response({ mints: [] });
@@ -279,6 +289,11 @@ async function formatCollections(
   useNonFlaggedFloorAsk: boolean
 ): Promise<any[]> {
   const sources = await Sources.getInstance();
+
+  logger.info(
+    `get-trending-mints-${version}-handler`,
+    `Format collections: ${collectionsResult.length}`
+  );
 
   const collections = await Promise.all(
     collectionsResult.map(async (r) => {
