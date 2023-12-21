@@ -33,12 +33,6 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
       ]);
 
       if (metadata.length) {
-        logger.info(
-          this.queueName,
-          `Found metadata. contract=${contract}, tokenId=${tokenId}, uri=${uri}, metadata=${JSON.stringify(
-            metadata
-          )}`
-        );
         if (metadata[0].imageUrl?.startsWith("data:")) {
           if (config.fallbackMetadataIndexingMethod) {
             logger.info(
@@ -72,10 +66,6 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           metadata[0].imageMimeType === "image/gif" ||
           metadata[0].mediaMimeType === "image/gif"
         ) {
-          logger.info(
-            this.queueName,
-            `found Fallback - GIF. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`
-          );
           if (config.fallbackMetadataIndexingMethod) {
             logger.info(
               this.queueName,
