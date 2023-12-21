@@ -127,9 +127,9 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
     await redis.set(mintDetailsLockKey, "locked", "EX", 5 * 60);
   }
 
-  // Make sure every mint in the transaction goes to the transaction sender
+  // Make sure every transfer in the transaction is a mint
   const tx = await fetchTransaction(txHash);
-  if (!transfers.every((t) => t.from === AddressZero && t.to === tx.from)) {
+  if (!transfers.every((t) => t.from === AddressZero)) {
     return [];
   }
 
