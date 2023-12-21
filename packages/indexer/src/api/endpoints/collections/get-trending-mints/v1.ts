@@ -26,10 +26,6 @@ import { Assets } from "@/utils/assets";
 const version = "v1";
 
 export const getTrendingMintsV1Options: RouteOptions = {
-  cache: {
-    expiresIn: 60 * 1000,
-    privacy: "public",
-  },
   description: "Top Trending Mints",
   notes: "Get top trending mints",
   tags: ["api", "Collections"],
