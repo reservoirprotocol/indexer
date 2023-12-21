@@ -235,7 +235,6 @@ export const fetchBlock = async (blockNumber: number) => {
 };
 
 export const saveBlockTransactions = async (block: BlockWithTransactions) => {
-  // Create transactions array to store
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const transactions = block.transactions.map((tx: any) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -255,12 +254,11 @@ export const saveBlockTransactions = async (block: BlockWithTransactions) => {
 
     let gasPrice;
     if (tx.gasPrice && tx.gasPrice?.type && tx.gasPrice?.type === "BigNumber") {
-      gasPrice = tx.gasPrice?.hex;
+      gasPrice = Number(tx.gasPrice.hex).toString();
     } else {
       gasPrice = tx.gasPrice?.toString();
     }
 
-    // const gasPrice = tx.gasPrice?.toString();
     const gasUsed = rawTx?.gas ? bn(rawTx.gas).toString() : undefined;
     const gasFee = gasPrice && gasUsed ? bn(gasPrice).mul(gasUsed).toString() : undefined;
 
