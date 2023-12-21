@@ -1960,7 +1960,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
               data: data.requestId,
               value: bn(cost).sub(data.user.balance).toString(),
               gasLimit: 22000,
-              chainId: payload.currencyChainId,
+              // `0x1234` or `4660` denotes cross-chain balance spending
+              chainId: payload.currencyChainId === 4660 ? 1 : payload.currencyChainId,
             },
             check: {
               endpoint: "/execute/status/v1",
