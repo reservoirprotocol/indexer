@@ -1478,6 +1478,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
       }
 
       const getCrossChainQuote = async () => {
+        const originChainId = originalPayload.currencyChainId ?? config.chainId;
+        const destinationChainId = config.chainId;
+
         const ccConfig: {
           enabled: boolean;
           user?: {
@@ -1489,11 +1492,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           };
         } = await axios
           .get(
-            `${config.crossChainSolverBaseUrl}/config?originChainId=${
-              originalPayload.currencyChainId
-            }&destinationChainId=${config.chainId}&user=${originalPayload.taker}&currency=${
-              Sdk.Common.Addresses.Native[originalPayload.currencyChainId]
-            }`
+            `${config.crossChainSolverBaseUrl}/config?originChainId=${originChainId}&destinationChainId=${destinationChainId}&user=${originalPayload.taker}&currency=${Sdk.Common.Addresses.Native[originChainId]}`
           )
           .then((response) => response.data);
 
@@ -1503,8 +1502,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
         const data = {
           request: {
-            originChainId: originalPayload.currencyChainId,
-            destinationChainId: config.chainId,
+            originChainId,
+            destinationChainId,
             data: originalPayload,
             endpoint: "/execute/buy/v7",
             salt: Math.floor(Math.random() * 1000000),
