@@ -4,6 +4,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import { idb } from "@/common/db";
 import { config } from "@/config/index";
 import { cosigner, saveOffChainCancellations } from "@/utils/offchain-cancel";
+import * as paymentProcessorV2 from "@/utils/payment-processor-v2";
 
 // Reuse the cancellation format of `seaport` orders
 export const generateOffChainCancellationSignatureData = (orderIds: string[]) => {
@@ -61,5 +62,10 @@ export const doSignOrder = async (order: Sdk.PaymentProcessorV2.Order, taker: st
     }
 
     await order.cosign(cosigner(), taker);
+  }
+
+  const isBanned = await paymentProcessorV2.checkAccountIsBanned(order.params.tokenAddress, taker);
+  if (isBanned) {
+    throw new Error("Taker is banned");
   }
 };

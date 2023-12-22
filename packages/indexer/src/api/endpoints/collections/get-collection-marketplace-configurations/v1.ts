@@ -499,9 +499,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
                   }
                 }
               } else if (exchange.enabled && exchange.orderKind === "payment-processor-v2") {
-                const settings = await paymentProcessorV2.getCollectionPaymentSettings(
-                  params.collection
-                );
+                const settings = await paymentProcessorV2.getConfigByContract(params.collection);
 
                 let paymentTokens = [Sdk.Common.Addresses.Native[config.chainId]];
                 if (

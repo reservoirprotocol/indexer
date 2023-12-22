@@ -67,9 +67,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       // Check: various collection restrictions
 
-      const settings = await paymentProcessorV2.getCollectionPaymentSettings(
-        order.params.tokenAddress
-      );
+      const settings = await paymentProcessorV2.getConfigByContract(order.params.tokenAddress);
       if (
         settings &&
         [
@@ -116,13 +114,26 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       // Check: trusted channels
       if (settings?.blockTradesFromUntrustedChannels) {
-        const trustedChannels = await paymentProcessorV2.getAllTrustedChannels(
+        const trustedChannels = await paymentProcessorV2.getTrustedChannels(
           order.params.tokenAddress
         );
         if (trustedChannels.every((c) => c.signer !== AddressZero)) {
           return results.push({
             id,
             status: "signed-trusted-channels-not-yet-supported",
+          });
+        }
+      }
+
+      if (settings?.blockBannedAccounts) {
+        const isBanned = await paymentProcessorV2.checkAccountIsBanned(
+          order.params.tokenAddress,
+          order.params.sellerOrBuyer
+        );
+        if (isBanned) {
+          return results.push({
+            id,
+            status: "maker-was-banned-by-collection",
           });
         }
       }

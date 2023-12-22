@@ -1600,5 +1600,11 @@ export const setupRoutes = (server: Server) => {
       path: "/debug/reset",
       options: debugEndpoints.resetOptions,
     });
+
+    server.route({
+      method: "GET",
+      path: "/debug/parse-royalties",
+      options: debugEndpoints.parseRoyaltiesOptions,
+    });
   }
 };
