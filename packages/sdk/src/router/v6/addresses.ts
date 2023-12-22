@@ -169,6 +169,7 @@ export const SeaportV15Module: ChainIdToAddress = {
   [Network.Ancient8Testnet]: "0x4e9aaa72727a2f5aa5d2bef80ab5642661e29ef6",
   [Network.Scroll]: "0x4e9aaa72727a2f5aa5d2bef80ab5642661e29ef6",
   [Network.BeamTestnet]: "0xcf446330bcb193dd8024ebf634390932720db609",
+  [Network.Beam]: "0x7c5ff94e87a2a2a343d0ef40c820384fbc60d0d1"
 };
 
 export const AlienswapModule: ChainIdToAddress = {
