@@ -1,30 +1,36 @@
 import { Interface } from "@ethersproject/abi";
+import { BlockWithTransactions } from "@ethersproject/abstract-provider";
 import { AddressZero } from "@ethersproject/constants";
 import { JsonRpcProvider } from "@ethersproject/providers";
 import { getTxTraces } from "@georgeroman/evm-tx-simulator";
+import { CallTrace } from "@georgeroman/evm-tx-simulator/dist/types";
+import * as Sdk from "@reservoir0x/sdk";
 import { getSourceV1 } from "@reservoir0x/sdk/dist/utils";
 import _ from "lodash";
 
+import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
+import { redis } from "@/common/redis";
 import { bn } from "@/common/utils";
+import { config } from "@/config/index";
 import { extractNestedTx } from "@/events-sync/handlers/attribution";
+import { collectionNewContractDeployedJob } from "@/jobs/collections/collection-contract-deployed";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
-import { Transaction, getTransaction, saveTransaction } from "@/models/transactions";
+import {
+  Transaction,
+  getTransaction,
+  saveTransaction,
+  saveTransactionsV2,
+} from "@/models/transactions";
 import { getTransactionLogs, saveTransactionLogs } from "@/models/transaction-logs";
-import { getTransactionTraces, saveTransactionTraces } from "@/models/transaction-traces";
+import {
+  TransactionTrace,
+  getTransactionTraces,
+  saveTransactionTraces,
+} from "@/models/transaction-traces";
 import { OrderKind, getOrderSourceByOrderId, getOrderSourceByOrderKind } from "@/orderbook/orders";
 import { getRouters } from "@/utils/routers";
-
-import { saveTransactionsV2 } from "@/models/transactions";
-
-import { BlockWithTransactions } from "@ethersproject/abstract-provider";
-import { logger } from "@/common/logger";
-import { TransactionTrace } from "@/models/transaction-traces";
-import { CallTrace } from "@georgeroman/evm-tx-simulator/dist/types";
-import { collectionNewContractDeployedJob } from "@/jobs/collections/collection-contract-deployed";
-import { config } from "@/config/index";
-import { redis } from "@/common/redis";
 
 const chainsWithoutCallTracer = [324];
 
@@ -184,8 +190,25 @@ export const extractAttributionData = async (
       router = routers.get(result.to.toLowerCase());
     }
   }
+
   if (router) {
     taker = tx.from;
+
+    // The taker will be wrong if this is a transaction where the recipient
+    // is different from `msg.sender`. In this case we parse the executions
+    // (under the assumption that this can only happen when filling via our
+    // router contract) and extract the actual taker from there.
+
+    const sdkRouter = new Sdk.RouterV6.Router(config.chainId, baseProvider);
+    const executions = sdkRouter.parseExecutions(tx.data);
+    if (executions.length) {
+      // Only check the first execution
+      const { params } = executions[0];
+      const viaRelayer = params.fillTo.toLowerCase() !== params.refundTo.toLowerCase();
+      if (viaRelayer) {
+        taker = params.fillTo;
+      }
+    }
   }
 
   let source = getSourceV1(tx.data);
