@@ -52,6 +52,7 @@ import * as paymentProcessorV2 from "@/events-sync/handlers/payment-processor-v2
 import * as erc721cV2 from "@/events-sync/handlers/erc721c-v2";
 import * as titlesxyz from "@/events-sync/handlers/titlesxyz";
 import * as artblocks from "@/events-sync/handlers/artblocks";
+import * as highlightxyz from "@/events-sync/handlers/highlightxyz";
 import * as ditto from "@/events-sync/handlers/ditto";
 
 // A list of events having the same high-level kind
@@ -118,6 +119,7 @@ export const eventKindToHandler = new Map<
   ["erc721c-v2", (e) => erc721cV2.handleEvents(e)],
   ["titlesxyz", (e, d) => titlesxyz.handleEvents(e, d)],
   ["artblocks", (e, d) => artblocks.handleEvents(e, d)],
+  ["highlightxyz", (e, d) => highlightxyz.handleEvents(e, d)],
 ]);
 
 export const processEventsBatch = async (batch: EventsBatch, skipProcessing?: boolean) => {

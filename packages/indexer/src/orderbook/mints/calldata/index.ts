@@ -70,6 +70,7 @@ export type CustomInfo =
   | (BaseCustomInfo & mints.manifold.Info)
   | (BaseCustomInfo & mints.soundxyz.Info)
   | (BaseCustomInfo & mints.artblocks.Info)
+  | (BaseCustomInfo & mints.highlightxyz.Info)
   | (BaseCustomInfo & mints.zora.Info);
 
 export type PartialCollectionMint = Pick<
@@ -466,6 +467,10 @@ export const refreshMintsForCollection = async (collection: string) => {
 
       case "zora":
         await mints.zora.refreshByCollection(collection);
+        break;
+
+      case "highlightxyz":
+        await mints.highlightxyz.refreshByCollection(collection);
         break;
     }
   }

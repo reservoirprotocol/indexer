@@ -50,6 +50,7 @@ import * as createdotfun from "@/events-sync/data/createdotfun";
 import * as erc721cV2 from "@/events-sync/data/erc721c-v2";
 import * as titlesxyz from "@/events-sync/data/titlesxyz";
 import * as artblocks from "@/events-sync/data/artblocks";
+import * as highlightxyz from "@/events-sync/data/highlightxyz";
 import * as ditto from "@/events-sync/data/ditto";
 
 // All events we're syncing should have an associated `EventData`
@@ -104,7 +105,9 @@ export type EventKind =
   | "titlesxyz"
   | "artblocks"
   | "erc721c-v2"
-  | "ditto";
+  | "titlesxyz"
+  | "ditto"
+  | "highlightxyz";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -326,7 +329,14 @@ export type EventSubKind =
   | "erc721c-v2-removed-account-from-list"
   | "erc721c-v2-removed-code-hash-from-list"
   | "erc721c-v2-applied-list-to-collection"
-  | "ditto-pool-initialized";
+  | "ditto-pool-initialized"
+  | "highlightxyz-edition-vector-created"
+  | "highlightxyz-series-vector-created"
+  | "highlightxyz-vector-updated"
+  | "highlightxyz-vector-deleted"
+  | "highlightxyz-discrete-da-created"
+  | "highlightxyz-mechanic-vector-registered"
+  | "highlightxyz-discrete-da-updated";
 
 export type EventData = {
   kind: EventKind;
@@ -554,6 +564,13 @@ const allEventData = [
   erc721cV2.removedAccountFromList,
   erc721cV2.removedCodeHashFromList,
   erc721cV2.appliedListToCollection,
+  highlightxyz.editonVectorCreated,
+  highlightxyz.seriesVectorCreated,
+  highlightxyz.vectorUpdated,
+  highlightxyz.vectorDeleted,
+  highlightxyz.discreteDACreated,
+  highlightxyz.mechanicVectorRegistered,
+  highlightxyz.mechanicVectorUpdated,
   ditto.dittoPoolInitialized,
 ];
 

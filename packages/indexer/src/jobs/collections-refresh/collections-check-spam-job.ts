@@ -69,7 +69,7 @@ export default class CollectionCheckSpamJob extends AbstractRabbitMqJobHandler {
     const newSpamState = 1;
 
     for (const spamName of config.spamNames) {
-      if (_.includes(_.toLower(collection.name), spamName)) {
+      if (_.includes(_.toLower(collection.name).match(/\w+/g), spamName)) {
         // The name includes a spam word Collection is spam update track and return
         await this.updateSpamStatus(collection.id, newSpamState);
 

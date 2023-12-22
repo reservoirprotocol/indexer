@@ -10,7 +10,7 @@ const version = "v1";
 export const getTransactionSyncedV1Options: RouteOptions = {
   description: "Check Transaction Status",
   notes: "Get a boolean response on whether a particular transaction was synced or not.",
-  tags: ["api", "Trading", "Manage Orders"],
+  tags: ["api", "Manage Orders"],
   plugins: {
     "hapi-swagger": {
       order: 10,

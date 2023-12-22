@@ -34,7 +34,7 @@ export const postExecuteMintV1Options: RouteOptions = {
   description: "Mint Tokens",
   notes:
     "Use this API to mint tokens. We recommend using the SDK over this API as the SDK will iterate through the steps and return callbacks.",
-  tags: ["api", "Trading"],
+  tags: ["api"],
   timeout: {
     server: 40 * 1000,
   },
