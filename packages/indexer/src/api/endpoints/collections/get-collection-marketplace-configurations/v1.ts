@@ -515,6 +515,8 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
                   paymentProcessorV2.PaymentSettings.PricingConstraints
                 ) {
                   paymentTokens = [settings.constrainedPricingPaymentMethod];
+                  exchange.maxPriceRaw = settings?.pricingBounds?.ceilingPrice;
+                  exchange.minPriceRaw = settings?.pricingBounds?.floorPrice;
                 }
 
                 exchange.supportedBidCurrencies = paymentTokens.filter(

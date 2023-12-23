@@ -69,7 +69,8 @@ export const getConfigByContract = async (
               bool blockBannedAccounts
             )
           )`,
-          `functions getTrustedChannels(address token) view returns (address[])`,
+          "function getFloorPrice(address token, uint256 tokenId) view returns (uint256)",
+          "function getCeilingPrice(address token, uint256 tokenId) view returns (uint256)",
         ]),
         baseProvider
       );
@@ -126,7 +127,7 @@ export const getTrustedChannels = async (contract: string, refresh?: boolean) =>
     try {
       const exchange = new Contract(
         Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId],
-        new Interface([`functions getTrustedChannels(address token) view returns (address[])`]),
+        new Interface(["function getTrustedChannels(address token) view returns (address[])"]),
         baseProvider
       );
 
@@ -199,7 +200,7 @@ export const getPaymentMethods = async (paymentMethodWhitelistId: number, refres
       const exchange = new Contract(
         Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId],
         new Interface([
-          `function getWhitelistedPaymentMethods(uint32 paymentMethodWhitelistId) view returns (address[])`,
+          "function getWhitelistedPaymentMethods(uint32 paymentMethodWhitelistId) view returns (address[])",
         ]),
         baseProvider
       );
@@ -226,7 +227,7 @@ export const getBannedAccounts = async (contract: string, refresh?: boolean) => 
     try {
       const exchange = new Contract(
         Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId],
-        new Interface([`function getBannedAccounts(address token) view returns (address[])`]),
+        new Interface(["function getBannedAccounts(address token) view returns (address[])"]),
         baseProvider
       );
 
