@@ -139,7 +139,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         .description(
           "If true, filling will be forced to use the common 'approval + transfer' method instead of the approval-less 'on-received hook' method"
         ),
-      forceTrustedForwarder: Joi.string()
+      forwarderChannel: Joi.string()
         .lowercase()
         .pattern(regex.address)
         .description(
@@ -430,7 +430,7 @@ export const getExecuteSellV7Options: RouteOptions = {
             payload.taker,
             {
               permit,
-              ppV2TrustedChannel: payload.forceTrustedForwarder,
+              ppV2TrustedChannel: payload.forwarderChannel,
             }
           )
         );

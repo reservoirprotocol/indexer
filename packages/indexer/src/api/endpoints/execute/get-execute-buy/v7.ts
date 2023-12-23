@@ -142,7 +142,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       forceRouter: Joi.boolean().description(
         "If true, all fills will be executed through the router (where possible)"
       ),
-      forceTrustedForwarder: Joi.string()
+      forwarderChannel: Joi.string()
         .lowercase()
         .pattern(regex.address)
         .description(
@@ -509,7 +509,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               },
               payload.taker,
               {
-                ppV2TrustedChannel: payload.forceTrustedForwarder,
+                ppV2TrustedChannel: payload.forwarderChannel,
               }
             )
           );
