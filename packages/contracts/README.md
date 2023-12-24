@@ -23,10 +23,10 @@ To install any dependencies and run all tests (tests can also be run individuall
 yarn install
 
 # Run tests
-yarn test ./test/router/v6/**/*.test.ts
+yarn test ./test/router/**/*.test.ts
 
 # Run an individual test
-yarn test ./test/router/v6/seaport/listings.test.ts
+yarn test ./test/router/seaport-v1.5/listings.test.ts
 ```
 
 #### Modules

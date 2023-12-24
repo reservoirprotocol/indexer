@@ -12,6 +12,7 @@ import * as utils from "@/events-sync/utils";
 import { getERC20Transfer } from "@/events-sync/handlers/utils/erc20";
 import { OrderKind } from "@/orderbook/orders";
 import { getUSDAndNativePrices } from "@/utils/prices";
+import { refresh } from "@/utils/seaport-conduits";
 
 const getProtocolInfoFromSubKind = (subKind: EventSubKind) => {
   if (subKind.startsWith("seaport-v1.4")) {
@@ -444,6 +445,12 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           }
         }
 
+        break;
+      }
+
+      case "seaport-channel-updated": {
+        const conduit = baseEventParams.address;
+        await refresh(conduit);
         break;
       }
     }

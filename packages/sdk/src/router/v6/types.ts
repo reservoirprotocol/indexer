@@ -2,10 +2,9 @@ import { BigNumberish } from "@ethersproject/bignumber";
 
 import * as Sdk from "../../index";
 import { TxData } from "../../utils";
+import { Permit } from "./permit";
 
-// Approvals and permits
-
-// NFTs
+// NFT
 
 export type NFTToken = {
   kind: "erc721" | "erc1155";
@@ -22,7 +21,7 @@ export type NFTApproval = {
   txData: TxData;
 };
 
-// FTs
+// FT
 
 export type FTApproval = {
   currency: string;
@@ -43,6 +42,28 @@ export type ExecutionInfo = {
 export type Fee = {
   recipient: string;
   amount: BigNumberish;
+};
+
+export type PreSignature = {
+  kind: "payment-processor-take-order";
+  signer: string;
+  signature?: string;
+  uniqueId: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: any;
+};
+
+export type TxTags = {
+  // Number of listings for each order kind
+  listings?: { [orderKind: string]: number };
+  // Number of bids for each order kind
+  bids?: { [orderKind: string]: number };
+  // Number of mints
+  mints?: number;
+  // Number of swaps
+  swaps?: number;
+  // Number of fees on top
+  feesOnTop?: number;
 };
 
 // Orders
@@ -73,16 +94,16 @@ export type GenericOrder =
       order: Sdk.SeaportV14.Order;
     }
   | {
-      kind: "seaport-v1.4-partial";
-      order: Sdk.SeaportBase.Types.PartialOrder;
-    }
-  | {
       kind: "seaport-v1.5";
       order: Sdk.SeaportV15.Order;
     }
   | {
       kind: "seaport-v1.5-partial";
-      order: Sdk.SeaportBase.Types.PartialOrder;
+      order: Sdk.SeaportBase.Types.OpenseaPartialOrder;
+    }
+  | {
+      kind: "seaport-v1.5-partial-okx";
+      order: Sdk.SeaportBase.Types.OkxPartialOrder;
     }
   | {
       kind: "alienswap";
@@ -97,16 +118,12 @@ export type GenericOrder =
       order: Sdk.Sudoswap.Order;
     }
   | {
-      kind: "collectionxyz";
-      order: Sdk.CollectionXyz.Order;
+      kind: "ditto";
+      order: Sdk.Ditto.Order;
     }
   | {
       kind: "zora";
       order: Sdk.Zora.Order;
-    }
-  | {
-      kind: "universe";
-      order: Sdk.Universe.Order;
     }
   | {
       kind: "element";
@@ -133,16 +150,28 @@ export type GenericOrder =
       order: Sdk.Nftx.Order;
     }
   | {
-      kind: "flow";
-      order: Sdk.Flow.Order;
-    }
-  | {
       kind: "superrare";
       order: Sdk.SuperRare.Order;
     }
   | {
       kind: "looks-rare-v2";
       order: Sdk.LooksRareV2.Order;
+    }
+  | {
+      kind: "sudoswap-v2";
+      order: Sdk.SudoswapV2.Order;
+    }
+  | {
+      kind: "caviar-v1";
+      order: Sdk.CaviarV1.Order;
+    }
+  | {
+      kind: "payment-processor";
+      order: Sdk.PaymentProcessor.Order;
+    }
+  | {
+      kind: "payment-processor-v2";
+      order: Sdk.PaymentProcessorV2.Order;
     };
 
 // Listings
@@ -159,6 +188,9 @@ export type ListingFillDetails = {
   isFlagged?: boolean;
   // Relevant for partially-fillable orders
   amount?: number | string;
+  // Relevant for special orders (eg. signed orders)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  extraArgs?: any;
   fees?: Fee[];
 };
 export type ListingDetails = GenericOrder & ListingFillDetails;
@@ -172,7 +204,10 @@ export type FillListingsResult = {
   txs: {
     approvals: FTApproval[];
     txData: TxData;
+    txTags?: TxTags;
     orderIds: string[];
+    permits: Permit[];
+    preSignatures: PreSignature[];
   }[];
   success: { [orderId: string]: boolean };
 };
@@ -196,16 +231,54 @@ export type BidFillDetails = {
   owner?: string;
   isProtected?: boolean;
   fees?: Fee[];
+  permit?: Permit;
 };
 export type BidDetails = GenericOrder & BidFillDetails;
 
 export type FillBidsResult = {
-  txs: {
-    approvals: NFTApproval[];
+  preTxs: {
+    kind: "permit";
     txData: TxData;
     orderIds: string[];
   }[];
+  txs: {
+    approvals: NFTApproval[];
+    txData: TxData;
+    txTags?: TxTags;
+    orderIds: string[];
+    preSignatures: PreSignature[];
+  }[];
   success: { [orderId: string]: boolean };
+};
+
+// Mints
+
+// Basic details for filling mints
+export type MintDetails = {
+  orderId: string;
+  txData: TxData;
+  fees: Fee[];
+  token: string;
+  quantity: number;
+  comment?: string;
+};
+
+export type FillMintsResult = {
+  txs: {
+    txData: TxData;
+    txTags?: TxTags;
+    orderIds: string[];
+  }[];
+  success: { [orderId: string]: boolean };
+};
+
+// Transfers
+
+export type TransfersResult = {
+  txs: {
+    approvals: NFTApproval[];
+    txData: TxData;
+  }[];
 };
 
 // Swaps
@@ -221,5 +294,6 @@ export type SwapDetail = {
   recipient: string;
   refundTo: string;
   details: ListingDetails[];
-  executionIndex: number;
+  txIndex?: number;
+  executionIndex?: number;
 };

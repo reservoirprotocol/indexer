@@ -76,7 +76,7 @@ export const handleEvents = async (_events: EnhancedEvent[], onChainData: OnChai
         }
 
         // Detect the payment token
-        let currency = Sdk.Common.Addresses.Eth[config.chainId];
+        let currency = Sdk.Common.Addresses.Native[config.chainId];
         for (const log of currentTxLogs.slice(0, -1).reverse()) {
           // Skip once we detect another fill in the same transaction
           // (this will happen if filling through an aggregator)

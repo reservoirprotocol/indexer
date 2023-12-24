@@ -1,7 +1,7 @@
 import { idb, pgp } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { BaseEventParams } from "@/events-sync/parser";
-import * as ftTransfersWriteBuffer from "@/jobs/events-sync/write-buffers/ft-transfers";
+import { eventsSyncFtTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/ft-transfers-job";
 
 export type Event = {
   from: string;
@@ -100,14 +100,14 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
         GROUP BY "y"."address", "y"."owner"
       )
       ON CONFLICT ("contract", "owner") DO
-      UPDATE SET "amount" = "ft_balances"."amount" + "excluded"."amount"
+      UPDATE SET "amount" = "ft_balances"."amount" + "excluded"."amount", updated_at = now()
     `);
   }
 
   if (queries.length) {
     if (backfill) {
       // When backfilling, use the write buffer to avoid deadlocks
-      await ftTransfersWriteBuffer.addToQueue(pgp.helpers.concat(queries));
+      await eventsSyncFtTransfersWriteBufferJob.addToQueue({ query: pgp.helpers.concat(queries) });
     } else {
       // Otherwise write directly since there might be jobs that depend
       // on the events to have been written to the database at the time
@@ -149,7 +149,7 @@ export const removeEvents = async (block: number, blockHash: string) => {
         GROUP BY "y"."address", "y"."owner"
       )
       ON CONFLICT ("contract", "owner") DO
-      UPDATE SET "amount" = "ft_balances"."amount" + "excluded"."amount"
+      UPDATE SET "amount" = "ft_balances"."amount" + "excluded"."amount", updated_at = now()
     `,
     {
       block,

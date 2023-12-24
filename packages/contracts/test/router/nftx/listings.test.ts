@@ -48,7 +48,7 @@ describe("[ReservoirV6_0_1] NFTX listings", () => {
   });
 
   const getBalances = async (token: string) => {
-    if (token === Sdk.Common.Addresses.Eth[chainId]) {
+    if (token === Sdk.Common.Addresses.Native[chainId]) {
       return {
         alice: await ethers.provider.getBalance(alice.address),
         bob: await ethers.provider.getBalance(bob.address),
@@ -170,7 +170,7 @@ describe("[ReservoirV6_0_1] NFTX listings", () => {
     //     if (listing.lpToken) {
     //       const contract = new Sdk.Common.Helpers.Erc20(
     //         ethers.provider,
-    //         Sdk.Common.Addresses.Weth[chainId]
+    //         Sdk.Common.Addresses.WNative[chainId]
     //       );
     //       const pairWETH = await contract.getBalance(listing.lpToken);
     //       balances.push({
@@ -182,7 +182,7 @@ describe("[ReservoirV6_0_1] NFTX listings", () => {
     //   return balances;
     // };
 
-    const ethBalancesBefore = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
+    const ethBalancesBefore = await getBalances(Sdk.Common.Addresses.Native[chainId]);
 
     // const pairBalancesBefore = await getPairBalances();
 
@@ -194,7 +194,7 @@ describe("[ReservoirV6_0_1] NFTX listings", () => {
 
     // Fetch post-state
 
-    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
+    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Native[chainId]);
 
     const aliceOrderList = listings.filter(
       ({ seller, isCancelled }) => !isCancelled && seller.address === alice.address

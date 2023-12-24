@@ -14,7 +14,7 @@ export const putSetCollectionCommunityV1Options: RouteOptions = {
   description: "Set a community for a specific collection",
   notes:
     "This API requires an administrator API for execution. Explore and try the `/collections-sets/v1` or `/contracts-sets/v1` endpoints. Please contact technical support with more questions.",
-  tags: ["api", "Collections"],
+  tags: ["api", "x-admin"],
   plugins: {
     "hapi-swagger": {
       order: 13,
@@ -78,7 +78,10 @@ export const putSetCollectionCommunityV1Options: RouteOptions = {
 
       return { message: "Success" };
     } catch (error) {
-      logger.error(`put-set-collection-community-${version}-handler`, `Handler failure: ${error}`);
+      logger.error(
+        `put-set-collection-community-${version}-handler`,
+        `Handler failure: ${JSON.stringify(error)}`
+      );
       throw error;
     }
   },

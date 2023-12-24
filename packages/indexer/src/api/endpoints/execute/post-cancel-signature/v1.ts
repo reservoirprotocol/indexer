@@ -8,8 +8,10 @@ import Joi from "joi";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as b from "@/utils/auth/blur";
+import * as offchainCancel from "@/utils/offchain-cancel";
 
 const version = "v1";
 
@@ -25,7 +27,7 @@ export const postCancelSignatureV1Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      signature: Joi.string().required().description("Cancellation signature"),
+      signature: Joi.string().description("Cancellation signature"),
       auth: Joi.string().description("Optional auth token used instead of the signature"),
     }),
     payload: Joi.object({
@@ -35,7 +37,7 @@ export const postCancelSignatureV1Options: RouteOptions = {
         .required()
         .description("Ids of the orders to cancel"),
       orderKind: Joi.string()
-        .valid("seaport-v1.4", "seaport-v1.5", "alienswap", "blur-bid")
+        .valid("seaport-v1.4", "seaport-v1.5", "alienswap", "blur-bid", "payment-processor-v2")
         .required()
         .description("Exchange protocol used to bulk cancel order. Example: `seaport-v1.5`"),
     }),
@@ -124,16 +126,11 @@ export const postCancelSignatureV1Options: RouteOptions = {
           }
 
           try {
-            await axios.post(
-              `https://seaport-oracle-${
-                config.chainId === 1 ? "mainnet" : "goerli"
-              }.up.railway.app/api/cancellations`,
-              {
-                signature,
-                orders: ordersResult.map((o) => o.raw_data),
-                orderKind,
-              }
-            );
+            await offchainCancel.seaport.doCancel({
+              signature,
+              orders: ordersResult.map((o) => o.raw_data),
+              orderKind,
+            });
 
             return { message: "Success" };
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -144,6 +141,38 @@ export const postCancelSignatureV1Options: RouteOptions = {
 
             throw Boom.badRequest("Cancellation failed");
           }
+        }
+
+        case "payment-processor-v2": {
+          const ordersResult = await idb.manyOrNone(
+            `
+              SELECT
+                orders.maker
+              FROM orders
+              WHERE orders.id IN ($/ids:list/)
+              ORDER BY orders.id
+            `,
+            { ids: orderIds }
+          );
+          if (ordersResult.length !== orderIds.length) {
+            throw Boom.badRequest("Could not find all relevant orders");
+          }
+
+          const maker = fromBuffer(ordersResult[0].maker);
+          if (!ordersResult.every((r) => fromBuffer(r.maker) === maker)) {
+            throw Boom.badRequest("Some or all of the orders have a different maker");
+          }
+
+          try {
+            await offchainCancel.paymentProcessorV2.doCancel({
+              orderIds,
+              signature,
+              maker,
+            });
+          } catch {
+            throw Boom.badRequest("Cancellation failed");
+          }
+          return { message: "Success" };
         }
       }
     } catch (error) {

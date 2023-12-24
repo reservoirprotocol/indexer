@@ -5,7 +5,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 import _ from "lodash";
 
-import { redb } from "@/common/db";
+import { edb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { JoiOrder, getJoiOrderObject } from "@/common/joi";
 import {
@@ -20,14 +20,15 @@ import { ContractSets } from "@/models/contract-sets";
 import { Sources } from "@/models/sources";
 import { TokenSets } from "@/models/token-sets";
 import { Orders } from "@/utils/orders";
+import { config } from "@/config/index";
 
 const version = "v4";
 
 export const getOrdersAsksV4Options: RouteOptions = {
   description: "Asks (listings)",
   notes:
-    "Get a list of asks (listings), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing",
-  tags: ["api", "Orders"],
+    "Get a list of asks (listings), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing.\n\n Please mark `excludeEOA` as `true` to exclude Blur orders.",
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 5,
@@ -139,7 +140,11 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .when("sortBy", {
           is: Joi.valid("updatedAt"),
           then: Joi.valid("asc", "desc").default("desc"),
-          otherwise: Joi.valid("desc").default("desc"),
+          otherwise: Joi.when("sortBy", {
+            is: Joi.valid("price"),
+            then: Joi.valid("asc", "desc").default("asc"),
+            otherwise: Joi.valid("desc").default("desc"),
+          }),
         }),
       continuation: Joi.string()
         .pattern(regex.base64)
@@ -162,7 +167,9 @@ export const getOrdersAsksV4Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
-      orders: Joi.array().items(JoiOrder),
+      orders: Joi.array()
+        .items(JoiOrder)
+        .description("`taker` will have wallet address if private listing."),
       continuation: Joi.string().pattern(regex.base64).allow(null),
     }).label(`getOrdersAsks${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
@@ -173,6 +180,11 @@ export const getOrdersAsksV4Options: RouteOptions = {
   handler: async (request: Request) => {
     const query = request.query as any;
 
+    // Log timing to debug when limit is 1000 and sortBy is updatedAt
+    const debugLog = query.limit === 1000 && query.sortBy === "updatedAt";
+    const debugStart = Date.now();
+    const debugTimings = [];
+
     try {
       const criteriaBuildQuery = Orders.buildCriteriaQuery(
         "orders",
@@ -182,6 +194,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
 
       let baseQuery = `
         SELECT
+          contracts.kind AS "contract_kind",
           orders.id,
           orders.kind,
           orders.side,
@@ -222,13 +235,20 @@ export const getOrdersAsksV4Options: RouteOptions = {
               WHEN orders.fillability_status = 'expired' THEN 'expired'
               WHEN orders.fillability_status = 'no-balance' THEN 'inactive'
               WHEN orders.approval_status = 'no-approval' THEN 'inactive'
+              WHEN orders.approval_status = 'disabled' THEN 'inactive'
               ELSE 'active'
             END
           ) AS status,
           extract(epoch from orders.updated_at) AS updated_at,
+          orders.originated_at,
           (${criteriaBuildQuery}) AS criteria
           ${query.includeRawData || query.includeDynamicPricing ? ", orders.raw_data" : ""}
         FROM orders
+        JOIN LATERAL (
+          SELECT kind
+          FROM contracts
+          WHERE contracts.address = orders.contract
+        ) contracts ON TRUE
       `;
 
       // We default in the code so that these values don't appear in the docs
@@ -496,7 +516,18 @@ export const getOrdersAsksV4Options: RouteOptions = {
       // Pagination
       baseQuery += ` LIMIT $/limit/`;
 
-      const rawResult = await redb.manyOrNone(baseQuery, query);
+      if (debugLog) {
+        debugTimings.push({ beforeQuery: Date.now() - debugStart });
+      }
+
+      const rawResult =
+        config.chainId === 137
+          ? await edb.manyOrNone(baseQuery, query)
+          : await redb.manyOrNone(baseQuery, query);
+
+      if (debugLog) {
+        debugTimings.push({ afterQuery: Date.now() - debugStart });
+      }
 
       let continuation = null;
       if (rawResult.length === query.limit) {
@@ -531,6 +562,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
           tokenSetId: r.token_set_id,
           tokenSetSchemaHash: r.token_set_schema_hash,
           contract: r.contract,
+          contractKind: r.contract_kind,
           maker: r.maker,
           taker: r.taker,
           prices: {
@@ -553,11 +585,12 @@ export const getOrdersAsksV4Options: RouteOptions = {
           criteria: r.criteria,
           sourceIdInt: r.source_id_int,
           feeBps: r.fee_bps,
-          feeBreakdown: r.fee_breakdown,
+          feeBreakdown: r.fee_bps === 0 ? [] : r.fee_breakdown,
           expiration: r.expiration,
           isReservoir: r.is_reservoir,
           createdAt: r.created_at,
           updatedAt: r.updated_at,
+          originatedAt: r.originated_at,
           includeRawData: query.includeRawData,
           rawData: r.raw_data,
           normalizeRoyalties: query.normalizeRoyalties,
@@ -567,6 +600,14 @@ export const getOrdersAsksV4Options: RouteOptions = {
           displayCurrency: query.displayCurrency,
         });
       });
+
+      if (debugLog) {
+        debugTimings.push({ sendingResponse: Date.now() - debugStart });
+        logger.info(
+          `get-orders-asks-${version}-timing`,
+          JSON.stringify({ debugStart, debugTimings })
+        );
+      }
 
       return {
         orders: await Promise.all(result),

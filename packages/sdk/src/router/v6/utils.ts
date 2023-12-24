@@ -3,12 +3,15 @@ import { BigNumberish } from "@ethersproject/bignumber";
 
 import * as Sdk from "../../index";
 import { MaxUint256, TxData } from "../../utils";
+import { TxTags } from "./types";
 
 export const isETH = (chainId: number, address: string) =>
-  address.toLowerCase() === Sdk.Common.Addresses.Eth[chainId];
+  [Sdk.Common.Addresses.Native[chainId], Sdk.ZeroExV4.Addresses.Native[chainId]].includes(
+    address.toLowerCase()
+  );
 
 export const isWETH = (chainId: number, address: string) =>
-  address.toLowerCase() === Sdk.Common.Addresses.Weth[chainId];
+  address.toLowerCase() === Sdk.Common.Addresses.WNative[chainId];
 
 export const generateNFTApprovalTxData = (
   contract: string,
@@ -35,3 +38,58 @@ export const generateFTApprovalTxData = (
     [spender, amount ?? MaxUint256]
   ),
 });
+
+export const initializeTxTags = (): TxTags => ({
+  listings: {},
+  bids: {},
+  mints: 0,
+  swaps: 0,
+  feesOnTop: 0,
+});
+
+export const estimateGasFromTxTags = (txTags: TxTags) => {
+  const gasDb = {
+    listing: 80000,
+    bid: 80000,
+    swap: 150000,
+    mint: 50000,
+    feeOnTop: 30000,
+  };
+
+  // Base gas cost per tx kind
+  let estimate: number;
+  if (txTags.mints) {
+    estimate = 30000;
+  } else if (txTags.listings && Object.keys(txTags.listings).length) {
+    estimate = 80000;
+  } else {
+    estimate = 100000;
+  }
+
+  // Listings
+  for (const count of Object.values(txTags.listings ?? {})) {
+    estimate += Number(count) * gasDb.listing;
+  }
+
+  // Bids
+  for (const count of Object.values(txTags.bids ?? {})) {
+    estimate += Number(count) * gasDb.bid;
+  }
+
+  // Swaps
+  if (txTags.swaps) {
+    estimate += txTags.swaps * gasDb.swap;
+  }
+
+  // Mints
+  if (txTags.mints) {
+    estimate += txTags.mints * gasDb.mint;
+  }
+
+  // Fees on top
+  if (txTags.feesOnTop) {
+    estimate += txTags.feesOnTop * gasDb.mint;
+  }
+
+  return estimate;
+};

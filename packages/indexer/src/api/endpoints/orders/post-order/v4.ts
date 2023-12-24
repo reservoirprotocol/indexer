@@ -13,14 +13,14 @@ import { config } from "@/config/index";
 import * as crossPostingOrdersModel from "@/models/cross-posting-orders";
 import * as orders from "@/orderbook/orders";
 
-import * as postOrderExternal from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-queue";
-import * as postOrderExternalOpensea from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-queue";
+import { orderbookPostOrderExternalOpenseaJob } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-job";
+import { orderbookPostOrderExternalJob } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-job";
 
 const version = "v4";
 
 export const postOrderV4Options: RouteOptions = {
-  description: "Submit signed orders",
-  tags: ["api", "Create Orders (list & bid)"],
+  description: "Submit Signed Orders",
+  tags: ["api", "Manage Orders"],
   plugins: {
     "hapi-swagger": {
       order: 5,
@@ -46,16 +46,16 @@ export const postOrderV4Options: RouteOptions = {
                   "seaport-v1.4",
                   "seaport-v1.5",
                   "x2y2",
-                  "universe",
-                  "flow",
-                  "alienswap"
+                  "alienswap",
+                  "payment-processor",
+                  "payment-processor-v2"
                 )
                 .required(),
               data: Joi.object().required(),
             }),
             orderbook: Joi.string()
               .lowercase()
-              .valid("blur", "reservoir", "opensea", "looks-rare", "x2y2", "universe", "flow")
+              .valid("blur", "reservoir", "opensea", "looks-rare", "x2y2")
               .default("reservoir"),
             orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
             attribute: Joi.object({
@@ -66,6 +66,8 @@ export const postOrderV4Options: RouteOptions = {
             collection: Joi.string(),
             tokenSetId: Joi.string(),
             isNonFlagged: Joi.boolean(),
+            permitId: Joi.string(),
+            permitIndex: Joi.number(),
             bulkData: Joi.object({
               kind: Joi.string()
                 .valid("seaport-v1.4", "seaport-v1.5", "alienswap")
@@ -119,7 +121,6 @@ export const postOrderV4Options: RouteOptions = {
         collection?: string;
         tokenSetId?: string;
         isNonFlagged?: boolean;
-        source?: string;
         bulkData?: {
           kind: "seaport-v1.4" | "seaport-v1.5" | "alienswap";
           data: {
@@ -169,6 +170,10 @@ export const postOrderV4Options: RouteOptions = {
           // - only relevant for non-flagged tokens bids
           const isNonFlagged = item.isNonFlagged;
 
+          // Permits
+          const permitId = payload.permitId;
+          const permitIndex = payload.permitIndex;
+
           const signature = query.signature ?? order.data.signature;
           if (signature) {
             try {
@@ -213,7 +218,11 @@ export const postOrderV4Options: RouteOptions = {
                 };
               }
             } catch {
-              // Skip errors
+              // To cover non-splittable signatures (eg. eip1271 or bulk signatures)
+              order.data = {
+                ...order.data,
+                signature,
+              };
             }
           }
 
@@ -261,7 +270,7 @@ export const postOrderV4Options: RouteOptions = {
               let orderId: string;
 
               if (orderbook === "blur") {
-                orderId = order.data.id;
+                orderId = order.data.id ?? null;
 
                 crossPostingOrder = await crossPostingOrdersModel.saveOrder({
                   orderId,
@@ -272,7 +281,7 @@ export const postOrderV4Options: RouteOptions = {
                   rawData: order.data,
                 } as crossPostingOrdersModel.CrossPostingOrder);
 
-                await postOrderExternal.addToQueue({
+                await orderbookPostOrderExternalJob.addToQueue({
                   crossPostingOrderId: crossPostingOrder.id,
                   orderId,
                   orderData: { ...order.data, signature },
@@ -280,21 +289,6 @@ export const postOrderV4Options: RouteOptions = {
                   orderbook,
                   orderbookApiKey,
                 });
-              } else if (orderbook === "reservoir") {
-                const [result] = await orders.blur.saveFullListings([
-                  {
-                    orderParams: order.data,
-                    metadata: {
-                      schema,
-                    },
-                  },
-                ]);
-
-                orderId = result.id;
-
-                if (!["success", "already-exists"].includes(result.status)) {
-                  return results.push({ message: result.status, orderIndex: i, orderId });
-                }
               } else {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
@@ -339,18 +333,13 @@ export const postOrderV4Options: RouteOptions = {
             case "seaport":
             case "seaport-v1.4":
             case "seaport-v1.5": {
-              if (!["opensea", "reservoir"].includes(orderbook)) {
+              if (!["opensea", "reservoir", "looks-rare"].includes(orderbook)) {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
 
               let crossPostingOrder;
 
               let orderId: string;
-              if (order.kind === "seaport") {
-                orderId = new Sdk.SeaportV11.Order(config.chainId, order.data).hash();
-              } else if (order.kind === "seaport-v1.4") {
-                orderId = new Sdk.SeaportV14.Order(config.chainId, order.data).hash();
-              }
               if (order.kind === "seaport-v1.5") {
                 orderId = new Sdk.SeaportV15.Order(config.chainId, order.data).hash();
               } else {
@@ -367,7 +356,7 @@ export const postOrderV4Options: RouteOptions = {
                   rawData: order.data,
                 } as crossPostingOrdersModel.CrossPostingOrder);
 
-                await postOrderExternalOpensea.addToQueue({
+                await orderbookPostOrderExternalOpenseaJob.addToQueue({
                   crossPostingOrderId: crossPostingOrder.id,
                   orderId,
                   orderData: order.data,
@@ -376,35 +365,7 @@ export const postOrderV4Options: RouteOptions = {
                   orderbookApiKey,
                 });
               } else if (orderbook === "reservoir") {
-                if (order.kind === "seaport") {
-                  const [result] = await orders.seaport.save([
-                    {
-                      orderParams: order.data,
-                      isReservoir: true,
-                      metadata: {
-                        schema,
-                        source,
-                      },
-                    },
-                  ]);
-                  if (!["success", "already-exists"].includes(result.status)) {
-                    return results.push({ message: result.status, orderIndex: i, orderId });
-                  }
-                } else if (order.kind == "seaport-v1.4") {
-                  const [result] = await orders.seaportV14.save([
-                    {
-                      orderParams: order.data,
-                      isReservoir: true,
-                      metadata: {
-                        schema,
-                        source,
-                      },
-                    },
-                  ]);
-                  if (!["success", "already-exists"].includes(result.status)) {
-                    return results.push({ message: result.status, orderIndex: i, orderId });
-                  }
-                } else if (order.kind == "seaport-v1.5") {
+                if (order.kind == "seaport-v1.5") {
                   const [result] = await orders.seaportV15.save([
                     {
                       orderParams: order.data,
@@ -412,13 +373,15 @@ export const postOrderV4Options: RouteOptions = {
                       metadata: {
                         schema,
                         source,
+                        permitId,
+                        permitIndex,
                       },
                     },
                   ]);
                   if (!["success", "already-exists"].includes(result.status)) {
                     return results.push({ message: result.status, orderIndex: i, orderId });
                   }
-                } else {
+                } else if (order.kind === "alienswap") {
                   const [result] = await orders.alienswap.save([
                     {
                       orderParams: order.data,
@@ -445,7 +408,7 @@ export const postOrderV4Options: RouteOptions = {
                   );
 
                   if (orderResult?.token_set_id?.startsWith("token")) {
-                    await postOrderExternalOpensea.addToQueue({
+                    await orderbookPostOrderExternalOpenseaJob.addToQueue({
                       orderId,
                       orderData: order.data,
                       orderSchema: schema,
@@ -454,6 +417,24 @@ export const postOrderV4Options: RouteOptions = {
                     });
                   }
                 }
+              } else if (orderbook === "looks-rare") {
+                crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+                  orderId,
+                  kind: order.kind,
+                  orderbook,
+                  source,
+                  schema,
+                  rawData: order.data,
+                } as crossPostingOrdersModel.CrossPostingOrder);
+
+                await orderbookPostOrderExternalJob.addToQueue({
+                  crossPostingOrderId: crossPostingOrder.id,
+                  orderId,
+                  orderData: order.data,
+                  orderSchema: schema,
+                  orderbook,
+                  orderbookApiKey,
+                });
               }
 
               return results.push({
@@ -484,7 +465,7 @@ export const postOrderV4Options: RouteOptions = {
                   rawData: order.data,
                 } as crossPostingOrdersModel.CrossPostingOrder);
 
-                await postOrderExternal.addToQueue({
+                await orderbookPostOrderExternalJob.addToQueue({
                   crossPostingOrderId: crossPostingOrder.id,
                   orderId,
                   orderData: order.data,
@@ -539,7 +520,7 @@ export const postOrderV4Options: RouteOptions = {
                   rawData: order.data,
                 } as crossPostingOrdersModel.CrossPostingOrder);
 
-                await postOrderExternal.addToQueue({
+                await orderbookPostOrderExternalJob.addToQueue({
                   crossPostingOrderId: crossPostingOrder.id,
                   orderId: orderId || null,
                   orderData: order.data,
@@ -573,80 +554,62 @@ export const postOrderV4Options: RouteOptions = {
               });
             }
 
-            case "universe": {
-              if (!["reservoir"].includes(orderbook)) {
+            case "payment-processor": {
+              if (orderbook !== "reservoir") {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
 
-              const orderId = new Sdk.Universe.Order(config.chainId, order.data).hashOrderKey();
+              const orderInfo: orders.paymentProcessor.OrderInfo = {
+                orderParams: order.data,
+                metadata: {
+                  schema,
+                  source,
+                },
+              };
 
-              const crossPostingOrder = await crossPostingOrdersModel.saveOrder({
-                orderId,
-                kind: order.kind,
-                orderbook,
-                source,
-                schema,
-                rawData: order.data,
-              } as crossPostingOrdersModel.CrossPostingOrder);
-
-              await postOrderExternal.addToQueue({
-                crossPostingOrderId: crossPostingOrder.id,
-                orderId,
-                orderData: order.data,
-                orderSchema: schema,
-                orderbook: "universe",
-                orderbookApiKey,
-              });
-
-              return results.push({
-                message: "success",
-                orderIndex: i,
-                orderId,
-                crossPostingOrderId: crossPostingOrder.id,
-                crossPostingOrderStatus: crossPostingOrder.status,
-              });
+              const [result] = await orders.paymentProcessor.save([orderInfo]);
+              if (["already-exists", "success"].includes(result.status)) {
+                return results.push({ message: "success", orderIndex: i, orderId: result.id });
+              } else {
+                return results.push({ message: result.status, orderIndex: i, orderId: result.id });
+              }
             }
 
-            case "flow": {
-              if (!["flow"].includes(orderbook)) {
+            case "payment-processor-v2": {
+              if (orderbook !== "reservoir") {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
 
-              const orderId = new Sdk.Flow.Order(config.chainId, order.data).hash();
+              const orderInfo: orders.paymentProcessorV2.OrderInfo = {
+                orderParams: order.data,
+                metadata: {
+                  schema,
+                  source,
+                },
+              };
 
-              const crossPostingOrder = await crossPostingOrdersModel.saveOrder({
-                orderId,
-                kind: order.kind,
-                orderbook,
-                source,
-                schema,
-                rawData: order.data,
-              } as crossPostingOrdersModel.CrossPostingOrder);
-
-              await postOrderExternal.addToQueue({
-                crossPostingOrderId: crossPostingOrder.id,
-                orderId,
-                orderData: order.data,
-                orderSchema: schema,
-                orderbook: "flow",
-                orderbookApiKey,
-              });
-
-              return results.push({
-                message: "success",
-                orderIndex: i,
-                orderId,
-                crossPostingOrderId: crossPostingOrder.id,
-                crossPostingOrderStatus: crossPostingOrder.status,
-              });
+              const [result] = await orders.paymentProcessorV2.save([orderInfo]);
+              if (["already-exists", "success"].includes(result.status)) {
+                return results.push({ message: "success", orderIndex: i, orderId: result.id });
+              } else {
+                return results.push({ message: result.status, orderIndex: i, orderId: result.id });
+              }
             }
           }
         })
       );
 
+      if (results.every((r) => r.message !== "success")) {
+        const error = Boom.badRequest("Could not create any order");
+        error.output.payload.results = results;
+        throw error;
+      }
+
       return { results };
     } catch (error) {
-      logger.error(`post-order-${version}-handler`, `Handler failure: ${error}`);
+      if (!(error instanceof Boom.Boom)) {
+        logger.error(`post-order-${version}-handler`, `Handler failure: ${error}`);
+      }
       throw error;
     }
   },

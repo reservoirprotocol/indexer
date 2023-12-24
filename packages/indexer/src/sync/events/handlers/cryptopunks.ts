@@ -131,7 +131,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         // Handle: prices
         const priceData = await getUSDAndNativePrices(
-          Sdk.Common.Addresses.Eth[config.chainId],
+          Sdk.Common.Addresses.Native[config.chainId],
           value,
           baseEventParams.timestamp
         );
@@ -158,7 +158,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           price: priceData.nativePrice,
           currencyPrice: value,
           usdPrice: priceData.usdPrice,
-          currency: Sdk.Common.Addresses.Eth[config.chainId],
+          currency: Sdk.Common.Addresses.Native[config.chainId],
           contract: baseEventParams.address?.toLowerCase(),
           tokenId,
           amount: "1",

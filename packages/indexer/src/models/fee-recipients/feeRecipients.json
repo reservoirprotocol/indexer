@@ -1,0 +1,157 @@
+[
+  {
+    "address": "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073",
+    "domain": "opensea.io",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0x8de9c5a032463c561423387a9648c5c7bcc5bc90",
+    "domain": "opensea.io",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0x0000a26b00c1f0df003000390027140000faa719",
+    "domain": "opensea.io",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0x0b22c0359b550da6cf3766d8c0d7ffc00e28a136",
+    "domain": "alienswap.xyz",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0x5924a28caaf1cc016617874a2f0c3710d881f3c1",
+    "domain": "looksrare.org",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0xd823c605807cc5e6bd6fc0d7e4eea50d3e2d66cd",
+    "domain": "x2y2.io",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0x67df244584b67e8c51b10ad610aaffa9a402fdb6",
+    "domain": "foundation.app",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0x860a80d33e85e97888f1f0c75c6e5bbd60b48da9",
+    "domain": "superrare.com",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0x4e2f98c96e2d595a83afa35888c4af58ac343e44",
+    "domain": "sudoswap.xyz",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0xb16c1342e617a5b6e4b631eb114483fdb289c0a4",
+    "domain": "sudoswap.xyz",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0xf3ab1d58ce6b9e0d42b8958c918649305e1b1d26",
+    "domain": "benddao.xyz",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0xe89b80d335a643495cfcf004037a381565edc130",
+    "domain": null,
+    "kind": "marketplace"
+  },
+  {
+    "address": "0x143ed32cd8c609a13dd73b3803d39e7a7544b1a4",
+    "domain": "jungle.co",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0xe89b80d335a643495cfcf004037a381565edc130",
+    "domain": "godid.io",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0xe35450f17229010f416355c3acb5cd1d19bebeb6",
+    "domain": "v3.fabrica.land",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0xc888f5e3dd4fbeb37f6e1ba6fa68c83ab0cf7b2c",
+    "domain": "v3.fabrica.land",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0xe35450f17229010f416355c3acb5cd1d19bebeb6",
+    "domain": "fabrica.land",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0xc888f5e3dd4fbeb37f6e1ba6fa68c83ab0cf7b2c",
+    "domain": "fabrica.land",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0xe04d5cb7115e4015b2d3fa17dc2e6f88392f873c",
+    "domain": null,
+    "kind": "marketplace"
+  },
+  {
+    "address": "0xca9337244b5f04cb946391bc8b8a980e988f9a6a",
+    "domain": "magiceden.io",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0x277c2a47ac1aeb6f77b778dbed48d3d4feea8937",
+    "domain": "mint.fun",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0xa2b8e073ea72e4b1b29c0a4e383138abde571870",
+    "domain": "hub.auraexchange.org",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0xd58f2402d104df9c8a8667e24a3a5c79f8ec66aa",
+    "domain": "manifold.xyz",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0x138c3d30a724de380739aad9ec94e59e613a9008",
+    "domain": "mirror.xyz",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0xd1d1d4e36117ab794ec5d4c78cbd3a8904e691d0",
+    "domain": "zora.co",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0x70bf5945845546716e628cedc8f83d82179a79e9",
+    "domain": "snagsolutions.io",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0x0000a26b00c1f0df003000390027140000faa719",
+    "domain": "nftearth.exchange",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0xc626f08cf88972332cfcb48b227409658be67a1c",
+    "domain": "story.xyz",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0x72f5812741527440db956dc3fb4487cd7b1b760c",
+    "domain": "pass.xyz",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0xb7b3a132efcff7ba685c441f85f8e7c4b8e598e4",
+    "domain": "pass.xyz",
+    "kind": "marketplace"
+  },
+  {
+    "address": "0xa7673ab3b0949a0efcd818c86c71fff7cd645ac7",
+    "domain": "ens.vision",
+    "kind": "marketplace"
+  }
+]

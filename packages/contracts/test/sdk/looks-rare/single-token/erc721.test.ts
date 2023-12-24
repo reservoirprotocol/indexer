@@ -6,12 +6,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
-import {
-  getChainId,
-  getCurrentTimestamp,
-  reset,
-  setupNFTs,
-} from "../../../utils";
+import { getChainId, getCurrentTimestamp, reset, setupNFTs } from "../../../utils";
 
 describe("LooksRare - SingleToken Erc721", () => {
   const chainId = getChainId();
@@ -36,7 +31,7 @@ describe("LooksRare - SingleToken Erc721", () => {
     const price = parseEther("1");
     const boughtTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -50,10 +45,7 @@ describe("LooksRare - SingleToken Erc721", () => {
     const nft = new Common.Helpers.Erc721(ethers.provider, erc721.address);
 
     // Approve the transfer manager
-    await nft.approve(
-      seller,
-      LooksRare.Addresses.TransferManagerErc721[chainId]
-    );
+    await nft.approve(seller, LooksRare.Addresses.TransferManagerErc721[chainId]);
 
     const exchange = new LooksRare.Exchange(chainId);
 
@@ -65,7 +57,7 @@ describe("LooksRare - SingleToken Erc721", () => {
       signer: buyer.address,
       collection: erc721.address,
       tokenId: boughtTokenId,
-      currency: Common.Addresses.Weth[chainId],
+      currency: Common.Addresses.WNative[chainId],
       price,
       startTime: await getCurrentTimestamp(ethers.provider),
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
@@ -106,7 +98,7 @@ describe("LooksRare - SingleToken Erc721", () => {
     const price = parseEther("1");
     const soldTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint erc721 to seller
     await erc721.connect(seller).mint(soldTokenId);
@@ -114,10 +106,7 @@ describe("LooksRare - SingleToken Erc721", () => {
     const nft = new Common.Helpers.Erc721(ethers.provider, erc721.address);
 
     // Approve the transfer manager
-    await nft.approve(
-      seller,
-      LooksRare.Addresses.TransferManagerErc721[chainId]
-    );
+    await nft.approve(seller, LooksRare.Addresses.TransferManagerErc721[chainId]);
 
     const exchange = new LooksRare.Exchange(chainId);
 
@@ -130,7 +119,7 @@ describe("LooksRare - SingleToken Erc721", () => {
       collection: erc721.address,
       tokenId: soldTokenId,
       // LooksRare sell orders are in WETH
-      currency: Common.Addresses.Weth[chainId],
+      currency: Common.Addresses.WNative[chainId],
       price,
       startTime: await getCurrentTimestamp(ethers.provider),
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,

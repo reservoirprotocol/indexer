@@ -1,0 +1,2344 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "defaultContractOwner_",
+        "type": "address"
+      },
+      {
+        "internalType": "uint32",
+        "name": "defaultPushPaymentGasLimit_",
+        "type": "uint32"
+      },
+      {
+        "internalType": "address[]",
+        "name": "defaultPaymentMethods",
+        "type": "address[]"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__AddressCannotBeZero",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__AmountForERC1155SalesGreaterThanZero",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__AmountForERC721SalesMustEqualOne",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__BundledOfferPriceMustEqualSumOfAllListingPrices",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__BuyerDidNotAuthorizePurchase",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__BuyerMustBeDesignatedPrivateBuyer",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__CallerDoesNotOwnSecurityPolicy",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__CallerIsNotTheDelegatedPurchaser",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__CallerIsNotWhitelistedMarketplace",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__CallerMustHaveElevatedPermissionsForSpecifiedNFT",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__CannotIncludeNativeFundsWhenPaymentMethodIsAnERC20Coin",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__CeilingPriceMustBeGreaterThanFloorPrice",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__CoinDoesNotImplementDecimalsAndLikelyIsNotAnERC20Token",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__CoinIsApproved",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__CoinIsNotApproved",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__CollectionLevelOrItemLevelOffersCanOnlyBeMadeUsingERC20PaymentMethods",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__DispensingTokenWasUnsuccessful",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__EIP1271SignatureInvalid",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__EIP1271SignaturesAreDisabled",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__ExchangeIsNotWhitelisted",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__ExchangeIsWhitelisted",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__FailedToTransferProceeds",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__InputArrayLengthCannotBeZero",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__InputArrayLengthMismatch",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__MarketplaceAndRoyaltyFeesWillExceedSalePrice",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__NativeCurrencyIsNotAnApprovedPaymentMethod",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__OfferHasExpired",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__OfferPriceMustEqualSalePrice",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__OnchainRoyaltiesExceedMaximumApprovedRoyaltyFee",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__OverpaidNativeFunds",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__PaymentCoinIsNotAnApprovedPaymentMethod",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__PricingBoundsAreImmutable",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__RanOutOfNativeFunds",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__SaleHasExpired",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__SalePriceAboveMaximumCeiling",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__SalePriceBelowMinimumFloor",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__SalePriceBelowSellerApprovedMinimum",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__SecurityPolicyDoesNotExist",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__SecurityPolicyOwnershipCannotBeTransferredToZeroAddress",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__SellerDidNotAuthorizeSale",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__SignatureAlreadyUsedOrRevoked",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__TokenSecurityPolicyDoesNotAllowDelegatedPurchases",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__TokenSecurityPolicyDoesNotAllowEOACallers",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__TokenSecurityPolicyDoesNotAllowPrivateListings",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "marketplace",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "paymentCoin",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "buyer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "seller",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool[]",
+        "name": "unsuccessfulFills",
+        "type": "bool[]"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256[]",
+        "name": "tokenIds",
+        "type": "uint256[]"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256[]",
+        "name": "amounts",
+        "type": "uint256[]"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256[]",
+        "name": "salePrices",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "BuyBundledListingERC1155",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "marketplace",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "paymentCoin",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "buyer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "seller",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool[]",
+        "name": "unsuccessfulFills",
+        "type": "bool[]"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256[]",
+        "name": "tokenIds",
+        "type": "uint256[]"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256[]",
+        "name": "salePrices",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "BuyBundledListingERC721",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "marketplace",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "paymentCoin",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "buyer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "seller",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "salePrice",
+        "type": "uint256"
+      }
+    ],
+    "name": "BuySingleListing",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "securityPolicyId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "enforceExchangeWhitelist",
+        "type": "bool"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "enforcePaymentMethodWhitelist",
+        "type": "bool"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "enforcePricingConstraints",
+        "type": "bool"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "disablePrivateListings",
+        "type": "bool"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "disableDelegatedPurchases",
+        "type": "bool"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "disableEIP1271Signatures",
+        "type": "bool"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "disableExchangeWhitelistEOABypass",
+        "type": "bool"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint32",
+        "name": "pushPaymentGasLimit",
+        "type": "uint32"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "policyName",
+        "type": "string"
+      }
+    ],
+    "name": "CreatedOrUpdatedSecurityPolicy",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "securityPolicyId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "exchange",
+        "type": "address"
+      }
+    ],
+    "name": "ExchangeAddedToWhitelist",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "securityPolicyId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "exchange",
+        "type": "address"
+      }
+    ],
+    "name": "ExchangeRemovedFromWhitelist",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "nonce",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "MasterNonceInvalidated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "nonce",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "marketplace",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "wasCancellation",
+        "type": "bool"
+      }
+    ],
+    "name": "NonceInvalidated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousOwner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "Paused",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "securityPolicyId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "coin",
+        "type": "address"
+      }
+    ],
+    "name": "PaymentMethodAddedToWhitelist",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "securityPolicyId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "coin",
+        "type": "address"
+      }
+    ],
+    "name": "PaymentMethodRemovedFromWhitelist",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousOwner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "SecurityPolicyOwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "marketplace",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "paymentCoin",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "buyer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool[]",
+        "name": "unsuccessfulFills",
+        "type": "bool[]"
+      },
+      {
+        "indexed": false,
+        "internalType": "address[]",
+        "name": "sellers",
+        "type": "address[]"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256[]",
+        "name": "tokenIds",
+        "type": "uint256[]"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256[]",
+        "name": "amounts",
+        "type": "uint256[]"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256[]",
+        "name": "salePrices",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "SweepCollectionERC1155",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "marketplace",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "paymentCoin",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "buyer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool[]",
+        "name": "unsuccessfulFills",
+        "type": "bool[]"
+      },
+      {
+        "indexed": false,
+        "internalType": "address[]",
+        "name": "sellers",
+        "type": "address[]"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256[]",
+        "name": "tokenIds",
+        "type": "uint256[]"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256[]",
+        "name": "salePrices",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "SweepCollectionERC721",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "Unpaused",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "floorPrice",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "ceilingPrice",
+        "type": "uint256"
+      }
+    ],
+    "name": "UpdatedCollectionLevelPricingBoundaries",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "paymentCoin",
+        "type": "address"
+      }
+    ],
+    "name": "UpdatedCollectionPaymentCoin",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "securityPolicyId",
+        "type": "uint256"
+      }
+    ],
+    "name": "UpdatedCollectionSecurityPolicy",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "floorPrice",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "ceilingPrice",
+        "type": "uint256"
+      }
+    ],
+    "name": "UpdatedTokenLevelPricingBoundaries",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "BUNDLED_OFFER_APPROVAL_HASH",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "BUNDLED_SALE_APPROVAL_HASH",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "COLLECTION_OFFER_APPROVAL_HASH",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "DEFAULT_SECURITY_POLICY_ID",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "FEE_DENOMINATOR",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "OFFER_APPROVAL_HASH",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "SALE_APPROVAL_HASH",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "bool",
+            "name": "sellerAcceptedOffer",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "collectionLevelOffer",
+            "type": "bool"
+          },
+          {
+            "internalType": "enum TokenProtocols",
+            "name": "protocol",
+            "type": "uint8"
+          },
+          {
+            "internalType": "address",
+            "name": "paymentCoin",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "tokenAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "seller",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "privateBuyer",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "buyer",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "delegatedPurchaser",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "marketplace",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "marketplaceFeeNumerator",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "maxRoyaltyFeeNumerator",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "listingNonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "offerNonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "listingMinPrice",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "offerPrice",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "listingExpiration",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "offerExpiration",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct MatchedOrder[]",
+        "name": "saleDetailsArray",
+        "type": "tuple[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint8",
+            "name": "v",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "r",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "s",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct SignatureECDSA[]",
+        "name": "signedListings",
+        "type": "tuple[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint8",
+            "name": "v",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "r",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "s",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct SignatureECDSA[]",
+        "name": "signedOffers",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "buyBatchOfListings",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint8",
+            "name": "v",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "r",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "s",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct SignatureECDSA",
+        "name": "signedListing",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint8",
+            "name": "v",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "r",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "s",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct SignatureECDSA",
+        "name": "signedOffer",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "enum TokenProtocols",
+                "name": "protocol",
+                "type": "uint8"
+              },
+              {
+                "internalType": "address",
+                "name": "paymentCoin",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "tokenAddress",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "privateBuyer",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "buyer",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "delegatedPurchaser",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "marketplace",
+                "type": "address"
+              },
+              {
+                "internalType": "uint256",
+                "name": "marketplaceFeeNumerator",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "offerNonce",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "offerPrice",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "offerExpiration",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct MatchedOrderBundleBase",
+            "name": "bundleBase",
+            "type": "tuple"
+          },
+          {
+            "internalType": "address",
+            "name": "seller",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "listingNonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "listingExpiration",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct MatchedOrderBundleExtended",
+        "name": "bundleDetails",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "maxRoyaltyFeeNumerator",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "itemPrice",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "listingNonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "listingExpiration",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "seller",
+            "type": "address"
+          }
+        ],
+        "internalType": "struct BundledItem[]",
+        "name": "bundleItems",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "buyBundledListing",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "bool",
+            "name": "sellerAcceptedOffer",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "collectionLevelOffer",
+            "type": "bool"
+          },
+          {
+            "internalType": "enum TokenProtocols",
+            "name": "protocol",
+            "type": "uint8"
+          },
+          {
+            "internalType": "address",
+            "name": "paymentCoin",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "tokenAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "seller",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "privateBuyer",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "buyer",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "delegatedPurchaser",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "marketplace",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "marketplaceFeeNumerator",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "maxRoyaltyFeeNumerator",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "listingNonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "offerNonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "listingMinPrice",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "offerPrice",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "listingExpiration",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "offerExpiration",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct MatchedOrder",
+        "name": "saleDetails",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint8",
+            "name": "v",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "r",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "s",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct SignatureECDSA",
+        "name": "signedListing",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint8",
+            "name": "v",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "r",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "s",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct SignatureECDSA",
+        "name": "signedOffer",
+        "type": "tuple"
+      }
+    ],
+    "name": "buySingleListing",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "collectionPaymentCoins",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bool",
+        "name": "enforceExchangeWhitelist",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "enforcePaymentMethodWhitelist",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "enforcePricingConstraints",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "disablePrivateListings",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "disableDelegatedPurchases",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "disableEIP1271Signatures",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "disableExchangeWhitelistEOABypass",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint32",
+        "name": "pushPaymentGasLimit",
+        "type": "uint32"
+      },
+      {
+        "internalType": "string",
+        "name": "registryName",
+        "type": "string"
+      }
+    ],
+    "name": "createSecurityPolicy",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getCeilingPrice",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getDomainSeparator",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getFloorPrice",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "securityPolicyId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getSecurityPolicy",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bool",
+            "name": "enforceExchangeWhitelist",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "enforcePaymentMethodWhitelist",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "enforcePricingConstraints",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "disablePrivateListings",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "disableDelegatedPurchases",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "disableEIP1271Signatures",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "disableExchangeWhitelistEOABypass",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint32",
+            "name": "pushPaymentGasLimit",
+            "type": "uint32"
+          },
+          {
+            "internalType": "address",
+            "name": "policyOwner",
+            "type": "address"
+          }
+        ],
+        "internalType": "struct SecurityPolicy",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "collectionAddress",
+        "type": "address"
+      }
+    ],
+    "name": "getTokenSecurityPolicyId",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      }
+    ],
+    "name": "isCollectionPricingImmutable",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "securityPolicyId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "coin",
+        "type": "address"
+      }
+    ],
+    "name": "isPaymentMethodApproved",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "isTokenPricingImmutable",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "securityPolicyId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "isWhitelisted",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "masterNonces",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "pause",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "paused",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "renounceOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "securityPolicyId",
+        "type": "uint256"
+      }
+    ],
+    "name": "renounceSecurityPolicyOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "revokeMasterNonce",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "marketplace",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "nonce",
+        "type": "uint256"
+      }
+    ],
+    "name": "revokeSingleNonce",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "coin",
+        "type": "address"
+      }
+    ],
+    "name": "setCollectionPaymentCoin",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bool",
+            "name": "isEnabled",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "isImmutable",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "floorPrice",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "ceilingPrice",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct PricingBounds",
+        "name": "pricingBounds",
+        "type": "tuple"
+      }
+    ],
+    "name": "setCollectionPricingBounds",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "securityPolicyId",
+        "type": "uint256"
+      }
+    ],
+    "name": "setCollectionSecurityPolicy",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "tokenIds",
+        "type": "uint256[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bool",
+            "name": "isEnabled",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "isImmutable",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "floorPrice",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "ceilingPrice",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct PricingBounds[]",
+        "name": "pricingBounds",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "setTokenPricingBounds",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes4",
+        "name": "interfaceId",
+        "type": "bytes4"
+      }
+    ],
+    "name": "supportsInterface",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint8",
+            "name": "v",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "r",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "s",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct SignatureECDSA",
+        "name": "signedOffer",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "internalType": "enum TokenProtocols",
+            "name": "protocol",
+            "type": "uint8"
+          },
+          {
+            "internalType": "address",
+            "name": "paymentCoin",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "tokenAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "privateBuyer",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "buyer",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "delegatedPurchaser",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "marketplace",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "marketplaceFeeNumerator",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "offerNonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "offerPrice",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "offerExpiration",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct MatchedOrderBundleBase",
+        "name": "bundleDetails",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "maxRoyaltyFeeNumerator",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "itemPrice",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "listingNonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "listingExpiration",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "seller",
+            "type": "address"
+          }
+        ],
+        "internalType": "struct BundledItem[]",
+        "name": "bundleItems",
+        "type": "tuple[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint8",
+            "name": "v",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "r",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "s",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct SignatureECDSA[]",
+        "name": "signedListings",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "sweepCollection",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "securityPolicyId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "transferSecurityPolicyOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "unpause",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "securityPolicyId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "unwhitelistExchange",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "securityPolicyId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "coin",
+        "type": "address"
+      }
+    ],
+    "name": "unwhitelistPaymentMethod",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "securityPolicyId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "enforceExchangeWhitelist",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "enforcePaymentMethodWhitelist",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "enforcePricingConstraints",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "disablePrivateListings",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "disableDelegatedPurchases",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "disableEIP1271Signatures",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "disableExchangeWhitelistEOABypass",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint32",
+        "name": "pushPaymentGasLimit",
+        "type": "uint32"
+      },
+      {
+        "internalType": "string",
+        "name": "registryName",
+        "type": "string"
+      }
+    ],
+    "name": "updateSecurityPolicy",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "securityPolicyId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "whitelistExchange",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "securityPolicyId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "coin",
+        "type": "address"
+      }
+    ],
+    "name": "whitelistPaymentMethod",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

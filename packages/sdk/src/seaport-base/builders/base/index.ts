@@ -29,6 +29,7 @@ export interface BaseBuildParams {
   startTime?: number;
   endTime?: number;
   signature?: string;
+  extraData?: string;
 }
 
 export interface BaseOrderInfo {
@@ -95,9 +96,24 @@ export abstract class BaseBuilder {
     }
 
     // A dynamic order has at least one item with different start/end amounts
-    const isDynamic =
-      order.params.consideration.some((c) => c.startAmount !== c.endAmount) ||
-      order.params.offer.some((c) => c.startAmount !== c.endAmount);
+    const dynamicConsideration = order.params.consideration.some(
+      (c) => c.startAmount !== c.endAmount
+    );
+    const dynamicOffer = order.params.offer.some((c) => c.startAmount !== c.endAmount);
+    const isDynamic = dynamicConsideration || dynamicOffer;
+
+    // For a dynamic order, either all consideration items or all offer items must be different
+    if (isDynamic) {
+      if (
+        dynamicConsideration &&
+        !order.params.consideration.every((c) => c.startAmount !== c.endAmount)
+      ) {
+        throw new Error("Invalid item");
+      }
+      if (dynamicOffer && !order.params.offer.every((c) => c.startAmount !== c.endAmount)) {
+        throw new Error("Invalid item");
+      }
+    }
 
     return { side, isDynamic };
   }

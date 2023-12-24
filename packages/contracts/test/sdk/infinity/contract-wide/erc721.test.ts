@@ -5,13 +5,7 @@ import { ethers } from "hardhat";
 import * as Infinity from "@reservoir0x/sdk/src/infinity";
 import * as Common from "@reservoir0x/sdk/src/common";
 
-import {
-  getChainId,
-  reset,
-  setupNFTs,
-  getCurrentTimestamp,
-  bn,
-} from "../../../utils";
+import { getChainId, reset, setupNFTs, getCurrentTimestamp, bn } from "../../../utils";
 import { expect } from "chai";
 import { Weth } from "@reservoir0x/sdk/src/common/helpers";
 
@@ -27,7 +21,7 @@ describe("Infinity - Contract Wide ERC721", () => {
 
   beforeEach(async () => {
     [deployer, alice, bob] = await ethers.getSigners();
-    weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     ({ erc721 } = await setupNFTs(deployer));
   });
@@ -42,7 +36,6 @@ describe("Infinity - Contract Wide ERC721", () => {
 
     const tokenId = "1";
     await erc721.connect(seller).mint(tokenId);
-    
 
     const nft = new Common.Helpers.Erc721(ethers.provider, erc721.address);
 
@@ -62,7 +55,7 @@ describe("Infinity - Contract Wide ERC721", () => {
       endTime: currentTime + 60,
       nonce: "1",
       maxGasPrice: "1",
-      currency: Common.Addresses.Weth[chainId],
+      currency: Common.Addresses.WNative[chainId],
       numItems: 1,
     });
 
@@ -95,19 +88,15 @@ describe("Infinity - Contract Wide ERC721", () => {
     const sellerWethBalanceAfter = await weth.getBalance(seller.address);
     const ownerAfter = await nft.getOwner(tokenId);
 
-    const protocolFeeBps: BigNumberish = await exchange.contract
-      .connect(seller)
-      .protocolFeeBps();
+    const protocolFeeBps: BigNumberish = await exchange.contract.connect(seller).protocolFeeBps();
     const fees = bn(price).mul(protocolFeeBps).div(10000);
 
     expect(buyerWethBalanceBefore.sub(buyerWethBalanceAfter)).to.be.gte(price);
-    expect(sellerWethBalanceAfter).to.eq(
-      sellerWethBalanceBefore.add(price).sub(fees)
-    );
+    expect(sellerWethBalanceAfter).to.eq(sellerWethBalanceBefore.add(price).sub(fees));
     expect(ownerAfter).to.eq(buyer.address);
   });
 
-  it('Fail to build contract wide sell order', async () => {
+  it("Fail to build contract wide sell order", async () => {
     const buyer = alice;
     const price = parseEther("1").toString();
 
@@ -117,7 +106,8 @@ describe("Infinity - Contract Wide ERC721", () => {
     /**
      * Contract sell orders are not supported
      */
-    expect(() => builder.build({
+    expect(() =>
+      builder.build({
         isSellOrder: true,
         collection: erc721.address,
         signer: buyer.address,
@@ -127,8 +117,9 @@ describe("Infinity - Contract Wide ERC721", () => {
         endTime: currentTime + 60,
         nonce: "1",
         maxGasPrice: "1",
-        currency: Common.Addresses.Weth[chainId],
+        currency: Common.Addresses.WNative[chainId],
         numItems: 1,
-      })).to.throw();
+      })
+    ).to.throw();
   });
 });

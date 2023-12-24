@@ -41,7 +41,7 @@ describe("SeaportV15 - TokenList ERC1155", () => {
     const soldTokenId1 = 99;
     const soldTokenId2 = 999;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -76,7 +76,7 @@ describe("SeaportV15 - TokenList ERC1155", () => {
         tokenKind: "erc1155",
         side: "buy",
         price,
-        paymentToken: Common.Addresses.Weth[chainId],
+        paymentToken: Common.Addresses.WNative[chainId],
         fees: [
           {
             recipient: feeRecipient.address,

@@ -9,7 +9,7 @@ export const Exchange: ChainIdToAddress = {
   [Network.Arbitrum]: "0xdef1c0ded9bec7f1a1670819833240f027b25eff",
 };
 
-export const Eth: ChainIdToAddress = {
+export const Native: ChainIdToAddress = {
   [Network.Ethereum]: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
   [Network.EthereumGoerli]: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
   [Network.Optimism]: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",

@@ -42,7 +42,9 @@ export const getRoyalties = async (
   } else if (returnAll) {
     const royalties: Royalty[] = [];
     _.each(royaltiesResult.new_royalties ?? {}, (r) => royalties.push(...r));
-    return _.uniqBy(royalties, "recipient"); // Return only uniq address
+
+    // Return unique addresses only
+    return _.uniqBy(royalties, "recipient");
   } else {
     return (royaltiesResult.new_royalties ?? {})[spec] ?? [];
   }
@@ -136,7 +138,9 @@ export const getRoyaltiesByTokenSet = async (
   } else if (returnAll) {
     const royalties: Royalty[] = [];
     _.each(royaltiesResult.new_royalties ?? {}, (r) => royalties.push(...r));
-    return _.uniqBy(royalties, "recipient"); // Return only uniq address
+
+    // Return unique addresses only
+    return _.uniqBy(royalties, "recipient");
   } else {
     return (royaltiesResult.new_royalties ?? {})[spec] ?? [];
   }
@@ -145,6 +149,8 @@ export const getRoyaltiesByTokenSet = async (
 export const updateRoyaltySpec = async (
   collection: string,
   spec: string,
+  // `[]` -> royalties explicitly set to zero / empty
+  // `undefined` -> royalties not set at all
   royalties?: Royalty[]
 ) => {
   // For safety, skip any zero bps or recipients
@@ -173,8 +179,12 @@ export const updateRoyaltySpec = async (
       await idb.none(
         `
           UPDATE collections
-            SET new_royalties = $/royalties:json/
+            SET new_royalties = $/royalties:json/,
+                updated_at = NOW()
           WHERE collections.id = $/collection/
+          AND (
+            new_royalties IS DISTINCT FROM $/royalties:json/
+          )
         `,
         {
           collection,
@@ -189,7 +199,8 @@ export const updateRoyaltySpec = async (
 export const refreshAllRoyaltySpecs = async (
   collection: string,
   customRoyalties?: Royalty[],
-  openseaRoyalties?: Royalty[]
+  openseaRoyalties?: Royalty[],
+  refreshOnChain = true
 ) => {
   // Update custom royalties
   await updateRoyaltySpec(collection, "custom", customRoyalties);
@@ -197,8 +208,10 @@ export const refreshAllRoyaltySpecs = async (
   // Update opensea royalties
   await updateRoyaltySpec(collection, "opensea", openseaRoyalties);
 
-  // Refresh the on-chain royalties
-  await registry.refreshRegistryRoyalties(collection);
+  if (refreshOnChain) {
+    // Refresh the on-chain royalties
+    await registry.refreshRegistryRoyalties(collection);
+  }
 };
 
 // The default royalties are represented by the max royalties across all royalty specs
@@ -222,14 +235,6 @@ export const refreshDefaultRoyalties = async (collection: string) => {
     defaultRoyalties = royaltiesResult.new_royalties["custom"];
   } else if (royaltiesResult.new_royalties["onchain"]) {
     defaultRoyalties = royaltiesResult.new_royalties["onchain"];
-  } else if (
-    // TODO: Remove (for backwards-compatibility only)
-    Object.keys(royaltiesResult.new_royalties).find((kind) => !["custom", "opensea"].includes(kind))
-  ) {
-    const oldSpec = Object.keys(royaltiesResult.new_royalties).find(
-      (kind) => !["custom", "opensea"].includes(kind)
-    );
-    defaultRoyalties = royaltiesResult.new_royalties[oldSpec!];
   } else if (royaltiesResult.new_royalties["opensea"]) {
     defaultRoyalties = royaltiesResult.new_royalties["opensea"];
   }
@@ -238,7 +243,8 @@ export const refreshDefaultRoyalties = async (collection: string) => {
     `
       UPDATE collections SET
         royalties = $/royalties:json/,
-        royalties_bps = $/royaltiesBps/
+        royalties_bps = $/royaltiesBps/,
+        updated_at = now()
       WHERE collections.id = $/id/
     `,
     {

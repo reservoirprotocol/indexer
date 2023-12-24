@@ -1,6 +1,5 @@
 import { AddressZero, HashZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
-import axios from "axios";
 import _ from "lodash";
 import pLimit from "p-limit";
 
@@ -10,7 +9,7 @@ import { baseProvider } from "@/common/provider";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
-import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/config";
+import { FeeRecipients } from "@/models/fee-recipients";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
@@ -18,8 +17,11 @@ import { offChainCheck } from "@/orderbook/orders/seaport-base/check";
 import * as tokenSet from "@/orderbook/token-sets";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
-
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
+import * as offchainCancel from "@/utils/offchain-cancel";
 
 export type OrderInfo = {
   orderParams: Sdk.SeaportBase.Types.OrderComponents;
@@ -275,7 +277,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       let feeAmount = order.getFeeAmount();
 
       // Handle: price and value
-      let price = bn(order.getMatchingPrice());
+      let price = bn(order.getMatchingPrice(Math.max(now(), startTime)));
       let value = price;
       if (info.side === "buy") {
         // For buy orders, we set the value as `price - fee` since it
@@ -302,6 +304,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       let feeBps = 0;
       let knownFee = false;
+      const feeRecipients = await FeeRecipients.getInstance();
       const feeBreakdown = info.fees.map(({ recipient, amount }) => {
         const bps = price.eq(0)
           ? 0
@@ -314,8 +317,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         feeBps += bps;
 
         // First check for opensea hardcoded recipients
-        const kind: "marketplace" | "royalty" = allPlatformFeeRecipients.has(
-          recipient.toLowerCase()
+        const kind: "marketplace" | "royalty" = feeRecipients.getByAddress(
+          recipient.toLowerCase(),
+          "marketplace"
         )
           ? "marketplace"
           : "royalty";
@@ -394,8 +398,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       let needsConversion = false;
       if (
         ![
-          Sdk.Common.Addresses.Eth[config.chainId],
-          Sdk.Common.Addresses.Weth[config.chainId],
+          Sdk.Common.Addresses.Native[config.chainId],
+          Sdk.Common.Addresses.WNative[config.chainId],
         ].includes(currency)
       ) {
         needsConversion = true;
@@ -464,16 +468,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           replacedOrderResult.raw_data.zone ===
             Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
         ) {
-          await axios.post(
-            `https://seaport-oracle-${
-              config.chainId === 1 ? "mainnet" : "goerli"
-            }.up.railway.app/api/replacements`,
-            {
-              newOrders: [order.params],
-              replacedOrders: [replacedOrderResult.raw_data],
-              orderKind: "alienswap",
-            }
-          );
+          await offchainCancel.seaport.doReplacement({
+            newOrders: [order.params],
+            replacedOrders: [replacedOrderResult.raw_data],
+            orderKind: "alienswap",
+          });
         }
       }
 
@@ -593,7 +592,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
 
-    await ordersUpdateById.addToQueue(
+    await orderUpdatesByIdJob.addToQueue(
       results
         .filter((r) => r.status === "success" && !r.unfillable)
         .map(
@@ -604,7 +603,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               trigger: {
                 kind: "new-order",
               },
-            } as ordersUpdateById.OrderInfo)
+            } as OrderUpdatesByIdJobPayload)
         )
     );
   }

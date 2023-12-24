@@ -58,6 +58,10 @@ export class SingleTokenBuilder extends BaseBuilder {
           }
         }
 
+        if (endPrice.gt(price)) {
+          throw new Error("Increasing-price listings are not supported");
+        }
+
         return {
           tokenKind,
           side,
@@ -73,11 +77,12 @@ export class SingleTokenBuilder extends BaseBuilder {
         };
       } else {
         if (isDynamic) {
-          throw new Error("Reverse dutch auctions are not supported");
+          throw new Error("Dynamic buy orders are not supported");
         }
 
         const paymentToken = offerItem.token;
         const price = offerItem.startAmount;
+        const endPrice = offerItem.endAmount;
 
         // The first consideration item is the bought token
         const item = order.params.consideration[0];
@@ -102,7 +107,6 @@ export class SingleTokenBuilder extends BaseBuilder {
         const contract = item.token;
         const tokenId = item.identifierOrCriteria;
         const amount = item.startAmount;
-
         return {
           tokenKind,
           side,
@@ -111,6 +115,8 @@ export class SingleTokenBuilder extends BaseBuilder {
           amount,
           paymentToken,
           price,
+          endPrice,
+          isDynamic,
           fees,
           taker,
         };
@@ -225,6 +231,7 @@ export class SingleTokenBuilder extends BaseBuilder {
         conduitKey: params.conduitKey!,
         counter: s(params.counter),
         signature: params.signature,
+        extraData: params.extraData,
       });
     } else {
       if (params.taker && params.taker !== AddressZero) {
@@ -241,7 +248,7 @@ export class SingleTokenBuilder extends BaseBuilder {
             token: params.paymentToken,
             identifierOrCriteria: "0",
             startAmount: s(params.price),
-            endAmount: s(params.price),
+            endAmount: s(params.endPrice ?? params.price),
           },
         ],
         consideration: [
@@ -277,6 +284,7 @@ export class SingleTokenBuilder extends BaseBuilder {
         conduitKey: params.conduitKey!,
         counter: s(params.counter),
         signature: params.signature,
+        extraData: params.extraData,
       });
     }
   }

@@ -48,7 +48,7 @@ describe("[ReservoirV6_0_1] SuperRare listings", () => {
   });
 
   const getBalances = async (token: string) => {
-    if (token === Sdk.Common.Addresses.Eth[chainId]) {
+    if (token === Sdk.Common.Addresses.Native[chainId]) {
       return {
         alice: await ethers.provider.getBalance(alice.address),
         bob: await ethers.provider.getBalance(bob.address),
@@ -122,7 +122,7 @@ describe("[ReservoirV6_0_1] SuperRare listings", () => {
               listings.map((listing) => ({
                 token: listing.nft.contract.address,
                 tokenId: listing.nft.id,
-                currency: Sdk.Common.Addresses.Eth[chainId],
+                currency: Sdk.Common.Addresses.Native[chainId],
                 price: listing.price,
                 priceWithFees: bn(listing.price).add(bn(listing.price).mul(3).div(100)),
               })),
@@ -150,7 +150,7 @@ describe("[ReservoirV6_0_1] SuperRare listings", () => {
               {
                 token: listings[0].nft.contract.address,
                 tokenId: listings[0].nft.id,
-                currency: Sdk.Common.Addresses.Eth[chainId],
+                currency: Sdk.Common.Addresses.Native[chainId],
                 price: listings[0].price,
                 priceWithFees: bn(listings[0].price).add(bn(listings[0].price).mul(3).div(100)),
               },
@@ -189,7 +189,7 @@ describe("[ReservoirV6_0_1] SuperRare listings", () => {
       return;
     }
     // Fetch pre-state
-    const balancesBefore = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
+    const balancesBefore = await getBalances(Sdk.Common.Addresses.Native[chainId]);
 
     // Execute
 
@@ -199,7 +199,7 @@ describe("[ReservoirV6_0_1] SuperRare listings", () => {
 
     // Fetch post-state
 
-    const balancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
+    const balancesAfter = await getBalances(Sdk.Common.Addresses.Native[chainId]);
 
     // Checks
     // Alice got the payment

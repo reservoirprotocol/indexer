@@ -52,7 +52,7 @@ export const setupZeroExV4Listings = async (listings: ZeroExV4Listing[]) => {
       contract: nft.contract.address,
       tokenId: nft.id,
       amount: nft.kind === "erc1155" ? 1 : 0,
-      paymentToken: paymentToken ?? Sdk.ZeroExV4.Addresses.Eth[chainId],
+      paymentToken: paymentToken ?? Sdk.ZeroExV4.Addresses.Native[chainId],
       price,
       expiry: (await getCurrentTimestamp(ethers.provider)) + 60,
     });
@@ -90,7 +90,7 @@ export const setupZeroExV4Offers = async (offers: ZeroExV4Offer[]) => {
   for (const offer of offers) {
     const { buyer, nft, price } = offer;
 
-    const weth = new Sdk.Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Sdk.Common.Helpers.WNative(ethers.provider, chainId);
     await weth.deposit(buyer, price);
     await weth.approve(buyer, Sdk.ZeroExV4.Addresses.Exchange[chainId]);
 
@@ -101,7 +101,7 @@ export const setupZeroExV4Offers = async (offers: ZeroExV4Offer[]) => {
       maker: buyer.address,
       contract: nft.contract.address,
       tokenId: nft.id,
-      paymentToken: Sdk.Common.Addresses.Weth[chainId],
+      paymentToken: Sdk.Common.Addresses.WNative[chainId],
       price,
       expiry: (await getCurrentTimestamp(ethers.provider)) + 60,
     });

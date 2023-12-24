@@ -2,9 +2,17 @@ export class Orders {
   public static buildCriteriaQuery(
     tableName: string,
     tokenSetIdColumnName: string,
-    includeMetadata: boolean
+    includeMetadata: boolean,
+    tokenSetSchemaHashColumnName?: string
   ): string {
     let criteriaQuery: string;
+
+    let tokenSetFilter = `token_sets.id = ${tableName}.${tokenSetIdColumnName}`;
+
+    if (tokenSetSchemaHashColumnName) {
+      tokenSetFilter += ` AND token_sets.schema_hash = ${tableName}.${tokenSetSchemaHashColumnName}`;
+    }
+
     if (includeMetadata) {
       criteriaQuery = `
           CASE
@@ -26,7 +34,7 @@ export class Orders {
                   )
                 )
               FROM tokens
-              JOIN collections
+              LEFT JOIN collections
                 ON tokens.collection_id = collections.id
               WHERE tokens.contract = decode(substring(split_part(${tableName}.${tokenSetIdColumnName}, ':', 2) from 3), 'hex')
                 AND tokens.token_id = (split_part(${tableName}.${tokenSetIdColumnName}, ':', 3)::NUMERIC(78, 0)))
@@ -67,7 +75,10 @@ export class Orders {
                   WHEN token_sets.collection_id IS NULL AND token_sets.attribute_id IS NULL THEN
                     (SELECT
                       json_build_object(
-                        'kind', 'custom'
+                        'kind', 'custom',
+                        'data', json_build_object(
+                          'tokenSetId', token_sets.id
+                        )
                       )
                     )
                   WHEN token_sets.attribute_id IS NULL THEN
@@ -105,7 +116,7 @@ export class Orders {
                     WHERE token_sets.attribute_id = attributes.id)
                 END  
               FROM token_sets
-              WHERE token_sets.id = ${tableName}.${tokenSetIdColumnName}
+              WHERE ${tokenSetFilter}
               LIMIT 1)
 
             WHEN ${tableName}.${tokenSetIdColumnName} LIKE 'dynamic:collection-non-flagged:%' THEN
@@ -171,7 +182,10 @@ export class Orders {
                   WHEN token_sets.collection_id IS NULL AND token_sets.attribute_id IS NULL THEN
                     (SELECT
                       json_build_object(
-                        'kind', 'custom'
+                        'kind', 'custom',
+                        'data', json_build_object(
+                          'tokenSetId', token_sets.id
+                        )
                       )
                     )
                   WHEN token_sets.attribute_id IS NULL THEN
@@ -202,7 +216,7 @@ export class Orders {
                     )
                 END  
               FROM token_sets
-              WHERE token_sets.id = ${tableName}.${tokenSetIdColumnName}
+              WHERE ${tokenSetFilter}
               LIMIT 1)
 
             WHEN ${tableName}.${tokenSetIdColumnName} LIKE 'dynamic:collection-non-flagged:%' THEN

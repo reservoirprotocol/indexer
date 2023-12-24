@@ -12,11 +12,14 @@ import { Builders } from "../seaport-base/builders";
 import { BaseBuilder, BaseOrderInfo } from "../seaport-base/builders/base";
 import { IOrder, ORDER_EIP712_TYPES } from "../seaport-base/order";
 import * as Types from "../seaport-base/types";
-import { bn, getCurrentTimestamp, lc, n, s } from "../utils";
+import { bn, lc, n, s } from "../utils";
 import {
+  computeReceivedItems,
+  isCosignedOrder,
   isPrivateOrder,
   constructPrivateListingCounterOrder,
   getPrivateListingFulfillments,
+  computeDynamicPrice,
 } from "../seaport-base/helpers";
 
 export class Order implements IOrder {
@@ -136,7 +139,6 @@ export class Order implements IOrder {
     if (!info) {
       throw new Error("Could not get order info");
     }
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (!(info as any).isDynamic) {
       if (info.side === "buy") {
@@ -145,28 +147,7 @@ export class Order implements IOrder {
         return bn(info.price).add(this.getFeeAmount());
       }
     } else {
-      if (info.side === "buy") {
-        // Reverse dutch-auctions are not supported
-        return bn(info.price);
-      } else {
-        let price = bn(0);
-        for (const c of this.params.consideration) {
-          price = price.add(
-            // startAmount - (currentTime - startTime) / (endTime - startTime) * (startAmount - endAmount)
-            bn(c.startAmount).sub(
-              bn(timestampOverride ?? getCurrentTimestamp(-60))
-                .sub(this.params.startTime)
-                .mul(bn(c.startAmount).sub(c.endAmount))
-                .div(bn(this.params.endTime).sub(this.params.startTime))
-            )
-          );
-          // Ensure we don't return any negative prices
-          if (price.lt(c.endAmount)) {
-            price = bn(c.endAmount);
-          }
-        }
-        return price;
-      }
+      return computeDynamicPrice(info.side === "buy", this.params, timestampOverride);
     }
   }
 
@@ -249,6 +230,14 @@ export class Order implements IOrder {
 
   public isPrivateOrder() {
     return isPrivateOrder(this.params);
+  }
+
+  public isCosignedOrder() {
+    return isCosignedOrder(this.params, this.chainId);
+  }
+
+  public getReceivedItems(matchParams: Types.MatchParams): Types.ReceivedItem[] {
+    return computeReceivedItems(this, matchParams);
   }
 
   public constructPrivateListingCounterOrder(privateSaleRecipient: string): Types.OrderWithCounter {
@@ -355,5 +344,6 @@ const normalize = (order: Types.OrderComponents): Types.OrderComponents => {
     conduitKey: lc(order.conduitKey),
     counter: s(order.counter),
     signature: order.signature ? lc(order.signature) : undefined,
+    extraData: order.extraData ? lc(order.extraData) : undefined,
   };
 };

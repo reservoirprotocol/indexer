@@ -2,6 +2,10 @@ import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
 import { keccak256 } from "@ethersproject/keccak256";
 import { randomBytes } from "@ethersproject/random";
 import { toUtf8Bytes, toUtf8String } from "@ethersproject/strings";
+import { verifyTypedData } from "@ethersproject/wallet";
+import { TypedDataDomain, TypedDataField } from "ethers";
+
+import * as Global from "./global";
 
 // Constants
 
@@ -51,15 +55,36 @@ export const getErrorMessage = (error: any) => {
   return errorMessage;
 };
 
+export function checkEIP721Signature(
+  data: {
+    domain: TypedDataDomain;
+    types: Record<string, TypedDataField[]>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    value: Record<string, any>;
+  },
+  signature: string,
+  signer: string
+) {
+  try {
+    const recoveredSigner = verifyTypedData(data.domain, data.types, data.value, signature);
+    if (lc(signer) === lc(recoveredSigner)) {
+      return true;
+    }
+  } catch {
+    // Skip errors
+  }
+
+  return false;
+}
+
 // Misc
 
-export const getSourceHash = (source?: string) =>
-  source ? keccak256(toUtf8Bytes(source)).slice(2, 10) : "";
+export const getSourceHash = (source?: string, defaultValue = "") =>
+  source ? keccak256(toUtf8Bytes(source)).slice(2, 10) : defaultValue;
 
-export const generateSourceBytes = (source?: string) =>
-  source === "reservoir.tools"
-    ? getSourceHash(source)
-    : getSourceHash("reservoir.tools") + getSourceHash(source);
+export const generateSourceBytes = (source?: string) => {
+  return getSourceHash(Global.Config.aggregatorSource) + getSourceHash(source, "00000000");
+};
 
 export const getSourceV1 = (calldata: string) => {
   // Use the ASCII US (unit separator) character (code = 31) as a delimiter
@@ -101,22 +126,29 @@ export type TxData = {
 export enum Network {
   // Mainnets
   Ethereum = 1,
-  EthereumSepolia = 11155111,
   Optimism = 10,
   Bsc = 56,
-  Gnosis = 100,
   Polygon = 137,
+  Base = 8453,
   Arbitrum = 42161,
+  ArbitrumNova = 42170,
   Avalanche = 43114,
+  Linea = 59144,
+  Zora = 7777777,
+  PolygonZkevm = 1101,
+  Scroll = 534352,
   // Testnets
   EthereumGoerli = 5,
-  MiscTestnet = 999,
+  ZoraTestnet = 999,
   MantleTestnet = 5001,
   LineaTestnet = 59140,
-  ScrollAlpha = 534353,
   Mumbai = 80001,
-  ArbitrumNova = 42170,
   BaseGoerli = 84531,
+  ScrollAlpha = 534353,
+  EthereumSepolia = 11155111,
+  Zksync = 324,
+  Ancient8Testnet = 2863311531,
+  ImmutableZkevmTestnet = 13472,
 }
 
 export type ChainIdToAddress = { [chainId: number]: string };

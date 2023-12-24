@@ -20,6 +20,7 @@ export const postResyncSaleRoyalties: RouteOptions = {
         data: Joi.object({
           fromBlock: Joi.number().required(),
           toBlock: Joi.number().required(),
+          blockRange: Joi.number(),
         }),
       }),
       Joi.object({
@@ -28,6 +29,7 @@ export const postResyncSaleRoyalties: RouteOptions = {
           contract: Joi.string().pattern(regex.address).required(),
           fromTimestamp: Joi.number().required(),
           toTimestamp: Joi.number().required(),
+          timestampRange: Joi.number(),
         }),
       }),
       Joi.object({

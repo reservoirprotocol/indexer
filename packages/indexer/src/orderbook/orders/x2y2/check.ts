@@ -23,6 +23,11 @@ export const offChainCheck = async (
 ) => {
   const id = order.params.itemHash;
 
+  const operator =
+    order.params.delegateType === Sdk.X2Y2.Types.DelegationType.ERC721
+      ? Sdk.X2Y2.Addresses.Erc721Delegate[config.chainId]
+      : Sdk.X2Y2.Addresses.Erc1155Delegate[config.chainId];
+
   // Check: order has a valid target
   const kind = await commonHelpers.getContractKind(order.params.nft.token);
   if (!kind) {
@@ -45,10 +50,10 @@ export const offChainCheck = async (
     if (order.params.type === "sell" && originatedAt) {
       // Check: order is not off-chain cancelled
       const offChainCancelled = await commonHelpers.isListingOffChainCancelled(
-        "x2y2",
         order.params.maker,
         order.params.nft.token,
         order.params.nft.tokenId!,
+        operator,
         originatedAt
       );
       if (offChainCancelled) {
@@ -92,8 +97,6 @@ export const offChainCheck = async (
     if (nftBalance.lt(1)) {
       hasBalance = false;
     }
-
-    const operator = Sdk.X2Y2.Addresses.Erc721Delegate[config.chainId];
 
     // Check: maker has set the proper approval
     const nftApproval = await commonHelpers.getNftApproval(

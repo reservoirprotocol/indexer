@@ -1,0 +1,219 @@
+[
+  {
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "IncorrectChainId",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidSignature",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "RequestIsExecuted",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "RequestIsExpired",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Unauthorized",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ZoneExecutionFailed",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "requestHash",
+        "type": "bytes32"
+      },
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "maker",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "solver",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "currency",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "price",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint32",
+            "name": "originChainId",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "destinationChainId",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "deadline",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "salt",
+            "type": "uint32"
+          },
+          {
+            "internalType": "bytes",
+            "name": "zoneAndValueAndData",
+            "type": "bytes"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct SingleInputModule.Request",
+        "name": "request",
+        "type": "tuple"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "RequestExecuted",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "DOMAIN_SEPARATOR",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "REQUEST_TYPEHASH",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "maker",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "solver",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "currency",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "price",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint32",
+            "name": "originChainId",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "destinationChainId",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "deadline",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "salt",
+            "type": "uint32"
+          },
+          {
+            "internalType": "bytes",
+            "name": "zoneAndValueAndData",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct SingleInputModule.Request",
+        "name": "request",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "execute",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "requestStates",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "isExecuted",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

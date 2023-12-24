@@ -6,12 +6,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
-import {
-  getChainId,
-  getCurrentTimestamp,
-  reset,
-  setupNFTs,
-} from "../../../utils";
+import { getChainId, getCurrentTimestamp, reset, setupNFTs } from "../../../utils";
 
 describe("ZeroEx V4 - TokenRange Erc1155", () => {
   const chainId = getChainId();
@@ -36,7 +31,7 @@ describe("ZeroEx V4 - TokenRange Erc1155", () => {
     const price = parseEther("1");
     const boughtTokenId = 1;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -58,7 +53,7 @@ describe("ZeroEx V4 - TokenRange Erc1155", () => {
       maker: buyer.address,
       contract: erc1155.address,
       amount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       price,
       expiry: (await getCurrentTimestamp(ethers.provider)) + 60,
       startTokenId: 0,
@@ -77,14 +72,8 @@ describe("ZeroEx V4 - TokenRange Erc1155", () => {
     await buyOrder.checkFillability(ethers.provider);
 
     const buyerWethBalanceBefore = await weth.getBalance(buyer.address);
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      boughtTokenId
-    );
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      boughtTokenId
-    );
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, boughtTokenId);
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, boughtTokenId);
 
     expect(buyerWethBalanceBefore).to.eq(price);
     expect(buyerNftBalanceBefore).to.eq(0);
@@ -94,14 +83,8 @@ describe("ZeroEx V4 - TokenRange Erc1155", () => {
     await exchange.fillOrder(seller, buyOrder, sellOrder);
 
     const buyerWethBalanceAfter = await weth.getBalance(buyer.address);
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      boughtTokenId
-    );
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      boughtTokenId
-    );
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, boughtTokenId);
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, boughtTokenId);
 
     expect(buyerWethBalanceAfter).to.eq(0);
     expect(buyerNftBalanceAfter).to.eq(1);
@@ -114,7 +97,7 @@ describe("ZeroEx V4 - TokenRange Erc1155", () => {
     const price = parseEther("1");
     const boughtTokenId = 1;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -134,7 +117,7 @@ describe("ZeroEx V4 - TokenRange Erc1155", () => {
       maker: buyer.address,
       contract: erc1155.address,
       amount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       price,
       expiry: (await getCurrentTimestamp(ethers.provider)) + 60,
       startTokenId: 2,
@@ -153,7 +136,6 @@ describe("ZeroEx V4 - TokenRange Erc1155", () => {
     await buyOrder.checkFillability(ethers.provider);
 
     // Match orders
-    await expect(exchange.fillOrder(seller, buyOrder, sellOrder)).to.be
-      .reverted;
+    await expect(exchange.fillOrder(seller, buyOrder, sellOrder)).to.be.reverted;
   });
 });

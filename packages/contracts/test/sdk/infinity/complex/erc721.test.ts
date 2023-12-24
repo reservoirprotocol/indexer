@@ -5,13 +5,7 @@ import { ethers } from "hardhat";
 import * as Infinity from "@reservoir0x/sdk/src/infinity";
 import * as Common from "@reservoir0x/sdk/src/common";
 
-import {
-  getChainId,
-  reset,
-  setupNFTs,
-  getCurrentTimestamp,
-  bn,
-} from "../../../utils";
+import { getChainId, reset, setupNFTs, getCurrentTimestamp, bn } from "../../../utils";
 import { expect } from "chai";
 import { Weth } from "@reservoir0x/sdk/src/common/helpers";
 
@@ -27,7 +21,7 @@ describe("Infinity - Complex ERC721", () => {
 
   beforeEach(async () => {
     [deployer, alice, bob] = await ethers.getSigners();
-    weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     ({ erc721 } = await setupNFTs(deployer));
   });
@@ -65,7 +59,7 @@ describe("Infinity - Complex ERC721", () => {
       nonce: "1",
       maxGasPrice: "1",
       numItems: 1,
-      currency: Common.Addresses.Weth[chainId],
+      currency: Common.Addresses.WNative[chainId],
       nfts: [
         {
           collection: erc721.address,
@@ -89,9 +83,7 @@ describe("Infinity - Complex ERC721", () => {
 
     await buyOrder.sign(buyer);
 
-    await erc721
-      .connect(seller)
-      .setApprovalForAll(Infinity.Addresses.Exchange[chainId], true);
+    await erc721.connect(seller).setApprovalForAll(Infinity.Addresses.Exchange[chainId], true);
     await weth.deposit(buyer, price);
     await weth.approve(buyer, Infinity.Addresses.Exchange[chainId], price);
 
@@ -124,15 +116,11 @@ describe("Infinity - Complex ERC721", () => {
     const ownerAfterOne = await nft.getOwner(tokenIdOne);
     const ownerAfterThree = await nft.getOwner(tokenIdThree);
 
-    const protocolFeeBps: BigNumberish = await exchange.contract
-      .connect(seller)
-      .protocolFeeBps();
+    const protocolFeeBps: BigNumberish = await exchange.contract.connect(seller).protocolFeeBps();
     const fees = bn(price).mul(protocolFeeBps).div(10000);
 
     expect(buyerWethBalanceBefore.sub(buyerWethBalanceAfter)).to.be.gte(price);
-    expect(sellerWethBalanceAfter).to.eq(
-      sellerWethBalanceBefore.add(price).sub(fees)
-    );
+    expect(sellerWethBalanceAfter).to.eq(sellerWethBalanceBefore.add(price).sub(fees));
     expect(ownerAfterTwo).to.eq(buyer.address);
     expect(ownerAfterOne).to.eq(seller.address);
     expect(ownerAfterThree).to.eq(seller.address);

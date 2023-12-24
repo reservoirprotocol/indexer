@@ -56,16 +56,16 @@ export const askCreated: EventData = {
   numTopics: 3,
   abi: new Interface([
     `event AskCreated(
-        address indexed tokenContract,
-        uint256 indexed tokenId,
-        (
-          address seller,
-          address sellerFundsRecipient,
-          address askCurrency,
-          uint16 findersFeeBps,
-          uint256 askPrice
-        ) ask
-      )`,
+      address indexed tokenContract,
+      uint256 indexed tokenId,
+      (
+        address seller,
+        address sellerFundsRecipient,
+        address askCurrency,
+        uint16 findersFeeBps,
+        uint256 askPrice
+      ) ask
+    )`,
   ]),
 };
 
@@ -77,16 +77,16 @@ export const askPriceUpdated: EventData = {
   numTopics: 3,
   abi: new Interface([
     `event AskPriceUpdated(
-        address indexed tokenContract,
-        uint256 indexed tokenId,
-        (
-          address seller,
-          address sellerFundsRecipient,
-          address askCurrency,
-          uint16 findersFeeBps,
-          uint256 askPrice
-        ) ask
-      )`,
+      address indexed tokenContract,
+      uint256 indexed tokenId,
+      (
+        address seller,
+        address sellerFundsRecipient,
+        address askCurrency,
+        uint16 findersFeeBps,
+        uint256 askPrice
+      ) ask
+    )`,
   ]),
 };
 
@@ -98,15 +98,68 @@ export const askCancelled: EventData = {
   numTopics: 3,
   abi: new Interface([
     `event AskCanceled(
-        address indexed tokenContract,
-        uint256 indexed tokenId,
-        (
-          address seller,
-          address sellerFundsRecipient,
-          address askCurrency,
-          uint16 findersFeeBps,
-          uint256 askPrice
-        ) ask
-      )`,
+      address indexed tokenContract,
+      uint256 indexed tokenId,
+      (
+        address seller,
+        address sellerFundsRecipient,
+        address askCurrency,
+        uint16 findersFeeBps,
+        uint256 askPrice
+      ) ask
+    )`,
+  ]),
+};
+
+export const salesConfigChanged: EventData = {
+  kind: "zora",
+  subKind: "zora-sales-config-changed",
+  topic: "0xc1ff5e4744ac8dd2b8027a10e3723b165975297501c71c4e7dcb8796d96375db",
+  numTopics: 2,
+  abi: new Interface([`event SalesConfigChanged(address indexed changedBy)`]),
+};
+
+export const updatedToken: EventData = {
+  kind: "zora",
+  subKind: "zora-updated-token",
+  topic: "0x5086d1bcea28999da9875111e3592688fbfa821db63214c695ca35768080c2fe",
+  numTopics: 3,
+  abi: new Interface([
+    `event UpdatedToken(
+      address indexed from,
+      uint256 indexed tokenId,
+      (
+        string uri,
+        uint256 maxSupply,
+        uint256 totalMinted
+      ) tokenData
+    )`,
+  ]),
+};
+
+export const mintComment: EventData = {
+  kind: "zora",
+  subKind: "zora-mint-comment",
+  topic: "0xb9490aee663998179ad13f9e1c1eb6189c71ad1a9ec87f33ad2766f98d9a268a",
+  numTopics: 4,
+  abi: new Interface([
+    `event MintComment(
+      address indexed sender,
+      address indexed tokenContract,
+      uint256 indexed tokenId,
+      uint256 quantity,
+      string comment
+    )`,
+  ]),
+};
+
+// This should not have the kind set as `zora`
+export const customMintComment: EventData = {
+  kind: "zora",
+  subKind: "zora-custom-mint-comment",
+  topic: "0x2910744449a1123a8844cbafb0eb9444d337afddbf9fa11116964067fd248128",
+  numTopics: 1,
+  abi: new Interface([
+    "event MintComment(address indexed tokenContract, uint256 quantity, string comment)",
   ]),
 };

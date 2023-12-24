@@ -25,7 +25,8 @@
       "@/models/*": ["models/*"],
       "@/pubsub/*": ["pubsub/*"],
       "@/websockets/*": ["websockets/*"],
-      "@/events-sync/*": ["sync/events/*"]
+      "@/events-sync/*": ["sync/events/*"],
+      "@/metadata/*": ["metadata/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.js", "src/**/*.json"],

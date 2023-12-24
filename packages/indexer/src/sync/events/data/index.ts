@@ -6,11 +6,9 @@ import * as erc1155 from "@/events-sync/data/erc1155";
 
 import * as bendDao from "@/events-sync/data/bend-dao";
 import * as blur from "@/events-sync/data/blur";
-import * as collectionxyz from "@/events-sync/data/collectionxyz";
 import * as cryptoPunks from "@/events-sync/data/cryptopunks";
 import * as decentraland from "@/events-sync/data/decentraland";
 import * as element from "@/events-sync/data/element";
-import * as flow from "@/events-sync/data/flow";
 import * as foundation from "@/events-sync/data/foundation";
 import * as looksRare from "@/events-sync/data/looks-rare";
 import * as manifold from "@/events-sync/data/manifold";
@@ -28,7 +26,6 @@ import * as sudoswap from "@/events-sync/data/sudoswap";
 import * as superrare from "@/events-sync/data/superrare";
 import * as tofu from "@/events-sync/data/tofu";
 import * as treasure from "@/events-sync/data/treasure";
-import * as universe from "@/events-sync/data/universe";
 import * as wyvernV2 from "@/events-sync/data/wyvern-v2";
 import * as wyvernV23 from "@/events-sync/data/wyvern-v2.3";
 import * as x2y2 from "@/events-sync/data/x2y2";
@@ -38,6 +35,23 @@ import * as zeroExV4 from "@/events-sync/data/zeroex-v4";
 import * as zora from "@/events-sync/data/zora";
 import * as looksRareV2 from "@/events-sync/data/looks-rare-v2";
 import * as blend from "@/events-sync/data/blend";
+import * as sudoswapV2 from "@/events-sync/data/sudoswap-v2";
+import * as caviarV1 from "@/events-sync/data/caviar-v1";
+import * as paymentProcessor from "@/events-sync/data/payment-processor";
+import * as paymentProcessorV2 from "@/events-sync/data/payment-processor-v2";
+import * as thirdweb from "@/events-sync/data/thirdweb";
+import * as blurV2 from "@/events-sync/data/blur-v2";
+import * as seadrop from "@/events-sync/data/seadrop";
+import * as erc721c from "@/events-sync/data/erc721c";
+import * as joepeg from "@/events-sync/data/joepeg";
+import * as metadataUpdate from "@/events-sync/data/metadata-update";
+import * as soundxyz from "@/events-sync/data/soundxyz";
+import * as createdotfun from "@/events-sync/data/createdotfun";
+import * as erc721cV2 from "@/events-sync/data/erc721c-v2";
+import * as titlesxyz from "@/events-sync/data/titlesxyz";
+import * as artblocks from "@/events-sync/data/artblocks";
+import * as highlightxyz from "@/events-sync/data/highlightxyz";
+import * as ditto from "@/events-sync/data/ditto";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -51,11 +65,9 @@ export type EventKind =
   | "erc1155"
   | "bend-dao"
   | "blur"
-  | "collectionxyz"
   | "cryptopunks"
   | "decentraland"
   | "element"
-  | "flow"
   | "foundation"
   | "looks-rare"
   | "manifold"
@@ -70,7 +82,6 @@ export type EventKind =
   | "superrare"
   | "tofu"
   | "treasure"
-  | "universe"
   | "wyvern"
   | "x2y2"
   | "zeroex-v2"
@@ -78,7 +89,25 @@ export type EventKind =
   | "zeroex-v4"
   | "zora"
   | "looks-rare-v2"
-  | "blend";
+  | "blend"
+  | "sudoswap-v2"
+  | "caviar-v1"
+  | "payment-processor"
+  | "thirdweb"
+  | "seadrop"
+  | "blur-v2"
+  | "erc721c"
+  | "joepeg"
+  | "metadata-update"
+  | "soundxyz"
+  | "createdotfun"
+  | "payment-processor-v2"
+  | "titlesxyz"
+  | "artblocks"
+  | "erc721c-v2"
+  | "titlesxyz"
+  | "ditto"
+  | "highlightxyz";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -107,12 +136,16 @@ export type EventSubKind =
   | "foundation-buy-price-invalidated"
   | "foundation-buy-price-cancelled"
   | "foundation-buy-price-accepted"
+  | "foundation-created-fixed-price-sale"
+  | "foundation-add-merkle-root-to-fixed-price-sale"
+  | "foundation-offer-accepted"
   | "x2y2-order-cancelled"
   | "x2y2-order-inventory"
   | "seaport-order-cancelled"
   | "seaport-order-filled"
   | "seaport-counter-incremented"
   | "seaport-order-validated"
+  | "seaport-channel-updated"
   | "seaport-v1.4-order-cancelled"
   | "seaport-v1.4-order-filled"
   | "seaport-v1.4-orders-matched"
@@ -149,6 +182,10 @@ export type EventSubKind =
   | "zora-ask-price-updated"
   | "zora-ask-cancelled"
   | "zora-auction-ended"
+  | "zora-sales-config-changed"
+  | "zora-updated-token"
+  | "zora-mint-comment"
+  | "zora-custom-mint-comment"
   | "nouns-auction-settled"
   | "cryptopunks-punk-offered"
   | "cryptopunks-punk-no-longer-for-sale"
@@ -163,8 +200,6 @@ export type EventSubKind =
   | "sudoswap-spot-price-update"
   | "sudoswap-delta-update"
   | "sudoswap-new-pair"
-  | "universe-match"
-  | "universe-cancel"
   | "nftx-redeemed"
   | "nftx-minted"
   | "nftx-user-staked"
@@ -179,10 +214,6 @@ export type EventSubKind =
   | "nftx-enable-mint-updated"
   | "nftx-enable-target-redeem-updated"
   | "blur-orders-matched"
-  | "flow-match-order-fulfilled"
-  | "flow-take-order-fulfilled"
-  | "flow-cancel-all-orders"
-  | "flow-cancel-multiple-orders"
   | "blur-order-cancelled"
   | "blur-nonce-incremented"
   | "manifold-purchase"
@@ -190,6 +221,8 @@ export type EventSubKind =
   | "manifold-cancel"
   | "manifold-finalize"
   | "manifold-accept"
+  | "manifold-claim-initialized"
+  | "manifold-claim-updated"
   | "tofu-inventory-update"
   | "decentraland-sale"
   | "nft-trader-swap"
@@ -204,6 +237,7 @@ export type EventSubKind =
   | "zeroex-v2-fill"
   | "zeroex-v3-fill"
   | "treasure-item-sold"
+  | "treasure-bid-accepted"
   | "looks-rare-v2-new-bid-ask-nonces"
   | "looks-rare-v2-order-nonces-cancelled"
   | "looks-rare-v2-subset-nonces-cancelled"
@@ -214,26 +248,95 @@ export type EventSubKind =
   | "blend-refinance"
   | "blend-buy-locked"
   | "blend-nonce-incremented"
-  | "collectionxyz-new-pool"
-  | "collectionxyz-token-deposit"
-  | "collectionxyz-token-withdrawal"
-  | "collectionxyz-nft-deposit"
-  | "collectionxyz-nft-withdrawal"
-  | "collectionxyz-accrued-trade-fee-withdrawal"
-  | "collectionxyz-accepts-token-ids"
-  | "collectionxyz-swap-nft-in-pool"
-  | "collectionxyz-swap-nft-out-pool"
-  | "collectionxyz-spot-price-update"
-  | "collectionxyz-delta-update"
-  | "collectionxyz-props-update"
-  | "collectionxyz-state-update"
-  | "collectionxyz-royalty-numerator-update"
-  | "collectionxyz-royalty-recipient-fallback-update"
-  | "collectionxyz-external-filter-set"
-  | "collectionxyz-fee-update"
-  | "collectionxyz-protocol-fee-multiplier-update"
-  | "collectionxyz-carry-fee-multiplier-update"
-  | "collectionxyz-asset-recipient-change";
+  | "sudoswap-v2-sell-erc721"
+  | "sudoswap-v2-sell-erc1155"
+  | "sudoswap-v2-buy-erc721"
+  | "sudoswap-v2-buy-erc1155"
+  | "sudoswap-v2-token-deposit"
+  | "sudoswap-v2-token-withdrawal"
+  | "sudoswap-v2-nft-withdrawal-erc721"
+  | "sudoswap-v2-nft-withdrawal-erc1155"
+  | "sudoswap-v2-erc20-deposit"
+  | "sudoswap-v2-erc721-deposit"
+  | "sudoswap-v2-erc1155-deposit"
+  | "sudoswap-v2-spot-price-update"
+  | "sudoswap-v2-delta-update"
+  | "sudoswap-v2-new-erc721-pair"
+  | "sudoswap-v2-new-erc1155-pair"
+  | "caviar-v1-create"
+  | "caviar-v1-add"
+  | "caviar-v1-remove"
+  | "caviar-v1-buy"
+  | "caviar-v1-sell"
+  | "caviar-v1-wrap"
+  | "caviar-v1-unwrap"
+  | "payment-processor-buy-single-listing"
+  | "payment-processor-master-nonce-invalidated"
+  | "payment-processor-nonce-invalidated"
+  | "payment-processor-sweep-collection-erc1155"
+  | "payment-processor-sweep-collection-erc721"
+  | "payment-processor-created-or-updated-security-policy"
+  | "payment-processor-updated-collection-payment-coin"
+  | "payment-processor-updated-collection-security-policy"
+  | "thirdweb-claim-conditions-updated-erc721"
+  | "thirdweb-claim-conditions-updated-erc1155"
+  | "seadrop-public-drop-updated"
+  | "blur-v2-execution"
+  | "blur-v2-execution-721-packed"
+  | "blur-v2-execution-721-taker-fee-packed"
+  | "blur-v2-execution-721-maker-fee-packed"
+  | "erc721c-verified-eoa-signature"
+  | "erc721c-added-to-allowlist"
+  | "erc721c-removed-from-allowlist"
+  | "joepeg-taker-ask"
+  | "joepeg-taker-bid"
+  | "erc721c-set-allowlist"
+  | "erc721c-set-transfer-security-level"
+  | "erc721c-transfer-validator-updated"
+  | "metadata-update-single-token-opensea"
+  | "metadata-update-batch-tokens-opensea"
+  | "metadata-update-uri-opensea"
+  | "metadata-update-contract-uri-thirdweb"
+  | "metadata-update-zora"
+  | "soundxyz-range-edition-mint-created"
+  | "soundxyz-merkle-drop-mint-created"
+  | "createdotfun-configuration-updated"
+  | "payment-processor-v2-buy-listing-erc721"
+  | "payment-processor-v2-buy-listing-erc1155"
+  | "payment-processor-v2-accept-offer-erc721"
+  | "payment-processor-v2-accept-offer-erc1155"
+  | "payment-processor-v2-master-nonce-invalidated"
+  | "payment-processor-v2-nonce-invalidated"
+  | "payment-processor-v2-order-digest-invalidated"
+  | "titlesxyz-edition-published"
+  | "payment-processor-v2-payment-method-added-to-whitelist"
+  | "payment-processor-v2-payment-method-removed-from-whitelist"
+  | "payment-processor-v2-updated-collection-level-pricing-boundaries"
+  | "payment-processor-v2-updated-collection-payment-settings"
+  | "payment-processor-v2-updated-token-level-pricing-boundaries"
+  | "payment-processor-v2-trusted-channel-removed-for-collection"
+  | "payment-processor-v2-trusted-channel-added-for-collection"
+  | "payment-processor-v2-banned-account-removed-for-collection"
+  | "payment-processor-v2-banned-account-added-for-collection"
+  | "artblocks-project-updated"
+  | "artblocks-minter-registered"
+  | "artblocks-minter-removed"
+  | "artblocks-project-price-update"
+  | "artblocks-project-currency-update"
+  | "artblocks-project-set-auction-details"
+  | "erc721c-v2-added-account-to-list"
+  | "erc721c-v2-added-code-hash-to-list"
+  | "erc721c-v2-removed-account-from-list"
+  | "erc721c-v2-removed-code-hash-from-list"
+  | "erc721c-v2-applied-list-to-collection"
+  | "ditto-pool-initialized"
+  | "highlightxyz-edition-vector-created"
+  | "highlightxyz-series-vector-created"
+  | "highlightxyz-vector-updated"
+  | "highlightxyz-vector-deleted"
+  | "highlightxyz-discrete-da-created"
+  | "highlightxyz-mechanic-vector-registered"
+  | "highlightxyz-discrete-da-updated";
 
 export type EventData = {
   kind: EventKind;
@@ -260,6 +363,9 @@ const allEventData = [
   foundation.buyPriceCancelled,
   foundation.buyPriceInvalidated,
   foundation.buyPriceSet,
+  foundation.offerAccepted,
+  foundation.createFixedPriceSale,
+  foundation.addMerkleRootToFixedPriceSale,
   looksRare.cancelAllOrders,
   looksRare.cancelMultipleOrders,
   looksRare.takerAsk,
@@ -273,6 +379,7 @@ const allEventData = [
   seaport.orderCancelled,
   seaport.orderFulfilled,
   seaport.orderValidated,
+  seaport.channelUpdated,
   seaportV14.counterIncremented,
   seaportV14.orderCancelled,
   seaportV14.orderFulfilled,
@@ -317,6 +424,10 @@ const allEventData = [
   zora.askCancelled,
   zora.askPriceUpdated,
   zora.auctionEnded,
+  zora.salesConfigChanged,
+  zora.updatedToken,
+  zora.mintComment,
+  zora.customMintComment,
   nouns.auctionSettled,
   cryptoPunks.punkOffered,
   cryptoPunks.punkNoLongerForSale,
@@ -331,8 +442,6 @@ const allEventData = [
   sudoswap.spotPriceUpdate,
   sudoswap.deltaUpdate,
   sudoswap.newPair,
-  universe.match,
-  universe.cancel,
   nftx.minted,
   nftx.redeemed,
   nftx.swapped,
@@ -345,10 +454,6 @@ const allEventData = [
   nftx.enableMintUpdated,
   nftx.enableTargetRedeemUpdated,
   blur.ordersMatched,
-  flow.matchOrderFulfilled,
-  flow.takeOrderFulfilled,
-  flow.cancelAllOrders,
-  flow.cancelMultipleOrders,
   blur.orderCancelled,
   blur.nonceIncremented,
   manifold.modify,
@@ -356,6 +461,8 @@ const allEventData = [
   manifold.purchase,
   manifold.cancel,
   manifold.accept,
+  manifold.claimInitialized,
+  manifold.claimUpdated,
   tofu.inventoryUpdate,
   decentraland.sale,
   nftTrader.swap,
@@ -375,26 +482,96 @@ const allEventData = [
   blend.refinance,
   blend.repay,
   blend.nonceIncremented,
-  collectionxyz.acceptsTokenIds,
-  collectionxyz.accruedTradeFeeWithdrawal,
-  collectionxyz.assetRecipientChange,
-  collectionxyz.carryFeeMultiplierUpdate,
-  collectionxyz.deltaUpdate,
-  collectionxyz.externalFilterSet,
-  collectionxyz.feeUpdate,
-  collectionxyz.newPool,
-  collectionxyz.nftDeposit,
-  collectionxyz.nftWithdrawal,
-  collectionxyz.propsUpdate,
-  collectionxyz.protocolFeeMultiplierUpdate,
-  collectionxyz.royaltyNumeratorUpdate,
-  collectionxyz.royaltyRecipientFallbackUpdate,
-  collectionxyz.spotPriceUpdate,
-  collectionxyz.stateUpdate,
-  collectionxyz.swapNftInPool,
-  collectionxyz.swapNftOutPool,
-  collectionxyz.tokenDeposit,
-  collectionxyz.tokenWithdrawal,
+  sudoswapV2.buyERC1155,
+  sudoswapV2.buyERC721,
+  sudoswapV2.sellERC721,
+  sudoswapV2.sellERC1155,
+  sudoswapV2.tokenDeposit,
+  sudoswapV2.tokenWithdrawal,
+  sudoswapV2.nftWithdrawalERC721,
+  sudoswapV2.nftWithdrawalERC1155,
+  sudoswapV2.erc20Deposit,
+  sudoswapV2.erc721Deposit,
+  sudoswapV2.erc1155Deposit,
+  sudoswapV2.spotPriceUpdate,
+  sudoswapV2.deltaUpdate,
+  sudoswapV2.newERC721Pair,
+  sudoswapV2.newERC1155Pair,
+  treasure.bidAccepted,
+  caviarV1.create,
+  caviarV1.add,
+  caviarV1.remove,
+  caviarV1.buy,
+  caviarV1.sell,
+  caviarV1.wrap,
+  caviarV1.unwrap,
+  paymentProcessor.buySingleListing,
+  paymentProcessor.masterNonceInvalidated,
+  paymentProcessor.nonceInvalidated,
+  paymentProcessor.sweepCollectionERC1155,
+  paymentProcessor.sweepCollectionERC721,
+  paymentProcessor.createdOrUpdatedSecurityPolicy,
+  paymentProcessor.updatedCollectionSecurityPolicy,
+  paymentProcessor.updatedCollectionPaymentCoin,
+  thirdweb.claimConditionsUpdatedERC721,
+  thirdweb.claimConditionsUpdatedERC1155,
+  blurV2.execution,
+  blurV2.execution721MakerFeePacked,
+  blurV2.execution721Packed,
+  blurV2.execution721TakerFeePacked,
+  seadrop.publicDropUpdated,
+  erc721c.verifiedEOASignature,
+  erc721c.addedToAllowlist,
+  erc721c.removedFromAllowlist,
+  erc721c.transferValidatorUpdated,
+  erc721c.setTransferSecurityLevel,
+  erc721c.setAllowlist,
+  joepeg.takerAsk,
+  joepeg.takerBid,
+  metadataUpdate.metadataUpdateOpensea,
+  metadataUpdate.batchMetadataUpdateOpensea,
+  metadataUpdate.metadataUpdateURIOpensea,
+  metadataUpdate.contractURIUpdateThirdweb,
+  metadataUpdate.metadataUpdateURIZora,
+  soundxyz.rangeEditionMintCreated,
+  soundxyz.merkleDropMintCreated,
+  createdotfun.configurationUpdated,
+  paymentProcessorV2.acceptOfferERC1155,
+  paymentProcessorV2.acceptOfferERC721,
+  paymentProcessorV2.buyListingERC1155,
+  paymentProcessorV2.buyListingERC721,
+  paymentProcessorV2.masterNonceInvalidated,
+  paymentProcessorV2.nonceInvalidated,
+  paymentProcessorV2.orderDigestInvalidated,
+  titlesxyz.editionPublished,
+  paymentProcessorV2.paymentMethodAddedToWhitelist,
+  paymentProcessorV2.paymentMethodRemovedFromWhitelist,
+  paymentProcessorV2.updatedTokenLevelPricingBoundaries,
+  paymentProcessorV2.updatedCollectionLevelPricingBoundaries,
+  paymentProcessorV2.updatedCollectionPaymentSettings,
+  paymentProcessorV2.trustedChannelAddedForCollection,
+  paymentProcessorV2.trustedChannelRemovedForCollection,
+  paymentProcessorV2.bannedAccountAddedForCollection,
+  paymentProcessorV2.bannedAccountRemovedForCollection,
+  artblocks.projectUpdated,
+  artblocks.projectMinterRegistered,
+  artblocks.projectMinterRemoved,
+  artblocks.projectPriceUpdate,
+  artblocks.projectCurrentcyUpdate,
+  artblocks.projectSetAuctionDetails,
+  erc721cV2.addedAccountToList,
+  erc721cV2.addedCodeHashToList,
+  erc721cV2.removedAccountFromList,
+  erc721cV2.removedCodeHashFromList,
+  erc721cV2.appliedListToCollection,
+  highlightxyz.editonVectorCreated,
+  highlightxyz.seriesVectorCreated,
+  highlightxyz.vectorUpdated,
+  highlightxyz.vectorDeleted,
+  highlightxyz.discreteDACreated,
+  highlightxyz.mechanicVectorRegistered,
+  highlightxyz.mechanicVectorUpdated,
+  ditto.dittoPoolInitialized,
 ];
 
 export const getEventData = (events?: string[]) => {

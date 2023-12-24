@@ -4,7 +4,7 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-import * as orderRevalidations from "@/jobs/order-fixes/revalidations";
+import { orderRevalidationsJob } from "@/jobs/order-fixes/order-revalidations-job";
 
 export const postRevalidateOrderOptions: RouteOptions = {
   description: "Revalidate an existing order",
@@ -27,7 +27,9 @@ export const postRevalidateOrderOptions: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      await orderRevalidations.addToQueue([{ id: payload.id, status: payload.status }]);
+      await orderRevalidationsJob.addToQueue([
+        { by: "id", data: { id: payload.id, status: payload.status } },
+      ]);
 
       return { message: "Success" };
     } catch (error) {

@@ -15,12 +15,13 @@ import { RateLimiterRes } from "rate-limiter-flexible";
 import { setupRoutes } from "@/api/routes";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-import { getNetworkName } from "@/config/network";
-import * as countApiUsage from "@/jobs/metrics/count-api-usage";
-import { allJobQueues, gracefulShutdownJobWorkers } from "@/jobs/index";
+import { getSubDomain } from "@/config/network";
+import { allJobQueues } from "@/jobs/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { RateLimitRules } from "@/models/rate-limit-rules";
 import { BlockedRouteError } from "@/models/rate-limit-rules/errors";
+import { countApiUsageJob } from "@/jobs/metrics/count-api-usage-job";
+import { generateOpenApiSpec } from "./endpoints/admin";
 
 let server: Hapi.Server;
 
@@ -43,7 +44,7 @@ export const start = async (): Promise<void> => {
       },
       cors: {
         origin: ["*"],
-        additionalHeaders: ["x-api-key", "x-rkc-version", "x-rkui-version"],
+        additionalHeaders: ["x-api-key", "x-rkc-version", "x-rkui-version", "x-syncnode-version"],
       },
       // Expose any validation errors
       // https://github.com/hapijs/hapi/issues/3706
@@ -122,7 +123,7 @@ export const start = async (): Promise<void> => {
           },
         },
         schemes: ["https", "http"],
-        host: `${config.chainId === 1 ? "api" : `api-${getNetworkName()}`}.reservoir.tools`,
+        host: `${getSubDomain()}.reservoir.tools`,
         cors: true,
         tryItOutEnabled: true,
         documentationPath: "/",
@@ -142,9 +143,6 @@ export const start = async (): Promise<void> => {
         signals: ["SIGINT", "SIGTERM"],
         preServerStop: async () => {
           logger.info("process", "Shutting down");
-
-          // Close all workers which should be gracefully shutdown
-          await Promise.all(gracefulShutdownJobWorkers.map((worker) => worker?.close()));
         },
       },
     },
@@ -152,6 +150,10 @@ export const start = async (): Promise<void> => {
 
   if (!process.env.LOCAL_TESTING) {
     server.ext("onPostAuth", async (request, reply) => {
+      // Set the request URL query string
+      const searchParams = new URLSearchParams(request.query);
+      request.pre.queryString = searchParams.toString();
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const isInjected = (request as any).isInjected;
       if (isInjected) {
@@ -219,8 +221,7 @@ export const start = async (): Promise<void> => {
           return reply.continue;
         }
 
-        const rateLimitKey =
-          _.isUndefined(key) || _.isEmpty(key) || _.isNull(apiKey) ? remoteAddress : key; // If no api key or the api key is invalid use IP
+        const rateLimitKey = _.isEmpty(key) ? remoteAddress : key; // If no api key or the api key is invalid use IP
 
         try {
           if (key && tier) {
@@ -270,13 +271,11 @@ export const start = async (): Promise<void> => {
               logger.warn("rate-limiter", JSON.stringify(log));
             }
 
-            const message = `Max ${rateLimitRule.rule.points} credits in ${
+            const message = rateLimitRule.ruleParams.getRateLimitMessage(
+              key,
+              rateLimitRule.rule.points,
               rateLimitRule.rule.duration
-            }s reached, Detected tier ${tier}, Blocked by rule ID ${rateLimitRule.ruleParams.id}${
-              !_.isEmpty(rateLimitRule.ruleParams.payload)
-                ? ` Payload ${JSON.stringify(rateLimitRule.ruleParams.payload)}`
-                : ``
-            }. Please register for an API key by creating a free account at https://dashboard.reservoir.tools to increase your rate limit.`;
+            );
 
             const tooManyRequestsResponse = {
               statusCode: 429,
@@ -284,11 +283,16 @@ export const start = async (): Promise<void> => {
               message,
             };
 
+            // If rate limit points are 1
+            if (request.pre?.metrics) {
+              request.pre.metrics.points = 1;
+            }
+
             return reply
               .response(tooManyRequestsResponse)
+              .header("tier", `${tier}`)
               .type("application/json")
               .code(429)
-              .header("tier", `${tier}`)
               .takeover();
           } else {
             logger.warn("rate-limiter", `Rate limit error ${error}`);
@@ -300,7 +304,12 @@ export const start = async (): Promise<void> => {
     });
 
     server.ext("onPreHandler", async (request, h) => {
-      ApiKeyManager.logRequest(request).catch();
+      try {
+        ApiKeyManager.logRequest(request).catch();
+      } catch {
+        // Ignore errors
+      }
+
       return h.continue;
     });
 
@@ -335,10 +344,15 @@ export const start = async (): Promise<void> => {
       // Count the API usage, to prevent any latency on the request no need to wait and ignore errors
       if (request.pre.metrics && statusCode >= 100 && statusCode < 500) {
         request.pre.metrics.statusCode = statusCode;
-        countApiUsage.addToQueue(request.pre.metrics).catch();
+
+        try {
+          countApiUsageJob.addToQueue(request.pre.metrics).catch();
+        } catch {
+          // Ignore errors
+        }
       }
 
-      if (!(response instanceof Boom)) {
+      if (!(response instanceof Boom) && statusCode === 200) {
         typedResponse.header("tier", request.headers["tier"]);
         typedResponse.header("X-RateLimit-Limit", request.headers["X-RateLimit-Limit"]);
         typedResponse.header("X-RateLimit-Remaining", request.headers["X-RateLimit-Remaining"]);
@@ -356,9 +370,18 @@ export const start = async (): Promise<void> => {
   setupRoutes(server);
 
   server.listener.keepAliveTimeout = 61000;
-
+  await generateOpenApiSpec();
   await server.start();
   logger.info("process", `Started on port ${config.port}`);
 };
 
-export const inject = (options: Hapi.ServerInjectOptions) => server.inject(options);
+export const inject = async (options: Hapi.ServerInjectOptions) => {
+  if (server) {
+    return server.inject(options);
+  }
+
+  return {
+    payload: "",
+    statusCode: 0,
+  };
+};

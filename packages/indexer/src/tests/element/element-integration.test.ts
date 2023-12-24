@@ -92,7 +92,7 @@ describe("ElementTestnet", () => {
       maker: seller.address,
       contract: nftToken.address,
       tokenId: tokenId,
-      paymentToken: Element.Addresses.Eth[config.chainId],
+      paymentToken: Element.Addresses.Native[config.chainId],
       price,
       hashNonce,
       expiry: Math.floor(Date.now() / 1000) + 10000,
@@ -143,7 +143,7 @@ describe("ElementTestnet", () => {
     const builder = new Element.Builders.SingleToken(chainId);
     const price = parseEther("0.001");
 
-    const weth = new Common.Helpers.Weth(baseProvider, chainId);
+    const weth = new Common.Helpers.WNative(baseProvider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -165,7 +165,7 @@ describe("ElementTestnet", () => {
       maker: buyer.address,
       contract: nftToken.address,
       tokenId: tokenId,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       price,
       hashNonce,
       expiry: Math.floor(Date.now() / 1000) + 10000,
@@ -227,7 +227,7 @@ describe("ElementTestnet", () => {
       contract: erc1155.address,
       tokenId: tokenId,
       amount: 1,
-      paymentToken: Element.Addresses.Eth[config.chainId],
+      paymentToken: Element.Addresses.Native[config.chainId],
       price,
       hashNonce,
       expiry: Math.floor(Date.now() / 1000) + 10000,
@@ -280,7 +280,7 @@ describe("ElementTestnet", () => {
     const builder = new Element.Builders.SingleToken(chainId);
     const price = parseEther("0.001");
 
-    const weth = new Common.Helpers.Weth(baseProvider, chainId);
+    const weth = new Common.Helpers.WNative(baseProvider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -301,7 +301,7 @@ describe("ElementTestnet", () => {
       contract: erc1155.address,
       tokenId: tokenId,
       amount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       price,
       hashNonce,
       expiry: Math.floor(Date.now() / 1000) + 10000,
@@ -365,7 +365,7 @@ describe("ElementTestnet", () => {
       maker: seller.address,
       contract: nftToken.address,
       tokenId: tokenId,
-      paymentToken: Element.Addresses.Eth[config.chainId],
+      paymentToken: Element.Addresses.Native[config.chainId],
       price,
       hashNonce,
       expiry: Math.floor(Date.now() / 1000) + 10000,
@@ -438,7 +438,7 @@ describe("ElementTestnet", () => {
       contract: erc1155.address,
       tokenId: tokenId,
       amount: 1,
-      paymentToken: Element.Addresses.Eth[config.chainId],
+      paymentToken: Element.Addresses.Native[config.chainId],
       price,
       hashNonce,
       expiry: Math.floor(Date.now() / 1000) + 10000,
@@ -511,7 +511,7 @@ describe("ElementTestnet", () => {
       maker: seller.address,
       contract: nftToken.address,
       tokenId: tokenId,
-      paymentToken: Element.Addresses.Eth[config.chainId],
+      paymentToken: Element.Addresses.Native[config.chainId],
       price,
       hashNonce,
       expiry: Math.floor(Date.now() / 1000) + 10000,

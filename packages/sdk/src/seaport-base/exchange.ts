@@ -19,6 +19,7 @@ export abstract class SeaportBaseExchange {
 
   constructor(chainId: number) {
     this.chainId = chainId;
+
     this.conduitController = new ConduitController(this.chainId);
   }
 
@@ -45,6 +46,7 @@ export abstract class SeaportBaseExchange {
         recipient: BigNumberish;
       }[];
       source?: string;
+      timestampOverride?: number;
     }
   ): Promise<TransactionResponse> {
     const tx = await this.fillOrderTx(await taker.getAddress(), order, matchParams, options);
@@ -62,6 +64,7 @@ export abstract class SeaportBaseExchange {
         amount: string;
         recipient: BigNumberish;
       }[];
+      timestampOverride?: number;
       source?: string;
     }
   ): Promise<TxData> {
@@ -95,8 +98,8 @@ export abstract class SeaportBaseExchange {
               fulfillments,
             ]) + generateSourceBytes(options?.source),
           value:
-            info.paymentToken === CommonAddresses.Eth[this.chainId]
-              ? bn(order.getMatchingPrice())
+            info.paymentToken === CommonAddresses.Native[this.chainId]
+              ? bn(order.getMatchingPrice(options?.timestampOverride))
                   .mul(matchParams.amount || "1")
                   .div(info.amount)
                   .toHexString()
@@ -133,10 +136,10 @@ export abstract class SeaportBaseExchange {
                 offerAmount: info.amount,
                 basicOrderType:
                   (info.tokenKind === "erc721"
-                    ? info.paymentToken === CommonAddresses.Eth[this.chainId]
+                    ? info.paymentToken === CommonAddresses.Native[this.chainId]
                       ? Types.BasicOrderType.ETH_TO_ERC721_FULL_OPEN
                       : Types.BasicOrderType.ERC20_TO_ERC721_FULL_OPEN
-                    : info.paymentToken === CommonAddresses.Eth[this.chainId]
+                    : info.paymentToken === CommonAddresses.Native[this.chainId]
                     ? Types.BasicOrderType.ETH_TO_ERC1155_FULL_OPEN
                     : Types.BasicOrderType.ERC20_TO_ERC1155_FULL_OPEN) + order.params.orderType,
                 startTime: order.params.startTime,
@@ -157,8 +160,8 @@ export abstract class SeaportBaseExchange {
               },
             ]) + generateSourceBytes(options?.source),
           value:
-            info.paymentToken === CommonAddresses.Eth[this.chainId]
-              ? bn(order.getMatchingPrice())
+            info.paymentToken === CommonAddresses.Native[this.chainId]
+              ? bn(order.getMatchingPrice(options?.timestampOverride))
                   .mul(matchParams.amount || "1")
                   .div(info.amount)
                   .toHexString()
@@ -186,8 +189,8 @@ export abstract class SeaportBaseExchange {
               recipient,
             ]) + generateSourceBytes(options?.source),
           value:
-            info.paymentToken === CommonAddresses.Eth[this.chainId]
-              ? bn(order.getMatchingPrice())
+            info.paymentToken === CommonAddresses.Native[this.chainId]
+              ? bn(order.getMatchingPrice(options?.timestampOverride))
                   .mul(matchParams.amount || "1")
                   .div(info.amount)
                   .toHexString()
@@ -203,10 +206,10 @@ export abstract class SeaportBaseExchange {
         // Order has no criteria
         !matchParams.criteriaResolvers &&
         // Order requires no extra data
-        !this.requiresExtraData(order)
+        !this.requiresExtraData(order) &&
+        !info.isDynamic
       ) {
         info = info as BaseOrderInfo;
-
         // Use "basic" fulfillment
         return {
           from: taker,
@@ -281,6 +284,7 @@ export abstract class SeaportBaseExchange {
       conduitKey?: string;
       source?: string;
       maxOrdersToFulfill?: number;
+      timestampOverride?: number;
     }
   ): Promise<TransactionResponse> {
     const tx = await this.fillOrdersTx(await taker.getAddress(), orders, matchParams, options);
@@ -296,6 +300,7 @@ export abstract class SeaportBaseExchange {
       conduitKey?: string;
       source?: string;
       maxOrdersToFulfill?: number;
+      timestampOverride?: number;
     }
   ): Promise<TxData> {
     const recipient = options?.recipient ?? AddressZero;
@@ -356,11 +361,11 @@ export abstract class SeaportBaseExchange {
             return (
               info &&
               info.side === "sell" &&
-              info.paymentToken === CommonAddresses.Eth[this.chainId]
+              info.paymentToken === CommonAddresses.Native[this.chainId]
             );
           })
           .map((order, i) =>
-            bn(order.getMatchingPrice())
+            bn(order.getMatchingPrice(options?.timestampOverride))
               .mul(matchParams[i].amount || "1")
               .div(order.getInfo()!.amount)
           )

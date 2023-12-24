@@ -12,14 +12,16 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { OrderKind } from "@/orderbook/orders";
 import * as b from "@/utils/auth/blur";
+import * as offchainCancel from "@/utils/offchain-cancel";
 
 const version = "v3";
 
 export const getExecuteCancelV3Options: RouteOptions = {
-  description: "Cancel orders",
+  description: "Cancel Orders",
   notes: "Cancel existing orders on any marketplace",
-  tags: ["api", "Create Orders (list & bid)"],
+  tags: ["api"],
   plugins: {
     "hapi-swagger": {
       order: 11,
@@ -37,9 +39,8 @@ export const getExecuteCancelV3Options: RouteOptions = {
         "looks-rare-v2",
         "zeroex-v4-erc721",
         "zeroex-v4-erc1155",
-        "universe",
+        "payment-processor-v2",
         "rarible",
-        "flow",
         "alienswap"
       ),
       token: Joi.string().pattern(regex.token),
@@ -66,6 +67,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
             .items(
               Joi.object({
                 status: Joi.string().valid("complete", "incomplete").required(),
+                tip: Joi.string(),
                 data: Joi.object(),
               })
             )
@@ -117,6 +119,18 @@ export const getExecuteCancelV3Options: RouteOptions = {
           break;
         }
 
+        case "payment-processor": {
+          const exchange = new Sdk.PaymentProcessor.Exchange(config.chainId);
+          cancelTx = exchange.revokeMasterNonceTx(payload.maker);
+          break;
+        }
+
+        case "payment-processor-v2": {
+          const exchange = new Sdk.PaymentProcessorV2.Exchange(config.chainId);
+          cancelTx = exchange.revokeMasterNonceTx(payload.maker);
+          break;
+        }
+
         default: {
           throw Boom.notImplemented("Unsupported order kind");
         }
@@ -160,7 +174,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
         const maker = payload.orderIds[0].split(":")[1];
 
         // Set up generic filling steps
-        const steps: {
+        let steps: {
           id: string;
           action: string;
           description: string;
@@ -189,49 +203,53 @@ export const getExecuteCancelV3Options: RouteOptions = {
 
         // Handle Blur authentication
         const blurAuthId = b.getAuthId(maker);
-        const blurAuth = await b.getAuth(blurAuthId);
+        let blurAuth = await b.getAuth(blurAuthId);
         if (!blurAuth) {
-          const blurAuthChallengeId = b.getAuthChallengeId(maker);
+          if (payload.blurAuth) {
+            blurAuth = { accessToken: payload.blurAuth };
+          } else {
+            const blurAuthChallengeId = b.getAuthChallengeId(maker);
 
-          let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
-          if (!blurAuthChallenge) {
-            blurAuthChallenge = (await axios
-              .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${maker}`)
-              .then((response) => response.data.authChallenge)) as b.AuthChallenge;
+            let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
+            if (!blurAuthChallenge) {
+              blurAuthChallenge = (await axios
+                .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${maker}`)
+                .then((response) => response.data.authChallenge)) as b.AuthChallenge;
 
-            await b.saveAuthChallenge(
-              blurAuthChallengeId,
-              blurAuthChallenge,
-              // Give a 1 minute buffer for the auth challenge to expire
-              Math.floor(new Date(blurAuthChallenge?.expiresOn).getTime() / 1000) - now() - 60
-            );
-          }
+              await b.saveAuthChallenge(
+                blurAuthChallengeId,
+                blurAuthChallenge,
+                // Give a 1 minute buffer for the auth challenge to expire
+                Math.floor(new Date(blurAuthChallenge?.expiresOn).getTime() / 1000) - now() - 60
+              );
+            }
 
-          steps[0].items.push({
-            status: "incomplete",
-            data: {
-              sign: {
-                signatureKind: "eip191",
-                message: blurAuthChallenge.message,
-              },
-              post: {
-                endpoint: "/execute/auth-signature/v1",
-                method: "POST",
-                body: {
-                  kind: "blur",
-                  id: blurAuthChallengeId,
+            steps[0].items.push({
+              status: "incomplete",
+              data: {
+                sign: {
+                  signatureKind: "eip191",
+                  message: blurAuthChallenge.message,
+                },
+                post: {
+                  endpoint: "/execute/auth-signature/v1",
+                  method: "POST",
+                  body: {
+                    kind: "blur",
+                    id: blurAuthChallengeId,
+                  },
                 },
               },
-            },
-          });
+            });
 
-          // Force the client to poll
-          steps[1].items.push({
-            status: "incomplete",
-            tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
-          });
+            // Force the client to poll
+            steps[1].items.push({
+              status: "incomplete",
+              tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
+            });
 
-          return { steps };
+            return { steps };
+          }
         } else {
           steps[0].items.push({
             status: "complete",
@@ -256,6 +274,10 @@ export const getExecuteCancelV3Options: RouteOptions = {
             },
           },
         });
+
+        if (steps[0].items[0].status === "complete") {
+          steps = steps.slice(1);
+        }
 
         return { steps };
       }
@@ -308,7 +330,13 @@ export const getExecuteCancelV3Options: RouteOptions = {
       const orderResult = orderResults[0];
 
       // When bulk-cancelling, make sure all orders have the same kind
-      const supportedKinds = ["seaport", "seaport-v1.4", "seaport-v1.5", "alienswap"];
+      const supportedKinds = [
+        "seaport",
+        "seaport-v1.4",
+        "seaport-v1.5",
+        "alienswap",
+        "payment-processor-v2",
+      ];
       if (isBulkCancel) {
         const supportsBulkCancel =
           supportedKinds.includes(orderResult.kind) &&
@@ -321,57 +349,83 @@ export const getExecuteCancelV3Options: RouteOptions = {
       // Handle off-chain cancellations
 
       const cancellationZone = Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId];
-      const areAllSeaportV14OracleCancellable = orderResults.every(
+      const areAllSeaportV14OffChainCancellable = orderResults.every(
         (o) => o.kind === "seaport-v1.4" && o.raw_data.zone === cancellationZone
       );
-      const areAllSeaportV15OracleCancellable = orderResults.every(
+      const areAllSeaportV15OffChainCancellable = orderResults.every(
         (o) => o.kind === "seaport-v1.5" && o.raw_data.zone === cancellationZone
       );
-      const areAllAlienswapOracleCancellable = orderResults.every(
+      const areAllAlienswapOffChainCancellable = orderResults.every(
         (o) => o.kind === "alienswap" && o.raw_data.zone === cancellationZone
       );
+      const allArePPV2OffChainCancellable = orderResults.every(
+        (o) =>
+          o.kind === "payment-processor-v2" &&
+          o.raw_data.cosigner === offchainCancel.cosigner().address.toLowerCase()
+      );
 
-      let oracleCancellableKind: string | undefined;
-      if (areAllSeaportV14OracleCancellable) {
-        oracleCancellableKind = "seaport-v1.4";
-      } else if (areAllSeaportV15OracleCancellable) {
-        oracleCancellableKind = "seaport-v1.5";
-      } else if (areAllAlienswapOracleCancellable) {
-        oracleCancellableKind = "alienswap";
+      let offChainCancellableKind: OrderKind | undefined;
+      if (areAllSeaportV14OffChainCancellable) {
+        offChainCancellableKind = "seaport-v1.4";
+      } else if (areAllSeaportV15OffChainCancellable) {
+        offChainCancellableKind = "seaport-v1.5";
+      } else if (areAllAlienswapOffChainCancellable) {
+        offChainCancellableKind = "alienswap";
+      } else if (allArePPV2OffChainCancellable) {
+        offChainCancellableKind = "payment-processor-v2";
       }
 
-      if (oracleCancellableKind) {
+      if (offChainCancellableKind === "payment-processor-v2") {
+        const orderIds = orderResults.map((o) => o.id).sort();
         return {
           steps: [
             {
               id: "cancellation-signature",
               action: "Cancel order",
-              description: "Authorize the cancellation of the order",
+              description: "Authorize the cancellation of the order(s)",
               kind: "signature",
               items: [
                 {
                   status: "incomplete",
                   data: {
-                    sign: {
-                      signatureKind: "eip712",
-                      domain: {
-                        name: "SignedZone",
-                        version: "1.0.0",
-                        chainId: config.chainId,
-                        verifyingContract: cancellationZone,
+                    sign: offchainCancel.paymentProcessorV2.generateOffChainCancellationSignatureData(
+                      orderIds
+                    ),
+                    post: {
+                      endpoint: "/execute/cancel-signature/v1",
+                      method: "POST",
+                      body: {
+                        orderIds,
+                        orderKind: offChainCancellableKind,
                       },
-                      types: { OrderHashes: [{ name: "orderHashes", type: "bytes32[]" }] },
-                      value: {
-                        orderHashes: orderResults.map((o) => o.id),
-                      },
-                      primaryType: "OrderHashes",
                     },
+                  },
+                },
+              ],
+            },
+          ],
+        };
+      } else if (offChainCancellableKind) {
+        return {
+          steps: [
+            {
+              id: "cancellation-signature",
+              action: "Cancel order",
+              description: "Authorize the cancellation of the order(s)",
+              kind: "signature",
+              items: [
+                {
+                  status: "incomplete",
+                  data: {
+                    sign: offchainCancel.seaport.generateOffChainCancellationSignatureData(
+                      orderResults.map((o) => o.id)
+                    ),
                     post: {
                       endpoint: "/execute/cancel-signature/v1",
                       method: "POST",
                       body: {
                         orderIds: orderResults.map((o) => o.id).sort(),
-                        orderKind: oracleCancellableKind,
+                        orderKind: offChainCancellableKind,
                       },
                     },
                   },
@@ -385,6 +439,35 @@ export const getExecuteCancelV3Options: RouteOptions = {
       // Handle on-chain cancellations
 
       let cancelTx: TxData;
+
+      // Set up generic filling steps
+      let steps: {
+        id: string;
+        action: string;
+        description: string;
+        kind: string;
+        items: {
+          status: string;
+          tip?: string;
+          data?: object;
+        }[];
+      }[] = [
+        {
+          id: "auth",
+          action: "Sign in to Blur",
+          description: "Some marketplaces require signing an auth message before filling",
+          kind: "signature",
+          items: [],
+        },
+        {
+          id: "cancellation-signature",
+          action: "Cancel order",
+          description:
+            "To cancel these orders you must confirm the transaction and pay the gas fee",
+          kind: "transaction",
+          items: [],
+        },
+      ];
 
       const maker = fromBuffer(orderResult.maker);
       switch (orderResult.kind) {
@@ -446,14 +529,6 @@ export const getExecuteCancelV3Options: RouteOptions = {
           break;
         }
 
-        case "universe": {
-          const order = new Sdk.Universe.Order(config.chainId, orderResult.raw_data);
-          const exchange = new Sdk.Universe.Exchange(config.chainId);
-          cancelTx = await exchange.cancelOrderTx(order.params);
-
-          break;
-        }
-
         case "rarible": {
           const order = new Sdk.Rarible.Order(config.chainId, orderResult.raw_data);
           const exchange = new Sdk.Rarible.Exchange(config.chainId);
@@ -462,50 +537,109 @@ export const getExecuteCancelV3Options: RouteOptions = {
           break;
         }
 
-        case "flow": {
-          const order = new Sdk.Flow.Order(config.chainId, orderResult.raw_data);
-          const exchange = new Sdk.Flow.Exchange(config.chainId);
-          const nonce = order.nonce;
-          cancelTx = exchange.cancelMultipleOrdersTx(order.signer, [nonce]);
+        case "payment-processor": {
+          const order = new Sdk.PaymentProcessor.Order(config.chainId, orderResult.raw_data);
+          const exchange = new Sdk.PaymentProcessor.Exchange(config.chainId);
+          cancelTx = exchange.cancelOrderTx(maker, order);
+
+          break;
+        }
+
+        case "payment-processor-v2": {
+          const order = new Sdk.PaymentProcessorV2.Order(config.chainId, orderResult.raw_data);
+          const exchange = new Sdk.PaymentProcessorV2.Exchange(config.chainId);
+          cancelTx = exchange.cancelOrderTx(maker, order);
 
           break;
         }
 
         case "blur": {
-          const order = new Sdk.Blur.Order(config.chainId, orderResult.raw_data);
-          const exchange = new Sdk.Blur.Exchange(config.chainId);
-          cancelTx = exchange.cancelOrderTx(order.params.trader, order);
+          // Handle Blur authentication
+          const blurAuthId = b.getAuthId(maker);
+          let blurAuth = await b.getAuth(blurAuthId);
+          if (!blurAuth) {
+            if (payload.blurAuth) {
+              blurAuth = { accessToken: payload.blurAuth };
+            } else {
+              const blurAuthChallengeId = b.getAuthChallengeId(maker);
+
+              let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
+              if (!blurAuthChallenge) {
+                blurAuthChallenge = (await axios
+                  .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${maker}`)
+                  .then((response) => response.data.authChallenge)) as b.AuthChallenge;
+
+                await b.saveAuthChallenge(
+                  blurAuthChallengeId,
+                  blurAuthChallenge,
+                  // Give a 1 minute buffer for the auth challenge to expire
+                  Math.floor(new Date(blurAuthChallenge?.expiresOn).getTime() / 1000) - now() - 60
+                );
+              }
+
+              steps[0].items.push({
+                status: "incomplete",
+                data: {
+                  sign: {
+                    signatureKind: "eip191",
+                    message: blurAuthChallenge.message,
+                  },
+                  post: {
+                    endpoint: "/execute/auth-signature/v1",
+                    method: "POST",
+                    body: {
+                      kind: "blur",
+                      id: blurAuthChallengeId,
+                    },
+                  },
+                },
+              });
+
+              // Force the client to poll
+              steps[1].items.push({
+                status: "incomplete",
+                tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
+              });
+
+              return { steps };
+            }
+          }
+
+          steps[0].items.push({
+            status: "complete",
+          });
+
+          cancelTx = await axios
+            .post(`${config.orderFetcherBaseUrl}/api/blur-cancel-listings`, {
+              maker,
+              contract: orderResult.raw_data.collection,
+              tokenId: orderResult.raw_data.tokenId,
+              authToken: blurAuth.accessToken,
+            })
+            .then((response) => response.data);
 
           break;
         }
-
-        // TODO: Add support for X2Y2 (it's tricky because of the signature requirement)
 
         default: {
           throw Boom.notImplemented("Unsupported order kind");
         }
       }
 
+      steps[1].items.push({
+        status: "incomplete",
+        data: {
+          ...cancelTx,
+          ...gasSettings,
+        },
+      });
+
+      if (!steps[0].items.length || steps[0].items[0].status === "complete") {
+        steps = steps.slice(1);
+      }
+
       return {
-        steps: [
-          {
-            id: "cancellation",
-            action: "Submit cancellation",
-            description: `To cancel ${
-              isBulkCancel ? "these orders" : "this order"
-            } you must confirm the transaction and pay the gas fee`,
-            kind: "transaction",
-            items: [
-              {
-                status: "incomplete",
-                data: {
-                  ...cancelTx,
-                  ...gasSettings,
-                },
-              },
-            ],
-          },
-        ],
+        steps,
       };
     } catch (error) {
       logger.error(`get-execute-cancel-${version}-handler`, `Handler failure: ${error}`);

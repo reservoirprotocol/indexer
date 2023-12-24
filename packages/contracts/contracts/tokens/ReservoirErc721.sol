@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 contract ReservoirErc721 is ERC721, Ownable {
   // Fields
 
+  uint256 private nextTokenId;
   string private baseTokenURI;
   address private royaltyRecipient;
   uint256 private royaltyBps;
@@ -19,18 +20,22 @@ contract ReservoirErc721 is ERC721, Ownable {
   constructor(
     address _owner,
     string memory _baseTokenURI,
-    string memory _contractURI
+    string memory _contractURI,
+    address _royaltyRecipient,
+    uint256 _royaltyBps
   ) ERC721("Reservoir", "RSV") {
     baseTokenURI = _baseTokenURI;
     contractURI = _contractURI;
+    royaltyRecipient = _royaltyRecipient;
+    royaltyBps = _royaltyBps;
 
     _transferOwnership(_owner);
   }
 
   // Public methods
 
-  function mint(uint256 tokenId) external {
-    _mint(msg.sender, tokenId);
+  function mint() external {
+    _mint(msg.sender, nextTokenId++);
   }
 
   // Owner methods

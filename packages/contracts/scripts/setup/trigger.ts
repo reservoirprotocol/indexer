@@ -46,7 +46,7 @@ const writeDeployment = async (
 };
 
 const deploy = async (contractName: string, version: string, args: any[]) => {
-  const dh = await DeploymentHelper.getInstance(process.env.CREATE3_FACTORY_ADDRESS_OVERRIDE);
+  const dh = await DeploymentHelper.getInstance();
 
   if (args.some((arg) => !arg || arg === AddressZero || arg === HashZero)) {
     throw new Error("Invalid args");
@@ -81,7 +81,7 @@ const dv = async (contractName: string, version: string, args: any[]) => {
     await new Promise((resolve) => setTimeout(resolve, 30000));
     await verify(contractName, version, args);
   } catch (error) {
-    console.log(`Failed to deploy ${contractName}: ${error}`);
+    console.log(`Failed to deploy/verify ${contractName}: ${error}`);
   }
 };
 
@@ -94,17 +94,16 @@ export const trigger = {
         Sdk.SeaportBase.Addresses.ConduitController[chainId],
         Sdk.RouterV6.Addresses.Router[chainId],
       ]),
+    PermitProxy: async (chainId: number) =>
+      dv("PermitProxy", "v2", [
+        Sdk.RouterV6.Addresses.Router[chainId],
+        Sdk.Common.Addresses.GelatoRelay1BalanceERC2771[chainId],
+      ]),
     SeaportConduit: async (chainId: number) => {
       const contractName = "SeaportConduit";
       const version = "v1";
 
       try {
-        if (await readDeployment(contractName, version, chainId)) {
-          throw new Error(
-            `Version ${version} of ${contractName} already deployed on chain ${chainId}`
-          );
-        }
-
         const [deployer] = await ethers.getSigners();
 
         const conduitController = new Contract(
@@ -113,6 +112,7 @@ export const trigger = {
             "function getConduit(bytes32 conduitKey) view returns (address conduit, bool exists)",
             "function updateChannel(address conduit, address channel, bool isOpen)",
             "function createConduit(bytes32 conduitKey, address initialOwner)",
+            "function getChannelStatus(address conduit, address channel) view returns (bool)",
           ]),
           deployer
         );
@@ -122,6 +122,17 @@ export const trigger = {
         const result = await conduitController.getConduit(conduitKey);
         if (!result.exists) {
           await conduitController.createConduit(conduitKey, DEPLOYER);
+          await new Promise((resolve) => setTimeout(resolve, 30000));
+        }
+
+        // Grant ApprovalProxy
+        if (
+          Sdk.RouterV6.Addresses.ApprovalProxy[chainId] &&
+          !(await conduitController.getChannelStatus(
+            result.conduit,
+            Sdk.RouterV6.Addresses.ApprovalProxy[chainId]
+          ))
+        ) {
           await conduitController.updateChannel(
             result.conduit,
             Sdk.RouterV6.Addresses.ApprovalProxy[chainId],
@@ -129,7 +140,24 @@ export const trigger = {
           );
         }
 
-        await writeDeployment(result.conduit, contractName, version, chainId);
+        // Grant Seaport
+        if (
+          Sdk.SeaportV15.Addresses.Exchange[chainId] &&
+          !(await conduitController.getChannelStatus(
+            result.conduit,
+            Sdk.SeaportV15.Addresses.Exchange[chainId]
+          ))
+        ) {
+          await conduitController.updateChannel(
+            result.conduit,
+            Sdk.SeaportV15.Addresses.Exchange[chainId],
+            true
+          );
+        }
+
+        if (!(await readDeployment(contractName, version, chainId))) {
+          await writeDeployment(result.conduit, contractName, version, chainId);
+        }
       } catch (error) {
         console.log(`Failed to deploy ${contractName}: ${error}`);
       }
@@ -162,7 +190,7 @@ export const trigger = {
         Sdk.LooksRareV2.Addresses.Exchange[chainId],
       ]),
     NFTXModule: async (chainId: number) =>
-      dv("NFTXModule", "v1", [
+      dv("NFTXModule", "v2", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.Nftx.Addresses.MarketplaceZap[chainId],
@@ -174,7 +202,7 @@ export const trigger = {
         Sdk.Nftx.Addresses.ZeroExMarketplaceZap[chainId],
       ]),
     RaribleModule: async (chainId: number) =>
-      dv("RaribleModule", "v1", [
+      dv("RaribleModule", "v3", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.Rarible.Addresses.Exchange[chainId],
@@ -193,7 +221,7 @@ export const trigger = {
         Sdk.SeaportV14.Addresses.Exchange[chainId],
       ]),
     SeaportV15Module: async (chainId: number) =>
-      dv("SeaportV15Module", "v1", [
+      dv("SeaportV15Module", "v2", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.SeaportV15.Addresses.Exchange[chainId],
@@ -210,6 +238,14 @@ export const trigger = {
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.Sudoswap.Addresses.Router[chainId],
       ]),
+    SudoswapV2Module: async (chainId: number) =>
+      [1, 5].includes(chainId)
+        ? dv("SudoswapV2Module", "v2", [DEPLOYER, Sdk.RouterV6.Addresses.Router[chainId]])
+        : undefined,
+    CaviarV1Module: async (chainId: number) =>
+      [1, 5].includes(chainId)
+        ? dv("CaviarV1Module", "v1", [DEPLOYER, Sdk.RouterV6.Addresses.Router[chainId]])
+        : undefined,
     SuperRareModule: async (chainId: number) =>
       dv("SuperRareModule", "v1", [
         DEPLOYER,
@@ -217,11 +253,18 @@ export const trigger = {
         Sdk.SuperRare.Addresses.Bazaar[chainId],
       ]),
     SwapModule: async (chainId: number) =>
-      dv("SwapModule", "v1", [
+      dv("SwapModule", "v3", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
-        Sdk.Common.Addresses.Weth[chainId],
+        Sdk.Common.Addresses.WNative[chainId],
         Sdk.Common.Addresses.SwapRouter[chainId],
+      ]),
+    OneInchSwapModule: async (chainId: number) =>
+      dv("OneInchSwapModule", "v2", [
+        DEPLOYER,
+        Sdk.RouterV6.Addresses.Router[chainId],
+        Sdk.Common.Addresses.WNative[chainId],
+        Sdk.Common.Addresses.AggregationRouterV5[chainId],
       ]),
     X2Y2Module: async (chainId: number) =>
       dv("X2Y2Module", "v1", [
@@ -243,30 +286,64 @@ export const trigger = {
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.Zora.Addresses.Exchange[chainId],
       ]),
-    CollectionXyzModule: async (chainId: number) =>
-      dv("CollectionXyzModule", "v2", [
+    CryptoPunksModule: async (chainId: number) =>
+      dv("CryptoPunksModule", "v1", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
-        Sdk.CollectionXyz.Addresses.CollectionRouter[chainId],
+        Sdk.CryptoPunks.Addresses.Exchange[chainId],
       ]),
+    PaymentProcessorModule: async (chainId: number) =>
+      dv("PaymentProcessorModule", "v5", [
+        DEPLOYER,
+        Sdk.RouterV6.Addresses.Router[chainId],
+        Sdk.PaymentProcessor.Addresses.Exchange[chainId],
+      ]),
+    MintModule: async () => dv("MintModule", "v3", []),
   },
   // Utilities
   Utilities: {
-    LiteRoyaltyEngine: async () => dv("LiteRoyaltyEngine", "v1", []),
-  },
-  // Test NFTs
-  TestNFTs: {
-    Erc721: async () =>
-      dv("ReservoirErc721", "v1", [
-        DEPLOYER,
-        "https://test-tokens-metadata.vercel.app/api/erc721/",
-        "https://test-tokens-metadata.vercel.app/api/erc721/contract",
-      ]),
-    Erc1155: async () =>
-      dv("ReservoirErc1155", "v1", [
-        DEPLOYER,
-        "https://test-tokens-metadata.vercel.app/api/erc1155/",
-        "https://test-tokens-metadata.vercel.app/api/erc1155/contract",
-      ]),
+    OffChainCancellationZone: async (chainId: number) => {
+      if (!(await readDeployment("SignedZoneController", "v1", chainId))) {
+        await dv("SignedZoneController", "v1", []);
+      }
+
+      const [deployer] = await ethers.getSigners();
+
+      const controller = new Contract(
+        await readDeployment("SignedZoneController", "v1", chainId).then((a) => a!),
+        new Interface([
+          "function createZone(string zoneName, string apiEndpoint, string documentationURI, address initialOwner, bytes32 salt)",
+          "function getZone(bytes32 salt) view returns (address)",
+          "function getActiveSigners(address zone) view returns (address[])",
+          "function updateSigner(address zone, address signer, bool active)",
+        ]),
+        deployer
+      );
+
+      const salt = deployer.address.padEnd(66, "0");
+      const zoneAddress = await controller.getZone(salt).then((a: string) => a.toLowerCase());
+      const code = await ethers.provider.getCode(zoneAddress);
+      if (code === "0x") {
+        const tx = await controller.createZone(
+          "CancellationOracle",
+          "",
+          "",
+          deployer.address,
+          salt
+        );
+        await tx.wait();
+
+        console.log(`Deployed cancellation zone at address ${zoneAddress}`);
+      }
+
+      const oracleSigner = "0x32da57e736e05f75aa4fae2e9be60fd904492726";
+      const activeSigners = await controller
+        .getActiveSigners(zoneAddress)
+        .then((signers: string[]) => signers.map((s) => s.toLowerCase()));
+      if (!activeSigners.includes(oracleSigner)) {
+        await controller.updateSigner(zoneAddress, oracleSigner, true);
+        console.log(`Signer ${oracleSigner} configured`);
+      }
+    },
   },
 };

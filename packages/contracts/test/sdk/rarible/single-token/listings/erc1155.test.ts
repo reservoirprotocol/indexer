@@ -72,17 +72,9 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkFillability(ethers.provider);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerNftBalanceBefore).eq(mintTokensAmount.toString());
     expect(buyerNftBalanceBefore).eq(0);
@@ -98,19 +90,11 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await ethers.provider.getBalance(buyer.address);
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
 
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(price)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(price));
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(price));
     expect(sellerNftBalanceAfter).eq(0);
     expect(buyerNftBalanceAfter).eq(mintTokensAmount.toString());
@@ -159,17 +143,9 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkFillability(ethers.provider);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerNftBalanceBefore).eq(mintTokensAmount.toString());
     expect(buyerNftBalanceBefore).eq(0);
@@ -185,19 +161,11 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await ethers.provider.getBalance(buyer.address);
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
 
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(price)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(price));
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(price));
     expect(sellerNftBalanceAfter).eq(0);
     expect(buyerNftBalanceAfter).eq(mintTokensAmount.toString());
@@ -249,17 +217,9 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkFillability(ethers.provider);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerNftBalanceBefore).eq(mintTokensAmount.toString());
     expect(buyerNftBalanceBefore).eq(0);
@@ -275,19 +235,11 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await ethers.provider.getBalance(buyer.address);
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
 
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(price)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(price));
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(price));
     expect(sellerNftBalanceAfter).eq(0);
     expect(buyerNftBalanceAfter).eq(mintTokensAmount.toString());
@@ -336,17 +288,9 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkFillability(ethers.provider);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerNftBalanceBefore).eq(mintTokensAmount.toString());
     expect(buyerNftBalanceBefore).eq(0);
@@ -362,19 +306,11 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await ethers.provider.getBalance(buyer.address);
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
 
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(price)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(price));
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(price));
     expect(sellerNftBalanceAfter).eq(0);
     expect(buyerNftBalanceAfter).eq(mintTokensAmount.toString());
@@ -426,17 +362,9 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkFillability(ethers.provider);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerNftBalanceBefore).eq(mintTokensAmount.toString());
     expect(buyerNftBalanceBefore).eq(0);
@@ -452,26 +380,16 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await ethers.provider.getBalance(buyer.address);
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
 
     let priceAfterFees = price;
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
 
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(price)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(price));
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(priceAfterFees));
     expect(sellerNftBalanceAfter).eq(0);
     expect(buyerNftBalanceAfter).eq(mintTokensAmount.toString());
@@ -525,17 +443,9 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkFillability(ethers.provider);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerNftBalanceBefore).eq(mintTokensAmount.toString());
     expect(buyerNftBalanceBefore).eq(0);
@@ -551,28 +461,18 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await ethers.provider.getBalance(buyer.address);
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
 
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
     let fillPrice = price.div(mintTokensAmount).mul(fillAmount);
 
     let priceAfterFees = price.div(mintTokensAmount).mul(fillAmount);
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
 
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(fillPrice)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(fillPrice));
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(priceAfterFees));
     expect(sellerNftBalanceAfter).eq(mintTokensAmount - fillAmount);
     expect(buyerNftBalanceAfter).eq(fillAmount.toString());
@@ -629,17 +529,9 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkFillability(ethers.provider);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerNftBalanceBefore).eq(mintTokensAmount.toString());
     expect(buyerNftBalanceBefore).eq(0);
@@ -655,26 +547,16 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await ethers.provider.getBalance(buyer.address);
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
     const sellerPayoutPrice = price.mul(sellerPayoutBps).div("10000");
     let priceAfterFees = sellerPayoutPrice;
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
 
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(price)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(price));
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(priceAfterFees));
     expect(sellerNftBalanceAfter).eq(0);
     expect(buyerNftBalanceAfter).eq(mintTokensAmount.toString());
@@ -731,17 +613,9 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkFillability(ethers.provider);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerNftBalanceBefore).eq(mintTokensAmount.toString());
     expect(buyerNftBalanceBefore).eq(0);
@@ -757,14 +631,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await ethers.provider.getBalance(buyer.address);
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
     const fillPrice = price.div(mintTokensAmount).mul(fillAmount);
 
@@ -776,13 +644,9 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     let priceAfterFees = sellerPayoutPrice;
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(fillPrice)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(fillPrice));
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(priceAfterFees));
 
     expect(sellerNftBalanceAfter).eq(mintTokensAmount - fillAmount);
@@ -830,17 +694,9 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkFillability(ethers.provider);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerNftBalanceBefore).eq(mintTokensAmount.toString());
     expect(buyerNftBalanceBefore).eq(0);
@@ -856,19 +712,11 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await ethers.provider.getBalance(buyer.address);
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
 
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(price)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(price));
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(price));
     expect(sellerNftBalanceAfter).eq(0);
     expect(buyerNftBalanceAfter).eq(mintTokensAmount.toString());
@@ -915,17 +763,9 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkFillability(ethers.provider);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerNftBalanceBefore).eq(mintTokensAmount.toString());
     expect(buyerNftBalanceBefore).eq(0);
@@ -941,19 +781,11 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await ethers.provider.getBalance(buyer.address);
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
 
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(price)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(price));
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(price));
     expect(sellerNftBalanceAfter).eq(0);
     expect(buyerNftBalanceAfter).eq(mintTokensAmount.toString());
@@ -966,7 +798,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     const soldTokenId = 0;
     const mintTokensAmount = 4;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -1003,7 +835,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
       originFeeSecond: { account: dan.address, value: "100" },
       marketplaceMarker: "rarible",
       maxFeesBasePoint: 1000,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
     });
@@ -1014,14 +846,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkSignature();
     await sellOrder.checkFillability(ethers.provider);
 
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerBalanceBefore).to.eq(0);
     expect(buyerBalanceBefore).to.eq(price);
@@ -1036,14 +862,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await weth.getBalance(buyer.address);
     const sellerBalanceAfter = await weth.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(buyerBalanceAfter).to.be.eq(0);
     expect(sellerNftBalanceAfter).to.eq(0);
@@ -1058,7 +878,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     const mintTokensAmount = 4;
     const fillAmount = 2;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -1090,7 +910,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
       dataType: Rarible.Constants.ORDER_DATA_TYPES.V3_SELL,
       price: price.toString(),
       tokenAmount: mintTokensAmount,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       payouts: [],
@@ -1102,14 +922,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkSignature();
     await sellOrder.checkFillability(ethers.provider);
 
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerBalanceBefore).to.eq(0);
     expect(buyerBalanceBefore).to.eq(price);
@@ -1124,14 +938,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await weth.getBalance(buyer.address);
     const sellerBalanceAfter = await weth.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
 
     const filledPrice = price.div(mintTokensAmount).mul(fillAmount);
 
@@ -1183,17 +991,9 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkFillability(ethers.provider);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerNftBalanceBefore).eq(mintTokensAmount.toString());
     expect(buyerNftBalanceBefore).eq(0);
@@ -1208,19 +1008,11 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await ethers.provider.getBalance(buyer.address);
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
 
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(price)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(price));
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(price));
     expect(sellerNftBalanceAfter).eq(0);
     expect(buyerNftBalanceAfter).eq(mintTokensAmount.toString());
@@ -1268,17 +1060,9 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkFillability(ethers.provider);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerNftBalanceBefore).eq(mintTokensAmount);
     expect(buyerNftBalanceBefore).eq(0);
@@ -1293,20 +1077,12 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await ethers.provider.getBalance(buyer.address);
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
 
     const filledPrice = price.div(mintTokensAmount).mul(fillAmount);
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(filledPrice)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(filledPrice));
 
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(filledPrice));
     expect(sellerNftBalanceAfter).eq(mintTokensAmount - fillAmount);
@@ -1355,17 +1131,9 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkFillability(ethers.provider);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerNftBalanceBefore).eq(mintTokensAmount.toString());
     expect(buyerNftBalanceBefore).eq(0);
@@ -1381,23 +1149,15 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await ethers.provider.getBalance(buyer.address);
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
 
     let priceAfterFees = price;
     priceAfterFees = priceAfterFees.sub(
       priceAfterFees.mul(BigNumber.from(revenueSplitBpsA)).div(10000)
     );
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(price)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(price));
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(priceAfterFees));
     expect(sellerNftBalanceAfter).eq(0);
     expect(buyerNftBalanceAfter).eq(mintTokensAmount.toString());
@@ -1448,17 +1208,9 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkFillability(ethers.provider);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerNftBalanceBefore).eq(mintTokensAmount.toString());
     expect(buyerNftBalanceBefore).eq(0);
@@ -1474,14 +1226,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await ethers.provider.getBalance(buyer.address);
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
 
     let fillPrice = price.div(mintTokensAmount).mul(fillAmount);
@@ -1489,9 +1235,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     priceAfterFees = priceAfterFees.sub(
       priceAfterFees.mul(BigNumber.from(revenueSplitBpsA)).div(10000)
     );
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(fillPrice)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(fillPrice));
 
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(priceAfterFees));
     expect(sellerNftBalanceAfter).eq(mintTokensAmount - fillAmount);
@@ -1505,7 +1249,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     const soldTokenId = 0;
     const mintTokensAmount = 4;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -1537,7 +1281,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
       tokenId: soldTokenId.toString(),
       price: price.toString(),
       tokenAmount: mintTokensAmount,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V2,
@@ -1553,14 +1297,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkSignature();
     await sellOrder.checkFillability(ethers.provider);
 
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerBalanceBefore).to.eq(0);
     expect(buyerBalanceBefore).to.eq(price);
@@ -1575,20 +1313,12 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await weth.getBalance(buyer.address);
     const sellerBalanceAfter = await weth.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
 
     let priceAfterFees = price;
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
 
     expect(buyerBalanceAfter).to.be.eq(0);
@@ -1648,17 +1378,9 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkFillability(ethers.provider);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerNftBalanceBefore).eq(mintTokensAmount);
     expect(buyerNftBalanceBefore).eq(0);
@@ -1673,26 +1395,16 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await ethers.provider.getBalance(buyer.address);
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
 
     let priceAfterFees = price;
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
 
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(price)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(price));
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(priceAfterFees));
     expect(sellerNftBalanceAfter).eq(0);
     expect(buyerNftBalanceAfter).eq(mintTokensAmount);
@@ -1744,17 +1456,9 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkFillability(ethers.provider);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerNftBalanceBefore).eq(mintTokensAmount.toString());
     expect(buyerNftBalanceBefore).eq(0);
@@ -1770,25 +1474,15 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await ethers.provider.getBalance(buyer.address);
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
     const fillPrice = price.div(mintTokensAmount).mul(fillAmount);
     let priceAfterFees = price.div(mintTokensAmount).mul(fillAmount);
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(fillPrice)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(fillPrice));
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(priceAfterFees));
     expect(sellerNftBalanceAfter).eq(mintTokensAmount - fillAmount);
     expect(buyerNftBalanceAfter).eq(fillAmount).toString();
@@ -1802,7 +1496,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     const soldTokenId = 0;
     const mintTokensAmount = 4;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -1851,14 +1545,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkSignature();
     await sellOrder.checkFillability(ethers.provider);
 
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerBalanceBefore).to.eq(0);
     expect(buyerBalanceBefore).to.eq(price);
@@ -1874,14 +1562,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await weth.getBalance(buyer.address);
     const sellerBalanceAfter = await weth.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(buyerBalanceAfter).to.be.eq(0);
     expect(sellerNftBalanceAfter).to.eq(0);
@@ -1894,7 +1576,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     const soldTokenId = 0;
     const mintTokensAmount = 4;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -1943,14 +1625,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkSignature();
     await sellOrder.checkFillability(ethers.provider);
 
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerBalanceBefore).to.eq(0);
     expect(buyerBalanceBefore).to.eq(price);
@@ -1966,14 +1642,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await weth.getBalance(buyer.address);
     const sellerBalanceAfter = await weth.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(buyerBalanceAfter).to.be.eq(0);
     expect(sellerNftBalanceAfter).to.eq(0);
@@ -1986,7 +1656,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     const soldTokenId = 0;
     const mintTokensAmount = 4;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -2034,14 +1704,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkSignature();
     await sellOrder.checkFillability(ethers.provider);
 
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerBalanceBefore).to.eq(0);
     expect(buyerBalanceBefore).to.eq(price);
@@ -2057,14 +1721,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await weth.getBalance(buyer.address);
     const sellerBalanceAfter = await weth.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(buyerBalanceAfter).to.be.eq(0);
     expect(sellerNftBalanceAfter).to.eq(0);
@@ -2077,7 +1735,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     const soldTokenId = 0;
     const mintTokensAmount = 4;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -2125,14 +1783,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkSignature();
     await sellOrder.checkFillability(ethers.provider);
 
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerBalanceBefore).to.eq(0);
     expect(buyerBalanceBefore).to.eq(price);
@@ -2148,14 +1800,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await weth.getBalance(buyer.address);
     const sellerBalanceAfter = await weth.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(buyerBalanceAfter).to.be.eq(0);
     expect(sellerNftBalanceAfter).to.eq(0);
@@ -2171,7 +1817,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     const revenueSplitBpsA = "300";
     const revenueSplitBpsB = "400";
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -2201,7 +1847,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
       tokenId: soldTokenId.toString(),
       price: price.toString(),
       tokenAmount: mintTokensAmount,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V2,
@@ -2219,14 +1865,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkSignature();
     await sellOrder.checkFillability(ethers.provider);
 
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerBalanceBefore).to.eq(0);
     expect(buyerBalanceBefore).to.eq(price);
@@ -2244,19 +1884,11 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await weth.getBalance(buyer.address);
     const sellerBalanceAfter = await weth.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
     let priceAfterFees = price;
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
 
     expect(buyerBalanceAfter).to.be.eq(0);
@@ -2275,7 +1907,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     const revenueSplitBpsA = "300";
     const revenueSplitBpsB = "400";
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -2305,7 +1937,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
       tokenId: soldTokenId.toString(),
       price: price.toString(),
       tokenAmount: mintTokensAmount,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V2,
@@ -2324,14 +1956,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkSignature();
     await sellOrder.checkFillability(ethers.provider);
 
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerBalanceBefore).to.eq(0);
     expect(buyerBalanceBefore).to.eq(price);
@@ -2347,20 +1973,12 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await weth.getBalance(buyer.address);
     const sellerBalanceAfter = await weth.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
     let fillPrice = price.div(mintTokensAmount).mul(fillAmount);
     let priceAfterFees = price.div(mintTokensAmount).mul(fillAmount);
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
 
     expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(fillPrice));
@@ -2379,7 +1997,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     const revenueSplitBpsB = "400";
     const sellerPayoutBps = "9000";
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -2409,7 +2027,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
       tokenId: soldTokenId.toString(),
       price: price.toString(),
       tokenAmount: mintTokensAmount,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V2,
@@ -2431,14 +2049,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkSignature();
     await sellOrder.checkFillability(ethers.provider);
 
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerBalanceBefore).to.eq(0);
     expect(buyerBalanceBefore).to.eq(price);
@@ -2454,26 +2066,16 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await weth.getBalance(buyer.address);
     const sellerBalanceAfter = await weth.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
 
     let priceAfterFees = price.mul(sellerPayoutBps).div("10000");
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
 
     expect(buyerBalanceAfter).to.be.eq(0);
-    expect(sellerBalanceAfter).to.be.eq(
-      sellerBalanceBefore.add(priceAfterFees)
-    );
+    expect(sellerBalanceAfter).to.be.eq(sellerBalanceBefore.add(priceAfterFees));
     expect(sellerNftBalanceAfter).to.eq(0);
     expect(buyerNftBalanceAfter).to.eq(mintTokensAmount);
   });
@@ -2489,7 +2091,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     const revenueSplitBpsB = "400";
     const sellerPayoutBps = "9000";
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -2519,7 +2121,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
       tokenId: soldTokenId.toString(),
       price: price.toString(),
       tokenAmount: mintTokensAmount,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V2,
@@ -2541,14 +2143,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkSignature();
     await sellOrder.checkFillability(ethers.provider);
 
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerBalanceBefore).to.eq(0);
     expect(buyerBalanceBefore).to.eq(price);
@@ -2564,14 +2160,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await weth.getBalance(buyer.address);
     const sellerBalanceAfter = await weth.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
 
     const fillPrice = price.div(mintTokensAmount).mul(fillAmount);
 
@@ -2583,15 +2173,11 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     let priceAfterFees = sellerPayoutPrice;
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
 
     expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(fillPrice));
-    expect(sellerBalanceAfter).to.be.eq(
-      sellerBalanceBefore.add(priceAfterFees)
-    );
+    expect(sellerBalanceAfter).to.be.eq(sellerBalanceBefore.add(priceAfterFees));
     expect(sellerNftBalanceAfter).to.eq(mintTokensAmount - fillAmount);
     expect(buyerNftBalanceAfter).to.eq(fillAmount);
   });
@@ -2603,7 +2189,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     const soldTokenId = 0;
     const mintTokensAmount = 4;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -2633,7 +2219,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
       tokenId: soldTokenId.toString(),
       price: price.toString(),
       tokenAmount: mintTokensAmount,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V2,
@@ -2648,14 +2234,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkSignature();
     await sellOrder.checkFillability(ethers.provider);
 
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerBalanceBefore).to.eq(0);
     expect(buyerBalanceBefore).to.eq(price);
@@ -2671,14 +2251,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await weth.getBalance(buyer.address);
     const sellerBalanceAfter = await weth.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerBalanceAfter).to.be.eq(sellerBalanceBefore.add(price));
     expect(buyerBalanceAfter).to.be.eq(0);
@@ -2693,7 +2267,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     const soldTokenId = 0;
     const mintTokensAmount = 4;
     const fillAmount = 2;
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -2723,7 +2297,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
       tokenId: soldTokenId.toString(),
       price: price.toString(),
       tokenAmount: mintTokensAmount,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V2,
@@ -2738,14 +2312,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkSignature();
     await sellOrder.checkFillability(ethers.provider);
 
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerBalanceBefore).to.eq(0);
     expect(buyerBalanceBefore).to.eq(price);
@@ -2761,14 +2329,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await weth.getBalance(buyer.address);
     const sellerBalanceAfter = await weth.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
     const fillPrice = price.div(mintTokensAmount).mul(fillAmount);
     expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(fillPrice));
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(fillPrice));
@@ -2783,7 +2345,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     const soldTokenId = 0;
     const mintTokensAmount = 4;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -2820,7 +2382,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
       // originFeeSecond: { account: dan.address, value: '100' },
       marketplaceMarker: "rarible",
       maxFeesBasePoint: 1000,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       isMakeFill: true,
@@ -2832,14 +2394,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkSignature();
     await sellOrder.checkFillability(ethers.provider);
 
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerBalanceBefore).to.eq(0);
     expect(buyerBalanceBefore).to.eq(price);
@@ -2854,14 +2410,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await weth.getBalance(buyer.address);
     const sellerBalanceAfter = await weth.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(buyerBalanceAfter).to.be.eq(0);
     expect(sellerNftBalanceAfter).to.eq(0);
@@ -2876,7 +2426,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     const mintTokensAmount = 4;
     const fillAmount = 2;
     const revenueSplitBpsA = "150";
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -2912,7 +2462,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
       originFeeFirst: { account: charlie.address, value: revenueSplitBpsA },
       marketplaceMarker: "rarible",
       maxFeesBasePoint: 1000,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
     });
@@ -2923,14 +2473,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkSignature();
     await sellOrder.checkFillability(ethers.provider);
 
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerBalanceBefore).to.eq(0);
     expect(buyerBalanceBefore).to.eq(price);
@@ -2945,14 +2489,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await weth.getBalance(buyer.address);
     const sellerBalanceAfter = await weth.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
 
     const priceAfterFill = price.div(mintTokensAmount).mul(fillAmount);
     let priceAfterFees = price.div(mintTokensAmount).mul(fillAmount);
@@ -2974,7 +2512,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     const mintTokensAmount = 4;
     const revenueSplitBpsA = "100";
     const revenueSplitBpsB = "150";
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -3011,7 +2549,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
       originFeeSecond: { account: dan.address, value: revenueSplitBpsB },
       marketplaceMarker: "rarible",
       maxFeesBasePoint: 1000,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
     });
@@ -3022,14 +2560,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkSignature();
     await sellOrder.checkFillability(ethers.provider);
 
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerBalanceBefore).to.eq(0);
     expect(buyerBalanceBefore).to.eq(price);
@@ -3044,20 +2576,12 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await weth.getBalance(buyer.address);
     const sellerBalanceAfter = await weth.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
 
     let priceAfterFees = price;
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
 
     expect(buyerBalanceAfter).to.be.eq(0);
@@ -3073,7 +2597,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     const soldTokenId = 0;
     const mintTokensAmount = 4;
     const fillAmount = 2;
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -3110,7 +2634,7 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
       // originFeeSecond: { account: dan.address, value: '100' },
       marketplaceMarker: "rarible",
       maxFeesBasePoint: 1000,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       // isMakeFill: false
@@ -3122,14 +2646,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
     await sellOrder.checkSignature();
     await sellOrder.checkFillability(ethers.provider);
 
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
 
     expect(sellerBalanceBefore).to.eq(0);
     expect(buyerBalanceBefore).to.eq(price);
@@ -3145,14 +2663,8 @@ describe("Rarible - SingleToken Listings Erc1155", () => {
 
     const buyerBalanceAfter = await weth.getBalance(buyer.address);
     const sellerBalanceAfter = await weth.getBalance(seller.address);
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
     const fillPrice = price.div(mintTokensAmount).mul(fillAmount);
 
     expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(fillPrice));

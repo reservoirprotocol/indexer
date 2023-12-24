@@ -31,7 +31,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
   for (const { subKind, baseEventParams, log } of events) {
     const eventData = getEventData([subKind])[0];
     switch (subKind) {
-      // Zora
       case "zora-ask-filled": {
         const { args } = eventData.abi.parseLog(log);
         const tokenContract = args["tokenContract"].toLowerCase();
@@ -242,6 +241,65 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           taker,
           maker: tokenOwner,
         });
+
+        break;
+      }
+
+      case "zora-sales-config-changed": {
+        onChainData.mints.push({
+          by: "collection",
+          data: {
+            standard: "zora",
+            collection: baseEventParams.address,
+          },
+        });
+
+        break;
+      }
+
+      case "zora-updated-token": {
+        const { args } = eventData.abi.parseLog(log);
+        onChainData.mints.push({
+          by: "collection",
+          data: {
+            standard: "zora",
+            collection: baseEventParams.address,
+            tokenId: args["tokenId"].toString(),
+          },
+        });
+
+        break;
+      }
+
+      case "zora-custom-mint-comment":
+      case "zora-mint-comment": {
+        const { args } = eventData.abi.parseLog(log);
+        const token = args["tokenContract"].toLowerCase();
+        const comment = args["comment"];
+        const quantity = args["quantity"].toString();
+
+        if (subKind === "zora-custom-mint-comment") {
+          for (let i = 0; i < quantity; i++) {
+            onChainData.mintComments.push({
+              token,
+              quantity,
+              comment,
+              baseEventParams,
+            });
+          }
+        } else {
+          const firstMintedTokenId = args["tokenId"];
+          for (let i = 0; i < Number(quantity); i++) {
+            const tokenId = firstMintedTokenId.add(i + 1);
+            onChainData.mintComments.push({
+              token,
+              tokenId: tokenId.toString(),
+              quantity,
+              comment,
+              baseEventParams,
+            });
+          }
+        }
 
         break;
       }

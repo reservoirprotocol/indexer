@@ -5,9 +5,11 @@ import { bn } from "@/common/utils";
 
 export interface BaseOrderBuildOptions {
   maker: string;
+  taker?: string;
   contract?: string;
   weiPrice: string;
-  orderbook: "opensea" | "reservoir";
+  endWeiPrice?: string;
+  orderbook: "opensea" | "reservoir" | "looks-rare";
   useOffChainCancellation?: boolean;
   replaceOrderId?: string;
   orderType?: Sdk.SeaportBase.Types.OrderType;

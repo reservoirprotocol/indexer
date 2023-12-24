@@ -6,6 +6,7 @@ import { Interface } from "@ethersproject/abi";
 import { Signer } from "@ethersproject/abstract-signer";
 import { Contract } from "@ethersproject/contracts";
 import { keccak256 } from "@ethersproject/solidity";
+import * as Sdk from "@reservoir0x/sdk/src";
 import hre, { ethers } from "hardhat";
 
 export class DeploymentHelper {
@@ -17,22 +18,29 @@ export class DeploymentHelper {
   private constructor(
     deployer: Signer,
     chainId: number,
-    overrides?: {
-      create3FactoryAddress?: string;
+    overrides: {
+      create3FactoryAddress: string;
     }
   ) {
     this.deployer = deployer;
     this.chainId = chainId;
-
-    // Default: https://github.com/lifinance/create3-factory
-    this.create3FactoryAddress =
-      overrides?.create3FactoryAddress ?? "0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1";
+    this.create3FactoryAddress = overrides.create3FactoryAddress;
   }
 
-  public static async getInstance(create3FactoryAddress?: string): Promise<DeploymentHelper> {
+  public static async getInstance(): Promise<DeploymentHelper> {
     const [deployer] = await ethers.getSigners();
-
     const chainId = await deployer.getChainId();
+
+    // Default: https://github.com/lifinance/create3-factory
+    let create3FactoryAddress = "0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1";
+    const code = await ethers.provider.getCode(create3FactoryAddress);
+    if (!code || code === "0x") {
+      create3FactoryAddress = Sdk.Common.Addresses.Create3Factory[chainId];
+    }
+    if (!create3FactoryAddress) {
+      throw new Error("No CREATE3 factory available");
+    }
+
     return new DeploymentHelper(deployer, chainId, { create3FactoryAddress });
   }
 
@@ -61,7 +69,15 @@ export class DeploymentHelper {
       .getContractFactory(contractName, this.deployer)
       .then((factory) => factory.getDeployTransaction(...args).data);
 
-    await create3Factory.deploy(salt, creationCode);
+    await create3Factory.deploy(
+      salt,
+      creationCode,
+      // Overrides for some edge-cases
+      {
+        // maxFeePerGas: "2000000000",
+        // maxPriorityFeePerGas: "500000000",
+      }
+    );
 
     const deploymentAddress: string = await create3Factory.getDeployed(
       await this.deployer.getAddress(),

@@ -52,8 +52,8 @@ export const getBuildInfo = async (
     maker: options.maker,
     paymentToken:
       side === "sell"
-        ? Sdk.ZeroExV4.Addresses.Eth[config.chainId]
-        : Sdk.Common.Addresses.Weth[config.chainId],
+        ? Sdk.ZeroExV4.Addresses.Native[config.chainId]
+        : Sdk.Common.Addresses.WNative[config.chainId],
     price: options.weiPrice,
     fees: [],
     amount: collectionResult.kind === "erc1155" ? options.quantity ?? "1" : undefined,

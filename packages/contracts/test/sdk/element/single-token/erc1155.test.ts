@@ -6,12 +6,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
-import {
-  getChainId,
-  getCurrentTimestamp,
-  reset,
-  setupNFTs,
-} from "../../../utils";
+import { getChainId, getCurrentTimestamp, reset, setupNFTs } from "../../../utils";
 
 describe("Element - SingleToken Erc1155", () => {
   const chainId = getChainId();
@@ -38,7 +33,7 @@ describe("Element - SingleToken Erc1155", () => {
     const price = parseEther("1");
     const boughtTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -62,7 +57,7 @@ describe("Element - SingleToken Erc1155", () => {
       contract: erc1155.address,
       tokenId: boughtTokenId,
       amount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       price,
       hashNonce: 0,
       expiry: (await getCurrentTimestamp(ethers.provider)) + 60,
@@ -72,9 +67,7 @@ describe("Element - SingleToken Erc1155", () => {
     await buyOrder.sign(buyer);
 
     // Approve the exchange for escrowing.
-    await erc1155
-      .connect(seller)
-      .setApprovalForAll(Element.Addresses.Exchange[chainId], true);
+    await erc1155.connect(seller).setApprovalForAll(Element.Addresses.Exchange[chainId], true);
 
     // Create matching sell order
     const sellOrder = buyOrder.buildMatching({ amount: 1 });
@@ -82,14 +75,8 @@ describe("Element - SingleToken Erc1155", () => {
     await buyOrder.checkFillability(ethers.provider);
 
     const buyerWethBalanceBefore = await weth.getBalance(buyer.address);
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      boughtTokenId
-    );
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      boughtTokenId
-    );
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, boughtTokenId);
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, boughtTokenId);
 
     expect(buyerWethBalanceBefore).to.eq(price);
     expect(buyerNftBalanceBefore).to.eq(0);
@@ -99,14 +86,8 @@ describe("Element - SingleToken Erc1155", () => {
     await exchange.fillOrder(seller, buyOrder, sellOrder);
 
     const buyerWethBalanceAfter = await weth.getBalance(buyer.address);
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      boughtTokenId
-    );
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      boughtTokenId
-    );
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, boughtTokenId);
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, boughtTokenId);
 
     expect(buyerWethBalanceAfter).to.eq(0);
     expect(buyerNftBalanceAfter).to.eq(1);
@@ -120,7 +101,7 @@ describe("Element - SingleToken Erc1155", () => {
     const price = parseEther("1.8");
     const boughtTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price.add(parseEther("0.3")));
@@ -146,7 +127,7 @@ describe("Element - SingleToken Erc1155", () => {
       contract: erc1155.address,
       tokenId: boughtTokenId,
       amount: 3,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       price,
       hashNonce: 0,
       fees: [
@@ -162,13 +143,9 @@ describe("Element - SingleToken Erc1155", () => {
     await buyOrder.sign(buyer);
 
     // Approve the exchange for escrowing.
-    await erc1155
-      .connect(seller1)
-      .setApprovalForAll(Element.Addresses.Exchange[chainId], true);
+    await erc1155.connect(seller1).setApprovalForAll(Element.Addresses.Exchange[chainId], true);
 
-    await erc1155
-      .connect(seller2)
-      .setApprovalForAll(Element.Addresses.Exchange[chainId], true);
+    await erc1155.connect(seller2).setApprovalForAll(Element.Addresses.Exchange[chainId], true);
 
     await buyOrder.checkFillability(ethers.provider);
 
@@ -179,14 +156,8 @@ describe("Element - SingleToken Erc1155", () => {
       // Create matching sell order
       const sellOrder = buyOrder.buildMatching({ amount: 2 });
 
-      const buyerNftBalanceBefore = await nft.getBalance(
-        buyer.address,
-        boughtTokenId
-      );
-      const sellerNftBalanceBefore = await nft.getBalance(
-        seller.address,
-        boughtTokenId
-      );
+      const buyerNftBalanceBefore = await nft.getBalance(buyer.address, boughtTokenId);
+      const sellerNftBalanceBefore = await nft.getBalance(seller.address, boughtTokenId);
 
       expect(buyerNftBalanceBefore).to.eq(0);
       expect(sellerNftBalanceBefore).to.eq(2);
@@ -196,21 +167,11 @@ describe("Element - SingleToken Erc1155", () => {
 
       const buyerWethBalanceAfter = await weth.getBalance(buyer.address);
       const tedWethBalanceAfter = await weth.getBalance(ted.address);
-      const buyerNftBalanceAfter = await nft.getBalance(
-        buyer.address,
-        boughtTokenId
-      );
-      const sellerNftBalanceAfter = await nft.getBalance(
-        seller.address,
-        boughtTokenId
-      );
+      const buyerNftBalanceAfter = await nft.getBalance(buyer.address, boughtTokenId);
+      const sellerNftBalanceAfter = await nft.getBalance(seller.address, boughtTokenId);
 
       expect(buyerWethBalanceAfter).to.eq(
-        price.add(
-          parseEther("0.3")
-            .sub(price.mul(2).div(3))
-            .sub(parseEther("0.3").mul(2).div(3))
-        )
+        price.add(parseEther("0.3").sub(price.mul(2).div(3)).sub(parseEther("0.3").mul(2).div(3)))
       );
       expect(tedWethBalanceAfter).to.eq(parseEther("0.3").mul(2).div(3));
       expect(buyerNftBalanceAfter).to.eq(2);
@@ -224,14 +185,8 @@ describe("Element - SingleToken Erc1155", () => {
       // Create matching sell order
       const sellOrder = buyOrder.buildMatching({ amount: 1 });
 
-      const buyerNftBalanceBefore = await nft.getBalance(
-        buyer.address,
-        boughtTokenId
-      );
-      const sellerNftBalanceBefore = await nft.getBalance(
-        seller.address,
-        boughtTokenId
-      );
+      const buyerNftBalanceBefore = await nft.getBalance(buyer.address, boughtTokenId);
+      const sellerNftBalanceBefore = await nft.getBalance(seller.address, boughtTokenId);
 
       expect(buyerNftBalanceBefore).to.eq(2);
       expect(sellerNftBalanceBefore).to.eq(1);
@@ -241,14 +196,8 @@ describe("Element - SingleToken Erc1155", () => {
 
       const buyerWethBalanceAfter = await weth.getBalance(buyer.address);
       const tedWethBalanceAfter = await weth.getBalance(ted.address);
-      const buyerNftBalanceAfter = await nft.getBalance(
-        buyer.address,
-        boughtTokenId
-      );
-      const sellerNftBalanceAfter = await nft.getBalance(
-        seller.address,
-        boughtTokenId
-      );
+      const buyerNftBalanceAfter = await nft.getBalance(buyer.address, boughtTokenId);
+      const sellerNftBalanceAfter = await nft.getBalance(seller.address, boughtTokenId);
 
       expect(buyerWethBalanceAfter).to.eq(0);
       expect(tedWethBalanceAfter).to.eq(parseEther("0.3"));
@@ -283,7 +232,7 @@ describe("Element - SingleToken Erc1155", () => {
       tokenId: soldTokenId,
       amount: 1,
       hashNonce: 0,
-      paymentToken: Element.Addresses.Eth[chainId],
+      paymentToken: Element.Addresses.Native[chainId],
       price,
       expiry: (await getCurrentTimestamp(ethers.provider)) + 60,
     });
@@ -292,29 +241,17 @@ describe("Element - SingleToken Erc1155", () => {
     await sellOrder.sign(seller);
 
     // Approve the exchange for escrowing.
-    await erc1155
-      .connect(seller)
-      .setApprovalForAll(Element.Addresses.Exchange[chainId], true);
+    await erc1155.connect(seller).setApprovalForAll(Element.Addresses.Exchange[chainId], true);
 
     // Create matching buy order
     const buyOrder = sellOrder.buildMatching({ amount: 1 });
 
     await sellOrder.checkFillability(ethers.provider);
 
-    const buyerEthBalanceBefore = await ethers.provider.getBalance(
-      buyer.address
-    );
-    const sellerEthBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
-    const buyerNftBalanceBefore = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
-    const sellerNftBalanceBefore = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
+    const buyerEthBalanceBefore = await ethers.provider.getBalance(buyer.address);
+    const sellerEthBalanceBefore = await ethers.provider.getBalance(seller.address);
+    const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
+    const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
 
     expect(buyerNftBalanceBefore).to.eq(0);
     expect(sellerNftBalanceBefore).to.eq(1);
@@ -322,20 +259,10 @@ describe("Element - SingleToken Erc1155", () => {
     // Match orders
     await exchange.fillOrder(buyer, sellOrder, buyOrder);
 
-    const buyerEthBalanceAfter = await ethers.provider.getBalance(
-      buyer.address
-    );
-    const sellerEthBalanceAfter = await ethers.provider.getBalance(
-      seller.address
-    );
-    const buyerNftBalanceAfter = await nft.getBalance(
-      buyer.address,
-      soldTokenId
-    );
-    const sellerNftBalanceAfter = await nft.getBalance(
-      seller.address,
-      soldTokenId
-    );
+    const buyerEthBalanceAfter = await ethers.provider.getBalance(buyer.address);
+    const sellerEthBalanceAfter = await ethers.provider.getBalance(seller.address);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
 
     expect(buyerEthBalanceBefore.sub(buyerEthBalanceAfter)).to.be.gt(price);
     expect(sellerEthBalanceAfter).to.eq(sellerEthBalanceBefore.add(price));
@@ -371,7 +298,7 @@ describe("Element - SingleToken Erc1155", () => {
       contract: erc1155.address,
       tokenId: soldTokenId,
       amount: 3,
-      paymentToken: Element.Addresses.Eth[chainId],
+      paymentToken: Element.Addresses.Native[chainId],
       price,
       hashNonce: 0,
       fees: [
@@ -387,9 +314,7 @@ describe("Element - SingleToken Erc1155", () => {
     await sellOrder.sign(seller);
 
     // Approve the exchange for escrowing.
-    await erc1155
-      .connect(seller)
-      .setApprovalForAll(Element.Addresses.Exchange[chainId], true);
+    await erc1155.connect(seller).setApprovalForAll(Element.Addresses.Exchange[chainId], true);
 
     await sellOrder.checkFillability(ethers.provider);
 
@@ -400,21 +325,11 @@ describe("Element - SingleToken Erc1155", () => {
       // Create matching buy order
       const buyOrder = sellOrder.buildMatching({ amount: 2 });
 
-      const buyerEthBalanceBefore = await ethers.provider.getBalance(
-        buyer.address
-      );
-      const sellerEthBalanceBefore = await ethers.provider.getBalance(
-        seller.address
-      );
+      const buyerEthBalanceBefore = await ethers.provider.getBalance(buyer.address);
+      const sellerEthBalanceBefore = await ethers.provider.getBalance(seller.address);
       const tedEthBalanceBefore = await ethers.provider.getBalance(ted.address);
-      const buyerNftBalanceBefore = await nft.getBalance(
-        buyer.address,
-        soldTokenId
-      );
-      const sellerNftBalanceBefore = await nft.getBalance(
-        seller.address,
-        soldTokenId
-      );
+      const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
+      const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
 
       expect(buyerNftBalanceBefore).to.eq(0);
       expect(sellerNftBalanceBefore).to.eq(3);
@@ -422,31 +337,15 @@ describe("Element - SingleToken Erc1155", () => {
       // Match orders
       await exchange.fillOrder(buyer, sellOrder, buyOrder);
 
-      const buyerEthBalanceAfter = await ethers.provider.getBalance(
-        buyer.address
-      );
-      const sellerEthBalanceAfter = await ethers.provider.getBalance(
-        seller.address
-      );
+      const buyerEthBalanceAfter = await ethers.provider.getBalance(buyer.address);
+      const sellerEthBalanceAfter = await ethers.provider.getBalance(seller.address);
       const tedEthBalanceAfter = await ethers.provider.getBalance(ted.address);
-      const buyerNftBalanceAfter = await nft.getBalance(
-        buyer.address,
-        soldTokenId
-      );
-      const sellerNftBalanceAfter = await nft.getBalance(
-        seller.address,
-        soldTokenId
-      );
+      const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
+      const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
 
-      expect(buyerEthBalanceBefore.sub(buyerEthBalanceAfter)).to.be.gt(
-        price.mul(2).div(3)
-      );
-      expect(sellerEthBalanceAfter).to.be.gte(
-        sellerEthBalanceBefore.add(price.mul(2).div(3))
-      );
-      expect(tedEthBalanceAfter.sub(tedEthBalanceBefore)).to.eq(
-        parseEther("0.3").mul(2).div(3)
-      );
+      expect(buyerEthBalanceBefore.sub(buyerEthBalanceAfter)).to.be.gt(price.mul(2).div(3));
+      expect(sellerEthBalanceAfter).to.be.gte(sellerEthBalanceBefore.add(price.mul(2).div(3)));
+      expect(tedEthBalanceAfter.sub(tedEthBalanceBefore)).to.eq(parseEther("0.3").mul(2).div(3));
       expect(buyerNftBalanceAfter).to.eq(2);
       expect(sellerNftBalanceAfter).to.eq(1);
     }
@@ -458,21 +357,11 @@ describe("Element - SingleToken Erc1155", () => {
       // Create matching buy order
       const buyOrder = sellOrder.buildMatching({ amount: 1 });
 
-      const buyerEthBalanceBefore = await ethers.provider.getBalance(
-        buyer.address
-      );
-      const sellerEthBalanceBefore = await ethers.provider.getBalance(
-        seller.address
-      );
+      const buyerEthBalanceBefore = await ethers.provider.getBalance(buyer.address);
+      const sellerEthBalanceBefore = await ethers.provider.getBalance(seller.address);
       const tedEthBalanceBefore = await ethers.provider.getBalance(ted.address);
-      const buyerNftBalanceBefore = await nft.getBalance(
-        buyer.address,
-        soldTokenId
-      );
-      const sellerNftBalanceBefore = await nft.getBalance(
-        seller.address,
-        soldTokenId
-      );
+      const buyerNftBalanceBefore = await nft.getBalance(buyer.address, soldTokenId);
+      const sellerNftBalanceBefore = await nft.getBalance(seller.address, soldTokenId);
 
       expect(buyerNftBalanceBefore).to.eq(0);
       expect(sellerNftBalanceBefore).to.eq(1);
@@ -480,31 +369,15 @@ describe("Element - SingleToken Erc1155", () => {
       // Match orders
       await exchange.fillOrder(buyer, sellOrder, buyOrder);
 
-      const buyerEthBalanceAfter = await ethers.provider.getBalance(
-        buyer.address
-      );
-      const sellerEthBalanceAfter = await ethers.provider.getBalance(
-        seller.address
-      );
+      const buyerEthBalanceAfter = await ethers.provider.getBalance(buyer.address);
+      const sellerEthBalanceAfter = await ethers.provider.getBalance(seller.address);
       const tedEthBalanceAfter = await ethers.provider.getBalance(ted.address);
-      const buyerNftBalanceAfter = await nft.getBalance(
-        buyer.address,
-        soldTokenId
-      );
-      const sellerNftBalanceAfter = await nft.getBalance(
-        seller.address,
-        soldTokenId
-      );
+      const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
+      const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
 
-      expect(buyerEthBalanceBefore.sub(buyerEthBalanceAfter)).to.be.gt(
-        price.mul(1).div(3)
-      );
-      expect(sellerEthBalanceAfter).to.be.gte(
-        sellerEthBalanceBefore.add(price.mul(1).div(3))
-      );
-      expect(tedEthBalanceAfter.sub(tedEthBalanceBefore)).to.eq(
-        parseEther("0.1")
-      );
+      expect(buyerEthBalanceBefore.sub(buyerEthBalanceAfter)).to.be.gt(price.mul(1).div(3));
+      expect(sellerEthBalanceAfter).to.be.gte(sellerEthBalanceBefore.add(price.mul(1).div(3)));
+      expect(tedEthBalanceAfter.sub(tedEthBalanceBefore)).to.eq(parseEther("0.1"));
       expect(buyerNftBalanceAfter).to.eq(1);
       expect(sellerNftBalanceAfter).to.eq(0);
     }

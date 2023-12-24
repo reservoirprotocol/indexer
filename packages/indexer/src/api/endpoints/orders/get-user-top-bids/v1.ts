@@ -13,9 +13,9 @@ import {
   toBuffer,
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 import _ from "lodash";
-import { JoiAttributeKeyValueObject } from "@/common/joi";
+import { JoiAttributeKeyValueObject, JoiSource, getJoiSourceObject } from "@/common/joi";
 
 const version = "v1";
 
@@ -86,7 +86,7 @@ export const getUserTopBidsV1Options: RouteOptions = {
           validFrom: Joi.number().unsafe(),
           validUntil: Joi.number().unsafe(),
           floorDifferencePercentage: Joi.number().unsafe(),
-          source: Joi.object().allow(null),
+          source: JoiSource.allow(null),
           feeBreakdown: Joi.array()
             .items(
               Joi.object({
@@ -131,7 +131,7 @@ export const getUserTopBidsV1Options: RouteOptions = {
             collection: Joi.object({
               id: Joi.string().allow(null),
               name: Joi.string().allow("", null),
-              imageUrl: Joi.string().allow(null),
+              imageUrl: Joi.string().allow("", null),
               floorAskPrice: Joi.number().unsafe().allow(null),
             }),
           }),
@@ -282,14 +282,14 @@ export const getUserTopBidsV1Options: RouteOptions = {
             LIMIT 1
         ) y ON TRUE
         LEFT JOIN LATERAL (
-            SELECT t.token_id, t.name, t.image, t.collection_id, floor_sell_value AS "token_floor_sell_value", last_sell_value AS "token_last_sell_value"
+            SELECT t.token_id,t.image_version, t.name, t.image, t.collection_id, floor_sell_value AS "token_floor_sell_value", last_sell_value AS "token_last_sell_value"
             FROM tokens t
             WHERE t.contract = nb.contract
             AND t.token_id = nb.token_id
         ) t ON TRUE
         ${query.collection || query.community ? "" : "LEFT"} JOIN LATERAL (
             SELECT id AS "collection_id", name AS "collection_name", metadata AS "collection_metadata", floor_sell_value AS "collection_floor_sell_value",
-                   (floor_sell_value * (1-((COALESCE(royalties_bps, 0)::float + 250) / 10000)))::numeric(78, 0) AS "net_listing"
+                   (floor_sell_value * (1-((COALESCE(royalties_bps, 0)::float + 250) / 10000)))::numeric(78, 0) AS "net_listing", image_version AS "collection_image_version"
             FROM collections c
             WHERE id = t.collection_id
             ${communityFilter}
@@ -327,26 +327,24 @@ export const getUserTopBidsV1Options: RouteOptions = {
           validFrom: r.top_bid_valid_from,
           validUntil: r.top_bid_valid_until,
           floorDifferencePercentage: _.round(r.floor_difference_percentage || 0, 2),
-          source: {
-            id: source?.address,
-            domain: source?.domain,
-            name: source?.getTitle(),
-            icon: source?.getIcon(),
-            url: source?.metadata.url,
-          },
+          source: getJoiSourceObject(source),
           feeBreakdown: r.fee_breakdown,
           context: r.bid_context,
           token: {
             contract: contract,
             tokenId: tokenId,
             name: r.name,
-            image: Assets.getLocalAssetsLink(r.image),
+            image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
             floorAskPrice: r.token_floor_sell_value ? formatEth(r.token_floor_sell_value) : null,
             lastSalePrice: r.token_last_sell_value ? formatEth(r.token_last_sell_value) : null,
             collection: {
               id: r.collection_id,
               name: r.collection_name,
-              imageUrl: Assets.getLocalAssetsLink(r.collection_metadata?.imageUrl),
+              imageUrl: Assets.getResizedImageUrl(
+                r.collection_metadata?.imageUrl,
+                ImageSize.small,
+                r.collection_image_version
+              ),
               floorAskPrice: r.collection_floor_sell_value
                 ? formatEth(r.collection_floor_sell_value)
                 : null,

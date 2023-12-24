@@ -117,9 +117,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             ? decodedTakerAssetData[1][0].toString()
             : decodedTakerAssetData[1].toString();
         let currency = orderSide === "sell" ? decodedTakerAssetData[0] : decodedMakerAssetData[0];
-        if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
+        if (currency === Sdk.ZeroExV4.Addresses.Native[config.chainId]) {
           // Map the weird ZeroEx ETH address to the default ETH address
-          currency = Sdk.Common.Addresses.Eth[config.chainId];
+          currency = Sdk.Common.Addresses.Native[config.chainId];
         }
 
         let currencyPrice = orderSide === "sell" ? takerAssetData[0][0] : makerAssetData[0][0];
@@ -167,6 +167,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           amount: amount.toString(),
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         break;

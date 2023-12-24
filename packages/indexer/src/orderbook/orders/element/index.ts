@@ -8,12 +8,15 @@ import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Sources } from "@/models/sources";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck } from "@/orderbook/orders/element/check";
 import * as tokenSet from "@/orderbook/token-sets";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 export type OrderInfo = {
   orderParams: Sdk.Element.Types.BaseOrder | Sdk.Element.Types.BatchSignedOrder;
@@ -77,9 +80,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      // Check: buy order has Weth as payment token
+      // Check: buy order has WNative as payment token
       const side = order.side() === "buy" ? "buy" : "sell";
-      if (side === "buy" && order.erc20Token() !== Sdk.Common.Addresses.Weth[config.chainId]) {
+      if (side === "buy" && order.erc20Token() !== Sdk.Common.Addresses.WNative[config.chainId]) {
         return results.push({
           id,
           status: "unsupported-payment-token",
@@ -87,7 +90,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       }
 
       // Check: sell order has Eth as payment token
-      if (side === "sell" && order.erc20Token() !== Sdk.Common.Addresses.Eth[config.chainId]) {
+      if (side === "sell" && order.erc20Token() !== Sdk.Common.Addresses.Native[config.chainId]) {
         return results.push({
           id,
           status: "unsupported-payment-token",
@@ -151,6 +154,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       switch (order.orderKind()) {
         case "contract-wide": {
+          if (side === "sell") {
+            break;
+          }
+
           [{ id: tokenSetId }] = await tokenSet.contractWide.save([
             {
               id: `contract:${order.params.nft}`,
@@ -291,6 +298,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         missing_royalties: null,
         normalized_value: null,
         currency_normalized_value: null,
+        originated_at: metadata.originatedAt || null,
       });
 
       const unfillable =
@@ -343,6 +351,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         "dynamic",
         "raw_data",
         { name: "expiration", mod: ":raw" },
+        "originated_at",
       ],
       {
         table: "orders",
@@ -350,7 +359,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
     );
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
 
-    await ordersUpdateById.addToQueue(
+    await orderUpdatesByIdJob.addToQueue(
       results
         .filter((r) => r.status === "success" && !r.unfillable)
         .map(
@@ -361,7 +370,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               trigger: {
                 kind: "new-order",
               },
-            } as ordersUpdateById.OrderInfo)
+            } as OrderUpdatesByIdJobPayload)
         )
     );
   }

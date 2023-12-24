@@ -6,8 +6,8 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-import * as fetchSourceInfo from "@/jobs/sources/fetch-source-info";
 import { regex } from "@/common/utils";
+import { fetchSourceInfoJob } from "@/jobs/sources/fetch-source-info-job";
 
 export const postResyncSourceOptions: RouteOptions = {
   description: "Trigger re-syncing of specific source domain",
@@ -31,7 +31,7 @@ export const postResyncSourceOptions: RouteOptions = {
 
     try {
       const source = payload.source;
-      await fetchSourceInfo.addToQueue(source);
+      await fetchSourceInfoJob.addToQueue({ sourceDomain: source });
 
       return { message: "Request accepted" };
     } catch (error) {

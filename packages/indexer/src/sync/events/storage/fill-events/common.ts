@@ -35,7 +35,8 @@ export const addEvents = async (events: Event[]) => {
       marketplace_fee_bps: event.marketplaceFeeBps || undefined,
       royalty_fee_breakdown: event.royaltyFeeBreakdown || undefined,
       marketplace_fee_breakdown: event.marketplaceFeeBreakdown || undefined,
-      paid_full_royalty: event.paidFullRoyalty || undefined,
+      paid_full_royalty: event.paidFullRoyalty ?? undefined,
+      comment: event.comment ?? undefined,
     });
   }
 
@@ -74,6 +75,7 @@ export const addEvents = async (events: Event[]) => {
         "paid_full_royalty",
         { name: "royalty_fee_breakdown", mod: ":json" },
         { name: "marketplace_fee_breakdown", mod: ":json" },
+        "comment",
       ],
       { table: "fill_events_2" }
     );
@@ -111,7 +113,8 @@ export const addEvents = async (events: Event[]) => {
           "marketplace_fee_bps",
           "paid_full_royalty",
           "royalty_fee_breakdown",
-          "marketplace_fee_breakdown"
+          "marketplace_fee_breakdown",
+          "comment"
         ) VALUES ${pgp.helpers.values(fillValues, columns)}
         ON CONFLICT DO NOTHING
         RETURNING "order_kind", "order_id", "timestamp", "order_source_id_int"
@@ -156,9 +159,11 @@ export const removeEvents = async (block: number, blockHash: string) => {
   await idb.any(
     `
       UPDATE fill_events_2
-      SET is_deleted = 1
+      SET is_deleted = 1, updated_at = now()
       WHERE block = $/block/
-      AND block_hash = $/blockHash/
+        AND block_hash = $/blockHash/
+        AND is_deleted = 0
+      RETURNING tx_hash, log_index, batch_index
     `,
     {
       block,

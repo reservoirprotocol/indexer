@@ -1,4 +1,5 @@
 import { BigNumber } from "@ethersproject/bignumber";
+import { Contract } from "@ethersproject/contracts";
 import { getStateChange } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
 
@@ -11,6 +12,9 @@ import * as utils from "@/events-sync/utils";
 import { getOrderId } from "@/orderbook/orders/manifold";
 import { manifold } from "@/orderbook/orders";
 import { getUSDAndNativePrices } from "@/utils/prices";
+
+import ExchangeAbi from "@reservoir0x/sdk/dist/manifold/abis/Exchange.json";
+import { baseProvider } from "@/common/provider";
 
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   for (const { subKind, baseEventParams, log } of events) {
@@ -47,166 +51,126 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const parsedLog = eventData.abi.parseLog(log);
         const listingId = parsedLog.args["listingId"].toString();
         const currencyPrice = parsedLog.args["amount"].toString();
+        const amount = parsedLog.args["count"].toString();
         let taker = parsedLog.args["buyer"].toLowerCase();
-        let currency = Sdk.Common.Addresses.Eth[config.chainId];
 
         const orderId = manifold.getOrderId(listingId);
 
-        const txTrace = await utils.fetchTransactionTrace(baseEventParams.txHash);
-        if (!txTrace) {
-          // Skip any failed attempts to get the trace
-          break;
-        }
-
-        const state = getStateChange(txTrace.calls);
-
-        const tokenKeys = Object.keys(state[baseEventParams.address].tokenBalanceState).filter(
-          (t) => t.startsWith("erc721") || t.startsWith("erc1155")
-        );
-        if (!tokenKeys.length) {
-          break;
-        }
-
-        const tokenKey = tokenKeys[0];
-        const [, tokenContract, tokenId] = tokenKey.split(":");
-
-        const purchasedAmount = bn(state[baseEventParams.address].tokenBalanceState[tokenKey])
-          .abs()
-          .toString();
-
-        for (const token of Object.keys(state[taker].tokenBalanceState)) {
-          if (token.startsWith("erc20")) {
-            currency = token.split(":")[1];
-          }
-        }
-
-        // We assume the maker is the address that got paid the largest amount of tokens.
-        // In case of 50 / 50 splits, the maker will be the first address which got paid.
-        let maxPayout: BigNumber | undefined;
-
-        const payoutAddresses = Object.keys(state).filter(
-          (address) => address !== baseEventParams.address
-        );
-
-        let maker: string | undefined;
-        for (const payoutAddress of payoutAddresses) {
-          const tokenPayouts = Object.keys(state[payoutAddress].tokenBalanceState).filter((token) =>
-            token.includes(currency)
+        try {
+          const marketplace = new Contract(
+            Sdk.Manifold.Addresses.Exchange[config.chainId],
+            ExchangeAbi,
+            baseProvider
           );
-          for (const token of tokenPayouts) {
-            const tokensTransfered = bn(state[payoutAddress].tokenBalanceState[token]);
-            if (tokensTransfered.gt(0) && (!maxPayout || tokensTransfered.gt(maxPayout))) {
-              maxPayout = tokensTransfered;
-              maker = payoutAddress;
-            }
+
+          const listing = await marketplace.getListing(listingId);
+          const contract = listing.token.address_.toLowerCase();
+          const tokenId = listing.token.id.toString();
+          const maker = listing.seller.toLowerCase();
+          const currency = listing.details.erc20.toLowerCase();
+
+          // Handle: attribution
+          const orderKind = "manifold";
+          const attributionData = await utils.extractAttributionData(
+            baseEventParams.txHash,
+            orderKind,
+            { orderId }
+          );
+          if (attributionData.taker) {
+            taker = attributionData.taker;
           }
-        }
 
-        if (!maker) {
-          // Skip if maker couldn't be retrieved
-          break;
-        }
+          // Handle: prices
+          const priceData = await getUSDAndNativePrices(
+            currency,
+            currencyPrice,
+            baseEventParams.timestamp
+          );
+          if (!priceData.nativePrice) {
+            // We must always have the native price
+            break;
+          }
 
-        // Handle: attribution
-        const orderKind = "manifold";
-        const attributionData = await utils.extractAttributionData(
-          baseEventParams.txHash,
-          orderKind,
-          { orderId }
-        );
+          onChainData.fillEventsPartial.push({
+            orderKind,
+            orderId,
+            orderSide: "sell",
+            maker,
+            taker,
+            price: priceData.nativePrice,
+            currency,
+            currencyPrice,
+            usdPrice: priceData.usdPrice,
+            contract,
+            tokenId,
+            amount,
+            orderSourceId: attributionData.orderSource?.id,
+            aggregatorSourceId: attributionData.aggregatorSource?.id,
+            fillSourceId: attributionData.fillSource?.id,
+            baseEventParams,
+          });
 
-        if (attributionData.taker) {
-          taker = attributionData.taker;
-        }
+          const orderResult = await idb.oneOrNone(
+            `
+              SELECT
+                raw_data,
+                extract('epoch' from lower(orders.valid_between)) AS valid_from
+              FROM orders
+              WHERE orders.id = $/id/
+            `,
+            { id: orderId }
+          );
 
-        // Handle: prices
-        const priceData = await getUSDAndNativePrices(
-          currency,
-          currencyPrice,
-          baseEventParams.timestamp
-        );
-        if (!priceData.nativePrice) {
-          // We must always have the native price
-          break;
-        }
-
-        onChainData.fillEventsPartial.push({
-          orderKind,
-          orderId,
-          orderSide: "sell",
-          maker,
-          taker,
-          price: priceData.nativePrice,
-          currency,
-          currencyPrice,
-          usdPrice: priceData.usdPrice,
-          contract: tokenContract,
-          tokenId,
-          amount: purchasedAmount,
-          orderSourceId: attributionData.orderSource?.id,
-          aggregatorSourceId: attributionData.aggregatorSource?.id,
-          fillSourceId: attributionData.fillSource?.id,
-          baseEventParams,
-        });
-
-        const orderResult = await idb.oneOrNone(
-          ` 
-            SELECT 
-              raw_data,
-              extract('epoch' from lower(orders.valid_between)) AS valid_from
-            FROM orders 
-            WHERE orders.id = $/id/ 
-          `,
-          { id: orderId }
-        );
-
-        // Some manifold orders have an end time that is set after the first purchase
-        if (orderResult && orderResult.valid_from === 0) {
-          const endTime = baseEventParams.timestamp + orderResult.raw_data.details.endTime;
-          onChainData.orders.push({
-            kind: "manifold",
-            info: {
-              orderParams: {
-                id: listingId,
-                details: {
-                  startTime: baseEventParams.timestamp,
-                  endTime,
+          // Some manifold orders have an end time that is set after the first purchase
+          if (orderResult && orderResult.valid_from === 0) {
+            const endTime = baseEventParams.timestamp + orderResult.raw_data.details.endTime;
+            onChainData.orders.push({
+              kind: "manifold",
+              info: {
+                orderParams: {
+                  id: listingId,
+                  details: {
+                    startTime: baseEventParams.timestamp,
+                    endTime,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  } as any,
+                  txHash: baseEventParams.txHash,
+                  txTimestamp: baseEventParams.timestamp,
+                  txBlock: baseEventParams.block,
+                  logIndex: baseEventParams.logIndex,
+                  batchIndex: baseEventParams.batchIndex,
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 } as any,
-                txHash: baseEventParams.txHash,
-                txTimestamp: baseEventParams.timestamp,
-                txBlock: baseEventParams.block,
-                logIndex: baseEventParams.logIndex,
-                batchIndex: baseEventParams.batchIndex,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              } as any,
-              metadata: {},
+                metadata: {},
+              },
+            });
+          }
+
+          onChainData.orderInfos.push({
+            context: `filled-${orderId}-${baseEventParams.txHash}`,
+            id: orderId,
+            trigger: {
+              kind: "sale",
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
             },
           });
+
+          onChainData.fillInfos.push({
+            context: `${orderId}-${baseEventParams.txHash}`,
+            orderId: orderId,
+            orderSide: "sell",
+            contract,
+            tokenId,
+            amount,
+            price: priceData.nativePrice,
+            timestamp: baseEventParams.timestamp,
+            maker,
+            taker,
+          });
+        } catch {
+          // Ignore errors
         }
-
-        onChainData.orderInfos.push({
-          context: `filled-${orderId}-${baseEventParams.txHash}`,
-          id: orderId,
-          trigger: {
-            kind: "sale",
-            txHash: baseEventParams.txHash,
-            txTimestamp: baseEventParams.timestamp,
-          },
-        });
-
-        onChainData.fillInfos.push({
-          context: `${orderId}-${baseEventParams.txHash}`,
-          orderId: orderId,
-          orderSide: "sell",
-          contract: tokenContract,
-          tokenId,
-          amount: purchasedAmount,
-          price: priceData.nativePrice,
-          timestamp: baseEventParams.timestamp,
-          maker,
-          taker,
-        });
 
         break;
       }
@@ -264,7 +228,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         let tokenContract: string | undefined;
         let tokenId: string | undefined;
         let currencyPrice: string | undefined;
-        let currency = Sdk.Common.Addresses.Eth[config.chainId];
+        let currency = Sdk.Common.Addresses.Native[config.chainId];
         let purchasedAmount: string | undefined;
         let tokenKey: string | undefined;
 
@@ -381,7 +345,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const listingId = parsedLog.args["listingId"].toString();
         const currencyPrice = parsedLog.args["amount"].toString();
         const maker = parsedLog.args["oferrer"].toLowerCase();
-        let currency = Sdk.Common.Addresses.Eth[config.chainId];
+        let currency = Sdk.Common.Addresses.Native[config.chainId];
 
         const orderId = manifold.getOrderId(listingId);
 
@@ -508,6 +472,25 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         });
 
         break;
+      }
+
+      case "manifold-claim-initialized":
+      case "manifold-claim-updated": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const collection = parsedLog.args["creatorContract"].toLowerCase();
+        const instanceId = parsedLog.args["claimIndex"].toString();
+
+        onChainData.mints.push({
+          by: "collection",
+          data: {
+            standard: "manifold",
+            collection,
+            additionalInfo: {
+              extension: baseEventParams.address,
+              instanceId,
+            },
+          },
+        });
       }
     }
   }

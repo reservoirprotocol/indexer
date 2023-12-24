@@ -7,12 +7,14 @@ export enum ItemType {
   ERC1155,
 }
 
+export type Item = {
+  itemType: ItemType;
+  token: string;
+  identifier: BigNumberish;
+  amount: BigNumberish;
+};
+
 export type TransferItem = {
-  items: {
-    itemType: ItemType;
-    token: string;
-    identifier: BigNumberish;
-    amount: BigNumberish;
-  }[];
+  items: Item[];
   recipient: string;
 };

@@ -9,7 +9,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
+import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
 
 const QUEUE_NAME = "backfill-tokens-normalized-floor-ask-queue";
 
@@ -67,7 +67,7 @@ if (config.doBackgroundWork) {
       let nextCursor;
 
       if (tokens.length > 0) {
-        await orderUpdatesById.addToQueue(
+        await orderUpdatesByIdJob.addToQueue(
           tokens.map(({ floor_sell_id }) => ({
             context: `backfill-normalized-floor-ask-${floor_sell_id}`,
             id: floor_sell_id,
@@ -102,17 +102,6 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
-
-  // !!! DISABLED
-
-  // redlock
-  //   .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
-  //   .then(async () => {
-  //     await addToQueue();
-  //   })
-  //   .catch(() => {
-  //     // Skip on any errors
-  //   });
 }
 
 export type CursorInfo = {

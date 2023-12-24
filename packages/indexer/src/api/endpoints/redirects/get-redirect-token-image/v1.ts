@@ -7,7 +7,7 @@ import Joi from "joi";
 import { logger } from "@/common/logger";
 import { Tokens } from "@/models/tokens";
 import * as Boom from "@hapi/boom";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 
 const version = "v1";
 
@@ -33,10 +33,16 @@ export const getRedirectTokenImageV1Options: RouteOptions = {
           "Redirect to the given token image. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
         ),
     }),
-    query: Joi.object({}).options({ allowUnknown: true, stripUnknown: false }),
+    query: Joi.object({
+      imageSize: Joi.string()
+        .valid("small", "medium", "large")
+        .default("medium")
+        .description("Image size: 'small', 'medium', or 'large'. "),
+    }).options({ allowUnknown: true, stripUnknown: false }),
   },
   handler: async (request: Request, response) => {
     const params = request.params as any;
+    const query = request.query as any;
 
     try {
       const [contract, tokenId] = params.token.split(":");
@@ -45,7 +51,18 @@ export const getRedirectTokenImageV1Options: RouteOptions = {
       if (_.isNull(token)) {
         throw Boom.badData(`Token ${params.token} not found`);
       }
-      const imageWithQueryParams = Assets.addImageParams(token.image, request.query);
+
+      if (!token.image) {
+        throw Boom.badData(`Image not found for token ${params.token}`);
+      }
+
+      const imageUrl = Assets.getResizedImageUrl(
+        token.image,
+        ImageSize[(query.imageSize as keyof typeof ImageSize) || "medium"]
+      );
+
+      delete request.query.imageSize;
+      const imageWithQueryParams = Assets.addImageParams(imageUrl, request.query);
       return response.redirect(imageWithQueryParams).header("cache-control", `${1000 * 60}`);
     } catch (error) {
       logger.error(`get-redirect-token-image-${version}-handler`, `Handler failure: ${error}`);

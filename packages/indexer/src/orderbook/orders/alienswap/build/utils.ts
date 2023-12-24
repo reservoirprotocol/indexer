@@ -64,8 +64,8 @@ export const getBuildInfo = async (
     paymentToken: options.currency
       ? options.currency
       : side === "buy"
-      ? Sdk.Common.Addresses.Weth[config.chainId]
-      : Sdk.Common.Addresses.Eth[config.chainId],
+      ? Sdk.Common.Addresses.WNative[config.chainId]
+      : Sdk.Common.Addresses.Native[config.chainId],
     fees: [],
     zone,
     conduitKey,
@@ -78,6 +78,37 @@ export const getBuildInfo = async (
 
   // Keep track of the total amount of fees
   let totalFees = bn(0);
+
+  // Include royalties
+  if (options.automatedRoyalties) {
+    const royalties: { bps: number; recipient: string }[] = collectionResult.royalties ?? [];
+
+    let royaltyBpsToPay = royalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
+    if (options.royaltyBps !== undefined) {
+      // The royalty bps to pay will be min(collectionRoyaltyBps, requestedRoyaltyBps)
+      royaltyBpsToPay = Math.min(options.royaltyBps, royaltyBpsToPay);
+    }
+
+    for (const r of royalties) {
+      if (r.recipient && r.bps > 0) {
+        const bps = Math.min(royaltyBpsToPay, r.bps);
+        if (bps > 0) {
+          royaltyBpsToPay -= bps;
+
+          const fee = bn(bps).mul(options.weiPrice).div(10000);
+          if (fee.gt(0)) {
+            buildParams.fees!.push({
+              recipient: r.recipient,
+              amount: fee.toString(),
+            });
+
+            totalFees = totalFees.add(fee);
+          }
+        }
+      }
+    }
+  }
+
   if (options.fee && options.feeRecipient) {
     for (let i = 0; i < options.fee.length; i++) {
       if (Number(options.fee[i]) > 0) {

@@ -10,6 +10,16 @@
         "internalType": "address",
         "name": "router",
         "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "weth",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "swapRouter",
+        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
@@ -191,14 +201,19 @@
             "type": "tuple[]"
           }
         ],
-        "internalType": "struct SwapModule.Swap",
-        "name": "swap",
-        "type": "tuple"
+        "internalType": "struct SwapModule.Swap[]",
+        "name": "swaps",
+        "type": "tuple[]"
       },
       {
         "internalType": "address",
         "name": "refundTo",
         "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "revertIfIncomplete",
+        "type": "bool"
       }
     ],
     "name": "erc20ToExactOutput",
@@ -275,14 +290,19 @@
             "type": "tuple[]"
           }
         ],
-        "internalType": "struct SwapModule.Swap",
-        "name": "swap",
-        "type": "tuple"
+        "internalType": "struct SwapModule.Swap[]",
+        "name": "swaps",
+        "type": "tuple[]"
       },
       {
         "internalType": "address",
         "name": "refundTo",
         "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "revertIfIncomplete",
+        "type": "bool"
       }
     ],
     "name": "ethToExactOutput",

@@ -1,12 +1,10 @@
-import "@/jobs/metadata-index/fetch-queue";
-import "@/jobs/metadata-index/process-queue";
 import { config } from "@/config/index";
 import cron from "node-cron";
 import { redis, redlock } from "@/common/redis";
 import { redb } from "@/common/db";
-import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
 import { fromBuffer } from "@/common/utils";
 import { logger } from "@/common/logger";
+import { openseaOrdersProcessJob } from "@/jobs/opensea-orders/opensea-orders-process-job";
 
 const getCollections = async () => {
   let collections = [];
@@ -38,7 +36,7 @@ const getCollections = async () => {
 };
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork) {
+if (config.doBackgroundWork && config.metadataIndexingMethodCollection === "opensea") {
   cron.schedule(
     "*/30 * * * *",
     async () =>
@@ -49,7 +47,7 @@ if (config.doBackgroundWork) {
             .then(async (collections) => {
               logger.info("refresh-opensea-collection-offers-collections", "Start");
 
-              openseaOrdersProcessQueue.addToQueue(
+              await openseaOrdersProcessJob.addToQueue(
                 collections.map((collection: { contract: string; id: string; slug: string }) => ({
                   kind: "collection-offers",
                   data: {

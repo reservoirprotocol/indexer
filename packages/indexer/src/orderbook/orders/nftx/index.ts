@@ -10,13 +10,21 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Sources } from "@/models/sources";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
-import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
+import {
+  POOL_ORDERS_MAX_PRICE_POINTS_COUNT,
+  DbOrder,
+  OrderMetadata,
+  generateSchemaHash,
+} from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
 import * as nftx from "@/utils/nftx";
 import * as royalties from "@/utils/royalties";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 export type OrderInfo = {
   orderParams: {
@@ -124,22 +132,32 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             triggerKind: "cancel",
           });
         } else {
-          const priceList = [];
-          for (let index = 0; index < 10; index++) {
-            try {
-              // Don't get the price from 0x to avoid being rate-limited
-              const poolPrice = await Sdk.Nftx.Helpers.getPoolPrice(
-                orderParams.pool,
-                index + 1,
-                "sell",
-                slippage,
-                baseProvider
-              );
-              priceList.push(poolPrice);
-            } catch {
-              break;
-            }
+          let tmpPriceList: ({ feeBps: BigNumberish; price: BigNumberish } | undefined)[] =
+            Array.from({ length: POOL_ORDERS_MAX_PRICE_POINTS_COUNT }, () => undefined);
+          await Promise.all(
+            _.range(0, POOL_ORDERS_MAX_PRICE_POINTS_COUNT).map(async (index) => {
+              try {
+                // Don't get the price from 0x to avoid being rate-limited
+                const poolPrice = await Sdk.Nftx.Helpers.getPoolPrice(
+                  orderParams.pool,
+                  index + 1,
+                  "sell",
+                  slippage,
+                  baseProvider
+                );
+                tmpPriceList[index] = poolPrice;
+              } catch {
+                // Ignore errors
+              }
+            })
+          );
+
+          // Stop when the first `undefined` is encountered
+          const firstUndefined = tmpPriceList.findIndex((p) => p === undefined);
+          if (firstUndefined !== -1) {
+            tmpPriceList = tmpPriceList.slice(0, firstUndefined);
           }
+          const priceList = tmpPriceList.map((p) => p!);
 
           if (priceList.length) {
             // Handle: prices
@@ -147,10 +165,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             const value = bn(price).sub(bn(price).mul(bps).div(10000)).toString();
 
             const prices: string[] = [];
-            for (const p of priceList) {
+            for (let i = 0; i < priceList.length; i++) {
               prices.push(
-                bn(p.price)
-                  .sub(prices.length ? priceList[prices.length - 1].price : 0)
+                bn(priceList[i].price)
+                  .sub(i > 0 ? priceList[i - 1].price : 0)
                   .toString()
               );
             }
@@ -206,8 +224,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               collection: pool.nft,
               pool: pool.address,
               specificIds: [],
-              currency: Sdk.Common.Addresses.Weth[config.chainId],
-              path: [],
+              currency: Sdk.Common.Addresses.WNative[config.chainId],
+              path: [pool.address, Sdk.Common.Addresses.WNative[config.chainId]],
               price: price.toString(),
               extra: {
                 prices,
@@ -265,7 +283,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 taker: toBuffer(AddressZero),
                 price: price.toString(),
                 value,
-                currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
+                currency: toBuffer(Sdk.Common.Addresses.Native[config.chainId]),
                 currency_price: price.toString(),
                 currency_value: value,
                 needs_conversion: null,
@@ -296,7 +314,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 triggerKind: "new-order",
               });
             } else {
-              await idb.none(
+              const { rowCount } = await idb.result(
                 `
                   UPDATE orders SET
                     fillability_status = 'fillable',
@@ -320,6 +338,24 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     log_index = $/logIndex/
                   WHERE orders.id = $/id/
                     ${recheckCondition}
+                    AND (
+                    orders.fillability_status != 'fillable' 
+                    OR orders.approval_status != 'approved'
+                    OR orders.price IS DISTINCT FROM $/price/
+                    OR orders.currency_price IS DISTINCT FROM $/price/
+                    OR orders.value IS DISTINCT FROM $/value/
+                    OR orders.currency_value IS DISTINCT FROM $/value/
+                    OR orders.quantity_remaining IS DISTINCT FROM $/quantityRemaining/
+                    OR orders.raw_data IS DISTINCT FROM $/rawData:json/
+                    OR orders.missing_royalties IS DISTINCT FROM $/missingRoyalties:json/
+                    OR orders.normalized_value IS DISTINCT FROM $/normalizedValue/
+                    OR orders.currency_normalized_value IS DISTINCT FROM $/currencyNormalizedValue/
+                    OR orders.fee_bps IS DISTINCT FROM $/feeBps/
+                    OR orders.fee_breakdown IS DISTINCT FROM $/feeBreakdown:json/
+                    OR orders.currency IS DISTINCT FROM $/currency/
+                    OR orders.block_number IS DISTINCT FROM $/blockNumber/
+                    OR orders.log_index IS DISTINCT FROM $/logIndex/
+                    )
                 `,
                 {
                   id,
@@ -332,18 +368,21 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   currencyNormalizedValue: normalizedValue.toString(),
                   feeBps,
                   feeBreakdown,
-                  currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
+                  currency: toBuffer(Sdk.Common.Addresses.Native[config.chainId]),
                   blockNumber: orderParams.txBlock,
                   logIndex: orderParams.logIndex,
                 }
               );
-              results.push({
-                id,
-                txHash: orderParams.txHash,
-                txTimestamp: orderParams.txTimestamp,
-                status: "success",
-                triggerKind: "reprice",
-              });
+
+              if (rowCount !== 0) {
+                results.push({
+                  id,
+                  txHash: orderParams.txHash,
+                  txTimestamp: orderParams.txTimestamp,
+                  status: "success",
+                  triggerKind: "reprice",
+                });
+              }
             }
           } else {
             await idb.none(
@@ -381,34 +420,46 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       // Handle sell orders
       try {
-        const priceList: { feeBps: BigNumberish; price: BigNumberish }[] = [];
-        for (let index = 0; index < 10; index++) {
-          try {
-            // Don't get the price from 0x to avoid being rate-limited
-            const poolPrice = await Sdk.Nftx.Helpers.getPoolPrice(
-              orderParams.pool,
-              index + 1,
-              "buy",
-              slippage,
-              baseProvider
-            );
-            priceList.push(poolPrice);
-          } catch {
-            break;
-          }
+        let tmpPriceList: ({ feeBps: BigNumberish; price: BigNumberish } | undefined)[] =
+          Array.from({ length: POOL_ORDERS_MAX_PRICE_POINTS_COUNT }, () => undefined);
+        await Promise.all(
+          _.range(0, POOL_ORDERS_MAX_PRICE_POINTS_COUNT).map(async (index) => {
+            try {
+              // Don't get the price from 0x to avoid being rate-limited
+              const poolPrice = await Sdk.Nftx.Helpers.getPoolPrice(
+                orderParams.pool,
+                index + 1,
+                "buy",
+                slippage,
+                baseProvider
+              );
+              tmpPriceList[index] = poolPrice;
+            } catch {
+              // Ignore errors
+            }
+          })
+        );
+
+        // Stop when the first `undefined` is encountered
+        const firstUndefined = tmpPriceList.findIndex((p) => p === undefined);
+        if (firstUndefined !== -1) {
+          tmpPriceList = tmpPriceList.slice(0, firstUndefined);
         }
+        const priceList = tmpPriceList.map((p) => p!);
 
         const prices: string[] = [];
-        for (const p of priceList) {
+        for (let i = 0; i < priceList.length; i++) {
           prices.push(
-            bn(p.price)
-              .sub(prices.length ? priceList[prices.length - 1].price : 0)
+            bn(priceList[i].price)
+              .sub(i > 0 ? priceList[i - 1].price : 0)
               .toString()
           );
         }
 
         // Fetch all token ids owned by the pool
-        const poolOwnedTokenIds = await commonHelpers.getNfts(pool.nft, pool.address);
+        const poolOwnedTokenIds = await commonHelpers
+          .getNfts(pool.nft, pool.address)
+          .then((nfts) => nfts.map((nft) => nft.tokenId));
 
         const limit = pLimit(50);
         await Promise.all(
@@ -503,9 +554,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                       collection: pool.nft,
                       pool: pool.address,
                       specificIds: [tokenId],
-                      currency: Sdk.Common.Addresses.Weth[config.chainId],
+                      currency: Sdk.Common.Addresses.WNative[config.chainId],
                       amount: "1",
-                      path: [],
+                      path: [Sdk.Common.Addresses.WNative[config.chainId], pool.address],
                       price: price.toString(),
                       extra: {
                         prices,
@@ -552,7 +603,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                         taker: toBuffer(AddressZero),
                         price: price.toString(),
                         value: value.toString(),
-                        currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
+                        currency: toBuffer(Sdk.Common.Addresses.Native[config.chainId]),
                         currency_price: price.toString(),
                         currency_value: value.toString(),
                         needs_conversion: null,
@@ -618,7 +669,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                           currencyNormalizedValue: normalizedValue.toString(),
                           feeBps,
                           feeBreakdown,
-                          currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
+                          currency: toBuffer(Sdk.Common.Addresses.Native[config.chainId]),
                           blockNumber: orderParams.txBlock,
                           logIndex: orderParams.logIndex,
                         }
@@ -725,7 +776,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
   }
 
-  await ordersUpdateById.addToQueue(
+  await orderUpdatesByIdJob.addToQueue(
     results
       .filter(({ status }) => status === "success")
       .map(
@@ -738,7 +789,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               txHash: txHash,
               txTimestamp: txTimestamp,
             },
-          } as ordersUpdateById.OrderInfo)
+          } as OrderUpdatesByIdJobPayload)
       )
   );
 

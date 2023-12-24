@@ -56,3 +56,31 @@ export const accept: EventData = {
     `event AcceptOfferEvent(uint40 indexed listingId, address oferrer, uint256 amount)`,
   ]),
 };
+
+export const claimInitialized: EventData = {
+  kind: "manifold",
+  subKind: "manifold-claim-initialized",
+  addresses: {
+    [Manifold.Addresses.ERC721LazyPayableClaim[config.chainId]?.toLowerCase()]: true,
+    [Manifold.Addresses.ERC1155LazyPayableClaim[config.chainId]?.toLowerCase()]: true,
+  },
+  topic: "0xd02727da4c6c6c111e00310108209a4de39f6817414df43ca1a10730d47c6a34",
+  numTopics: 3,
+  abi: new Interface([
+    `event ClaimInitialized(address indexed creatorContract, uint256 indexed claimIndex, address initializer)`,
+  ]),
+};
+
+export const claimUpdated: EventData = {
+  kind: "manifold",
+  subKind: "manifold-claim-updated",
+  addresses: {
+    [Manifold.Addresses.ERC721LazyPayableClaim[config.chainId]?.toLowerCase()]: true,
+    [Manifold.Addresses.ERC1155LazyPayableClaim[config.chainId]?.toLowerCase()]: true,
+  },
+  topic: "0x657336af9bb6c51d60c05491508d7d3026a24ee549d7a0af42e44c75bfaec47c",
+  numTopics: 3,
+  abi: new Interface([
+    `event ClaimUpdated(address indexed creatorContract, uint256 indexed claimIndex)`,
+  ]),
+};

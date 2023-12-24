@@ -6,12 +6,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
-import {
-  getChainId,
-  getCurrentTimestamp,
-  reset,
-  setupNFTs,
-} from "../../../utils";
+import { getChainId, getCurrentTimestamp, reset, setupNFTs } from "../../../utils";
 
 describe("Element - BatchSignedToken Erc721", () => {
   const chainId = getChainId();
@@ -55,7 +50,7 @@ describe("Element - BatchSignedToken Erc721", () => {
       maker: seller.address,
       contract: erc721.address,
       tokenId: soldTokenId,
-      paymentToken: Element.Addresses.Eth[chainId],
+      paymentToken: Element.Addresses.Native[chainId],
       price,
       hashNonce: 0,
       listingTime: 0,
@@ -67,9 +62,7 @@ describe("Element - BatchSignedToken Erc721", () => {
     await sellOrder.sign(seller);
 
     // Approve the exchange for escrowing.
-    await erc721
-      .connect(seller)
-      .setApprovalForAll(Element.Addresses.Exchange[chainId], true);
+    await erc721.connect(seller).setApprovalForAll(Element.Addresses.Exchange[chainId], true);
 
     // Create matching buy order
     const buyOrder = sellOrder.buildMatching();
@@ -77,9 +70,7 @@ describe("Element - BatchSignedToken Erc721", () => {
     await sellOrder.checkFillability(ethers.provider);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
     const ownerBefore = await nft.getOwner(soldTokenId);
 
     expect(ownerBefore).to.eq(seller.address);
@@ -120,7 +111,7 @@ describe("Element - BatchSignedToken Erc721", () => {
       maker: seller.address,
       contract: erc721.address,
       tokenId: soldTokenId,
-      paymentToken: Element.Addresses.Eth[chainId],
+      paymentToken: Element.Addresses.Native[chainId],
       price,
       hashNonce: 0,
       listingTime: 0,
@@ -136,9 +127,7 @@ describe("Element - BatchSignedToken Erc721", () => {
     await sellOrder.sign(seller);
 
     // Approve the exchange for escrowing.
-    await erc721
-      .connect(seller)
-      .setApprovalForAll(Element.Addresses.Exchange[chainId], true);
+    await erc721.connect(seller).setApprovalForAll(Element.Addresses.Exchange[chainId], true);
 
     // Create matching buy order
     const buyOrder = sellOrder.buildMatching();
@@ -146,9 +135,7 @@ describe("Element - BatchSignedToken Erc721", () => {
     await sellOrder.checkFillability(ethers.provider);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
     const carolBalanceBefore = await ethers.provider.getBalance(carol.address);
     const tedBalanceBefore = await ethers.provider.getBalance(ted.address);
     const ownerBefore = await nft.getOwner(soldTokenId);
@@ -169,9 +156,7 @@ describe("Element - BatchSignedToken Erc721", () => {
     expect(buyerBalanceBefore.sub(buyerBalanceAfter)).to.be.gt(price);
     expect(carolBalanceAfter.sub(carolBalanceBefore)).to.eq(parseEther("0.1"));
     expect(tedBalanceAfter.sub(tedBalanceBefore)).to.eq(parseEther("0.05"));
-    expect(sellerBalanceAfter).to.eq(
-      sellerBalanceBefore.add(price).sub(parseEther("0.15"))
-    );
+    expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(price).sub(parseEther("0.15")));
     expect(ownerAfter).to.eq(buyer.address);
   });
 
@@ -198,7 +183,7 @@ describe("Element - BatchSignedToken Erc721", () => {
       maker: seller.address,
       contract: erc721.address,
       tokenId: soldTokenId,
-      paymentToken: Element.Addresses.Eth[chainId],
+      paymentToken: Element.Addresses.Native[chainId],
       price,
       hashNonce: 0,
       listingTime: 0,
@@ -210,9 +195,7 @@ describe("Element - BatchSignedToken Erc721", () => {
     await sellOrder.sign(seller);
 
     // Approve the exchange for escrowing.
-    await erc721
-      .connect(seller)
-      .setApprovalForAll(Element.Addresses.Exchange[chainId], true);
+    await erc721.connect(seller).setApprovalForAll(Element.Addresses.Exchange[chainId], true);
 
     // Create matching buy order
     const buyOrder = sellOrder.buildMatching();
@@ -221,8 +204,8 @@ describe("Element - BatchSignedToken Erc721", () => {
 
     await exchange.cancelOrder(seller, sellOrder);
 
-    await expect(
-      exchange.fillOrder(buyer, sellOrder, buyOrder)
-    ).to.be.revertedWith("fillBatchSignedERC721Order: no order filled.");
+    await expect(exchange.fillOrder(buyer, sellOrder, buyOrder)).to.be.revertedWith(
+      "fillBatchSignedERC721Order: no order filled."
+    );
   });
 });

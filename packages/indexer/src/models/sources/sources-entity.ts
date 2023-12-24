@@ -15,6 +15,9 @@ export type SourcesMetadata = {
   title?: string;
   icon?: string;
   url?: string;
+  description?: string;
+  twitterUsername?: string;
+  socialImage?: string;
   tokenUrlMainnet?: string;
   tokenUrlRinkeby?: string;
   tokenUrlPolygon?: string;
@@ -22,6 +25,19 @@ export type SourcesMetadata = {
   tokenUrlArbitrum?: string;
   tokenUrlOptimism?: string;
   tokenUrlBsc?: string;
+  tokenUrlZora?: string;
+  tokenUrlSepolia?: string;
+  tokenUrlMumbai?: string;
+  tokenUrlBaseGoerli?: string;
+  tokenUrlArbitrumNova?: string;
+  tokenUrlAvalanche?: string;
+  tokenUrlScrollAlpha?: string;
+  tokenUrlZoraTestnet?: string;
+  tokenUrlBase?: string;
+  tokenUrlZksync?: string;
+  tokenUrlPolygonZkevm?: string;
+  tokenUrlScroll?: string;
+  tokenUrlImmutableZkevmTestnet?: string;
 };
 
 export class SourcesEntity {

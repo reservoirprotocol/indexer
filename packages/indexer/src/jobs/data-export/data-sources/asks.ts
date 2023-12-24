@@ -6,6 +6,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 import { getCurrency } from "@/utils/currencies";
 import { AddressZero } from "@ethersproject/constants";
+import { isWhitelistedCurrency } from "@/utils/prices";
 
 export class AsksDataSource extends BaseDataSource {
   public async getSequenceData(cursor: CursorInfo | null, limit: number) {
@@ -76,9 +77,14 @@ export class AsksDataSource extends BaseDataSource {
       for (const r of result) {
         const currency = await getCurrency(
           fromBuffer(r.currency) === AddressZero
-            ? Sdk.Common.Addresses.Eth[config.chainId]
+            ? Sdk.Common.Addresses.Native[config.chainId]
             : fromBuffer(r.currency)
         );
+
+        // If the ask currency is a community token set the price to 0
+        if (isWhitelistedCurrency(currency.contract)) {
+          r.price = "0";
+        }
 
         const currencyPrice = r.currency_price ?? r.price;
 
@@ -104,6 +110,8 @@ export class AsksDataSource extends BaseDataSource {
           }
         }
 
+        const source = sources.get(r.source_id_int);
+
         data.push({
           id: r.id,
           kind: r.kind,
@@ -125,7 +133,7 @@ export class AsksDataSource extends BaseDataSource {
           valid_from: Number(r.valid_from),
           valid_until: Number(r.valid_until),
           nonce: Number(r.nonce),
-          source: sources.get(r.source_id_int)?.domain,
+          source: source ? source.domain : null,
           fee_bps: Number(r.fee_bps),
           expiration: Number(r.expiration),
           raw_data: r.raw_data ?? null,
@@ -219,7 +227,7 @@ export class AsksDataSourceV2 extends BaseDataSource {
       for (const r of result) {
         const currency = await getCurrency(
           fromBuffer(r.currency) === AddressZero
-            ? Sdk.Common.Addresses.Eth[config.chainId]
+            ? Sdk.Common.Addresses.Native[config.chainId]
             : fromBuffer(r.currency)
         );
 

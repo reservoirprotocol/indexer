@@ -6,12 +6,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
-import {
-  getChainId,
-  getCurrentTimestamp,
-  reset,
-  setupNFTs,
-} from "../../../utils";
+import { getChainId, getCurrentTimestamp, reset, setupNFTs } from "../../../utils";
 
 describe("Element - ContractWide Erc721", () => {
   const chainId = getChainId();
@@ -37,7 +32,7 @@ describe("Element - ContractWide Erc721", () => {
     const price = parseEther("1");
     const boughtTokenId = 1;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -58,7 +53,7 @@ describe("Element - ContractWide Erc721", () => {
       direction: "buy",
       maker: buyer.address,
       contract: erc721.address,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       price,
       hashNonce: 0,
       expiry: (await getCurrentTimestamp(ethers.provider)) + 60,
@@ -68,9 +63,7 @@ describe("Element - ContractWide Erc721", () => {
     await buyOrder.sign(buyer);
 
     // Approve the exchange for escrowing.
-    await erc721
-      .connect(seller)
-      .setApprovalForAll(Element.Addresses.Exchange[chainId], true);
+    await erc721.connect(seller).setApprovalForAll(Element.Addresses.Exchange[chainId], true);
 
     // Create matching sell order
     const sellOrder = buyOrder.buildMatching({ tokenId: boughtTokenId });
@@ -84,10 +77,7 @@ describe("Element - ContractWide Erc721", () => {
     expect(ownerBefore).to.eq(seller.address);
 
     const orderHash = buyOrder.hash();
-    const orderHashOnChain = await exchange.getOrderHash(
-      ethers.provider,
-      buyOrder
-    );
+    const orderHashOnChain = await exchange.getOrderHash(ethers.provider, buyOrder);
 
     // Compare order hash
     expect(orderHash).to.eq(orderHashOnChain);

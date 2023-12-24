@@ -109,6 +109,7 @@ export const getTransfersV2Options: RouteOptions = {
           nft_transfer_events.token_id,
           tokens.name,
           tokens.image,
+          tokens.image_version,
           tokens.collection_id,
           collections.name as collection_name,
           nft_transfer_events.from,
@@ -142,6 +143,8 @@ export const getTransfersV2Options: RouteOptions = {
 
       // Filters
       const conditions: string[] = [];
+      conditions.push(`nft_transfer_events.is_deleted = 0`);
+
       if (query.contract) {
         (query as any).contract = toBuffer(query.contract);
         conditions.push(`nft_transfer_events.address = $/contract/`);
@@ -243,7 +246,7 @@ export const getTransfersV2Options: RouteOptions = {
           contract: fromBuffer(r.address),
           tokenId: r.token_id,
           name: r.name,
-          image: Assets.getLocalAssetsLink(r.image),
+          image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
           collection: {
             id: r.collection_id,
             name: r.collection_name,

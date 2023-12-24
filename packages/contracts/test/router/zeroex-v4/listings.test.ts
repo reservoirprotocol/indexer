@@ -48,7 +48,7 @@ describe("[ReservoirV6_0_1] ZeroExV4 listings", () => {
         factory.deploy(
           deployer.address,
           router.address,
-          Sdk.Common.Addresses.Weth[chainId],
+          Sdk.Common.Addresses.WNative[chainId],
           Sdk.Common.Addresses.SwapRouter[chainId]
         )
       );
@@ -60,7 +60,7 @@ describe("[ReservoirV6_0_1] ZeroExV4 listings", () => {
   });
 
   const getBalances = async (token: string) => {
-    if (token === Sdk.Common.Addresses.Eth[chainId]) {
+    if (token === Sdk.Common.Addresses.Native[chainId]) {
       return {
         alice: await ethers.provider.getBalance(alice.address),
         bob: await ethers.provider.getBalance(bob.address),
@@ -107,8 +107,8 @@ describe("[ReservoirV6_0_1] ZeroExV4 listings", () => {
     // Fee recipient: Emilio
 
     const paymentToken = useUsdc
-      ? Sdk.Common.Addresses.Usdc[chainId]
-      : Sdk.Common.Addresses.Eth[chainId];
+      ? Sdk.Common.Addresses.Usdc[chainId][0]
+      : Sdk.Common.Addresses.Native[chainId];
     const parsePrice = (price: string) => (useUsdc ? parseUnits(price, 6) : parseEther(price));
     const useERC1155 = getRandomBoolean();
 
@@ -124,8 +124,8 @@ describe("[ReservoirV6_0_1] ZeroExV4 listings", () => {
           id: getRandomInteger(1, 10000),
         },
         paymentToken: useUsdc
-          ? Sdk.Common.Addresses.Usdc[chainId]
-          : Sdk.ZeroExV4.Addresses.Eth[chainId],
+          ? Sdk.Common.Addresses.Usdc[chainId][0]
+          : Sdk.ZeroExV4.Addresses.Native[chainId],
         price: parsePrice(getRandomFloat(0.0001, 2).toFixed(6)),
         isCancelled: partial && getRandomBoolean(),
       });
@@ -147,30 +147,33 @@ describe("[ReservoirV6_0_1] ZeroExV4 listings", () => {
             {
               module: swapModule.address,
               data: swapModule.interface.encodeFunctionData("ethToExactOutput", [
-                {
-                  params: {
-                    tokenIn: Sdk.Common.Addresses.Weth[chainId],
-                    tokenOut: Sdk.Common.Addresses.Usdc[chainId],
-                    fee: 500,
-                    recipient: swapModule.address,
-                    amountOut: listings
-                      .map(({ price }, i) => bn(price).add(chargeFees ? feesOnTop[i] : 0))
-                      .reduce((a, b) => bn(a).add(b), bn(0)),
-                    amountInMaximum: parseEther("100"),
-                    sqrtPriceLimitX96: 0,
-                  },
-                  transfers: [
-                    {
-                      recipient: zeroExV4Module.address,
-                      amount: listings
+                [
+                  {
+                    params: {
+                      tokenIn: Sdk.Common.Addresses.WNative[chainId],
+                      tokenOut: Sdk.Common.Addresses.Usdc[chainId][0],
+                      fee: 500,
+                      recipient: swapModule.address,
+                      amountOut: listings
                         .map(({ price }, i) => bn(price).add(chargeFees ? feesOnTop[i] : 0))
                         .reduce((a, b) => bn(a).add(b), bn(0)),
-                      toETH: false,
+                      amountInMaximum: parseEther("100"),
+                      sqrtPriceLimitX96: 0,
                     },
-                  ],
-                },
+                    transfers: [
+                      {
+                        recipient: zeroExV4Module.address,
+                        amount: listings
+                          .map(({ price }, i) => bn(price).add(chargeFees ? feesOnTop[i] : 0))
+                          .reduce((a, b) => bn(a).add(b), bn(0)),
+                        toETH: false,
+                      },
+                    ],
+                  },
+                ],
                 // Refund to Carol
                 carol.address,
+                true,
               ]),
               // Anything on top should be refunded
               value: parseEther("100"),

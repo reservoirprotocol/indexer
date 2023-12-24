@@ -4,6 +4,7 @@ import { config } from "@/config/index";
 import { ApiUsageCounter } from "@/models/api-usage-counter";
 import { ApiUsage } from "@/models/api-usage";
 import { logger } from "@/common/logger";
+import _ from "lodash";
 
 if (config.doBackgroundWork) {
   // Every minute store metrics to long term DB
@@ -16,7 +17,7 @@ if (config.doBackgroundWork) {
         do {
           counts = await ApiUsageCounter.popCounts(count);
 
-          if (counts) {
+          if (!_.isEmpty(counts)) {
             await ApiUsage.recordCounts(counts);
           }
         } while (counts.length === count);

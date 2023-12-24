@@ -40,7 +40,7 @@ describe("Royalties Router", () => {
       {
         contract: "0xa319c382a702682129fcbf55d514e61a16f97f9c",
         tokenId: "15000054",
-        royaltyFeeBps: 999,
+        royaltyFeeBps: 1000,
         marketplaceFeeBps: 50,
       },
     ];

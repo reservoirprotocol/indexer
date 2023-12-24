@@ -78,7 +78,7 @@ export const handleEvents = async (
               `
                 SELECT
                   orders.id,
-                  orders.price
+                  orders.currency_price
                 FROM orders
                 WHERE orders.kind = '${orderKind}'
                   AND orders.maker = $/maker/
@@ -99,7 +99,7 @@ export const handleEvents = async (
                 orderId = result.id;
                 // Workaround the fact that 0xv4 fill events exclude the fee from the price
                 // TODO: Use tracing to get the total price (including fees) for every fill
-                currencyPrice = result.price;
+                currencyPrice = result.currency_price;
               }
             });
         }
@@ -115,9 +115,9 @@ export const handleEvents = async (
         }
 
         let currency = erc20Token;
-        if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
+        if (currency === Sdk.ZeroExV4.Addresses.Native[config.chainId]) {
           // Map the weird ZeroEx ETH address to the default ETH address
-          currency = Sdk.Common.Addresses.Eth[config.chainId];
+          currency = Sdk.Common.Addresses.Native[config.chainId];
         }
 
         const priceData = await getUSDAndNativePrices(
@@ -236,7 +236,7 @@ export const handleEvents = async (
               `
                 SELECT
                   orders.id,
-                  orders.price
+                  orders.currency_price
                 FROM orders
                 WHERE orders.kind = '${orderKind}'
                   AND orders.maker = $/maker/
@@ -257,7 +257,7 @@ export const handleEvents = async (
                 orderId = result.id;
                 // Workaround the fact that 0xv4 fill events exclude the fee from the price
                 // TODO: Use tracing to get the total price (including fees) for every fill
-                currencyPrice = bn(result.price).mul(erc1155FillAmount).toString();
+                currencyPrice = bn(result.currency_price).mul(erc1155FillAmount).toString();
               }
             });
         }
@@ -273,9 +273,9 @@ export const handleEvents = async (
         }
 
         let currency = erc20Token;
-        if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
+        if (currency === Sdk.ZeroExV4.Addresses.Native[config.chainId]) {
           // Map the weird ZeroEx ETH address to the default ETH address
-          currency = Sdk.Common.Addresses.Eth[config.chainId];
+          currency = Sdk.Common.Addresses.Native[config.chainId];
         }
 
         const priceData = await getUSDAndNativePrices(

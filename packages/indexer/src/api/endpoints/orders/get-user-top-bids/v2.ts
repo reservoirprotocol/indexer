@@ -13,9 +13,9 @@ import {
   toBuffer,
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 import _ from "lodash";
-import { JoiOrderCriteria } from "@/common/joi";
+import { JoiOrderCriteria, JoiSource, getJoiSourceObject } from "@/common/joi";
 import { Orders } from "@/utils/orders";
 
 const version = "v2";
@@ -93,7 +93,7 @@ export const getUserTopBidsV2Options: RouteOptions = {
           validFrom: Joi.number().unsafe(),
           validUntil: Joi.number().unsafe(),
           floorDifferencePercentage: Joi.number().unsafe(),
-          source: Joi.object().allow(null),
+          source: JoiSource.allow(null),
           feeBreakdown: Joi.array()
             .items(
               Joi.object({
@@ -114,7 +114,7 @@ export const getUserTopBidsV2Options: RouteOptions = {
             collection: Joi.object({
               id: Joi.string().allow(null),
               name: Joi.string().allow("", null),
-              imageUrl: Joi.string().allow(null),
+              imageUrl: Joi.string().allow("", null),
               floorAskPrice: Joi.number().unsafe().allow(null),
             }),
           }),
@@ -176,7 +176,8 @@ export const getUserTopBidsV2Options: RouteOptions = {
       const criteriaBuildQuery = Orders.buildCriteriaQuery(
         "y",
         "token_set_id",
-        query.includeCriteriaMetadata
+        query.includeCriteriaMetadata,
+        "token_set_schema_hash"
       );
 
       const collectionFloorSellValueColumnName = query.useNonFlaggedFloorAsk
@@ -219,6 +220,7 @@ export const getUserTopBidsV2Options: RouteOptions = {
                 id AS "collection_id",
                 name AS "collection_name",
                 metadata AS "collection_metadata",
+                image_version AS "collection_image_version",
                 ${collectionFloorSellValueColumnName} AS "collection_floor_sell_value",
                 (${collectionFloorSellValueColumnName} * (1-((COALESCE(royalties_bps, 0)::float + 250) / 10000)))::numeric(78, 0) AS "net_listing"
             FROM collections c
@@ -258,26 +260,24 @@ export const getUserTopBidsV2Options: RouteOptions = {
           validFrom: r.top_bid_valid_from,
           validUntil: r.top_bid_valid_until,
           floorDifferencePercentage: _.round(r.floor_difference_percentage || 0, 2),
-          source: {
-            id: source?.address,
-            domain: source?.domain,
-            name: source?.getTitle(),
-            icon: source?.getIcon(),
-            url: source?.metadata.url,
-          },
+          source: getJoiSourceObject(source),
           feeBreakdown: r.fee_breakdown,
           criteria: r.bid_criteria,
           token: {
             contract: contract,
             tokenId: tokenId,
             name: r.name,
-            image: Assets.getLocalAssetsLink(r.image),
+            image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
             floorAskPrice: r.token_floor_sell_value ? formatEth(r.token_floor_sell_value) : null,
             lastSalePrice: r.token_last_sell_value ? formatEth(r.token_last_sell_value) : null,
             collection: {
               id: r.collection_id,
               name: r.collection_name,
-              imageUrl: Assets.getLocalAssetsLink(r.collection_metadata?.imageUrl),
+              imageUrl: Assets.getResizedImageUrl(
+                r.collection_metadata?.imageUrl,
+                ImageSize.small,
+                r.collection_image_version
+              ),
               floorAskPrice: r.collection_floor_sell_value
                 ? formatEth(r.collection_floor_sell_value)
                 : null,

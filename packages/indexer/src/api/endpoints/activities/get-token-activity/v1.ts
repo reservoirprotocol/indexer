@@ -6,9 +6,10 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { formatEth, regex } from "@/common/utils";
-import { Activities } from "@/models/activities";
-import { ActivityType } from "@/models/activities/activities-entity";
 import { Sources } from "@/models/sources";
+import { ActivityType } from "@/elasticsearch/indexes/activities/base";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { JoiSource, getJoiSourceObject } from "@/common/joi";
 
 const version = "v1";
 
@@ -79,7 +80,7 @@ export const getTokenActivityV1Options: RouteOptions = {
           txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null),
           logIndex: Joi.number().allow(null),
           batchIndex: Joi.number().allow(null),
-          source: Joi.object().allow(null),
+          source: JoiSource.allow(null),
         })
       ),
     }).label(`getTokenActivity${version.toUpperCase()}Response`),
@@ -98,63 +99,50 @@ export const getTokenActivityV1Options: RouteOptions = {
 
     try {
       const [contract, tokenId] = params.token.split(":");
-      const activities = await Activities.getTokenActivities(
-        contract,
-        tokenId,
-        query.continuation,
-        query.types,
-        query.limit
-      );
-
-      // If no activities found
-      if (!activities.length) {
-        return { activities: [] };
-      }
 
       const sources = await Sources.getInstance();
 
+      const { activities, continuation } = await ActivitiesIndex.search({
+        types: query.types,
+        tokens: [{ contract, tokenId }],
+        sortBy: "timestamp",
+        limit: query.limit,
+        continuation: query.continuation,
+        continuationAsInt: true,
+      });
+
       const result = _.map(activities, (activity) => {
-        const source = activity.metadata.orderSourceIdInt
-          ? sources.get(activity.metadata.orderSourceIdInt)
-          : undefined;
+        const source = activity.order?.sourceId ? sources.get(activity.order.sourceId) : undefined;
 
         return {
           type: activity.type,
           fromAddress: activity.fromAddress,
-          toAddress: activity.toAddress,
-          price: formatEth(activity.price),
-          amount: activity.amount,
-          timestamp: activity.eventTimestamp,
+          toAddress: activity.toAddress || null,
+          price: formatEth(activity.pricing?.price || 0),
+          amount: Number(activity.amount),
+          timestamp: activity.timestamp,
           token: {
-            tokenId: activity.token?.tokenId,
-            tokenName: activity.token?.tokenName,
-            tokenImage: activity.token?.tokenImage,
+            tokenId: activity.token?.id,
+            tokenName: activity.token?.name,
+            tokenImage: activity.token?.image,
           },
-          collection: activity.collection,
-          txHash: activity.metadata.transactionHash,
-          logIndex: activity.metadata.logIndex,
-          batchIndex: activity.metadata.batchIndex,
-          source: source
-            ? {
-                domain: source?.domain,
-                name: source?.getTitle(),
-                icon: source?.getIcon(),
-              }
-            : undefined,
+          collection: {
+            collectionId: activity.collection?.id,
+            collectionName: activity.collection?.name,
+            collectionImage:
+              activity.collection?.image != null ? activity.collection?.image : undefined,
+          },
+          txHash: activity.event?.txHash,
+          logIndex: activity.event?.logIndex,
+          batchIndex: activity.event?.batchIndex,
+          source: getJoiSourceObject(source, false),
         };
       });
 
-      // Set the continuation node
-      let continuation = null;
-      if (activities.length === query.limit) {
-        const lastActivity = _.last(activities);
-
-        if (lastActivity) {
-          continuation = lastActivity.eventTimestamp;
-        }
-      }
-
-      return { activities: result, continuation };
+      return {
+        activities: result,
+        continuation: continuation ? Number(continuation) : null,
+      };
     } catch (error) {
       logger.error(`get-token-activity-${version}-handler`, `Handler failure: ${error}`);
       throw error;

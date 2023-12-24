@@ -9,9 +9,8 @@ import { ContractSets } from "@/models/contract-sets";
 const version = "v1";
 
 export const postCreateContractsSetV1Options: RouteOptions = {
-  description: "Create Contracts Set",
-  notes:
-    "Array of contracts to gather in a set. Adding or removing a contract will change the response. You may use this set when contractSetId is an available param.",
+  description: "Create contracts set",
+  notes: `Array of contracts to gather in a set. Adding or removing a contract will change the response. You may use this set when contractSetId is an available param. Max limit of contracts passed in an array is 500. An example is below.\n\n\`"contracts": "0x60e4d786628fea6478f785a6d7e704777c86a7c6", "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d"\`\n\n\`"contractsSetId": "74cc9bdc0824e92de13c75213015916557fcf8187e43b34a8e77175cd03d1931"`,
   tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {

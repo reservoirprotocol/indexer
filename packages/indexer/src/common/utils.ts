@@ -118,8 +118,9 @@ export const regex = {
   origin: /^https?:\/\/(?:[^@\n]+@)?(?:www\.)?([^:\n?]+)/,
   ipv4: /^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\.(?!$)|$)){4}$/,
   address: /^0x[a-fA-F0-9]{40}$/,
+  collectionId: /^0x[a-fA-F0-9]{40}(?::\d+:\d+)?$/,
   bytes32: /^0x[a-fA-F0-9]{64}$/,
-  bytes: /^0x[a-fA-F0-9]+$/,
+  bytes: /^0x[a-fA-F0-9]*$/,
   token: /^0x[a-fA-F0-9]{40}:[0-9]+$/,
   fee: /^0x[a-fA-F0-9]{40}:[0-9]+$/,
   number: /^[0-9]+$/,
@@ -135,7 +136,6 @@ export const isBase64 = (base64: string) => {
     // This function is mainly for detecting base64 strings in payloads from debeezium, which are sometimes 4 characters long.
     // An example of this is the "side" field in the orders table, which is either "buy" or "sell". For "sell" string, this function
     // normally would return true if it was not for the check below that checks if the string is exactly "sell".
-
     if (!base64 || base64.length % 4 !== 0 || typeof base64 !== "string" || base64 === "sell") {
       return false;
     }

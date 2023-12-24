@@ -4,9 +4,11 @@ import { idb, pgp } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { BaseEventParams } from "@/events-sync/parser";
-import * as nftTransfersWriteBuffer from "@/jobs/events-sync/write-buffers/nft-transfers";
+import { eventsSyncNftTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
 import { AddressZero } from "@ethersproject/constants";
-import * as tokenRecalcSupply from "@/jobs/token-updates/token-reclac-supply";
+import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
+import { DeferUpdateAddressBalance } from "@/models/defer-update-address-balance";
+import { getNetworkSettings } from "@/config/network";
 
 export type Event = {
   kind: ContractKind;
@@ -64,6 +66,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
 
   const tokenValuesErc721: erc721Token[] = [];
   const tokenValuesErc1155: erc1155Token[] = [];
+  const erc1155Contracts = [];
 
   for (const event of events) {
     const contractId = event.baseEventParams.address.toString();
@@ -106,6 +109,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
           remaining_supply: event.to === AddressZero ? 0 : 1,
         });
       } else {
+        erc1155Contracts.push(event.baseEventParams.address);
         tokenValuesErc1155.push({
           collection_id: event.baseEventParams.address,
           contract: toBuffer(event.baseEventParams.address),
@@ -137,6 +141,12 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
         { table: "nft_transfer_events" }
       );
 
+      const isErc1155 = _.includes(erc1155Contracts, fromBuffer(event.address));
+      const deferUpdate =
+        [137, 80001].includes(config.chainId) &&
+        _.includes(getNetworkSettings().mintAddresses, fromBuffer(event.from)) &&
+        isErc1155;
+
       // Atomically insert the transfer events and update balances
       nftTransferQueries.push(`
         WITH "x" AS (
@@ -158,6 +168,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
           RETURNING
             "address",
             "token_id",
+            true AS "new_transfer",
             ARRAY["from", "to"] AS "owners",
             ARRAY[-"amount", "amount"] AS "amount_deltas",
             ARRAY[NULL, to_timestamp("timestamp")] AS "timestamps"
@@ -185,15 +196,26 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
             FROM "x"
             ORDER BY "address" ASC, "token_id" ASC, "owner" ASC
           ) "y"
+          ${deferUpdate ? `WHERE y.owner != ${pgp.as.buffer(() => event.from)}` : ""}
           GROUP BY "y"."address", "y"."token_id", "y"."owner"
         )
         ON CONFLICT ("contract", "token_id", "owner") DO
         UPDATE SET 
           "amount" = "nft_balances"."amount" + "excluded"."amount", 
           "acquired_at" = COALESCE(GREATEST("excluded"."acquired_at", "nft_balances"."acquired_at"), "nft_balances"."acquired_at")
+        RETURNING (SELECT x.new_transfer FROM "x")
       `);
 
-      await insertQueries(nftTransferQueries, backfill);
+      const result = await insertQueries(nftTransferQueries, backfill);
+
+      if (!_.isEmpty(result) && deferUpdate) {
+        await DeferUpdateAddressBalance.add(
+          fromBuffer(event.from),
+          fromBuffer(event.address),
+          event.token_id,
+          -Number(event.amount)
+        );
+      }
     }
   }
 
@@ -228,7 +250,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
       await insertQueries([query], backfill);
 
       // Recalc supply
-      await tokenRecalcSupply.addToQueue(
+      await tokenReclacSupplyJob.addToQueue(
         tokenValuesChunk.map((t) => ({ contract: fromBuffer(t.contract), tokenId: t.token_id }))
       );
     }
@@ -238,7 +260,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
 function buildTokenValuesQueries(tokenValuesChunk: erc721Token[] | erc1155Token[], kind: string) {
   const columns = ["contract", "token_id", "minted_timestamp"];
 
-  if (!config.liquidityOnly) {
+  if (config.liquidityOnly) {
     columns.push("collection_id");
   }
 
@@ -256,7 +278,7 @@ function buildTokenValuesQueries(tokenValuesChunk: erc721Token[] | erc1155Token[
       "contract",
       "token_id",
       "minted_timestamp"
-      ${!config.liquidityOnly ? `, "collection_id"` : ""}
+      ${config.liquidityOnly ? `, "collection_id"` : ""}
       ${kind === "erc721" ? `, "supply"` : ""}
       ${kind === "erc721" ? `, "remaining_supply"` : ""}
     ) VALUES ${pgp.helpers.values(
@@ -264,7 +286,7 @@ function buildTokenValuesQueries(tokenValuesChunk: erc721Token[] | erc1155Token[
       columnSet
     )}
     ON CONFLICT (contract, token_id) DO UPDATE
-    SET minted_timestamp = EXCLUDED.minted_timestamp
+    SET minted_timestamp = EXCLUDED.minted_timestamp, updated_at = NOW()
     WHERE EXCLUDED.minted_timestamp < tokens.minted_timestamp
   `;
 }
@@ -273,14 +295,14 @@ async function insertQueries(queries: string[], backfill: boolean) {
   if (backfill) {
     // When backfilling, use the write buffer to avoid deadlocks
     for (const query of _.chunk(queries, 1000)) {
-      await nftTransfersWriteBuffer.addToQueue(pgp.helpers.concat(query));
+      await eventsSyncNftTransfersWriteBufferJob.addToQueue({ query: pgp.helpers.concat(query) });
     }
   } else {
     // Otherwise write directly since there might be jobs that depend
     // on the events to have been written to the database at the time
     // they get to run and we have no way to easily enforce this when
     // using the write buffer.
-    await idb.none(pgp.helpers.concat(queries));
+    return await idb.manyOrNone(pgp.helpers.concat(queries));
   }
 }
 
@@ -289,8 +311,11 @@ export const removeEvents = async (block: number, blockHash: string) => {
   await idb.any(
     `
       WITH "x" AS (
-        DELETE FROM "nft_transfer_events"
-        WHERE "block" = $/block/ AND "block_hash" = $/blockHash/
+        UPDATE "nft_transfer_events"
+        SET is_deleted = 1, updated_at = now()
+        WHERE "block" = $/block/
+          AND "block_hash" = $/blockHash/
+          AND is_deleted = 0
         RETURNING
           "address",
           "token_id",

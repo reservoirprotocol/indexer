@@ -31,13 +31,6 @@ import * as zeroExV4BuyAttribute from "@/orderbook/orders/zeroex-v4/build/buy/at
 import * as zeroExV4BuyToken from "@/orderbook/orders/zeroex-v4/build/buy/token";
 import * as zeroExV4BuyCollection from "@/orderbook/orders/zeroex-v4/build/buy/collection";
 
-// Universe
-import * as universeBuyToken from "@/orderbook/orders/universe/build/buy/token";
-
-// Flow
-import * as flowBuyToken from "@/orderbook/orders/flow/build/buy/token";
-import * as flowBuyCollection from "@/orderbook/orders/flow/build/buy/collection";
-
 const version = "v4";
 
 export const getExecuteBidV4Options: RouteOptions = {
@@ -65,90 +58,92 @@ export const getExecuteBidV4Options: RouteOptions = {
         .description(
           `Domain of your app that is creating the order, e.g. \`myapp.xyz\`. This is used for filtering, and to attribute the "order source" of sales in on-chain analytics, to help your app get discovered. Lean more <a href='https://docs.reservoir.tools/docs/calldata-attribution'>here</a>`
         ),
-      params: Joi.array().items(
-        Joi.object({
-          token: Joi.string()
-            .lowercase()
-            .pattern(regex.token)
-            .description(
-              "Bid on a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
+      params: Joi.array()
+        .items(
+          Joi.object({
+            token: Joi.string()
+              .lowercase()
+              .pattern(regex.token)
+              .description(
+                "Bid on a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
+              ),
+            tokenSetId: Joi.string().description("Bid on a particular token set."),
+            collection: Joi.string()
+              .lowercase()
+              .description(
+                "Bid on a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+              ),
+            attributeKey: Joi.string().description(
+              "Bid on a particular attribute key. Example: `Composition`"
             ),
-          tokenSetId: Joi.string().description("Bid on a particular token set."),
-          collection: Joi.string()
-            .lowercase()
-            .description(
-              "Bid on a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+            attributeValue: Joi.string().description(
+              "Bid on a particular attribute value. Example: `Teddy (#33)`"
             ),
-          attributeKey: Joi.string().description(
-            "Bid on a particular attribute key. Example: `Composition`"
-          ),
-          attributeValue: Joi.string().description(
-            "Bid on a particular attribute value. Example: `Teddy (#33)`"
-          ),
-          quantity: Joi.number().description(
-            "Quantity of tokens user is buying. Only compatible with ERC1155 tokens. Example: `5`"
-          ),
-          weiPrice: Joi.string()
-            .pattern(regex.number)
-            .description("Amount bidder is willing to offer in wei. Example: `1000000000000000000`")
-            .required(),
-          orderKind: Joi.string()
-            .valid(
-              "zeroex-v4",
-              "seaport",
-              "seaport-v1.4",
-              "seaport-v1.5",
-              "looks-rare",
-              "looks-rare-v2",
-              "x2y2",
-              "universe",
-              "flow"
-            )
-            .default("seaport-v1.5")
-            .description("Exchange protocol used to create order. Example: `seaport-v1.5`"),
-          orderbook: Joi.string()
-            .valid("reservoir", "opensea", "looks-rare", "x2y2", "universe", "flow")
-            .default("reservoir")
-            .description("Orderbook where order is placed. Example: `Reservoir`"),
-          orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
-          automatedRoyalties: Joi.boolean()
-            .default(true)
-            .description("If true, royalties will be automatically included."),
-          royaltyBps: Joi.number().description(
-            "The royalty percentage to pay. Only relevant when using automated royalties."
-          ),
-          fees: Joi.array()
-            .items(Joi.string().pattern(regex.fee))
-            .description(
-              "List of fees (formatted as `feeRecipient:feeBps`) to be bundled within the order. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:100`"
+            quantity: Joi.number().description(
+              "Quantity of tokens user is buying. Only compatible with ERC1155 tokens. Example: `5`"
             ),
-          excludeFlaggedTokens: Joi.boolean()
-            .default(false)
-            .description("If true flagged tokens will be excluded"),
-          listingTime: Joi.string()
-            .pattern(regex.unixTimestamp)
-            .description(
-              "Unix timestamp (seconds) indicating when listing will be listed. Example: `1656080318`"
+            weiPrice: Joi.string()
+              .pattern(regex.number)
+              .description(
+                "Amount bidder is willing to offer in wei. Example: `1000000000000000000`"
+              )
+              .required(),
+            orderKind: Joi.string()
+              .valid(
+                "zeroex-v4",
+                "seaport",
+                "seaport-v1.4",
+                "seaport-v1.5",
+                "looks-rare",
+                "looks-rare-v2",
+                "x2y2"
+              )
+              .default("seaport-v1.5")
+              .description("Exchange protocol used to create order. Example: `seaport-v1.5`"),
+            orderbook: Joi.string()
+              .valid("reservoir", "opensea", "looks-rare", "x2y2")
+              .default("reservoir")
+              .description("Orderbook where order is placed. Example: `Reservoir`"),
+            orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
+            automatedRoyalties: Joi.boolean()
+              .default(true)
+              .description("If true, royalties will be automatically included."),
+            royaltyBps: Joi.number().description(
+              "The royalty percentage to pay. Only relevant when using automated royalties."
             ),
-          expirationTime: Joi.string()
-            .pattern(regex.unixTimestamp)
-            .description(
-              "Unix timestamp (seconds) indicating when listing will expire. Example: `1656080318`"
-            ),
-          salt: Joi.string()
-            .pattern(regex.number)
-            .description("Optional. Random string to make the order unique"),
-          nonce: Joi.string().pattern(regex.number).description("Optional. Set a custom nonce"),
-          currency: Joi.string()
-            .pattern(regex.address)
-            .default(Sdk.Common.Addresses.Weth[config.chainId]),
-        })
-          .or("token", "collection", "tokenSetId")
-          .oxor("token", "collection", "tokenSetId")
-          .with("attributeValue", "attributeKey")
-          .with("attributeKey", "attributeValue")
-          .with("attributeKey", "collection")
-      ),
+            fees: Joi.array()
+              .items(Joi.string().pattern(regex.fee))
+              .description(
+                "List of fees (formatted as `feeRecipient:feeBps`) to be bundled within the order. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:100`"
+              ),
+            excludeFlaggedTokens: Joi.boolean()
+              .default(false)
+              .description("If true flagged tokens will be excluded"),
+            listingTime: Joi.string()
+              .pattern(regex.unixTimestamp)
+              .description(
+                "Unix timestamp (seconds) indicating when listing will be listed. Example: `1656080318`"
+              ),
+            expirationTime: Joi.string()
+              .pattern(regex.unixTimestamp)
+              .description(
+                "Unix timestamp (seconds) indicating when listing will expire. Example: `1656080318`"
+              ),
+            salt: Joi.string()
+              .pattern(regex.number)
+              .description("Optional. Random string to make the order unique"),
+            nonce: Joi.string().pattern(regex.number).description("Optional. Set a custom nonce"),
+            currency: Joi.string()
+              .pattern(regex.address)
+              .default(Sdk.Common.Addresses.WNative[config.chainId]),
+          })
+            .or("token", "collection", "tokenSetId")
+            .oxor("token", "collection", "tokenSetId")
+            .with("attributeValue", "attributeKey")
+            .with("attributeKey", "attributeValue")
+            .with("attributeKey", "collection")
+        )
+        .min(1),
     }),
   },
   response: {
@@ -295,12 +290,12 @@ export const getExecuteBidV4Options: RouteOptions = {
         const currency = new Sdk.Common.Helpers.Erc20(baseProvider, params.currency);
         const currencyBalance = await currency.getBalance(maker);
         if (bn(currencyBalance).lt(params.weiPrice)) {
-          if (params.currency === Sdk.Common.Addresses.Weth[config.chainId]) {
+          if (params.currency === Sdk.Common.Addresses.WNative[config.chainId]) {
             const ethBalance = await baseProvider.getBalance(maker);
             if (bn(currencyBalance).add(ethBalance).lt(params.weiPrice)) {
               throw Boom.badData("Maker does not have sufficient balance");
             } else {
-              const weth = new Sdk.Common.Helpers.Weth(baseProvider, config.chainId);
+              const weth = new Sdk.Common.Helpers.WNative(baseProvider, config.chainId);
               wrapEthTx = weth.depositTransaction(maker, bn(params.weiPrice).sub(currencyBalance));
             }
           } else {
@@ -312,15 +307,6 @@ export const getExecuteBidV4Options: RouteOptions = {
           case "seaport-v1.5": {
             if (!["reservoir", "opensea"].includes(params.orderbook)) {
               throw Boom.badRequest("Only `reservoir` and `opensea` are supported as orderbooks");
-            }
-
-            // OpenSea expects a royalty of at least 0.5%
-            if (
-              params.orderbook === "opensea" &&
-              params.royaltyBps !== undefined &&
-              Number(params.royaltyBps) < 50
-            ) {
-              throw Boom.badRequest("Royalties should be at least 0.5% when posting to OpenSea");
             }
 
             let order: Sdk.SeaportV15.Order;
@@ -611,98 +597,6 @@ export const getExecuteBidV4Options: RouteOptions = {
             continue;
           }
 
-          case "flow": {
-            if (!["flow"].includes(params.orderbook)) {
-              throw Boom.badRequest("Only `flow` is supported as orderbook");
-            }
-
-            if (params.fees?.length) {
-              throw Boom.badRequest("Flow does not support custom fees");
-            }
-
-            if (params.excludeFlaggedTokens) {
-              throw Boom.badRequest("Flow does not support excluded token bids");
-            }
-
-            if (attributeKey || attributeValue) {
-              throw Boom.badRequest("Flow does not support attribute bids");
-            }
-
-            let order: Sdk.Flow.Order | undefined;
-            if (token) {
-              const [contract, tokenId] = token.split(":");
-              order = await flowBuyToken.build({
-                ...params,
-                maker,
-                collection: contract,
-                tokenId,
-              });
-            } else if (collection) {
-              order = await flowBuyCollection.build({ ...params, maker, collection });
-            }
-
-            if (!order) {
-              throw Boom.internal("Failed to generate order");
-            }
-
-            let approvalTx: TxData | undefined;
-            const wethApproval = await currency.getAllowance(
-              maker,
-              Sdk.Flow.Addresses.Exchange[config.chainId]
-            );
-
-            if (
-              bn(wethApproval).lt(bn(order.params.startPrice)) ||
-              bn(wethApproval).lt(bn(order.params.endPrice))
-            ) {
-              approvalTx = currency.approveTransaction(
-                maker,
-                Sdk.Flow.Addresses.Exchange[config.chainId]
-              );
-            }
-
-            steps[1].items.push({
-              status: !wrapEthTx ? "complete" : "incomplete",
-              data: wrapEthTx,
-              orderIndex: i,
-            });
-            steps[2].items.push({
-              status: !approvalTx ? "complete" : "incomplete",
-              data: approvalTx,
-              orderIndex: i,
-            });
-
-            steps[3].items.push({
-              status: "incomplete",
-              data: {
-                sign: order.getSignatureData(),
-                post: {
-                  endpoint: "/order/v3",
-                  method: "POST",
-                  body: {
-                    order: {
-                      kind: "flow",
-                      data: {
-                        ...order.params,
-                      },
-                    },
-                    tokenSetId,
-                    collection:
-                      collection && !attributeKey && !attributeValue ? collection : undefined,
-                    orderbook: params.orderbook,
-                    source,
-                  },
-                },
-              },
-              orderIndex: i,
-            });
-
-            addExecution(order.hash(), params.quantity);
-
-            // Go on with the next bid
-            continue;
-          }
-
           case "x2y2": {
             if (!["x2y2"].includes(params.orderbook)) {
               throw Boom.badRequest("Only `x2y2` is supported as orderbook");
@@ -793,92 +687,6 @@ export const getExecuteBidV4Options: RouteOptions = {
             // Go on with the next bid
             continue;
           }
-
-          case "universe": {
-            if (!["reservoir"].includes(params.orderbook)) {
-              throw Boom.badRequest("Only `reservoir` is supported as orderbook");
-            }
-
-            let order: Sdk.Universe.Order | undefined;
-            if (token) {
-              const [contract, tokenId] = token.split(":");
-              order = await universeBuyToken.build({
-                ...params,
-                maker,
-                contract,
-                tokenId,
-              });
-            }
-
-            if (!order) {
-              throw Boom.internal("Failed to generate order");
-            }
-
-            // Check the maker's approval
-            let approvalTx: TxData | undefined;
-            const wethApproval = await currency.getAllowance(
-              maker,
-              Sdk.Universe.Addresses.Exchange[config.chainId]
-            );
-            if (bn(wethApproval).lt(bn(order.params.make.value))) {
-              approvalTx = currency.approveTransaction(
-                maker,
-                Sdk.Universe.Addresses.Exchange[config.chainId]
-              );
-            }
-
-            steps[1].items.push({
-              status: !wrapEthTx ? "complete" : "incomplete",
-              data: wrapEthTx,
-              orderIndex: i,
-            });
-            steps[2].items.push({
-              status: !approvalTx ? "complete" : "incomplete",
-              data: approvalTx,
-              orderIndex: i,
-            });
-            steps[3].items.push({
-              status: "incomplete",
-              data: {
-                sign: order.getSignatureData(),
-                post: {
-                  endpoint: "/order/v3",
-                  method: "POST",
-                  body: {
-                    order: {
-                      kind: "universe",
-                      data: {
-                        ...order.params,
-                      },
-                    },
-                    tokenSetId,
-                    attribute:
-                      collection && attributeKey && attributeValue
-                        ? {
-                            collection,
-                            key: attributeKey,
-                            value: attributeValue,
-                          }
-                        : undefined,
-                    collection:
-                      collection && params.excludeFlaggedTokens && !attributeKey && !attributeValue
-                        ? collection
-                        : undefined,
-                    isNonFlagged: params.excludeFlaggedTokens,
-                    orderbook: params.orderbook,
-                    orderbookApiKey: params.orderbookApiKey,
-                    source,
-                  },
-                },
-              },
-              orderIndex: i,
-            });
-
-            addExecution(order.hashOrderKey(), params.quantity);
-
-            // Go on with the next bid
-            continue;
-          }
         }
       }
 
@@ -893,7 +701,7 @@ export const getExecuteBidV4Options: RouteOptions = {
         }
 
         if (amount.gt(0)) {
-          const weth = new Sdk.Common.Helpers.Weth(baseProvider, config.chainId);
+          const weth = new Sdk.Common.Helpers.WNative(baseProvider, config.chainId);
           const wethWrapTx = weth.depositTransaction(maker, amount);
 
           steps[1].items = [

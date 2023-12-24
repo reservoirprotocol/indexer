@@ -5,7 +5,7 @@ import { randomUUID } from "crypto";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Collections } from "@/models/collections";
@@ -66,17 +66,6 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
-
-  if (config.chainId === 10 || config.chainId === 42161) {
-    redlock
-      .acquire([`${QUEUE_NAME}-lock-2`], 60 * 60 * 24 * 30 * 1000)
-      .then(async () => {
-        await addToQueue();
-      })
-      .catch(() => {
-        // Skip on any errors
-      });
-  }
 }
 
 export const addToQueue = async (day30Volume = "1000000000000000000000000") => {

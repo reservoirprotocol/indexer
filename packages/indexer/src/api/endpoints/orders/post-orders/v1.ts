@@ -6,7 +6,8 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
+import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
+import { GenericOrderInfo } from "@/jobs/orderbook/utils";
 
 const version = "v1";
 
@@ -36,12 +37,12 @@ export const postOrdersV1Options: RouteOptions = {
               "element",
               "rarible",
               "manifold",
-              "flow",
               "looks-rare-v2"
             )
             .required(),
           data: Joi.object().required(),
           originatedAt: Joi.string(),
+          source: Joi.string(),
         })
       ),
     }),
@@ -65,22 +66,25 @@ export const postOrdersV1Options: RouteOptions = {
 
       logger.info(`post-orders-${version}-handler`, `Got ${orders.length} orders`);
 
-      const orderInfos: orderbookOrders.GenericOrderInfo[] = [];
-      for (const { kind, data, originatedAt } of orders) {
+      const orderInfos: GenericOrderInfo[] = [];
+      for (const { kind, data, originatedAt, source } of orders) {
         orderInfos.push({
           kind,
           info: {
             orderParams: data,
             metadata: {
               originatedAt,
+              source:
+                source === "okx" ? "okx.com" : source === "opensea" ? "opensea.io" : undefined,
             },
-            isOpenSea: true,
+            isOpenSea: source === "opensea",
+            isOkx: source === "okx",
           },
           validateBidValue: true,
         });
       }
 
-      await orderbookOrders.addToQueue(orderInfos);
+      await orderbookOrdersJob.addToQueue(orderInfos);
 
       return { message: "Request accepted" };
     } catch (error) {

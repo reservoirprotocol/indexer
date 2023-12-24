@@ -1,24 +1,23 @@
 import _ from "lodash";
 import { redis } from "@/common/redis";
+import { getOpenseaNetworkName } from "@/config/network";
 
 export type PendingFlagStatusSyncToken = {
-  collectionId: string;
   contract: string;
   tokenId: string;
-  isFlagged: number;
 };
 
 /**
  * Class that manage redis list of tokens, pending flag status sync
  */
 export class PendingFlagStatusSyncTokens {
-  public key = "pending-flag-status-sync-tokens";
+  public static key = "pending-flag-status-sync-tokens";
 
-  public constructor(collectionId: string) {
-    this.key += `:${collectionId}`;
-  }
+  public static async add(tokens: PendingFlagStatusSyncToken[], prioritized = false) {
+    if (!getOpenseaNetworkName()) {
+      return;
+    }
 
-  public async add(tokens: PendingFlagStatusSyncToken[], prioritized = false) {
     if (prioritized) {
       return await redis.lpush(
         this.key,
@@ -32,7 +31,7 @@ export class PendingFlagStatusSyncTokens {
     }
   }
 
-  public async get(count = 1): Promise<PendingFlagStatusSyncToken[]> {
+  public static async get(count = 1): Promise<PendingFlagStatusSyncToken[]> {
     const tokens = await redis.lpop(this.key, count);
     if (tokens) {
       return _.map(tokens, (token) => JSON.parse(token) as PendingFlagStatusSyncToken);
@@ -41,7 +40,7 @@ export class PendingFlagStatusSyncTokens {
     return [];
   }
 
-  public async count(): Promise<number> {
+  public static async count(): Promise<number> {
     return await redis.llen(this.key);
   }
 }

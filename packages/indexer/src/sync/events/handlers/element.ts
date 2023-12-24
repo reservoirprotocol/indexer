@@ -89,9 +89,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         // Handle: prices
 
         let currency = erc20Token;
-        if (currency === Sdk.Element.Addresses.Eth[config.chainId]) {
+        if (currency === Sdk.Element.Addresses.NativeEthAddress) {
           // Map the weird ZeroEx ETH address to the default ETH address
-          currency = Sdk.Common.Addresses.Eth[config.chainId];
+          currency = Sdk.Common.Addresses.Native[config.chainId];
         }
         const currencyPrice = erc20TokenAmount;
 
@@ -144,6 +144,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           amount: "1",
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         break;
@@ -178,9 +180,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         // Handle: prices
 
         let currency = erc20Token;
-        if (currency === Sdk.Element.Addresses.Eth[config.chainId]) {
+        if (currency === Sdk.Element.Addresses.NativeEthAddress) {
           // Map the weird ZeroEx ETH address to the default ETH address
-          currency = Sdk.Common.Addresses.Eth[config.chainId];
+          currency = Sdk.Common.Addresses.Native[config.chainId];
         }
         const currencyPrice = bn(erc20FillAmount).div(erc1155FillAmount).toString();
 
@@ -233,6 +235,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           amount: erc1155FillAmount,
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         break;
@@ -261,9 +265,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         // Handle: prices
         let currency = erc20Token;
-        if (currency === Sdk.Element.Addresses.Eth[config.chainId]) {
+        if (currency === Sdk.Element.Addresses.NativeEthAddress) {
           // Map the weird ZeroEx ETH address to the default ETH address
-          currency = Sdk.Common.Addresses.Eth[config.chainId];
+          currency = Sdk.Common.Addresses.Native[config.chainId];
         }
         const currencyPrice = erc20TokenAmount;
 
@@ -347,9 +351,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         // Handle: prices
         let currency = erc20Token;
-        if (currency === Sdk.Element.Addresses.Eth[config.chainId]) {
+        if (currency === Sdk.Element.Addresses.NativeEthAddress) {
           // Map the weird ZeroEx ETH address to the default ETH address
-          currency = Sdk.Common.Addresses.Eth[config.chainId];
+          currency = Sdk.Common.Addresses.Native[config.chainId];
         }
         const currencyPrice = erc20TokenAmount;
 
@@ -432,9 +436,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         // Handle: prices
         let currency = erc20Token;
-        if (currency === Sdk.Element.Addresses.Eth[config.chainId]) {
+        if (currency === Sdk.Element.Addresses.NativeEthAddress) {
           // Map the weird ZeroEx ETH address to the default ETH address
-          currency = Sdk.Common.Addresses.Eth[config.chainId];
+          currency = Sdk.Common.Addresses.Native[config.chainId];
         }
         const currencyPrice = bn(erc20FillAmount).div(erc1155FillAmount).toString();
 
@@ -519,9 +523,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         // Handle: prices
 
         let currency = erc20Token;
-        if (currency === Sdk.Element.Addresses.Eth[config.chainId]) {
+        if (currency === Sdk.Element.Addresses.NativeEthAddress) {
           // Map the weird ZeroEx ETH address to the default ETH address
-          currency = Sdk.Common.Addresses.Eth[config.chainId];
+          currency = Sdk.Common.Addresses.Native[config.chainId];
         }
         const currencyPrice = bn(erc20FillAmount).div(erc1155FillAmount).toString();
 

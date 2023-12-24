@@ -2,6 +2,12 @@
 pragma solidity ^0.8.9;
 
 interface ICryptoPunksMarket {
+  struct BuyOrder {
+    address buyer;
+    uint256 price;
+    uint256 punkIndex;
+  }
+
   function punkIndexToAddress(uint256 punkIndex) external view returns (address owner);
 
   function balanceOf(address owner) external view returns (uint256 balance);

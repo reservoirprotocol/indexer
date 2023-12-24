@@ -3,13 +3,13 @@
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
-import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { MqJobsDataManager } from "@/models/mq-jobs-data";
-import { GenericOrderInfo } from "@/jobs/orderbook/orders-queue";
 import _ from "lodash";
+import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
+import { GenericOrderInfo } from "@/jobs/orderbook/utils";
 
 const QUEUE_NAME = "backfill-bids-queue";
 
@@ -32,7 +32,7 @@ if (config.doBackgroundWork) {
       const orderInfoBatch = (await MqJobsDataManager.getJobData(id)) as GenericOrderInfo[];
 
       if (!_.isEmpty(orderInfoBatch)) {
-        await orderbookOrders.addToQueue(
+        await orderbookOrdersJob.addToQueue(
           _.isArray(orderInfoBatch) ? orderInfoBatch : [orderInfoBatch]
         );
       }

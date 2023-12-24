@@ -6,12 +6,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
-import {
-  getChainId,
-  getCurrentTimestamp,
-  reset,
-  setupNFTs,
-} from "../../../utils";
+import { getChainId, getCurrentTimestamp, reset, setupNFTs } from "../../../utils";
 
 describe("ZeroEx V4 - SingleToken Erc721", () => {
   const chainId = getChainId();
@@ -38,7 +33,7 @@ describe("ZeroEx V4 - SingleToken Erc721", () => {
     const price = parseEther("1");
     const boughtTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -61,7 +56,7 @@ describe("ZeroEx V4 - SingleToken Erc721", () => {
       maker: buyer.address,
       contract: erc721.address,
       tokenId: boughtTokenId,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       price,
       expiry: (await getCurrentTimestamp(ethers.provider)) + 60,
     });
@@ -114,7 +109,7 @@ describe("ZeroEx V4 - SingleToken Erc721", () => {
       maker: seller.address,
       contract: erc721.address,
       tokenId: soldTokenId,
-      paymentToken: ZeroexV4.Addresses.Eth[chainId],
+      paymentToken: ZeroexV4.Addresses.Native[chainId],
       price,
       expiry: (await getCurrentTimestamp(ethers.provider)) + 60,
     });
@@ -128,9 +123,7 @@ describe("ZeroEx V4 - SingleToken Erc721", () => {
     await sellOrder.checkFillability(ethers.provider);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
     const ownerBefore = await nft.getOwner(soldTokenId);
 
     expect(ownerBefore).to.eq(seller.address);
@@ -153,7 +146,7 @@ describe("ZeroEx V4 - SingleToken Erc721", () => {
     const price = parseEther("1");
     const boughtTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price.add(parseEther("0.15")));
@@ -176,7 +169,7 @@ describe("ZeroEx V4 - SingleToken Erc721", () => {
       maker: buyer.address,
       contract: erc721.address,
       tokenId: boughtTokenId,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       price,
       fees: [
         {
@@ -243,7 +236,7 @@ describe("ZeroEx V4 - SingleToken Erc721", () => {
       maker: seller.address,
       contract: erc721.address,
       tokenId: soldTokenId,
-      paymentToken: ZeroexV4.Addresses.Eth[chainId],
+      paymentToken: ZeroexV4.Addresses.Native[chainId],
       price,
       fees: [
         {
@@ -267,9 +260,7 @@ describe("ZeroEx V4 - SingleToken Erc721", () => {
     await sellOrder.checkFillability(ethers.provider);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
     const carolBalanceBefore = await ethers.provider.getBalance(carol.address);
     const tedBalanceBefore = await ethers.provider.getBalance(ted.address);
     const ownerBefore = await nft.getOwner(soldTokenId);
@@ -287,9 +278,7 @@ describe("ZeroEx V4 - SingleToken Erc721", () => {
     const tedBalanceAfter = await ethers.provider.getBalance(ted.address);
     const ownerAfter = await nft.getOwner(soldTokenId);
 
-    expect(buyerBalanceBefore.sub(buyerBalanceAfter)).to.be.gt(
-      price.add(parseEther("0.15"))
-    );
+    expect(buyerBalanceBefore.sub(buyerBalanceAfter)).to.be.gt(price.add(parseEther("0.15")));
     expect(carolBalanceAfter.sub(carolBalanceBefore)).to.eq(parseEther("0.1"));
     expect(tedBalanceAfter.sub(tedBalanceBefore)).to.eq(parseEther("0.05"));
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(price));

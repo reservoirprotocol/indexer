@@ -1,6 +1,6 @@
 import { Provider, TransactionResponse } from "@ethersproject/abstract-provider";
 import { Signer } from "@ethersproject/abstract-signer";
-import { BigNumberish } from "@ethersproject/bignumber";
+import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
 
 import { TxData } from "../../utils";
@@ -33,6 +33,10 @@ export class Erc721 {
 
   public async getOwner(tokenId: BigNumberish): Promise<string> {
     return this.contract.ownerOf(tokenId);
+  }
+
+  public async getBalance(owner: string): Promise<BigNumber> {
+    return this.contract.balanceOf(owner);
   }
 
   public async isApproved(owner: string, operator: string): Promise<boolean> {

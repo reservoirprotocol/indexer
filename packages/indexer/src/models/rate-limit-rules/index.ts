@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import _ from "lodash";
 
-import { rateLimitRedis, redis } from "@/common/redis";
+import { allChainsSyncRedis, rateLimitRedis, redis } from "@/common/redis";
 import { idb, redb } from "@/common/db";
 import {
   RateLimitRuleEntity,
@@ -10,7 +10,7 @@ import {
   RateLimitRulePayload,
   RateLimitRuleUpdateParams,
 } from "@/models/rate-limit-rules/rate-limit-rule-entity";
-import { Channel } from "@/pubsub/channels";
+import { AllChainsChannel, Channel } from "@/pubsub/channels";
 import { logger } from "@/common/logger";
 import { ApiKeyManager } from "@/models/api-keys";
 import { RateLimiterRedis } from "rate-limiter-flexible";
@@ -22,23 +22,18 @@ export class RateLimitRules {
 
   public rulesEntities: Map<string, RateLimitRuleEntity[]>; // Map of route to local DB rules entities
   public rules: Map<number, RateLimiterRedis>; // Map of rule ID to rate limit redis object
-  public apiRoutesPoints: Map<string, { route: string; points: number }>; // Map of route to points
-  public apiRoutesPointsCache: Map<string, number>; // Local cache of points per route to avoid redundant iterations and regex matching
   public apiRoutesRegexRulesCache: Map<string, RateLimitRuleEntity[]>; // Local cache of matching regex rules per route to avoid redundant iterations and regex matching
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   private constructor() {
     this.rulesEntities = new Map();
     this.rules = new Map();
-    this.apiRoutesPoints = new Map();
-    this.apiRoutesPointsCache = new Map();
     this.apiRoutesRegexRulesCache = new Map();
   }
 
   private async loadData(forceDbLoad = false) {
     // Try to load from cache
     const rulesCache = await redis.get(RateLimitRules.getCacheKey());
-    let routesPointsRawData = [];
     let rulesRawData: RateLimitRuleEntityParams[] = [];
 
     if (_.isNull(rulesCache) || forceDbLoad) {
@@ -55,21 +50,9 @@ export class RateLimitRules {
         logger.error("rate-limit-rules", "Failed to load rate limit rules");
       }
 
-      try {
-        const apiRoutesPointsQuery = `
-          SELECT *
-          FROM api_routes_points
-          ORDER BY route ASC
-        `;
-
-        routesPointsRawData = await redb.manyOrNone(apiRoutesPointsQuery);
-      } catch (error) {
-        logger.error("rate-limit-rules", "Failed to load rate limit rules");
-      }
-
       await redis.set(
         RateLimitRules.getCacheKey(),
-        JSON.stringify({ rulesRawData, routesPointsRawData }),
+        JSON.stringify({ rulesRawData }),
         "EX",
         60 * 60 * 24
       );
@@ -77,12 +60,10 @@ export class RateLimitRules {
       // Parse the cache data
       const parsedRulesCache = JSON.parse(rulesCache);
       rulesRawData = parsedRulesCache.rulesRawData;
-      routesPointsRawData = parsedRulesCache.routesPointsRawData;
     }
 
     const rulesEntities = new Map<string, RateLimitRuleEntity[]>(); // Reset current rules entities
     const rules = new Map(); // Reset current rules
-    const apiRoutesPoints = new Map(); // Reset current rules
 
     // Parse rules data
     for (const rule of rulesRawData) {
@@ -105,15 +86,8 @@ export class RateLimitRules {
       );
     }
 
-    // Parse routes points cost
-    for (const rulePoints of routesPointsRawData) {
-      apiRoutesPoints.set(rulePoints.route, { route: rulePoints.route, points: rulePoints.points });
-    }
-
     this.rulesEntities = rulesEntities;
     this.rules = rules;
-    this.apiRoutesPoints = apiRoutesPoints;
-    this.apiRoutesPointsCache = new Map();
     this.apiRoutesRegexRulesCache = new Map();
   }
 
@@ -142,10 +116,15 @@ export class RateLimitRules {
     method: string,
     tier: number | null,
     options: RateLimitRuleOptions,
-    payload: RateLimitRulePayload[]
+    payload: RateLimitRulePayload[],
+    correlationId = ""
   ) {
-    const query = `INSERT INTO rate_limit_rules (route, api_key, method, tier, options, payload)
-                   VALUES ($/route/, $/apiKey/, $/method/, $/tier/, $/options:json/, $/payload:json/)
+    const query = `INSERT INTO rate_limit_rules (route, api_key, method, tier, options, payload${
+      correlationId ? ", correlation_id" : ""
+    })
+                   VALUES ($/route/, $/apiKey/, $/method/, $/tier/, $/options:json/, $/payload:json/${
+                     correlationId ? ", $/correlationId/" : ""
+                   })
                    RETURNING *`;
 
     const values = {
@@ -155,6 +134,7 @@ export class RateLimitRules {
       tier,
       options,
       payload,
+      correlationId,
     };
 
     const rateLimitRule = await idb.oneOrNone(query, values);
@@ -166,12 +146,30 @@ export class RateLimitRules {
       `New rate limit rule ${JSON.stringify(rateLimitRuleEntity)}`
     );
 
+    // Sync to other chains only if created on mainnet
+    if (config.chainId === 1) {
+      await allChainsSyncRedis.publish(
+        AllChainsChannel.RateLimitRuleCreated,
+        JSON.stringify({ rule: rateLimitRuleEntity })
+      );
+    }
+
     logger.info(
       "rate-limit-rules",
       `New rate limit rule ${JSON.stringify(rateLimitRuleEntity)} was created`
     );
 
     return rateLimitRuleEntity;
+  }
+
+  public static async updateByCorrelationId(
+    correlationId: string,
+    fields: RateLimitRuleUpdateParams
+  ) {
+    const rateLimitRuleEntity = await RateLimitRules.getRuleByCorrelationId(correlationId);
+    if (rateLimitRuleEntity) {
+      await RateLimitRules.update(rateLimitRuleEntity.id, fields);
+    }
   }
 
   public static async update(id: number, fields: RateLimitRuleUpdateParams) {
@@ -212,24 +210,82 @@ export class RateLimitRules {
 
     await idb.none(query, replacementValues);
     await redis.publish(Channel.RateLimitRuleUpdated, `Updated rule id ${id}`);
+
+    // Sync to other chains only if updated on mainnet
+    if (config.chainId === 1) {
+      const rateLimitRuleEntity = await RateLimitRules.getRuleById(id);
+
+      await allChainsSyncRedis.publish(
+        AllChainsChannel.RateLimitRuleUpdated,
+        JSON.stringify({ rule: rateLimitRuleEntity })
+      );
+    }
+  }
+
+  public static async getRuleById(id: number) {
+    const ruleQuery = `
+          SELECT *
+          FROM rate_limit_rules
+          WHERE id = $/id/
+        `;
+
+    const rateLimitRule = await idb.oneOrNone(ruleQuery, { id });
+
+    if (rateLimitRule) {
+      return new RateLimitRuleEntity(rateLimitRule);
+    }
+
+    return null;
+  }
+
+  public static async getRuleByCorrelationId(correlationId: string) {
+    const ruleQuery = `
+          SELECT *
+          FROM rate_limit_rules
+          WHERE correlation_id = $/correlationId/
+        `;
+
+    const rateLimitRule = await idb.oneOrNone(ruleQuery, { correlationId });
+
+    if (rateLimitRule) {
+      return new RateLimitRuleEntity(rateLimitRule);
+    }
+
+    return null;
+  }
+
+  public static async deleteByCorrelationId(correlationId: string) {
+    const rateLimitRuleEntity = await RateLimitRules.getRuleByCorrelationId(correlationId);
+    if (rateLimitRuleEntity) {
+      await RateLimitRules.delete(rateLimitRuleEntity.id);
+    }
   }
 
   public static async delete(id: number) {
     const query = `DELETE FROM rate_limit_rules
-                   WHERE id = $/id/`;
+                   WHERE id = $/id/
+                   RETURNING correlation_id`;
 
     const values = {
       id,
     };
 
-    await idb.none(query, values);
+    const deletedRule = await idb.oneOrNone(query, values);
     await RateLimitRules.forceDataReload(); // reload the cache
     await redis.publish(Channel.RateLimitRuleUpdated, `Deleted rule id ${id}`);
+
+    // Sync to other chains only if deleted on mainnet
+    if (config.chainId === 1) {
+      await allChainsSyncRedis.publish(
+        AllChainsChannel.RateLimitRuleDeleted,
+        JSON.stringify({ correlationId: deletedRule.correlation_id })
+      );
+    }
   }
 
   public static async getApiKeyRateLimits(key: string) {
     const apiKey = await ApiKeyManager.getApiKey(key);
-    const tier = apiKey?.tier || 0;
+    const tier = _.max([apiKey?.tier || 0, 0]);
 
     const query = `SELECT DISTINCT ON (route) *
                    FROM rate_limit_rules
@@ -332,18 +388,6 @@ export class RateLimitRules {
     }
   }
 
-  public getPointsToConsume(route: string) {
-    const defaultCost = 1;
-
-    for (const [routeKey, pointsData] of this.apiRoutesPoints) {
-      if (route.match(routeKey)) {
-        return pointsData.points;
-      }
-    }
-
-    return defaultCost; // Default cost
-  }
-
   public getRateLimitObject(
     route: string,
     method: string,
@@ -360,14 +404,7 @@ export class RateLimitRules {
       }
 
       const rateLimitObject = this.rules.get(rule.id);
-
-      // Get points to consume from cache to avoid iterations and regex which are expensive
-      const pointsToConsumeCacheKey = `${rule.id}-${route}`;
-      let pointsToConsume = this.apiRoutesPointsCache.get(pointsToConsumeCacheKey);
-      if (!pointsToConsume) {
-        pointsToConsume = rule.options.pointsToConsume || this.getPointsToConsume(route);
-        this.apiRoutesPointsCache.set(pointsToConsumeCacheKey, pointsToConsume);
-      }
+      const pointsToConsume = rule.options.pointsToConsume || 1;
 
       if (rateLimitObject) {
         rateLimitObject.keyPrefix = `${config.chainId}:${rule.id}:${route}`;

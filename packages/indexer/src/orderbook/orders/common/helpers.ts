@@ -1,11 +1,9 @@
 import { BigNumber } from "@ethersproject/bignumber";
-import * as Sdk from "@reservoir0x/sdk";
 
 // Must use `idb` and not `redb` since a lot of important processes
 // depend on having information as up-to-date as possible
 import { idb } from "@/common/db";
 import { toBuffer, bn } from "@/common/utils";
-import { config } from "@/config/index";
 import { OrderKind } from "@/orderbook/orders";
 
 export const getContractKind = async (
@@ -60,11 +58,15 @@ export const getNftBalance = async (
   return bn(balanceResult ? balanceResult.amount : 0);
 };
 
-export const getNfts = async (contract: string, owner: string): Promise<string[]> => {
+export const getNfts = async (
+  contract: string,
+  owner: string
+): Promise<{ tokenId: string; amount: string }[]> => {
   const nftsResult = await idb.manyOrNone(
     `
       SELECT
-        nft_balances.token_id
+        nft_balances.token_id,
+        nft_balances.amount
       FROM nft_balances
       WHERE nft_balances.contract = $/contract/
         AND nft_balances.owner = $/owner/
@@ -76,7 +78,10 @@ export const getNfts = async (contract: string, owner: string): Promise<string[]
     }
   );
 
-  return nftsResult.map(({ token_id }: { token_id: string }) => token_id);
+  return nftsResult.map(({ token_id, amount }: { token_id: string; amount: string }) => ({
+    tokenId: token_id,
+    amount,
+  }));
 };
 
 export const getNftApproval = async (
@@ -207,55 +212,66 @@ export const getQuantityFilled = async (orderId: string): Promise<BigNumber> => 
 };
 
 export const isListingOffChainCancelled = async (
-  orderKind: OrderKind,
   maker: string,
   contract: string,
   tokenId: string,
+  conduit: string,
   originatedAt: string
 ) => {
-  if (["blur", "x2y2"].includes(orderKind)) {
-    // Blur and X2Y2 orders can get off-chain cancelled if the user
-    // transferred to another wallet or revoked the approval
-    let conduit: string;
-    if (orderKind === "blur") {
-      conduit = Sdk.Blur.Addresses.ExecutionDelegate[config.chainId];
-    } else {
-      conduit = Sdk.X2Y2.Addresses.Erc721Delegate[config.chainId];
+  const result = await idb.oneOrNone(
+    `
+      SELECT
+        1
+      WHERE EXISTS(
+          SELECT
+          FROM nft_transfer_events
+          WHERE nft_transfer_events.address = $/contract/
+            AND nft_transfer_events.token_id = $/tokenId/
+            AND nft_transfer_events.to != $/maker/
+            AND nft_transfer_events.timestamp >= $/originatedAt/
+            AND nft_transfer_events.is_deleted = 0
+        )
+        OR EXISTS(
+          SELECT
+          FROM nft_approval_events
+          WHERE nft_approval_events.address = $/contract/
+            AND nft_approval_events.owner = $/maker/
+            AND nft_approval_events.operator = $/conduit/
+            AND NOT nft_approval_events.approved
+            AND nft_approval_events.timestamp >= $/originatedAt/
+        )
+    `,
+    {
+      contract: toBuffer(contract),
+      tokenId,
+      maker: toBuffer(maker),
+      conduit: toBuffer(conduit),
+      originatedAt: Math.floor(new Date(originatedAt).getTime() / 1000),
     }
+  );
+  return Boolean(result);
+};
 
-    const result = await idb.oneOrNone(
-      `
-        SELECT
-          1
-        WHERE EXISTS(
-            SELECT
-            FROM nft_transfer_events
-            WHERE nft_transfer_events.address = $/contract/
-              AND nft_transfer_events.token_id = $/tokenId/
-              AND nft_transfer_events.to != $/maker/
-              AND nft_transfer_events.timestamp >= $/originatedAt/
-          )
-          OR EXISTS(
-            SELECT
-            FROM nft_approval_events
-            WHERE nft_approval_events.address = $/contract/
-              AND nft_approval_events.owner = $/maker/
-              AND nft_approval_events.operator = $/conduit/
-              AND NOT nft_approval_events.approved
-              AND nft_approval_events.timestamp >= $/originatedAt/
-          )
-      `,
-      {
-        contract: toBuffer(contract),
-        tokenId,
-        maker: toBuffer(maker),
-        conduit: toBuffer(conduit),
-        originatedAt: Math.floor(new Date(originatedAt).getTime() / 1000),
-      }
-    );
+export const getOrderIdFromNonce = async (
+  orderKind: OrderKind,
+  maker: string,
+  nonce: string
+): Promise<string | undefined> => {
+  const order = await idb.oneOrNone(
+    `
+      SELECT orders.id FROM orders
+      WHERE orders.kind = $/orderKind/
+        AND orders.maker = $/maker/
+        AND orders.nonce = $/nonce/
+        AND orders.contract IS NOT NULL
+      LIMIT 1
+    `,
+    {
+      orderKind,
+      maker: toBuffer(maker),
+      nonce,
+    }
+  );
 
-    return Boolean(result);
-  } else {
-    return false;
-  }
+  return order?.id;
 };

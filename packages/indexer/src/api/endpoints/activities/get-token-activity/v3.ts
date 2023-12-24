@@ -5,11 +5,11 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
 import { logger } from "@/common/logger";
-import { buildContinuation, formatEth, regex, splitContinuation } from "@/common/utils";
-import { Activities } from "@/models/activities";
-import { ActivityType } from "@/models/activities/activities-entity";
+import { formatEth, regex } from "@/common/utils";
 import { Sources } from "@/models/sources";
-import { JoiOrderMetadata } from "@/common/joi";
+import { JoiOrderMetadata, JoiSource, getJoiSourceObject } from "@/common/joi";
+import { ActivityType } from "@/elasticsearch/indexes/activities/base";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
 const version = "v3";
 
@@ -97,7 +97,7 @@ export const getTokenActivityV3Options: RouteOptions = {
           order: Joi.object({
             id: Joi.string().allow(null),
             side: Joi.string().valid("ask", "bid").allow(null),
-            source: Joi.object().allow(null),
+            source: JoiSource.allow(null),
             metadata: JoiOrderMetadata.allow(null).optional(),
           }),
         })
@@ -116,53 +116,51 @@ export const getTokenActivityV3Options: RouteOptions = {
       query.types = [query.types];
     }
 
-    if (query.continuation) {
-      query.continuation = splitContinuation(query.continuation)[0];
-    }
-
     try {
       const [contract, tokenId] = params.token.split(":");
-      const activities = await Activities.getTokenActivities(
-        contract,
-        tokenId,
-        query.continuation,
-        query.types,
-        query.limit,
-        query.sortBy,
-        query.includeMetadata
-      );
-
-      // If no activities found
-      if (!activities.length) {
-        return { activities: [] };
-      }
 
       const sources = await Sources.getInstance();
 
-      const result = _.map(activities, (activity) => {
-        const orderSource = activity.order?.sourceIdInt
-          ? sources.get(activity.order.sourceIdInt)
-          : undefined;
+      const { activities, continuation } = await ActivitiesIndex.search({
+        types: query.types,
+        tokens: [{ contract, tokenId }],
+        sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
+        limit: query.limit,
+        continuation: query.continuation,
+      });
 
-        return {
-          type: activity.type,
-          fromAddress: activity.fromAddress,
-          toAddress: activity.toAddress,
-          price: formatEth(activity.price),
-          amount: activity.amount,
-          timestamp: activity.eventTimestamp,
-          createdAt: activity.createdAt.toISOString(),
-          contract: activity.contract,
-          token: {
-            tokenId: activity.token?.tokenId,
-            tokenName: activity.token?.tokenName,
-            tokenImage: activity.token?.tokenImage,
-          },
-          collection: activity.collection,
-          txHash: activity.metadata.transactionHash,
-          logIndex: activity.metadata.logIndex,
-          batchIndex: activity.metadata.batchIndex,
-          order: activity.order?.id
+      const result = _.map(activities, (activity) => {
+        let order;
+
+        if (query.includeMetadata) {
+          const orderSource = activity.order?.sourceId
+            ? sources.get(activity.order.sourceId)
+            : undefined;
+
+          let orderCriteria;
+
+          if (activity.order?.criteria) {
+            orderCriteria = {
+              kind: activity.order.criteria.kind,
+              data: {
+                collectionName: activity.collection?.name,
+                image:
+                  activity.order.criteria.kind === "token"
+                    ? activity.token?.image
+                    : activity.collection?.image,
+              },
+            };
+
+            if (activity.order.criteria.kind === "token") {
+              (orderCriteria as any).data.tokenName = activity.token?.name;
+            }
+
+            if (activity.order.criteria.kind === "attribute") {
+              (orderCriteria as any).data.attributes = [activity.order.criteria.data.attribute];
+            }
+          }
+
+          order = activity.order?.id
             ? {
                 id: activity.order.id,
                 side: activity.order.side
@@ -170,32 +168,46 @@ export const getTokenActivityV3Options: RouteOptions = {
                     ? "ask"
                     : "bid"
                   : undefined,
-                source: orderSource
-                  ? {
-                      domain: orderSource?.domain,
-                      name: orderSource?.getTitle(),
-                      icon: orderSource?.getIcon(),
-                    }
-                  : undefined,
-                metadata: activity.order.metadata || undefined,
+                source: getJoiSourceObject(orderSource, false),
+                metadata: orderCriteria,
               }
-            : undefined,
+            : undefined;
+        } else {
+          order = activity.order?.id
+            ? {
+                id: activity.order.id,
+              }
+            : undefined;
+        }
+
+        return {
+          type: activity.type,
+          fromAddress: activity.fromAddress,
+          toAddress: activity.toAddress || null,
+          price: formatEth(activity.pricing?.price || 0),
+          amount: Number(activity.amount),
+          timestamp: activity.timestamp,
+          createdAt: new Date(activity.createdAt).toISOString(),
+          contract: activity.contract,
+          token: {
+            tokenId: activity.token?.id,
+            tokenName: query.includeMetadata ? activity.token?.name : undefined,
+            tokenImage: query.includeMetadata ? activity.token?.image : undefined,
+          },
+          collection: {
+            collectionId: activity.collection?.id,
+            collectionName: query.includeMetadata ? activity.collection?.name : undefined,
+            collectionImage:
+              query.includeMetadata && activity.collection?.image != null
+                ? activity.collection?.image
+                : undefined,
+          },
+          txHash: activity.event?.txHash,
+          logIndex: activity.event?.logIndex,
+          batchIndex: activity.event?.batchIndex,
+          order,
         };
       });
-
-      // Set the continuation node
-      let continuation = null;
-      if (activities.length === query.limit) {
-        const lastActivity = _.last(activities);
-
-        if (lastActivity) {
-          const continuationValue =
-            query.sortBy == "eventTimestamp"
-              ? lastActivity.eventTimestamp
-              : lastActivity.createdAt.toISOString();
-          continuation = buildContinuation(`${continuationValue}`);
-        }
-      }
 
       return { activities: result, continuation };
     } catch (error) {

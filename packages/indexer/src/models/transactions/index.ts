@@ -1,6 +1,7 @@
 import _ from "lodash";
 import { idb, pgp } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
+import { config } from "@/config/index";
 
 export type Transaction = {
   hash: string;
@@ -21,6 +22,10 @@ export type Transaction = {
  * @return Transaction
  */
 export const saveTransaction = async (transaction: Transaction) => {
+  if (config.chainId === 137 && transaction.from === transaction.to) {
+    return transaction;
+  }
+
   await idb.none(
     `
       INSERT INTO transactions (
@@ -70,6 +75,10 @@ export const saveTransaction = async (transaction: Transaction) => {
  * @param transactions
  */
 export const saveTransactions = async (transactions: Transaction[]) => {
+  if (config.chainId === 137) {
+    transactions = transactions.filter((t) => t.from !== t.to);
+  }
+
   if (_.isEmpty(transactions)) {
     return;
   }
@@ -129,6 +138,9 @@ export const saveTransactions = async (transactions: Transaction[]) => {
 export const saveTransactionsV2 = async (transactions: Transaction[]) => {
   const CHUNK_SIZE = 10;
 
+  // filter out transactions with same from and to
+  transactions = transactions.filter((t) => t.from !== t.to);
+  transactions = transactions.filter((t) => !t.data.startsWith("0x64617461"));
   if (_.isEmpty(transactions)) {
     return;
   }
@@ -187,9 +199,7 @@ export const saveTransactionsV2 = async (transactions: Transaction[]) => {
   );
 };
 
-export const getTransaction = async (
-  hash: string
-): Promise<Pick<Transaction, "hash" | "from" | "to" | "value" | "data" | "blockTimestamp">> => {
+export const getTransaction = async (hash: string): Promise<Transaction> => {
   const result = await idb.oneOrNone(
     `
       SELECT
@@ -197,6 +207,7 @@ export const getTransaction = async (
         transactions.to,
         transactions.value,
         transactions.data,
+        transactions.block_number,
         transactions.block_timestamp
       FROM transactions
       WHERE transactions.hash = $/hash/
@@ -210,6 +221,7 @@ export const getTransaction = async (
     to: fromBuffer(result.to),
     value: result.value,
     data: fromBuffer(result.data),
+    blockNumber: result.block_number,
     blockTimestamp: result.block_timestamp,
   };
 };

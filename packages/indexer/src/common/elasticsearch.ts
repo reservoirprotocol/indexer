@@ -5,6 +5,7 @@ let elasticsearch: Client;
 if (config.elasticsearchUrl) {
   elasticsearch = new Client({
     node: config.elasticsearchUrl,
+    requestTimeout: 10000,
   });
 }
 

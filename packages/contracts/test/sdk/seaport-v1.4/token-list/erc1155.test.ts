@@ -41,7 +41,7 @@ describe("SeaportV14 - TokenList ERC1155", () => {
     const soldTokenId1 = 99;
     const soldTokenId2 = 999;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -67,25 +67,28 @@ describe("SeaportV14 - TokenList ERC1155", () => {
     const builder = new Builders.TokenList(chainId);
 
     // Build buy order
-    const buyOrder = builder.build({
-      offerer: buyer.address,
-      contract: erc1155.address,
-      amount,
-      tokenIds: boughtTokenIds,
-      tokenKind: "erc1155",
-      side: "buy",
-      price,
-      paymentToken: Common.Addresses.Weth[chainId],
-      fees: [
-        {
-          recipient: feeRecipient.address,
-          amount: price.mul(fee).div(10000),
-        },
-      ],
-      startTime: await getCurrentTimestamp(ethers.provider),
-      endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-      counter: await exchange.getCounter(ethers.provider, buyer.address),
-    }, SeaportV14.Order);
+    const buyOrder = builder.build(
+      {
+        offerer: buyer.address,
+        contract: erc1155.address,
+        amount,
+        tokenIds: boughtTokenIds,
+        tokenKind: "erc1155",
+        side: "buy",
+        price,
+        paymentToken: Common.Addresses.WNative[chainId],
+        fees: [
+          {
+            recipient: feeRecipient.address,
+            amount: price.mul(fee).div(10000),
+          },
+        ],
+        startTime: await getCurrentTimestamp(ethers.provider),
+        endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
+        counter: await exchange.getCounter(ethers.provider, buyer.address),
+      },
+      SeaportV14.Order
+    );
     await buyOrder.sign(buyer);
 
     buyOrder.checkValidity();

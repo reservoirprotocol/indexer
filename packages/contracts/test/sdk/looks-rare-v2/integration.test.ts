@@ -48,7 +48,7 @@ describe("LooksRareV2 - Indexer Integration Test", () => {
 
     const price = parseEther("1");
     const boughtTokenId = Math.floor(Math.random() * 100000);
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -85,7 +85,7 @@ describe("LooksRareV2 - Indexer Integration Test", () => {
       collection: erc721.address,
       itemId: boughtTokenId,
       amount: 1,
-      currency: Common.Addresses.Weth[chainId],
+      currency: Common.Addresses.WNative[chainId],
       price,
       globalNonce: await exchange.getGlobalNonce(ethers.provider, buyer.address, "buy"),
       startTime: await getCurrentTimestamp(ethers.provider),
@@ -105,7 +105,7 @@ describe("LooksRareV2 - Indexer Integration Test", () => {
         collection: erc721.address,
         itemId: boughtTokenId,
         amount: 1,
-        currency: Common.Addresses.Weth[chainId],
+        currency: Common.Addresses.WNative[chainId],
         price,
         startTime: await getCurrentTimestamp(ethers.provider),
         endTime: (await getCurrentTimestamp(ethers.provider)) + 86400 * 31,
@@ -318,7 +318,6 @@ describe("LooksRareV2 - Indexer Integration Test", () => {
           const transcation = lastSetp.items[0];
           const tx = await buyer.sendTransaction({
             ...transcation.data,
-            gasLimit: 300000,
           });
           await tx.wait();
           fillTxHash = tx.hash;

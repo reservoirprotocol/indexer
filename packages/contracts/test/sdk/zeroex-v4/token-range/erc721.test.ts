@@ -6,12 +6,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
-import {
-  getChainId,
-  getCurrentTimestamp,
-  reset,
-  setupNFTs,
-} from "../../../utils";
+import { getChainId, getCurrentTimestamp, reset, setupNFTs } from "../../../utils";
 
 describe("ZeroEx V4 - TokenRange Erc721", () => {
   const chainId = getChainId();
@@ -36,7 +31,7 @@ describe("ZeroEx V4 - TokenRange Erc721", () => {
     const price = parseEther("1");
     const boughtTokenId = 1;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -57,7 +52,7 @@ describe("ZeroEx V4 - TokenRange Erc721", () => {
       direction: "buy",
       maker: buyer.address,
       contract: erc721.address,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       price,
       expiry: (await getCurrentTimestamp(ethers.provider)) + 60,
       startTokenId: 0,
@@ -94,7 +89,7 @@ describe("ZeroEx V4 - TokenRange Erc721", () => {
     const price = parseEther("1");
     const boughtTokenId = 1;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -113,7 +108,7 @@ describe("ZeroEx V4 - TokenRange Erc721", () => {
       direction: "buy",
       maker: buyer.address,
       contract: erc721.address,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       price,
       expiry: (await getCurrentTimestamp(ethers.provider)) + 60,
       startTokenId: 2,
@@ -129,7 +124,6 @@ describe("ZeroEx V4 - TokenRange Erc721", () => {
     await buyOrder.checkFillability(ethers.provider);
 
     // Match orders
-    await expect(exchange.fillOrder(seller, buyOrder, sellOrder)).to.be
-      .reverted;
+    await expect(exchange.fillOrder(seller, buyOrder, sellOrder)).to.be.reverted;
   });
 });

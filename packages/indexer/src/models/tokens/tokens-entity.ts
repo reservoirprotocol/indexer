@@ -8,7 +8,6 @@ export type TokensEntityUpdateParams = {
   description?: string;
   image?: string;
   collectionId?: string;
-  metadataIndexed?: boolean;
   floorSellId?: string;
   floorSellValue?: number;
   floorSellMaker?: Buffer;
@@ -28,6 +27,7 @@ export type TokensEntityUpdateParams = {
   lastFlagChange?: string;
   supply?: number;
   remainingSupply?: number;
+  isSpam?: number;
 };
 
 // Define the fields need to instantiate the entity
@@ -38,7 +38,6 @@ export type TokensEntityParams = {
   description: string;
   image: string;
   collection_id: string;
-  metadata_indexed: boolean;
   floor_sell_id: string;
   floor_sell_value: number;
   floor_sell_maker: Buffer;
@@ -59,6 +58,9 @@ export type TokensEntityParams = {
   rarity_score: number;
   rarity_rank: number;
   media: string;
+  supply: number | null;
+  remaining_supply: number | null;
+  is_spam: number | null;
 };
 
 export class TokensEntity {
@@ -68,7 +70,6 @@ export class TokensEntity {
   description: string;
   image: string;
   collectionId: string;
-  metadataIndexed: boolean;
   floorSellId: string;
   floorSellValue: number;
   floorSellMaker: string;
@@ -89,6 +90,9 @@ export class TokensEntity {
   rarityScore: number;
   rarityRank: number;
   media: string;
+  supply: number;
+  remainingSupply: number;
+  isSpam: number;
 
   constructor(params: TokensEntityParams) {
     this.contract = fromBuffer(params.contract);
@@ -97,7 +101,6 @@ export class TokensEntity {
     this.description = params.description;
     this.image = params.image;
     this.collectionId = params.collection_id;
-    this.metadataIndexed = params.metadata_indexed;
     this.floorSellId = params.floor_sell_id;
     this.floorSellValue = params.floor_sell_value;
     this.floorSellMaker = params.floor_sell_maker
@@ -122,5 +125,8 @@ export class TokensEntity {
     this.rarityScore = params.rarity_score;
     this.rarityRank = params.rarity_rank;
     this.media = params.media;
+    this.supply = Number(params.supply);
+    this.remainingSupply = Number(params.remaining_supply);
+    this.isSpam = Number(params.is_spam);
   }
 }

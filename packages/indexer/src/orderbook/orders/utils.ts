@@ -5,6 +5,9 @@ import stringify from "json-stable-stringify";
 import { OrderKind } from "@/orderbook/orders";
 import { TokenSetSchema } from "@/orderbook/token-sets/utils";
 
+// The number of price points to keep track of for pool orders
+export const POOL_ORDERS_MAX_PRICE_POINTS_COUNT = 50;
+
 // Optional metadata associated to an order
 export type OrderMetadata = {
   schema?: TokenSetSchema;
@@ -13,6 +16,8 @@ export type OrderMetadata = {
   target?: string;
   originatedAt?: string;
   fromOnChain?: boolean;
+  permitId?: string;
+  permitIndex?: number;
 };
 
 // Underlying database model for an order

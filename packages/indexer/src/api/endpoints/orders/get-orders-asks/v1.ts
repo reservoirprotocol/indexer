@@ -15,7 +15,7 @@ import {
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
-import { JoiAttributeKeyValueObject } from "@/common/joi";
+import { JoiAttributeKeyValueObject, JoiSource, getJoiSourceObject } from "@/common/joi";
 
 const version = "v1";
 
@@ -104,7 +104,7 @@ export const getOrdersAsksV1Options: RouteOptions = {
             })
           ).allow(null),
           status: Joi.string(),
-          source: Joi.object().allow(null),
+          source: JoiSource.allow(null),
           feeBps: Joi.number().allow(null),
           feeBreakdown: Joi.array()
             .items(
@@ -363,15 +363,9 @@ export const getOrdersAsksV1Options: RouteOptions = {
           validFrom: Number(r.valid_from),
           validUntil: Number(r.valid_until),
           metadata: r.metadata,
-          source: {
-            id: source?.address,
-            domain: source?.domain,
-            name: source?.getTitle(),
-            icon: source?.getIcon(),
-            url: source?.metadata.url,
-          },
+          source: getJoiSourceObject(source),
           feeBps: Number(r.fee_bps),
-          feeBreakdown: r.fee_breakdown,
+          feeBreakdown: Number(r.fee_bps) === 0 ? [] : r.fee_breakdown,
           expiration: Number(r.expiration),
           createdAt: new Date(r.created_at * 1000).toISOString(),
           updatedAt: new Date(r.updated_at).toISOString(),

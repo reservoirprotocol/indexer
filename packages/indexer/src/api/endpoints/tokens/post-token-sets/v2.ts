@@ -15,7 +15,7 @@ const version = "v2";
 export const postTokenSetsV2Options: RouteOptions = {
   description: "Create token set",
   notes:
-    "Use this API to create a `tokenSetId` to call specific tokens from a collection. Adding or removing a tokenId will change the response. See an example below.\n\n Input of `0xd774557b647330c91bf44cfeab205095f7e6c367:1` and `0xd774557b647330c91bf44cfeab205095f7e6c367:2`\n\n Output of `list:0xd774557b647330c91bf44cfeab205095f7e6c367:0xb6fd98eeb7e08fc521f11511289afe4d8e873fd7a3fb76ab757fa47c23f596e9`\n\n Notes:\n\n- Include `list:` when using this `tokenSetId` for it to work successfully.\n\n- You cannot adjust tokens within a `tokenSetId`. Please create a new set.",
+    "Use this API to create a `tokenSetId` to call specific tokens from a collection. Adding or removing a tokenId will change the response. See an example below.\n\n Input of `0xd774557b647330c91bf44cfeab205095f7e6c367:1` and `0xd774557b647330c91bf44cfeab205095f7e6c367:2`\n\n Output of `list:0xd774557b647330c91bf44cfeab205095f7e6c367:0xb6fd98eeb7e08fc521f11511289afe4d8e873fd7a3fb76ab757fa47c23f596e9`\n\n Notes:\n\n- Include `list:` when using this `tokenSetId` for it to work successfully.\n\n- You cannot adjust tokens within a `tokenSetId`. Please create a new set.\n\n- Use the `/tokens/ids` endpoint to get a list of tokens within a set.",
   tags: ["api", "Tokens"],
   plugins: {
     "hapi-swagger": {

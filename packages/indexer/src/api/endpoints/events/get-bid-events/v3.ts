@@ -9,6 +9,7 @@ import { JoiOrderCriteria, JoiPrice, getJoiPriceObject } from "@/common/joi";
 import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { Orders } from "@/utils/orders";
+import * as Boom from "@hapi/boom";
 
 const version = "v3";
 
@@ -19,7 +20,7 @@ export const getBidEventsV3Options: RouteOptions = {
   },
   description: "Bid status changes",
   notes:
-    "Every time a bid of a collection or token changes (i.e. the ‘offer’), an event is generated. This API is designed to be polled at high frequency, in order to keep an external system in sync with accurate prices for any token.\n\nThere are multiple event types, which describe what caused the change in price:\n\n- `new-order` > new offer at a lower price\n\n- `expiry` > the previous best offer expired\n\n- `sale` > the previous best offer was filled\n\n- `cancel` > the previous best offer was canceled\n\n- `balance-change` > the best offer was invalidated due to no longer owning the NFT\n\n- `approval-change` > the best offer was invalidated due to revoked approval\n\n- `revalidation` > manual revalidation of orders (e.g. after a bug fixed)\n\n- `reprice` > price update for dynamic orders (e.g. dutch auctions)\n\n- `bootstrap` > initial loading of data, so that all tokens have a price associated\n\nSome considerations to keep in mind\n\n- Selling a partial quantity of available 1155 tokens in a listing will generate a `sale` and will have a new quantity.\n\n- Due to the complex nature of monitoring off-chain liquidity across multiple marketplaces, including dealing with block re-orgs, events should be considered 'relative' to the perspective of the indexer, ie _when they were discovered_, rather than _when they happened_. A more deterministic historical record of price changes is in development, but in the meantime, this method is sufficent for keeping an external system in sync with the best available prices.\n\n- Events are only generated if the best bid changes. So if a new bid happens without changing the best bid, no event is generated. This is more common with 1155 tokens, which have multiple owners and more depth. For this reason, if you need sales data, use the Sales API.",
+    "Every time a bid status changes, an event is generated. This API is designed to be polled at high frequency, in order to keep an external system in sync with accurate prices for any token.\n\nThere are multiple event types, which describe what caused the change in price:\n\n- `new-order` > new offer at a lower price\n\n- `expiry` > the previous best offer expired\n\n- `sale` > the previous best offer was filled\n\n- `cancel` > the previous best offer was canceled\n\n- `balance-change` > the best offer was invalidated due to no longer owning the NFT\n\n- `approval-change` > the best offer was invalidated due to revoked approval\n\n- `revalidation` > manual revalidation of orders (e.g. after a bug fixed)\n\n- `reprice` > price update for dynamic orders (e.g. dutch auctions)\n\n- `bootstrap` > initial loading of data, so that all tokens have a price associated\n\nSome considerations to keep in mind\n\n- Selling a partial quantity of available 1155 tokens in a listing will generate a `sale` and will have a new quantity.\n\n- Due to the complex nature of monitoring off-chain liquidity across multiple marketplaces, including dealing with block re-orgs, events should be considered 'relative' to the perspective of the indexer, ie _when they were discovered_, rather than _when they happened_. A more deterministic historical record of price changes is in development, but in the meantime, this method is sufficent for keeping an external system in sync with the best available prices.",
   tags: ["api", "Events"],
   plugins: {
     "hapi-swagger": {
@@ -203,6 +204,10 @@ export const getBidEventsV3Options: RouteOptions = {
         const [createdAt, id] = splitContinuation(query.continuation, /^\d+(.\d+)?_\d+$/);
         (query as any).createdAt = createdAt;
         (query as any).id = id;
+
+        if (isNaN(Number(id))) {
+          throw Boom.badRequest("Invalid continuation string used");
+        }
 
         conditions.push(
           `(bid_events.created_at, bid_events.id) ${

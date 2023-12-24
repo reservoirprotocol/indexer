@@ -27,3 +27,15 @@ export const Erc20TransferHelper: ChainIdToAddress = {
   [Network.EthereumGoerli]: "0x53172d999a299198a935f9e424f9f8544e3d4292",
   [Network.Polygon]: "0x909e9efe4d87d1a6018c2065ae642b6d0447bc91",
 };
+
+export const ERC1155Factory: ChainIdToAddress = {
+  [Network.Ethereum]: "0xa6c5f2de915240270dac655152c3f6a91748cb85",
+  [Network.Optimism]: "0x78b524931e9d847c40bcbf225c25e154a7b05fda",
+  [Network.Zora]: "0x35ca784918bf11692708c1d530691704aacea95e",
+};
+
+export const ERC1155FactoryV2: ChainIdToAddress = {
+  [Network.Ethereum]: "0x777777c338d93e2c7adf08d102d45ca7cc4ed021",
+  [Network.Optimism]: "0x777777c338d93e2c7adf08d102d45ca7cc4ed021",
+  [Network.Zora]: "0x777777c338d93e2c7adf08d102d45ca7cc4ed021",
+};

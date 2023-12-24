@@ -83,9 +83,20 @@ export type OrderComponents = {
   counter: string;
   signature?: string;
   totalOriginalConsiderationItems?: number;
+  // Optional extra data to be used when filling (eg. cosignature)
+  extraData?: string;
+};
+
+export type AdvancedOrder = {
+  parameters: OrderComponents;
+  numerator: string;
+  denominator: string;
+  signature: string;
+  extraData: string;
 };
 
 export type MatchParams = {
+  extraData?: string;
   amount?: BigNumberish;
   criteriaResolvers?: CriteriaResolver[];
 };
@@ -113,11 +124,16 @@ export type CriteriaResolver = {
   criteriaProof: string[];
 };
 
-export type PartialOrder = {
+export type OpenseaPartialOrder = {
   id: string;
   contract: string;
   tokenId: string;
   unitPrice?: string;
+};
+
+export type OkxPartialOrder = {
+  id: string;
+  okxId: string;
 };
 
 type MatchOrdersFulfillmentComponent = {

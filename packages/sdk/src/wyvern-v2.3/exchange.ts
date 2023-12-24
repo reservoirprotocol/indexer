@@ -113,7 +113,7 @@ export class Exchange {
     );
 
     const value =
-      buyOrder.params.paymentToken === CommonAddresses.Eth[this.chainId]
+      buyOrder.params.paymentToken === CommonAddresses.Native[this.chainId]
         ? buyOrder.getMatchingPrice()
         : undefined;
 

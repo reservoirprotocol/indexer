@@ -10,8 +10,6 @@ import * as Common from "../common";
 import { bn } from "../utils";
 
 const ZEROEX_ENDPOINT = "https://api.0x.org";
-// TODO: Pass via an environment variable
-const ZEROEX_API_KEY = "e519f152-3749-49ea-a8f3-2964bb0f90ac";
 
 const UNIT = parseEther("1");
 
@@ -54,7 +52,7 @@ export const getPoolPrice = async (
 }> => {
   const chainId = await provider.getNetwork().then((n) => n.chainId);
 
-  const weth = Common.Addresses.Weth[chainId];
+  const weth = Common.Addresses.WNative[chainId];
   const sushiRouter = new Contract(
     Addresses.SushiRouter[chainId],
     new Interface([
@@ -107,14 +105,15 @@ export const getPoolPriceFrom0x = async (
   amount: number,
   side: "sell" | "buy",
   slippage: number,
-  provider: Provider
+  provider: Provider,
+  apiKey?: string
 ): Promise<{
   feeBps: BigNumberish;
   price: BigNumberish;
   swapCallData: string;
 }> => {
   const chainId = await provider.getNetwork().then((n) => n.chainId);
-  const weth = Common.Addresses.Weth[chainId];
+  const weth = Common.Addresses.WNative[chainId];
   const localAmount = parseEther(amount.toString());
   const fees = await getPoolFees(vault, provider);
 
@@ -128,7 +127,7 @@ export const getPoolPriceFrom0x = async (
     const { data } = await axios.get(`${ZEROEX_ENDPOINT}/swap/v1/quote`, {
       params,
       headers: {
-        "0x-api-key": ZEROEX_API_KEY,
+        "0x-api-key": apiKey,
       },
     });
 
@@ -155,7 +154,7 @@ export const getPoolPriceFrom0x = async (
     const { data } = await axios.get(`${ZEROEX_ENDPOINT}/swap/v1/quote`, {
       params,
       headers: {
-        "0x-api-key": ZEROEX_API_KEY,
+        "0x-api-key": apiKey,
       },
     });
 

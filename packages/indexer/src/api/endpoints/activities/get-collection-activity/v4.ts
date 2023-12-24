@@ -5,11 +5,14 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
 import { logger } from "@/common/logger";
-import { buildContinuation, formatEth, regex, splitContinuation } from "@/common/utils";
-import { Activities } from "@/models/activities";
-import { ActivityType } from "@/models/activities/activities-entity";
+import { formatEth, regex } from "@/common/utils";
 import { Sources } from "@/models/sources";
-import { JoiOrderMetadata } from "@/common/joi";
+import { JoiOrderMetadata, JoiSource, getJoiSourceObject } from "@/common/joi";
+import { ActivityType } from "@/elasticsearch/indexes/activities/base";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { CollectionSets } from "@/models/collection-sets";
+import * as Boom from "@hapi/boom";
+import { Collections } from "@/models/collections";
 
 const version = "v4";
 
@@ -105,7 +108,7 @@ export const getCollectionActivityV4Options: RouteOptions = {
           order: Joi.object({
             id: Joi.string().allow(null),
             side: Joi.string().valid("ask", "bid").allow(null),
-            source: Joi.object().allow(null),
+            source: JoiSource.allow(null),
             metadata: JoiOrderMetadata.allow(null).optional(),
           }),
         })
@@ -123,54 +126,68 @@ export const getCollectionActivityV4Options: RouteOptions = {
       query.types = [query.types];
     }
 
-    if (query.continuation) {
-      query.continuation = splitContinuation(query.continuation)[0];
-    }
-
     try {
-      const activities = await Activities.getCollectionActivities(
-        query.collection,
-        query.community,
-        query.collectionsSetId,
-        query.continuation,
-        query.types,
-        [],
-        query.limit,
-        query.sortBy,
-        query.includeMetadata
-      );
+      if (query.collection && !_.isArray(query.collection)) {
+        query.collection = [query.collection];
+      }
 
-      // If no activities found
-      if (!activities.length) {
-        return { activities: [] };
+      if (query.collectionsSetId) {
+        query.collection = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+        if (_.isEmpty(query.collection)) {
+          throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
+        }
+      }
+
+      if (query.community) {
+        query.collection = await Collections.getIdsByCommunity(query.community);
+
+        if (query.collection.length === 0) {
+          throw Boom.badRequest(`No collections for community ${query.community}`);
+        }
       }
 
       const sources = await Sources.getInstance();
 
-      const result = _.map(activities, (activity) => {
-        const orderSource = activity.order?.sourceIdInt
-          ? sources.get(activity.order.sourceIdInt)
-          : undefined;
+      const { activities, continuation } = await ActivitiesIndex.search({
+        types: query.types,
+        collections: query.collection,
+        sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
+        limit: query.limit,
+        continuation: query.continuation,
+      });
 
-        return {
-          type: activity.type,
-          fromAddress: activity.fromAddress,
-          toAddress: activity.toAddress,
-          price: formatEth(activity.price),
-          amount: activity.amount,
-          timestamp: activity.eventTimestamp,
-          createdAt: activity.createdAt.toISOString(),
-          contract: activity.contract,
-          token: {
-            tokenId: activity.token?.tokenId,
-            tokenName: activity.token?.tokenName,
-            tokenImage: activity.token?.tokenImage,
-          },
-          collection: activity.collection,
-          txHash: activity.metadata.transactionHash,
-          logIndex: activity.metadata.logIndex,
-          batchIndex: activity.metadata.batchIndex,
-          order: activity.order?.id
+      const result = _.map(activities, (activity) => {
+        let order;
+
+        if (query.includeMetadata) {
+          const orderSource = activity.order?.sourceId
+            ? sources.get(activity.order.sourceId)
+            : undefined;
+
+          let orderCriteria;
+
+          if (activity.order?.criteria) {
+            orderCriteria = {
+              kind: activity.order.criteria.kind,
+              data: {
+                collectionName: activity.collection?.name,
+                image:
+                  activity.order.criteria.kind === "token"
+                    ? activity.token?.image
+                    : activity.collection?.image,
+              },
+            };
+
+            if (activity.order.criteria.kind === "token") {
+              (orderCriteria as any).data.tokenName = activity.token?.name;
+            }
+
+            if (activity.order.criteria.kind === "attribute") {
+              (orderCriteria as any).data.attributes = [activity.order.criteria.data.attribute];
+            }
+          }
+
+          order = activity.order?.id
             ? {
                 id: activity.order.id,
                 side: activity.order.side
@@ -178,32 +195,46 @@ export const getCollectionActivityV4Options: RouteOptions = {
                     ? "ask"
                     : "bid"
                   : undefined,
-                source: orderSource
-                  ? {
-                      domain: orderSource?.domain,
-                      name: orderSource?.getTitle(),
-                      icon: orderSource?.getIcon(),
-                    }
-                  : undefined,
-                metadata: activity.order.metadata || undefined,
+                source: getJoiSourceObject(orderSource, false),
+                metadata: orderCriteria,
               }
-            : undefined,
+            : undefined;
+        } else {
+          order = activity.order?.id
+            ? {
+                id: activity.order.id,
+              }
+            : undefined;
+        }
+
+        return {
+          type: activity.type,
+          fromAddress: activity.fromAddress,
+          toAddress: activity.toAddress || null,
+          price: formatEth(activity.pricing?.price || 0),
+          amount: Number(activity.amount),
+          timestamp: activity.timestamp,
+          createdAt: new Date(activity.createdAt).toISOString(),
+          contract: activity.contract,
+          token: {
+            tokenId: activity.token?.id || null,
+            tokenName: query.includeMetadata ? activity.token?.name || null : undefined,
+            tokenImage: query.includeMetadata ? activity.token?.image || null : undefined,
+          },
+          collection: {
+            collectionId: activity.collection?.id,
+            collectionName: query.includeMetadata ? activity.collection?.name : undefined,
+            collectionImage:
+              query.includeMetadata && activity.collection?.image != null
+                ? activity.collection?.image
+                : undefined,
+          },
+          txHash: activity.event?.txHash,
+          logIndex: activity.event?.logIndex,
+          batchIndex: activity.event?.batchIndex,
+          order,
         };
       });
-
-      // Set the continuation node
-      let continuation = null;
-      if (activities.length === query.limit) {
-        const lastActivity = _.last(activities);
-
-        if (lastActivity) {
-          const continuationValue =
-            query.sortBy == "eventTimestamp"
-              ? lastActivity.eventTimestamp
-              : lastActivity.createdAt.toISOString();
-          continuation = buildContinuation(`${continuationValue}`);
-        }
-      }
 
       return { activities: result, continuation };
     } catch (error) {

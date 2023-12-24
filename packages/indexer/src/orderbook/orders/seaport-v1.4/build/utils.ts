@@ -4,7 +4,7 @@ import { getRandomBytes } from "@reservoir0x/sdk/dist/utils";
 
 import { redb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
-import { bn, fromBuffer, now } from "@/common/utils";
+import { bn, now } from "@/common/utils";
 import { config } from "@/config/index";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import {
@@ -71,8 +71,8 @@ export const getBuildInfo = async (
     paymentToken: options.currency
       ? options.currency
       : side === "buy"
-      ? Sdk.Common.Addresses.Weth[config.chainId]
-      : Sdk.Common.Addresses.Eth[config.chainId],
+      ? Sdk.Common.Addresses.WNative[config.chainId]
+      : Sdk.Common.Addresses.Native[config.chainId],
     fees: [],
     zone,
     conduitKey,
@@ -130,10 +130,7 @@ export const getBuildInfo = async (
       collectionResult.marketplace_fees?.opensea;
 
     if (collectionResult.marketplace_fees?.opensea == null) {
-      openseaMarketplaceFees = await marketplaceFees.getCollectionOpenseaFees(
-        collection,
-        fromBuffer(collectionResult.contract)
-      );
+      openseaMarketplaceFees = marketplaceFees.getCollectionOpenseaFees();
     }
 
     for (const openseaMarketplaceFee of openseaMarketplaceFees) {

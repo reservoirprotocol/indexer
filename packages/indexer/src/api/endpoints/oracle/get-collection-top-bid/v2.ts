@@ -5,14 +5,14 @@ import { _TypedDataEncoder } from "@ethersproject/hash";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
-import axios from "axios";
 import Joi from "joi";
 
 import { edb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { Signers, addressToSigner } from "@/common/signers";
-import { bn, formatPrice, regex, safeOracleTimestamp, toBuffer } from "@/common/utils";
+import { bn, formatPrice, now, regex, safeOracleTimestamp, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { getUSDAndNativePrices } from "@/utils/prices";
 
 const version = "v2";
 
@@ -20,10 +20,10 @@ export const getCollectionTopBidOracleV2Options: RouteOptions = {
   description: "Collection top bid oracle",
   notes:
     "Get a signed message of any collection's top bid price (spot or twap). The oracle's address is 0xAeB1D03929bF87F69888f381e73FBf75753d75AF. The address is the same for all chains.",
-  tags: ["api", "Oracle"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 12,
+      deprecated: true,
     },
   },
   validate: {
@@ -268,21 +268,24 @@ export const getCollectionTopBidOracleV2Options: RouteOptions = {
         );
       }
 
-      if (Object.values(Sdk.Common.Addresses.Eth).includes(query.currency)) {
+      if (Object.values(Sdk.Common.Addresses.Native).includes(query.currency)) {
         // ETH: do nothing
-      } else if (Object.values(Sdk.Common.Addresses.Weth).includes(query.currency)) {
+      } else if (Object.values(Sdk.Common.Addresses.WNative).includes(query.currency)) {
         // WETH: do nothing
-      } else if (Object.values(Sdk.Common.Addresses.Usdc).includes(query.currency)) {
+      } else if (Object.values(Sdk.Common.Addresses.Usdc).flat().includes(query.currency)) {
         // USDC: convert price to USDC
-        const usdPrice = await axios
-          .get("https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd")
-          .then((response) => response.data.ethereum.usd);
+        const convertedPrices = await getUSDAndNativePrices(
+          Sdk.Common.Addresses.Native[config.chainId],
+          price,
+          now(),
+          {
+            onlyUSD: true,
+            acceptStalePrice: true,
+          }
+        );
 
         // USDC has 6 decimals
-        price = bn(Math.floor(usdPrice * 1000000))
-          .mul(price)
-          .div(bn("1000000000000000000"))
-          .toString();
+        price = convertedPrices.usdPrice!;
         decimals = 6;
       } else {
         throw Boom.badRequest("Unsupported currency");
@@ -312,7 +315,12 @@ export const getCollectionTopBidOracleV2Options: RouteOptions = {
         message,
       };
     } catch (error) {
-      logger.error(`get-collection-top-bid-oracle-${version}-handler`, `Handler failure: ${error}`);
+      if (!(error instanceof Boom.Boom)) {
+        logger.error(
+          `get-collection-top-bid-oracle-${version}-handler`,
+          `Handler failure: ${error}`
+        );
+      }
       throw error;
     }
   },

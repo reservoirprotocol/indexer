@@ -65,7 +65,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         // Handle: prices
 
-        const currency = Sdk.Common.Addresses.Eth[config.chainId];
+        const currency = Sdk.Common.Addresses.Native[config.chainId];
         // Deduce the price from the protocol fee (which is 5%)
         const currencyPrice = bn(protocolFee).mul(10000).div(500).toString();
         const priceData = await getUSDAndNativePrices(
@@ -148,6 +148,87 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             logIndex: baseEventParams.logIndex,
             batchIndex: baseEventParams.batchIndex,
             blockHash: baseEventParams.blockHash,
+          },
+        });
+
+        break;
+      }
+
+      case "foundation-offer-accepted": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const contract = parsedLog.args["nftContract"].toLowerCase();
+        const tokenId = parsedLog.args["tokenId"].toString();
+        const maker = parsedLog.args["buyer"].toLowerCase();
+        const taker = parsedLog.args["seller"].toLowerCase();
+        const protocolFee = parsedLog.args["f8nFee"].toString();
+
+        // Handle: attribution
+
+        const orderKind = "foundation";
+        const attributionData = await utils.extractAttributionData(
+          baseEventParams.txHash,
+          orderKind
+        );
+
+        // Handle: prices
+
+        const currency = Sdk.Common.Addresses.Native[config.chainId];
+        // Deduce the price from the protocol fee (which is 5%)
+        const currencyPrice = bn(protocolFee).mul(10000).div(500).toString();
+        const priceData = await getUSDAndNativePrices(
+          currency,
+          currencyPrice,
+          baseEventParams.timestamp
+        );
+        if (!priceData.nativePrice) {
+          // We must always have the native price
+          break;
+        }
+
+        onChainData.fillEventsOnChain.push({
+          orderKind,
+          orderSide: "buy",
+          maker,
+          taker,
+          price: priceData.nativePrice,
+          currency,
+          currencyPrice,
+          usdPrice: priceData.usdPrice,
+          contract,
+          tokenId,
+          // Foundation only supports ERC721
+          amount: "1",
+          orderSourceId: attributionData.orderSource?.id,
+          aggregatorSourceId: attributionData.aggregatorSource?.id,
+          fillSourceId: attributionData.fillSource?.id,
+          baseEventParams,
+        });
+
+        onChainData.fillInfos.push({
+          context: `foundation-${contract}-${tokenId}-${baseEventParams.txHash}`,
+          orderSide: "sell",
+          contract,
+          tokenId,
+          amount: "1",
+          price: priceData.nativePrice,
+          timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
+        });
+
+        break;
+      }
+
+      case "foundation-created-fixed-price-sale":
+      case "foundation-add-merkle-root-to-fixed-price-sale": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const collection = parsedLog.args["nftContract"].toLowerCase();
+
+        onChainData.mints.push({
+          by: "collection",
+          data: {
+            standard: "foundation",
+            collection,
           },
         });
 

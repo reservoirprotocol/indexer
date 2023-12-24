@@ -7,7 +7,7 @@ import Joi from "joi";
 import { logger } from "@/common/logger";
 import { now, regex } from "@/common/utils";
 import { config } from "@/config/index";
-import * as mintQueue from "@/jobs/token-updates/mint-queue";
+import { mintQueueJob } from "@/jobs/token-updates/mint-queue-job";
 
 export const postMetadataIndexOptions: RouteOptions = {
   description: "Trigger metadata indexing for a token's collection",
@@ -34,7 +34,8 @@ export const postMetadataIndexOptions: RouteOptions = {
       const token = payload.token;
 
       const [contract, tokenId] = token.split(":");
-      await mintQueue.addToQueue([{ contract, tokenId, mintedTimestamp: now() }]);
+
+      await mintQueueJob.addToQueue([{ contract, tokenId, mintedTimestamp: now() }]);
 
       return { message: "Success" };
     } catch (error) {

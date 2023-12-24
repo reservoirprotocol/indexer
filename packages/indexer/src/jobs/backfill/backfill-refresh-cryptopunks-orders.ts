@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Interface } from "@ethersproject/abi";
-import { HashZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
@@ -9,10 +8,13 @@ import { randomUUID } from "crypto";
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 const QUEUE_NAME = "backfill-refresh-cryptopunks-orders";
 
@@ -110,7 +112,7 @@ if (config.doBackgroundWork) {
           `
         );
 
-        await orderUpdatesById.addToQueue(
+        await orderUpdatesByIdJob.addToQueue(
           values.map(
             (value) =>
               ({
@@ -119,7 +121,7 @@ if (config.doBackgroundWork) {
                 trigger: {
                   kind: "revalidation",
                 },
-              } as orderUpdatesById.OrderInfo)
+              } as OrderUpdatesByIdJobPayload)
           )
         );
       }
@@ -135,17 +137,6 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
-
-  if (config.chainId === 1) {
-    redlock
-      .acquire([`${QUEUE_NAME}-lock-3`], 60 * 60 * 24 * 30 * 1000)
-      .then(async () => {
-        await addToQueue(HashZero);
-      })
-      .catch(() => {
-        // Skip on any errors
-      });
-  }
 }
 
 export const addToQueue = async (orderId: string) => {

@@ -70,15 +70,15 @@ export const getStatsV2Options: RouteOptions = {
               tokenId: Joi.string().lowercase().pattern(regex.number).allow(null),
               name: Joi.string().allow("", null),
               image: Joi.string().allow("", null),
-            }),
+            }).description("Can be null if no active asks."),
           }),
-          topBid: {
+          topBid: Joi.object({
             id: Joi.string().allow(null),
             price: JoiPrice.allow(null),
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
-          },
+          }).description("Can be null is not active bids"),
         }),
       }).allow(null),
     }).label(`getStats${version.toUpperCase()}Response`),
@@ -373,6 +373,7 @@ export const getStatsV2Options: RouteOptions = {
               "t"."token_id",
               "t"."name",
               "t"."image",
+              "t"."image_version",
               ${floorAskSelectQuery}
               date_part('epoch', lower("os"."valid_between")) AS "floor_sell_valid_from",
               coalesce(
@@ -397,6 +398,7 @@ export const getStatsV2Options: RouteOptions = {
             "c"."top_buy_id",
             "c"."top_buy_value",
             "c"."top_buy_maker",
+            "x"."image_version",
             (
               SELECT COUNT(*) FROM "tokens"
               WHERE "collection_id" = $/collection/
@@ -442,7 +444,7 @@ export const getStatsV2Options: RouteOptions = {
               tokenCount: Number(r.token_count),
               onSaleCount: Number(r.on_sale_count),
               flaggedTokenCount: Number(r.flagged_token_count),
-              sampleImages: Assets.getLocalAssetsLink(r.sample_images) || [],
+              sampleImages: Assets.getResizedImageURLs(r.sample_images) || [],
               market: {
                 floorAsk: {
                   id: r.floor_sell_id,
@@ -472,7 +474,7 @@ export const getStatsV2Options: RouteOptions = {
                     contract: r.contract ? fromBuffer(r.contract) : null,
                     tokenId: r.token_id,
                     name: r.name,
-                    image: Assets.getLocalAssetsLink(r.image),
+                    image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
                   },
                 },
                 topBid: {

@@ -1,4 +1,4 @@
-import { AddressZero, HashZero } from "@ethersproject/constants";
+import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import { OrderKind } from "@reservoir0x/sdk/dist/seaport-base/types";
@@ -22,10 +22,14 @@ import * as tokenSet from "@/orderbook/token-sets";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
+import { isOpen } from "@/utils/seaport-conduits";
+import { FeeRecipients } from "@/models/fee-recipients";
 
-import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
-import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/config";
+import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 export type OrderInfo = {
   kind?: "full";
@@ -116,7 +120,9 @@ export const save = async (
         });
       }
 
-      if (![HashZero].includes(order.params.conduitKey)) {
+      if (
+        !(await isOpen(order.params.conduitKey, Sdk.SeaportV11.Addresses.Exchange[config.chainId]))
+      ) {
         return results.push({
           id,
           status: "unsupported-conduit",
@@ -399,7 +405,7 @@ export const save = async (
       let feeAmount = order.getFeeAmount();
 
       // Handle: price and value
-      let price = bn(order.getMatchingPrice());
+      let price = bn(order.getMatchingPrice(Math.max(now(), startTime)));
       let value = price;
       if (info.side === "buy") {
         // For buy orders, we set the value as `price - fee` since it
@@ -430,6 +436,8 @@ export const save = async (
         openSeaRoyalties = await royalties.getRoyaltiesByTokenSet(tokenSetId, "", true);
       }
 
+      const feeRecipients = await FeeRecipients.getInstance();
+
       let feeBps = 0;
       let knownFee = false;
       const feeBreakdown = info.fees.map(({ recipient, amount }) => {
@@ -444,8 +452,9 @@ export const save = async (
         feeBps += bps;
 
         // First check for opensea hardcoded recipients
-        const kind: "marketplace" | "royalty" = allPlatformFeeRecipients.has(
-          recipient.toLowerCase()
+        const kind: "marketplace" | "royalty" = feeRecipients.getByAddress(
+          recipient.toLowerCase(),
+          "marketplace"
         )
           ? "marketplace"
           : "royalty";
@@ -542,8 +551,8 @@ export const save = async (
       let needsConversion = false;
       if (
         ![
-          Sdk.Common.Addresses.Eth[config.chainId],
-          Sdk.Common.Addresses.Weth[config.chainId],
+          Sdk.Common.Addresses.Native[config.chainId],
+          Sdk.Common.Addresses.WNative[config.chainId],
         ].includes(currency)
       ) {
         needsConversion = true;
@@ -751,7 +760,7 @@ export const save = async (
 
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
 
-    await ordersUpdateById.addToQueue(
+    await orderUpdatesByIdJob.addToQueue(
       results
         .filter((r) => r.status === "success" && !r.unfillable)
         .map(
@@ -763,7 +772,7 @@ export const save = async (
                 kind: "new-order",
               },
               ingestMethod,
-            } as ordersUpdateById.OrderInfo)
+            } as OrderUpdatesByIdJobPayload)
         )
     );
   }
@@ -838,7 +847,9 @@ const getCollection = async (
 
       if (lockAcquired) {
         // Try to refresh the contract collections metadata.
-        await refreshContractCollectionsMetadata.addToQueue(orderParams.contract);
+        await refreshContractCollectionsMetadataQueueJob.addToQueue({
+          contract: orderParams.contract,
+        });
       }
     }
 

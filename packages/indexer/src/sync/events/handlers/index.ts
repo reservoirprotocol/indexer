@@ -25,8 +25,6 @@ import * as wyvern from "@/events-sync/handlers/wyvern";
 import * as x2y2 from "@/events-sync/handlers/x2y2";
 import * as zeroExV4 from "@/events-sync/handlers/zeroex-v4";
 import * as zora from "@/events-sync/handlers/zora";
-import * as universe from "@/events-sync/handlers/universe";
-import * as flow from "@/events-sync/handlers/flow";
 import * as rarible from "@/events-sync/handlers/rarible";
 import * as manifold from "@/events-sync/handlers/manifold";
 import * as tofu from "@/events-sync/handlers/tofu";
@@ -39,7 +37,23 @@ import * as zeroExV3 from "@/events-sync/handlers/zeroex-v3";
 import * as treasure from "@/events-sync/handlers/treasure";
 import * as looksRareV2 from "@/events-sync/handlers/looks-rare-v2";
 import * as blend from "@/events-sync/handlers/blend";
-import * as collectionxyz from "@/events-sync/handlers/collectionxyz";
+import * as sudoswapV2 from "@/events-sync/handlers/sudoswap-v2";
+import * as caviarV1 from "@/events-sync/handlers/caviar-v1";
+import * as paymentProcessor from "@/events-sync/handlers/payment-processor";
+import * as thirdweb from "@/events-sync/handlers/thirdweb";
+import * as seadrop from "@/events-sync/handlers/seadrop";
+import * as blurV2 from "@/events-sync/handlers/blur-v2";
+import * as erc721c from "@/events-sync/handlers/erc721c";
+import * as joepeg from "@/events-sync/handlers/joepeg";
+import * as metadataUpdate from "@/events-sync/handlers/metadata-update";
+import * as soundxyz from "@/events-sync/handlers/soundxyz";
+import * as createdotfun from "@/events-sync/handlers/createdotfun";
+import * as paymentProcessorV2 from "@/events-sync/handlers/payment-processor-v2";
+import * as erc721cV2 from "@/events-sync/handlers/erc721c-v2";
+import * as titlesxyz from "@/events-sync/handlers/titlesxyz";
+import * as artblocks from "@/events-sync/handlers/artblocks";
+import * as highlightxyz from "@/events-sync/handlers/highlightxyz";
+import * as ditto from "@/events-sync/handlers/ditto";
 
 // A list of events having the same high-level kind
 export type EventsByKind = {
@@ -63,7 +77,6 @@ export const eventKindToHandler = new Map<
   ["erc721", (e, d) => erc721.handleEvents(e, d)],
   ["erc1155", (e, d) => erc1155.handleEvents(e, d)],
   ["blur", (e, d) => blur.handleEvents(e, d)],
-  ["collectionxyz", (e, d) => collectionxyz.handleEvents(e, d)],
   ["cryptopunks", (e, d) => cryptopunks.handleEvents(e, d)],
   ["decentraland", (e, d) => decentraland.handleEvents(e, d)],
   ["element", (e, d) => element.handleEvents(e, d)],
@@ -78,7 +91,6 @@ export const eventKindToHandler = new Map<
   ["x2y2", (e, d) => x2y2.handleEvents(e, d)],
   ["zeroex-v4", (e, d, b) => zeroExV4.handleEvents(e, d, b)],
   ["zora", (e, d) => zora.handleEvents(e, d)],
-  ["universe", (e, d) => universe.handleEvents(e, d)],
   ["rarible", (e, d) => rarible.handleEvents(e, d)],
   ["manifold", (e, d) => manifold.handleEvents(e, d)],
   ["tofu", (e, d) => tofu.handleEvents(e, d)],
@@ -86,12 +98,28 @@ export const eventKindToHandler = new Map<
   ["okex", (e, d) => okex.handleEvents(e, d)],
   ["bend-dao", (e, d) => bendDao.handleEvents(e, d)],
   ["superrare", (e, d) => superrare.handleEvents(e, d)],
-  ["flow", (e, d) => flow.handleEvents(e, d)],
   ["zeroex-v2", (e, d) => zeroExV2.handleEvents(e, d)],
   ["zeroex-v3", (e, d) => zeroExV3.handleEvents(e, d)],
   ["treasure", (e, d) => treasure.handleEvents(e, d)],
   ["looks-rare-v2", (e, d) => looksRareV2.handleEvents(e, d)],
+  ["sudoswap-v2", (e, d) => sudoswapV2.handleEvents(e, d)],
+  ["ditto", (e) => ditto.handleEvents(e)],
   ["blend", (e, d) => blend.handleEvents(e, d)],
+  ["caviar-v1", (e, d) => caviarV1.handleEvents(e, d)],
+  ["payment-processor", (e, d) => paymentProcessor.handleEvents(e, d)],
+  ["thirdweb", (e, d) => thirdweb.handleEvents(e, d)],
+  ["seadrop", (e, d) => seadrop.handleEvents(e, d)],
+  ["blur-v2", (e, d) => blurV2.handleEvents(e, d)],
+  ["erc721c", (e) => erc721c.handleEvents(e)],
+  ["joepeg", (e, d) => joepeg.handleEvents(e, d)],
+  ["metadata-update", (e) => metadataUpdate.handleEvents(e)],
+  ["soundxyz", (e, d) => soundxyz.handleEvents(e, d)],
+  ["createdotfun", (e, d) => createdotfun.handleEvents(e, d)],
+  ["payment-processor-v2", (e, d) => paymentProcessorV2.handleEvents(e, d)],
+  ["erc721c-v2", (e) => erc721cV2.handleEvents(e)],
+  ["titlesxyz", (e, d) => titlesxyz.handleEvents(e, d)],
+  ["artblocks", (e, d) => artblocks.handleEvents(e, d)],
+  ["highlightxyz", (e, d) => highlightxyz.handleEvents(e, d)],
 ]);
 
 export const processEventsBatch = async (batch: EventsBatch, skipProcessing?: boolean) => {
@@ -101,6 +129,7 @@ export const processEventsBatch = async (batch: EventsBatch, skipProcessing?: bo
       if (!events.data.length) {
         return;
       }
+
       const handler = eventKindToHandler.get(events.kind);
       if (handler) {
         await handler(events.data, onChainData, batch.backfill);
@@ -139,8 +168,10 @@ export const processEventsBatchV2 = async (batches: EventsBatch[]) => {
 
   const latencies: {
     eventKind: EventKind;
+    eventsCount: number;
     latency: number;
   }[] = [];
+
   await Promise.all(
     flattenedArray.map(async (events) => {
       const startTime = Date.now();
@@ -164,6 +195,7 @@ export const processEventsBatchV2 = async (batches: EventsBatch[]) => {
 
       latencies.push({
         eventKind: events.kind,
+        eventsCount: events.data.length,
         latency: endTime - startTime,
       });
     })

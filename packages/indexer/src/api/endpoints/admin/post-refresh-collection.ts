@@ -9,15 +9,20 @@ import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections-refresh-cache";
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
-import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
-import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
-import * as orderFixes from "@/jobs/order-fixes/fixes";
 import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
+import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
+import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
+import {
+  metadataIndexFetchJob,
+  MetadataIndexFetchJobPayload,
+} from "@/jobs/metadata-index/metadata-fetch-job";
+import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
+import { openseaOrdersProcessJob } from "@/jobs/opensea-orders/opensea-orders-process-job";
+import { PendingFlagStatusSyncCollectionSlugs } from "@/models/pending-flag-status-sync-collection-slugs";
+import { PendingFlagStatusSyncContracts } from "@/models/pending-flag-status-sync-contracts";
 
 export const postRefreshCollectionOptions: RouteOptions = {
   description: "Refresh a collection's orders and metadata",
@@ -28,14 +33,11 @@ export const postRefreshCollectionOptions: RouteOptions = {
     }).options({ allowUnknown: true }),
     payload: Joi.object({
       collection: Joi.string()
-        .lowercase()
         .description(
           "Refresh the given collection. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         )
         .required(),
-      refreshKind: Joi.string()
-        .valid("full-collection", "full-collection-by-slug")
-        .default("full-collection"),
+      refreshKind: Joi.string().valid("full-collection").default("full-collection"),
       cacheOnly: Joi.boolean()
         .default(false)
         .description("If true, will only refresh the collection cache."),
@@ -64,10 +66,11 @@ export const postRefreshCollectionOptions: RouteOptions = {
           { collection: payload.collection }
         );
         if (tokenResult) {
-          await fetchCollectionMetadata.addToQueue([
+          await fetchCollectionMetadataJob.addToQueue([
             {
               contract: fromBuffer(tokenResult.contract),
               tokenId: tokenResult.token_id,
+              allowFallbackCollectionMetadata: false,
             },
           ]);
 
@@ -82,45 +85,59 @@ export const postRefreshCollectionOptions: RouteOptions = {
 
       if (payload.cacheOnly) {
         // Refresh the contract floor sell and top bid
-        await collectionsRefreshCache.addToQueue(collection.id);
+        await collectionRefreshCacheJob.addToQueue({ collection: collection.id });
       } else {
         // Update the last sync date
         const currentUtcTime = new Date().toISOString();
         await Collections.update(payload.collection, { lastMetadataSync: currentUtcTime });
 
         // Update the collection id of any missing tokens
-        await edb.none(
-          `
-          WITH x AS (
-            SELECT
-              collections.contract,
-              collections.token_id_range
-            FROM collections
-            WHERE collections.id = $/collection/
-          )
-          UPDATE tokens SET
-            collection_id = $/collection/,
-            updated_at = now()
-          FROM x
-          WHERE tokens.contract = x.contract
-            AND tokens.token_id <@ x.token_id_range
-            AND tokens.collection_id IS NULL
-        `,
-          { collection: payload.collection }
-        );
+        if (collection.tokenIdRange !== null) {
+          await edb.none(
+            `
+            WITH x AS (
+              SELECT
+                collections.contract,
+                collections.token_id_range
+              FROM collections
+              WHERE collections.id = $/collection/
+            )
+            UPDATE tokens SET
+              collection_id = $/collection/,
+              updated_at = now()
+            FROM x
+            WHERE tokens.contract = x.contract
+              AND tokens.token_id <@ x.token_id_range
+              AND tokens.collection_id IS NULL
+          `,
+            { collection: payload.collection }
+          );
+        }
 
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionUpdatesMetadata.addToQueue(
-          collection.contract,
+        if (collection.contract === "0x495f947276749ce646f68ac8c248420045cb7b5e") {
+          logger.info(
+            "post-refresh-collection",
+            JSON.stringify({
+              topic: "debugCollectionRefresh",
+              message: `collectionMetadataQueueJob.addToQueue. contract=${collection.contract}, tokenId=${tokenId}`,
+              collection,
+            })
+          );
+        }
+
+        await collectionMetadataQueueJob.addToQueue({
+          contract: collection.contract,
           tokenId,
-          collection.community
-        );
+          community: collection.community,
+          forceRefresh: true,
+        });
 
         if (collection.slug) {
           // Refresh opensea collection offers
-          await openseaOrdersProcessQueue.addToQueue([
+          await openseaOrdersProcessJob.addToQueue([
             {
               kind: "collection-offers",
               data: {
@@ -133,38 +150,49 @@ export const postRefreshCollectionOptions: RouteOptions = {
         }
 
         // Refresh the contract floor sell and top bid
-        await collectionsRefreshCache.addToQueue(collection.id);
+        await collectionRefreshCacheJob.addToQueue({ collection: collection.id });
 
         // Revalidate the contract orders
-        await orderFixes.addToQueue([{ by: "contract", data: { contract: collection.contract } }]);
+        await orderFixesJob.addToQueue([
+          { by: "contract", data: { contract: collection.contract } },
+        ]);
 
-        const method = metadataIndexFetch.getIndexingMethod(collection.community);
-        let metadataIndexInfo: metadataIndexFetch.MetadataIndexInfo = {
+        const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
+        const metadataIndexInfo: MetadataIndexFetchJobPayload = {
           kind: "full-collection",
           data: {
             method,
             collection: collection.id,
           },
+          context: "post-refresh-collection",
         };
 
         if (method === "opensea") {
           // Refresh contract orders from OpenSea
-          await OpenseaIndexerApi.fastContractSync(collection.contract);
-          if (collection.slug && payload.refreshKind === "full-collection-by-slug") {
-            metadataIndexInfo = {
-              kind: "full-collection-by-slug",
-              data: {
-                method,
-                contract: collection.contract,
-                slug: collection.slug,
-                collection: collection.id,
-              },
-            };
-          }
+          await OpenseaIndexerApi.fastContractSync(collection.id);
         }
 
         // Refresh the collection tokens metadata
-        await metadataIndexFetch.addToQueue([metadataIndexInfo], true);
+        await metadataIndexFetchJob.addToQueue([metadataIndexInfo], true);
+
+        if (collection.slug) {
+          await PendingFlagStatusSyncCollectionSlugs.add([
+            {
+              slug: collection.slug,
+              contract: collection.contract,
+              collectionId: collection.id,
+              continuation: null,
+            },
+          ]);
+        } else {
+          await PendingFlagStatusSyncContracts.add([
+            {
+              contract: collection.contract,
+              collectionId: collection.id,
+              continuation: null,
+            },
+          ]);
+        }
       }
 
       return { message: "Request accepted" };

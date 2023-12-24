@@ -85,10 +85,19 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           orderSide = isSellOrder ? "sell" : "buy";
           maker = isSellOrder ? traderOfSell : traderOfBuy;
           taker = isSellOrder ? traderOfBuy : traderOfSell;
+
+          const callFromBlend =
+            executeCallTraceCall?.from === Sdk.Blend.Addresses.Blend[config.chainId];
+          if (callFromBlend) {
+            taker = (await utils.fetchTransaction(baseEventParams.txHash)).from.toLowerCase();
+          }
         }
 
         if (routers.get(maker)) {
           maker = sell.trader.toLowerCase();
+        }
+        if (taker === Sdk.Blend.Addresses.Blend[config.chainId]) {
+          taker = (await utils.fetchTransaction(baseEventParams.txHash)).from.toLowerCase();
         }
 
         // Handle: attribution
@@ -99,7 +108,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           orderKind,
           { orderId }
         );
-
         if (attributionData.taker) {
           taker = attributionData.taker;
         }
@@ -107,7 +115,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         // Handle: prices
         const currency =
           sell.paymentToken.toLowerCase() === Sdk.Blur.Addresses.Beth[config.chainId]
-            ? Sdk.Common.Addresses.Eth[config.chainId]
+            ? Sdk.Common.Addresses.Native[config.chainId]
             : sell.paymentToken.toLowerCase();
         const currencyPrice = sell.price.div(sell.amount).toString();
 
@@ -116,7 +124,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           currencyPrice,
           baseEventParams.timestamp
         );
-
         if (!priceData.nativePrice) {
           // We must always have the native price
           break;

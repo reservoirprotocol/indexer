@@ -7,7 +7,7 @@ import Joi from "joi";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { Collections } from "@/models/collections";
-import * as collectionSetCommunity from "@/jobs/collection-updates/set-community-queue";
+import { setCommunityQueueJob } from "@/jobs/collection-updates/set-community-queue-job";
 
 export const postSetCollectionCommunity: RouteOptions = {
   description: "Set a community for a specific collection",
@@ -53,7 +53,7 @@ export const postSetCollectionCommunity: RouteOptions = {
         );
       } else if (payload.doRetries) {
         // We currently don't have the collection but might have in the future trigger a delayed job
-        await collectionSetCommunity.addToQueue(collection, community);
+        await setCommunityQueueJob.addToQueue({ collection, community });
       }
 
       return { message: "Request accepted" };

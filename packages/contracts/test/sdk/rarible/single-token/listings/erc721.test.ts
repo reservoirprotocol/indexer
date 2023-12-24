@@ -35,7 +35,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     const price = parseEther("1");
     const soldTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -66,7 +66,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
       tokenId: soldTokenId.toString(),
       price: price.toString(),
       tokenAmount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V2,
@@ -121,7 +121,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     const price = parseEther("1");
     const soldTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -152,7 +152,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
       tokenId: soldTokenId.toString(),
       price: price.toString(),
       tokenAmount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V2,
@@ -199,7 +199,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     const price = parseEther("1");
     const soldTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -231,7 +231,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
       tokenId: soldTokenId.toString(),
       price: price.toString(),
       tokenAmount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V2,
@@ -265,9 +265,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     const ownerAfter = await nft.getOwner(soldTokenId);
     let priceAfterFees = price;
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
 
     expect(buyerBalanceAfter).to.be.eq(0);
@@ -317,9 +315,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     expect(ownerBefore).to.eq(seller.address);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
 
     // Match orders
     const tx = await exchange.fillOrder(buyer, sellOrder, {
@@ -335,9 +331,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     const ownerAfter = await nft.getOwner(soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
 
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(price)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(price));
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(price));
     expect(ownerAfter).to.eq(buyer.address);
   });
@@ -390,12 +384,8 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     expect(ownerBefore).to.eq(seller.address);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
-    const charlieBalanceBefore = await ethers.provider.getBalance(
-      charlie.address
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
+    const charlieBalanceBefore = await ethers.provider.getBalance(charlie.address);
 
     // Match orders
     const tx = await exchange.fillOrder(buyer, sellOrder, {
@@ -408,15 +398,11 @@ describe("Rarible - SingleToken Listings Erc721", () => {
 
     const buyerBalanceAfter = await ethers.provider.getBalance(buyer.address);
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
-    const charlieBalanceAfter = await ethers.provider.getBalance(
-      charlie.address
-    );
+    const charlieBalanceAfter = await ethers.provider.getBalance(charlie.address);
     const ownerAfter = await nft.getOwner(soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
 
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(price)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(price));
     expect(sellerBalanceAfter).to.be.eq(
       sellerBalanceBefore.add(price.sub(price.mul(revenueSplitBpsA).div(10000)))
     );
@@ -476,12 +462,8 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     expect(ownerBefore).to.eq(seller.address);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
-    const charlieBalanceBefore = await ethers.provider.getBalance(
-      charlie.address
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
+    const charlieBalanceBefore = await ethers.provider.getBalance(charlie.address);
     const danBalanceBefore = await ethers.provider.getBalance(dan.address);
 
     // Match orders
@@ -496,29 +478,21 @@ describe("Rarible - SingleToken Listings Erc721", () => {
 
     const buyerBalanceAfter = await ethers.provider.getBalance(buyer.address);
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
-    const charlieBalanceAfter = await ethers.provider.getBalance(
-      charlie.address
-    );
+    const charlieBalanceAfter = await ethers.provider.getBalance(charlie.address);
     const danBalanceAfter = await ethers.provider.getBalance(dan.address);
     const ownerAfter = await nft.getOwner(soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
 
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(price)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(price));
 
     expect(charlieBalanceAfter).to.be.eq(
       charlieBalanceBefore.add(price.mul(revenueSplitBpsA).div(10000))
     );
-    expect(danBalanceAfter).to.be.eq(
-      danBalanceBefore.add(price.mul(revenueSplitBpsB).div(10000))
-    );
+    expect(danBalanceAfter).to.be.eq(danBalanceBefore.add(price.mul(revenueSplitBpsB).div(10000)));
 
     let priceAfterFees = price;
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
 
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(priceAfterFees));
@@ -584,12 +558,8 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     expect(ownerBefore).to.eq(seller.address);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
-    const charlieBalanceBefore = await ethers.provider.getBalance(
-      charlie.address
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
+    const charlieBalanceBefore = await ethers.provider.getBalance(charlie.address);
     const danBalanceBefore = await ethers.provider.getBalance(dan.address);
 
     // Match orders
@@ -604,25 +574,19 @@ describe("Rarible - SingleToken Listings Erc721", () => {
 
     const buyerBalanceAfter = await ethers.provider.getBalance(buyer.address);
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
-    const charlieBalanceAfter = await ethers.provider.getBalance(
-      charlie.address
-    );
+    const charlieBalanceAfter = await ethers.provider.getBalance(charlie.address);
     const danBalanceAfter = await ethers.provider.getBalance(dan.address);
     const ownerAfter = await nft.getOwner(soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
 
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(price)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(price));
 
     // expect(charlieBalanceAfter).to.be.eq(charlieBalanceBefore.add(price.mul(revenueSplitBpsA).div(10000)));
     // expect(danBalanceAfter).to.be.eq(danBalanceBefore.add(price.mul(revenueSplitBpsB).div(10000)));
 
     let priceAfterFees = price;
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
 
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(priceAfterFees));
@@ -678,9 +642,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     expect(ownerBefore).to.eq(seller.address);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
     const danBalanceBefore = await ethers.provider.getBalance(dan.address);
 
     // Match orders
@@ -699,9 +661,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     const ownerAfter = await nft.getOwner(soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
 
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(price)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(price));
 
     // expect(danBalanceAfter).to.be.eq(danBalanceBefore.add(price.mul(revenueSplitBpsB).div(10000)));
 
@@ -771,9 +731,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     expect(ownerBefore).to.eq(seller.address);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
     const danBalanceBefore = await ethers.provider.getBalance(dan.address);
 
     // Match orders
@@ -792,16 +750,12 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     const ownerAfter = await nft.getOwner(soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
 
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(price)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(price));
 
     // expect(danBalanceAfter).to.be.eq(danBalanceBefore.add(price.mul(revenueSplitBpsB).div(10000)));
 
     let priceAfterFees = price;
-    priceAfterFees = priceAfterFees.sub(
-      priceAfterFees.mul(BigNumber.from("2000")).div(10000)
-    );
+    priceAfterFees = priceAfterFees.sub(priceAfterFees.mul(BigNumber.from("2000")).div(10000));
 
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(priceAfterFees));
     expect(ownerAfter).to.eq(buyer.address);
@@ -866,9 +820,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     expect(ownerBefore).to.eq(seller.address);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
     const danBalanceBefore = await ethers.provider.getBalance(dan.address);
 
     // Match orders
@@ -887,14 +839,10 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     const ownerAfter = await nft.getOwner(soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
 
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(price)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(price));
 
     let priceAfterFees = price;
-    priceAfterFees = priceAfterFees.sub(
-      priceAfterFees.mul(BigNumber.from("2800")).div(10000)
-    );
+    priceAfterFees = priceAfterFees.sub(priceAfterFees.mul(BigNumber.from("2800")).div(10000));
 
     expect(sellerBalanceAfter).to.eq(sellerBalanceBefore.add(priceAfterFees));
     expect(ownerAfter).to.eq(buyer.address);
@@ -928,7 +876,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
       tokenId: soldTokenId.toString(),
       price: price.toString(),
       tokenAmount: 1,
-      paymentToken: Common.Addresses.Eth[chainId],
+      paymentToken: Common.Addresses.Native[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V2,
@@ -946,9 +894,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     expect(ownerBefore).to.eq(seller.address);
 
     const buyerBalanceBefore = await ethers.provider.getBalance(buyer.address);
-    const sellerBalanceBefore = await ethers.provider.getBalance(
-      seller.address
-    );
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
     const danBalanceBefore = await ethers.provider.getBalance(dan.address);
 
     // Match orders
@@ -967,9 +913,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     const ownerAfter = await nft.getOwner(soldTokenId);
     const gasUsed = txReceipt.gasUsed.mul(txReceipt.effectiveGasPrice);
 
-    expect(buyerBalanceAfter).to.be.eq(
-      buyerBalanceBefore.sub(gasUsed).sub(price)
-    );
+    expect(buyerBalanceAfter).to.be.eq(buyerBalanceBefore.sub(gasUsed).sub(price));
 
     // let priceAfterFees = price;
     // priceAfterFees = priceAfterFees.sub(
@@ -988,7 +932,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     const price = parseEther("1");
     const soldTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -1020,7 +964,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
       tokenId: soldTokenId.toString(),
       price: price.toString(),
       tokenAmount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V1,
@@ -1061,9 +1005,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     const ownerAfter = await nft.getOwner(soldTokenId);
     let priceAfterFees = price;
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
 
     expect(buyerBalanceAfter).to.be.eq(0);
@@ -1077,7 +1019,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     const price = parseEther("1");
     const soldTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -1109,7 +1051,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
       tokenId: soldTokenId.toString(),
       price: price.toString(),
       tokenAmount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V1,
@@ -1140,9 +1082,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     const ownerAfter = await nft.getOwner(soldTokenId);
     let priceAfterFees = price;
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
 
     expect(buyerBalanceAfter).to.be.eq(0);
@@ -1156,7 +1096,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     const price = parseEther("1");
     const soldTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -1188,7 +1128,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
       tokenId: soldTokenId.toString(),
       price: price.toString(),
       tokenAmount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V2,
@@ -1225,9 +1165,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     const ownerAfter = await nft.getOwner(soldTokenId);
     let priceAfterFees = price;
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
 
     expect(buyerBalanceAfter).to.be.eq(0);
@@ -1241,7 +1179,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     const price = parseEther("1");
     const soldTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -1273,7 +1211,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
       tokenId: soldTokenId.toString(),
       price: price.toString(),
       tokenAmount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V2,
@@ -1313,9 +1251,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     const ownerAfter = await nft.getOwner(soldTokenId);
     let priceAfterFees = price.mul(sellerPayout).div(10000);
     priceAfterFees = priceAfterFees.sub(
-      priceAfterFees
-        .mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB))
-        .div(10000)
+      priceAfterFees.mul(BigNumber.from(revenueSplitBpsA).add(revenueSplitBpsB)).div(10000)
     );
 
     expect(buyerBalanceAfter).to.be.eq(0);
@@ -1329,7 +1265,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     const price = parseEther("1");
     const soldTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyer, price);
@@ -1361,7 +1297,7 @@ describe("Rarible - SingleToken Listings Erc721", () => {
       tokenId: soldTokenId.toString(),
       price: price.toString(),
       tokenAmount: 1,
-      paymentToken: Common.Addresses.Weth[chainId],
+      paymentToken: Common.Addresses.WNative[chainId],
       startTime: 0,
       endTime: 0,
       orderType: Rarible.Constants.ORDER_TYPES.V2,

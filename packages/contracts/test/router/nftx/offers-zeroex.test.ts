@@ -39,7 +39,7 @@ describe("[ReservoirV6_0_1] NFTX offers (with 0x routing)", () => {
   });
 
   const getBalances = async (token: string) => {
-    if (token === Sdk.Common.Addresses.Eth[chainId]) {
+    if (token === Sdk.Common.Addresses.Native[chainId]) {
       return {
         alice: await ethers.provider.getBalance(alice.address),
         bob: await ethers.provider.getBalance(bob.address),
@@ -125,7 +125,7 @@ describe("[ReservoirV6_0_1] NFTX offers (with 0x routing)", () => {
           vaultId: vaultId.toString(),
           pool: vault,
           collection: offer.nft.contract.address,
-          currency: Sdk.Common.Addresses.Eth[chainId],
+          currency: Sdk.Common.Addresses.Native[chainId],
           specificIds: [offer.nft.id.toString()],
           price: offer.isCancelled ? offer.price.mul(bn(10)).toString() : offer.price.toString(),
           extra: {
@@ -190,7 +190,7 @@ describe("[ReservoirV6_0_1] NFTX offers (with 0x routing)", () => {
 
     // Fetch pre-state
 
-    const balancesBefore = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
+    const balancesBefore = await getBalances(Sdk.Common.Addresses.Native[chainId]);
 
     // Execute
     await router.connect(carol).execute(executions, {
@@ -198,7 +198,7 @@ describe("[ReservoirV6_0_1] NFTX offers (with 0x routing)", () => {
     });
 
     // Fetch post-state
-    const balancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
+    const balancesAfter = await getBalances(Sdk.Common.Addresses.Native[chainId]);
 
     // Checks
 

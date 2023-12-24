@@ -8,7 +8,8 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { JoiPrice, getJoiPriceObject } from "@/common/joi";
+import { parseEther } from "@ethersproject/units";
+import { JoiPrice, getJoiCollectionObject, getJoiPriceObject } from "@/common/joi";
 import {
   buildContinuation,
   formatEth,
@@ -20,7 +21,7 @@ import {
 import { config } from "@/config/index";
 import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 
 const version = "v5";
 
@@ -31,10 +32,10 @@ export const getCollectionsV5Options: RouteOptions = {
   },
   description: "Collections",
   notes: "Use this API to explore a collection’s metadata and statistics (sales, volume, etc).",
-  tags: ["api", "Collections"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 3,
+      deprecated: true,
     },
   },
   validate: {
@@ -66,6 +67,8 @@ export const getCollectionsV5Options: RouteOptions = {
       name: Joi.string()
         .lowercase()
         .description("Search for collections that match a string. Example: `bored`"),
+      maxFloorAskPrice: Joi.number().description("Maximum floor price of the collection"),
+      minFloorAskPrice: Joi.number().description("Minumum floor price of the collection"),
       includeTopBid: Joi.boolean()
         .default(false)
         .description("If true, top bid will be returned in the response."),
@@ -95,6 +98,9 @@ export const getCollectionsV5Options: RouteOptions = {
         .description(
           "If true, sales count (1 day, 7 day, 30 day, all time) will be included in the response. Must filter by `id` or `slug` to a particular collection."
         ),
+      includeMintStages: Joi.boolean()
+        .default(false)
+        .description("If true, mint data for the collection will be included in the response."),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
@@ -251,6 +257,17 @@ export const getCollectionsV5Options: RouteOptions = {
             .allow("", null)
             .description("Returns `erc721`, `erc1155`, etc."),
           mintedTimestamp: Joi.number().allow(null),
+          mintStages: Joi.array().items(
+            Joi.object({
+              stage: Joi.string().required(),
+              tokenId: Joi.string().pattern(regex.number).allow(null),
+              kind: Joi.string().required(),
+              price: JoiPrice.allow(null),
+              startTime: Joi.number().allow(null),
+              endTime: Joi.number().allow(null),
+              maxMintsPerWallet: Joi.number().unsafe().allow(null),
+            })
+          ),
         })
       ),
     }).label(`getCollections${version.toUpperCase()}Response`),
@@ -318,35 +335,55 @@ export const getCollectionsV5Options: RouteOptions = {
         `;
       }
 
+      // Include mint stages
+      let mintStagesSelectQuery = "";
+      let mintStagesJoinQuery = "";
+      if (query.includeMintStages) {
+        mintStagesSelectQuery = ", v.*";
+        mintStagesJoinQuery = `
+          LEFT JOIN LATERAL (
+            SELECT
+              array_agg(
+                json_build_object(
+                  'stage', collection_mints.stage,
+                  'tokenId', collection_mints.token_id::TEXT,
+                  'kind', collection_mints.kind,
+                  'currency', concat('0x', encode(collection_mints.currency, 'hex')),
+                  'price', collection_mints.price::TEXT,
+                  'startTime', floor(extract(epoch from collection_mints.start_time)),
+                  'endTime', floor(extract(epoch from collection_mints.end_time)),
+                  'maxMintsPerWallet', collection_mints.max_mints_per_wallet
+                )
+              ) AS mint_stages
+            FROM collection_mints
+            WHERE collection_mints.collection_id = x.id
+              AND collection_mints.status = 'open'
+          ) v ON TRUE
+        `;
+      }
+
       let saleCountSelectQuery = "";
       let saleCountJoinQuery = "";
       if (query.includeSalesCount) {
         saleCountSelectQuery = ", s.*";
         saleCountJoinQuery = `
-        LEFT JOIN LATERAL (
-          SELECT
-            SUM(CASE
-                  WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '24 HOURS'
-                  THEN 1
-                  ELSE 0
-                END) AS day_sale_count,
-            SUM(CASE
-                  WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '7 DAYS'
-                  THEN 1
-                  ELSE 0
-                END) AS week_sale_count,
-            SUM(CASE
-                  WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '30 DAYS'
-                  THEN 1
-                  ELSE 0
-                END) AS month_sale_count,
-            COUNT(*) AS total_sale_count
-          FROM fill_events_2 fe
-          JOIN "tokens" "t" ON "fe"."token_id" = "t"."token_id" AND "fe"."contract" = "t"."contract"
-          WHERE t.collection_id = x.id
-          AND fe.is_deleted = 0
-        ) s ON TRUE
-      `;
+          LEFT JOIN LATERAL (
+            SELECT
+              SUM(CASE
+                    WHEN to_timestamp(dv.timestamp) + INTERVAL '24 HOURS' > NOW() - INTERVAL '7 DAYS'
+                    THEN sales_count
+                    ELSE 0
+                  END) AS week_sale_count,
+              SUM(CASE
+                    WHEN to_timestamp(dv.timestamp) + INTERVAL '24 HOURS' > NOW() - INTERVAL '30 DAYS'
+                    THEN sales_count
+                    ELSE 0
+                  END) AS month_sale_count,
+              SUM(sales_count) AS total_sale_count
+            FROM daily_volumes dv
+            WHERE dv.collection_id = x.id
+          ) s ON TRUE
+        `;
       }
 
       let floorAskSelectQuery;
@@ -386,6 +423,7 @@ export const getCollectionsV5Options: RouteOptions = {
           collections.slug,
           collections.name,
           (collections.metadata ->> 'imageUrl')::TEXT AS "image",
+          collections.image_version AS "image_version",
           (collections.metadata ->> 'bannerImageUrl')::TEXT AS "banner",
           (collections.metadata ->> 'discordUrl')::TEXT AS "discord_url",
           (collections.metadata ->> 'description')::TEXT AS "description",
@@ -397,6 +435,7 @@ export const getCollectionsV5Options: RouteOptions = {
           collections.contract,
           collections.token_id_range,
           collections.token_set_id,
+          collections.day1_sales_count AS "day_sale_count",
           collections.day1_rank,
           collections.day1_volume,
           collections.day7_rank,
@@ -416,6 +455,7 @@ export const getCollectionsV5Options: RouteOptions = {
           collections.owner_count,
           collections.created_at,
           collections.minted_timestamp,
+          collections.metadata_disabled,
           (
             SELECT
               COUNT(*)
@@ -428,6 +468,7 @@ export const getCollectionsV5Options: RouteOptions = {
               tokens.image
             FROM tokens
             WHERE tokens.collection_id = collections.id
+            ORDER BY rarity_rank DESC NULLS LAST
             LIMIT 4
           ) AS sample_images,
           (
@@ -439,8 +480,6 @@ export const getCollectionsV5Options: RouteOptions = {
       // Filtering
 
       const conditions: string[] = [];
-
-      conditions.push("collections.token_count > 0");
 
       if (query.id) {
         conditions.push("collections.id = $/id/");
@@ -469,6 +508,16 @@ export const getCollectionsV5Options: RouteOptions = {
       if (query.name) {
         query.name = `%${query.name}%`;
         conditions.push(`collections.name ILIKE $/name/`);
+      }
+
+      if (query.maxFloorAskPrice) {
+        query.maxFloorAskPrice = parseEther(query.maxFloorAskPrice.toString()).toString();
+        conditions.push(`collections.floor_sell_value <= $/maxFloorAskPrice/`);
+      }
+
+      if (query.minFloorAskPrice) {
+        query.minFloorAskPrice = parseEther(query.minFloorAskPrice.toString()).toString();
+        conditions.push(`collections.floor_sell_value >= $/minFloorAskPrice/`);
       }
 
       // Sorting and pagination
@@ -563,6 +612,7 @@ export const getCollectionsV5Options: RouteOptions = {
           ${attributesSelectQuery}
           ${topBidSelectQuery}
           ${saleCountSelectQuery}
+          ${mintStagesSelectQuery}
         FROM x
         LEFT JOIN LATERAL (
            SELECT
@@ -570,6 +620,7 @@ export const getCollectionsV5Options: RouteOptions = {
              tokens.token_id AS floor_sell_token_id,
              tokens.name AS floor_sell_token_name,
              tokens.image AS floor_sell_token_image,
+             tokens.image_version AS floor_sell_token_image_version,
              orders.currency AS floor_sell_currency,
              ${
                query.normalizeRoyalties
@@ -584,6 +635,7 @@ export const getCollectionsV5Options: RouteOptions = {
         ${attributesJoinQuery}
         ${topBidJoinQuery}
         ${saleCountJoinQuery}
+        ${mintStagesJoinQuery}
       `;
 
       // Any further joins might not preserve sorting
@@ -598,159 +650,191 @@ export const getCollectionsV5Options: RouteOptions = {
           // that don't have the currencies cached in the tokens table
           const floorAskCurrency = r.floor_sell_currency
             ? fromBuffer(r.floor_sell_currency)
-            : Sdk.Common.Addresses.Eth[config.chainId];
+            : Sdk.Common.Addresses.Native[config.chainId];
 
           const topBidCurrency = r.top_buy_currency
             ? fromBuffer(r.top_buy_currency)
-            : Sdk.Common.Addresses.Weth[config.chainId];
+            : Sdk.Common.Addresses.WNative[config.chainId];
 
           const sampleImages = _.filter(
             r.sample_images,
             (image) => !_.isNull(image) && _.startsWith(image, "http")
           );
 
-          return {
-            id: r.id,
-            slug: r.slug,
-            createdAt: new Date(r.created_at).toISOString(),
-            name: r.name,
-            image:
-              r.image ?? (sampleImages.length ? Assets.getLocalAssetsLink(sampleImages[0]) : null),
-            banner: r.banner,
-            discordUrl: r.discord_url,
-            externalUrl: r.external_url,
-            twitterUsername: r.twitter_username,
-            openseaVerificationStatus: r.opensea_verification_status,
-            description: r.description,
-            sampleImages: Assets.getLocalAssetsLink(sampleImages) ?? [],
-            tokenCount: String(r.token_count),
-            onSaleCount: String(r.on_sale_count),
-            primaryContract: fromBuffer(r.contract),
-            tokenSetId: r.token_set_id,
-            royalties: r.royalties
-              ? {
-                  // Main recipient, kept for backwards-compatibility only
-                  recipient: r.royalties.length ? r.royalties[0].recipient : null,
-                  breakdown: r.royalties.filter((r: any) => r.bps && r.recipient),
-                  bps: r.royalties
-                    .map((r: any) => r.bps)
-                    .reduce((a: number, b: number) => a + b, 0),
-                }
-              : null,
-            allRoyalties: r.new_royalties ?? null,
-            lastBuy: {
-              value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
-              timestamp: r.last_buy_timestamp,
-            },
-            floorAsk: {
-              id: r.floor_sell_id,
-              sourceDomain: sources.get(r.floor_sell_source_id_int)?.domain,
-              price: r.floor_sell_id
-                ? await getJoiPriceObject(
-                    {
-                      gross: {
-                        amount: r.floor_sell_currency_value ?? r.floor_sell_value,
-                        nativeAmount: r.floor_sell_value,
-                      },
-                    },
-                    floorAskCurrency,
-                    query.displayCurrency
-                  )
+          let imageUrl = r.image;
+          if (imageUrl) {
+            imageUrl = Assets.getResizedImageUrl(imageUrl, ImageSize.small, r.image_version);
+          } else if (sampleImages.length) {
+            imageUrl = Assets.getResizedImageUrl(sampleImages[0], ImageSize.small, r.image_version);
+          }
+
+          return getJoiCollectionObject(
+            {
+              id: r.id,
+              slug: r.slug,
+              createdAt: new Date(r.created_at).toISOString(),
+              name: r.name,
+              image: imageUrl ?? null,
+              banner: Assets.getResizedImageUrl(r.banner),
+              discordUrl: r.discord_url,
+              externalUrl: r.external_url,
+              twitterUsername: r.twitter_username,
+              openseaVerificationStatus: r.opensea_verification_status,
+              description: r.description,
+              sampleImages: Assets.getResizedImageURLs(sampleImages) ?? [],
+              tokenCount: String(r.token_count),
+              onSaleCount: String(r.on_sale_count),
+              primaryContract: fromBuffer(r.contract),
+              tokenSetId: r.token_set_id,
+              royalties: r.royalties
+                ? {
+                    // Main recipient, kept for backwards-compatibility only
+                    recipient: r.royalties.length ? r.royalties[0].recipient : null,
+                    breakdown: r.royalties
+                      .filter((r: any) => r.bps && r.recipient)
+                      .map((r: any) => ({ bps: r.bps, recipient: r.recipient })),
+                    bps: r.royalties
+                      .map((r: any) => r.bps)
+                      .reduce((a: number, b: number) => a + b, 0),
+                  }
                 : null,
-              maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
-              validFrom: r.floor_sell_valid_from,
-              validUntil: r.floor_sell_value ? r.floor_sell_valid_until : null,
-              token: r.floor_sell_value && {
-                contract: r.floor_sell_token_contract
-                  ? fromBuffer(r.floor_sell_token_contract)
-                  : null,
-                tokenId: r.floor_sell_token_id,
-                name: r.floor_sell_token_name,
-                image: Assets.getLocalAssetsLink(r.floor_sell_token_image),
+              allRoyalties: r.new_royalties ?? null,
+              lastBuy: {
+                value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
+                timestamp: r.last_buy_timestamp,
               },
-            },
-            topBid: query.includeTopBid
-              ? {
-                  id: r.top_buy_id,
-                  sourceDomain: r.top_buy_id ? sources.get(r.top_buy_source_id_int)?.domain : null,
-                  price: r.top_buy_id
-                    ? await getJoiPriceObject(
-                        {
-                          net: {
-                            amount: query.normalizeRoyalties
-                              ? r.top_buy_currency_normalized_value ?? r.top_buy_value
-                              : r.top_buy_currency_value ?? r.top_buy_value,
-                            nativeAmount: query.normalizeRoyalties
-                              ? r.top_buy_normalized_value ?? r.top_buy_value
-                              : r.top_buy_value,
-                          },
-                          gross: {
-                            amount: r.top_buy_currency_price ?? r.top_buy_price,
-                            nativeAmount: r.top_buy_price,
-                          },
+              floorAsk: {
+                id: r.floor_sell_id,
+                sourceDomain: sources.get(r.floor_sell_source_id_int)?.domain,
+                price: r.floor_sell_id
+                  ? await getJoiPriceObject(
+                      {
+                        gross: {
+                          amount: r.floor_sell_currency_value ?? r.floor_sell_value,
+                          nativeAmount: r.floor_sell_value,
                         },
-                        topBidCurrency,
-                        query.displayCurrency
-                      )
+                      },
+                      floorAskCurrency,
+                      query.displayCurrency
+                    )
+                  : null,
+                maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
+                validFrom: r.floor_sell_valid_from,
+                validUntil: r.floor_sell_value ? r.floor_sell_valid_until : null,
+                token: r.floor_sell_value && {
+                  contract: r.floor_sell_token_contract
+                    ? fromBuffer(r.floor_sell_token_contract)
                     : null,
-                  maker: r.top_buy_maker ? fromBuffer(r.top_buy_maker) : null,
-                  validFrom: r.top_buy_valid_from,
-                  validUntil: r.top_buy_value ? r.top_buy_valid_until : null,
-                }
-              : undefined,
-            rank: {
-              "1day": r.day1_rank,
-              "7day": r.day7_rank,
-              "30day": r.day30_rank,
-              allTime: r.all_time_rank,
+                  tokenId: r.floor_sell_token_id,
+                  name: r.floor_sell_token_name,
+                  image: Assets.getResizedImageUrl(
+                    r.floor_sell_token_image,
+                    undefined,
+                    r.floor_sell_token_image_version
+                  ),
+                },
+              },
+              topBid: query.includeTopBid
+                ? {
+                    id: r.top_buy_id,
+                    sourceDomain: r.top_buy_id
+                      ? sources.get(r.top_buy_source_id_int)?.domain
+                      : null,
+                    price: r.top_buy_id
+                      ? await getJoiPriceObject(
+                          {
+                            net: {
+                              amount: query.normalizeRoyalties
+                                ? r.top_buy_currency_normalized_value ?? r.top_buy_value
+                                : r.top_buy_currency_value ?? r.top_buy_value,
+                              nativeAmount: query.normalizeRoyalties
+                                ? r.top_buy_normalized_value ?? r.top_buy_value
+                                : r.top_buy_value,
+                            },
+                            gross: {
+                              amount: r.top_buy_currency_price ?? r.top_buy_price,
+                              nativeAmount: r.top_buy_price,
+                            },
+                          },
+                          topBidCurrency,
+                          query.displayCurrency
+                        )
+                      : null,
+                    maker: r.top_buy_maker ? fromBuffer(r.top_buy_maker) : null,
+                    validFrom: r.top_buy_valid_from,
+                    validUntil: r.top_buy_value ? r.top_buy_valid_until : null,
+                  }
+                : undefined,
+              rank: {
+                "1day": r.day1_rank,
+                "7day": r.day7_rank,
+                "30day": r.day30_rank,
+                allTime: r.all_time_rank,
+              },
+              volume: {
+                "1day": r.day1_volume ? formatEth(r.day1_volume) : null,
+                "7day": r.day7_volume ? formatEth(r.day7_volume) : null,
+                "30day": r.day30_volume ? formatEth(r.day30_volume) : null,
+                allTime: r.all_time_volume ? formatEth(r.all_time_volume) : null,
+              },
+              volumeChange: {
+                "1day": r.day1_volume_change,
+                "7day": r.day7_volume_change,
+                "30day": r.day30_volume_change,
+              },
+              floorSale: {
+                "1day": r.day1_floor_sell_value ? formatEth(r.day1_floor_sell_value) : null,
+                "7day": r.day7_floor_sell_value ? formatEth(r.day7_floor_sell_value) : null,
+                "30day": r.day30_floor_sell_value ? formatEth(r.day30_floor_sell_value) : null,
+              },
+              floorSaleChange: {
+                "1day": Number(r.day1_floor_sell_value)
+                  ? Number(r.floor_sell_value) / Number(r.day1_floor_sell_value)
+                  : null,
+                "7day": Number(r.day7_floor_sell_value)
+                  ? Number(r.floor_sell_value) / Number(r.day7_floor_sell_value)
+                  : null,
+                "30day": Number(r.day30_floor_sell_value)
+                  ? Number(r.floor_sell_value) / Number(r.day30_floor_sell_value)
+                  : null,
+              },
+              salesCount: query.includeSalesCount
+                ? {
+                    "1day": `${r.day_sale_count ?? 0}`,
+                    "7day": r.week_sale_count,
+                    "30day": r.month_sale_count,
+                    allTime: r.total_sale_count,
+                  }
+                : undefined,
+              collectionBidSupported: Number(r.token_count) <= config.maxTokenSetSize,
+              ownerCount: Number(r.owner_count),
+              attributes: query.includeAttributes
+                ? _.map(_.sortBy(r.attributes, ["rank", "key"]), (attribute) => ({
+                    key: attribute.key,
+                    kind: attribute.kind,
+                    count: Number(attribute.count),
+                  }))
+                : undefined,
+              contractKind: r.contract_kind,
+              mintedTimestamp: r.minted_timestamp,
+              mintStages: r.mint_stages
+                ? await Promise.all(
+                    r.mint_stages.map(async (m: any) => ({
+                      stage: m.stage,
+                      tokenId: m.tokenId,
+                      kind: m.kind,
+                      price: m.price
+                        ? await getJoiPriceObject({ gross: { amount: m.price } }, m.currency)
+                        : m.price,
+                      startTime: m.startTime,
+                      endTime: m.endTime,
+                      maxMintsPerWallet: m.maxMintsPerWallet,
+                    }))
+                  )
+                : [],
             },
-            volume: {
-              "1day": r.day1_volume ? formatEth(r.day1_volume) : null,
-              "7day": r.day7_volume ? formatEth(r.day7_volume) : null,
-              "30day": r.day30_volume ? formatEth(r.day30_volume) : null,
-              allTime: r.all_time_volume ? formatEth(r.all_time_volume) : null,
-            },
-            volumeChange: {
-              "1day": r.day1_volume_change,
-              "7day": r.day7_volume_change,
-              "30day": r.day30_volume_change,
-            },
-            floorSale: {
-              "1day": r.day1_floor_sell_value ? formatEth(r.day1_floor_sell_value) : null,
-              "7day": r.day7_floor_sell_value ? formatEth(r.day7_floor_sell_value) : null,
-              "30day": r.day30_floor_sell_value ? formatEth(r.day30_floor_sell_value) : null,
-            },
-            floorSaleChange: {
-              "1day": Number(r.day1_floor_sell_value)
-                ? Number(r.floor_sell_value) / Number(r.day1_floor_sell_value)
-                : null,
-              "7day": Number(r.day7_floor_sell_value)
-                ? Number(r.floor_sell_value) / Number(r.day7_floor_sell_value)
-                : null,
-              "30day": Number(r.day30_floor_sell_value)
-                ? Number(r.floor_sell_value) / Number(r.day30_floor_sell_value)
-                : null,
-            },
-            salesCount: query.includeSalesCount
-              ? {
-                  "1day": r.day_sale_count,
-                  "7day": r.week_sale_count,
-                  "30day": r.month_sale_count,
-                  allTime: r.total_sale_count,
-                }
-              : undefined,
-            collectionBidSupported: Number(r.token_count) <= config.maxTokenSetSize,
-            ownerCount: Number(r.owner_count),
-            attributes: query.includeAttributes
-              ? _.map(_.sortBy(r.attributes, ["rank", "key"]), (attribute) => ({
-                  key: attribute.key,
-                  kind: attribute.kind,
-                  count: Number(attribute.count),
-                }))
-              : undefined,
-            contractKind: r.contract_kind,
-            mintedTimestamp: r.minted_timestamp,
-          };
+            r.metadata_disabled
+          );
         })
       );
 

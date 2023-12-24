@@ -1,17 +1,27 @@
+import { parseEther } from "@ethersproject/units";
 import { CallTrace } from "@georgeroman/evm-tx-simulator/dist/types";
 import Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
+import { Network } from "@reservoir0x/sdk/dist/utils";
+import axios from "axios";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
 import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import { fromBuffer } from "@/common/utils";
+import { bn, fromBuffer, now } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
-import { genericTaker, ensureBuyTxSucceeds, ensureSellTxSucceeds } from "@/utils/simulation";
+import * as b from "@/utils/auth/blur";
+import { getUSDAndNativePrices } from "@/utils/prices";
+import {
+  genericTaker,
+  ensureBuyTxSucceeds,
+  ensureSellTxSucceeds,
+  customTaker,
+} from "@/utils/simulation";
 
 const version = "v1";
 
@@ -42,7 +52,18 @@ export const postSimulateOrderV1Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
-    if (![1, 137].includes(config.chainId)) {
+    if (
+      ![
+        Network.Ethereum,
+        Network.EthereumGoerli,
+        Network.EthereumSepolia,
+        Network.Polygon,
+        Network.Arbitrum,
+        Network.Optimism,
+        Network.Base,
+        Network.Zora,
+      ].includes(config.chainId)
+    ) {
       return { message: "Simulation not supported" };
     }
 
@@ -96,10 +117,13 @@ export const postSimulateOrderV1Options: RouteOptions = {
             orders.kind,
             orders.side,
             orders.currency,
+            orders.currency_price,
             orders.contract,
             orders.token_set_id,
             orders.fillability_status,
-            orders.approval_status
+            orders.approval_status,
+            orders.conduit,
+            orders.raw_data
           FROM orders
           WHERE orders.id = $/id/
         `,
@@ -108,10 +132,48 @@ export const postSimulateOrderV1Options: RouteOptions = {
       if (!orderResult?.side || !orderResult?.contract) {
         throw Boom.badRequest("Could not find order");
       }
-      if (["blur", "nftx", "sudoswap", "universe"].includes(orderResult.kind)) {
+
+      // Custom logic for simulating Blur listings
+      if (orderResult.side === "sell" && orderResult.kind === "blur") {
+        const [, contract, tokenId] = orderResult.token_set_id.split(":");
+
+        const blurPrice = await axios
+          .get(
+            `${config.orderFetcherBaseUrl}/api/blur-token?contract=${contract}&tokenId=${tokenId}`
+          )
+          .then((response) =>
+            response.data.blurPrice
+              ? parseEther(response.data.blurPrice).toString()
+              : response.data.blurPrice
+          );
+        if (orderResult.currency_price !== blurPrice) {
+          await logAndRevalidateOrder(id, "inactive", {
+            revalidate: true,
+          });
+        }
+      }
+
+      const currency = fromBuffer(orderResult.currency);
+      if (currency !== Sdk.Common.Addresses.Native[config.chainId]) {
+        try {
+          const prices = await getUSDAndNativePrices(currency, orderResult.currency_price, now(), {
+            onlyUSD: true,
+          });
+          // Simulations for listings with a price >= $100k might fail due to insufficient liquidity
+          if (prices.usdPrice && bn(prices.usdPrice).gte(100000000000)) {
+            return { message: "Price too high to simulate" };
+          }
+        } catch {
+          // Skip errors
+        }
+      }
+      if (["nftx", "sudoswap", "sudoswap-v2", "payment-processor"].includes(orderResult.kind)) {
         return { message: "Order not simulatable" };
       }
-      if (getNetworkSettings().whitelistedCurrencies.has(fromBuffer(orderResult.currency))) {
+      if (orderResult.kind === "blur" && orderResult.side === "buy") {
+        return { message: "Order not simulatable" };
+      }
+      if (getNetworkSettings().whitelistedCurrencies.has(currency)) {
         return { message: "Order not simulatable" };
       }
       if (getNetworkSettings().nonSimulatableContracts.includes(fromBuffer(orderResult.contract))) {
@@ -119,11 +181,19 @@ export const postSimulateOrderV1Options: RouteOptions = {
       }
       if (
         orderResult.side === "buy" &&
-        fromBuffer(orderResult.contract) === "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85"
+        // ENS on mainnet
+        ((fromBuffer(orderResult.contract) === "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85" &&
+          config.chainId === Network.Ethereum) ||
+          // y00ts on polygon
+          (fromBuffer(orderResult.contract) === "0x670fd103b1a08628e9557cd66b87ded841115190" &&
+            config.chainId === Network.Polygon))
       ) {
         return {
-          message: "ENS bids are not simulatable due to us not yet handling expiration of domains",
+          message: "Order not simulatable due to custom contract logic",
         };
+      }
+      if (orderResult.raw_data?.permitId) {
+        return { message: "Order not simulatable" };
       }
 
       const contractResult = await redb.one(
@@ -140,6 +210,43 @@ export const postSimulateOrderV1Options: RouteOptions = {
       }
 
       if (orderResult.side === "sell") {
+        let taker = genericTaker;
+        let skipBalanceCheck = true;
+
+        // Ensure a Blur auth is available
+        if (orderResult.kind === "blur") {
+          const customTakerWallet = customTaker();
+
+          // Override some request fields
+          taker = customTakerWallet.address.toLowerCase();
+          skipBalanceCheck = false;
+
+          const blurAuthChallengeId = b.getAuthChallengeId(taker);
+
+          let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
+          if (!blurAuthChallenge) {
+            blurAuthChallenge = (await axios
+              .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${taker}`)
+              .then((response) => response.data.authChallenge)) as b.AuthChallenge;
+
+            await b.saveAuthChallenge(blurAuthChallengeId, blurAuthChallenge, 60);
+
+            await inject({
+              method: "POST",
+              url: `/execute/auth-signature/v1?signature=${await customTakerWallet.signMessage(
+                blurAuthChallenge.message
+              )}`,
+              headers: {
+                "Content-Type": "application/json",
+              },
+              payload: {
+                kind: "blur",
+                id: blurAuthChallengeId,
+              },
+            });
+          }
+        }
+
         const response = await inject({
           method: "POST",
           url: "/execute/buy/v7",
@@ -148,9 +255,9 @@ export const postSimulateOrderV1Options: RouteOptions = {
           },
           payload: {
             items: [{ orderId: id }],
-            taker: genericTaker,
-            skipBalanceCheck: true,
-            currency: Sdk.Common.Addresses.Eth[config.chainId],
+            taker,
+            skipBalanceCheck,
+            currency: Sdk.Common.Addresses.Native[config.chainId],
             allowInactiveOrderIds: true,
           },
         });
@@ -177,7 +284,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
         const pathItem = parsedPayload.path[0];
 
         const { result: success, callTrace } = await ensureBuyTxSucceeds(
-          genericTaker,
+          taker,
           {
             kind: contractResult.kind as "erc721" | "erc1155",
             contract: pathItem.contract as string,
@@ -229,10 +336,22 @@ export const postSimulateOrderV1Options: RouteOptions = {
               AND (tokens.is_flagged IS NULL OR tokens.is_flagged = 0)
               AND nft_balances.amount > 0
               AND nft_balances.acquired_at < now() - interval '3 hours'
+              AND (
+                SELECT
+                  approved
+                FROM nft_approval_events
+                WHERE nft_approval_events.address = $/contract/
+                  AND nft_approval_events.owner = nft_balances.owner
+                  AND nft_approval_events.operator = $/conduit/
+                ORDER BY nft_approval_events.block DESC
+                LIMIT 1
+              )
             LIMIT 1
           `,
           {
             tokenSetId: orderResult.token_set_id,
+            contract: orderResult.contract,
+            conduit: orderResult.conduit,
           }
         );
         if (!tokenResult) {

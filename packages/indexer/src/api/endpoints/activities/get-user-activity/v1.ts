@@ -6,8 +6,9 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { formatEth, regex } from "@/common/utils";
-import { ActivityType } from "@/models/activities/activities-entity";
-import { UserActivities } from "@/models/user-activities";
+
+import { ActivityType } from "@/elasticsearch/indexes/activities/base";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
 const version = "v1";
 
@@ -95,50 +96,44 @@ export const getUserActivityV1Options: RouteOptions = {
     }
 
     try {
-      const activities = await UserActivities.getActivities(
-        [params.user],
-        [],
-        "",
-        query.continuation,
-        query.types,
-        query.limit
-      );
+      const { activities, continuation } = await ActivitiesIndex.search({
+        types: query.types,
+        users: [params.user],
+        sortBy: "timestamp",
+        limit: query.limit,
+        continuation: query.continuation,
+        continuationAsInt: true,
+      });
 
-      // If no activities found
-      if (!activities.length) {
-        return { activities: [] };
-      }
+      const result = _.map(activities, (activity) => {
+        return {
+          type: activity.type,
+          fromAddress: activity.fromAddress,
+          toAddress: activity.toAddress || null,
+          price: formatEth(activity.pricing?.price || 0),
+          amount: Number(activity.amount),
+          timestamp: activity.timestamp,
+          token: {
+            tokenId: activity.token?.id,
+            tokenName: activity.token?.name,
+            tokenImage: activity.token?.image,
+          },
+          collection: {
+            collectionId: activity.collection?.id,
+            collectionName: activity.collection?.name,
+            collectionImage:
+              activity.collection?.image != null ? activity.collection?.image : undefined,
+          },
+          txHash: activity.event?.txHash,
+          logIndex: activity.event?.logIndex,
+          batchIndex: activity.event?.batchIndex,
+        };
+      });
 
-      // Iterate over the activities
-      const result = _.map(activities, (activity) => ({
-        type: activity.type,
-        fromAddress: activity.fromAddress,
-        toAddress: activity.toAddress,
-        price: formatEth(activity.price),
-        amount: activity.amount,
-        timestamp: activity.eventTimestamp,
-        token: {
-          tokenId: activity.token?.tokenId,
-          tokenName: activity.token?.tokenName,
-          tokenImage: activity.token?.tokenImage,
-        },
-        collection: activity.collection,
-        txHash: activity.metadata.transactionHash,
-        logIndex: activity.metadata.logIndex,
-        batchIndex: activity.metadata.batchIndex,
-      }));
-
-      // Set the continuation node
-      let continuation = null;
-      if (activities.length === query.limit) {
-        const lastActivity = _.last(activities);
-
-        if (lastActivity) {
-          continuation = lastActivity.eventTimestamp;
-        }
-      }
-
-      return { activities: result, continuation };
+      return {
+        activities: result,
+        continuation: continuation ? Number(continuation) : null,
+      };
     } catch (error) {
       logger.error(`get-user-activity-${version}-handler`, `Handler failure: ${error}`);
       throw error;

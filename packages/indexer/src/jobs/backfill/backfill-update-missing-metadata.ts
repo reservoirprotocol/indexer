@@ -5,17 +5,17 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { logger } from "@/common/logger";
-import { acquireLock, redis, redlock, releaseLock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { PendingRefreshTokens, RefreshTokens } from "@/models/pending-refresh-tokens";
 import { ridb } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
-import * as metadataIndexProcessBySlug from "@/jobs/metadata-index/process-queue-by-slug";
-import * as metadataIndexProcess from "@/jobs/metadata-index/process-queue";
-import { getIndexingMethod } from "@/jobs/metadata-index/fetch-queue";
 import { PendingRefreshTokensBySlug } from "@/models/pending-refresh-tokens-by-slug";
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import { Tokens } from "@/models/tokens";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { metadataIndexProcessJob } from "@/jobs/metadata-index/metadata-process-job";
+import { onchainMetadataFetchTokenUriJob } from "@/jobs/metadata-index/onchain-metadata-fetch-token-uri-job";
 
 const QUEUE_NAME = "backfill-update-missing-metadata-queue";
 
@@ -71,14 +71,7 @@ if (config.doBackgroundWork) {
       );
 
       // push queue messages
-      if (await acquireLock(metadataIndexProcessBySlug.getLockName("opensea"), 60 * 5)) {
-        await metadataIndexProcessBySlug.addToQueue();
-        await releaseLock(metadataIndexProcessBySlug.getLockName("opensea"));
-      }
-      if (await acquireLock(metadataIndexProcess.getLockName("opensea"), 60 * 5)) {
-        await metadataIndexProcess.addToQueue("opensea");
-        await releaseLock(metadataIndexProcess.getLockName("opensea"));
-      }
+      await metadataIndexProcessJob.addToQueue({ method: "opensea" });
 
       if (_.size(collections) === limit) {
         const lastId = _.last(collections).id;
@@ -92,16 +85,16 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  if ([1, 5].includes(config.chainId)) {
-    redlock
-      .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
-      .then(async () => {
-        await addToQueue("");
-      })
-      .catch(() => {
-        // Skip on any errors
-      });
-  }
+  // if ([1, 5].includes(config.chainId)) {
+  //   redlock
+  //     .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
+  //     .then(async () => {
+  //       await addToQueue("");
+  //     })
+  //     .catch(() => {
+  //       // Skip on any errors
+  //     });
+  // }
 }
 
 async function processCollectionTokens(
@@ -149,6 +142,12 @@ async function processCollectionTokens(
   // push to tokens refresh queue
   const pendingRefreshTokens = new PendingRefreshTokens(indexingMethod);
   await pendingRefreshTokens.add(unindexedTokens);
+
+  if (indexingMethod === "onchain") {
+    await onchainMetadataFetchTokenUriJob.addToQueue();
+  } else {
+    await metadataIndexProcessJob.addToQueue({ method: indexingMethod });
+  }
 }
 
 async function processCollection(collection: {
@@ -170,11 +169,16 @@ async function processCollection(collection: {
     );
     return;
   }
-  const indexingMethod = getIndexingMethod(collection.community);
+  const indexingMethod = metadataIndexFetchJob.getIndexingMethod(collection.community);
   const limit = Number(await redis.get(`${QUEUE_NAME}-tokens-limit`)) || 1000;
   if (!collection.slug) {
     const tokenId = await Tokens.getSingleToken(collection.id);
-    await collectionUpdatesMetadata.addToQueue(collection.contract, tokenId, "opensea", 0);
+    await collectionMetadataQueueJob.addToQueue({
+      contract: collection.contract,
+      tokenId,
+      community: "opensea",
+      forceRefresh: false,
+    });
     await processCollectionTokens(collection, limit, indexingMethod);
     return;
   }

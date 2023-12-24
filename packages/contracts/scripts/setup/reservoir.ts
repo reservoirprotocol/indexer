@@ -14,11 +14,6 @@ const main = async () => {
     throw new Error("Wrong deployer");
   }
 
-  // Use our CREATE3 factory instance if available
-  if (Sdk.Common.Addresses.Create3Factory[chainId]) {
-    process.env.CREATE3_FACTORY_ADDRESS_OVERRIDE = Sdk.Common.Addresses.Create3Factory[chainId];
-  }
-
   // 1. Deploy the router
   const router = await trigger.Router.V6_0_1().then(() =>
     readDeployment("ReservoirV6_0_1", "v3", chainId)
@@ -43,15 +38,15 @@ const main = async () => {
     await deploy(chainId);
   }
 
-  // 5. Deploy various utilities
-  for (const deploy of Object.values(trigger.Utilities)) {
-    await deploy();
-  }
+  // // 5. Deploy various utilities
+  // for (const deploy of Object.values(trigger.Utilities)) {
+  //   await deploy(chainId);
+  // }
 
-  // 6. Deploy test NFTs
-  for (const deploy of Object.values(trigger.TestNFTs)) {
-    await deploy();
-  }
+  // // 6. Deploy test NFTs
+  // for (const deploy of Object.values(trigger.TestNFTs)) {
+  //   await deploy();
+  // }
 };
 
 main()

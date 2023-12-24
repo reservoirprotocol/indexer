@@ -4,10 +4,18 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
 import _ from "lodash";
+import * as Boom from "@hapi/boom";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { getJoiPriceObject, JoiAttributeValue, JoiPrice } from "@/common/joi";
+import {
+  getJoiPriceObject,
+  getJoiSourceObject,
+  getJoiTokenObject,
+  JoiAttributeValue,
+  JoiPrice,
+  JoiSource,
+} from "@/common/joi";
 import {
   bn,
   buildContinuation,
@@ -19,7 +27,7 @@ import {
 } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 import { CollectionSets } from "@/models/collection-sets";
 
 const version = "v5";
@@ -245,7 +253,7 @@ export const getTokensV5Options: RouteOptions = {
                 kind: Joi.string().valid("dutch", "pool"),
                 data: Joi.object(),
               }),
-              source: Joi.object().allow(null),
+              source: JoiSource.allow(null),
             },
             topBid: Joi.object({
               id: Joi.string().allow(null),
@@ -253,7 +261,7 @@ export const getTokensV5Options: RouteOptions = {
               maker: Joi.string().lowercase().pattern(regex.address).allow(null),
               validFrom: Joi.number().unsafe().allow(null),
               validUntil: Joi.number().unsafe().allow(null),
-              source: Joi.object().allow(null),
+              source: JoiSource.allow(null),
               feeBreakdown: Joi.array()
                 .items(
                   Joi.object({
@@ -529,11 +537,15 @@ export const getTokensV5Options: RouteOptions = {
           t.is_flagged,
           t.last_flag_update,
           t.last_flag_change,
+          t.metadata_disabled AS t_metadata_disabled,
+          c.metadata_disabled AS c_metadata_disabled,
+          c.image_version as collection_image_version,
           c.slug,
           t.last_buy_value,
           t.last_buy_timestamp,
           t.last_sell_value,
           t.last_sell_timestamp,
+          t.image_version,
           (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
           (
             SELECT
@@ -722,7 +734,7 @@ export const getTokensV5Options: RouteOptions = {
           switch (query.sortBy) {
             case "rarity": {
               if (contArr.length !== 3) {
-                throw new Error("Invalid continuation string used");
+                throw Boom.badRequest("Invalid continuation string used");
               }
               query.sortDirection = query.sortDirection || "asc"; // Default sorting for rarity is ASC
               const sign = query.sortDirection == "desc" ? "<" : ">";
@@ -737,7 +749,7 @@ export const getTokensV5Options: RouteOptions = {
 
             case "tokenId": {
               if (contArr.length !== 2) {
-                throw new Error("Invalid continuation string used");
+                throw Boom.badRequest("Invalid continuation string used");
               }
               const sign = query.sortDirection == "desc" ? "<" : ">";
               conditions.push(`(t.contract, t.token_id) ${sign} ($/contContract/, $/contTokenId/)`);
@@ -751,7 +763,7 @@ export const getTokensV5Options: RouteOptions = {
             default:
               {
                 if (contArr.length !== 3) {
-                  throw new Error("Invalid continuation string used");
+                  throw Boom.badRequest("Invalid continuation string used");
                 }
                 const sign = query.sortDirection == "desc" ? "<" : ">";
                 const sortColumn = query.nativeSource
@@ -781,7 +793,7 @@ export const getTokensV5Options: RouteOptions = {
           }
         } else {
           if (contArr.length !== 2) {
-            throw new Error("Invalid continuation string used");
+            throw Boom.badRequest("Invalid continuation string used");
           }
           const sign = query.sortDirection == "desc" ? "<" : ">";
           conditions.push(`(t.contract, t.token_id) ${sign} ($/contContract/, $/contTokenId/)`);
@@ -846,6 +858,11 @@ export const getTokensV5Options: RouteOptions = {
       if (query.collectionsSetId) {
         const collectionsSetQueries = [];
         const collections = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+
+        if (_.isEmpty(collections)) {
+          throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
+        }
+
         const collectionsSetSort = getSort(query.sortBy, true);
 
         for (const i in collections) {
@@ -951,10 +968,10 @@ export const getTokensV5Options: RouteOptions = {
         // that don't have the currencies cached in the tokens table
         const floorAskCurrency = r.floor_sell_currency
           ? fromBuffer(r.floor_sell_currency)
-          : Sdk.Common.Addresses.Eth[config.chainId];
+          : Sdk.Common.Addresses.Native[config.chainId];
         const topBidCurrency = r.top_buy_currency
           ? fromBuffer(r.top_buy_currency)
-          : Sdk.Common.Addresses.Weth[config.chainId];
+          : Sdk.Common.Addresses.WNative[config.chainId];
 
         let dynamicPricing = undefined;
         if (query.includeDynamicPricing) {
@@ -1003,33 +1020,14 @@ export const getTokensV5Options: RouteOptions = {
                   },
                 },
               };
-            } else if (r.floor_sell_order_kind === "sudoswap") {
+            } else if (
+              ["sudoswap", "sudoswap-v2", "nftx", "caviar-v1"].includes(r.floor_sell_order_kind)
+            ) {
               // Pool orders
               dynamicPricing = {
                 kind: "pool",
                 data: {
-                  pool: r.floor_sell_raw_data.pair,
-                  prices: await Promise.all(
-                    (r.floor_sell_raw_data.extra.prices as string[]).map((price) =>
-                      getJoiPriceObject(
-                        {
-                          gross: {
-                            amount: bn(price).add(missingRoyalties).toString(),
-                          },
-                        },
-                        floorAskCurrency,
-                        query.displayCurrency
-                      )
-                    )
-                  ),
-                },
-              };
-            } else if (r.floor_sell_order_kind === "nftx") {
-              // Pool orders
-              dynamicPricing = {
-                kind: "pool",
-                data: {
-                  pool: r.floor_sell_raw_data.pool,
+                  pool: r.floor_sell_raw_data.pair ?? r.floor_sell_raw_data.pool,
                   prices: await Promise.all(
                     (r.floor_sell_raw_data.extra.prices as string[]).map((price) =>
                       getJoiPriceObject(
@@ -1050,53 +1048,65 @@ export const getTokensV5Options: RouteOptions = {
         }
 
         return {
-          token: {
-            contract,
-            tokenId,
-            name: r.name,
-            description: r.description,
-            image: Assets.getLocalAssetsLink(r.image),
-            media: r.media,
-            kind: r.kind,
-            isFlagged: Boolean(Number(r.is_flagged)),
-            lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
-            lastFlagChange: r.last_flag_change ? new Date(r.last_flag_change).toISOString() : null,
-            rarity: r.rarity_score,
-            rarityRank: r.rarity_rank,
-            collection: {
-              id: r.collection_id,
-              name: r.collection_name,
-              image: Assets.getLocalAssetsLink(r.collection_image),
-              slug: r.slug,
+          token: getJoiTokenObject(
+            {
+              contract,
+              tokenId,
+              name: r.name,
+              description: r.description,
+              image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
+              media: r.media,
+              kind: r.kind,
+              isFlagged: Boolean(Number(r.is_flagged)),
+              lastFlagUpdate: r.last_flag_update
+                ? new Date(r.last_flag_update).toISOString()
+                : null,
+              lastFlagChange: r.last_flag_change
+                ? new Date(r.last_flag_change).toISOString()
+                : null,
+              rarity: r.rarity_score,
+              rarityRank: r.rarity_rank,
+              collection: {
+                id: r.collection_id,
+                name: r.collection_name,
+                image: Assets.getResizedImageUrl(
+                  r.collection_image,
+                  ImageSize.small,
+                  r.collection_image_version
+                ),
+                slug: r.slug,
+              },
+              lastBuy: {
+                value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
+                timestamp: r.last_buy_timestamp,
+              },
+              lastSell: {
+                value: r.last_sell_value ? formatEth(r.last_sell_value) : null,
+                timestamp: r.last_sell_timestamp,
+              },
+              owner: r.owner ? fromBuffer(r.owner) : null,
+              attributes: query.includeAttributes
+                ? r.attributes
+                  ? _.map(r.attributes, (attribute) => ({
+                      key: attribute.key,
+                      kind: attribute.kind,
+                      value: attribute.value,
+                      tokenCount: attribute.tokenCount,
+                      onSaleCount: attribute.onSaleCount,
+                      floorAskPrice: attribute.floorAskPrice
+                        ? formatEth(attribute.floorAskPrice)
+                        : attribute.floorAskPrice,
+                      topBidValue: attribute.topBidValue
+                        ? formatEth(attribute.topBidValue)
+                        : attribute.topBidValue,
+                      createdAt: new Date(attribute.createdAt).toISOString(),
+                    }))
+                  : []
+                : undefined,
             },
-            lastBuy: {
-              value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
-              timestamp: r.last_buy_timestamp,
-            },
-            lastSell: {
-              value: r.last_sell_value ? formatEth(r.last_sell_value) : null,
-              timestamp: r.last_sell_timestamp,
-            },
-            owner: r.owner ? fromBuffer(r.owner) : null,
-            attributes: query.includeAttributes
-              ? r.attributes
-                ? _.map(r.attributes, (attribute) => ({
-                    key: attribute.key,
-                    kind: attribute.kind,
-                    value: attribute.value,
-                    tokenCount: attribute.tokenCount,
-                    onSaleCount: attribute.onSaleCount,
-                    floorAskPrice: attribute.floorAskPrice
-                      ? formatEth(attribute.floorAskPrice)
-                      : attribute.floorAskPrice,
-                    topBidValue: attribute.topBidValue
-                      ? formatEth(attribute.topBidValue)
-                      : attribute.topBidValue,
-                    createdAt: new Date(attribute.createdAt).toISOString(),
-                  }))
-                : []
-              : undefined,
-          },
+            r.t_metadata_disabled,
+            r.c_metadata_disabled
+          ),
           market: {
             floorAsk: {
               id: r.floor_sell_id,
@@ -1124,13 +1134,7 @@ export const getTokensV5Options: RouteOptions = {
                   ? r.floor_sell_quantity_remaining
                   : undefined,
               dynamicPricing,
-              source: {
-                id: floorSellSource?.address,
-                domain: floorSellSource?.domain,
-                name: floorSellSource?.getTitle(),
-                icon: floorSellSource?.getIcon(),
-                url: floorSellSource?.metadata.url,
-              },
+              source: getJoiSourceObject(floorSellSource),
             },
             topBid: query.includeTopBid
               ? {
@@ -1158,13 +1162,7 @@ export const getTokensV5Options: RouteOptions = {
                   maker: r.top_buy_maker ? fromBuffer(r.top_buy_maker) : null,
                   validFrom: r.top_buy_valid_from,
                   validUntil: r.top_buy_value ? r.top_buy_valid_until : null,
-                  source: {
-                    id: topBuySource?.address,
-                    domain: topBuySource?.domain,
-                    name: topBuySource?.getTitle(),
-                    icon: topBuySource?.getIcon(),
-                    url: topBuySource?.metadata.url,
-                  },
+                  source: getJoiSourceObject(topBuySource),
                   feeBreakdown: feeBreakdown,
                 }
               : undefined,

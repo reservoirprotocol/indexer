@@ -5,15 +5,15 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
 import { logger } from "@/common/logger";
-import { buildContinuation, formatEth, regex, splitContinuation } from "@/common/utils";
-import { ActivityType } from "@/models/activities/activities-entity";
-import { UserActivities } from "@/models/user-activities";
+import { formatEth, regex } from "@/common/utils";
 import { Sources } from "@/models/sources";
-import { getOrderSourceByOrderKind, OrderKind } from "@/orderbook/orders";
 import { CollectionSets } from "@/models/collection-sets";
 import * as Boom from "@hapi/boom";
-import { JoiOrderCriteria } from "@/common/joi";
+import { JoiOrderCriteria, JoiSource, getJoiSourceObject } from "@/common/joi";
 import { ContractSets } from "@/models/contract-sets";
+import { ActivityType } from "@/elasticsearch/indexes/activities/base";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { Collections } from "@/models/collections";
 
 const version = "v5";
 
@@ -138,7 +138,7 @@ export const getUserActivityV5Options: RouteOptions = {
           order: Joi.object({
             id: Joi.string().allow(null),
             side: Joi.string().valid("ask", "bid").allow(null),
-            source: Joi.object().allow(null),
+            source: JoiSource.allow(null),
             criteria: JoiOrderCriteria.allow(null),
           }),
           createdAt: Joi.string(),
@@ -161,10 +161,6 @@ export const getUserActivityV5Options: RouteOptions = {
       query.users = [query.users];
     }
 
-    if (query.continuation) {
-      query.continuation = splitContinuation(query.continuation)[0];
-    }
-
     if (query.collectionsSetId) {
       query.collection = await CollectionSets.getCollectionsIds(query.collectionsSetId);
       if (_.isEmpty(query.collection)) {
@@ -180,54 +176,66 @@ export const getUserActivityV5Options: RouteOptions = {
     }
 
     try {
-      const activities = await UserActivities.getActivities(
-        query.users,
-        query.collection,
-        query.community,
-        query.continuation,
-        query.types,
-        query.limit,
-        query.sortBy,
-        query.includeMetadata,
-        true,
-        query.contracts
-      );
+      if (query.collection && !_.isArray(query.collection)) {
+        query.collection = [query.collection];
+      }
 
-      // If no activities found
-      if (!activities.length) {
-        return { activities: [] };
+      if (query.community) {
+        query.collection = await Collections.getIdsByCommunity(query.community);
+
+        if (query.collection.length === 0) {
+          throw Boom.badRequest(`No collections for community ${query.community}`);
+        }
       }
 
       const sources = await Sources.getInstance();
 
-      const result = [];
+      const { activities, continuation } = await ActivitiesIndex.search({
+        types: query.types,
+        users: query.users,
+        collections: query.collection,
+        contracts: query.contracts,
+        sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
+        limit: query.limit,
+        continuation: query.continuation,
+      });
 
-      for (const activity of activities) {
-        let orderSource;
+      const result = _.map(activities, (activity) => {
+        const orderSource = activity.order?.sourceId
+          ? sources.get(activity.order.sourceId)
+          : undefined;
 
-        if (activity.order) {
-          const orderSourceIdInt =
-            activity.order.sourceIdInt ||
-            (await getOrderSourceByOrderKind(activity.order.kind! as OrderKind))?.id;
+        let order;
 
-          orderSource = orderSourceIdInt ? sources.get(orderSourceIdInt) : undefined;
-        }
+        if (query.includeMetadata) {
+          let orderCriteria;
 
-        result.push({
-          type: activity.type,
-          fromAddress: activity.fromAddress,
-          toAddress: activity.toAddress,
-          price: formatEth(activity.price),
-          amount: activity.amount,
-          timestamp: activity.eventTimestamp,
-          createdAt: activity.createdAt.toISOString(),
-          contract: activity.contract,
-          token: activity.token,
-          collection: activity.collection,
-          txHash: activity.metadata.transactionHash,
-          logIndex: activity.metadata.logIndex,
-          batchIndex: activity.metadata.batchIndex,
-          order: activity.order?.id
+          if (activity.order?.criteria) {
+            orderCriteria = {
+              kind: activity.order.criteria.kind,
+              data: {
+                collection: {
+                  id: activity.collection?.id,
+                  name: activity.collection?.name,
+                  image: activity.collection?.image,
+                },
+              },
+            };
+
+            if (activity.order.criteria.kind === "token") {
+              (orderCriteria as any).data.token = {
+                tokenId: activity.token?.id,
+                name: activity.token?.name,
+                image: activity.token?.image,
+              };
+            }
+
+            if (activity.order.criteria.kind === "attribute") {
+              (orderCriteria as any).data.attribute = activity.order.criteria.data.attribute;
+            }
+          }
+
+          order = activity.order?.id
             ? {
                 id: activity.order.id,
                 side: activity.order.side
@@ -235,32 +243,49 @@ export const getUserActivityV5Options: RouteOptions = {
                     ? "ask"
                     : "bid"
                   : undefined,
-                source: orderSource
-                  ? {
-                      domain: orderSource?.domain,
-                      name: orderSource?.getTitle(),
-                      icon: orderSource?.getIcon(),
-                    }
-                  : undefined,
-                criteria: activity.order.criteria || undefined,
+                source: getJoiSourceObject(orderSource, false),
+                criteria: orderCriteria,
               }
-            : undefined,
-        });
-      }
-
-      // Set the continuation node
-      let continuation = null;
-      if (activities.length === query.limit) {
-        const lastActivity = _.last(activities);
-
-        if (lastActivity) {
-          const continuationValue =
-            query.sortBy == "eventTimestamp"
-              ? lastActivity.eventTimestamp
-              : lastActivity.createdAt.toISOString();
-          continuation = buildContinuation(`${continuationValue}`);
+            : undefined;
+        } else {
+          order = activity.order?.id
+            ? {
+                id: activity.order.id,
+              }
+            : undefined;
         }
-      }
+
+        return {
+          type: activity.type,
+          fromAddress: activity.fromAddress,
+          toAddress: activity.toAddress || null,
+          price: formatEth(activity.pricing?.price || 0),
+          amount: Number(activity.amount),
+          timestamp: activity.timestamp,
+          createdAt: new Date(activity.createdAt).toISOString(),
+          contract: activity.contract,
+          token: {
+            tokenId: activity.token?.id || null,
+            tokenName: query.includeMetadata ? activity.token?.name || null : undefined,
+            tokenImage: query.includeMetadata ? activity.token?.image || null : undefined,
+            tokenMedia: query.includeMetadata ? null : undefined,
+            tokenRarityRank: query.includeMetadata ? null : undefined,
+            tokenRarityScore: query.includeMetadata ? null : undefined,
+          },
+          collection: {
+            collectionId: activity.collection?.id,
+            collectionName: query.includeMetadata ? activity.collection?.name : undefined,
+            collectionImage:
+              query.includeMetadata && activity.collection?.image != null
+                ? activity.collection?.image
+                : undefined,
+          },
+          txHash: activity.event?.txHash,
+          logIndex: activity.event?.logIndex,
+          batchIndex: activity.event?.batchIndex,
+          order,
+        };
+      });
 
       return { activities: result, continuation };
     } catch (error) {

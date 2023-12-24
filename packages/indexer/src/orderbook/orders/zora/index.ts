@@ -7,11 +7,14 @@ import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { compare, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Sources } from "@/models/sources";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck } from "@/orderbook/orders/zora/check";
 import * as tokenSet from "@/orderbook/token-sets";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 export type OrderIdParams = {
   tokenContract: string;
@@ -82,7 +85,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       );
 
       // Check: sell order has Eth as payment token
-      if (orderParams.askCurrency !== Sdk.Common.Addresses.Eth[config.chainId]) {
+      if (orderParams.askCurrency !== Sdk.Common.Addresses.Native[config.chainId]) {
         if (!orderResult) {
           return results.push({
             id,
@@ -336,7 +339,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
   }
 
-  await ordersUpdateById.addToQueue(
+  await orderUpdatesByIdJob.addToQueue(
     results
       .filter(({ status, unfillable }) => status === "success" && !unfillable)
       .map(
@@ -351,7 +354,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               logIndex,
               batchIndex,
             },
-          } as ordersUpdateById.OrderInfo)
+          } as OrderUpdatesByIdJobPayload)
       )
   );
 

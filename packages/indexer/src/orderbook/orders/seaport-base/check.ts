@@ -4,6 +4,7 @@ import { baseProvider } from "@/common/provider";
 import { bn } from "@/common/utils";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as onChainData from "@/utils/on-chain-data";
+import { getPersistentPermit } from "@/utils/permits";
 
 export type SeaportOrderKind = "alienswap" | "seaport" | "seaport-v1.4" | "seaport-v1.5";
 
@@ -25,6 +26,9 @@ export const offChainCheck = async (
     singleTokenERC721ApprovalCheck?: boolean;
     // Will do the balance/approval checks against this quantity
     quantityRemaining?: number;
+    // Permits to use
+    permitId?: string;
+    permitIndex?: number;
   }
 ) => {
   const id = order.hash();
@@ -71,6 +75,11 @@ export const offChainCheck = async (
 
   const checkQuantity = options?.quantityRemaining ?? info.amount;
 
+  // Fix for the weird race condition of orders being fillable but having a quantity remaining of 0
+  if (String(checkQuantity) === "0") {
+    throw new Error("filled");
+  }
+
   let hasBalance = true;
   let hasApproval = true;
   if (info.side === "buy") {
@@ -82,7 +91,12 @@ export const offChainCheck = async (
       hasBalance = false;
     }
 
-    if (options?.onChainApprovalRecheck) {
+    if (options?.permitId) {
+      const permit = await getPersistentPermit(options.permitId, options.permitIndex ?? 0);
+      if (!permit) {
+        hasApproval = false;
+      }
+    } else if (options?.onChainApprovalRecheck) {
       if (
         bn(
           await onChainData
@@ -111,7 +125,6 @@ export const offChainCheck = async (
       order.params.offerer,
       conduit
     );
-
     if (!nftApproval) {
       if (options?.onChainApprovalRecheck) {
         // Re-validate the approval on-chain to handle some edge-cases
@@ -119,17 +132,17 @@ export const offChainCheck = async (
           info.tokenKind === "erc721"
             ? new Sdk.Common.Helpers.Erc721(baseProvider, info.contract)
             : new Sdk.Common.Helpers.Erc1155(baseProvider, info.contract);
-        if (!(await contract.isApproved(order.params.offerer, conduit))) {
-          // In some edge-cases we might want to check single-token approvals
-          if (
-            options.singleTokenERC721ApprovalCheck &&
-            info.tokenKind === "erc721" &&
-            !(await (contract as Sdk.Common.Helpers.Erc721).isApprovedSingleToken(
-              info.tokenId!,
-              conduit
-            ))
-          ) {
-            hasApproval = false;
+
+        const isApprovedForAll = await contract.isApproved(order.params.offerer, conduit);
+        if (!isApprovedForAll) {
+          // In some edge-cases we might want to check single-token approvals as well
+          if (options.singleTokenERC721ApprovalCheck && info.tokenKind === "erc721") {
+            const isApprovedSingleToken = await (
+              contract as Sdk.Common.Helpers.Erc721
+            ).isApprovedSingleToken(info.tokenId!, conduit);
+            if (!isApprovedSingleToken) {
+              hasApproval = false;
+            }
           } else {
             hasApproval = false;
           }

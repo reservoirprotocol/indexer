@@ -4,13 +4,14 @@ import _ from "lodash";
 
 import { idb, pgp, redb } from "@/common/db";
 import { fromBuffer, now, toBuffer } from "@/common/utils";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import {
   TokensEntity,
   TokensEntityParams,
   TokensEntityUpdateParams,
 } from "@/models/tokens/tokens-entity";
 import { config } from "@/config/index";
+import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
+import { CollectionsEntity } from "@/models/collections/collections-entity";
 
 export type TokenAttributes = {
   attributeId: number;
@@ -47,25 +48,24 @@ export class Tokens {
     return null;
   }
 
-  public static async getCollectionId(contract: string, tokenId: string) {
-    // For polygon no shared contracts at the moment
-    if (config.chainId === 137) {
-      return contract;
-    }
-
-    const collectionId = await redb.oneOrNone(
-      `SELECT collection_id
-              FROM tokens
-              WHERE contract = $/contract/
-              AND token_id = $/tokenId/`,
+  public static async getCollection(contract: string, tokenId: string) {
+    const collection = await redb.oneOrNone(
+      `SELECT *
+              FROM collections
+              WHERE id = (
+                SELECT collection_id
+                FROM tokens
+                WHERE contract = $/contract/
+                AND token_id = $/tokenId/
+              )`,
       {
         contract: toBuffer(contract),
         tokenId,
       }
     );
 
-    if (collectionId) {
-      return collectionId["collection_id"];
+    if (collection) {
+      return new CollectionsEntity(collection);
     }
 
     return null;
@@ -73,13 +73,6 @@ export class Tokens {
 
   public static async getCollectionIds(tokens: { contract: string; tokenId: string }[]) {
     const map = new Map<string, string>();
-
-    // For polygon no shared contracts at the moment
-    if (config.chainId === 137) {
-      _.map(tokens, (c) => map.set(`${c.contract}:${c.tokenId}`, c.contract));
-      return map;
-    }
-
     const columns = new pgp.helpers.ColumnSet(["contract", "token_id"], { table: "tokens" });
 
     const data = tokens.map((activity) => ({
@@ -142,44 +135,49 @@ export class Tokens {
     })) as TokenAttributes[];
   }
 
-  public static async getTokenAttributesKeyCount(collection: string, key: string) {
+  public static async getTokenAttributesKeyCount(
+    collection: string,
+    key: string,
+    readReplica = false
+  ) {
     const query = `SELECT count(DISTINCT value) AS count
                    FROM token_attributes
                    WHERE collection_id = $/collection/
                    and key = $/key/
                    GROUP BY key`;
 
-    return await redb.oneOrNone(query, {
+    const dbInstance = readReplica ? redb : idb;
+    return await dbInstance.oneOrNone(query, {
       collection,
       key,
     });
   }
 
   public static async getTokenAttributesValueCount(collection: string, key: string, value: string) {
-    const query = `SELECT attribute_id AS "attributeId", count(*) AS count
-                   FROM token_attributes
-                   WHERE collection_id = $/collection/
-                   AND key = $/key/
-                   AND value = $/value/
-                   GROUP BY key, value, attribute_id`;
+    const query = `
+      SELECT
+        (
+          SELECT attribute_id
+          FROM token_attributes
+          WHERE collection_id = $/collection/
+            AND key = $/key/
+            AND value = $/value/
+          LIMIT 1
+        ) AS attributeId,
+        (
+          SELECT COUNT(*)
+          FROM token_attributes
+          WHERE collection_id = $/collection/
+            AND key = $/key/
+            AND value = $/value/
+        ) AS count
+    `;
 
     return await redb.oneOrNone(query, {
       collection,
       key,
       value,
     });
-  }
-
-  public static async countTokensInCollection(collectionId: string) {
-    const query = `SELECT count(*) AS count
-                   FROM tokens
-                   WHERE collection_id = $/collectionId/`;
-
-    return await idb
-      .oneOrNone(query, {
-        collectionId,
-      })
-      .then((result) => (result ? result.count : 0));
   }
 
   public static async getSingleToken(collectionId: string) {
@@ -231,7 +229,7 @@ export class Tokens {
         ${contractFilter}
         ${flagFilter}
         ${continuation}
-        ORDER BY token_id ASC
+        ORDER BY contract, token_id ASC
         LIMIT ${limit}
       `;
 
@@ -267,13 +265,50 @@ export class Tokens {
     attributeKey: string,
     attributeValue: string
   ) {
-    const query = `SELECT COUNT(*) AS "onSaleCount", MIN(floor_sell_value) AS "floorSellValue"
-                   FROM token_attributes
-                   JOIN tokens ON token_attributes.contract = tokens.contract AND token_attributes.token_id = tokens.token_id
-                   WHERE token_attributes.collection_id = $/collection/
-                   AND key = $/attributeKey/
-                   AND value = $/attributeValue/
-                   AND floor_sell_value IS NOT NULL`;
+    const query = `WITH x AS (
+      SELECT 
+        COUNT(*) AS "onSaleCount" 
+      FROM 
+        token_attributes 
+        JOIN tokens ON token_attributes.contract = tokens.contract 
+        AND token_attributes.token_id = tokens.token_id 
+      WHERE 
+        token_attributes.collection_id = $/collection/
+        AND key = $/attributeKey/ 
+        AND value = $/attributeValue/
+        AND floor_sell_value IS NOT NULL
+    ) 
+    SELECT 
+      x."onSaleCount", 
+      CASE WHEN x."onSaleCount" = 0 THEN NULL ELSE (
+        SELECT 
+          json_build_object(
+            'id', floor_sell_id,
+            'value', floor_sell_value, 
+            'currency', floor_sell_currency, 
+            'currencyValue', floor_sell_currency_value, 
+            'maker', floor_sell_maker,
+            'validFrom', floor_sell_valid_from,
+            'validTo', floor_sell_valid_to,
+            'sourceIdInt', floor_sell_source_id_int
+          ) 
+        FROM 
+          token_attributes 
+          JOIN tokens ON token_attributes.contract = tokens.contract 
+          AND token_attributes.token_id = tokens.token_id 
+        WHERE 
+          token_attributes.collection_id = $/collection/
+          AND key = $/attributeKey/
+          AND value = $/attributeValue/
+          AND floor_sell_value IS NOT NULL 
+        ORDER BY 
+          floor_sell_value 
+        LIMIT 
+          1
+      ) END AS "floorSell" 
+    FROM 
+      x
+    `;
 
     const result = await redb.oneOrNone(query, {
       collection,
@@ -281,16 +316,27 @@ export class Tokens {
       attributeValue,
     });
 
-    if (result) {
-      return { floorSellValue: result.floorSellValue, onSaleCount: result.onSaleCount };
+    if (result?.floorSell) {
+      const floorSell = {
+        id: result.floorSell.id,
+        value: result.floorSell.value,
+        currency: result.floorSell.currency ? toBuffer(result.floorSell.currency) : null,
+        currencyValue: result.floorSell.currencyValue,
+        maker: result.floorSell.maker ? toBuffer(result.floorSell.maker) : null,
+        validFrom: result.floorSell.validFrom,
+        validTo: result.floorSell.validTo,
+        sourceIdInt: result.floorSell.sourceIdInt,
+      };
+
+      return { floorSell, onSaleCount: result.onSaleCount };
     }
 
-    return { floorSellValue: null, onSaleCount: 0 };
+    return { floorSell: null, onSaleCount: 0 };
   }
 
   public static async recalculateTokenFloorSell(contract: string, tokenId: string) {
     const tokenSetId = `token:${contract}:${tokenId}`;
-    await orderUpdatesById.addToQueue([
+    await orderUpdatesByIdJob.addToQueue([
       {
         context: `revalidate-sell-${tokenSetId}-${now()}`,
         tokenSetId,
@@ -302,7 +348,7 @@ export class Tokens {
 
   public static async recalculateTokenTopBid(contract: string, tokenId: string) {
     const tokenSetId = `token:${contract}:${tokenId}`;
-    await orderUpdatesById.addToQueue([
+    await orderUpdatesByIdJob.addToQueue([
       {
         context: `revalidate-buy-${tokenSetId}-${now()}`,
         tokenSetId,

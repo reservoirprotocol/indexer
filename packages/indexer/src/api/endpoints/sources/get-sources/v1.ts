@@ -48,6 +48,9 @@ export const getSourcesV1Options: RouteOptions = {
         Joi.object({
           id: Joi.string(),
           name: Joi.string().allow("", null),
+          description: Joi.string().allow("", null),
+          socialImage: Joi.string().allow("", null),
+          twitterUsername: Joi.string().allow("", null),
           icon: Joi.string().allow("", null),
           tokenUrl: Joi.string().allow("", null),
           domain: Joi.string().allow("", null),
@@ -90,6 +93,9 @@ export const getSourcesV1Options: RouteOptions = {
           return {
             id: source.address ?? undefined,
             name: source?.getTitle(),
+            description: source?.metadata.description,
+            socialImage: source?.metadata.socialImage,
+            twitterUsername: source?.metadata.twitterUsername,
             icon: source?.getIcon(),
             domain: source.domain ?? undefined,
             tokenUrl: sources.getTokenUrl(source),

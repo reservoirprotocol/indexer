@@ -8,6 +8,8 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
+import { getJoiCollectionObject } from "@/common/joi";
+import { Assets, ImageSize } from "@/utils/assets";
 
 const version = "v4";
 
@@ -144,6 +146,7 @@ export const getCollectionsV4Options: RouteOptions = {
           collections.slug,
           collections.name,
           (collections.metadata ->> 'imageUrl')::TEXT AS "image",
+          collections.image_version AS "image_version",
           (collections.metadata ->> 'bannerImageUrl')::TEXT AS "banner",
           (collections.metadata ->> 'discordUrl')::TEXT AS "discord_url",
           (collections.metadata ->> 'description')::TEXT AS "description",
@@ -152,11 +155,13 @@ export const getCollectionsV4Options: RouteOptions = {
           collections.contract,
           collections.token_set_id,
           collections.token_count,
+          collections.metadata_disabled,
           (
             SELECT array(
               SELECT tokens.image FROM tokens
               WHERE tokens.collection_id = collections.id
               AND tokens.image IS NOT NULL
+              ORDER BY rarity_rank DESC NULLS LAST
               LIMIT 4
             )
           ) AS sample_images,
@@ -290,55 +295,65 @@ export const getCollectionsV4Options: RouteOptions = {
 
       if (result) {
         collections = result.map((r) => {
-          const response = {
-            id: r.id,
-            slug: r.slug,
-            name: r.name,
-            image: r.image || (r.sample_images?.length ? r.sample_images[0] : null),
-            banner: r.banner,
-            discordUrl: r.discord_url,
-            externalUrl: r.external_url,
-            twitterUsername: r.twitter_username,
-            description: r.description,
-            sampleImages: r.sample_images || [],
-            tokenCount: String(r.token_count),
-            primaryContract: fromBuffer(r.contract),
-            tokenSetId: r.token_set_id,
-            floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
-            rank: {
-              "1day": r.day1_rank,
-              "7day": r.day7_rank,
-              "30day": r.day30_rank,
-              allTime: r.all_time_rank,
+          let imageUrl = r.image;
+          if (imageUrl) {
+            imageUrl = Assets.getResizedImageUrl(imageUrl, ImageSize.small, r.image_version);
+          } else if (r.sample_images.length) {
+            imageUrl = Assets.getResizedImageUrl(r.sample_images[0], ImageSize.small);
+          }
+
+          const response = getJoiCollectionObject(
+            {
+              id: r.id,
+              slug: r.slug,
+              name: r.name,
+              image: imageUrl || null,
+              banner: Assets.getResizedImageUrl(r.banner),
+              discordUrl: r.discord_url,
+              externalUrl: r.external_url,
+              twitterUsername: r.twitter_username,
+              description: r.description,
+              sampleImages: r.sample_images || [],
+              tokenCount: String(r.token_count),
+              primaryContract: fromBuffer(r.contract),
+              tokenSetId: r.token_set_id,
+              floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
+              rank: {
+                "1day": r.day1_rank,
+                "7day": r.day7_rank,
+                "30day": r.day30_rank,
+                allTime: r.all_time_rank,
+              },
+              volume: {
+                "1day": r.day1_volume ? formatEth(r.day1_volume) : null,
+                "7day": r.day7_volume ? formatEth(r.day7_volume) : null,
+                "30day": r.day30_volume ? formatEth(r.day30_volume) : null,
+                allTime: r.all_time_volume ? formatEth(r.all_time_volume) : null,
+              },
+              volumeChange: {
+                "1day": r.day1_volume_change,
+                "7day": r.day7_volume_change,
+                "30day": r.day30_volume_change,
+              },
+              floorSale: {
+                "1day": r.day1_floor_sell_value ? formatEth(r.day1_floor_sell_value) : null,
+                "7day": r.day7_floor_sell_value ? formatEth(r.day7_floor_sell_value) : null,
+                "30day": r.day30_floor_sell_value ? formatEth(r.day30_floor_sell_value) : null,
+              },
+              floorSaleChange: {
+                "1day": Number(r.day1_floor_sell_value)
+                  ? Number(r.floor_sell_value) / Number(r.day1_floor_sell_value)
+                  : null,
+                "7day": Number(r.day7_floor_sell_value)
+                  ? Number(r.floor_sell_value) / Number(r.day7_floor_sell_value)
+                  : null,
+                "30day": Number(r.day30_floor_sell_value)
+                  ? Number(r.floor_sell_value) / Number(r.day30_floor_sell_value)
+                  : null,
+              },
             },
-            volume: {
-              "1day": r.day1_volume ? formatEth(r.day1_volume) : null,
-              "7day": r.day7_volume ? formatEth(r.day7_volume) : null,
-              "30day": r.day30_volume ? formatEth(r.day30_volume) : null,
-              allTime: r.all_time_volume ? formatEth(r.all_time_volume) : null,
-            },
-            volumeChange: {
-              "1day": r.day1_volume_change,
-              "7day": r.day7_volume_change,
-              "30day": r.day30_volume_change,
-            },
-            floorSale: {
-              "1day": r.day1_floor_sell_value ? formatEth(r.day1_floor_sell_value) : null,
-              "7day": r.day7_floor_sell_value ? formatEth(r.day7_floor_sell_value) : null,
-              "30day": r.day30_floor_sell_value ? formatEth(r.day30_floor_sell_value) : null,
-            },
-            floorSaleChange: {
-              "1day": Number(r.day1_floor_sell_value)
-                ? Number(r.floor_sell_value) / Number(r.day1_floor_sell_value)
-                : null,
-              "7day": Number(r.day7_floor_sell_value)
-                ? Number(r.floor_sell_value) / Number(r.day7_floor_sell_value)
-                : null,
-              "30day": Number(r.day30_floor_sell_value)
-                ? Number(r.floor_sell_value) / Number(r.day30_floor_sell_value)
-                : null,
-            },
-          };
+            r.metadata_disabled
+          );
 
           if (query.includeTopBid) {
             (response as any).topBidValue = r.top_buy_value ? formatEth(r.top_buy_value) : null;

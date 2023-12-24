@@ -1,4 +1,5 @@
 import { Interface } from "@ethersproject/abi";
+import { BigNumber } from "@ethersproject/bignumber";
 import { AddressZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
 import { keccak256 } from "@ethersproject/solidity";
@@ -11,14 +12,22 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Sources } from "@/models/sources";
 import { SudoswapPoolKind } from "@/models/sudoswap-pools";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
-import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
+import {
+  POOL_ORDERS_MAX_PRICE_POINTS_COUNT,
+  DbOrder,
+  OrderMetadata,
+  generateSchemaHash,
+} from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
 import * as royalties from "@/utils/royalties";
 import * as sudoswap from "@/utils/sudoswap";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 
 export type OrderInfo = {
   orderParams: {
@@ -60,7 +69,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         throw new Error("Could not fetch pool details");
       }
 
-      if (pool.token !== Sdk.Common.Addresses.Eth[config.chainId]) {
+      if (pool.token !== Sdk.Common.Addresses.Native[config.chainId]) {
         throw new Error("Unsupported currency");
       }
 
@@ -113,32 +122,43 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         if ([SudoswapPoolKind.TOKEN, SudoswapPoolKind.TRADE].includes(pool.poolKind)) {
           const tokenBalance = await baseProvider.getBalance(pool.address);
 
-          // TODO: Simulate bonding curve math for improved efficiency
-          const prices = [bn(0)];
-          let totalPrice = bn(0);
+          let tmpPriceList: (BigNumber | undefined)[] = Array.from(
+            { length: POOL_ORDERS_MAX_PRICE_POINTS_COUNT },
+            () => undefined
+          );
+          await Promise.all(
+            _.range(0, POOL_ORDERS_MAX_PRICE_POINTS_COUNT).map(async (index) => {
+              try {
+                const result = await poolContract.getSellNFTQuote(index + 1);
+                if (result.error === 0 && result.outputAmount.lte(tokenBalance)) {
+                  tmpPriceList[index] = result.outputAmount;
+                }
+              } catch {
+                // Ignore errors
+              }
+            })
+          );
 
-          // For now, we get at most 10 prices (ideally we use off-chain simulation or multicall)
-          let i = 0;
-          while (i < 10) {
-            const result = await poolContract.getSellNFTQuote(prices.length);
-            if (result.error !== 0 || result.outputAmount.gt(tokenBalance)) {
-              break;
-            }
+          // Stop when the first `undefined` is encountered
+          const firstUndefined = tmpPriceList.findIndex((p) => p === undefined);
+          if (firstUndefined !== -1) {
+            tmpPriceList = tmpPriceList.slice(0, firstUndefined);
+          }
+          const priceList = tmpPriceList.map((p) => p!);
 
-            prices.push(result.outputAmount.sub(totalPrice));
-            totalPrice = totalPrice.add(prices[prices.length - 1]);
-
-            i++;
+          const prices: BigNumber[] = [];
+          for (let i = 0; i < priceList.length; i++) {
+            prices.push(bn(priceList[i]).sub(i > 0 ? priceList[i - 1] : 0));
           }
 
           const id = getOrderId(orderParams.pool, "buy");
-          if (prices.length > 1) {
+          if (prices.length) {
             // Handle: prices
-            const price = prices[1].toString();
-            const value = prices[1]
+            const price = prices[0].toString();
+            const value = prices[0]
               .sub(
                 // Subtract the protocol fee from the price
-                prices[1].mul(feeBps).div(10000)
+                prices[0].mul(feeBps).div(10000)
               )
               .toString();
 
@@ -183,7 +203,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             const sdkOrder: Sdk.Sudoswap.Order = new Sdk.Sudoswap.Order(config.chainId, {
               pair: orderParams.pool,
               extra: {
-                prices: prices.slice(1).map(String),
+                prices: prices.map(String),
               },
             });
 
@@ -296,7 +316,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   price,
                   value,
                   rawData: sdkOrder.params,
-                  quantityRemaining: (prices.length - 1).toString(),
+                  quantityRemaining: prices.length.toString(),
                   missingRoyalties: missingRoyalties,
                   normalizedValue: normalizedValue.toString(),
                   currencyNormalizedValue: normalizedValue.toString(),
@@ -347,30 +367,48 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       // Handle sell orders
       try {
         if ([SudoswapPoolKind.NFT, SudoswapPoolKind.TRADE].includes(pool.poolKind)) {
-          // TODO: Simulate bonding curve math for improved efficiency
-          const prices = [bn(0)];
-          let totalPrice = bn(0);
+          let tmpPriceList: (BigNumber | undefined)[] = Array.from(
+            { length: POOL_ORDERS_MAX_PRICE_POINTS_COUNT },
+            () => undefined
+          );
+          await Promise.all(
+            _.range(0, POOL_ORDERS_MAX_PRICE_POINTS_COUNT).map(async (index) => {
+              try {
+                const result = await poolContract.getBuyNFTQuote(index + 1);
+                if (result.error === 0) {
+                  tmpPriceList[index] = result.inputAmount;
+                }
+              } catch {
+                // Ignore errors
+              }
+            })
+          );
 
-          // For now, we get at most 10 prices (ideally we use off-chain simulation or multicall)
-          let i = 0;
-          while (i < 10) {
-            const result = await poolContract.getBuyNFTQuote(prices.length);
-            if (result.error !== 0) {
-              break;
-            }
+          // Stop when the first `undefined` is encountered
+          const firstUndefined = tmpPriceList.findIndex((p) => p === undefined);
+          if (firstUndefined !== -1) {
+            tmpPriceList = tmpPriceList.slice(0, firstUndefined);
+          }
+          const priceList = tmpPriceList.map((p) => p!);
 
-            prices.push(result.inputAmount.sub(totalPrice));
-            totalPrice = totalPrice.add(prices[prices.length - 1]);
-
-            i++;
+          const prices: BigNumber[] = [];
+          for (let i = 0; i < priceList.length; i++) {
+            prices.push(
+              bn(priceList[i])
+                .sub(i > 0 ? priceList[i - 1] : 0)
+                // Just for safety, add 1 wei
+                .add(1)
+            );
           }
 
           // Handle: prices
-          const price = prices[1].toString();
-          const value = prices[1].toString();
+          const price = prices[0].toString();
+          const value = prices[0].toString();
 
           // Fetch all token ids owned by the pool
-          const poolOwnedTokenIds = await commonHelpers.getNfts(pool.nft, pool.address);
+          const poolOwnedTokenIds = await commonHelpers
+            .getNfts(pool.nft, pool.address)
+            .then((nfts) => nfts.map((nft) => nft.tokenId));
 
           const limit = pLimit(50);
           await Promise.all(
@@ -421,7 +459,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     pair: orderParams.pool,
                     tokenId,
                     extra: {
-                      prices: prices.slice(1).map(String),
+                      prices: prices.map(String),
                     },
                   });
 
@@ -610,7 +648,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
   }
 
-  await ordersUpdateById.addToQueue(
+  await orderUpdatesByIdJob.addToQueue(
     results
       .filter(({ status }) => status === "success")
       .map(
@@ -623,7 +661,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               txHash: txHash,
               txTimestamp: txTimestamp,
             },
-          } as ordersUpdateById.OrderInfo)
+          } as OrderUpdatesByIdJobPayload)
       )
   );
 

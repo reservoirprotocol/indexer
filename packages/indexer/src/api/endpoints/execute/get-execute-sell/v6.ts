@@ -3,8 +3,8 @@
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
-import { FillBidsResult } from "@reservoir0x/sdk/src/router/v6/types";
-import { TxData } from "@reservoir0x/sdk/src/utils";
+import { FillBidsResult } from "@reservoir0x/sdk/dist/router/v6/types";
+import { TxData } from "@reservoir0x/sdk/dist/utils";
 import axios from "axios";
 import _ from "lodash";
 import Joi from "joi";
@@ -23,7 +23,6 @@ import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import { ExecutionsBuffer } from "@/utils/executions";
-import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
 
 const version = "v6";
 
@@ -51,9 +50,7 @@ export const getExecuteSellV6Options: RouteOptions = {
             "seaport",
             "seaport-v1.4",
             "seaport-v1.5",
-            "x2y2",
-            "universe",
-            "flow"
+            "x2y2"
           )
           .required(),
         data: Joi.object().required(),
@@ -179,8 +176,6 @@ export const getExecuteSellV6Options: RouteOptions = {
         throw Boom.badData("Unknown token");
       }
 
-      const isFlagged = Boolean(tokenResult.is_flagged);
-
       // Scenario 3: pass raw orders that don't yet exist
       if (payload.rawOrder) {
         // Hack: As the raw order is processed, set it to the `orderId`
@@ -281,7 +276,6 @@ export const getExecuteSellV6Options: RouteOptions = {
                 AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
                 ${payload.normalizeRoyalties ? " AND orders.normalized_value IS NOT NULL" : ""}
                 ${payload.excludeEOA ? " AND orders.kind != 'blur'" : ""}
-                ${isFlagged ? "AND orders.kind NOT IN ('x2y2', 'seaport')" : ""}
               ORDER BY orders.value DESC
             `,
             {
@@ -394,25 +388,16 @@ export const getExecuteSellV6Options: RouteOptions = {
           tokenId,
           amount: payload.quantity,
           owner,
-        }
+        },
+        payload.taker
       );
 
       if (
-        [
-          "x2y2",
-          "seaport-v1.4",
-          "seaport-v1.5",
-          "seaport-v1.4-partial",
-          "seaport-v1.5-partial",
-        ].includes(bidDetails!.kind)
+        ["seaport-v1.4", "seaport-v1.5", "seaport-v1.4-partial", "seaport-v1.5-partial"].includes(
+          bidDetails!.kind
+        )
       ) {
-        const tokenToSuspicious = await tryGetTokensSuspiciousStatus(
-          tokenResult.last_flag_update < now() - 3600 ? [payload.token] : []
-        );
-        if (
-          (tokenToSuspicious.has(payload.token) && tokenToSuspicious.get(payload.token)) ||
-          tokenResult.is_flagged
-        ) {
+        if (tokenResult.is_flagged) {
           throw Boom.badData("Token is flagged");
         }
       }
@@ -472,7 +457,7 @@ export const getExecuteSellV6Options: RouteOptions = {
 
         const contracts = _.uniqBy(path, (p) => p.contract).map((p) => p.contract);
         for (const contract of contracts) {
-          const operator = Sdk.Blur.Addresses.ExecutionDelegate[config.chainId];
+          const operator = Sdk.BlurV2.Addresses.Delegate[config.chainId];
           const isApproved = await commonHelpers.getNftApproval(contract, payload.taker, operator);
           if (!isApproved) {
             missingApprovals.push({
@@ -601,6 +586,7 @@ export const getExecuteSellV6Options: RouteOptions = {
       const router = new Sdk.RouterV6.Router(config.chainId, baseProvider, {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         cbApiKey: config.cbApiKey,
+        zeroExApiKey: config.zeroExApiKey,
         orderFetcherBaseUrl: config.orderFetcherBaseUrl,
         orderFetcherMetadata: {
           apiKey: await ApiKeyManager.getApiKey(request.headers["x-api-key"]),
@@ -659,40 +645,7 @@ export const getExecuteSellV6Options: RouteOptions = {
         }
       }
 
-      // Flow / Rarible bids are to be filled directly (because we have no modules for them yet)
-      if (bidDetails.kind === "flow") {
-        const isApproved = await commonHelpers.getNftApproval(
-          bidDetails.contract,
-          payload.taker,
-          Sdk.Flow.Addresses.Exchange[config.chainId]
-        );
-
-        if (!isApproved) {
-          const approveTx =
-            bidDetails.contractKind === "erc721"
-              ? new Sdk.Common.Helpers.Erc721(baseProvider, bidDetails.contract).approveTransaction(
-                  payload.taker,
-                  Sdk.Flow.Addresses.Exchange[config.chainId]
-                )
-              : new Sdk.Common.Helpers.Erc1155(
-                  baseProvider,
-                  bidDetails.contract
-                ).approveTransaction(payload.taker, Sdk.Flow.Addresses.Exchange[config.chainId]);
-
-          steps[1].items.push({
-            status: "incomplete",
-            data: {
-              ...approveTx,
-              maxFeePerGas: payload.maxFeePerGas
-                ? bn(payload.maxFeePerGas).toHexString()
-                : undefined,
-              maxPriorityFeePerGas: payload.maxPriorityFeePerGas
-                ? bn(payload.maxPriorityFeePerGas).toHexString()
-                : undefined,
-            },
-          });
-        }
-      }
+      // Rarible bids are to be filled directly (because we have no modules for them yet)
       if (bidDetails.kind === "rarible") {
         const isApproved = await commonHelpers.getNftApproval(
           bidDetails.contract,
@@ -753,14 +706,14 @@ export const getExecuteSellV6Options: RouteOptions = {
 
       const executionsBuffer = new ExecutionsBuffer();
       for (const item of path) {
-        const calldata = txs.find((tx) => tx.orderIds.includes(item.orderId))?.txData.data;
+        const txData = txs.find((tx) => tx.orderIds.includes(item.orderId))?.txData;
 
         let orderId = item.orderId;
-        if (calldata && item.source === "blur.io") {
+        if (txData && item.source === "blur.io") {
           // Blur bids don't have the correct order id so we have to override it
           const orders = await new Sdk.Blur.Exchange(config.chainId).getMatchedOrdersFromCalldata(
             baseProvider,
-            calldata
+            txData!.data
           );
 
           const index = orders.findIndex(
@@ -778,7 +731,7 @@ export const getExecuteSellV6Options: RouteOptions = {
           user: payload.taker,
           orderId,
           quantity: item.quantity,
-          calldata,
+          ...txData,
         });
       }
       await executionsBuffer.flush();

@@ -7,16 +7,18 @@ import _ from "lodash";
 import Joi from "joi";
 
 import { logger } from "@/common/logger";
+import { redis } from "@/common/redis";
 import { regex } from "@/common/utils";
 import { config } from "@/config/index";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
-import * as orderFixes from "@/jobs/order-fixes/fixes";
-import * as resyncAttributeCache from "@/jobs/update-attribute/resync-attribute-cache";
-import * as tokenRefreshCacheQueue from "@/jobs/token-updates/token-refresh-cache";
+import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
+import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
 import { ApiKeyManager } from "@/models/api-keys";
 import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
+import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 
 const version = "v1";
 
@@ -39,6 +41,9 @@ export const postTokensRefreshV1Options: RouteOptions = {
           "Refresh the given token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
         )
         .required(),
+      liquidityOnly: Joi.boolean()
+        .default(false)
+        .description("If true, only liquidity data will be refreshed."),
       overrideCoolDown: Joi.boolean()
         .default(false)
         .description(
@@ -65,16 +70,34 @@ export const postTokensRefreshV1Options: RouteOptions = {
     try {
       const [contract, tokenId] = payload.token.split(":");
 
+      // Error if no token was found
       const token = await Tokens.getByContractAndTokenId(contract, tokenId, true);
-
-      // If no token was found found
       if (_.isNull(token)) {
         throw Boom.badRequest(`Token ${payload.token} not found`);
       }
 
+      // Liquidity checks (cheap)
+
+      const lockKey = `post-tokens-refresh-${version}-liquidity-lock`;
+      if (!(await redis.get(lockKey))) {
+        // Revalidate the token orders
+        await orderFixesJob.addToQueue([{ by: "token", data: { token: payload.token } }]);
+
+        // Refresh the token floor sell and top bid
+        await tokenRefreshCacheJob.addToQueue({ contract, tokenId, checkTopBid: true });
+
+        // Lock for 10 seconds
+        await redis.set(lockKey, "locked", "EX", 10);
+      }
+
+      if (payload.liquidityOnly) {
+        return { message: "Request accepted" };
+      }
+
+      // Non-liquidity checks (not cheap)
+
       if (payload.overrideCoolDown) {
         const apiKey = await ApiKeyManager.getApiKey(request.headers["x-api-key"]);
-
         if (_.isNull(apiKey)) {
           throw Boom.unauthorized("Invalid API key");
         }
@@ -101,8 +124,8 @@ export const postTokensRefreshV1Options: RouteOptions = {
       const currentUtcTime = new Date().toISOString();
       await Tokens.update(contract, tokenId, { lastMetadataSync: currentUtcTime });
 
+      // Refresh orders from OpenSea
       if (_.indexOf([1, 5, 10, 56, 137, 42161], config.chainId) !== -1) {
-        // Refresh orders from OpenSea
         await OpenseaIndexerApi.fastTokenSync(payload.token);
       }
 
@@ -116,31 +139,34 @@ export const postTokensRefreshV1Options: RouteOptions = {
         );
       }
 
-      const method = metadataIndexFetch.getIndexingMethod(collection?.community || null);
-
-      await metadataIndexFetch.addToQueue(
+      await metadataIndexFetchJob.addToQueue(
         [
           {
             kind: "single-token",
             data: {
-              method,
+              method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
               contract,
               tokenId,
               collection: collection?.id || contract,
             },
+            context: "post-tokens-refresh-v1",
           },
         ],
         true
       );
 
-      // Revalidate the token orders
-      await orderFixes.addToQueue([{ by: "token", data: { token: payload.token } }]);
+      await PendingFlagStatusSyncTokens.add(
+        [
+          {
+            contract,
+            tokenId,
+          },
+        ],
+        true
+      );
 
       // Revalidate the token attribute cache
-      await resyncAttributeCache.addToQueue(contract, tokenId, 0, overrideCoolDown);
-
-      // Refresh the token floor sell and top bid
-      await tokenRefreshCacheQueue.addToQueue(contract, tokenId, true);
+      await resyncAttributeCacheJob.addToQueue({ contract, tokenId }, 0, overrideCoolDown);
 
       logger.info(
         `post-tokens-refresh-${version}-handler`,
@@ -149,7 +175,7 @@ export const postTokensRefreshV1Options: RouteOptions = {
 
       return { message: "Request accepted" };
     } catch (error) {
-      logger.error(`post-tokens-refresh-${version}-handler`, `Handler failure: ${error}`);
+      logger.warn(`post-tokens-refresh-${version}-handler`, `Handler failure: ${error}`);
       throw error;
     }
   },

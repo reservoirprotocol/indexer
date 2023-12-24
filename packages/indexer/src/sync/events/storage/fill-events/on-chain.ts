@@ -35,7 +35,8 @@ export const addEventsOnChain = async (events: Event[]) => {
       marketplace_fee_bps: event.marketplaceFeeBps || undefined,
       royalty_fee_breakdown: event.royaltyFeeBreakdown || undefined,
       marketplace_fee_breakdown: event.marketplaceFeeBreakdown || undefined,
-      paid_full_royalty: event.paidFullRoyalty || undefined,
+      paid_full_royalty: event.paidFullRoyalty ?? undefined,
+      comment: event.comment ?? undefined,
     });
   }
 
@@ -74,6 +75,7 @@ export const addEventsOnChain = async (events: Event[]) => {
         "paid_full_royalty",
         { name: "royalty_fee_breakdown", mod: ":json" },
         { name: "marketplace_fee_breakdown", mod: ":json" },
+        "comment",
       ],
       { table: "fill_events_2" }
     );
@@ -115,9 +117,10 @@ export const addEventsOnChain = async (events: Event[]) => {
           "marketplace_fee_bps",
           "paid_full_royalty",
           "royalty_fee_breakdown",
-          "marketplace_fee_breakdown"
+          "marketplace_fee_breakdown",
+          "comment"
         ) VALUES ${pgp.helpers.values(fillValues, columns)}
-        ON CONFLICT ("tx_hash", "log_index", "batch_index") DO UPDATE
+        ON CONFLICT ("tx_hash", "log_index", "batch_index", "block_hash") DO UPDATE
           SET "order_id" = EXCLUDED.order_id
         RETURNING "order_kind", "order_id", "timestamp", "block", "log_index"
       )

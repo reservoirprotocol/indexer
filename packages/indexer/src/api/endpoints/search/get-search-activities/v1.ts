@@ -4,7 +4,7 @@ import _ from "lodash";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 import { logger } from "@/common/logger";
-import { buildContinuation, fromBuffer, regex, splitContinuation } from "@/common/utils";
+import { fromBuffer, regex } from "@/common/utils";
 import {
   getJoiActivityOrderObject,
   getJoiPriceObject,
@@ -16,7 +16,6 @@ import * as Sdk from "@reservoir0x/sdk";
 import { CollectionSets } from "@/models/collection-sets";
 import { Collections } from "@/models/collections";
 import { redb } from "@/common/db";
-import { Sort } from "@elastic/elasticsearch/lib/api/types";
 import { ActivityType } from "@/elasticsearch/indexes/activities/base";
 
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
@@ -80,6 +79,22 @@ export const getSearchActivitiesV1Options: RouteOptions = {
         .description(
           "Filter to a particular attribute. Note: Our docs do not support this parameter correctly. To test, you can use the following URL in your browser. Example: `https://api.reservoir.tools/collections/activity/v6?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attribute[Type]=Original` or `https://api.reservoir.tools/collections/activity/v6?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attribute[Type]=Original&attribute[Type]=Sibling`"
         ),
+
+      sources: Joi.alternatives().try(
+        Joi.array()
+          .max(50)
+          .items(Joi.string().pattern(regex.domain).lowercase())
+          .description(
+            "Array of source domains. Max limit is 50. Example: `sources[0]: opensea.io`"
+          ),
+        Joi.string()
+          .pattern(regex.domain)
+          .lowercase()
+          .description(
+            "Array of source domains. Max limit is 50. Example: `sources[0]: opensea.io`"
+          )
+      ),
+
       users: Joi.alternatives().try(
         Joi.array()
           .items(Joi.string().lowercase().pattern(regex.address))
@@ -102,6 +117,12 @@ export const getSearchActivitiesV1Options: RouteOptions = {
         .default(50)
         .description(
           "Amount of items returned. Max limit is 50 when `includedMetadata=true` otherwise max limit is 1000."
+        ),
+      sortBy: Joi.string()
+        .valid("timestamp", "createdAt")
+        .default("timestamp")
+        .description(
+          "Order the items are returned in the response. The blockchain event time is `timestamp`. The event time recorded is `createdAt`."
         ),
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
@@ -164,36 +185,28 @@ export const getSearchActivitiesV1Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
-    if (!config.doElasticsearchWork) {
-      throw Boom.methodNotAllowed("Elasticsearch is not available.");
-    }
+    // if (!config.doElasticsearchWork) {
+    //   throw Boom.methodNotAllowed("Elasticsearch is not available.");
+    // }
 
     const query = request.query as any;
-
-    const esQuery = {};
 
     if (query.types && !_.isArray(query.types)) {
       query.types = [query.types];
     }
 
-    (esQuery as any).bool = { filter: [] };
-
-    if (query.types) {
-      (esQuery as any).bool.filter.push({ terms: { type: query.types } });
-    }
-
-    let collectionIds: string[] = [];
+    let collections: string[] = [];
 
     if (query.collectionsSetId) {
-      collectionIds = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+      collections = await CollectionSets.getCollectionsIds(query.collectionsSetId);
 
-      if (collectionIds.length === 0) {
+      if (collections.length === 0) {
         throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
       }
     } else if (query.community) {
-      collectionIds = await Collections.getIdsByCommunity(query.community);
+      collections = await Collections.getIdsByCommunity(query.community);
 
-      if (collectionIds.length === 0) {
+      if (collections.length === 0) {
         throw Boom.badRequest(`No collections for community ${query.community}`);
       }
     } else if (query.collections) {
@@ -201,13 +214,7 @@ export const getSearchActivitiesV1Options: RouteOptions = {
         query.collections = [query.collections];
       }
 
-      collectionIds = query.collections;
-    }
-
-    if (collectionIds.length) {
-      (esQuery as any).bool.filter.push({
-        terms: { "collection.id": collectionIds },
-      });
+      collections = query.collections;
     }
 
     let contracts: string[] = [];
@@ -217,12 +224,6 @@ export const getSearchActivitiesV1Options: RouteOptions = {
       if (_.isEmpty(contracts)) {
         throw Boom.badRequest(`No contracts for contracts set ${query.contractsSetId}`);
       }
-    }
-
-    if (contracts.length) {
-      (esQuery as any).bool.filter.push({
-        terms: { contract: contracts },
-      });
     }
 
     let tokens: { contract: string; tokenId: string }[] = [];
@@ -252,7 +253,7 @@ export const getSearchActivitiesV1Options: RouteOptions = {
       const tokensResult = await redb.manyOrNone(`
             SELECT contract, token_id
             FROM token_attributes
-            WHERE collection_id IN ('${collectionIds.join(",")}')
+            WHERE collection_id IN ('${collections.join(",")}')
             AND (key, value) IN (${attributes.join(",")});
           `);
 
@@ -262,61 +263,35 @@ export const getSearchActivitiesV1Options: RouteOptions = {
       }));
     }
 
-    if (tokens.length) {
-      const tokensFilter = { bool: { should: [] } };
+    if (query.sources) {
+      const sourceDomains = _.flatten([query.sources]);
 
-      for (const token of tokens) {
-        (tokensFilter as any).bool.should.push({
-          bool: {
-            must: [
-              {
-                term: { contract: token.contract },
-              },
-              {
-                term: { ["token.id"]: token.tokenId },
-              },
-            ],
-          },
-        });
-      }
+      const sourcesResult = await redb.manyOrNone(`
+            SELECT id 
+            FROM sources_v2 
+            WHERE domain IN ('${sourceDomains.join("','")}') 
+          `);
 
-      (esQuery as any).bool.filter.push(tokensFilter);
+      query.sources = _.map(sourcesResult, (source) => source.id);
     }
 
     if (query.users) {
       if (!_.isArray(query.users)) {
         query.users = [query.users];
       }
-
-      const usersFilter = { bool: { should: [] } };
-
-      (usersFilter as any).bool.should.push({
-        terms: { fromAddress: query.users },
-      });
-
-      (usersFilter as any).bool.should.push({
-        terms: { toAddress: query.users },
-      });
-
-      (esQuery as any).bool.filter.push(usersFilter);
-    }
-
-    const esSort: any[] = [];
-
-    esSort.push({ timestamp: { order: "desc" } });
-
-    let searchAfter;
-
-    if (query.continuation) {
-      searchAfter = [splitContinuation(query.continuation)[0]];
     }
 
     try {
-      const activities = await ActivitiesIndex.search({
-        query: esQuery,
-        sort: esSort as Sort,
-        size: query.limit,
-        search_after: searchAfter,
+      const { activities, continuation } = await ActivitiesIndex.search({
+        types: query.types,
+        collections,
+        contracts,
+        tokens,
+        sources: query.sources,
+        users: query.users,
+        sortBy: query.sortBy,
+        limit: query.limit,
+        continuation: query.continuation,
       });
 
       // If no activities found
@@ -325,7 +300,7 @@ export const getSearchActivitiesV1Options: RouteOptions = {
       }
 
       const result = _.map(activities, async (activity) => {
-        const currency = activity.pricing?.currency ?? Sdk.Common.Addresses.Eth[config.chainId];
+        const currency = activity.pricing?.currency ?? Sdk.Common.Addresses.Native[config.chainId];
 
         return {
           type: activity.type,
@@ -350,7 +325,7 @@ export const getSearchActivitiesV1Options: RouteOptions = {
               )
             : undefined,
           amount: activity.amount,
-          timestamp: activity.event?.timestamp,
+          timestamp: activity.timestamp,
           createdAt: new Date(activity.createdAt).toISOString(),
           contract: activity.contract,
           token: {
@@ -377,17 +352,6 @@ export const getSearchActivitiesV1Options: RouteOptions = {
             : undefined,
         };
       });
-
-      // Set the continuation node
-      let continuation = null;
-      if (activities.length === query.limit) {
-        const lastActivity = _.last(activities);
-
-        if (lastActivity) {
-          const continuationValue = lastActivity.timestamp;
-          continuation = buildContinuation(`${continuationValue}`);
-        }
-      }
 
       return { activities: await Promise.all(result), continuation };
     } catch (error) {

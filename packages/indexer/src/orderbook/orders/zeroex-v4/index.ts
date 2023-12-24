@@ -7,12 +7,16 @@ import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
+import {
+  OrderUpdatesByIdJobPayload,
+  orderUpdatesByIdJob,
+} from "@/jobs/order-updates/order-updates-by-id-job";
+import { Sources } from "@/models/sources";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck } from "@/orderbook/orders/zeroex-v4/check";
 import * as tokenSet from "@/orderbook/token-sets";
-import { Sources } from "@/models/sources";
+import { getUSDAndNativePrices } from "@/utils/prices";
 
 export type OrderInfo = {
   orderParams: Sdk.ZeroExV4.Types.BaseOrder;
@@ -135,21 +139,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      // Check: buy order has Weth as payment token
+      // Check: buy order has WNative as payment token
       if (
         order.params.direction === Sdk.ZeroExV4.Types.TradeDirection.BUY &&
-        order.params.erc20Token !== Sdk.Common.Addresses.Weth[config.chainId]
-      ) {
-        return results.push({
-          id,
-          status: "unsupported-payment-token",
-        });
-      }
-
-      // Check: sell order has Eth as payment token
-      if (
-        order.params.direction === Sdk.ZeroExV4.Types.TradeDirection.SELL &&
-        order.params.erc20Token !== Sdk.ZeroExV4.Addresses.Eth[config.chainId]
+        order.params.erc20Token !== Sdk.Common.Addresses.WNative[config.chainId]
       ) {
         return results.push({
           id,
@@ -300,27 +293,73 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         order.params.direction === Sdk.ZeroExV4.Types.TradeDirection.BUY ? "buy" : "sell";
 
       // Handle: price and value
-      let price = bn(order.params.erc20TokenAmount).add(feeAmount);
-      let value = price;
+      let currencyPrice = bn(order.params.erc20TokenAmount).add(feeAmount);
+      let currencyValue = currencyPrice;
       if (side === "buy") {
         // For buy orders, we set the value as `price - fee` since it
         // is best for UX to show the user exactly what they're going
         // to receive on offer acceptance.
-        value = bn(price).sub(feeAmount);
+        currencyValue = bn(currencyPrice).sub(feeAmount);
       }
 
       // The price and value are for a single item
       if (order.params.kind?.startsWith("erc1155")) {
-        price = price.div(order.params.nftAmount!);
-        value = value.div(order.params.nftAmount!);
+        currencyPrice = currencyPrice.div(order.params.nftAmount!);
+        currencyValue = currencyValue.div(order.params.nftAmount!);
       }
 
-      const feeBps = price.eq(0) ? bn(0) : feeAmount.mul(10000).div(price);
+      const feeBps = currencyPrice.eq(0) ? bn(0) : feeAmount.mul(10000).div(currencyPrice);
       if (feeBps.gt(10000)) {
         return results.push({
           id,
           status: "fees-too-high",
         });
+      }
+
+      // Handle: currency
+      let currency = order.params.erc20Token;
+      if (currency === Sdk.ZeroExV4.Addresses.Native[config.chainId]) {
+        // ZeroEx-like exchanges use a non-standard ETH address
+        currency = Sdk.Common.Addresses.Native[config.chainId];
+      }
+
+      let price = currencyPrice;
+      let value = currencyValue;
+
+      let needsConversion = false;
+      if (
+        ![
+          Sdk.Common.Addresses.Native[config.chainId],
+          Sdk.Common.Addresses.WNative[config.chainId],
+        ].includes(currency)
+      ) {
+        needsConversion = true;
+
+        // If the currency is anything other than ETH/WETH, we convert
+        // `price` and `value` from that currency denominations to the
+        // ETH denomination
+        {
+          const prices = await getUSDAndNativePrices(currency, price.toString(), currentTime);
+          if (!prices.nativePrice) {
+            // Getting the native price is a must
+            return results.push({
+              id,
+              status: "failed-to-convert-price",
+            });
+          }
+          price = bn(prices.nativePrice);
+        }
+        {
+          const prices = await getUSDAndNativePrices(currency, value.toString(), currentTime);
+          if (!prices.nativePrice) {
+            // Getting the native price is a must
+            return results.push({
+              id,
+              status: "failed-to-convert-price",
+            });
+          }
+          value = bn(prices.nativePrice);
+        }
       }
 
       // Handle: source
@@ -342,13 +381,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         bps: price.eq(0) ? 0 : bn(amount).mul(10000).div(price).toNumber(),
       }));
 
-      // Handle: currency
-      let currency = order.params.erc20Token;
-      if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
-        // ZeroEx-like exchanges use a non-standard ETH address
-        currency = Sdk.Common.Addresses.Eth[config.chainId];
-      }
-
       const validFrom = `date_trunc('seconds', to_timestamp(${currentTime}))`;
       const validTo = `date_trunc('seconds', to_timestamp(${order.params.expiry}))`;
       orderValues.push({
@@ -364,9 +396,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         price: price.toString(),
         value: value.toString(),
         currency: toBuffer(currency),
-        currency_price: price.toString(),
-        currency_value: value.toString(),
-        needs_conversion: null,
+        currency_price: currencyPrice.toString(),
+        currency_value: currencyValue.toString(),
+        needs_conversion: needsConversion,
         quantity_remaining: order.params.nftAmount || "1",
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: order.params.nonce,
@@ -382,6 +414,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         missing_royalties: null,
         normalized_value: null,
         currency_normalized_value: null,
+        originated_at: metadata.originatedAt || null,
       });
 
       const unfillable =
@@ -434,6 +467,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         "dynamic",
         "raw_data",
         { name: "expiration", mod: ":raw" },
+        "originated_at",
       ],
       {
         table: "orders",
@@ -441,7 +475,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
     );
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
 
-    await ordersUpdateById.addToQueue(
+    await orderUpdatesByIdJob.addToQueue(
       results
         .filter((r) => r.status === "success" && !r.unfillable)
         .map(
@@ -452,7 +486,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               trigger: {
                 kind: "new-order",
               },
-            } as ordersUpdateById.OrderInfo)
+            } as OrderUpdatesByIdJobPayload)
         )
     );
   }

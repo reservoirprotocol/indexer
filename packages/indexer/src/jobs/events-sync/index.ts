@@ -1,12 +1,13 @@
 import cron from "node-cron";
 
 import { logger } from "@/common/logger";
-import { safeWebSocketSubscription } from "@/common/provider";
-import { redlock } from "@/common/redis";
+import { baseProvider, safeWebSocketSubscription } from "@/common/provider";
+import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
-import * as realtimeEventsSync from "@/jobs/events-sync/realtime-queue";
-import * as realtimeEventsSyncV2 from "@/jobs/events-sync/realtime-queue-v2";
+import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
+import { checkForMissingBlocks } from "@/events-sync/index";
+import { now } from "@/common/utils";
 
 // For syncing events we have two separate job queues. One is for
 // handling backfilling of past event while the other one handles
@@ -20,17 +21,8 @@ import * as realtimeEventsSyncV2 from "@/jobs/events-sync/realtime-queue-v2";
 // concurrent upserts of the balances):
 // https://stackoverflow.com/questions/46366324/postgres-deadlocks-on-concurrent-upserts
 
-import "@/jobs/events-sync/backfill-queue";
-import "@/jobs/events-sync/block-check-queue";
-import "@/jobs/events-sync/process/backfill";
-import "@/jobs/events-sync/process/realtime";
-import "@/jobs/events-sync/realtime-queue";
-import "@/jobs/events-sync/realtime-queue-v2";
-import "@/jobs/events-sync/write-buffers/ft-transfers";
-import "@/jobs/events-sync/write-buffers/nft-transfers";
-
-// BACKGROUND WORKER ONLY
-if (config.doBackgroundWork && config.catchup) {
+// CATCHUP ONLY
+if (config.catchup) {
   const networkSettings = getNetworkSettings();
 
   // Keep up with the head of the blockchain by polling for new blocks every once in a while
@@ -44,8 +36,13 @@ if (config.doBackgroundWork && config.catchup) {
         )
         .then(async () => {
           try {
-            await realtimeEventsSync.addToQueue();
-            logger.info("events-sync-catchup", "Catching up events");
+            const block = await baseProvider.getBlockNumber();
+            if (config.master && !networkSettings.enableWebSocket) {
+              logger.info("events-sync-catchup", `Catching up events for block ${block}`);
+              await eventsSyncRealtimeJob.addToQueue({ block });
+            }
+
+            await checkForMissingBlocks(block);
           } catch (error) {
             logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);
           }
@@ -67,9 +64,13 @@ if (config.doBackgroundWork && config.catchup) {
         logger.info("events-sync-catchup", `Detected new block ${block}`);
 
         try {
-          await realtimeEventsSync.addToQueue();
-          if (config.chainId === 1) {
-            await realtimeEventsSyncV2.addToQueue({ block });
+          await redis.set("latest-block-websocket-received", now());
+          await eventsSyncRealtimeJob.addToQueue({ block });
+
+          if (![137, 80001, 56].includes(config.chainId)) {
+            await checkForMissingBlocks(block);
+          } else {
+            await redis.set("latest-block-realtime", block);
           }
         } catch (error) {
           logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);

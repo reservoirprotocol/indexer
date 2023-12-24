@@ -8,9 +8,8 @@ import Joi from "joi";
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { Signers, addressToSigner } from "@/common/signers";
-import { fromBuffer, now, regex, safeOracleTimestamp, toBuffer } from "@/common/utils";
+import { fromBuffer, regex, safeOracleTimestamp, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
 
 const version = "v2";
 
@@ -18,10 +17,10 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
   description: "Token status oracle",
   notes:
     "Get a signed message of a token's details (flagged status and last transfer time). The oracle's address is 0xAeB1D03929bF87F69888f381e73FBf75753d75AF. The address is the same for all chains.",
-  tags: ["api", "Oracle"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 12,
+      deprecated: true,
     },
   },
   validate: {
@@ -105,12 +104,6 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
         `
       );
 
-      const tokenToSuspicious = await tryGetTokensSuspiciousStatus(
-        results
-          .filter(({ last_flag_update }) => last_flag_update < now() - 3600)
-          .map(({ contract, token_id }) => `${fromBuffer(contract)}:${token_id}`)
-      );
-
       // Set default values for any tokens which don't exist
       const availableTokens = new Set<string>();
       results.forEach(({ contract, token_id }) =>
@@ -157,9 +150,7 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
             tokenId: result.token_id,
           });
 
-          const isFlagged = tokenToSuspicious.has(token)
-            ? tokenToSuspicious.get(token)
-            : result.is_flagged;
+          const isFlagged = result.is_flagged;
 
           const message: {
             id: string;
@@ -190,7 +181,9 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
 
       return { messages };
     } catch (error) {
-      logger.error(`get-token-status-oracle-${version}-handler`, `Handler failure: ${error}`);
+      if (!(error instanceof Boom.Boom)) {
+        logger.error(`get-token-status-oracle-${version}-handler`, `Handler failure: ${error}`);
+      }
       throw error;
     }
   },

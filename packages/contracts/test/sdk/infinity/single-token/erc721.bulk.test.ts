@@ -7,13 +7,7 @@ import { ethers } from "hardhat";
 
 import * as Infinity from "@reservoir0x/sdk/src/infinity";
 
-import {
-  getChainId,
-  setupNFTs,
-  reset,
-  getCurrentTimestamp,
-  bn,
-} from "../../../utils";
+import { getChainId, setupNFTs, reset, getCurrentTimestamp, bn } from "../../../utils";
 import { BigNumberish } from "ethers";
 
 describe("Infinity - Bulk Single Token ERC721", () => {
@@ -66,9 +60,9 @@ describe("Infinity - Bulk Single Token ERC721", () => {
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
       nonce: "1",
       maxGasPrice: "100000000000",
-      currency: Common.Addresses.Eth[chainId],
+      currency: Common.Addresses.Native[chainId],
       tokenId: tokenIdOne,
-      numTokens: 1
+      numTokens: 1,
     });
 
     const sellOrderTwo = builder.build({
@@ -81,9 +75,9 @@ describe("Infinity - Bulk Single Token ERC721", () => {
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
       nonce: "1",
       maxGasPrice: "100000000000",
-      currency: Common.Addresses.Eth[chainId],
+      currency: Common.Addresses.Native[chainId],
       tokenId: tokenIdTwo,
-      numTokens: 1
+      numTokens: 1,
     });
 
     await sellOrderOne.sign(sellerOne);
@@ -91,36 +85,26 @@ describe("Infinity - Bulk Single Token ERC721", () => {
     await sellOrderOne.checkFillability(ethers.provider);
     await sellOrderTwo.checkFillability(ethers.provider);
 
-    const buyerEthBalanceBefore = await ethers.provider.getBalance(
-      buyer.address
-    );
-    const sellerOneEthBalanceBefore = await ethers.provider.getBalance(
-      sellerOne.address
-    );
-    const sellerTwoEthBalanceBefore = await ethers.provider.getBalance(
-      sellerTwo.address
-    );
+    const buyerEthBalanceBefore = await ethers.provider.getBalance(buyer.address);
+    const sellerOneEthBalanceBefore = await ethers.provider.getBalance(sellerOne.address);
+    const sellerTwoEthBalanceBefore = await ethers.provider.getBalance(sellerTwo.address);
 
     const nftOneOwnerBefore = await nft.getOwner(tokenIdOne);
-    const nftTwoOwnerBefore = await nft.getOwner(tokenIdTwo)
+    const nftTwoOwnerBefore = await nft.getOwner(tokenIdTwo);
     expect(nftOneOwnerBefore).to.eq(sellerOne.address);
     expect(nftTwoOwnerBefore).to.eq(sellerTwo.address);
 
     await exchange.takeMultipleOneOrders(buyer, [sellOrderOne, sellOrderTwo]);
 
-    const buyerEthBalanceAfter = await ethers.provider.getBalance(
-      buyer.address
-    );
-    const sellerOneEthBalanceAfter = await ethers.provider.getBalance(
-      sellerOne.address
-    );
-    const sellerTwoEthBalanceAfter = await ethers.provider.getBalance(
-      sellerTwo.address
-    );
+    const buyerEthBalanceAfter = await ethers.provider.getBalance(buyer.address);
+    const sellerOneEthBalanceAfter = await ethers.provider.getBalance(sellerOne.address);
+    const sellerTwoEthBalanceAfter = await ethers.provider.getBalance(sellerTwo.address);
     const nftOneOwnerAfter = await nft.getOwner(tokenIdOne);
     const nftTwoOwnerAfter = await nft.getOwner(tokenIdTwo);
 
-    const protocolFeeBps: BigNumberish = await exchange.contract.connect(sellerOne).protocolFeeBps();
+    const protocolFeeBps: BigNumberish = await exchange.contract
+      .connect(sellerOne)
+      .protocolFeeBps();
     const fees = bn(price).mul(protocolFeeBps).div(10000);
 
     expect(buyerEthBalanceBefore.sub(buyerEthBalanceAfter)).to.be.gte(bn(price).mul(2));
@@ -135,7 +119,6 @@ describe("Infinity - Bulk Single Token ERC721", () => {
     const buyerTwo = eve;
     const seller = bob;
 
-
     const price = parseEther("1").toString();
 
     const tokenIdOne = "1";
@@ -148,7 +131,7 @@ describe("Infinity - Bulk Single Token ERC721", () => {
 
     await nft.approve(seller, Infinity.Addresses.Exchange[chainId]);
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Common.Helpers.WNative(ethers.provider, chainId);
 
     // Mint weth to buyer
     await weth.deposit(buyerOne, price);
@@ -171,9 +154,9 @@ describe("Infinity - Bulk Single Token ERC721", () => {
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
       nonce: "1",
       maxGasPrice: "100000000000",
-      currency: Common.Addresses.Weth[chainId],
+      currency: Common.Addresses.WNative[chainId],
       tokenId: tokenIdOne,
-      numTokens: 1
+      numTokens: 1,
     });
 
     const offerOrderTwo = builder.build({
@@ -186,9 +169,9 @@ describe("Infinity - Bulk Single Token ERC721", () => {
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
       nonce: "1",
       maxGasPrice: "100000000000",
-      currency: Common.Addresses.Weth[chainId],
+      currency: Common.Addresses.WNative[chainId],
       tokenId: tokenIdTwo,
-      numTokens: 1
+      numTokens: 1,
     });
 
     await offerOrderOne.sign(buyerOne);
@@ -196,15 +179,9 @@ describe("Infinity - Bulk Single Token ERC721", () => {
     await offerOrderOne.checkFillability(ethers.provider);
     await offerOrderTwo.checkFillability(ethers.provider);
 
-    const buyerOneWethBalanceBefore = await weth.getBalance(
-      buyerOne.address
-    );
-    const buyerTwoWethBalanceBefore = await weth.getBalance(
-      buyerTwo.address
-    );
-    const sellerWethBalanceBefore = await weth.getBalance(
-      seller.address
-    );
+    const buyerOneWethBalanceBefore = await weth.getBalance(buyerOne.address);
+    const buyerTwoWethBalanceBefore = await weth.getBalance(buyerTwo.address);
+    const sellerWethBalanceBefore = await weth.getBalance(seller.address);
 
     const nftOneOwnerBefore = await nft.getOwner(tokenIdOne);
     const nftTwoOwnerBefore = await nft.getOwner(tokenIdTwo);
@@ -213,15 +190,9 @@ describe("Infinity - Bulk Single Token ERC721", () => {
 
     await exchange.takeMultipleOneOrders(seller, [offerOrderOne, offerOrderTwo]);
 
-    const buyerOneWethBalanceAfter = await weth.getBalance(
-      buyerOne.address
-    );
-    const buyerTwoWethBalanceAfter = await weth.getBalance(
-      buyerTwo.address
-    );
-    const sellerWethBalanceAfter = await weth.getBalance(
-      seller.address
-    );
+    const buyerOneWethBalanceAfter = await weth.getBalance(buyerOne.address);
+    const buyerTwoWethBalanceAfter = await weth.getBalance(buyerTwo.address);
+    const sellerWethBalanceAfter = await weth.getBalance(seller.address);
     const nftOneOwnerAfter = await nft.getOwner(tokenIdOne);
     const nftTwoOwnerAfter = await nft.getOwner(tokenIdTwo);
 
@@ -233,5 +204,5 @@ describe("Infinity - Bulk Single Token ERC721", () => {
     expect(sellerWethBalanceAfter).to.eq(sellerWethBalanceBefore.add(price).sub(fees).mul(2));
     expect(nftOneOwnerAfter).to.eq(buyerOne.address);
     expect(nftTwoOwnerAfter).to.eq(buyerTwo.address);
-  })
+  });
 });

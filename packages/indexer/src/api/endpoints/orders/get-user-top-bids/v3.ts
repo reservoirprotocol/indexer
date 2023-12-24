@@ -14,9 +14,15 @@ import {
   toBuffer,
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 import _ from "lodash";
-import { getJoiPriceObject, JoiOrderCriteria, JoiPrice } from "@/common/joi";
+import {
+  getJoiPriceObject,
+  getJoiSourceObject,
+  JoiOrderCriteria,
+  JoiPrice,
+  JoiSource,
+} from "@/common/joi";
 import { Orders } from "@/utils/orders";
 import { ContractSets } from "@/models/contract-sets";
 import * as Boom from "@hapi/boom";
@@ -112,7 +118,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
           validFrom: Joi.number().unsafe(),
           validUntil: Joi.number().unsafe(),
           floorDifferencePercentage: Joi.number().unsafe(),
-          source: Joi.object().allow(null),
+          source: JoiSource.allow(null),
           feeBreakdown: Joi.array()
             .items(
               Joi.object({
@@ -133,7 +139,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
             collection: Joi.object({
               id: Joi.string().allow(null),
               name: Joi.string().allow("", null),
-              imageUrl: Joi.string().allow(null),
+              imageUrl: Joi.string().allow("", null),
               floorAskPrice: Joi.number().unsafe().allow(null),
             }),
           }),
@@ -213,7 +219,8 @@ export const getUserTopBidsV3Options: RouteOptions = {
       const criteriaBuildQuery = Orders.buildCriteriaQuery(
         "y",
         "token_set_id",
-        query.includeCriteriaMetadata
+        query.includeCriteriaMetadata,
+        "token_set_schema_hash"
       );
 
       const collectionFloorSellValueColumnName = query.useNonFlaggedFloorAsk
@@ -239,7 +246,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
         FROM nb
         JOIN LATERAL (
             SELECT o.token_set_id, o.id AS "top_bid_id", o.price AS "top_bid_price", o.value AS "top_bid_value",
-                   o.currency AS "top_bid_currency", o.currency_value AS "top_bid_currency_value", o.missing_royalties,
+                   o.currency AS "top_bid_currency", o.currency_price AS "top_bid_currency_price", o.currency_value AS "top_bid_currency_value", o.missing_royalties,
                    o.normalized_value AS "top_bid_normalized_value", o.currency_normalized_value AS "top_bid_currency_normalized_value",
                    o.maker AS "top_bid_maker", source_id_int, o.created_at "order_created_at", o.token_set_schema_hash,
                    extract(epoch from o.created_at) * 1000000 AS "order_created_at_micro",
@@ -261,7 +268,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
             LIMIT 1
         ) y ON TRUE
         LEFT JOIN LATERAL (
-            SELECT t.token_id, t.name, t.image, t.collection_id, floor_sell_value AS "token_floor_sell_value", last_sell_value AS "token_last_sell_value"
+            SELECT t.token_id, t.image_version, t.name, t.image, t.collection_id, floor_sell_value AS "token_floor_sell_value", last_sell_value AS "token_last_sell_value"
             FROM tokens t
             WHERE t.contract = nb.contract
             AND t.token_id = nb.token_id
@@ -273,6 +280,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
                 id AS "collection_id",
                 name AS "collection_name",
                 metadata AS "collection_metadata",
+                image_version AS "collection_image_version",
                 ${collectionFloorSellValueColumnName} AS "collection_floor_sell_value",
                 (${collectionFloorSellValueColumnName} * (1-((COALESCE(royalties_bps, 0)::float + 250) / 10000)))::numeric(78, 0) AS "net_listing"
             FROM collections c
@@ -349,26 +357,24 @@ export const getUserTopBidsV3Options: RouteOptions = {
             validFrom: r.top_bid_valid_from,
             validUntil: r.top_bid_valid_until,
             floorDifferencePercentage: _.round(r.floor_difference_percentage || 0, 2),
-            source: {
-              id: source?.address,
-              domain: source?.domain,
-              name: source?.getTitle(),
-              icon: source?.getIcon(),
-              url: source?.metadata.url,
-            },
+            source: getJoiSourceObject(source),
             feeBreakdown,
             criteria: r.bid_criteria,
             token: {
               contract: contract,
               tokenId: tokenId,
               name: r.name,
-              image: Assets.getLocalAssetsLink(r.image),
+              image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
               floorAskPrice: r.token_floor_sell_value ? formatEth(r.token_floor_sell_value) : null,
               lastSalePrice: r.token_last_sell_value ? formatEth(r.token_last_sell_value) : null,
               collection: {
                 id: r.collection_id,
                 name: r.collection_name,
-                imageUrl: Assets.getLocalAssetsLink(r.collection_metadata?.imageUrl),
+                imageUrl: Assets.getResizedImageUrl(
+                  r.collection_metadata?.imageUrl,
+                  ImageSize.small,
+                  r.collection_image_version
+                ),
                 floorAskPrice: r.collection_floor_sell_value
                   ? formatEth(r.collection_floor_sell_value)
                   : null,

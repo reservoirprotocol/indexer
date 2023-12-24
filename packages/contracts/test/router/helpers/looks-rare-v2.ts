@@ -62,7 +62,7 @@ export const setupListings = async (listings: Listing[]) => {
       signer: seller.address,
       collection: nft.contract.address,
       itemId: nft.id,
-      currency: currency ?? Sdk.Common.Addresses.Eth[chainId],
+      currency: currency ?? Sdk.Common.Addresses.Native[chainId],
       price,
       startTime: await getCurrentTimestamp(ethers.provider),
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
@@ -101,7 +101,7 @@ export const setupOffers = async (offers: Offer[]) => {
   for (const offer of offers) {
     const { buyer, nft, price } = offer;
 
-    const weth = new Sdk.Common.Helpers.Weth(ethers.provider, chainId);
+    const weth = new Sdk.Common.Helpers.WNative(ethers.provider, chainId);
     await weth.deposit(buyer, price);
     await weth.approve(buyer, Sdk.LooksRareV2.Addresses.Exchange[chainId]);
 
@@ -115,7 +115,7 @@ export const setupOffers = async (offers: Offer[]) => {
           : Sdk.LooksRareV2.Types.CollectionType.ERC1155,
       signer: buyer.address,
       collection: nft.contract.address,
-      currency: Sdk.Common.Addresses.Weth[chainId],
+      currency: Sdk.Common.Addresses.WNative[chainId],
       price,
       startTime: await getCurrentTimestamp(ethers.provider),
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,

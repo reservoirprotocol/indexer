@@ -76,8 +76,8 @@ export class SalesDataSourceV2 extends BaseDataSource {
         const currency = await getCurrency(
           fromBuffer(r.currency) === AddressZero
             ? r.order_side === "sell"
-              ? Sdk.Common.Addresses.Eth[config.chainId]
-              : Sdk.Common.Addresses.Weth[config.chainId]
+              ? Sdk.Common.Addresses.Native[config.chainId]
+              : Sdk.Common.Addresses.WNative[config.chainId]
             : fromBuffer(r.currency)
         );
 
@@ -102,8 +102,9 @@ export class SalesDataSourceV2 extends BaseDataSource {
           currency_symbol: currency.symbol,
           currency_price: currencyPrice ? currencyPrice.toString() : null,
           amount: Number(r.amount),
-          fill_source: fillSource?.domain ?? aggregatorSource?.domain ?? orderSource?.domain,
-          aggregator_source: aggregatorSource?.domain,
+          fill_source:
+            fillSource?.domain ?? aggregatorSource?.domain ?? orderSource?.domain ?? null,
+          aggregator_source: aggregatorSource?.domain ?? null,
           wash_trading_score: Number(r.wash_trading_score),
           is_primary: Boolean(r.is_primary),
           tx_hash: fromBuffer(r.tx_hash),

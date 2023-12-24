@@ -193,7 +193,7 @@ export const getAttributesExploreV1Options: RouteOptions = {
           key: r.key,
           value: r.value,
           tokenCount: Number(r.token_count),
-          sampleImages: Assets.getLocalAssetsLink(r.sample_images) || [],
+          sampleImages: Assets.getResizedImageURLs(r.sample_images) || [],
           lastBuys: (r.last_buys || []).map(({ value, timestamp }: any) => ({
             value: formatEth(value),
             timestamp: Number(timestamp),

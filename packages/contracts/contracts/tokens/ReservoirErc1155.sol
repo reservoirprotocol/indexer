@@ -18,8 +18,16 @@ contract ReservoirErc1155 is ERC1155, Ownable {
 
   // Constructor
 
-  constructor(address _owner, string memory _uri, string memory _contractURI) ERC1155(_uri) {
+  constructor(
+    address _owner,
+    string memory _uri,
+    string memory _contractURI,
+    address _royaltyRecipient,
+    uint256 _royaltyBps
+  ) ERC1155(_uri) {
     contractURI = _contractURI;
+    royaltyRecipient = _royaltyRecipient;
+    royaltyBps = _royaltyBps;
 
     _transferOwnership(_owner);
   }

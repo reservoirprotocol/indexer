@@ -760,6 +760,7 @@ describe("Royalties", () => {
       const matchFee = feesList.find(
         (c) => c.contract === fillEvent.contract && c.tokenId === fillEvent.tokenId
       );
+
       if (matchFee) {
         expect(fillEvent.royaltyFeeBps).toEqual(matchFee.royaltyFeeBps);
         expect(fillEvent.marketplaceFeeBps).toEqual(matchFee.marketplaceFeeBps);
@@ -806,7 +807,7 @@ describe("Royalties", () => {
         (c) => c.contract === fillEvent.contract && c.tokenId === fillEvent.tokenId
       );
 
-      // console.log("fillEvent", fillEvent);
+      // console.log("fillEvent", fillEvent.contract, fillEvent.tokenId);
       if (matchFee) {
         expect(fillEvent.royaltyFeeBps).toEqual(matchFee.royaltyFeeBps);
         expect(fillEvent.marketplaceFeeBps).toEqual(matchFee.marketplaceFeeBps);
@@ -854,6 +855,56 @@ describe("Royalties", () => {
       );
 
       if (matchFee) {
+        expect(fillEvent.royaltyFeeBps).toEqual(matchFee.royaltyFeeBps);
+        expect(fillEvent.marketplaceFeeBps).toEqual(matchFee.marketplaceFeeBps);
+      }
+    }
+  });
+
+  it("mev-case", async () => {
+    const { fillEvents } = await getFillEventsFromTx(
+      "0xd9c5f0af7ff6113df4153bcd4aa5ea25471a534e4b6baa5c81277bc5eeda1ef2"
+    );
+
+    const testCollectionRoyalties = [
+      {
+        collection: "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
+        data: [
+          {
+            bps: 250,
+            recipient: "0xaae7ac476b117bccafe2f05f582906be44bc8ff1",
+          },
+          {
+            bps: 250,
+            recipient: "0xa858ddc0445d8131dac4d1de01f834ffcba52ef1",
+          },
+        ],
+      },
+    ];
+
+    mockGetRoyalties.mockImplementation(async (contract: string) => {
+      const matched = testCollectionRoyalties.find((c) => c.collection === contract);
+      return matched?.data ?? [];
+    });
+
+    const feesList = [
+      {
+        contract: "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
+        tokenId: "8872",
+        royaltyFeeBps: 250,
+        marketplaceFeeBps: 0,
+      },
+    ];
+    // console.log("fillEvents", fillEvents.length)
+    await assignRoyaltiesToFillEvents(fillEvents, false, true);
+    for (let index = 0; index < fillEvents.length; index++) {
+      const fillEvent = fillEvents[index];
+      //console.log(fillEvent);
+      const matchFee = feesList.find(
+        (c) => c.contract === fillEvent.contract && c.tokenId === fillEvent.tokenId
+      );
+      if (matchFee) {
+        //console.log(fillEvent);
         expect(fillEvent.royaltyFeeBps).toEqual(matchFee.royaltyFeeBps);
         expect(fillEvent.marketplaceFeeBps).toEqual(matchFee.marketplaceFeeBps);
       }

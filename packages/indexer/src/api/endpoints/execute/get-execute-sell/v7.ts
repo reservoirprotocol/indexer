@@ -6,8 +6,10 @@ import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { BidDetails, FillBidsResult } from "@reservoir0x/sdk/dist/router/v6/types";
-import { TxData } from "@reservoir0x/sdk/src/utils";
+import { estimateGasFromTxTags } from "@reservoir0x/sdk/dist/router/v6/utils";
+import { TxData } from "@reservoir0x/sdk/dist/utils";
 import axios from "axios";
+import { randomUUID } from "crypto";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
@@ -19,6 +21,7 @@ import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/util
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { ApiKeyManager } from "@/models/api-keys";
+import { FeeRecipients } from "@/models/fee-recipients";
 import { Sources } from "@/models/sources";
 import { OrderKind, generateBidDetailsV6 } from "@/orderbook/orders";
 import { fillErrorCallback, getExecuteError } from "@/orderbook/orders/errors";
@@ -28,13 +31,17 @@ import * as sudoswap from "@/orderbook/orders/sudoswap";
 import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import { ExecutionsBuffer } from "@/utils/executions";
-import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
+import { getPersistentPermit } from "@/utils/permits";
+import { getPreSignatureId, getPreSignature, savePreSignature } from "@/utils/pre-signatures";
+import { getUSDAndCurrencyPrices } from "@/utils/prices";
 
 const version = "v7";
 
 export const getExecuteSellV7Options: RouteOptions = {
-  description: "Sell tokens (accept bids)",
-  tags: ["api", "Fill Orders (buy & sell)"],
+  description: "Sell Tokens",
+  notes:
+    "Use this API to accept bids. We recommend using the SDK over this API as the SDK will iterate through the steps and return callbacks. Please mark `excludeEOA` as `true` to exclude Blur orders.",
+  tags: ["api"],
   timeout: {
     server: 40 * 1000,
   },
@@ -71,13 +78,11 @@ export const getExecuteSellV7Options: RouteOptions = {
                   "seaport-v1.4",
                   "seaport-v1.5",
                   "x2y2",
-                  "universe",
                   "rarible",
                   "sudoswap",
                   "nftx"
-                )
-                .required(),
-              data: Joi.object().required(),
+                ),
+              data: Joi.object(),
             }).description("Optional raw order to sell into."),
             exactOrderSource: Joi.string()
               .lowercase()
@@ -85,6 +90,14 @@ export const getExecuteSellV7Options: RouteOptions = {
               .when("orderId", { is: Joi.exist(), then: Joi.forbidden(), otherwise: Joi.allow() })
               .when("rawOrder", { is: Joi.exist(), then: Joi.forbidden(), otherwise: Joi.allow() })
               .description("Only consider orders from this source."),
+            exclusions: Joi.array()
+              .items(
+                Joi.object({
+                  orderId: Joi.string().required(),
+                  price: Joi.string().pattern(regex.number),
+                })
+              )
+              .description("Items to exclude"),
           }).oxor("orderId", "rawOrder")
         )
         .min(1)
@@ -102,7 +115,7 @@ export const getExecuteSellV7Options: RouteOptions = {
       feesOnTop: Joi.array()
         .items(Joi.string().pattern(regex.fee))
         .description(
-          "List of fees (formatted as `feeRecipient:feeAmount`) to be taken when filling.\nThe currency used for any fees on top matches the accepted bid's currency.\nExample: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:1000000000000000`"
+          "List of fees (formatted as `feeRecipient:feeAmount`) to be taken when filling.\nThe currency used for any fees on top is always the wrapped native currency of the chain.\nExample: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:1000000000000000`"
         ),
       onlyPath: Joi.boolean()
         .default(false)
@@ -126,7 +139,18 @@ export const getExecuteSellV7Options: RouteOptions = {
         .description(
           "If true, filling will be forced to use the common 'approval + transfer' method instead of the approval-less 'on-received hook' method"
         ),
-      maxFeePerGas: Joi.string().pattern(regex.number).description("Optional custom gas settings."),
+      forwarderChannel: Joi.string()
+        .lowercase()
+        .pattern(regex.address)
+        .description(
+          "If passed, all fills will be executed through the trusted trusted forwarder (where possible)"
+        )
+        .optional(),
+      maxFeePerGas: Joi.string()
+        .pattern(regex.number)
+        .description(
+          "Optional custom gas settings. Includes base fee & priority fee in this limit."
+        ),
       maxPriorityFeePerGas: Joi.string()
         .pattern(regex.number)
         .description("Optional custom gas settings."),
@@ -135,10 +159,12 @@ export const getExecuteSellV7Options: RouteOptions = {
       openseaApiKey: Joi.string().description(
         "Optional OpenSea API key used for filling. You don't need to pass your own key, but if you don't, you are more likely to be rate-limited."
       ),
+      blurAuth: Joi.string().description("Optional Blur auth used for filling"),
     }),
   },
   response: {
     schema: Joi.object({
+      requestId: Joi.string(),
       steps: Joi.array().items(
         Joi.object({
           id: Joi.string().required().description("Returns `auth` or `nft-approval`"),
@@ -158,6 +184,9 @@ export const getExecuteSellV7Options: RouteOptions = {
                 tip: Joi.string(),
                 orderIds: Joi.array().items(Joi.string()),
                 data: Joi.object(),
+                gasEstimate: Joi.number().description(
+                  "Approximation of gas used (only applies to `transaction` items)"
+                ),
               })
             )
             .required(),
@@ -177,8 +206,8 @@ export const getExecuteSellV7Options: RouteOptions = {
           quantity: Joi.number().unsafe(),
           source: Joi.string().allow("", null),
           currency: Joi.string().lowercase().pattern(regex.address),
-          currencySymbol: Joi.string().optional(),
-          currencyDecimals: Joi.number().optional(),
+          currencySymbol: Joi.string().optional().allow(null),
+          currencyDecimals: Joi.number().optional().allow(null),
           // Net price (without fees on top) = price - builtInFees
           quote: Joi.number().unsafe(),
           rawQuote: Joi.string().pattern(regex.number),
@@ -207,7 +236,7 @@ export const getExecuteSellV7Options: RouteOptions = {
       type ExecuteFee = {
         kind?: string;
         recipient: string;
-        bps: number;
+        bps?: number;
         amount: number;
         rawAmount: string;
       };
@@ -241,6 +270,7 @@ export const getExecuteSellV7Options: RouteOptions = {
       // TODO: Also keep track of the maker's allowance per exchange
 
       const sources = await Sources.getInstance();
+      const feeRecipients = await FeeRecipients.getInstance();
 
       // Save the fill source if it doesn't exist yet
       if (payload.source) {
@@ -255,7 +285,8 @@ export const getExecuteSellV7Options: RouteOptions = {
           price: string;
           sourceId: number | null;
           currency: string;
-          rawData: object;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          rawData: any;
           builtInFees: { kind: string; recipient: string; bps: number }[];
           additionalFees?: Sdk.RouterV6.Types.Fee[];
         },
@@ -268,7 +299,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
       ) => {
         // Handle dynamically-priced orders
-        if (["blur", "sudoswap", "nftx"].includes(order.kind)) {
+        if (["blur", "sudoswap", "sudoswap-v2", "nftx", "caviar-v1"].includes(order.kind)) {
           // TODO: Handle the case when the next best-priced order in the database
           // has a better price than the current dynamically-priced order (because
           // of a quantity > 1 being filled on this current order).
@@ -359,9 +390,8 @@ export const getExecuteSellV7Options: RouteOptions = {
             };
           }),
           feesOnTop: [
-            // For now, the only additional fees are the normalized royalties
             ...additionalFees.map((f) => ({
-              kind: "royalty",
+              kind: "marketplace",
               recipient: f.recipient,
               bps: bn(f.amount).mul(10000).div(unitPrice).toNumber(),
               amount: formatPrice(f.amount, currency.decimals, true),
@@ -369,6 +399,11 @@ export const getExecuteSellV7Options: RouteOptions = {
             })),
           ],
         });
+
+        // Load any permits
+        const permit = order.rawData.permitId
+          ? await getPersistentPermit(order.rawData.permitId, order.rawData.permitIndex ?? 0)
+          : undefined;
 
         bidDetails.push(
           await generateBidDetailsV6(
@@ -391,6 +426,11 @@ export const getExecuteSellV7Options: RouteOptions = {
               tokenId: token.tokenId,
               amount: token.quantity,
               owner: token.owner,
+            },
+            payload.taker,
+            {
+              permit,
+              ppV2TrustedChannel: payload.forwarderChannel,
             }
           )
         );
@@ -406,9 +446,11 @@ export const getExecuteSellV7Options: RouteOptions = {
           data: any;
         };
         exactOrderSource?: string;
+        exclusions?: {
+          orderId: string;
+        }[];
       }[] = payload.items;
 
-      const tokenToSuspicious = await tryGetTokensSuspiciousStatus(items.map((i) => i.token));
       for (const item of items) {
         const [contract, tokenId] = item.token.split(":");
 
@@ -430,7 +472,7 @@ export const getExecuteSellV7Options: RouteOptions = {
           if (payload.partial) {
             continue;
           } else {
-            throw Boom.badData("Unknown token");
+            throw getExecuteError("Unknown token");
           }
         }
 
@@ -481,7 +523,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               if (payload.partial) {
                 continue;
               } else {
-                throw Boom.badData("Raw order failed to get processed");
+                throw getExecuteError("Raw order failed to get processed");
               }
             }
           }
@@ -516,12 +558,19 @@ export const getExecuteSellV7Options: RouteOptions = {
                 AND token_sets_tokens.contract = $/contract/
                 AND token_sets_tokens.token_id = $/tokenId/
                 AND orders.side = 'buy'
-                AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+                AND (
+                  orders.taker IS NULL
+                  OR orders.taker = '\\x0000000000000000000000000000000000000000'
+                  OR orders.taker = $/taker/
+                )
+                ${item.exclusions?.length ? " AND orders.id NOT IN ($/excludedOrderIds:list/)" : ""}
             `,
             {
               id: item.orderId,
               contract: toBuffer(contract),
               tokenId,
+              taker: toBuffer(payload.taker),
+              excludedOrderIds: item.exclusions?.map((e) => e.orderId) ?? [],
             }
           );
 
@@ -574,7 +623,7 @@ export const getExecuteSellV7Options: RouteOptions = {
             if (payload.partial) {
               continue;
             } else {
-              throw Boom.badData(error);
+              throw getExecuteError(error);
             }
           }
 
@@ -602,24 +651,20 @@ export const getExecuteSellV7Options: RouteOptions = {
             }
           }
 
-          // Do not fill X2Y2 and Seaport orders with flagged tokens
+          // Do not fill Seaport orders with flagged tokens
           if (
             [
-              "x2y2",
               "seaport-v1.4",
               "seaport-v1.5",
               "seaport-v1.4-partial",
               "seaport-v1.5-partial",
             ].includes(result.kind)
           ) {
-            if (
-              (tokenToSuspicious.has(item.token) && tokenToSuspicious.get(item.token)) ||
-              tokenResult.is_flagged
-            ) {
+            if (tokenResult.is_flagged) {
               if (payload.partial) {
                 continue;
               } else {
-                throw Boom.badData(`Token ${item.token} is flagged`);
+                throw getExecuteError("Token is flagged");
               }
             }
           }
@@ -672,10 +717,15 @@ export const getExecuteSellV7Options: RouteOptions = {
                 AND token_sets_tokens.token_id = $/tokenId/
                 AND orders.side = 'buy'
                 AND orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'
-                AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+                AND (
+                  orders.taker IS NULL
+                  OR orders.taker = '\\x0000000000000000000000000000000000000000'
+                  OR orders.taker = $/taker/
+                )
                 ${payload.normalizeRoyalties ? " AND orders.normalized_value IS NOT NULL" : ""}
                 ${payload.excludeEOA ? " AND orders.kind != 'blur'" : ""}
                 ${item.exactOrderSource ? " AND orders.source_id_int = $/sourceId/" : ""}
+                ${item.exclusions?.length ? " AND orders.id NOT IN ($/excludedOrderIds:list/)" : ""}
               ORDER BY ${
                 payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"
               } DESC
@@ -688,6 +738,8 @@ export const getExecuteSellV7Options: RouteOptions = {
               sourceId: item.exactOrderSource
                 ? sources.getByDomain(item.exactOrderSource)?.id ?? -1
                 : undefined,
+              taker: toBuffer(payload.taker),
+              excludedOrderIds: item.exclusions?.map((e) => e.orderId) ?? [],
             }
           );
 
@@ -723,20 +775,16 @@ export const getExecuteSellV7Options: RouteOptions = {
               }
             }
 
-            // Do not fill X2Y2 and Seaport orders with flagged tokens
+            // Do not fill Seaport orders with flagged tokens
             if (
               [
-                "x2y2",
                 "seaport-v1.4",
                 "seaport-v1.5",
                 "seaport-v1.4-partial",
                 "seaport-v1.5-partial",
               ].includes(result.kind)
             ) {
-              if (
-                (tokenToSuspicious.has(item.token) && tokenToSuspicious.get(item.token)) ||
-                tokenResult.is_flagged
-              ) {
+              if (tokenResult.is_flagged) {
                 if (payload.partial) {
                   continue;
                 }
@@ -754,14 +802,17 @@ export const getExecuteSellV7Options: RouteOptions = {
               availableQuantity -= quantityFilled[result.id];
             }
 
-            // Account for the already filled maker's balance
             const maker = fromBuffer(result.maker);
             const currency = fromBuffer(result.currency);
-            const key = getMakerBalancesKey(maker, currency);
-            if (makerBalances[key]) {
-              const makerAvailableQuantity = makerBalances[key].div(result.price).toNumber();
-              if (makerAvailableQuantity < availableQuantity) {
-                availableQuantity = makerAvailableQuantity;
+
+            // Account for the already filled maker's balance (not needed for Blur orders)
+            if (result.kind !== "blur") {
+              const key = getMakerBalancesKey(maker, currency);
+              if (makerBalances[key]) {
+                const makerAvailableQuantity = makerBalances[key].div(result.price).toNumber();
+                if (makerAvailableQuantity < availableQuantity) {
+                  availableQuantity = makerAvailableQuantity;
+                }
               }
             }
 
@@ -800,9 +851,9 @@ export const getExecuteSellV7Options: RouteOptions = {
               continue;
             } else {
               if (makerEqualsTakerQuantity >= quantityToFill) {
-                throw Boom.badData("No fillable orders (taker cannot fill own orders)");
+                throw getExecuteError("No fillable orders (taker cannot fill own orders)");
               } else {
-                throw Boom.badData("Unable to fill requested quantity");
+                throw getExecuteError("Unable to fill requested quantity");
               }
             }
           }
@@ -810,7 +861,7 @@ export const getExecuteSellV7Options: RouteOptions = {
       }
 
       if (!path.length) {
-        throw Boom.badRequest("No fillable orders");
+        throw getExecuteError("No fillable orders");
       }
 
       // Include the global fees in the path
@@ -820,17 +871,42 @@ export const getExecuteSellV7Options: RouteOptions = {
         return { recipient, amount };
       });
 
+      if (payload.source) {
+        for (const globalFee of globalFees) {
+          await feeRecipients.getOrInsert(globalFee.recipient, payload.source, "marketplace");
+        }
+      }
+
       const ordersEligibleForGlobalFees = bidDetails
-        .filter((b) => !b.isProtected && b.source !== "blur.io")
+        .filter((b) => b.source !== "blur.io")
         .map((b) => b.orderId);
 
-      const addGlobalFee = async (item: (typeof path)[0], fee: Sdk.RouterV6.Types.Fee) => {
-        // Global fees get split across all eligible orders
-        const adjustedFeeAmount = bn(fee.amount).div(ordersEligibleForGlobalFees.length).toString();
+      const addGlobalFee = async (
+        detail: BidDetails,
+        item: (typeof path)[0],
+        fee: Sdk.RouterV6.Types.Fee
+      ) => {
+        // The fees should be relative to a single quantity
+        let feeAmount = bn(fee.amount).div(item.quantity).toString();
 
-        const itemGrossPrice = bn(item.rawQuote)
-          .add(item.builtInFees.map((f) => bn(f.rawAmount)).reduce((a, b) => a.add(b), bn(0)))
-          .add(item.feesOnTop.map((f) => bn(f.rawAmount)).reduce((a, b) => a.add(b), bn(0)));
+        // Global fees get split across all eligible orders
+        let adjustedFeeAmount = bn(feeAmount).div(ordersEligibleForGlobalFees.length).toString();
+
+        // If the item's currency is not the same with the sell-in currency
+        if (item.currency !== Sdk.Common.Addresses.WNative[config.chainId]) {
+          feeAmount = await getUSDAndCurrencyPrices(
+            Sdk.Common.Addresses.WNative[config.chainId],
+            item.currency,
+            feeAmount,
+            now()
+          ).then((p) => p.currencyPrice!);
+          adjustedFeeAmount = await getUSDAndCurrencyPrices(
+            Sdk.Common.Addresses.WNative[config.chainId],
+            item.currency,
+            adjustedFeeAmount,
+            now()
+          ).then((p) => p.currencyPrice!);
+        }
 
         const amount = formatPrice(
           adjustedFeeAmount,
@@ -839,21 +915,36 @@ export const getExecuteSellV7Options: RouteOptions = {
         );
         const rawAmount = bn(adjustedFeeAmount).toString();
 
+        // To avoid numeric overflow
+        const maxBps = 10000;
+        const bps = bn(feeAmount).mul(10000).div(item.rawQuote);
+
         item.feesOnTop.push({
           recipient: fee.recipient,
-          bps: bn(rawAmount).mul(10000).div(itemGrossPrice).toNumber(),
+          bps: bps.gt(maxBps) ? undefined : bps.toNumber(),
           amount,
           rawAmount,
         });
 
         // item.quote -= amount;
         // item.rawQuote = bn(item.rawQuote).sub(rawAmount).toString();
+
+        if (!detail.fees) {
+          detail.fees = [];
+        }
+        detail.fees.push({
+          recipient: fee.recipient,
+          amount: rawAmount,
+        });
       };
 
       for (const item of path) {
         if (globalFees.length && ordersEligibleForGlobalFees.includes(item.orderId)) {
           for (const f of globalFees) {
-            await addGlobalFee(item, f);
+            const detail = bidDetails.find((d) => d.orderId === item.orderId);
+            if (detail) {
+              await addGlobalFee(detail, item, f);
+            }
           }
         }
       }
@@ -873,6 +964,7 @@ export const getExecuteSellV7Options: RouteOptions = {
           orderIds?: string[];
           tip?: string;
           data?: object;
+          gasEstimate?: number;
         }[];
       }[] = [
         {
@@ -887,6 +979,20 @@ export const getExecuteSellV7Options: RouteOptions = {
           action: "Approve NFT contract",
           description:
             "Each NFT collection you want to trade requires a one-time approval transaction",
+          kind: "transaction",
+          items: [],
+        },
+        {
+          id: "pre-signatures",
+          action: "Sign data",
+          description: "Some exchanges require signing additional data before filling",
+          kind: "signature",
+          items: [],
+        },
+        {
+          id: "currency-permit",
+          action: "Permit currency",
+          description: "Some orders need a permit to be relayed on-chain before filling",
           kind: "transaction",
           items: [],
         },
@@ -921,7 +1027,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
 
         for (const [contract, orderIds] of Object.entries(contractsAndOrderIds)) {
-          const operator = Sdk.Blur.Addresses.ExecutionDelegate[config.chainId];
+          const operator = Sdk.BlurV2.Addresses.Delegate[config.chainId];
           const isApproved = await commonHelpers.getNftApproval(contract, payload.taker, operator);
           if (!isApproved) {
             missingApprovals.push({
@@ -980,6 +1086,11 @@ export const getExecuteSellV7Options: RouteOptions = {
               },
             });
 
+            // Remove any 'pre-signature' steps
+            if (bidDetails.every((d) => d.kind !== "payment-processor")) {
+              steps = steps.filter((s) => s.id !== "pre-signatures");
+            }
+
             // Force the client to poll
             steps[1].items.push({
               status: "incomplete",
@@ -1011,6 +1122,11 @@ export const getExecuteSellV7Options: RouteOptions = {
             });
           }
 
+          // Remove any 'pre-signature' steps
+          if (bidDetails.every((d) => d.kind !== "payment-processor")) {
+            steps = steps.filter((s) => s.id !== "pre-signatures");
+          }
+
           // Force the client to poll
           steps[2].items.push({
             status: "incomplete",
@@ -1022,15 +1138,19 @@ export const getExecuteSellV7Options: RouteOptions = {
             steps,
             path,
           };
+        } else {
+          steps[1].items.push({
+            status: "complete",
+          });
         }
       }
 
       // For some orders (OS protected and Blur), we need to ensure the taker owns the NFTs to get sold
       for (const d of bidDetails.filter((d) => d.isProtected || d.source === "blur.io")) {
-        const takerIsOwner = await idb.oneOrNone(
+        const ownershipResult = await idb.oneOrNone(
           `
             SELECT
-              1
+              floor(extract(epoch FROM acquired_at)) AS acquired_at
             FROM nft_balances
             WHERE nft_balances.contract = $/contract/
               AND nft_balances.token_id = $/tokenId/
@@ -1045,8 +1165,15 @@ export const getExecuteSellV7Options: RouteOptions = {
             owner: toBuffer(payload.taker),
           }
         );
-        if (!takerIsOwner) {
-          throw Boom.badRequest("Taker is not the owner of the token to sell");
+        if (!ownershipResult) {
+          throw getExecuteError("Taker is not the owner of the token to sell");
+        }
+        if (
+          d.source === "blur.io" &&
+          ownershipResult.acquired_at &&
+          ownershipResult.acquired_at >= now() - 30 * 60
+        ) {
+          throw getExecuteError("Accepting offers is disabled for this nft");
         }
       }
 
@@ -1054,6 +1181,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         openseaApiKey: payload.openseaApiKey,
         cbApiKey: config.cbApiKey,
+        zeroExApiKey: config.zeroExApiKey,
         orderFetcherBaseUrl: config.orderFetcherBaseUrl,
         orderFetcherMetadata: {
           apiKey: await ApiKeyManager.getApiKey(request.headers["x-api-key"]),
@@ -1071,7 +1199,6 @@ export const getExecuteSellV7Options: RouteOptions = {
         result = await router.fillBidsTx(bidDetails, payload.taker, {
           source: payload.source,
           partial: payload.partial,
-          globalFees,
           forceApprovalProxy,
           onError: async (kind, error, data) => {
             errors.push({
@@ -1087,13 +1214,25 @@ export const getExecuteSellV7Options: RouteOptions = {
         throw getExecuteError(error.message, errors);
       }
 
-      const { txs, success } = result;
+      const { preTxs, txs, success } = result;
 
       // Filter out any non-fillable orders from the path
       path = path.filter((p) => success[p.orderId]);
 
       if (!path.length) {
-        throw Boom.badRequest("No fillable orders");
+        throw getExecuteError("No fillable orders");
+      }
+
+      for (const preTx of preTxs) {
+        steps[3].items.push({
+          status: "incomplete",
+          orderIds: preTx.orderIds,
+          data: {
+            ...preTx.txData,
+            maxFeePerGas,
+            maxPriorityFeePerGas,
+          },
+        });
       }
 
       const approvals = txs.map(({ approvals }) => approvals).flat();
@@ -1116,15 +1255,60 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
       }
 
-      for (const { txData, orderIds } of txs) {
-        steps[2].items.push({
+      for (const { txData, txTags, orderIds, preSignatures } of txs) {
+        // Handle pre-signatures
+        const signaturesPaymentProcessor: string[] = [];
+        for (const preSignature of preSignatures) {
+          if (preSignature.kind === "payment-processor-take-order") {
+            const id = getPreSignatureId(request.payload as object, {
+              uniqueId: preSignature.uniqueId,
+            });
+
+            const cachedSignature = await getPreSignature(id);
+            if (cachedSignature) {
+              preSignature.signature = cachedSignature.signature;
+            } else {
+              await savePreSignature(id, preSignature);
+            }
+
+            const hasSignature = preSignature.signature;
+            if (hasSignature) {
+              signaturesPaymentProcessor.push(preSignature.signature!);
+              continue;
+            }
+
+            steps[2].items.push({
+              status: "incomplete",
+              data: {
+                sign: preSignature.data,
+                post: {
+                  endpoint: "/execute/pre-signature/v1",
+                  method: "POST",
+                  body: {
+                    id,
+                  },
+                },
+              },
+            });
+          }
+        }
+
+        if (signaturesPaymentProcessor.length && !steps[2].items.length) {
+          const exchange = new Sdk.PaymentProcessor.Exchange(config.chainId);
+          txData.data = exchange.attachTakerSignatures(txData.data, signaturesPaymentProcessor);
+        }
+
+        steps[4].items.push({
           status: "incomplete",
           orderIds,
-          data: {
-            ...txData,
-            maxFeePerGas,
-            maxPriorityFeePerGas,
-          },
+          data: !steps[2].items.length
+            ? {
+                ...txData,
+                maxFeePerGas,
+                maxPriorityFeePerGas,
+              }
+            : undefined,
+          gasEstimate: txTags ? estimateGasFromTxTags(txTags) : undefined,
         });
       }
 
@@ -1136,19 +1320,23 @@ export const getExecuteSellV7Options: RouteOptions = {
         // If we reached this point and the Blur auth is missing then we
         // can be sure that no Blur orders were requested and it is safe
         // to remove the auth step
-        steps = steps.slice(1);
+        steps = steps.filter((s) => s.id !== "auth");
+      }
+      if (!bidDetails.some((d) => d.kind === "payment-processor")) {
+        // For now, pre-signatures are only needed for `payment-processor` orders
+        steps = steps.filter((s) => s.id !== "pre-signatures");
       }
 
       const executionsBuffer = new ExecutionsBuffer();
       for (const item of path) {
-        const calldata = txs.find((tx) => tx.orderIds.includes(item.orderId))?.txData.data;
+        const txData = txs.find((tx) => tx.orderIds.includes(item.orderId))?.txData;
 
         let orderId = item.orderId;
-        if (calldata && item.source === "blur.io") {
+        if (txData && item.source === "blur.io") {
           // Blur bids don't have the correct order id so we have to override it
           const orders = await new Sdk.Blur.Exchange(config.chainId).getMatchedOrdersFromCalldata(
             baseProvider,
-            calldata
+            txData!.data
           );
 
           const index = orders.findIndex(
@@ -1166,10 +1354,10 @@ export const getExecuteSellV7Options: RouteOptions = {
           user: payload.taker,
           orderId,
           quantity: item.quantity,
-          calldata,
+          ...txData,
         });
       }
-      await executionsBuffer.flush();
+      const requestId = await executionsBuffer.flush();
 
       const perfTime2 = performance.now();
 
@@ -1183,21 +1371,37 @@ export const getExecuteSellV7Options: RouteOptions = {
         })
       );
 
+      const key = request.headers["x-api-key"];
+      const apiKey = await ApiKeyManager.getApiKey(key);
+      logger.info(
+        `get-execute-sell-${version}-handler`,
+        JSON.stringify({
+          request: payload,
+          apiKey,
+        })
+      );
+
       return {
+        requestId,
         steps: blurAuth ? [steps[0], ...steps.slice(1).filter((s) => s.items.length)] : steps,
         errors,
         path,
       };
     } catch (error) {
-      if (!(error instanceof Boom.Boom)) {
-        logger.error(
-          `get-execute-sell-${version}-handler`,
-          `Handler failure: ${error} (path = ${JSON.stringify({})}, request = ${JSON.stringify(
-            payload
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          )}, trace=${(error as any).stack})`
-        );
-      }
+      const key = request.headers["x-api-key"];
+      const apiKey = await ApiKeyManager.getApiKey(key);
+      logger.error(
+        `get-execute-sell-${version}-handler`,
+        JSON.stringify({
+          request: payload,
+          uuid: randomUUID(),
+          httpCode: error instanceof Boom.Boom ? error.output.statusCode : 500,
+          error:
+            error instanceof Boom.Boom ? error.output.payload : { error: "Internal Server Error" },
+          apiKey,
+        })
+      );
+
       throw error;
     }
   },

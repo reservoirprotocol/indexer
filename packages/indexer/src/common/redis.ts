@@ -1,5 +1,4 @@
 import { BulkJobOptions } from "bullmq";
-import { randomUUID } from "crypto";
 import Redis from "ioredis";
 import _ from "lodash";
 import Redlock from "redlock";
@@ -28,24 +27,17 @@ export const redisWebsocketPublisher = new Redis(config.redisWebsocketUrl, {
   enableReadyCheck: false,
 });
 
+export const redisWebsocketClient = new Redis(config.redisWebsocketUrl, {
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
+});
+
 // Rate limiter redis
 export const rateLimitRedis = new Redis(config.rateLimitRedisUrl, {
   maxRetriesPerRequest: 1,
   enableReadyCheck: false,
   enableOfflineQueue: false,
   commandTimeout: 600,
-});
-
-// Metric redis
-export const metricsRedis = new Redis(config.metricsRedisUrl, {
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-});
-
-// Orders book redis
-export const orderbookRedis = new Redis(config.orderbookRedisUrl, {
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
 });
 
 // All chains sync redis
@@ -62,6 +54,8 @@ export const allChainsSyncRedisSubscriber = new Redis(config.allChainsSyncRedisU
 // https://redis.io/topics/distlock
 export const redlock = new Redlock([redis.duplicate()], { retryCount: 0 });
 
+export const redlockAllChains = new Redlock([allChainsSyncRedis.duplicate()], { retryCount: 0 });
+
 // Common types
 
 export type BullMQBulkJob = {
@@ -72,21 +66,31 @@ export type BullMQBulkJob = {
 };
 
 export const acquireLock = async (name: string, expirationInSeconds = 0) => {
-  const id = randomUUID();
   let acquired;
 
   if (expirationInSeconds) {
-    acquired = await redis.set(name, id, "EX", expirationInSeconds, "NX");
+    acquired = await redis.set(name, "lock", "EX", expirationInSeconds, "NX");
   } else {
-    acquired = await redis.set(name, id, "NX");
+    acquired = await redis.set(name, "lock", "NX");
+  }
+
+  return acquired === "OK";
+};
+
+export const acquireLockCrossChain = async (name: string, expirationInSeconds = 0) => {
+  let acquired;
+
+  if (expirationInSeconds) {
+    acquired = await allChainsSyncRedis.set(name, "lock", "EX", expirationInSeconds, "NX");
+  } else {
+    acquired = await allChainsSyncRedis.set(name, "lock", "NX");
   }
 
   return acquired === "OK";
 };
 
 export const extendLock = async (name: string, expirationInSeconds: number) => {
-  const id = randomUUID();
-  const extended = await redis.set(name, id, "EX", expirationInSeconds, "XX");
+  const extended = await redis.set(name, "lock", "EX", expirationInSeconds, "XX");
   return extended === "OK";
 };
 
@@ -96,6 +100,10 @@ export const releaseLock = async (name: string) => {
 
 export const getLockExpiration = async (name: string) => {
   return await redis.ttl(name);
+};
+
+export const doesLockExist = async (name: string) => {
+  return Boolean(await redis.exists(name));
 };
 
 export const getMemUsage = async () => {

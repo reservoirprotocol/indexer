@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { fromBuffer } from "@/common/utils";
+import { formatEth, fromBuffer } from "@/common/utils";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 
@@ -25,13 +25,16 @@ export interface ActivityDocument extends BaseDocument {
   amount: number;
   pricing?: {
     price?: string;
+    priceDecimal?: number;
     currencyPrice?: string;
     usdPrice?: number;
     feeBps?: number;
     currency?: string;
     value?: string;
+    valueDecimal?: number;
     currencyValue?: string;
     normalizedValue?: string;
+    normalizedValueDecimal?: number;
     currencyNormalizedValue?: string;
   };
   event?: {
@@ -40,25 +43,53 @@ export interface ActivityDocument extends BaseDocument {
     logIndex: number;
     batchIndex: number;
     blockHash: string;
+    fillSourceId?: number;
+    washTradingScore: number;
   };
   token?: {
     id: string;
     name: string;
     image: string;
     media: string;
+    isSpam: boolean;
   };
   collection?: {
     id: string;
     name: string;
     image: string;
+    isSpam: boolean;
+    imageVersion: number;
   };
   order?: {
     id: string;
     side: string;
     sourceId: number;
     kind: string;
-    criteria: Record<string, unknown>;
+    criteria: {
+      kind: string;
+      data: {
+        attribute?: {
+          key: string;
+          value: string;
+        };
+        collection?: {
+          id: string;
+        };
+        token?: {
+          tokenId: string;
+        };
+      };
+    };
   };
+}
+
+export interface CollectionAggregation {
+  id: string;
+  name: string;
+  image: string;
+  primaryAssetContract: string;
+  count: number;
+  volume: number;
 }
 
 export interface BuildActivityData extends BuildDocumentData {
@@ -90,11 +121,20 @@ export interface BuildActivityData extends BuildDocumentData {
   event_tx_hash?: Buffer;
   event_log_index?: number;
   event_batch_index?: number;
+  event_fill_source_id?: number;
+  event_wash_trading_score?: number;
   order_id?: string | null;
   order_side?: string;
   order_source_id_int?: number;
   order_kind?: string;
-  order_criteria?: Record<string, unknown>;
+  collection_is_spam?: number | null;
+  collection_image_version?: number | null;
+  token_is_spam?: number | null;
+  order_criteria?: {
+    kind: string;
+    data: Record<string, unknown>;
+  };
+  created_ts: number;
 }
 
 export class ActivityBuilder extends DocumentBuilder {
@@ -104,6 +144,7 @@ export class ActivityBuilder extends DocumentBuilder {
     return {
       ...baseActivity,
       timestamp: data.timestamp,
+      createdAt: new Date(data.created_ts * 1000),
       type: data.type,
       fromAddress: fromBuffer(data.from),
       toAddress: data.to ? fromBuffer(data.to) : undefined,
@@ -112,6 +153,7 @@ export class ActivityBuilder extends DocumentBuilder {
       pricing: data.pricing_price
         ? {
             price: String(data.pricing_price),
+            priceDecimal: formatEth(data.pricing_price),
             currencyPrice: data.pricing_currency_price
               ? String(data.pricing_currency_price)
               : undefined,
@@ -119,13 +161,17 @@ export class ActivityBuilder extends DocumentBuilder {
             feeBps: data.pricing_fee_bps ?? undefined,
             currency: data.pricing_currency
               ? fromBuffer(data.pricing_currency)
-              : Sdk.Common.Addresses.Eth[config.chainId],
+              : Sdk.Common.Addresses.Native[config.chainId],
             value: data.pricing_value ? String(data.pricing_value) : undefined,
+            valueDecimal: data.pricing_value ? formatEth(data.pricing_value) : undefined,
             currencyValue: data.pricing_currency_value
               ? String(data.pricing_currency_value)
               : undefined,
             normalizedValue: data.pricing_normalized_value
               ? String(data.pricing_normalized_value)
+              : undefined,
+            normalizedValueDecimal: data.pricing_normalized_value
+              ? formatEth(data.pricing_normalized_value)
               : undefined,
             currencyNormalizedValue: data.pricing_currency_normalized_value
               ? String(data.pricing_currency_normalized_value)
@@ -139,6 +185,8 @@ export class ActivityBuilder extends DocumentBuilder {
             logIndex: data.event_log_index,
             batchIndex: data.event_batch_index,
             blockHash: fromBuffer(data.event_block_hash!),
+            fillSourceId: data.event_fill_source_id,
+            washTradingScore: data.event_wash_trading_score,
           }
         : undefined,
       token: data.token_id
@@ -147,6 +195,7 @@ export class ActivityBuilder extends DocumentBuilder {
             name: data.token_name,
             image: data.token_image,
             // media: data.token_media,
+            isSpam: Number(data.token_is_spam) > 0,
           }
         : undefined,
       collection: data.collection_id
@@ -154,6 +203,8 @@ export class ActivityBuilder extends DocumentBuilder {
             id: data.collection_id,
             name: data.collection_name,
             image: data.collection_image,
+            isSpam: Number(data.collection_is_spam) > 0,
+            imageVersion: data.collection_image_version,
           }
         : undefined,
       order: data.order_id
